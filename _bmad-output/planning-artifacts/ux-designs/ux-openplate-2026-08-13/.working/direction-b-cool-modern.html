@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Direction B — Cool Modern Utility</title>
+<style>
+/* ============================================================
+   DIRECTION B · COOL MODERN UTILITY
+   File: direction-b-cool-modern.html
+   Personality: crisp neo-2026 clean, near-monochrome, one accent.
+   ------------------------------------------------------------
+   PALETTE (hex)
+   --bg        #F7F7F5  cold off-white canvas
+   --card      #FFFFFF  hard card
+   --ink       #111214  near-black
+   --ink-soft  #6A6E73  grey secondary
+   --line      #E4E5E7  hairline border
+   --accent    #9DF04D  signal lime  (the ONE accent)
+   --accent-deep #6BC42B  pressed lime
+   veggies filled: --accent-lime #9DF04D when balanced,
+   otherwise --line (empty track)
+   FONT STACK
+   Inter, "SF Pro Text", -apple-system, "Segoe UI", Roboto,
+   Helvetica, Arial, sans-serif  (tight tracking)
+   Mono accents: ui-monospace, "SF Mono", "Cascadia Code", Menlo
+   ============================================================ */
+:root{
+  --bg:#F7F7F5; --card:#FFFFFF; --ink:#111214; --ink-soft:#6A6E73; --line:#E4E5E7;
+  --accent:#9DF04D; --accent-deep:#6BC42B;
+  --sans:"Inter","SF Pro Text",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);padding:40px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:600 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:12px}
+h1{font-size:32px;font-weight:700;letter-spacing:-.02em}
+.rationale{max-width:640px;margin-top:12px;font-size:15px;color:var(--ink-soft);line-height:1.6}
+.shelf{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.spec{max-width:1240px;margin:0 auto;padding-top:30px;font:400 13px/1.7 var(--mono);color:var(--ink-soft)}
+.capsule{width:370px;font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin:16px 0 6px}
+
+/* ---------- phone ---------- */
+.phone{width:370px;border-radius:40px;padding:10px;background:#111214;box-shadow:0 30px 60px -24px rgba(17,18,20,.5)}
+.screen{height:730px;border-radius:30px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:30px 18px 24px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- chrome ---------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 22px 0;font:600 11px/1 var(--sans);color:var(--ink-soft)}
+.titlebar{display:flex;justify-content:space-between;align-items:flex-end;margin:26px 2px 18px}
+.titlebar h2{font-size:26px;font-weight:700;letter-spacing:-.025em}
+.titlebar .mono{font:500 11px/1 var(--mono);color:var(--ink-soft)}
+.muteday{font:500 11px/1 var(--mono);letter-spacing:.08em;color:var(--accent-deep);margin-top:6px}
+
+/* ---------- plate card ---------- */
+.plate{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 0 rgba(17,18,20,.04),0 8px 20px -18px rgba(17,18,20,.4)}
+.platehead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.label{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.balance{font:600 11px/1 var(--mono);color:var(--accent-deep)}
+.balance::before{content:"● ";color:var(--accent)}
+.arcrow{display:flex;gap:14px;align-items:center}
+.ring{width:74px;height:74px;flex:none}
+.qty{font:600 11px/1 var(--mono);color:var(--ink-soft);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 9px;display:inline-block;margin-top:6px}
+.meal{font-size:15.5px;font-weight:650;letter-spacing:-.01em}
+.legend{flex:1}
+.metas{display:flex;gap:14px;margin-top:10px;font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.meta.done i{display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:2px;margin-right:5px}
+.meta.todo i{display:inline-block;width:8px;height:8px;border:1px solid var(--line);border-radius:2px;margin-right:5px}
+
+/* ---------- waiting dent ---------- */
+.waiting{border:1px dashed var(--line);background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px}
+.waiting .label{margin-bottom:12px;color:var(--ink)}
+.dentrow{display:flex;gap:14px;align-items:center}
+.dentring{width:74px;height:74px;flex:none}
+.dentblank{font-size:13px;color:var(--ink-soft);line-height:1.5}
+.dentblank b{color:var(--ink);font-weight:600}
+
+/* ---------- coach ---------- */
+.coach{margin:4px 2px 16px}
+.coach p{font-size:15px;font-weight:550;letter-spacing:-.01em;line-height:1.45}
+.coach p span{color:var(--accent-deep);font-weight:700}
+.coachbtns{display:flex;gap:8px;margin-top:12px}
+.btn{font:600 12px/1 var(--sans);letter-spacing:.02em;border:1px solid var(--ink);border-radius:8px;padding:12px 16px;cursor:pointer}
+.btn.sure{background:var(--accent);border-color:var(--accent-deep);color:#0E110A;font-weight:700;box-shadow:0 6px 14px -8px rgba(107,196,43,.8)}
+.btn.later{background:transparent;color:var(--ink-soft);border-color:var(--line)}
+.btn.later:hover{border-color:var(--ink)}
+
+/* ---------- week strip ---------- */
+.week{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px;padding-top:16px;border-top:1px solid var(--line)}
+.minis{display:flex;gap:5px}
+.mini{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--line)}
+.mini.on{background:var(--accent);border-color:var(--accent)}
+.weeklabel{font:600 12px/1.3 var(--sans);color:var(--ink-soft);text-align:right}
+.weeklabel b{color:var(--ink)}
+
+/* ---------- fab + footer ---------- */
+.fab{position:absolute;right:16px;bottom:118px;width:56px;height:56px;border-radius:16px;background:var(--ink);color:var(--accent);font:500 30px/1 var(--sans);display:flex;align-items:center;justify-content:center;box-shadow:0 14px 28px -10px rgba(17,18,20,.6)}
+.foot{margin-top:18px;text-align:center;font:500 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.foot b{color:var(--accent-deep)}
+
+/* ---------- capture sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:14px 18px 20px;box-shadow:0 -20px 50px -30px rgba(17,18,20,.6);animation:rise .3s ease-out both}
+@keyframes rise{from{transform:translateY(30px);opacity:.5}to{transform:none;opacity:1}}
+.grab{width:44px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 16px}
+.sheethead{display:flex;justify-content:space-between;align-items:center;font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.snap{
+  grid-column:1/-1;border-radius:12px;background:var(--ink);color:var(--card);
+  padding:20px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+}
+.snap .t b{font-size:21px;font-weight:750;letter-spacing:-.02em;display:block}
+.snap .t span{font:500 11px/1 var(--mono);color:rgba(255,255,255,.6)}
+.lens{margin-left:auto;width:52px;height:52px;border-radius:12px;background:var(--accent);position:relative}
+.lens::after{content:"";position:absolute;inset:12px;border-radius:50%;border:2px solid #0E110A;background:radial-gradient(circle at 40% 40%,#0E110A 0 3px,transparent 3px)}
+.subtile{border:1px solid var(--line);border-radius:12px;padding:14px 12px;cursor:pointer}
+.subtile b{font-size:13px;font-weight:650;display:block;letter-spacing:-.01em}
+.subtile span{font:500 10px/1.4 var(--mono);color:var(--ink-soft);display:block;margin-top:4px}
+.code {height:14px;margin-top:8px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px,var(--ink) 4px 5px,transparent 5px 8px);opacity:.5}
+
+/* ---------- variant: plate being added (viewfinder) ---------- */
+.veil{position:absolute;inset:0;background:rgba(10,10,10,.55);display:flex;flex-direction:column;justify-content:flex-end;padding:26px 20px 24px}
+.viewfinder{position:absolute;inset:110px 18px 170px;border:1px solid rgba(255,255,255,.5);border-radius:12px;background:repeating-linear-gradient(45deg,rgba(157,240,77,.06) 0 12px,transparent 12px 24px)}
+.viewfinder::before{content:"";position:absolute;left:0;right:0;top:45%;height:2px;background:var(--accent);animation:scan 2.4s ease-in-out infinite}
+@keyframes scan{0%,100%{opacity:.2}50%{opacity:.9}}
+.capturetag{font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.capturetag::after{content:" ●";animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Direction B</div>
+  <h1>Cool Modern Utility</h1>
+  <p class="rationale">Neo-2026 precision: near-monochrome, hairline borders, tight sans with mono callouts, and one signal-lime accent reserved for balance and action. The whole screen reads as a calm control panel — dense but never noisy, everything legible at a glance between the sauce pot and the kids.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ PHONE 1 · DAY BOARD ============ -->
+  <figure>
+    <div class="capsule">Day Board — 01 · dinner open</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>wifi · battery</span></div>
+        <div class="scroll">
+          <div class="titlebar">
+            <div>
+              <div class="muteday">TUE · DINNER PENDING</div>
+              <h2>One plate to go</h2>
+            </div>
+            <div class="mono">v0.4.2</div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Breakfast</span><span class="balance">3/4</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#D9DBD7" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists</span>
+              </div>
+            </div>
+            <div class="metas"><span class="meta done"><i></i>Veg &amp; fruit</span><span class="meta done"><i></i>Protein</span><span class="meta done"><i></i>Starch</span><span class="meta todo"><i></i>Dairy</span></div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Lunch</span><span class="balance">2/4</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#D9DBD7" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#D9DBD7" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Pasta · chicken · tomatoes</div>
+                <span class="qty">~2 fists</span>
+              </div>
+            </div>
+            <div class="metas"><span class="meta done"><i></i>Veg &amp; fruit</span><span class="meta done"><i></i>Protein</span><span class="meta todo"><i></i>Starch</span><span class="meta todo"><i></i>Dairy</span></div>
+          </div>
+
+          <div class="waiting">
+            <div class="label">Dinner — the day's last plate</div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#CFD1CC" stroke-width="13" stroke-dasharray="5 9" stroke-linecap="round" opacity=".8"/>
+                <circle cx="50" cy="50" r="4" fill="#B9BCB6"/>
+              </svg>
+              <div class="dentblank"><b>Empty, and that's fine.</b><br>Focus on greens — the arc will tell you when it's enough.</div>
+            </div>
+          </div>
+
+          <div class="coach">
+            <p>Greens would round this plate out <span>— want a 10-second suggestion?</span></p>
+            <div class="coachbtns">
+              <button class="btn sure">Sure</button>
+              <button class="btn later">Ask later</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="weeklabel">This week: <b>4 balanced days</b></div>
+          </div>
+
+          <div class="foot">Self-hosted · open source · your food, your machine</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 2 · CAPTURE SHEET ============ -->
+  <figure>
+    <div class="capsule">Capture — photo-first, monochrome sheet</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>wifi</span></div>
+        <div class="scroll" style="padding-bottom:120px">
+          <div class="titlebar"><h2 style="font-size:21px">Log dinner</h2></div>
+          <div class="waiting"><div class="label">Dinner — the day's last plate</div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#CFD1CC" stroke-width="13" stroke-dasharray="5 9" stroke-linecap="round"/></svg>
+              <div class="dentblank"><b>Pending.</b><br>One snapshot of the pan is enough.</div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheethead"><span>Log dinner</span><span>esc</span></div>
+          <div class="tiles">
+            <div class="snap">
+              <div class="t"><b>Snapshot</b><span>photo-first · no typing</span></div>
+              <div class="lens"></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>packaged side-dish</span><div class="code"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>hands full · voice friendly</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 3 · VARIANT: CAPTURING (VIEWFINDER) ============ -->
+  <figure>
+    <div class="capsule">Variant — frame in progress</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar" style="color:#9BA0A6"><span>9:41</span><span>wifi</span></div>
+        <div class="veil">
+          <div class="viewfinder"></div>
+          <div class="capturetag">Framing dinner · aim for the plate</div>
+          <div class="capturetag" style="color:rgba(255,255,255,.85)">Done when it feels right</div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+</section>
+
+<p class="spec"><b>Specs for this direction:</b> 12px card radius · 1px hairline borders · Inter tight (-0.025em) · mono uppercase micro-labels · one accent (lime #9DF04D) for balance fills, "sure", and the lens · motion reads instant/snappy · the empty plate is a grey dashed ring with a dot, never a red X.</p>
+
+</body>
+</html>

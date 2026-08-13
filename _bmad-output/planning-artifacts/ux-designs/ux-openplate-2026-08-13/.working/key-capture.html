@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Key Screen 2 — Capture sheet</title>
+<style>
+/* ============================================================
+   OPENPLATE · KEY SCREEN 2 · THE CAPTURE SHEET
+   File: key-capture.html
+
+   GOVERNING SPINE SECTIONS
+   EXPERIENCE.md — Component Patterns rows:
+     Capture sheet (Snapshot dominant / Scan a barcode /
+     Type or talk; quick-repeat re-shoot), Capture button,
+     Status chips (· pending / · all local)
+   EXPERIENCE.md — State Patterns rows:
+     Resolving (photo/barcode) — quiet inline shimmer, not a
+     spinner; program budgets ≤3s photo / ≤2s barcode (FR-1, FR-2);
+     Ambiguous food — closest matches then manual quantity,
+     never fails the log
+   EXPERIENCE.md — Interaction Primitives rows:
+     Capture fan-out, Ranked matches + quantity presets (manual/
+     voice), Quick-repeat re-shoot
+   EXPERIENCE.md — Flow steps:
+     UJ-1 steps 1–2 (fan-out, snap, resolve → matches fallback),
+     UJ-2 step 1 (barcode ≤2s), UJ-5 step 1 (Type or talk offline)
+   FR-13 line (memlog reconcile-fix): voice = speech-to-text
+   transcription of food names only — never voice-print, never
+   biometric. Accessibility floor 2 (announced states), 3
+   (reduced-motion collapses shimmer to fade).
+
+   GOVERNING ARTIFACTS
+   .working/direction-df-calm-selfhost.html  (sheet anatomy, tiles,
+     "A single snapshot is plenty.", subtiles, chip "· all local")
+   .working/color-themes-1.html              (Sage & Cream variation 1)
+   DESIGN.md   (capture-sheet component tokens, snapshot/subtile
+     colors, type stacks)
+   EXPERIENCE.md  (behavior rows cited above)
+   .memlog.md   (quiet inline shimmer not spinner; ≤3s/≤2s budgets;
+     ranked matches + qty presets)
+   ../prds/prd-openplate-2026-08-12/prd.md   (FR-1..3, FR-13, UJ-1/2/5)
+   ============================================================ */
+
+/* ---------------- Sage & Cream · variation 1 (locked) ---------------- */
+:root{
+  --canvas:#F6F3ED; --surface:#FDFCF9; --ink:#2C2A25; --muted:#716B5E;
+  --accent:#6E8376; --adeep:#54685C; --sage-tint:#E9ECE5;
+  --ok:#52705A; --warm:#A45B31; --hairline:#E2DCD0; --chip:#6F695C;
+  --tipjar:#8F5E2B; --danger:#B05A3C;
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EDEAE3;color:var(--ink);font-family:var(--sans);padding:44px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--adeep);margin-bottom:12px}
+h1{font-size:34px;font-weight:200;letter-spacing:.01em}
+.rationale{max-width:680px;margin-top:12px;font-size:15.5px;font-weight:300;line-height:1.7;color:var(--muted)}
+.rationale b{color:var(--adeep);font-weight:500}
+.shelf{display:flex;flex-wrap:wrap;gap:44px;justify-content:center;align-items:flex-start}
+
+/* ---------------- phone ---------------- */
+.phone{width:390px;border-radius:52px;padding:13px;background:#3A3A36;box-shadow:0 30px 60px -20px rgba(60,58,50,.45)}
+.capsule{font:500 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);text-align:center;margin:18px 0 6px}
+.mininote{margin-top:12px;text-align:center;font:400 10px/1.7 var(--mono);letter-spacing:.08em;color:#9A9488}
+.screen{height:820px;border-radius:38px;background:var(--canvas);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:36px 26px 28px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------------- chrome ---------------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 30px 0;font:400 12px/1 var(--sans);color:var(--muted)}
+.daymark{margin:30px 0 22px}
+.daymark .small{font:400 12px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--adeep)}
+.daymark h2{font-size:26px;font-weight:300;letter-spacing:-.005em;margin-top:10px;line-height:1.15}
+
+.chip{font:500 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--chip);border:1px solid var(--hairline);border-radius:5px;background:var(--surface);padding:3px 7px;display:inline-block;white-space:nowrap}
+.chip.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+
+/* ---------------- capture sheet (the one object that lifts) ----------------
+   Raised sheet: surface fill, hairline top rule, single soft shadow,
+   top corners {rounded.sheet-top} 34px (DESIGN.md). */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:34px 34px 0 0;border-top:1px solid var(--hairline);padding:18px 24px 30px;box-shadow:0 -24px 50px -24px rgba(60,58,50,.35);animation:rise .5s ease-out both}
+@keyframes rise{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--hairline);margin:0 auto 20px}
+.sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sheethead .quiet{font-size:15px;font-weight:300;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.snap{grid-column:1/-1;border-radius:28px;padding:26px 22px;cursor:pointer;color:var(--surface);display:flex;justify-content:space-between;align-items:center;background:var(--adeep)}
+.snap b{font-size:24px;font-weight:300;display:block;letter-spacing:.01em}
+.snap span{font:400 12px/1.6 var(--mono);opacity:.75}
+.lens{width:52px;height:52px;border-radius:50%;border:2px solid rgba(253,252,249,.7);position:relative;flex:none}
+.lens::after{content:"";position:absolute;inset:17px;border-radius:50%;background:var(--surface)}
+.subtile{border:1px solid var(--hairline);border-radius:24px;padding:20px 16px;cursor:pointer;background:var(--canvas)}
+.subtile b{font-size:15px;font-weight:400;display:block}
+.subtile span{font:400 11px/1.6 var(--mono);color:var(--muted);display:block;margin-top:6px}
+.subtile .fr13{font:400 9px/1.6 var(--mono);letter-spacing:.06em;color:#9A9488;display:block;margin-top:10px}
+.barcode{height:14px;margin-top:12px;background:repeating-linear-gradient(90deg,var(--adeep) 0 2px,transparent 2px 4px,var(--adeep) 4px 5px,transparent 5px 8px);opacity:.4;border-radius:2px}
+.reline{font:400 10px/1.6 var(--mono);color:#9A9488;text-align:center;margin:14px 0 4px}
+
+/* ---------------- alternate: resolve → closest matches → qty ----------------
+   Load-bearing "never failing" path (FR-1 consequence, UJ-1 edge).
+   Quiet inline shimmer for resolve; ranked matches then manual
+   quantity for the ambiguous food; voice = transcription only (FR-13). */
+.shimmer{position:relative;height:2px;border-radius:2px;background:var(--sage-tint);overflow:hidden;margin-top:14px}
+.shimmer::after{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.8s ease-in-out infinite;border-radius:2px}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(190%)}}
+
+.fshead{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 14px}
+.fshead .label{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.matchrow{display:flex;justify-content:space-between;align-items:baseline;padding:13px 2px;border-bottom:1px solid var(--hairline);cursor:pointer}
+.matchrow .name{font-size:16px;font-weight:400;letter-spacing:-.005em}
+.matchrow .qty{font:400 11.5px/1.5 var(--mono);color:var(--muted)}
+.matchrow.last{border-bottom:none}
+.pickdash{font-family:var(--serif);font-style:italic;font-size:15px;line-height:1.55;color:var(--ink);max-width:300px}
+.pickdash span{color:var(--adeep)}
+.presets{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.preset{font:400 12px/1 var(--mono);color:var(--chip);border:1px solid var(--hairline);border-radius:26px;background:var(--surface);padding:11px 15px;cursor:pointer}
+.preset.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+.logbtn{margin-top:24px;font:400 15px/1 var(--sans);border-radius:26px;background:var(--adeep);color:var(--surface);border:none;padding:16px 0;width:100%;cursor:pointer;min-height:48px}
+.privacy{margin-top:22px;font:400 9.5px/1.6 var(--mono);letter-spacing:.05em;color:#9A9488;text-align:center}
+.privacy b{color:var(--adeep);font-weight:500}
+@media (prefers-reduced-motion: reduce){.shimmer::after{animation:none;opacity:.35}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Key Screen 2 · 2026-08-13</div>
+  <h1>The Capture sheet — three doors, one record</h1>
+  <p class="rationale">From the <b>+</b> fab: Snapshot (dominant), Scan a barcode, Type or talk — three paths, one local Plate Log and the same Coach Note flow (FR-1/2/3). The load-bearing alternate walks the ambiguous-food path end to end: quiet resolve shimmer (photo ≤3s / barcode ≤2s budget) → <b>closest matches</b> → manual quantity. The log never fails.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ CANONICAL · THREE ENTRY MODES, SNAPSHOT FIRST ============ -->
+  <figure>
+    <div class="capsule">Canonical — fan-out from the +</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll" style="padding-bottom:120px">
+          <div class="daymark">
+            <div class="small">Dinner · the day's last plate</div>
+            <h2>Add, without trying</h2>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheethead">
+            <span class="quiet">A single snapshot is plenty.</span>
+            <span class="chip on">· all local</span>
+          </div>
+          <div class="tiles">
+            <div class="snap">
+              <div><b>Snapshot</b><span>photo-first · nothing to type</span></div>
+              <div class="lens"></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>for the packaged side</span><div class="barcode"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>hands full · just say it</span><span class="fr13">voice types food names only · no voice-print</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">voice = speech-to-text transcription only · never biometric (FR-13)</p>
+  </figure>
+
+  <!-- ============ ALTERNATE · RESOLVING → CLOSEST MATCHES → MANUAL QTY ============ -->
+  <figure>
+    <div class="capsule">Alternate — the ambiguous path, never failing</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll" style="padding-bottom:30px">
+          <div class="daymark">
+            <div class="small">Dinner · the day's last plate</div>
+            <h2>Add, without trying</h2>
+          </div>
+
+          <div class="reline">① resolve — quiet shimmer · photo ≤3s / barcode ≤2s</div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 14px">
+              <span style="font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Dinner</span>
+              <span style="display:flex;align-items:center;gap:10px"><span class="arcnote" style="font:400 11.5px/1 var(--mono);color:var(--adeep)">reading…</span><span class="chip">· pending</span></span>
+            </div>
+            <div style="font-size:19px;font-weight:400">Snapshot accepted</div>
+            <div class="grace" style="font-family:var(--serif);font-style:italic;font-size:14px;color:var(--adeep);margin-top:8px">The plate is settling — nothing leaves home.</div>
+            <div class="shimmer" aria-hidden="true"></div>
+          </div>
+
+          <div class="fshead">
+            <span class="label">Closest matches</span>
+            <span class="chip">· picked from your plate</span>
+          </div>
+          <div class="matchrow"><span class="name">Salmon fillet, cooked</span><span class="qty">~1 fist</span></div>
+          <div class="matchrow"><span class="name">Smoked salmon</span><span class="qty">~1 fist</span></div>
+          <div class="matchrow"><span class="name">Canned salmon</span><span class="qty">~1 fist</span></div>
+          <div class="matchrow last"><span class="name">Add your own</span><span class="qty">type a food</span></div>
+          <div class="coach" style="padding:18px 0 0">
+            <p class="pickdash">Pick the closest, or type your own — <span>the log never fails.</span></p>
+          </div>
+
+          <div class="fshead">
+            <span class="label">Quantity</span>
+          </div>
+          <div class="presets">
+            <span class="preset">a little</span>
+            <span class="preset on">~1 fist</span>
+            <span class="preset">~2 fists</span>
+          </div>
+          <button class="logbtn">Log this plate</button>
+
+          <div class="privacy">voice = transcription only · food names · <b>no voice-print</b> · nothing leaves the device</div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">closest matches → manual quantity · never a failed log (FR-1, UJ-1 edge) · no face/voice recognition anywhere</p>
+  </figure>
+
+</section>
+
+</body>
+</html>

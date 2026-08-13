@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Key Screen 1 — Day Board</title>
+<style>
+/* ============================================================
+   OPENPLATE · KEY SCREEN 1 · THE DAY BOARD
+   File: key-day-board.html
+
+   GOVERNING SPINE SECTIONS
+   EXPERIENCE.md — Component Patterns rows:
+     Plate row, Balance arc, Coach whisper (both anchors:
+     post-resolve + open-plate hint), Status chips, Week strip,
+     Capture button, Footmark
+   EXPERIENCE.md — State Patterns rows:
+     Partial day (post-resolve whisper + open-plate hint),
+     Balanced day (week dots fill sage), Offline / pending /
+     synced (alternate section: resolve shimmer + ·syncing→·synced
+     flip chip, never a spinner)
+   EXPERIENCE.md — Flow steps:
+     UJ-1 steps 3–5 (plate lands, post-resolve whisper = SM-2
+     climax, dismiss quietly), UJ-5 (alternate: pending chip,
+     sync flip on reconnection)
+   Accessibility Floor 1–4: 48px targets, arc announced as food
+   groups, reduced-motion flips to fade/final state.
+
+   GOVERNING ARTIFACTS
+   .working/direction-df-calm-selfhost.html   (layout language, chip
+     flip, dent, whisper anchors, footmark)
+   .working/color-themes-1.html               (Sage & Cream variation 1,
+     light + dark; dark sage-tint via color-mix per DESIGN.md note)
+   DESIGN.md   (tokens + type stacks applied exactly)
+   EXPERIENCE.md  (behavior rows cited above)
+   .memlog.md   (locked decisions: two-whisper model, no spinner,
+     dark mode in v1)
+   ../prds/prd-openplate-2026-08-12/prd.md   (FR-4/FR-5 whisper
+     copy, UJ-1, UJ-5)
+   ============================================================ */
+
+/* ---------------- Sage & Cream · variation 1 (locked) ----------------
+   Light: canvas #F6F3ED · surface #FDFCF9 · ink #2C2A25 ·
+          muted #716B5E · accent #6E8376 · sage-deep #54685C ·
+          sage-tint #E9ECE5 · ok #52705A · warm #A45B31 ·
+          hairline #E2DCD0 · chip #6F695C · tipjar #8F5E2B
+   Dark:  canvas #221F1B · surface #2C2924 · ink #EDE9DF ·
+          muted #9D9688 · accent #8FA68B · sage-deep #A9BCA0 ·
+          ok #7FA37F · warm #D2A070 · hairline #3B372F ·
+          chip #8E8778 · tipjar #D29652
+   (text hexes are the AA-normal recomputed set per memlog F2) */
+:root{
+  --canvas:#F6F3ED; --surface:#FDFCF9; --ink:#2C2A25; --muted:#716B5E;
+  --accent:#6E8376; --adeep:#54685C; --sage-tint:#E9ECE5;
+  --ok:#52705A; --warm:#A45B31; --hairline:#E2DCD0; --chip:#6F695C;
+  --tipjar:#8F5E2B; --danger:#B05A3C;
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EDEAE3;color:var(--ink);font-family:var(--sans);padding:44px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--adeep);margin-bottom:12px}
+h1{font-size:34px;font-weight:200;letter-spacing:.01em}
+.rationale{max-width:680px;margin-top:12px;font-size:15.5px;font-weight:300;line-height:1.7;color:var(--muted)}
+.rationale b{color:var(--adeep);font-weight:500}
+.shelf{display:flex;flex-wrap:wrap;gap:44px;justify-content:center;align-items:flex-start}
+
+/* ---------------- phone device frame ---------------- */
+.phone{width:390px;border-radius:52px;padding:13px;background:#3A3A36;box-shadow:0 30px 60px -20px rgba(60,58,50,.45)}
+.capsule{font:500 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);text-align:center;margin:18px 0 6px}
+.mininote{margin-top:12px;text-align:center;font:400 10px/1.7 var(--mono);letter-spacing:.08em;color:#9A9488}
+.screen{height:820px;border-radius:38px;background:var(--canvas);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:36px 26px 28px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------------- chrome: almost none ---------------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 30px 0;font:400 12px/1 var(--sans);color:var(--muted)}
+
+/* ---------------- day marker + the F hairline ---------------- */
+.daymark{margin:30px 0 28px}
+.daymark .small{font:400 12px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--adeep)}
+.daymark h2{font-size:34px;font-weight:300;letter-spacing:-.005em;margin-top:10px;line-height:1.15}
+.daymark h2 .done{color:var(--muted)}
+.hairline{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px;padding-top:13px;border-top:1px solid var(--hairline)}
+.hairline .mono{font:400 10px/1 var(--mono);letter-spacing:.08em;color:#9A9488}
+
+/* ---------------- the F status chip ---------------- */
+.chip{font:500 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--chip);border:1px solid var(--hairline);border-radius:5px;background:var(--surface);padding:3px 7px;display:inline-block;white-space:nowrap}
+.chip.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+
+/* ---------------- plate = hairline rules only, no cards ---------------- */
+.plate{padding:6px 0 22px;border-bottom:1px solid var(--hairline)}
+.plate.justlogged{padding-bottom:2px}
+.platehead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}
+.platehead .label{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.platehead .right{display:flex;align-items:center;gap:10px}
+.platehead .arcnote{font:400 11.5px/1 var(--mono);color:var(--adeep)}
+.arcrow{display:flex;gap:22px;align-items:center}
+.ring{width:84px;height:84px;flex:none}
+.ring.big{width:96px;height:96px}
+.legend .meal{font-size:19px;font-weight:400;letter-spacing:-.005em}
+.legend .qty{font:400 12.5px/1.5 var(--mono);color:var(--muted);display:block;margin-top:8px}
+.legend .grace{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--adeep);margin-top:8px}
+
+/* ---------------- the dent (open plate) ---------------- */
+.waiting{padding:6px 0 22px;border-bottom:1px solid var(--hairline)}
+.dentrow{display:flex;gap:22px;align-items:center}
+.dentring{width:84px;height:84px;flex:none}
+.dentblank .big{font-size:20px;font-weight:300;line-height:1.35}
+.dentblank .small{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--muted);margin-top:6px}
+
+/* ---------------- coach whisper (serif italic, D only) ---------------- */
+.coach{padding:20px 0 26px}
+.coach p{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.6;color:var(--ink);max-width:300px}
+.coach p span{color:var(--adeep)}
+.coachbtns{display:flex;gap:12px;margin-top:20px}
+.btn{font:400 14px/1 var(--sans);border-radius:26px;padding:13px 22px;cursor:pointer;border:1px solid transparent;min-height:48px}
+.btn.sure{background:var(--adeep);color:var(--surface)}
+.btn.later{background:transparent;color:var(--warm);border-color:var(--hairline)}
+
+/* ---------------- week strip ---------------- */
+.week{padding:26px 0 4px}
+.week .lead{font-size:15px;font-weight:300;color:var(--ink);margin-bottom:16px}
+.week .lead b{font-weight:500;color:var(--ok)}
+.minis{display:flex;gap:9px}
+.mini{width:30px;height:30px;border-radius:50%;border:1px solid var(--hairline);background:transparent;cursor:pointer}
+.mini.on{background:var(--accent);border-color:var(--accent)}
+.week .whisper{font:400 9.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#9A9488;margin-top:12px}
+
+/* ---------------- fab + foot ---------------- */
+.fab{position:absolute;right:20px;bottom:118px;width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--surface);font:300 32px/1 var(--sans);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 30px -14px rgba(84,104,92,.6);cursor:pointer}
+.foot{margin-top:26px;text-align:center;font:400 10px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.foot b{color:var(--adeep);font-weight:500}
+
+/* ---------------- alternate: resolve shimmer + sync flip ----------------
+   Quiet inline shimmer, never a spinner (decision record). The chip
+   flips ·syncing → ·synced (CSS only); reduce-motion skips to final. */
+.shimmer{position:relative;height:2px;border-radius:2px;background:var(--sage-tint);overflow:hidden;margin-top:14px}
+.shimmer::after{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.8s ease-in-out infinite;border-radius:2px}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(190%)}}
+.flip{position:relative;display:inline-block;height:20px;width:70px;border:1px solid rgba(84,104,92,.3);border-radius:5px;background:var(--sage-tint);overflow:hidden;perspective:100px;text-align:center}
+.flip .s1,.flip .s2{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--adeep);transform-style:preserve-3d}
+.flip .s1{animation:flipA 6s ease-in-out infinite}
+.flip .s2{animation:flipB 6s ease-in-out infinite}
+@keyframes flipA{0%,28%{transform:rotateX(0);opacity:1}36%{transform:rotateX(-88deg);opacity:0}100%{transform:rotateX(-88deg);opacity:0}}
+@keyframes flipB{0%,28%{transform:rotateX(88deg);opacity:0}36%{transform:rotateX(0);opacity:1}100%{transform:rotateX(0);opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .flip .s1{animation:none;opacity:0}
+  .flip .s2{animation:none;opacity:1}
+  .shimmer::after{animation:none;opacity:.35}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Key Screen 1 · 2026-08-13</div>
+  <h1>The Day Board — one still day</h1>
+  <p class="rationale">The canonical calm room. Breakfast was just logged, so the two whispers are both live: the <b>post-resolve whisper</b> under the just-logged plate (the SM-2 learning moment) and the <b>open-plate hint</b> under the next empty plate — "what's missing and why", asked, never told. Hairlines divide plates, the week is a tap-a-day strip (no report), and F whispers at 9.5px mono.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ CANONICAL · PARTIAL DAY, TWO WHISPERS ============ -->
+  <figure>
+    <div class="capsule">Canonical — the two-whisper model</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="daymark">
+            <div class="small">Today · Wednesday · warm light</div>
+            <h2>Wed · breakfast <span class="done">done</span></h2>
+            <div class="hairline">
+              <span class="mono">openplate · v0.4.2</span>
+              <span class="chip">· local</span>
+            </div>
+          </div>
+
+          <div class="plate justlogged">
+            <div class="platehead">
+              <span class="label">Breakfast</span>
+              <span class="right"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span>
+            </div>
+            <div class="arcrow">
+              <svg class="ring big" viewBox="0 0 100 100" role="img" aria-label="Breakfast balance: vegetables and fruit present, protein missing, starch present, dairy present">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists · gentle</span>
+                <div class="grace">A soft start, remembered.</div>
+              </div>
+            </div>
+            <div class="coach">
+              <p>Nice balance — two colors of veg, lean protein. <span>Want the fiber breakdown?</span></p>
+              <div class="coachbtns">
+                <button class="btn sure">Sure</button>
+                <button class="btn later">Ask later</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="waiting">
+            <div class="platehead">
+              <span class="label">Lunch</span>
+              <span class="chip">· open</span>
+            </div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-dasharray="3 12" stroke-linecap="round" opacity=".45"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13" opacity=".9"/>
+                <circle cx="50" cy="50" r="5" fill="var(--accent)" opacity=".3"/>
+              </svg>
+              <div class="dentblank">
+                <div class="big">An open, quiet place.</div>
+                <div class="small">Nothing to fix — only to add, if you like.</div>
+              </div>
+            </div>
+            <div class="coach">
+              <p>Greens would round this plate out <span>— want a 10-second suggestion?</span></p>
+              <div class="coachbtns">
+                <button class="btn sure">Sure</button>
+                <button class="btn later">Ask later</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="lead">This week: <b>4 balanced days</b></div>
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="whisper">no streaks · no countdowns · no guilt</div>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+    <p class="mininote">post-resolve whisper = the SM-2 learning moment · open-plate hint asks "what's missing and why"</p>
+  </figure>
+
+  <!-- ============ ALTERNATE · SYNCING STATE, SHIMMER NOT SPINNER ============ -->
+  <figure>
+    <div class="capsule">Alternate — the syncing state</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="daymark">
+            <div class="small">Today · Wednesday · warm light</div>
+            <h2>Wed · breakfast <span class="done">done</span></h2>
+            <div class="hairline">
+              <span class="mono">openplate · v0.4.2</span>
+              <span class="flip"><span class="s1">· syncing</span><span class="s2">· synced</span></span>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead">
+              <span class="label">Breakfast</span>
+              <span class="right"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span>
+            </div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Breakfast balance: vegetables and fruit present, protein missing, starch present, dairy present">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists · gentle</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate" style="border:none">
+            <div class="platehead">
+              <span class="label">Lunch — the day's next plate</span>
+              <span class="right"><span class="arcnote">reading…</span><span class="chip">· pending</span></span>
+            </div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="Lunch is resolving">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="188.4 251" stroke-dashoffset="-0"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Snapshot accepted</div>
+                <div class="grace">The plate is settling — nothing leaves home.</div>
+              </div>
+            </div>
+            <div class="shimmer" aria-hidden="true"></div>
+          </div>
+
+          <div class="coach">
+            <p>And that's the day <span>— settled, not scored.</span></p>
+          </div>
+
+          <div class="week">
+            <div class="lead">This week: <b>4 balanced days</b></div>
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="whisper">no streaks · no countdowns · no guilt</div>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b> · kept local</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+    <p class="mininote">resolve = quiet inline shimmer, not a spinner · the mono chip loops · syncing → · synced · css only · reduce-motion skips to the final state</p>
+  </figure>
+
+</section>
+
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Color Themes 1 — Five ways to stay calm</title>
+<style>
+/* ============================================================
+   OPENPLATE · COLOR THEMES 1 — a picker, not a redesign.
+   Every register keeps the LOCKED "Calm Coach" direction:
+   no cards, one quiet accent, big type, hairline rules,
+   serif-italic coach whisper, tiny mono chips. Only the skin
+   changes. Light + dark in scope for every theme.
+   ============================================================ */
+
+/* ============================================================
+   01 · SAGE & CREAM — calm natural (front-runner)
+   LIGHT  canvas #F6F3ED · surface #FDFCF9 · ink #2C2A25 ·
+          muted #8B8577 · sage #6E8376 · sage-deep #54685C ·
+          success #5E7F63 · warm #C1885C · danger #B05A3C ·
+          hairline #E2DCD0 · chip #857F70 · tipjar #B0793F
+   DARK   canvas #221F1B · surface #2C2924 · ink #EDE9DF ·
+          muted #9D9688 · sage #8FA68B · sage-deep #A9BCA0 ·
+          success #7FA37F · warm #D2A070 · danger #C96F4C ·
+          hairline #3B372F · chip #8E8778 · tipjar #D29652
+   Register: warm paper, muted sage, deep warm charcoal.
+   Dark = warm ink canvas with a sage glow.
+   ============================================================ */
+.ui.sc1-l{--canvas:#F6F3ED;--surface:#FDFCF9;--ink:#2C2A25;--muted:#8B8577;--accent:#6E8376;--adeep:#54685C;--ok:#5E7F63;--warm:#C1885C;--danger:#B05A3C;--hairline:#E2DCD0;--chip:#857F70;--tipjar:#B0793F}
+.ui.sc1-d{--canvas:#221F1B;--surface:#2C2924;--ink:#EDE9DF;--muted:#9D9688;--accent:#8FA68B;--adeep:#A9BCA0;--ok:#7FA37F;--warm:#D2A070;--danger:#C96F4C;--hairline:#3B372F;--chip:#8E8778;--tipjar:#D29652}
+
+/* ============================================================
+   02 · WARM MINERAL / TERRACOTTA-SAGE — Mediterranean kitchen
+   LIGHT  canvas #F5EEE4 · surface #FCF8F1 · ink #2E2820 ·
+          muted #8D7E68 · sage #7C8A5A · sage-deep #5F6A42 ·
+          success #6E8B46 · warm #C0693F · danger #B04E36 ·
+          hairline #E6DAC6 · chip #8B7B62 · tipjar #B47A33
+   DARK   canvas #262019 · surface #312A21 · ink #F1EADB ·
+          muted #A6977E · sage #97A568 · sage-deep #B2C07F ·
+          success #88A253 · warm #D07A4C · danger #C65A40 ·
+          hairline #423A2D · chip #9E8F74 · tipjar #C9903F
+   Register: more pigment — terracotta and amber beside the sage.
+   ============================================================ */
+.ui.sc2-l{--canvas:#F5EEE4;--surface:#FCF8F1;--ink:#2E2820;--muted:#8D7E68;--accent:#7C8A5A;--adeep:#5F6A42;--ok:#6E8B46;--warm:#C0693F;--danger:#B04E36;--hairline:#E6DAC6;--chip:#8B7B62;--tipjar:#B47A33}
+.ui.sc2-d{--canvas:#262019;--surface:#312A21;--ink:#F1EADB;--muted:#A6977E;--accent:#97A568;--adeep:#B2C07F;--ok:#88A253;--warm:#D07A4C;--danger:#C65A40;--hairline:#423A2D;--chip:#9E8F74;--tipjar:#C9903F}
+
+/* ============================================================
+   03 · COOL SEAFOAM / MIST — near-monochrome, spa-like
+   LIGHT  canvas #EEF3F0 · surface #F9FBF9 · ink #253029 ·
+          muted #7E8B84 · sage #5F8070 · sage-deep #476354 ·
+          success #4E7E62 · warm #B58A6D · danger #A2624C ·
+          hairline #DCE5DF · chip #74827A · tipjar #8F7A54
+   DARK   canvas #151F1B · surface #1E2B26 · ink #DCEAE3 ·
+          muted #8AA097 · sage #6F9584 · sage-deep #8BB5A1 ·
+          success #62A184 · warm #C79A75 · danger #C87C62 ·
+          hairline #2C3B35 · chip #7D948B · tipjar #A98D63
+   Register: cool gray-green sage, one dusty warm note, deep blue-green dark.
+   ============================================================ */
+.ui.sc3-l{--canvas:#EEF3F0;--surface:#F9FBF9;--ink:#253029;--muted:#7E8B84;--accent:#5F8070;--adeep:#476354;--ok:#4E7E62;--warm:#B58A6D;--danger:#A2624C;--hairline:#DCE5DF;--chip:#74827A;--tipjar:#8F7A54}
+.ui.sc3-d{--canvas:#151F1B;--surface:#1E2B26;--ink:#DCEAE3;--muted:#8AA097;--accent:#6F9584;--adeep:#8BB5A1;--ok:#62A184;--warm:#C79A75;--danger:#C87C62;--hairline:#2C3B35;--chip:#7D948B;--tipjar:#A98D63}
+
+/* ============================================================
+   04 · OLIVE & LINEN — editorial, type-forward
+   LIGHT  canvas #F2EFE6 · surface #FAF8F1 · ink #20211D ·
+          muted #7C796C · sage #7D8450 · sage-deep #5E6538 ·
+          success #5F7B3D · warm #B0823F · danger #A34F35 ·
+          hairline #DFDBC9 · chip #88836F · tipjar #96702F
+   DARK   canvas #1F1F1B · surface #282825 · ink #EFEDE2 ·
+          muted #A29E8C · sage #9BA368 · sage-deep #B5BC80 ·
+          success #85A155 · warm #C89B59 · danger #C96E4F ·
+          hairline #3A3930 · chip #9A957F · tipjar #B2873B
+   Register: desaturated olive, warm linen neutrals, high-contrast ink.
+   ============================================================ */
+.ui.sc4-l{--canvas:#F2EFE6;--surface:#FAF8F1;--ink:#20211D;--muted:#7C796C;--accent:#7D8450;--adeep:#5E6538;--ok:#5F7B3D;--warm:#B0823F;--danger:#A34F35;--hairline:#DFDBC9;--chip:#88836F;--tipjar:#96702F}
+.ui.sc4-d{--canvas:#1F1F1B;--surface:#282825;--ink:#EFEDE2;--muted:#A29E8C;--accent:#9BA368;--adeep:#B5BC80;--ok:#85A155;--warm:#C89B59;--danger:#C96E4F;--hairline:#3A3930;--chip:#9A957F;--tipjar:#B2873B}
+
+/* ============================================================
+   05 · STONE & SAGE — self-host, the F-whisper taken further
+   LIGHT  canvas #EEEDEB · surface #F9F8F6 · ink #26272A ·
+          muted #82848A · sage #6D8377 · sage-deep #54675C ·
+          success #5C7B64 · warm #A5875C · danger #A45E4A ·
+          hairline #DCDBD8 · chip #6F7177 · tipjar #8F7A54
+   DARK   canvas #1B1C1E · surface #242528 · ink #E8E9EB ·
+          muted #90939A · sage #7E968A · sage-deep #96AD9F ·
+          success #6D8A75 · warm #B28F62 · danger #C26B54 ·
+          hairline #333438 · chip #7C7F85 · tipjar #A88B58
+   Register: neutral stone, hairline-dense, mono chips more visible.
+   ============================================================ */
+.ui.sc5-l{--canvas:#EEEDEB;--surface:#F9F8F6;--ink:#26272A;--muted:#82848A;--accent:#6D8377;--adeep:#54675C;--ok:#5C7B64;--warm:#A5875C;--danger:#A45E4A;--hairline:#DCDBD8;--chip:#6F7177;--tipjar:#8F7A54}
+.ui.sc5-d{--canvas:#1B1C1E;--surface:#242528;--ink:#E8E9EB;--muted:#90939A;--accent:#7E968A;--adeep:#96AD9F;--ok:#6D8A75;--warm:#B28F62;--danger:#C26B54;--hairline:#333438;--chip:#7C7F85;--tipjar:#A88B58}
+
+/* ---------------- page chrome ---------------- */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+body{background:#EFEDE8;color:#2C2A25;font-family:var(--sans);padding:56px 44px 80px}
+.pagehead{max-width:1400px;margin:0 auto 14px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:#6E8376;margin-bottom:16px}
+h1{font-size:42px;font-weight:200;letter-spacing:.005em}
+.rationale{max-width:820px;margin-top:14px;font-size:15.5px;font-weight:300;line-height:1.7;color:#7B766B}
+.rationale b{color:#54685C;font-weight:500}
+.hint{margin:18px 0 40px;font:400 11.5px/1.6 var(--mono);letter-spacing:.06em;color:#A39D90}
+
+/* ---------------- shelf: one column per theme ---------------- */
+.shelf{display:flex;gap:36px;align-items:flex-start;overflow-x:auto;padding:4px 4px 34px}
+.theme{flex:0 0 376px}
+.thead{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.num{font:500 11px/1 var(--mono);color:#A39D90;letter-spacing:.1em}
+.thead h2{font-size:26px;font-weight:300;letter-spacing:-.01em}
+.reg{margin:2px 0 22px;font-size:13px;font-weight:300;line-height:1.55;color:#7B766B}
+.tokens{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tlabel{flex:0 0 100%;font:500 9.5px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:#A39D90;margin:2px 0 7px}
+.tok{display:inline-flex;align-items:center;gap:6px;border:1px solid #E0DCD2;background:#FBFAF7;border-radius:5px;padding:4px 8px;font:400 9.5px/1 var(--mono);color:#6E6A60}
+.tok i{width:11px;height:11px;border-radius:3px;border:1px solid rgba(0,0,0,.12);flex:none}
+.tok i.m{background:linear-gradient(135deg,#F6F3ED 50%,#221F1B 50%)}
+.tok b{font-weight:500;color:#444139}
+.tok em{font-style:normal;color:#A39D90}
+
+/* ---------------- mode blocks ---------------- */
+.mode{margin-top:14px}
+.mtag{display:flex;align-items:center;gap:8px;margin:0 0 10px 4px;font:500 9.5px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:#8F897C}
+.mtag::after{content:"";flex:1;height:1px;background:#E2DDD3}
+
+/* ---------------- the day-board snippet (CSS-var driven) ---------------- */
+.ui{position:relative;border-radius:24px;padding:28px 26px 76px;background:var(--canvas);border:1px solid var(--hairline);color:var(--ink)}
+.ui .meta{font:500 10.5px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--adeep)}
+.ui .day h3{font-size:27px;font-weight:300;letter-spacing:-.01em;margin-top:10px}
+.ui .day h3 .done{color:var(--muted)}
+.ui .hair{display:flex;justify-content:space-between;align-items:baseline;margin-top:18px;padding-top:12px;border-top:1px solid var(--hairline)}
+.ui .hair .mono{font:400 9.5px/1 var(--mono);letter-spacing:.08em;color:var(--muted)}
+.chip{font:500 9px/1 var(--mono);letter-spacing:.05em;color:var(--chip);border:1px solid var(--hairline);border-radius:5px;background:var(--surface);padding:3px 6px;display:inline-block;white-space:nowrap}
+.chip.on{color:var(--adeep);border-color:color-mix(in srgb,var(--accent) 30%,transparent);background:color-mix(in srgb,var(--accent) 12%,var(--canvas))}
+.ui .plate{padding:22px 0 4px;border-bottom:1px solid var(--hairline)}
+.ui .phead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.ui .label{font:500 10.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.ui .pright{display:flex;align-items:center;gap:9px}
+.ui .arcnote{font:400 10.5px/1 var(--mono);color:var(--adeep)}
+.ui .row{display:flex;gap:18px;align-items:center}
+.ring{width:70px;height:70px;flex:none}
+.ring circle{fill:none;stroke-width:13}
+.ring .trk{stroke:var(--hairline)}
+.ring .fill{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:75 25;transform:rotate(-90deg);transform-origin:50% 50%}
+.ui .meal{font-size:17px;font-weight:400;letter-spacing:-.005em}
+.ui .qty{font:400 10.5px/1.5 var(--mono);color:var(--muted);display:block;margin-top:5px}
+.ui .grace{font-family:var(--serif);font-style:italic;font-size:12.5px;color:var(--adeep);margin-top:6px}
+.ui .coach{padding:20px 0 6px}
+.ui .coach p{font-family:var(--serif);font-style:italic;font-size:15.5px;line-height:1.55;color:var(--ink);max-width:290px}
+.ui .coach p span{color:var(--adeep)}
+.ui .btns{display:flex;gap:10px;margin-top:16px}
+.ui .btn{font:400 13px/1 var(--sans);border-radius:22px;padding:11px 18px;cursor:pointer;border:1px solid transparent}
+.ui .btn.sure{background:var(--adeep);color:var(--canvas)}
+.ui .btn.later{background:transparent;color:var(--warm);border-color:var(--hairline)}
+.ui .week{padding:20px 0 6px}
+.ui .wlead{font-size:13.5px;font-weight:300;color:var(--ink);margin-bottom:14px}
+.ui .wlead b{font-weight:500;color:var(--ok)}
+.ui .minis{display:flex;gap:8px}
+.ui .mini{width:25px;height:25px;border-radius:50%;border:1px solid var(--hairline);background:transparent}
+.ui .mini.on{background:var(--accent);border-color:var(--accent)}
+.ui .wmono{font:400 9px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:12px}
+.ui .fab{position:absolute;right:20px;bottom:22px;width:54px;height:54px;border-radius:50%;background:var(--accent);color:var(--canvas);font:300 30px/1 var(--sans);display:flex;align-items:center;justify-content:center;box-shadow:0 16px 26px -14px color-mix(in srgb,var(--adeep) 60%,transparent)}
+.ui .foot{position:absolute;left:0;right:0;bottom:30px;text-align:center;font:400 9px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.ui .foot b{color:var(--adeep);font-weight:500}
+
+.trail{margin-top:40px;max-width:1400px;font:400 11px/1.8 var(--mono);letter-spacing:.05em;color:#A39D90}
+.trail b{color:#7B766B;font-weight:500}
+</style>
+</head>
+<body>
+
+<header class="pagehead">
+  <div class="kicker">OpenPlate · Color Themes 1 · 2026-08-13</div>
+  <h1>Five ways to stay calm</h1>
+  <p class="rationale">A picker, not a redesign. Every register keeps the locked <b>Calm Coach</b> direction — no cards, one quiet accent, large type, hairline rules, the serif-italic coach whisper, tiny mono chips — only the <b>skin</b> changes. Light and dark are both in scope for each theme, because the evening kitchen and offline use are real OpenPlate moments.</p>
+  <p class="hint">each column = a register · lift hex from the token chips below, or from the comment block at the top of each theme's CSS</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ 01 · SAGE & CREAM ============ -->
+  <section class="theme">
+    <div class="thead"><span class="num">01</span><h2>Sage &amp; Cream</h2></div>
+    <p class="reg">calm natural — warm paper/cream canvas, muted sage, deep warm charcoal ink, soft amber warmth. The front-runner: closest to the locked D×F palette.</p>
+    <div class="tokens">
+      <div class="tlabel">light</div>
+      <span class="tok"><i style="background:#F6F3ED"></i><b>--canvas</b><em>#F6F3ED</em></span>
+      <span class="tok"><i style="background:#FDFCF9"></i><b>--surface</b><em>#FDFCF9</em></span>
+      <span class="tok"><i style="background:#2C2A25"></i><b>--ink</b><em>#2C2A25</em></span>
+      <span class="tok"><i style="background:#8B8577"></i><b>--muted</b><em>#8B8577</em></span>
+      <span class="tok"><i style="background:#6E8376"></i><b>--accent</b><em>#6E8376</em></span>
+      <span class="tok"><i style="background:#5E7F63"></i><b>--ok</b><em>#5E7F63</em></span>
+      <span class="tok"><i style="background:#C1885C"></i><b>--warm</b><em>#C1885C</em></span>
+      <span class="tok"><i style="background:#B05A3C"></i><b>--danger</b><em>#B05A3C</em></span>
+      <span class="tok"><i style="background:#E2DCD0"></i><b>--hairline</b><em>#E2DCD0</em></span>
+      <span class="tok"><i style="background:#857F70"></i><b>--chip</b><em>#857F70</em></span>
+      <span class="tok"><i style="background:#B0793F"></i><b>--tipjar</b><em>#B0793F</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>light</em></span>
+      <div class="tlabel">dark · warm ink, sage glow</div>
+      <span class="tok"><i style="background:#221F1B"></i><b>--canvas</b><em>#221F1B</em></span>
+      <span class="tok"><i style="background:#2C2924"></i><b>--surface</b><em>#2C2924</em></span>
+      <span class="tok"><i style="background:#EDE9DF"></i><b>--ink</b><em>#EDE9DF</em></span>
+      <span class="tok"><i style="background:#9D9688"></i><b>--muted</b><em>#9D9688</em></span>
+      <span class="tok"><i style="background:#8FA68B"></i><b>--accent</b><em>#8FA68B</em></span>
+      <span class="tok"><i style="background:#7FA37F"></i><b>--ok</b><em>#7FA37F</em></span>
+      <span class="tok"><i style="background:#D2A070"></i><b>--warm</b><em>#D2A070</em></span>
+      <span class="tok"><i style="background:#C96F4C"></i><b>--danger</b><em>#C96F4C</em></span>
+      <span class="tok"><i style="background:#3B372F"></i><b>--hairline</b><em>#3B372F</em></span>
+      <span class="tok"><i style="background:#8E8778"></i><b>--chip</b><em>#8E8778</em></span>
+      <span class="tok"><i style="background:#D29652"></i><b>--tipjar</b><em>#D29652</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>dark</em></span>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">light</div>
+      <div class="ui sc1-l">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">dark</div>
+      <div class="ui sc1-d">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 · WARM MINERAL ============ -->
+  <section class="theme">
+    <div class="thead"><span class="num">02</span><h2>Warm Mineral</h2></div>
+    <p class="reg">terracotta-sage — more pigment, olive-leaning sage with terracotta and amber accents; a warmer cream. Feels like a Mediterranean kitchen.</p>
+    <div class="tokens">
+      <div class="tlabel">light</div>
+      <span class="tok"><i style="background:#F5EEE4"></i><b>--canvas</b><em>#F5EEE4</em></span>
+      <span class="tok"><i style="background:#FCF8F1"></i><b>--surface</b><em>#FCF8F1</em></span>
+      <span class="tok"><i style="background:#2E2820"></i><b>--ink</b><em>#2E2820</em></span>
+      <span class="tok"><i style="background:#8D7E68"></i><b>--muted</b><em>#8D7E68</em></span>
+      <span class="tok"><i style="background:#7C8A5A"></i><b>--accent</b><em>#7C8A5A</em></span>
+      <span class="tok"><i style="background:#6E8B46"></i><b>--ok</b><em>#6E8B46</em></span>
+      <span class="tok"><i style="background:#C0693F"></i><b>--warm</b><em>#C0693F</em></span>
+      <span class="tok"><i style="background:#B04E36"></i><b>--danger</b><em>#B04E36</em></span>
+      <span class="tok"><i style="background:#E6DAC6"></i><b>--hairline</b><em>#E6DAC6</em></span>
+      <span class="tok"><i style="background:#8B7B62"></i><b>--chip</b><em>#8B7B62</em></span>
+      <span class="tok"><i style="background:#B47A33"></i><b>--tipjar</b><em>#B47A33</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>light</em></span>
+      <div class="tlabel">dark · umber ink</div>
+      <span class="tok"><i style="background:#262019"></i><b>--canvas</b><em>#262019</em></span>
+      <span class="tok"><i style="background:#312A21"></i><b>--surface</b><em>#312A21</em></span>
+      <span class="tok"><i style="background:#F1EADB"></i><b>--ink</b><em>#F1EADB</em></span>
+      <span class="tok"><i style="background:#A6977E"></i><b>--muted</b><em>#A6977E</em></span>
+      <span class="tok"><i style="background:#97A568"></i><b>--accent</b><em>#97A568</em></span>
+      <span class="tok"><i style="background:#88A253"></i><b>--ok</b><em>#88A253</em></span>
+      <span class="tok"><i style="background:#D07A4C"></i><b>--warm</b><em>#D07A4C</em></span>
+      <span class="tok"><i style="background:#C65A40"></i><b>--danger</b><em>#C65A40</em></span>
+      <span class="tok"><i style="background:#423A2D"></i><b>--hairline</b><em>#423A2D</em></span>
+      <span class="tok"><i style="background:#9E8F74"></i><b>--chip</b><em>#9E8F74</em></span>
+      <span class="tok"><i style="background:#C9903F"></i><b>--tipjar</b><em>#C9903F</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>dark</em></span>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">light</div>
+      <div class="ui sc2-l">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">dark</div>
+      <div class="ui sc2-d">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 · COOL SEAFOAM ============ -->
+  <section class="theme">
+    <div class="thead"><span class="num">03</span><h2>Cool Seafoam</h2></div>
+    <p class="reg">mist — near-monochrome with a cool gray-green sage, more reserved, spa-like; one dusty warm note. Dark falls into deep blue-green.</p>
+    <div class="tokens">
+      <div class="tlabel">light</div>
+      <span class="tok"><i style="background:#EEF3F0"></i><b>--canvas</b><em>#EEF3F0</em></span>
+      <span class="tok"><i style="background:#F9FBF9"></i><b>--surface</b><em>#F9FBF9</em></span>
+      <span class="tok"><i style="background:#253029"></i><b>--ink</b><em>#253029</em></span>
+      <span class="tok"><i style="background:#7E8B84"></i><b>--muted</b><em>#7E8B84</em></span>
+      <span class="tok"><i style="background:#5F8070"></i><b>--accent</b><em>#5F8070</em></span>
+      <span class="tok"><i style="background:#4E7E62"></i><b>--ok</b><em>#4E7E62</em></span>
+      <span class="tok"><i style="background:#B58A6D"></i><b>--warm</b><em>#B58A6D</em></span>
+      <span class="tok"><i style="background:#A2624C"></i><b>--danger</b><em>#A2624C</em></span>
+      <span class="tok"><i style="background:#DCE5DF"></i><b>--hairline</b><em>#DCE5DF</em></span>
+      <span class="tok"><i style="background:#74827A"></i><b>--chip</b><em>#74827A</em></span>
+      <span class="tok"><i style="background:#8F7A54"></i><b>--tipjar</b><em>#8F7A54</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>light</em></span>
+      <div class="tlabel">dark · deep blue-green</div>
+      <span class="tok"><i style="background:#151F1B"></i><b>--canvas</b><em>#151F1B</em></span>
+      <span class="tok"><i style="background:#1E2B26"></i><b>--surface</b><em>#1E2B26</em></span>
+      <span class="tok"><i style="background:#DCEAE3"></i><b>--ink</b><em>#DCEAE3</em></span>
+      <span class="tok"><i style="background:#8AA097"></i><b>--muted</b><em>#8AA097</em></span>
+      <span class="tok"><i style="background:#6F9584"></i><b>--accent</b><em>#6F9584</em></span>
+      <span class="tok"><i style="background:#62A184"></i><b>--ok</b><em>#62A184</em></span>
+      <span class="tok"><i style="background:#C79A75"></i><b>--warm</b><em>#C79A75</em></span>
+      <span class="tok"><i style="background:#C87C62"></i><b>--danger</b><em>#C87C62</em></span>
+      <span class="tok"><i style="background:#2C3B35"></i><b>--hairline</b><em>#2C3B35</em></span>
+      <span class="tok"><i style="background:#7D948B"></i><b>--chip</b><em>#7D948B</em></span>
+      <span class="tok"><i style="background:#A98D63"></i><b>--tipjar</b><em>#A98D63</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>dark</em></span>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">light</div>
+      <div class="ui sc3-l">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">dark</div>
+      <div class="ui sc3-d">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 · OLIVE & LINEN ============ -->
+  <section class="theme">
+    <div class="thead"><span class="num">04</span><h2>Olive &amp; Linen</h2></div>
+    <p class="reg">editorial — desaturated olive green, warm linen neutrals, near-black ink, higher contrast, slightly more type-forward.</p>
+    <div class="tokens">
+      <div class="tlabel">light</div>
+      <span class="tok"><i style="background:#F2EFE6"></i><b>--canvas</b><em>#F2EFE6</em></span>
+      <span class="tok"><i style="background:#FAF8F1"></i><b>--surface</b><em>#FAF8F1</em></span>
+      <span class="tok"><i style="background:#20211D"></i><b>--ink</b><em>#20211D</em></span>
+      <span class="tok"><i style="background:#7C796C"></i><b>--muted</b><em>#7C796C</em></span>
+      <span class="tok"><i style="background:#7D8450"></i><b>--accent</b><em>#7D8450</em></span>
+      <span class="tok"><i style="background:#5F7B3D"></i><b>--ok</b><em>#5F7B3D</em></span>
+      <span class="tok"><i style="background:#B0823F"></i><b>--warm</b><em>#B0823F</em></span>
+      <span class="tok"><i style="background:#A34F35"></i><b>--danger</b><em>#A34F35</em></span>
+      <span class="tok"><i style="background:#DFDBC9"></i><b>--hairline</b><em>#DFDBC9</em></span>
+      <span class="tok"><i style="background:#88836F"></i><b>--chip</b><em>#88836F</em></span>
+      <span class="tok"><i style="background:#96702F"></i><b>--tipjar</b><em>#96702F</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>light</em></span>
+      <div class="tlabel">dark · olive-tinted ink</div>
+      <span class="tok"><i style="background:#1F1F1B"></i><b>--canvas</b><em>#1F1F1B</em></span>
+      <span class="tok"><i style="background:#282825"></i><b>--surface</b><em>#282825</em></span>
+      <span class="tok"><i style="background:#EFEDE2"></i><b>--ink</b><em>#EFEDE2</em></span>
+      <span class="tok"><i style="background:#A29E8C"></i><b>--muted</b><em>#A29E8C</em></span>
+      <span class="tok"><i style="background:#9BA368"></i><b>--accent</b><em>#9BA368</em></span>
+      <span class="tok"><i style="background:#85A155"></i><b>--ok</b><em>#85A155</em></span>
+      <span class="tok"><i style="background:#C89B59"></i><b>--warm</b><em>#C89B59</em></span>
+      <span class="tok"><i style="background:#C96E4F"></i><b>--danger</b><em>#C96E4F</em></span>
+      <span class="tok"><i style="background:#3A3930"></i><b>--hairline</b><em>#3A3930</em></span>
+      <span class="tok"><i style="background:#9A957F"></i><b>--chip</b><em>#9A957F</em></span>
+      <span class="tok"><i style="background:#B2873B"></i><b>--tipjar</b><em>#B2873B</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>dark</em></span>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">light</div>
+      <div class="ui sc4-l">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">dark</div>
+      <div class="ui sc4-d">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 · STONE & SAGE ============ -->
+  <section class="theme">
+    <div class="thead"><span class="num">05</span><h2>Stone &amp; Sage</h2></div>
+    <p class="reg">self-host — the F-whisper taken further: neutral stone-gray canvas, hairline-dense, mono chips more visible. Still calm, a touch more "tech you own".</p>
+    <div class="tokens">
+      <div class="tlabel">light</div>
+      <span class="tok"><i style="background:#EEEDEB"></i><b>--canvas</b><em>#EEEDEB</em></span>
+      <span class="tok"><i style="background:#F9F8F6"></i><b>--surface</b><em>#F9F8F6</em></span>
+      <span class="tok"><i style="background:#26272A"></i><b>--ink</b><em>#26272A</em></span>
+      <span class="tok"><i style="background:#82848A"></i><b>--muted</b><em>#82848A</em></span>
+      <span class="tok"><i style="background:#6D8377"></i><b>--accent</b><em>#6D8377</em></span>
+      <span class="tok"><i style="background:#5C7B64"></i><b>--ok</b><em>#5C7B64</em></span>
+      <span class="tok"><i style="background:#A5875C"></i><b>--warm</b><em>#A5875C</em></span>
+      <span class="tok"><i style="background:#A45E4A"></i><b>--danger</b><em>#A45E4A</em></span>
+      <span class="tok"><i style="background:#DCDBD8"></i><b>--hairline</b><em>#DCDBD8</em></span>
+      <span class="tok"><i style="background:#6F7177"></i><b>--chip</b><em>#6F7177</em></span>
+      <span class="tok"><i style="background:#8F7A54"></i><b>--tipjar</b><em>#8F7A54</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>light</em></span>
+      <div class="tlabel">dark · cool stone</div>
+      <span class="tok"><i style="background:#1B1C1E"></i><b>--canvas</b><em>#1B1C1E</em></span>
+      <span class="tok"><i style="background:#242528"></i><b>--surface</b><em>#242528</em></span>
+      <span class="tok"><i style="background:#E8E9EB"></i><b>--ink</b><em>#E8E9EB</em></span>
+      <span class="tok"><i style="background:#90939A"></i><b>--muted</b><em>#90939A</em></span>
+      <span class="tok"><i style="background:#7E968A"></i><b>--accent</b><em>#7E968A</em></span>
+      <span class="tok"><i style="background:#6D8A75"></i><b>--ok</b><em>#6D8A75</em></span>
+      <span class="tok"><i style="background:#B28F62"></i><b>--warm</b><em>#B28F62</em></span>
+      <span class="tok"><i style="background:#C26B54"></i><b>--danger</b><em>#C26B54</em></span>
+      <span class="tok"><i style="background:#333438"></i><b>--hairline</b><em>#333438</em></span>
+      <span class="tok"><i style="background:#7C7F85"></i><b>--chip</b><em>#7C7F85</em></span>
+      <span class="tok"><i style="background:#A88B58"></i><b>--tipjar</b><em>#A88B58</em></span>
+      <span class="tok"><i class="m"></i><b>--mode</b><em>dark</em></span>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">light</div>
+      <div class="ui sc5-l">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+
+    <div class="mode">
+      <div class="mtag">dark</div>
+      <div class="ui sc5-d">
+        <div class="day">
+          <div class="meta">Tuesday · the close of the day</div>
+          <h3>Tue · dinner <span class="done">done</span></h3>
+          <div class="hair"><span class="mono">openplate · v0.4.2</span><span class="chip">· local</span></div>
+        </div>
+        <div class="plate">
+          <div class="phead"><span class="label">Breakfast</span><span class="pright"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span></div>
+          <div class="row">
+            <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="fill" cx="50" cy="50" r="40" pathLength="100"/></svg>
+            <div><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists · gentle</span><div class="grace">A soft start, remembered.</div></div>
+          </div>
+        </div>
+        <div class="coach">
+          <p>Greens would round this plate out — <span>want a 10-second suggestion?</span></p>
+          <div class="btns"><button class="btn sure">Sure</button><button class="btn later">Ask later</button></div>
+        </div>
+        <div class="week">
+          <div class="wlead">This week: <b>4 balanced days</b></div>
+          <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span></div>
+          <div class="wmono">no streaks · no countdowns · no guilt</div>
+        </div>
+        <div class="fab">+</div>
+        <div class="foot">yours to run · <b>open source</b></div>
+      </div>
+    </div>
+  </section>
+
+</section>
+
+<p class="trail"><b>Reading the page:</b> each column is one register with all semantic tokens for light and dark, then the same day-board snippet rendered in each mode. Success green shows in the week count, amber-warm in the "Ask later" pause button, sage everywhere else; danger is documented per theme but intentionally unused on this calm surface.</p>
+
+</body>
+</html>

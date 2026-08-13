@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Direction D — The Calm Coach</title>
+<style>
+/* ============================================================
+   DIRECTION D · THE CALM COACH
+   File: direction-d-calm-coach.html
+   Personality: spa-like restraint, large quiet type, no chrome.
+   ------------------------------------------------------------
+   PALETTE (hex)
+   --bg        #F4F1EC  barely-warm bone white
+   --ink       #2F2F2C  quiet charcoal
+   --ink-soft  #8A857A  hushed grey
+   --sage      #6E8376  the single muted green (progress + action)
+   --sage-deep #54685C  pressed sage
+   --track     #E0DBD2  faint arc track
+   --card      #FBFAF7  whisper-white card
+   FONT STACK
+   display:    -apple-system, "SF Pro Display", "Segoe UI", system-ui
+               light weights, generous line-height
+   coach line: Georgia, "Iowan Old Style", serif (italic whisper)
+   micro:      ui-monospace, "SF Mono", Menlo (barely present)
+   ============================================================ */
+:root{
+  --bg:#F4F1EC; --ink:#2F2F2C; --ink-soft:#8A857A; --sage:#6E8376;
+  --sage-deep:#54685C; --track:#E0DBD2; --card:#FBFAF7;
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EDEAE3;color:var(--ink);font-family:var(--sans);padding:40px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--sage-deep);margin-bottom:12px}
+h1{font-size:34px;font-weight:200;letter-spacing:.01em}
+.rationale{max-width:640px;margin-top:12px;font-size:15.5px;font-weight:300;line-height:1.7;color:var(--ink-soft)}
+.shelf{display:flex;flex-wrap:wrap;gap:40px;justify-content:center}
+.spec{max-width:1240px;margin:0 auto;padding-top:30px;font:300 13px/1.8 var(--mono);color:var(--ink-soft)}
+.spec b{color:var(--ink);font-weight:500}
+
+/* ---------- phone ---------- */
+.phone{width:370px;border-radius:48px;padding:12px;background:#3A3A36;box-shadow:0 30px 60px -20px rgba(60,58,50,.45)}
+.capsule{font:500 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin:18px 0 4px}
+.screen{height:730px;border-radius:36px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:40px 26px 28px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- chrome: almost none ---------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 30px 0;font:400 12px/1 var(--sans);color:var(--ink-soft)}
+.daymark{margin:34px 0 30px}
+.daymark .small{font:400 12px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--sage-deep)}
+.daymark h2{font-size:34px;font-weight:300;letter-spacing:-.005em;margin-top:10px;line-height:1.15}
+.daymark h2 .done{color:var(--ink-soft)}
+.daymark p{font-size:15px;font-weight:300;color:var(--ink-soft);margin-top:10px;max-width:260px}
+
+/* ---------- plate = pure whitespace, no cards ---------- */
+.plate{padding:6px 0 26px;border-bottom:1px solid var(--track)}
+.platehead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}
+.platehead .label{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.platehead .arcnote{font:400 12px/1 var(--mono);color:var(--sage-deep)}
+.arcrow{display:flex;gap:22px;align-items:center}
+.ring{width:84px;height:84px;flex:none}
+.legend .meal{font-size:19px;font-weight:400;letter-spacing:-.005em}
+.legend .qty{font:400 12.5px/1.5 var(--mono);color:var(--ink-soft);display:block;margin-top:8px}
+.legend .grace{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--sage-deep);margin-top:8px}
+
+/* ---------- the dent ---------- */
+.waiting{padding:6px 0 26px;border-bottom:1px solid var(--track)}
+.waiting .label{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:18px}
+.dentrow{display:flex;gap:22px;align-items:center}
+.dentring{width:84px;height:84px;flex:none}
+.dentblank{max-width:200px}
+.dentblank .big{font-size:20px;font-weight:300;line-height:1.35}
+.dentblank .small{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-soft);margin-top:6px}
+
+/* ---------- coach ---------- */
+.coach{padding:26px 0 8px}
+.coach p{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.6;color:var(--ink);max-width:280px}
+.coach p span{color:var(--sage-deep)}
+.coachbtns{display:flex;gap:12px;margin-top:20px}
+.btn{font:400 14px/1 var(--sans);border-radius:26px;padding:13px 22px;cursor:pointer;border:1px solid transparent}
+.btn.sure{background:var(--sage-deep);color:#FBFAF7}
+.btn.later{background:transparent;color:var(--sage-deep);border-color:var(--track)}
+
+/* ---------- week ---------- */
+.week{padding:28px 0 4px}
+.week .lead{font-size:15px;font-weight:300;color:var(--ink);margin-bottom:16px}
+.week .lead b{font-weight:500}
+.minis{display:flex;gap:9px}
+.mini{width:30px;height:30px;border-radius:50%;border:1px solid var(--track);background:transparent}
+.mini.on{background:var(--sage);border-color:var(--sage)}
+
+/* ---------- fab / footer ---------- */
+.fab{position:absolute;right:20px;bottom:120px;width:58px;height:58px;border-radius:50%;background:var(--sage);color:#FBFAF7;font:300 32px/1 var(--sans);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 30px -14px rgba(84,104,92,.6)}
+.foot{margin-top:30px;text-align:center;font:400 10.5px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft)}
+.foot b{color:var(--sage-deep);font-weight:500}
+
+/* ---------- capture sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:34px 34px 0 0;padding:20px 24px 26px;box-shadow:0 -24px 50px -24px rgba(60,58,50,.35);animation:rise .5s ease-out both}
+@keyframes rise{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--track);margin:0 auto 22px}
+.sheethead{font-size:15px;font-weight:300;color:var(--ink-soft);text-align:center;margin-bottom:22px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.snap{grid-column:1/-1;border-radius:28px;padding:26px 22px;cursor:pointer;color:#FBFAF7;display:flex;justify-content:space-between;align-items:center}
+.snap b{font-size:24px;font-weight:300;display:block;letter-spacing:.01em}
+.snap span{font:400 12px/1.6 var(--mono);opacity:.75}
+.lens{width:52px;height:52px;border-radius:50%;border:2px solid rgba(251,250,247,.7);position:relative}
+.lens::after{content:"";position:absolute;inset:17px;border-radius:50%;background:#FBFAF7}
+.subtile{border:1px solid var(--track);border-radius:24px;padding:20px 16px;cursor:pointer}
+.subtile b{font-size:15px;font-weight:400;display:block}
+.subtile span{font:400 11px/1.6 var(--mono);color:var(--ink-soft);display:block;margin-top:6px}
+.barcode{height:14px;margin-top:12px;background:repeating-linear-gradient(90deg,var(--sage-deep) 0 2px,transparent 2px 4px,var(--sage-deep) 4px 5px,transparent 5px 8px);opacity:.4;border-radius:2px}
+
+/* ---------- variant: empty day ---------- */
+.breath{margin:20px 0 26px}
+.breath .breathline{height:10px;background:var(--track);border-radius:6px;margin-bottom:12px}
+.breath .breathline.wide{width:78%}
+.breath .breathline.mid{width:52%}
+.coach .wait{color:var(--sage-deep)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Direction D</div>
+  <h1>The Calm Coach</h1>
+  <p class="rationale">Spa restraint taken to its logical end: no cards, no borders, no chrome — just large quiet type and one muted green, reserved for progress and the single action worth taking. The empty plate reads as a held breath, and the coach whispers in italic serif instead of announcing. This is the direction that most strongly refuses to shout.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ PHONE 1 · DAY BOARD ============ -->
+  <figure>
+    <div class="capsule">Day Board — dinner still open</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="daymark">
+            <div class="small">Tuesday · the close of the day</div>
+            <h2>Dinner <span class="done">done</span></h2>
+            <p>Two plates are settled. The last one is yours to fill — gently.</p>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Breakfast</span><span class="arcnote">3 of 4</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists</span>
+                <div class="grace">A soft start, remembered.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Lunch</span><span class="arcnote">2 of 4</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Pasta · chicken · tomatoes</div>
+                <span class="qty">~2 fists</span>
+                <div class="grace">Simple, and enough.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="waiting">
+            <div class="label">Dinner — the day's last plate</div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-dasharray="3 12" stroke-linecap="round" opacity=".45"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13" opacity=".9"/>
+                <circle cx="50" cy="50" r="5" fill="var(--sage)" opacity=".3"/>
+              </svg>
+              <div class="dentblank">
+                <div class="big">An open, quiet place.</div>
+                <div class="small">Nothing to fix — only to add, if you like.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="coach">
+            <p>Greens would round this plate out <span>— want a 10-second suggestion?</span></p>
+            <div class="coachbtns">
+              <button class="btn sure">Sure</button>
+              <button class="btn later">Ask later</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="lead">This week: <b>4 balanced days</b></div>
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+          </div>
+
+          <div class="foot">Yours to run · <b>open source</b> · no streaks</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 2 · CAPTURE ============ -->
+  <figure>
+    <div class="capsule">Capture — the one sage action</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll" style="padding-bottom:140px">
+          <div class="daymark" style="margin-bottom:20px">
+            <div class="small">Dinner · the day's last plate</div>
+            <h2 style="font-size:26px">Add, without trying</h2>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheethead">A single snapshot is plenty.</div>
+          <div class="tiles">
+            <div class="snap" style="background:var(--sage-deep)">
+              <div><b>Snapshot</b><span>photo-first · nothing to type</span></div>
+              <div class="lens"></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>for the packaged side</span><div class="barcode"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>hands full · just say it</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 3 · VARIANT: EMPTY DAY ============ -->
+  <figure>
+    <div class="capsule">Variant — a still, empty day</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="daymark">
+            <div class="small">Tuesday · morning</div>
+            <h2>Today is <span class="done">unwritten</span></h2>
+            <p>The board is quiet because the day hasn't spoken yet. It will.</p>
+          </div>
+
+          <div class="waiting" style="border:none">
+            <div class="label">Your plates will settle here</div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sage)" stroke-width="13" stroke-dasharray="3 12" stroke-linecap="round" opacity=".45"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="13" opacity=".9"/>
+              </svg>
+              <div class="dentblank">
+                <div class="big">Not empty.</div>
+                <div class="small">Waiting, is all.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="breath">
+            <div class="breathline wide"></div>
+            <div class="breathline mid"></div>
+          </div>
+
+          <div class="coach">
+            <p class="wait">A calm day is still a day. <span>Ready when you are — there's no timer running.</span></p>
+            <div class="coachbtns">
+              <button class="btn sure">Start with a snapshot</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="lead">This week: <b>4 balanced days</b></div>
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+          </div>
+
+          <div class="foot">Yours to run · <b>open source</b> · quiet by design</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+</section>
+
+<p class="spec"><b>Specs for this direction:</b> display weights 200–400, leading generous · cards replaced by hairline rules and whitespace · exactly one color in play (sage #6E8376) · the only elevated element is the single sage + button and the sage "Sure" pill · microcopy leans on rest, not reward · the week strip uses dots, never bars or counts.</p>
+
+</body>
+</html>

@@ -1,0 +1,82 @@
+# Competitive digest (r1)
+
+Dimension: Competitive teardown of named players vs OpenPlate's wedge (open-source + self-hostable + family-safety + educational coaching + privacy/no-dark-patterns).
+Date run: 2026-08-12. Method: live websearch only. Retail pricing/features ≤3 months, trajectory ≤6 months, sentiment ≤12 months (except where noted, still-tagged claims are confidence-scored on their own merits).
+
+## Claims
+
+### Fud AI (iOS/Android, MIT, BYOK) — closest open-source analog
+- High-effort OSS calorie/fasting/workout tracker; MIT license; repo created 2026-02-04, 317 stars / 59 forks / 1,395 commits || fud-ai GitHub repo || GitHub (primary) || n/a (live) || 2026-08-12 || high || trajectory
+- App Store launched 2026-02-11; current ranking below US top-30 Health & Fitness; **1k+ iOS downloads**, 4.6/5 from ~14–16 ratings || MWM Intelligence app profile || MWM (aggregator) || 2026-07-22 || 2026-08-12 || medium || trajectory
+- Positioning claim: "free, open source, privacy first. Bring your own AI key — no Fud AI account, Fud AI-operated cloud sync, subscription, or ads" plus optional iOS Tip Jar || fud-ai.app + GitHub README || Apoorv Darshan (first-party) || n/a (live) || 2026-08-12 || high (as their claim/position) || position
+- **Marketing/offer contradiction:** the App Store listing now shows In-App Purchases of Weekly $6.99 / Yearly $199.99, and store/release text references a paid "Premium Gemini" AI access path that is tried before BYOK/Apple-Intelligence fallback — flatly contradicts the "no subscription, fully free" site copy || App Store listing for id6758935726 || Apple App Store (primary) || n/a (live; v4.3 release notes) || 2026-08-12 || high that the tiers exist, medium on what "Premium Gemini" precisely includes || pricing
+- Ships 13 LLM providers (incl. Ollama local) + Apple Intelligence on-device fallback; API keys encrypted on-device (iOS Keychain, Android EncryptedSharedPreferences/AES-256); 30+ nutrients; multi-photo (up to 10) AI analysis; 6 STT engines; barcode via Open Food Facts; two-way Apple Health/Health Connect; fasting timer; workout diary (873 exercises); multi-turn **AI Coach chat with memory** || fud-ai.app + GitHub README + Google Play listing || Fud AI (first-party) || n/a (live); v6.0 on APKPure 2026-07-30 || 2026-08-12 || high || offer
+- Customer voice (praise): "The Best Non-Subscription Calorie Tracker. Don't settle for another monthly subscription." || App Store review (user phspman) || Apple App Store || 2026-05-04 || 2026-08-12 || medium || voice
+- TrustMRR page (revenue signals) is linked from fud-ai.app but its numbers were NOT read this run || fud-ai.app link || Fud AI || n/a || 2026-08-12 || low, UNVERIFIED || trajectory
+
+### tahaygun/ai-calorie-tracker (open PWA, no account)
+- Next.js/TypeScript PWA, BYOK OpenAI; no account; all data in browser local storage; text + photo analysis; weight tracking; favorites; data export/import; offline-capable; dual license **GPL v3 (non-commercial) + paid commercial license**; 21 stars / 4 forks, created 2025-02-28, 228 commits || GitHub repo README || tahaygun (first-party) || n/a (live) || 2026-08-12 || high || offer
+- The single "product" is a self-serve demo at ai-calorietracker.vercel.app prompting users to enter an OpenAI key; no app-store presence found || Live demo site || tahaygun (first-party) || n/a (live) || 2026-08-12 || high || offer
+- GPL v3 for non-commercial use forces derivatives to stay open; this makes it the one scanned player whose license actively *enables* self-hosting forks while ALSO offering paid commercial licensing (a licensing friction point for reuse) || GitHub README "License" || tahaygun (first-party) || n/a (live) || 2026-08-12 || high || pricing
+
+### Ummy (kids nutrition, "no streaks, no guilt")
+- Android app "Ummy: Kids Nutrition Companion," ages 2–13; messaging is squarely anti-shame: "log what you can… no streak to break, no nagging, no perfect-parent pressure"; cites NHANES 2015–2018 / 2017–2018 and Taylor et al. 2016 for shortfall claims || ummyapp.com + Google Play listing || Ummy (first-party) || n/a (live); APK 1.0.9 on 2026-07-19 || 2026-08-12 || high || position
+- Ships DRI-based "Nutritional Floor Report" (fiber/iron/vit-D/calcium/zinc vs age DRI; food-only %, supplements shown separately and never inflate scores), AHA sugar summary, CDC growth chart, sleep+mood, share-code co-parenting, allergen profiles, well-visit reminders, and Premium "Smart Shopping List" — an overtly educational, doctor-facing frame || ummyapp.com || Ummy (first-party) || n/a (live) || 2026-08-12 || high || offer
+- Pricing: Free tier (one child, hand-logging) + **Premium $5.99/mo or $49.99/yr ("SAVE 30%")**, 14-day trial, no credit card; app explicitly claims it never recommends its own or others' products || ummyapp.com pricing sections || Ummy (first-party) || n/a (live) || 2026-08-12 || high || pricing
+- Position/trajectory tension: Ummy the app is the customer-acquisition arm of **Ummy Shakes** (shop.ummyshakes.com; "Loved by 1,000+ families", 4.9/5 "verified Amazon"), marketing "The Nutritional Floor™… one shake at a time"; both were surfaced as live this run || shop.ummyshakes.com || Ummy (first-party) || n/a (live [Amazon reviews dated Dec 2025–Jan 2026]) || 2026-08-12 || medium || traction
+- No app-store review text (1–3★ wedge) for Ummy was retrievable this run; only listing copy and pre-roll-out metrics found || Google Play / AppBrain / APKPure listings || aggregators || 2026-07-12/19 || 2026-08-12 || low, UNVERIFIED || voice
+
+### Sito (AI photo, age-based targets)
+- iOS-only "kids nutrition tracker" for parents: AI photo/barcode/text logging, personalized goals from age/height/weight (+BMI), tracks calories/protein/carbs/fat/fiber + iron, calcium, vitamin D, zinc; "Smart Meal Ideas" fill detected gaps; AI nutrition chat (educational, "not medical advice"); multi-child profiles + growth tracking || sito.kids || Invictus Logic (first-party) || n/a (live) || 2026-08-12 || high || offer
+- Pricing undisclosed on web: "free to download on iOS… comes with a free trial… premium subscription unlocks the full experience — current plans and prices are shown right in the app"; Android "coming soon" || sito.kids FAQ || Invictus Logic (first-party) || n/a (live) || 2026-08-12 || medium || pricing
+- California-style provenance: Sito is one product of Invictus Logic LLC, which also ships Cherry and Vubio (AI app studio), and is **Powered by Fatsecret Platform API** || sito.kids footer || sito.kids (first-party) || n/a (live) || 2026-08-12 || high || trajectory
+- Sito's blog frames itself as "Cal AI for kids" and asserts Cal AI's ToS require users ≥13 and that "kids need nutrient floors, not calorie ceilings" — native-positioning copy that doubles as competitor framing; Cal AI ToS was NOT read directly this run || sito.kids/blog/cal-ai-for-kids.html || Sito blog (first-party marketing) || 2026-07-15 || 2026-08-12 || medium (claim rests on cited Cal AI ToS, unverified here) || position
+- Customer voice found is thin and positive: parent of 4- & 7-year-olds says logging is simple and shows "if they're getting what they need" || App Store review via appshunter.io || review aggregator || n/a (live) || 2026-08-12 || low || voice
+
+### Food You (Android F-Droid OSS)
+- GPL-3.0-or-later Android tracker, F-Droid + GitHub only; no account, local data, Material You, Open Food Facts + USDA FoodData Central + Swiss Food Composition DB, recipes, personalized targets incl. vitamins/minerals; 562 stars / 61 forks / 1,025 commits; v3.4.9 released 2026-06-30 || F-Droid listing + maksimowiczm/FoodYou repo || F-Droid / GitHub (primary) || n/a (live) || 2026-08-12 || high || offer
+- Funding model = community sponsorship only (Ko-fi + BTC/ETH); author states he is "not accepting any code contributions due to licensing and the fact that this app generates some income" — a solo-maintainer bus-factor risk || maksimowiczm/FoodYou README || GitHub (primary) || n/a (live) || 2026-08-12 || medium || trajectory
+- Reproducible builds verified by F-Droid; positioned as "No accounts, no analytics, no tracking. All data stored locally" || F-Droid + foodyou.maksimowiczm.com || F-Droid (primary) || n/a (live) || 2026-08-12 || high || offer
+
+### OpenNutriTracker (Flutter OSS)
+- Flutter, GPL-3.0, Open Food Facts + USDA FDC, local-first Hive storage, no ads/accounts/IAPs; Google Play **4.1–4.2★, ~210–221 ratings, 10K+ downloads**, store page updated 2026-08-08; also on App Store || Google Play listing + simonoppowa wiki + ItsAllWidgets || Google Play (primary) / dev posts || n/a (live) || 2026-08-12 || high || trajectory
+- Explicit disclaimer: "not a medical application. All data provided is not validated… Use during illness, pregnancy or lactation is not recommended. The application is still under construction" — OSS self-quality caps, directly relevant to an educational-coach promise || OpenNutriTracker wiki || simonoppowa (first-party) || n/a (live) || 2026-08-12 || high || position
+- Review voice (wedge + wishlist): user praises open-source/no-account/data-not-shared but asks for sugar/fiber/special nutrient tracking and meal notes for elimination diets — "would be 5* for me" (May 2026); a second review reports regressions on serving-size edits for non-custom meals (Jun 2026) || Google Play reviews || Google Play (primary) || 2026-05-20 / 2026-06-06 || 2026-08-12 || high || voice
+- Two active repo forks under different owners (simonoppowa, Samymourad) — maintainer identity/continuity is fragmented || GitHub || GitHub (primary) || n/a (live) || 2026-08-12 || medium || trajectory
+
+### MyFitnessPal / Cal AI (post-acquisition)
+- MyFitnessPal (Francisco Partners-owned) closed the Cal AI acquisition in Dec 2025 and made it public **2026-03-02**; Cal AI reportedly reached 15M+ downloads in under two years; the 7-person team (incl. CEO Zach Yadegari, still a student) was retained; Cal AI stays a separate app; MFP integrated its 20M-food database into Cal AI; apps framed as complementary — "Cal AI for speed, MFP for precision" || TechCrunch 2026-03-02 + GlobeNewswire press release + Hoot 2026-03-03 || TechCrunch (exclusive) / MyFitnessPal PR || 2026-03-02/03 || 2026-08-12 || high || trajectory
+- **Conflicting revenue figures for Cal AI:** ~"over $30 million in annual revenue" (TechAndBusiness/TechCrunch summary) vs "north of $40 million in annual revenue" (Hoot) — not averaged; original TechCrunch unread directly || techandbusiness.org vs hootfitness.com || two aggregators || 2026-03 || 2026-08-12 || low (conflict) || trajectory
+- Cal AI's Google Play listing now sits under "Improvement Tech LLC": 4.6★, **272K+ reviews, 1M+ downloads**, In-App Purchases, updated 2026-07-31; data-safety listing says it **collects personal info + health/fitness data and shares with third parties** — the privacy contrast OpenPlate orbits || Google Play listing || Google Play (primary) || n/a (live) || 2026-08-12 || high || voice
+- Incumbent coaching/education momentum: MFP acquired meal-planning app Intent (2025), launched a ChatGPT Health integration (Jan 2026), and shipped an "AI Coach" delivering personalized nutrition guidance (2026-06-10), plus engagement-driven research PR (2026-07-28) || GlobeNewswire press releases || MyFitnessPal PR (primary) || 2026-06-10 / 2026-07-28 || 2026-08-12 || high || trajectory
+
+### Adjacent found but out of named scope (track next round)
+- Nutritheous (vishnugt/nutritheous) is MIT/open-source and explicitly **self-hostable** (Docker, Postgres, GPT-4 Vision, Flutter) — the only player this run that combines open-source AND true self-host with AI || nutritheous.com || Nutritheous (first-party) || n/a (live) || 2026-08-12 || medium || offer
+
+## Player scoreboard
+Overlap = closeness to OpenPlate's wedge (open-source + self-hostable + family-safety + educational coaching + privacy/no-dark-patterns). 0 = no overlap, 10 = near-identical wedge.
+
+- **Fud AI — 7/10.** MIT open-source, privacy-first, BYOK, real AI-coach education component, but adult calorie/fitness frame, no kids angle, no true self-host (local-first, not server-hostable) — the strongest generic wedge overlap of the scanned set.
+- **tahaygun/ai-calorie-tracker — 6/10.** Open (GPL v3), genuinely self-hostable by design (PWA), no-account/no-tracking; zero kids, zero coaching/education content.
+- **Ummy — 6/10.** Dead-center on family-safety + anti-guilt messaging + educational DRI framing, but closed-source, freemium, and yoked to a D2C shake brand — the exact dark-pattern suspicion OpenPlate sells against, even though the app itself disclaims product pitches.
+- **Sito — 5/10.** Kids-first age-based targets with gap-filling meal education, but closed, freemium, studio-churn product, shallow verifiable consumer sentiment this run.
+- **Food You — 5/10.** Open + local + micronutrient depth with reproducible builds, but no AI, no kids, no coaching — a robust privacy baseline, not a coach.
+- **OpenNutriTracker — 4/10.** Open + privacy-first, but minimal feature set, self-disclaimed data quality, fragmented maintainership, no kids/AI/coaching.
+- **MyFitnessPal / Cal AI — 2/10.** Closed, data-collecting, adult calorie frame; near-zero wedge overlap but the biggest trajectory/commercial-vacuity signal in the category.
+
+## Leads
+- **Fud AI positioning drift (top chase):** "fully free, no subscription" site copy vs live App Store IAP of $6.99/wk–$199.99/yr ("Premium Gemini"). Verify what Premium actually bundles and when it shipped — it is at once direct validation of BYOK/free distribution *and* evidence that even the flag-bearer had to bolt on a paid AI access path. Quote-worthy for OpenPlate's own pricing design.
+- **Cal AI revenue conflict ($30M vs $40M ARR)** from two secondary sources — resolve against the original TechCrunch article before citing any number.
+- **Fud AI cadence as build-vs-buy risk:** 6-month-old repo at 1,395 commits and v6.0 by late July — a hyperactive solo dev; any OpenPlate decision to fork/bundle/point-to Fud AI inherits single-maintainer concentration risk.
+- **Kid-nutrition wedge is live and contested RIGHT NOW:** Sito and Ummy both launched/ramped in 2025–2026; Sito (Invictus Logic studio) runs heavy SEO "best kids nutrition apps of 2026" content that ranks the category while promoting itself. Steal/quote next round: their comparison framing ("nutrient floors not calorie ceilings", "no official Cal AI for kids"), which is precisely OpenPlate's story language — and it is already being market-tested.
+- **Incumbent moved to coaching:** MFP's June-2026 "AI Coach" + Intent + ChatGPT Health shows the 800-lb incumbent pivoting to education/coaching semantics — evidence the "coach, not calculator" claim is not OpenPlate fiction but an incumbent direction.
+- **Reviews worth quoting next round:** OpenNutriTracker Play review (asks for sugar/fiber tracking + elimination-diet meal notes: "would be 5*"); Fud AI App Store "The Best Non-Subscription Calorie Tracker"; Cal AI's 1M+ downloads / 272K reviews / third-party data sharing as the anti-position.
+- **Self-hosting whitespace is real:** only Nutritheous among scanned items is genuinely self-hostable, and it was not in the briefed list — treat it as the de-facto closest open+self-hostable competitor and fold it into r2.
+
+## Gaps
+- **Review voice for kids apps:** no 1–3★ review text for Ummy or Sito was retrievable this run (only listing copy + one positive parent quote) — low-ratings wedge remains uncharacterized.
+- **Actual pricing numbers:** Sito's premium price is in-app only and unreachable from the web; tahaygun's commercial-license pricing is a contact-@-author; Fud AI's "Premium" tier contents unknown.
+- **Funding/traction ops:** no funding news found for Sito, Ummy, or the OSS projects; TrustMRR page for Fud AI referenced but not read; Ummy shake sales figures unverifiable beyond "1,000+ families".
+- **Cal AI ToS (ages 13+) not read directly** — the "not for kids" claim currently rests on Sito's own citation rather than a primary source.
+- **tahaygun user base:** no public user voice, ratings, or usage data exists for the PWA.
+- **MyFitnessPal review voice** (the MFP-vs-switchers sentiment) not collected this run; Hoot's "why users are switching from MyFitnessPal" post surfaced but was not read.

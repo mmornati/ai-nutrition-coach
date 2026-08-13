@@ -1,0 +1,106 @@
+# ─────────────────────────────────────────────────────────────
+# OpenPlate — root .gitignore
+# Stack: Flutter (iOS / Android / web) + Dart pub workspaces +
+#        melos orchestration + drift/sqlite3 + Docker self-host.
+# ─────────────────────────────────────────────────────────────
+
+# ── OS / editor / IDE ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# ── Secrets / credentials ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/key.properties
+
+# ── Dart / Flutter ───────────────────────────────────────────
+.dart_tool/
+.packages
+pubspec.lock.bak
+.pub-cache/
+.pub/
+
+# Flutter build output
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Generated build artifacts (platform scaffolding is checked in on first build)
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/.cxx/
+android/**/GeneratedPluginRegistrant.java
+android/app/**/generated_plugin_registrant.dart
+
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Generated.xcconfig
+ios/Flutter/.last_build_id
+ios/**/xcuserdata/
+ios/**/DerivedData/
+ios/**/.generated/
+
+# melos workspace orchestration
+.melos/
+**.g.dart.bak
+
+# Test / coverage
+coverage/
+
+# ── Python (BMad tooling) ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# ── Node (tooling only) ──────────────────────────────────────
+node_modules/
+.pnp/
+.pnp.js
+
+# ── BMad / agent tooling ─────────────────────────────────────
+# Installed skills + installer-managed module files are regenerable
+# via the BMad installer — keep the repo to the team's authored
+# configuration and project artifacts only.
+.agents/
+
+# Installer-managed BMad config (regenerated on every install)
+_bmad/config.toml
+_bmad/config.user.toml
+_bmad/bmm/
+_bmad/core/
+_bmad/scripts/
+_bmad/_config/
+_bmad/render/
+
+# BMad personal overrides only; team overrides stay tracked.
+_bmad/custom/*.user.toml
+
+# ── Temporary / misc ─────────────────────────────────────────
+*.log
+*.tmp
+*.bak

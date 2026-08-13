@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Key Screen 4 — Settings → Your AI</title>
+<style>
+/* ============================================================
+   OPENPLATE · KEY SCREEN 4 · SETTINGS → YOUR AI
+   File: key-settings-ai.html
+
+   GOVERNING SPINE SECTIONS
+   EXPERIENCE.md — Component Patterns rows:
+     Settings rows (one calm list; Your AI / Your data / Tip Jar /
+     About, each opening a sub-screen; Tip Jar {tipjar}-tinted and
+     never interrupts — FR-15)
+   EXPERIENCE.md — State Patterns rows:
+     Quota exhausted (3-way): photo still logs to the no-AI core
+     regardless; quiet plain-language notice — keep logging without
+     AI / bring your own key / wait for the quota to reset. No
+     countdown, no pressure. Dark mode v1 skin (alternate).
+   EXPERIENCE.md — Flow steps:
+     UJ-3 (Sam brings his own key, FR-7), UJ-4 (Maya hits quota
+     and decides honestly — the trust is architectural, not
+     marketing), UJ-4 edge (don't-show-again, no nagging)
+   FR-6 / FR-7 / FR-8 rows (free-model quota default, BYOK,
+   local-model v2 seam), FR-15 (No-Dark-Patterns), FR-12
+   (telemetry off by default)
+   Accessibility floor: 48px-tall settings rows (each row min-height
+   52px), state announced; color never sole signal (selected rung =
+   dot + label, not color alone).
+
+   GOVERNING ARTIFACTS
+   .working/direction-df-calm-selfhost.html  (day-marker hairline,
+     chips, footmark, no-card list language)
+   .working/color-themes-1.html              (Sage & Cream variation 1,
+     light + dark)
+   DESIGN.md   (Settings component, tipjar token, hairlines, chips)
+   EXPERIENCE.md  (behavior rows cited above)
+   .memlog.md   (one calm Settings list; Your AI sub-screen;
+     no countdown pressure on quota)
+   ../prds/prd-openplate-2026-08-12/prd.md   (FR-6/7/8, FR-12/15,
+     UJ-3, UJ-4)
+   ============================================================ */
+
+/* ---------------- Sage & Cream · variation 1 (locked) ---------------- */
+:root{
+  --canvas:#F6F3ED; --surface:#FDFCF9; --ink:#2C2A25; --muted:#716B5E;
+  --accent:#6E8376; --adeep:#54685C; --sage-tint:#E9ECE5;
+  --ok:#52705A; --warm:#A45B31; --hairline:#E2DCD0; --chip:#6F695C;
+  --tipjar:#8F5E2B; --danger:#B05A3C;
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+/* Dark skin (warm ink canvas + sage glow) — dark mode ships in v1 */
+.dark{
+  --canvas:#221F1B; --surface:#2C2924; --ink:#EDE9DF; --muted:#9D9688;
+  --accent:#8FA68B; --adeep:#A9BCA0;
+  --sage-tint:color-mix(in srgb,#8FA68B 12%,#221F1B);
+  --ok:#7FA37F; --warm:#D2A070; --hairline:#3B372F; --chip:#8E8778;
+  --tipjar:#D29652;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EDEAE3;color:var(--ink);font-family:var(--sans);padding:44px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--adeep);margin-bottom:12px}
+h1{font-size:34px;font-weight:200;letter-spacing:.01em}
+.rationale{max-width:680px;margin-top:12px;font-size:15.5px;font-weight:300;line-height:1.7;color:var(--muted)}
+.rationale b{color:var(--adeep);font-weight:500}
+.shelf{display:flex;flex-wrap:wrap;gap:44px;justify-content:center;align-items:flex-start}
+
+/* ---------------- phone ---------------- */
+.phone{width:390px;border-radius:52px;padding:13px;background:#3A3A36;box-shadow:0 30px 60px -20px rgba(60,58,50,.45)}
+.capsule{font:500 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);text-align:center;margin:18px 0 6px}
+.mininote{margin-top:12px;text-align:center;font:400 10px/1.7 var(--mono);letter-spacing:.08em;color:#9A9488}
+.screen{height:820px;border-radius:38px;background:var(--canvas);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:36px 26px 28px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.statusbar{display:flex;justify-content:space-between;padding:14px 30px 0;font:400 12px/1 var(--sans);color:var(--muted)}
+
+.chip{font:500 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--chip);border:1px solid var(--hairline);border-radius:5px;background:var(--surface);padding:3px 7px;display:inline-block;white-space:nowrap}
+.chip.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+.dark .chip.on{border-color:rgba(169,188,160,.4)}
+
+/* ---------------- shared page head ---------------- */
+.daymark{margin:6px 0 24px}
+.daymark .small{font:400 12px/1 var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--adeep)}
+.daymark h2{font-size:34px;font-weight:300;letter-spacing:-.005em;margin-top:10px;line-height:1.15}
+.hairline{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px;padding-top:13px;border-top:1px solid var(--hairline)}
+.hairline .mono{font:400 10px/1 var(--mono);letter-spacing:.08em;color:#9A9488}
+.dark .hairline .mono{color:#8A8272}
+
+/* ---------------- settings list (no cards, hairline rows) ----------------
+   Rows are min-height 52px (≥48px accessibility floor). */
+.setrow{display:flex;justify-content:space-between;align-items:center;padding:17px 2px;border-bottom:1px solid var(--hairline);cursor:pointer;min-height:52px}
+.setrow .t{font-size:17px;font-weight:400;letter-spacing:-.005em}
+.setrow .t.tip{color:var(--tipjar)}
+.setrow .sub{font:400 10.5px/1.5 var(--mono);color:var(--muted);display:block;margin-top:5px}
+.setrow .chev{font:300 20px/1 var(--sans);color:#9A9488}
+.dark .setrow .chev{color:#8A8272}
+
+/* ---------------- rung choice (Your AI sub-screen) ----------------
+   Selected = sage dot + label (state never color-only). */
+.toprow{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 22px}
+.toprow .back{font:400 13px/1 var(--sans);color:var(--muted);cursor:pointer}
+.intro{margin-bottom:26px;font-size:15px;font-weight:300;line-height:1.6;color:var(--muted);max-width:300px}
+.intro b{color:var(--ink);font-weight:400}
+.seclead{font:500 9.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#9A9488;margin-bottom:6px}
+.dark .seclead{color:#8A8272}
+.rungrow{display:flex;justify-content:space-between;align-items:center;padding:18px 2px;border-bottom:1px solid var(--hairline);cursor:pointer;min-height:56px}
+.rungrow .t{font-size:17px;font-weight:400;letter-spacing:-.005em}
+.rungrow .t.on{color:var(--ink)}
+.rungrow .sub{font:400 10.5px/1.6 var(--mono);color:var(--muted);display:block;margin-top:6px;max-width:280px}
+.radio{width:20px;height:20px;border-radius:50%;flex:none}
+.radio.on{background:var(--accent);border:6px solid var(--surface);box-shadow:0 0 0 1.5px var(--accent)}
+.radio.off{border:1.5px solid var(--hairline);background:transparent}
+
+/* ---------------- quota honesty block (UJ-4, FR-15) ----------------
+   No countdown, no pressure. Plain quiet wording only. */
+.quotablock{margin-top:30px;border-top:1px solid var(--hairline);padding-top:24px}
+.quotablock .lead{font-size:15px;font-weight:300;color:var(--ink);margin-bottom:12px}
+.paths{margin:14px 0 0 0;display:flex;flex-direction:column;gap:10px}
+.path{display:flex;gap:12px;align-items:baseline}
+.path .bullet{color:var(--adeep);font:400 12px/1 var(--mono)}
+.path span{font:400 11.5px/1.5 var(--mono);color:var(--muted)}
+.quotaquiet{margin-top:18px;font-size:13.5px;font-weight:300;line-height:1.7;color:var(--muted)}
+.quotaquiet b{color:var(--ink);font-weight:400}
+
+/* ---------------- telemetry + privacy tone ----------------
+   Privacy by architecture, telemetry off by default (FR-9/FR-12). */
+.privrow{margin-top:30px;border-top:1px solid var(--hairline);padding-top:20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.privrow .line{font:400 10.5px/1.7 var(--mono);color:var(--muted)}
+.privrow .line b{color:var(--adeep);font-weight:500}
+.foot{margin-top:30px;text-align:center;font:400 10px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.foot b{color:var(--adeep);font-weight:500}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Key Screen 4 · 2026-08-13</div>
+  <h1>Settings → Your AI — the honesty surface</h1>
+  <p class="rationale">One calm settings list; this mock lives inside <b>Your AI</b>. Three rungs, none hidden: free-model quota (default), <b>bring your own key</b> (encrypted on-device, never uploaded), and the local-model v2 seam. No countdown, no pressure — the UJ-4 quota choice is a quiet plain-language surface, and telemetry stays off by default.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ ENTRY · ONE CALM SETTINGS LIST ============ -->
+  <figure>
+    <div class="capsule">Entry — the settings list</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="daymark">
+            <div class="small">Settings</div>
+            <h2>The quiet list</h2>
+            <div class="hairline">
+              <span class="mono">openplate · v0.4.2</span>
+              <span class="chip">· local</span>
+            </div>
+          </div>
+
+          <div class="setrow">
+            <div><span class="t">Your AI</span><span class="sub">free model · your key · local model (v2)</span></div>
+            <span class="chev">›</span>
+          </div>
+          <div class="setrow">
+            <div><span class="t">Your data</span><span class="sub">export any time · encrypted at rest</span></div>
+            <span class="chev">›</span>
+          </div>
+          <div class="setrow">
+            <div><span class="t tip">Tip Jar</span><span class="sub">never interrupts · only when you pause</span></div>
+            <span class="chev">›</span>
+          </div>
+          <div class="setrow">
+            <div><span class="t">About</span><span class="sub">self-host · open source</span></div>
+            <span class="chev">›</span>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">rows ≥48px · Tip Jar {tipjar}-tinted · never interrupts a flow (FR-15)</p>
+  </figure>
+
+  <!-- ============ CANONICAL · YOUR AI SUB-SCREEN ============ -->
+  <figure>
+    <div class="capsule">Canonical — Your AI, the 3-way choice</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="toprow">
+            <span class="back">‹ Settings</span>
+            <span class="chip on">· local</span>
+          </div>
+          <div class="daymark" style="margin-top:0">
+            <h2 style="font-size:28px">Your AI</h2>
+          </div>
+
+          <p class="intro">AI is an optional tutor. The coach works <b>fully without it</b> — the no-AI core is always complete.</p>
+
+          <div class="seclead">Your AI rung</div>
+          <div class="rungrow">
+            <div>
+              <span class="t on">Free model</span>
+              <span class="sub">the default · a small daily quota, disclosed in-app · resets quietly</span>
+            </div>
+            <span class="radio on" role="img" aria-label="Free model selected"></span>
+          </div>
+          <div class="rungrow">
+            <div>
+              <span class="t">Bring your own key</span>
+              <span class="sub">OpenAI-compatible · keychain-encrypted on-device, never uploaded</span>
+            </div>
+            <span class="radio off" role="img" aria-label="Bring your own key, not selected"></span>
+          </div>
+          <div class="rungrow">
+            <div>
+              <span class="t">Local model</span>
+              <span class="sub">v2 · the seam is reserved now</span>
+            </div>
+            <span class="radio off" role="img" aria-label="Local model, not selected"></span>
+          </div>
+
+          <div class="quotablock">
+            <div class="lead">When the free quota runs out</div>
+            <div class="paths">
+              <div class="path"><span class="bullet">·</span><span>keep logging without AI — still a full coach</span></div>
+              <div class="path"><span class="bullet">·</span><span>bring your own key — the AI tier lights up through yours</span></div>
+              <div class="path"><span class="bullet">·</span><span>wait for the quota to reset</span></div>
+            </div>
+            <p class="quotaquiet">No countdown, no pressure. The photo still logs to the no-AI core either way — <b>the trust is architectural, not marketing.</b></p>
+          </div>
+
+          <div class="privrow">
+            <span class="line">telemetry is <b>off by default</b> · nothing leaves home</span>
+            <span class="chip on">· telemetry off</span>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">no countdown · no pressure · state shown as dot + label, never color alone</p>
+  </figure>
+
+  <!-- ============ ALTERNATE · DARK MODE (WARM INK + SAGE GLOW) ============ -->
+  <figure>
+    <div class="capsule">Alternate — dark mode, v1 skin</div>
+    <div class="phone">
+      <div class="screen dark">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="toprow">
+            <span class="back">‹ Settings</span>
+            <span class="chip on">· local</span>
+          </div>
+          <div class="daymark" style="margin-top:0">
+            <h2 style="font-size:28px">Your AI</h2>
+          </div>
+
+          <p class="intro">AI is an optional tutor. The coach works <b>fully without it</b> — the no-AI core is always complete.</p>
+
+          <div class="seclead">Your AI rung</div>
+          <div class="rungrow">
+            <div>
+              <span class="t on">Free model</span>
+              <span class="sub">the default · a small daily quota, disclosed in-app · resets quietly</span>
+            </div>
+            <span class="radio on" role="img" aria-label="Free model selected"></span>
+          </div>
+          <div class="rungrow">
+            <div>
+              <span class="t">Bring your own key</span>
+              <span class="sub">OpenAI-compatible · keychain-encrypted on-device, never uploaded</span>
+            </div>
+            <span class="radio off" role="img" aria-label="Bring your own key, not selected"></span>
+          </div>
+          <div class="rungrow">
+            <div>
+              <span class="t">Local model</span>
+              <span class="sub">v2 · the seam is reserved now</span>
+            </div>
+            <span class="radio off" role="img" aria-label="Local model, not selected"></span>
+          </div>
+
+          <div class="quotablock">
+            <div class="lead">When the free quota runs out</div>
+            <div class="paths">
+              <div class="path"><span class="bullet">·</span><span>keep logging without AI — still a full coach</span></div>
+              <div class="path"><span class="bullet">·</span><span>bring your own key — the AI tier lights up through yours</span></div>
+              <div class="path"><span class="bullet">·</span><span>wait for the quota to reset</span></div>
+            </div>
+            <p class="quotaquiet">No countdown, no pressure. The photo still logs to the no-AI core either way — <b>the trust is architectural, not marketing.</b></p>
+          </div>
+
+          <div class="privrow">
+            <span class="line">telemetry is <b>off by default</b> · nothing leaves home</span>
+            <span class="chip on">· telemetry off</span>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">warm ink canvas + sage glow · follows device theming · the evening kitchen is a real moment</p>
+  </figure>
+
+</section>
+
+</body>
+</html>

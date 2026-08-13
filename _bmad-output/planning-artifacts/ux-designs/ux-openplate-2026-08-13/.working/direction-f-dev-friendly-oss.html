@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Direction F — Dev-Friendly, Self-Host</title>
+<style>
+/* ============================================================
+   DIRECTION F · DEV-FRIENDLY / OSS SELF-HOST
+   File: direction-f-dev-friendly-oss.html
+   Personality: self-host pride, bordered cards, mono accents.
+   ------------------------------------------------------------
+   PALETTE (hex)
+   --bg        #F6F4EF  warm workbench paper
+   --card      #FCFBF7  card off-white
+   --ink       #1E1D19  warm near-black ink
+   --ink-soft  #6F6B5E  saddle grey
+   --line      #DED9CC  hairline border
+   --accent    #E8833A  baked-orange (self-host heat / snapshot)
+   --accent-deep #C96E27  pressed orange
+   --sprig     #4F7A54  home-garden green (veg / on-track)
+   --moss      #375A3D  deep moss (primary action)
+   --track     #E7E2D5  empty slot
+   FONT STACK
+   body:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
+   labels: ui-monospace, "SF Mono", "Cascadia Code", Menlo,
+           Consolas, monospace  (mono callouts + status chips)
+   ============================================================ */
+:root{
+  --bg:#F6F4EF; --card:#FCFBF7; --ink:#1E1D19; --ink-soft:#6F6B5E;
+  --line:#DED9CC; --accent:#E8833A; --accent-deep:#C96E27;
+  --sprig:#4F7A54; --moss:#375A3D; --track:#E7E2D5;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E9E4D8;color:var(--ink);font-family:var(--sans);padding:40px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:12px}
+h1{font-size:32px;font-weight:750;letter-spacing:-.02em}
+.rationale{max-width:660px;margin-top:12px;font:400 14.5px/1.7 var(--sans);color:var(--ink-soft)}
+.rationale code{font:500 12px/1.5 var(--mono);background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--moss)}
+.shelf{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.spec{max-width:1240px;margin:0 auto;padding-top:30px;font:400 13px/1.8 var(--mono);color:var(--ink-soft)}
+.spec b{color:var(--moss);font-weight:600}
+
+/* ---------- phone ---------- */
+.phone{width:370px;border-radius:18px;padding:8px;background:#12110E;box-shadow:0 24px 60px -18px rgba(30,29,25,.6);border:1px solid #2C2A24;position:relative}
+.phone::before{content:"● ● ●";position:absolute;top:-24px;left:12px;font:700 8px/1 var(--mono);letter-spacing:2px;color:#6B665639}
+.capsule{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin:16px 0 4px}
+.screen{height:730px;border-radius:12px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid #3A372F}
+
+/* ---------- status bar ---------- */
+.statusbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0;font:500 11px/1 var(--mono);color:var(--ink-soft);border-bottom:1px dashed var(--line)}
+.statusbar .srv{display:flex;align-items:center;gap:6px}
+.statusbar .srv::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--sprig);box-shadow:0 0 0 3px rgba(79,122,84,.15)}
+
+/* ---------- title ---------- */
+.titlebar{display:flex;justify-content:space-between;align-items:flex-end;margin:22px 4px 18px}
+.titlebar h2{font-size:25px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
+.titlebar .mono{font:500 11px/1 var(--mono);color:var(--ink-soft)}
+.verpill{display:inline-flex;align-items:center;gap:6px;font:600 10px/1 var(--mono);letter-spacing:.1em;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--accent-deep);margin-top:8px}
+
+/* ---------- plate card = bordered ledger ---------- */
+.plate{background:var(--card);border:1.5px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.plate.hey{border-color:rgba(232,131,58,.7)}
+.platehead{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line);background:#FBFAF5}
+.platehead .label{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--moss)}
+.platehead .state{font:500 10px/1 var(--mono);color:var(--ink-soft);letter-spacing:.06em}
+.platehead .state.ok{color:var(--sprig)}
+.platehead .state.ok::before{content:"OK ";letter-spacing:.02em}
+.platehead .state.done::before{content:"● "}
+.abody{padding:14px;display:flex;gap:16px;align-items:center}
+.ring{width:80px;height:80px;flex:none}
+.meta .meal{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.meta .qty{font:500 11px/1.4 var(--mono);color:var(--accent-deep);display:block;margin-top:5px}
+.segline{display:flex;gap:10px;margin-top:10px;font:500 9.5px/1 var(--mono);letter-spacing:.08em;color:var(--ink-soft)}
+.segline i{display:inline-block;width:12px;height:12px;border:1px solid var(--line);border-radius:3px;margin-right:4px;vertical-align:-2px}
+.segline .has{color:var(--ink)}
+.segline .has i{background:currentColor;border-color:transparent}
+
+/* ---------- empty dent ---------- */
+.waiting{border:1.5px dashed var(--moss);border-radius:10px;background:var(--card);margin-bottom:12px}
+.waiting .wtitle{display:flex;justify-content:space-between;padding:11px 14px;font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--moss);border-bottom:1px dashed var(--track)}
+.waiting .wt{font:500 10px/1 var(--mono);color:var(--ink-soft);letter-spacing:.04em}
+.abody .strip{min-height:56px}
+
+/* ---------- coach ---------- */
+.coach{border:1.5px solid var(--line);border-left:4px solid var(--accent);background:var(--card);border-radius:8px;padding:14px 16px;margin:4px 0 16px}
+.coach p{font-size:15px;font-weight:650;line-height:1.5}
+.coach p em{font-style:normal;color:var(--accent-deep);font-weight:700}
+.coachbtns{display:flex;gap:8px;margin-top:13px}
+.btn{font:600 12px/1 var(--sans);border-radius:8px;padding:11px 16px;cursor:pointer;border:1px solid var(--ink)}
+.btn.sure{background:var(--moss);border-color:var(--moss);color:#FCFBF7}
+.btn.later{background:transparent;color:var(--ink-soft)}
+.btn.later:hover{border-color:var(--ink);color:var(--ink)}
+
+/* ---------- week strip ---------- */
+.week{display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--card);border:1.5px solid var(--line);border-radius:10px}
+.minis{display:grid;grid-template-columns:repeat(7,26px);gap:6px}
+.mini{width:26px;height:26px;border:1.5px solid var(--line);border-radius:6px;background:#FBF9F3}
+.mini.on{background:var(--sprig);border-color:var(--sprig)}
+.mini.today{box-shadow:0 0 0 2px rgba(232,131,58,.55)}
+.weeklabel{font:500 11.5px/1.5 var(--mono);color:var(--ink-soft)}
+.weeklabel b{color:var(--sprig);font-weight:600}
+
+/* ---------- fab / footer ---------- */
+.fab{position:absolute;right:16px;bottom:118px;width:54px;height:54px;border-radius:12px;background:var(--accent);color:#1E1D19;font:700 26px/1 var(--sans);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px -8px rgba(201,110,39,.7);border:1px solid #A85A1E}
+.foot{margin-top:18px;text-align:center;font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.foot code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--accent-deep)}
+
+/* ---------- capture sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-top:1.5px solid var(--line);border-radius:12px 12px 0 0;padding:12px 16px 20px;box-shadow:0 -16px 40px -20px rgba(30,29,25,.5);animation:rise .3s ease-out both}
+@keyframes rise{from{transform:translateY(30px)}to{transform:none}}
+.sheethead{display:flex;justify-content:space-between;align-items:center;font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px}
+.sheethead .key{font:500 11px/1 var(--mono);color:var(--accent-deep)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.snap{grid-column:1/-1;border:1.5px solid var(--accent);background:#FDF8F2;border-radius:10px;padding:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.snap b{font-size:19px;font-weight:750;color:var(--accent-deep);display:block;letter-spacing:-.01em}
+.snap span{font:500 11px/1.6 var(--mono);color:var(--ink-soft);display:block;margin-top:5px}
+.lensbox{width:64px;height:64px;border-radius:10px;border:1.5px solid var(--accent);background:var(--card);position:relative}
+.lensbox::before{content:"";position:absolute;inset:14px;border-radius:50%;border:2px solid var(--accent)}
+.lensbox::after{content:"";position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:3px;background:var(--accent)}
+.subtile{border:1.5px solid var(--line);border-radius:10px;padding:14px 12px;cursor:pointer;background:#FBF9F3}
+.subtile b{font-size:13px;font-weight:700;display:block;letter-spacing:-.01em}
+.subtile span{font:500 10px/1.5 var(--mono);color:var(--ink-soft);display:block;margin-top:4px}
+.barcode{height:16px;margin-top:10px;background:repeating-linear-gradient(90deg,var(--moss) 0 2px,transparent 2px 4px,var(--moss) 4px 5px,transparent 5px 8px);opacity:.5;border-radius:2px}
+
+/* ---------- variant: the about / self-host flourish ---------- */
+.about{background:var(--card);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.ab-cap{font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:10px 14px;border-bottom:1px solid var(--line);background:#FBFAF5;display:flex;justify-content:space-between}
+.ab-body{padding:16px}
+.ab-body .bigname{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.ab-body .tagline{font:500 12px/1.6 var(--mono);color:var(--sprig);margin-top:6px}
+.ab-specs{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.abspec{display:flex;justify-content:space-between;font:500 11px/1.8 var(--mono);color:var(--ink-soft)}
+.abspec code{color:var(--accent-deep)}
+.ab-foot{margin-top:14px;display:flex;justify-content:space-between;gap:8px}
+.ab-foot span{font:600 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:1px solid var(--line);border-radius:6px;padding:7px 10px;flex:1;text-align:center}
+.ab-foot span.hot{color:var(--accent-deep);border-color:rgba(232,131,58,.6)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Direction F</div>
+  <h1>Dev-Friendly · Self-Host</h1>
+  <p class="rationale">An app that quietly wears its engineering on its sleeve: bordered ledger-style cards, mono status chips, and a status line that tells you your instance is up. Still warm — the baked-orange accent and moss green keep it a kitchen tool, not a terminal. The about view is the full "yours to run" flourish, worn proudly.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ PHONE 1 · DAY BOARD ============ -->
+  <figure>
+    <div class="capsule">Day Board — dinner open, ledger view</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="srv">self-host · all local</span></div>
+        <div class="scroll" style="flex:1;overflow:hidden auto;padding:18px 14px 22px">
+          <div class="titlebar">
+            <div>
+              <div class="verpill">&#9660; openplate v0.4.2</div>
+              <h2>Tue · dinner done</h2>
+            </div>
+            <div class="mono">4&nbsp;/&nbsp;7<br>days</div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Breakfast</span><span class="state done ok">3/4</span></div>
+            <div class="abody">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sprig)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--moss)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="meta">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists</span>
+                <div class="segline">
+                  <span class="has"><i></i>V/F</span><span class="has"><i></i>PRO</span><span class="has"><i></i>ST</span><span><i></i>DAIRY</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Lunch</span><span class="state done">2/4</span></div>
+            <div class="abody">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sprig)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12" stroke-linecap="round" stroke-dasharray="58 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="meta">
+                <div class="meal">Pasta · chicken · tomatoes</div>
+                <span class="qty">~2 fists</span>
+                <div class="segline">
+                  <span class="has"><i></i>V/F</span><span class="has"><i></i>PRO</span><span><i></i>ST</span><span><i></i>DAIRY</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="waiting">
+            <div class="wtitle"><span>Dinner — the day's last plate</span><span class="wt">open</span></div>
+            <div class="abody">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--moss)" stroke-width="12" stroke-dasharray="4 10" stroke-linecap="round" opacity=".5"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12"/>
+              </svg>
+              <div class="meta">
+                <div class="meal">Empty — slot reserved</div>
+                <span class="qty">state: pending</span>
+                <div class="segline"><span><i></i>V/F</span><span><i></i>PRO</span><span><i></i>ST</span><span><i></i>DAIRY</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="coach">
+            <p>Greens would round this plate out <em>— want a 10-second suggestion?</em></p>
+            <div class="coachbtns">
+              <button class="btn sure">Sure</button>
+              <button class="btn later">Ask later</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini today"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="weeklabel">This week: <b>4 balanced days</b><br>no streak · no scoreboard</div>
+          </div>
+
+          <div class="foot">yours to run · <code>&#9660; open source</code> · zero telemetry</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 2 · CAPTURE SHEET ============ -->
+  <figure>
+    <div class="capsule">Capture — snapshot primary</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="srv">self-host · all local</span></div>
+        <div class="scroll" style="flex:1;overflow:hidden auto;padding:18px 14px 22px">
+          <div class="titlebar"><div class="verpill">&#9660; openplate v0.4.2</div><h2>Log dinner</h2></div>
+          <div class="waiting">
+            <div class="wtitle"><span>Dinner — the day's last plate</span><span class="wt">open</span></div>
+            <div class="abody">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--moss)" stroke-width="12" stroke-dasharray="4 10" stroke-linecap="round" opacity=".5"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12"/>
+              </svg>
+              <div class="meta"><div class="meal">One snap is enough</div><span class="qty">camera · ready</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="sheethead"><span>capture methods</span><span class="key">Esc to dismiss</span></div>
+          <div class="tiles">
+            <div class="snap">
+              <div><b>Snapshot</b><span>photo-first · auto-read plate</span></div>
+              <div class="lensbox"></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>packaged side-dish</span><div class="barcode"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>hands full · voice works</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 3 · VARIANT / ABOUT: "YOURS TO RUN" ============ -->
+  <figure>
+    <div class="capsule">Variant — the yours-to-run flourish</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="srv">self-host · all local</span></div>
+        <div class="scroll" style="flex:1;overflow:hidden auto;padding:18px 14px 22px">
+          <div class="titlebar"><div class="verpill">&#9660; openplate v0.4.2</div><h2>About · yours to run</h2></div>
+
+          <div class="about">
+            <div class="ab-cap"><span>identity</span><span>verified</span></div>
+            <div class="ab-body">
+              <div class="bigname">Open Plate</div>
+              <div class="tagline">-- your family's nutrition coach, self-hosted</div>
+              <div class="ab-specs">
+                <div class="abspec"><span>runtime</span><code>anywhere you like</code></div>
+                <div class="abspec"><span>storage</span><code>your machine · yours</code></div>
+                <div class="abspec"><span>telemetry</span><code>none · by design</code></div>
+                <div class="abspec"><span>license</span><code>open source</code></div>
+              </div>
+              <div class="ab-foot">
+                <span>No streaks</span><span>No scores</span><span class="hot">Your data stays home</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Breakfast</span><span class="state done ok">3/4</span></div>
+            <div class="abody">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--track)" stroke-width="12"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--sprig)" stroke-width="12" stroke-dasharray="58 251"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="58 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--moss)" stroke-width="12" stroke-dasharray="58 251" stroke-dashoffset="-125.6"/>
+              </svg>
+              <div class="meta"><div class="meal">Oat bowl · blueberries</div><span class="qty">~2 fists</span></div>
+            </div>
+          </div>
+
+          <div class="foot">self-hosted · <code>&#9660; open source</code> · zero guilt</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+</section>
+
+<p class="spec"><b>Specs for this direction:</b> 8–10px radii, 1.5px borders, hairline dividers · mono labels for everything machine-ish (state, qty, version, storage) · sans for readable warmth · baked-orange #E8833A reserved for action + snapshot · moss #375A3D and sprig #4F7A54 for calm balance · status chips build "self-host pride" without sacrificing warmth.</p>
+
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Key Screen 3 — Expanded plate</title>
+<style>
+/* ============================================================
+   OPENPLATE · KEY SCREEN 3 · THE EXPANDED PLATE
+   File: key-expanded-plate.html
+
+   GOVERNING SPINE SECTIONS
+   EXPERIENCE.md — Component Patterns rows:
+     Balance arc (4 segments, Veg&Fruit / Protein / Starch / Dairy,
+     announced as food groups — accessibility floor 2), Coach
+     whisper (post-resolve anchor, follow-up depth)
+   EXPERIENCE.md — State Patterns rows:
+     Follow-up depth (FR-5 answered): `sure` on the post-resolve
+     whisper produces ONE bounded follow-up Coach Note
+     ("want the fiber breakdown?" → "oomph on vitamins — here's
+     where you're covered"), not a conversational loop; dismissing
+     records no score, no streak, no penalty
+   EXPERIENCE.md — Interaction Primitives rows:
+     Tap-to-expand (the expanded plate IS the edit surface),
+     Ranked matches + quantity presets (used here for the
+     low-friction SM-3 correction)
+   EXPERIENCE.md — Flow steps:
+     UJ-1 step 4 climax (expanded thread), SM-3 correction path
+     (alternate section: editing a resolved entry, one tap)
+   Accessibility floor: arc announces food groups; reduced-motion
+   fades the inline shimmer in the alternate.
+
+   GOVERNING ARTIFACTS
+   .working/direction-df-calm-selfhost.html  (plate row anatomy,
+     arc dash pattern, coach voice, chips)
+   .working/color-themes-1.html              (Sage & Cream variation 1,
+     light + dark)
+   DESIGN.md   (arc component, coach/grace tokens, chips, hairlines)
+   EXPERIENCE.md  (behavior rows cited above)
+   .memlog.md   (expanded-plate edit = SM-3 correction affordance;
+     follow-up depth single-response)
+   ../prds/prd-openplate-2026-08-12/prd.md   (FR-4, FR-5, SM-3, UJ-1)
+   ============================================================ */
+
+/* ---------------- Sage & Cream · variation 1 (locked) ---------------- */
+:root{
+  --canvas:#F6F3ED; --surface:#FDFCF9; --ink:#2C2A25; --muted:#716B5E;
+  --accent:#6E8376; --adeep:#54685C; --sage-tint:#E9ECE5;
+  --ok:#52705A; --warm:#A45B31; --hairline:#E2DCD0; --chip:#6F695C;
+  --tipjar:#8F5E2B; --danger:#B05A3C;
+  --sans:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EDEAE3;color:var(--ink);font-family:var(--sans);padding:44px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:500 12px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--adeep);margin-bottom:12px}
+h1{font-size:34px;font-weight:200;letter-spacing:.01em}
+.rationale{max-width:680px;margin-top:12px;font-size:15.5px;font-weight:300;line-height:1.7;color:var(--muted)}
+.rationale b{color:var(--adeep);font-weight:500}
+.shelf{display:flex;flex-wrap:wrap;gap:44px;justify-content:center;align-items:flex-start}
+
+/* ---------------- phone ---------------- */
+.phone{width:390px;border-radius:52px;padding:13px;background:#3A3A36;box-shadow:0 30px 60px -20px rgba(60,58,50,.45)}
+.capsule{font:500 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);text-align:center;margin:18px 0 6px}
+.mininote{margin-top:12px;text-align:center;font:400 10px/1.7 var(--mono);letter-spacing:.08em;color:#9A9488}
+.screen{height:820px;border-radius:38px;background:var(--canvas);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:36px 26px 28px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.statusbar{display:flex;justify-content:space-between;padding:14px 30px 0;font:400 12px/1 var(--sans);color:var(--muted)}
+
+.chip{font:500 9.5px/1 var(--mono);letter-spacing:.05em;color:var(--chip);border:1px solid var(--hairline);border-radius:5px;background:var(--surface);padding:3px 7px;display:inline-block;white-space:nowrap}
+.chip.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+
+/* ---------------- expanded plate header ---------------- */
+.toprow{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 26px}
+.toprow .back{font:400 13px/1 var(--sans);color:var(--muted);cursor:pointer}
+.toprow .right{display:flex;align-items:center;gap:10px}
+.toprow .arcnote{font:400 11.5px/1 var(--mono);color:var(--adeep)}
+.plateblock{border-top:1px solid var(--hairline);padding-top:24px}
+
+/* ---------------- larger arc + group labels ----------------
+   Color never the sole signal: every segment carries a text label
+   (accessibility floor 4); the arc announces as food groups. */
+.arccenter{display:flex;flex-direction:column;align-items:center;gap:18px;padding-bottom:8px}
+.ringbig{width:150px;height:150px}
+.grouplabels{display:flex;justify-content:space-between;width:100%;max-width:310px}
+.gl{display:flex;flex-direction:column;align-items:center;gap:7px}
+.gl .dot{width:9px;height:9px;border-radius:50%}
+.gl .dot.on{background:var(--accent)}
+.gl .dot.off{background:transparent;border:1px solid var(--hairline)}
+.gl .name{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.gl .name.on{color:var(--adeep)}
+
+/* ---------------- plate log entries ----------------
+   Expanded entries with honest quantity ranges (FR-1) and a
+   quiet per-row edit affordance (the SM-3 surface). */
+.platehead{display:flex;justify-content:space-between;align-items:baseline;margin:26px 0 6px}
+.platehead .label{font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.platehead .qtynote{font:400 10px/1 var(--mono);color:#9A9488}
+.entry{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;border-bottom:1px solid var(--hairline)}
+.entry .name{font-size:17px;font-weight:400;letter-spacing:-.005em}
+.entry .sub{display:flex;align-items:center;gap:12px}
+.entry .qty{font:400 12.5px/1.5 var(--mono);color:var(--muted)}
+.entry .edit{font:400 11px/1 var(--mono);letter-spacing:.05em;color:var(--adeep);cursor:pointer}
+.entry .edit.quiet{color:#9A9488}
+.entry.last{border-bottom:none}
+
+/* ---------------- coach thread ----------------
+   Post-resolve whisper → one bounded follow-up (FR-5 answered),
+   then a quiet dismiss line. Serif italic = coach only. */
+.thread{margin-top:26px;border-top:1px solid var(--hairline);padding-top:24px}
+.thread .step{font:500 9.5px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#9A9488;margin-bottom:16px}
+.coach p{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.6;color:var(--ink);max-width:300px}
+.coach p span{color:var(--adeep)}
+.follow{display:flex;gap:10px;align-items:flex-start;margin-top:20px}
+.follow p{font-family:var(--serif);font-style:italic;font-size:17px;line-height:1.55;color:var(--ink);max-width:280px}
+.follow p span{color:var(--adeep)}
+.answered{flex:none;margin-top:2px}
+.bound{margin-top:14px;font:400 9.5px/1.6 var(--mono);letter-spacing:.05em;color:#9A9488}
+.dismiss{margin-top:18px;font:400 9.5px/1.6 var(--mono);letter-spacing:.05em;color:#9A9488}
+.dismiss b{color:var(--muted);font-weight:500}
+.foot{margin-top:30px;text-align:center;font:400 10px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.foot b{color:var(--adeep);font-weight:500}
+
+/* ---------------- alternate: SM-3 correction in action ----------------
+   One tap to edit a resolved entry; quantity presets, no friction,
+   no re-log. Corrections are the signal for SM-3 (AI-editing
+   friction), so the affordance stays visible and quiet. */
+.presets{display:flex;gap:10px;margin:16px 0 2px 2px;flex-wrap:wrap}
+.preset{font:400 12px/1 var(--mono);color:var(--chip);border:1px solid var(--hairline);border-radius:26px;background:var(--surface);padding:11px 15px;cursor:pointer}
+.preset.on{color:var(--adeep);border-color:rgba(84,104,92,.3);background:var(--sage-tint)}
+.correctionnote{margin-top:18px;font:400 9.5px/1.7 var(--mono);letter-spacing:.05em;color:#9A9488}
+.correctionnote b{color:var(--muted);font-weight:500}
+.shimmer{position:relative;height:2px;border-radius:2px;background:var(--sage-tint);overflow:hidden;margin-top:16px}
+.shimmer::after{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.8s ease-in-out infinite;border-radius:2px}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(190%)}}
+@media (prefers-reduced-motion: reduce){.shimmer::after{animation:none;opacity:.35}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Key Screen 3 · 2026-08-13</div>
+  <h1>The expanded plate — the edit surface</h1>
+  <p class="rationale">Tap-to-expand turns the plate row into the place to look again and, when needed, <b>correct</b> a resolved entry — one tap, low friction, the SM-3 path. The answered coach question resolves to a single bounded follow-up, never a loop, and dismissing records no score, no streak, no penalty.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ CANONICAL · EXPANDED PLATE + FOLLOW-UP THREAD ============ -->
+  <figure>
+    <div class="capsule">Canonical — expanded Plate Log &amp; the coach thread</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="toprow">
+            <span class="back">‹ Day</span>
+            <span class="right"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span>
+          </div>
+
+          <div class="plateblock">
+            <div class="arccenter">
+              <svg class="ringbig" viewBox="0 0 100 100" role="img" aria-label="Breakfast balance: vegetables and fruit present, protein missing, starch present, dairy present">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="grouplabels">
+                <span class="gl"><span class="dot on"></span><span class="name on">Veg&amp;Fruit</span></span>
+                <span class="gl"><span class="dot off"></span><span class="name">Protein</span></span>
+                <span class="gl"><span class="dot on"></span><span class="name on">Starch</span></span>
+                <span class="gl"><span class="dot on"></span><span class="name on">Dairy</span></span>
+              </div>
+            </div>
+
+            <div class="platehead">
+              <span class="label">Breakfast</span>
+              <span class="qtynote">~2 fists · gentle</span>
+            </div>
+            <div class="entry"><span class="name">Rolled oats</span><span class="sub"><span class="qty">~1 fist</span><span class="edit quiet">edit</span></span></div>
+            <div class="entry"><span class="name">Blueberries</span><span class="sub"><span class="qty">~1 fist</span><span class="edit">edit</span></span></div>
+            <div class="entry last"><span class="name">Milk, whole</span><span class="sub"><span class="qty">~1/2 glass</span><span class="edit quiet">edit</span></span></div>
+          </div>
+
+          <div class="thread">
+            <div class="step">Coach · one question, one answer</div>
+            <div class="coach">
+              <p>Nice balance — two colors of veg, lean protein. <span>Want the fiber breakdown?</span></p>
+            </div>
+            <div class="follow">
+              <span class="chip on answered">· answered</span>
+              <p><span>oomph on vitamins</span> — here's where you're covered.</p>
+            </div>
+            <div class="bound">a single answer — the thread rests here</div>
+            <div class="dismiss">dismiss = <b>no score · no streak · no penalty</b></div>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">one bounded follow-up (FR-5) · dismiss quietly · no score, no streak, no penalty</p>
+  </figure>
+
+  <!-- ============ ALTERNATE · SM-3 CORRECTION IN ACTION ============ -->
+  <figure>
+    <div class="capsule">Alternate — correcting a resolved entry, one tap</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>quiet</span></div>
+        <div class="scroll">
+          <div class="toprow">
+            <span class="back">‹ Day</span>
+            <span class="right"><span class="arcnote">3 of 4</span><span class="chip on">· synced</span></span>
+          </div>
+
+          <div class="plateblock">
+            <div class="arccenter">
+              <svg class="ringbig" viewBox="0 0 100 100" role="img" aria-label="Breakfast balance: vegetables and fruit present, protein missing, starch present, dairy present">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--hairline)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="grouplabels">
+                <span class="gl"><span class="dot on"></span><span class="name on">Veg&amp;Fruit</span></span>
+                <span class="gl"><span class="dot off"></span><span class="name">Protein</span></span>
+                <span class="gl"><span class="dot on"></span><span class="name on">Starch</span></span>
+                <span class="gl"><span class="dot on"></span><span class="name on">Dairy</span></span>
+              </div>
+            </div>
+
+            <div class="platehead">
+              <span class="label">Breakfast</span>
+              <span class="qtynote">~2 fists · gentle</span>
+            </div>
+            <div class="entry"><span class="name">Rolled oats</span><span class="sub"><span class="qty">~1 fist</span><span class="edit quiet">edit</span></span></div>
+            <div class="entry" style="align-items:flex-start">
+              <div>
+                <div class="name">Blueberries</div>
+                <div class="presets">
+                  <span class="preset">~1/2 fist</span>
+                  <span class="preset on">~1 fist</span>
+                  <span class="preset">~2 fists</span>
+                </div>
+              </div>
+              <span class="edit">done</span>
+            </div>
+            <div class="entry last"><span class="name">Milk, whole</span><span class="sub"><span class="qty">~1/2 glass</span><span class="edit quiet">edit</span></span></div>
+          </div>
+
+          <div class="plateblock">
+            <div class="correctionnote">correcting is one tap · entries stay as resolved · nothing re-logs ·<br>quiet <b>shimmer</b>, then the arc updates in place</div>
+            <div class="shimmer" aria-hidden="true"></div>
+          </div>
+
+          <div class="foot">yours to run · <b>open source</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="mininote">SM-3 · low-friction edit of an AI-estimated entry · <2 corrections stays the metric, not a strictness bar</p>
+  </figure>
+
+</section>
+
+</body>
+</html>

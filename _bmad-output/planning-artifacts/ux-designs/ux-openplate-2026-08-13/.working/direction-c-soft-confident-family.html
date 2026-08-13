@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Direction C — Soft Confident Family</title>
+<style>
+/* ============================================================
+   DIRECTION C · SOFT CONFIDENT FAMILY
+   File: direction-c-soft-confident-family.html
+   Personality: friendly humanist, rounded but adult, airy.
+   ------------------------------------------------------------
+   PALETTE (hex)
+   --bg        #F7F3EA  warm off-white
+   --card      #FFFDF7  cream card
+   --ink       #3A3A30  soft charcoal
+   --ink-soft  #77725F  warm muted grey-green
+   --olive     #8A8B5F  muted olive    (veg / calm progress)
+   --olive-deep#6E7046  pressed olive  (buttons)
+   --terra     #C9855B  warm tan-peach (protein / warmth accent)
+   --gold      #D4B46A  butter (starch)
+   --cream     #EFE6CE  dairy cream
+   --line      #E8E1CE  soft hairline
+   --good      #A3B48A  calm sage-green fill (on-track days)
+   FONT STACK
+   display/body: "Avenir Next Rounded", "Nunito", "SF Pro Rounded",
+                 "Trebuchet MS", system-ui, sans-serif
+   ui labels:   "Avenir Next", "Inter", system-ui, sans-serif
+   ============================================================ */
+:root{
+  --bg:#F7F3EA; --card:#FFFDF7; --ink:#3A3A30; --ink-soft:#77725F;
+  --olive:#8A8B5F; --olive-deep:#6E7046; --terra:#C9855B; --gold:#D4B46A;
+  --cream:#EFE6CE; --line:#E8E1CE; --good:#A3B48A;
+  --rounded:"Avenir Next Rounded","Nunito","SF Pro Rounded","Trebuchet MS",system-ui,sans-serif;
+  --ui:"Avenir Next","Inter",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--rounded);padding:40px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:700 12px/1 var(--ui);letter-spacing:.18em;text-transform:uppercase;color:var(--terra);margin-bottom:10px}
+h1{font-size:34px;font-weight:700;letter-spacing:-.01em}
+.rationale{max-width:660px;margin-top:12px;font-size:16px;line-height:1.6;color:var(--ink-soft)}
+.shelf{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.spec{max-width:1240px;margin:0 auto;padding-top:30px;font:400 13px/1.7 var(--ui);color:var(--ink-soft)}
+.spec b{color:var(--ink)}
+
+/* ---------- phone ---------- */
+.phone{width:370px;border-radius:46px;padding:12px;background:#4A4737;box-shadow:0 28px 60px -18px rgba(60,56,40,.5);outline:1px solid rgba(255,255,255,.08)}
+.capsule{font:600 11px/1 var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin:18px 0 4px}
+.screen{height:730px;border-radius:34px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:32px 22px 24px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- chrome ---------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 24px 0;font:600 12px/1 var(--ui);color:var(--ink-soft)}
+.titlebar{margin:28px 2px 22px}
+.titlebar .chip{display:inline-block;background:var(--cream);border:1px solid var(--line);color:var(--olive-deep);font:700 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;padding:6px 10px;border-radius:20px;margin-bottom:10px}
+.titlebar h2{font-size:30px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+.titlebar h2 em{font-style:normal;color:var(--terra)}
+.titlebar .sub{font-size:14px;color:var(--ink-soft);margin-top:8px}
+
+/* ---------- plate cards ---------- */
+.plate{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:20px;margin-bottom:16px;box-shadow:0 18px 34px -22px rgba(60,56,40,.5)}
+.platehead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+.platehead .label{font:800 13px/1 var(--rounded);color:var(--olive-deep)}
+.platehead .arcnote{font:700 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--terra)}
+.arcrow{display:flex;gap:18px;align-items:center}
+.ring{width:88px;height:88px;flex:none;transform:rotate(-90deg)}
+.legend .meal{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.legend .qty{display:inline-block;font:600 12px/1 var(--ui);color:var(--olive-deep);background:var(--cream);border-radius:20px;padding:5px 11px;margin-top:6px}
+.legend .hint{font-size:13px;color:var(--ink-soft);margin-top:8px;max-width:150px}
+.segrow{display:flex;gap:14px;margin-top:12px}
+.seg{font:600 10.5px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.seg i{display:inline-block;width:10px;height:10px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+.seg.gap i{background:var(--line);box-shadow:inset 0 0 0 1.5px #D8CFB4}
+
+/* ---------- empty dent ---------- */
+.waiting{background:var(--card);border:1.5px dashed var(--good);border-radius:26px;padding:20px;margin-bottom:14px}
+.waiting .label{font:800 13px/1 var(--rounded);color:var(--olive-deep);margin-bottom:14px}
+.dentrow{display:flex;gap:18px;align-items:center}
+.dentring{width:88px;height:88px;flex:none}
+.dentblank{font-size:15px;color:var(--ink-soft);line-height:1.5;max-width:185px}
+.dentblank b{color:var(--ink)}
+
+/* ---------- coach ---------- */
+.coach{background:var(--cream);border-radius:24px;padding:16px 18px;margin:4px 0 16px}
+.coach p{font-size:16px;font-weight:600;line-height:1.45}
+.coach p span{color:var(--olive-deep)}
+.coachbtns{display:flex;gap:10px;margin-top:14px}
+.btn{font:700 13px/1 var(--ui);border-radius:24px;padding:12px 18px;cursor:pointer;border:none}
+.btn.sure{background:var(--olive-deep);color:#FFFDF7;box-shadow:0 8px 16px -8px rgba(110,112,70,.7)}
+.btn.later{background:#fff;border:1px solid var(--line);color:var(--olive-deep)}
+
+/* ---------- week ---------- */
+.week{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
+.minis{display:flex;gap:6px}
+.mini{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--card)}
+.mini.on{background:var(--good);border-color:var(--good)}
+.mini.soon{background:#C6BFA0;border-color:#C6BFA0;opacity:.6}
+.weeklabel{font-size:13px;color:var(--ink-soft);font-weight:600;text-align:right}
+.weeklabel b{color:var(--olive-deep)}
+
+/* ---------- fab / footer ---------- */
+.fab{position:absolute;right:18px;bottom:122px;width:62px;height:62px;border-radius:31px;background:var(--terra);color:#FFFDF7;font:500 32px/1 var(--rounded);display:flex;align-items:center;justify-content:center;box-shadow:0 16px 30px -10px rgba(201,133,91,.75)}
+.foot{margin-top:16px;text-align:center;font:600 10.5px/1 var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
+.foot b{color:var(--olive-deep)}
+
+/* ---------- capture sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:30px 30px 0 0;padding:16px 20px 22px;box-shadow:0 -20px 44px -18px rgba(60,56,40,.45);animation:rise .35s ease-out both}
+@keyframes rise{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+.grab{width:46px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheethead{font:800 16px/1 var(--rounded);color:var(--ink);text-align:center;margin-bottom:14px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.snap{grid-column:1/-1;border-radius:24px;background:linear-gradient(150deg,var(--terra),#C97B52);color:#FFFDF7;padding:22px 20px;cursor:pointer;box-shadow:0 16px 30px -12px rgba(201,133,91,.8);display:flex;justify-content:space-between;align-items:center}
+.snap b{font-size:22px;font-weight:800;letter-spacing:-.01em;display:block}
+.snap span{font:600 12px/1.4 var(--ui);opacity:.9}
+.lens{width:54px;height:54px;border-radius:50%;background:rgba(255,253,247,.2);border:2px solid rgba(255,253,247,.8);position:relative}
+.lens::after{content:"";position:absolute;inset:16px;border-radius:50%;background:#FFFDF7}
+.subtile{border:1px solid var(--line);border-radius:20px;padding:16px 14px;cursor:pointer;background:#FFFBEF}
+.subtile b{font-size:14px;font-weight:800;display:block}
+.subtile span{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:4px}
+.barcode{height:16px;margin-top:10px;border-radius:4px;background:repeating-linear-gradient(90deg,var(--olive-deep) 0 2px,transparent 2px 4px,var(--olive-deep) 4px 6px,transparent 6px 9px);opacity:.55}
+
+/* ---------- variant: good-night summary ---------- */
+.goodnight{background:linear-gradient(180deg,var(--bg),#EFE8D6);border-radius:28px;padding:22px 20px;margin-bottom:14px;text-align:center}
+.goodnight .moon{font-size:30px;line-height:1;color:var(--gold)}
+.goodnight h3{font-size:20px;font-weight:800;margin-top:8px;color:var(--olive-deep)}
+.goodnight p{font-size:13.5px;color:var(--ink-soft);margin-top:6px;line-height:1.5}
+.recap{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:16px;margin-bottom:12px}
+.recap .rlabel{font:700 11px/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--terra);margin-bottom:10px}
+.recaprow{display:flex;align-items:center;gap:12px;padding:6px 0}
+.recaprow .dot{width:22px;height:22px;border-radius:50%;background:var(--good)}
+.recaprow .rn{font-size:15px;font-weight:700;flex:1}
+.recaprow .rq{font:600 11px/1 var(--ui);color:var(--olive-deep);background:var(--cream);border-radius:16px;padding:4px 9px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Direction C</div>
+  <h1>Soft Confident Family</h1>
+  <p class="rationale">Friendly and rounded but firmly adult — a kitchen-table companion that feels like a trusted friend, not a gamified tracker. Wide cream cards on warm off-white, muted olive for steady progress, and terracotta only where warmth or action lives. Generous whitespace gives a stressed parent room to breathe.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ PHONE 1 · DAY BOARD ============ -->
+  <figure>
+    <div class="capsule">Day Board — dinner open</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>battery</span></div>
+        <div class="scroll">
+          <div class="titlebar">
+            <div class="chip">Yours to run · open source</div>
+            <h2>Tue · <em>dinner</em> done</h2>
+            <div class="sub">One more plate to go — no pressure, just nourishment.</div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Breakfast</span><span class="arcnote">nicely balanced</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--good)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--terra)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Oat bowl · blueberries</div>
+                <span class="qty">~2 fists</span>
+                <div class="hint">A soft, sweet start to the day.</div>
+              </div>
+            </div>
+            <div class="segrow">
+              <span class="seg"><i style="background:var(--good)"></i>Veg &amp; fruit</span>
+              <span class="seg"><i style="background:var(--terra)"></i>Protein</span>
+              <span class="seg"><i style="background:var(--gold)"></i>Starch</span>
+              <span class="seg gap"><i></i>Dairy</span>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="platehead"><span class="label">Lunch</span><span class="arcnote">getting there</span></div>
+            <div class="arcrow">
+              <svg class="ring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--good)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--terra)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-62.8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13" stroke-linecap="round" stroke-dasharray="60 251" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13" stroke-linecap="round" stroke-dasharray="0 251" stroke-dashoffset="-188.4"/>
+              </svg>
+              <div class="legend">
+                <div class="meal">Pasta · chicken · tomatoes</div>
+                <span class="qty">~2 fists</span>
+                <div class="hint">Could use a little more veg — even a handful helps.</div>
+              </div>
+            </div>
+            <div class="segrow">
+              <span class="seg"><i style="background:var(--good)"></i>Veg &amp; fruit</span>
+              <span class="seg"><i style="background:var(--terra)"></i>Protein</span>
+              <span class="seg gap"><i></i>Starch</span>
+              <span class="seg gap"><i></i>Dairy</span>
+            </div>
+          </div>
+
+          <div class="waiting">
+            <div class="label">Dinner — the day's last plate</div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--good)" stroke-width="13" stroke-dasharray="5 10" stroke-linecap="round" opacity=".6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="13" opacity=".7"/>
+                <circle cx="50" cy="50" r="5" fill="var(--olive-deep)" opacity=".35"/>
+              </svg>
+              <div class="dentblank"><b>Still open — take your time.</b><br>The dent is just a gentle outline, waiting for tonight's plate.</div>
+            </div>
+          </div>
+
+          <div class="coach">
+            <p>Greens would round this plate out <span>— want a 10-second suggestion?</span></p>
+            <div class="coachbtns">
+              <button class="btn sure">Sure</button>
+              <button class="btn later">Ask later</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini soon"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="weeklabel">This week: <b>4 balanced days</b></div>
+          </div>
+
+          <div class="foot">Your family's rhythm · <b>yours to run</b> · open source</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 2 · CAPTURE CARD ============ -->
+  <figure>
+    <div class="capsule">Capture card — fanned out, warm</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>battery</span></div>
+        <div class="scroll" style="padding-bottom:130px">
+          <div class="titlebar"><h2 style="font-size:24px">Let's capture dinner</h2><div class="sub">One tap on the +, then the camera is your friend.</div></div>
+        </div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheethead">How do you want to remember it?</div>
+          <div class="tiles">
+            <div class="snap">
+              <div><b>Snapshot</b><span>photo-first · nothing to type</span></div>
+              <div class="lens"></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>for the packaged side-dish</span><div class="barcode"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>hands full? just say it</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 3 · VARIANT: GOOD-NIGHT RECAP ============ -->
+  <figure>
+    <div class="capsule">Variant — a warm end-of-day close</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>battery</span></div>
+        <div class="scroll">
+          <div class="titlebar">
+            <div class="chip">Today is complete</div>
+            <h2>Day done <em>— nicely done</em></h2>
+          </div>
+          <div class="goodnight">
+            <div class="moon">&#9788;</div>
+            <h3>Three plates, no scores.</h3>
+            <p>You fed your family today. That's the whole metric. Sleep easy — tomorrow is a fresh plate.</p>
+          </div>
+          <div class="recap">
+            <div class="rlabel">Today's recap · in plain words</div>
+            <div class="recaprow"><span class="dot"></span><span class="rn">Breakfast — Oat bowl · blueberries</span><span class="rq">~2 fists</span></div>
+            <div class="recaprow"><span class="dot"></span><span class="rn">Lunch — Pasta · chicken · tomatoes</span><span class="rq">~2 fists</span></div>
+            <div class="recaprow"><span class="dot"></span><span class="rn">Dinner — logged with a snapshot</span><span class="rq">1 plate</span></div>
+          </div>
+          <div class="week">
+            <div class="minis"><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini soon"></span><span class="mini"></span><span class="mini"></span></div>
+            <div class="weeklabel">This week: <b>4 balanced days</b></div>
+          </div>
+          <div class="foot">Yours to run · <b>open source</b> · your data lives at home</div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+</section>
+
+<p class="spec"><b>Specs for this direction:</b> rounded-but-not-cute stack (Avenir Next Rounded / Nunito) · cards 24–26px radius with cream fills · near-zero hard edges · olive = steady, terracotta = warmth &amp; action, gold = butter · microcopy reassures instead of scoring · the + button is a big soft terracotta circle, impossible to miss.</p>
+
+</body>
+</html>

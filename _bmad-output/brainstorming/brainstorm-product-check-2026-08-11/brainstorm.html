@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate — A Brainstorm Keepsake</title>
+<style>
+  :root{
+    --cream:#faf2e0;
+    --cream-2:#f4e6c9;
+    --paper:#fffaf0;
+    --ink:#2a2118;
+    --ink-soft:#5c4f3d;
+    --tomato:#cf3d24;
+    --tomato-deep:#a52d18;
+    --leaf:#3f7d52;
+    --leaf-deep:#2c5a3c;
+    --gold:#dfa63c;
+    --gold-soft:#f0c877;
+    --blue:#35537e;
+    --blue-deep:#1d2c46;
+    --plum:#7d4a74;
+    --night:#1a2336;
+    --night-2:#131a29;
+    --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --r:18px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--cream);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--tomato);color:#fff}
+  .wrap{max-width:1020px;margin:0 auto;padding:0 28px}
+  h1,h2,h3,.serif{font-family:var(--serif)}
+  .kicker{
+    font-size:12px;letter-spacing:.24em;text-transform:uppercase;
+    font-weight:700;color:var(--ink-soft);
+  }
+  .voice{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+    padding:3px 9px;border-radius:999px;vertical-align:middle;
+  }
+  .voice.user{background:var(--tomato);color:#fff}
+  .voice.coach{background:var(--blue);color:#fff}
+  .voice::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  .hero{
+    position:relative;overflow:hidden;
+    padding:72px 0 40px;text-align:center;
+    background:
+      radial-gradient(720px 380px at 50% -60px, rgba(223,166,60,.25), transparent 70%),
+      radial-gradient(560px 320px at 50% 130%, rgba(207,61,36,.10), transparent 70%),
+      var(--cream);
+  }
+  .hero .kicker{display:block;margin-bottom:14px}
+  .hero h1{
+    font-size:clamp(64px,14vw,128px);line-height:.94;letter-spacing:-.01em;
+    color:var(--ink);position:relative;display:inline-block;
+  }
+  .hero h1::after{
+    content:"";position:absolute;left:8%;right:8%;bottom:-10px;height:5px;
+    background:repeating-linear-gradient(90deg,var(--tomato) 0 14px,transparent 14px 26px);
+    border-radius:3px;
+  }
+  .hero .tagline{
+    margin-top:30px;font-family:var(--serif);font-style:italic;
+    font-size:clamp(20px,3.4vw,30px);color:var(--tomato-deep);
+  }
+  .hero .lede{max-width:640px;margin:22px auto 0;color:var(--ink-soft);font-size:16px}
+  .heroplate-wrap{margin:44px auto 0;display:flex;justify-content:center}
+  .steam-float{display:grid;place-items:center;margin-bottom:-18px;z-index:2;position:relative;top:10px}
+  .plate{
+    position:relative;border-radius:50%;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255,255,255,.85), transparent 38%),
+      radial-gradient(circle at 65% 75%, rgba(190,120,50,.18), transparent 55%),
+      radial-gradient(circle at 50% 50%, #fff8e7 0, #ffedd0 62%, #f3d9ab 100%);
+    box-shadow:0 10px 30px rgba(42,33,24,.18), inset 0 0 0 1px rgba(122,86,39,.25);
+    display:grid;place-items:center;
+  }
+  .plate::before{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    border:5px dashed rgba(207,61,36,.55);
+  }
+  .plate::after{
+    content:"";position:absolute;inset:16px;border-radius:50%;
+    border:2px solid rgba(122,86,39,.28);
+  }
+  .plate .speckle{
+    position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    background-image:
+      radial-gradient(3px 3px at 22% 30%, rgba(63,125,82,.55), transparent),
+      radial-gradient(2.5px 2.5px at 74% 24%, rgba(207,61,36,.5), transparent),
+      radial-gradient(3px 3px at 80% 62%, rgba(223,166,60,.6), transparent),
+      radial-gradient(2.5px 2.5px at 28% 72%, rgba(53,83,126,.5), transparent),
+      radial-gradient(3px 3px at 55% 48%, rgba(125,74,116,.45), transparent);
+  }
+  .heroplate{width:230px;height:230px}
+  .heroplate .core{position:relative;z-index:1;text-align:center;padding:0 40px}
+  .heroplate .core .meal{color:var(--ink)}
+  .heroplate .core .meal small{
+    display:block;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);
+  }
+  .heroplate .core .meal b{
+    display:block;font-family:var(--serif);font-size:30px;line-height:1.05;margin-top:4px;
+  }
+
+  .timeline{
+    margin-top:52px;display:flex;align-items:flex-start;justify-content:center;gap:0;
+  }
+  .tl-step{padding:0 6px;text-align:center;flex:1;max-width:150px}
+  .tl-dot{
+    width:30px;height:30px;border-radius:50%;margin:0 auto;
+    background:var(--cream-2);border:2px solid var(--gold);
+    display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink-soft);
+    position:relative;
+  }
+  .tl-step + .tl-step .tl-dot::before{
+    content:"";position:absolute;top:50%;right:100%;width:calc(100% - 300%);
+    height:0;border-top:2px dotted rgba(160,120,50,.5);
+    transform:translateY(-50%);
+  }
+  .tl-dot.on{background:var(--tomato);border-color:var(--tomato);color:#fff}
+  .tl-label{margin-top:8px;font-size:11px;letter-spacing:.06em;color:var(--ink-soft);font-weight:600}
+  .tl-step.hot .tl-label{color:var(--tomato-deep);font-weight:800}
+
+  .meta-row{
+    margin:30px auto 0;max-width:760px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+  }
+  .chip{
+    font-size:12px;padding:7px 14px;border-radius:999px;
+    background:var(--paper);border:1px solid rgba(122,86,39,.35);color:var(--ink-soft);
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .chip b{color:var(--ink)}
+
+  section.course{position:relative;padding:96px 0;scroll-margin-top:20px}
+  .course-head{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+  .course-no{
+    font-family:var(--serif);font-size:46px;line-height:1;
+    -webkit-text-stroke:1.5px currentColor;color:transparent;opacity:.9;
+  }
+  .course-meta{flex:1;min-width:220px}
+  .course-meta .sub{font-size:12px;letter-spacing:.22em;text-transform:uppercase;font-weight:700}
+  .course-meta h2{font-size:clamp(30px,5vw,46px);line-height:1.05;letter-spacing:-.01em}
+  .course-intro{max-width:640px;color:var(--ink-soft);font-size:16.5px;margin:18px 0 34px}
+  .course-intro .sound{font-family:var(--serif);font-style:italic;color:var(--ink)}
+
+  .dash-rule{height:0;border:0;border-top:2px dashed rgba(122,86,39,.35);margin:26px 0}
+
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+
+  .card{
+    background:var(--paper);border:1px solid rgba(122,86,39,.28);
+    border-radius:var(--r);padding:24px 22px;position:relative;
+    box-shadow:0 4px 14px rgba(42,33,24,.06);
+  }
+  .card .card-no{
+    position:absolute;top:16px;right:18px;font-family:var(--serif);font-size:26px;color:rgba(140,110,60,.55);
+  }
+  .card h3{font-size:21px;letter-spacing:-.01em;margin:12px 0 6px}
+  .card .lede-tag{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .card p{font-size:14.5px;color:var(--ink-soft);margin-top:8px}
+  .card p b{color:var(--ink);font-weight:700}
+  .card .flavor-row{margin-top:14px}
+
+  .ico-badge{
+    width:52px;height:52px;border-radius:14px;display:grid;place-items:center;
+    color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.14);
+  }
+
+  .band{
+    margin-top:26px;border-radius:var(--r);padding:26px 28px;
+    border:2px dashed rgba(122,86,39,.4);background:var(--cream-2);
+  }
+  .band.lead .big{font-family:var(--serif);font-size:clamp(20px,3vw,28px);line-height:1.25}
+  .band i{font-style:italic}
+
+  .zero-mark{
+    display:grid;place-items:center;margin:34px 0;
+  }
+  .zero-ring{
+    width:190px;height:190px;border-radius:50%;position:relative;
+    display:grid;place-items:center;text-align:center;
+    border:4px dashed var(--tomato);background:radial-gradient(circle,var(--paper),#f7dfc2);
+    box-shadow:0 12px 30px rgba(207,61,36,.18);
+  }
+  .zero-ring::after{content:"";position:absolute;inset:14px;border-radius:50%;border:1.5px solid rgba(207,61,36,.45)}
+  .zero-ring .z-txt{position:relative;z-index:1}
+  .zero-ring .z-txt .zero{font-size:60px;font-weight:900;font-family:var(--serif);color:var(--tomato);line-height:.9}
+  .zero-ring .z-txt .cap{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .zero-caption{max-width:520px;margin:14px auto 0;text-align:center;color:var(--ink-soft);font-size:14px}
+
+  .footnote{
+    margin-top:30px;font-size:12.5px;color:var(--ink-soft);font-style:italic;
+    border-left:3px solid var(--gold);padding-left:14px;
+  }
+
+  section.course.one{background:var(--cream);}
+
+  section.course.two{
+    background:
+      repeating-linear-gradient(45deg, rgba(160,110,60,.06) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-45deg, rgba(160,110,60,.06) 0 2px, transparent 2px 7px),
+      #f3e2c2;
+  }
+  .ancestor-card{
+    background:#fdf6e7;border:1px solid rgba(122,86,39,.35);border-radius:22px;
+    padding:30px 26px 34px;position:relative;text-align:center;
+    box-shadow:0 10px 24px rgba(90,60,20,.10);
+  }
+  .ancestor-card .mini-plate{
+    width:74px;height:74px;border-radius:50%;margin:0 auto 14px;position:relative;
+    display:grid;place-items:center;
+    background:radial-gradient(circle,#fffdf4 55%,#f0e3c5);
+  }
+  .mini-plate::before{content:"";position:absolute;inset:0;border-radius:50%;border:4px dashed var(--pl,var(--gold))}
+  .mini-plate span{font-size:26px}
+  .ancestor-card .lineage{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;
+  }
+  .ancestor-card h3{font-size:24px;margin:8px 0 4px}
+  .ancestor-card .role{font-size:13px;color:var(--ink-soft);margin-bottom:16px}
+  .ancestor-card blockquote{
+    font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink);
+    position:relative;padding:18px 6px 0;
+  }
+  .ancestor-card blockquote::before{
+    content:"\201C";display:block;text-align:center;font-size:44px;line-height:.4;color:var(--pl,var(--gold));height:34px;
+  }
+  .ancestor-card blockquote cite{display:block;font-style:normal;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:12px}
+  .ancestor-card:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(90,60,20,.16)}
+  .ancestor-card{transition:transform .25s ease, box-shadow .25s ease}
+
+  .reconcile{
+    margin-top:38px;background:var(--ink);color:#f7ecd2;border-radius:26px;
+    padding:40px 34px;text-align:center;position:relative;overflow:hidden;
+  }
+  .reconcile::before{
+    content:"";position:absolute;left:-40px;right:-40px;top:-34px;height:70px;
+    border-radius:50%;background:rgba(240,200,119,.28);filter:blur(2px);
+  }
+  .reconcile .instr{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-soft);font-weight:700}
+  .reconcile h3{font-size:clamp(28px,5vw,44px);color:#fff;margin:10px 0 18px;line-height:1.15}
+  .reconcile h3 em{color:var(--gold-soft)}
+  .reconcile .axis{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .reconcile .axis .ax{
+    font-size:13px;padding:8px 16px;border-radius:999px;
+    border:1px dashed var(--gold-soft);color:var(--gold-soft);
+  }
+  .lockup{
+    margin-top:34px;text-align:center;
+  }
+  .lockup .tag-big{
+    font-family:var(--serif);font-style:italic;font-size:clamp(38px,7vw,64px);
+    color:var(--tone,var(--tomato-deep));line-height:1;
+  }
+  .lockup .tag-sub{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-top:12px}
+
+  section.course.three{
+    background:
+      radial-gradient(1.5px 1.5px at 18% 22%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1.5px 1.5px at 34% 8%, rgba(255,255,255,.7), transparent),
+      radial-gradient(1.5px 1.5px at 62% 16%, rgba(240,200,119,.9), transparent),
+      radial-gradient(2px 2px at 78% 34%, rgba(255,255,255,.8), transparent),
+      radial-gradient(1.5px 1.5px at 90% 12%, rgba(255,255,255,.6), transparent),
+      radial-gradient(1.5px 1.5px at 8% 58%, rgba(255,255,255,.5), transparent),
+      radial-gradient(2px 2px at 46% 90%, rgba(223,166,60,.8), transparent),
+      radial-gradient(1.5px 1.5px at 70% 82%, rgba(255,255,255,.6), transparent),
+      radial-gradient(1.5px 1.5px at 26% 78%, rgba(255,255,255,.5), transparent),
+      radial-gradient(700px 460px at 50% 30%, rgba(53,83,126,.55), transparent 70%),
+      var(--night);
+    color:#e9e2d4;
+  }
+  section.course.three .course-intro{color:rgba(233,226,212,.8)}
+  section.course.three .course-intro .sound{color:#fff}
+  section.course.three .course-no{color:rgba(240,200,119,.9)}
+  section.course.three .sub{color:rgba(233,226,212,.7)}
+  section.course.three .kicker{color:rgba(233,226,212,.75)}
+
+  .stars-row{display:flex;gap:8px;margin-bottom:16px}
+  .stars-row svg{opacity:.85}
+
+  .constellation{max-width:900px;margin:0 auto}
+  .con-orbits{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .orbit{
+    background:rgba(255,255,255,.05);border:1px solid rgba(240,200,119,.35);
+    border-radius:20px;padding:26px 22px;text-align:center;position:relative;
+    backdrop-filter:blur(2px);
+  }
+  .orbit .glow{
+    width:44px;height:44px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle,var(--star,#f0c877),rgba(0,0,0,0) 70%);
+  }
+  .orbit h3{color:#fff;font-size:22px;letter-spacing:-.01em}
+  .orbit p{font-size:14.5px;color:rgba(233,226,212,.78);margin-top:8px}
+  .con-spoke{
+    width:44px;height:0;margin:0 auto;border-top:2px dotted rgba(240,200,119,.45);
+    position:relative;z-index:2;
+  }
+  .con-core{
+    margin-top:0;text-align:center;
+    background:radial-gradient(circle, rgba(240,200,119,.22), rgba(0,0,0,0) 72%);
+    padding:40px 24px 30px;
+  }
+  .con-core .big-line{
+    font-family:var(--serif);font-style:italic;font-size:clamp(26px,4.4vw,40px);color:#fff;line-height:1.2;
+  }
+  .con-core small{display:block;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-soft);margin-top:14px;font-weight:700}
+  .strike-wrap{max-width:640px;margin:30px auto 0;text-align:center}
+  .strike-wrap .ledger-strike{font-family:var(--serif);font-style:italic;color:rgba(233,226,212,.55);font-size:18px;text-decoration:line-through;text-decoration-color:rgba(207,61,36,.9);text-decoration-thickness:3px}
+  .strike-wrap .instead{margin-top:8px;font-size:15px;color:rgba(233,226,212,.85)}
+  .converge{
+    margin:40px auto 0;max-width:660px;text-align:center;padding:28px 26px;
+    border:2px dashed rgba(240,200,119,.5);border-radius:20px;
+  }
+  .converge .big{font-family:var(--serif);font-size:clamp(22px,3.4vw,32px);color:#fff;line-height:1.3}
+  .converge p{color:rgba(233,226,212,.8);margin-top:10px;font-size:15px}
+
+  section.course.syn{
+    background:
+      conic-gradient(from 210deg,
+        rgba(207,61,36,.07), rgba(223,166,60,.08), rgba(63,125,82,.07),
+        rgba(53,83,126,.08), rgba(125,74,116,.07), rgba(207,61,36,.07)),
+      var(--cream);
+  }
+  .syn-intro{max-width:680px;text-align:center;margin:18px auto 40px;color:var(--ink-soft);font-size:16.5px}
+  .syn-intro .sound{font-family:var(--serif);font-style:italic;color:var(--ink)}
+
+  .serving-plate{
+    display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:auto;
+    max-width:900px;margin:0 auto;gap:16px;
+  }
+  .sp-cell{display:grid;place-items:center}
+  .sp-void{display:grid;place-items:center;opacity:.55}
+  .offering{
+    width:100%;text-align:left;cursor:pointer;border:1.5px solid rgba(122,86,39,.4);
+    border-radius:18px;background:var(--paper);padding:18px 18px 16px;position:relative;
+    box-shadow:0 6px 16px rgba(42,33,24,.07);
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    font-family:var(--sans);color:var(--ink);
+  }
+  .offering:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(42,33,24,.14)}
+  .offering.active{border-color:var(--ac,#cf3d24);border-width:2.5px;box-shadow:0 14px 34px rgba(42,33,24,.18)}
+  .offering .o-num{
+    font-family:var(--serif);font-size:24px;line-height:1;color:var(--oc,#cf3d24);
+  }
+  .offering .o-title{font-weight:800;font-size:16px;margin-top:6px;font-family:var(--serif);letter-spacing:-.01em}
+  .offering .o-ess{font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.45}
+  .offering .o-see{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--oc,#cf3d24);margin-top:10px}
+
+  .sp-center{grid-row:1/3;grid-column:2/3;place-self:center;width:100%;max-width:340px;aspect-ratio:1;padding:8px}
+  .plate.big{width:100%;height:auto;aspect-ratio:1}
+  .plate.big .core{position:relative;z-index:1;text-align:center;padding:0 22px}
+  .plate.big .core .ct-title{font-family:var(--serif);font-style:italic;font-size:clamp(22px,3vw,30px);color:var(--tomato-deep);line-height:1.15;transition:opacity .25s}
+  .plate.big .core .ct-cue{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:8px}
+  .plate.big .core .ct-copy{font-size:13.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+  .plate.big .core .ct-copy.fade{opacity:0;animation:rise .35s forwards}
+  @keyframes rise{to{opacity:1}}
+
+  .progression{
+    max-width:660px;margin:36px auto 0;background:var(--paper);
+    border:1px solid rgba(122,86,39,.3);border-radius:20px;padding:24px 26px;
+  }
+  .progression .cap{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:16px;text-align:center}
+  .prog-row{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+  .prog-node{
+    background:var(--leaf);color:#fff;border-radius:999px;padding:10px 20px;font-weight:800;font-size:14px;letter-spacing:.04em;
+  }
+  .prog-node.one{background:var(--tomato)}
+  .prog-node.three{background:var(--blue)}
+  .prog-arrow{font-size:20px;color:var(--gold);padding:0 8px;font-weight:800}
+  .prog-note{text-align:center;font-size:13px;color:var(--ink-soft);margin-top:12px;font-style:italic}
+
+  .climax{
+    margin:56px auto 0;max-width:720px;text-align:center;
+    background:linear-gradient(160deg,var(--tomato),var(--tomato-deep));
+    color:#fff;border-radius:28px;padding:46px 30px;position:relative;overflow:hidden;
+    box-shadow:0 20px 50px rgba(165,45,24,.35);
+  }
+  .climax::before{
+    content:"";position:absolute;left:-30px;right:-30px;top:-20px;height:60px;border-radius:50%;
+    background:rgba(255,255,255,.14);
+  }
+  .climax .instr{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:rgba(255,255,255,.85);font-weight:700}
+  .climax h2{font-size:clamp(34px,6vw,58px);line-height:1.05;margin:14px 0 8px;color:#fff}
+  .climax .lil{font-family:var(--serif);font-style:italic;color:rgba(255,255,255,.9);font-size:19px}
+  .climax .verse{margin-top:22px;font-size:14.5px;line-height:2;color:rgba(255,255,255,.92)}
+  .climax .verse b{color:var(--gold-soft)}
+
+  footer.colophon{
+    padding:60px 0 70px;background:var(--ink);color:rgba(247,236,210,.85);
+  }
+  .colophon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px}
+  .colophon-grid h4{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-soft);margin-bottom:14px}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:8px 0;border-bottom:1px dashed rgba(247,236,210,.2)}
+  .kv dt{color:rgba(247,236,210,.6)}
+  .kv dd{color:#fff;text-align:right;font-weight:600}
+  .authorship{display:flex;flex-direction:column;gap:12px;font-size:14px}
+  .identity{display:flex;align-items:flex-start;gap:12px}
+  .identity .who{width:80px;flex:none}
+  .identity p{color:rgba(247,236,210,.8);font-size:13.5px}
+  .colophon .note{margin-top:34px;font-size:13px;color:rgba(247,236,210,.55);font-style:italic;line-height:1.7}
+
+  @media (max-width:760px){
+    section.course{padding:72px 0}
+    .serving-plate{grid-template-columns:1fr;grid-template-rows:auto}
+    .sp-center{grid-row:auto;grid-column:auto;max-width:280px;margin:0 auto}
+    .sp-void{display:none}
+    .prog-arrow{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="wrap">
+      <span class="kicker">A brainstorm keepsake &middot; Creative-Partner mode &middot; 11 Aug 2026</span>
+      <h1>OpenPlate</h1>
+      <div class="tagline">Coaching, not counting.</div>
+      <p class="lede">
+        Three techniques, one family table &mdash; a product check that became a recipe for the product.
+        Read it the way you would read a menu: courses served in order, the best dish saved for last.
+      </p>
+
+      <div class="heroplate-wrap">
+        <div>
+          <div class="steam-float">
+            <svg width="74" height="44" viewBox="0 0 74 44" fill="none" aria-hidden="true">
+              <path d="M20 38c0-9 6-14 6-14M38 38c0-9 6-14 6-14M56 38c0-9 6-14 6-14M25 4c0-4 3-6 3-6M47 2c0-4 3-6 3-6" stroke="#5c4f3d" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+              <path d="M13 30h48c0 11-8 18-24 18S13 41 13 30z" fill="#cf3d24"/>
+              <path d="M11 30h52c0 5-9 9-26 9S11 35 11 30z" fill="#f4d9b0"/>
+            </svg>
+          </div>
+          <div class="plate heroplate" style="--plate-c:var(--tomato)">
+            <div class="speckle"></div>
+            <div class="core">
+              <div class="meal">
+                <small>on today&rsquo;s plate</small>
+                <b>track &middot; teach<br>&middot; trust</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline" aria-label="Session outline">
+        <div class="tl-step"><div class="tl-dot">0</div><div class="tl-label">Kickoff</div></div>
+        <div class="tl-step"><div class="tl-dot">1</div><div class="tl-label">The $0 Mandate</div></div>
+        <div class="tl-step"><div class="tl-dot">2</div><div class="tl-label">Ancestor Council</div></div>
+        <div class="tl-step"><div class="tl-dot">3</div><div class="tl-label">Emergent Thinking</div></div>
+        <div class="tl-step hot"><div class="tl-dot on">&#9733;</div><div class="tl-label">The Serving &amp; Synthesis</div></div>
+      </div>
+
+      <div class="meta-row">
+        <span class="chip">Topic <b>OpenPlate product full check</b></span>
+        <span class="chip">Goal <b>full validation &amp; sharpening</b></span>
+        <span class="chip">Mode <b>Creative Partner</b></span>
+        <span class="chip">Status <b>complete</b></span>
+      </div>
+    </div>
+  </header>
+
+  <section class="course one" id="one">
+    <div class="wrap">
+      <div class="course-head">
+        <span class="course-no">I</span>
+        <div class="course-meta">
+          <div class="sub">A constraint &middot; the economics of trust</div>
+          <h2>The $0 Mandate</h2>
+        </div>
+      </div>
+      <p class="course-intro">
+        Every honest kitchen starts with a budget. The session opened by declaring a constraint, and the
+        constraint immediately began to look like a philosophy: <span class="sound">the product must cost nothing
+        to make, run, or grow.</span> By dessert we had decided that wasn&rsquo;t a line on a budget at all.
+      </p>
+
+      <div class="zero-mark">
+        <div class="zero-ring">
+          <div class="z-txt">
+            <div class="zero">$0</div>
+            <div class="cap">no cover charge</div>
+          </div>
+        </div>
+        <div style="flex-basis:100%"></div>
+      </div>
+      <p class="zero-caption">
+        The mandate &mdash; welcome, all three doors at the same price. OpenPlate runs on zero,
+        then <b>the family decides if and when money is ever spent at all.</b>
+      </p>
+
+      <div class="grid3">
+        <div class="card">
+          <span class="card-no">01</span>
+          <div class="ico-badge" style="background:var(--tomato)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
+              <circle cx="9" cy="11" r="4.5"/>
+              <path d="M13 11h7M17 11v3M17 14v2M17 16v1"/>
+            </svg>
+          </div>
+          <h3>Bring your own key</h3>
+          <div class="lede-tag">BYOK architecture</div>
+          <p>
+            Self-installable by anyone. The AI tutor sits behind an OpenAI-compatible API key the family
+            supplies itself &mdash; so the coaching can cost money, <b>but only the user chooses whether or when.</b>
+          </p>
+          <div class="flavor-row"><span class="voice user">direction by user</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-no">02</span>
+          <div class="ico-badge" style="background:var(--leaf)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+              <path d="M12 2C20 7 20 21 12 21C4 21 4 7 12 2z" fill="rgba(255,255,255,.25)" stroke="#fff"/>
+              <path d="M12 5v16"/>
+            </svg>
+          </div>
+          <h3>The free bread box</h3>
+          <div class="lede-tag">Free-model quota tier</div>
+          <p>
+            A built-in free tier rides on free-model quotas (a DeepSeek-style key ships in the box), so anyone
+            starts coaching for nothing. Past the quota: bring your own key, or self-install &mdash; no false ceiling.
+          </p>
+          <p><b>The product&rsquo;s value is ease of use</b> &mdash; simply opening the door to a nutrition coach.</p>
+          <div class="flavor-row"><span class="voice user">direction by user</span></div>
+        </div>
+
+        <div class="card">
+          <span class="card-no">03</span>
+          <div class="ico-badge" style="background:var(--blue)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12L12 4l9 8"/>
+              <path d="M6 10v10h12V10"/>
+            </svg>
+          </div>
+          <h3>Cook it yourself</h3>
+          <div class="lede-tag">Self-install</div>
+          <p>
+            Open source and installable on the family&rsquo;s own hardware. No account gate, no subscription,
+            no meal log drifting out of the kitchen. The data sleeps where the family sleeps.
+          </p>
+          <div class="flavor-row"><span class="voice user">direction by user</span></div>
+        </div>
+      </div>
+
+      <div class="band lead">
+        <div class="big">&ldquo;The $0 Mandate, in one line: <i>the economics are the ethics</i>. A product that costs
+        nothing has no motive to sell your family&rsquo;s data &mdash; kid-safe isn&rsquo;t a sticker, it&rsquo;s the architecture.&rdquo;</div>
+      </div>
+
+      <div class="card" style="margin-top:20px;border-style:dashed">
+        <div class="card-no">SEED</div>
+        <div class="ico-badge" style="background:var(--gold);color:var(--ink)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M4 17c3-9 13-12 16-5a5 5 0 0 1-6 6c-3 1-7 .5-8-4z"/>
+            <path d="M15 15l5 5"/>
+          </svg>
+        </div>
+        <h3>The First 100 Seats</h3>
+        <p>
+          Seat the first hundred families as a <b>feedback engine</b>. Whatever they report in the app &mdash; and whatever
+          they tell us about the coaching content itself &mdash; becomes the recipe that re-cooks the whole product.
+          Ten dozen diners become the test kitchen. <i>(This is where Connection 3 begins.)</i>
+        </p>
+        <div class="flavor-row"><span class="voice user">idea by user</span></div>
+      </div>
+
+      <p class="footnote">
+        The record transcribes this technique as &ldquo;/bin/zsh Mandate&rdquo; &mdash; the shell had a better idea:
+        it heard <i>$0</i>, and we keep <i>zero</i>.
+      </p>
+    </div>
+  </section>
+
+  <section class="course two" id="two">
+    <div class="wrap">
+      <div class="course-head">
+        <span class="course-no">II</span>
+        <div class="course-meta">
+          <div class="sub">A cultural reckoning &middot; three lineages at the table</div>
+          <h2>The Ancestor Council</h2>
+        </div>
+      </div>
+      <p class="course-intro">
+        The constraint seated us before three grandmothers and grandfathers of food-tracking &mdash; one for each
+        lineage the industry inherited &mdash; and asked them to judge the young OpenPlate. Their names below are the
+        keepsake&rsquo;s staging; <span class="sound">the verdict belongs to the session.</span>
+      </p>
+
+      <div class="grid3">
+        <div class="ancestor-card" style="--pl:#8a8378">
+          <div class="mini-plate"><span>&#9679;</span></div>
+          <div class="lineage">The ledger lineage</div>
+          <h3>The Scale-Keeper</h3>
+          <div class="role">calorie arithmetic, mid-century ledgers, the counting apps</div>
+          <blockquote>
+            Numbers can set the table, but they cannot say what feeds a child. I am their servant &mdash;
+            I shall never be their master.
+            <cite>The Scale-Keeper&rsquo;s verdict</cite>
+          </blockquote>
+        </div>
+
+        <div class="ancestor-card" style="--pl:#3f7d52">
+          <div class="mini-plate"><span>&#9678;</span></div>
+          <div class="lineage">The household lineage</div>
+          <h3>The Table-Grandmother</h3>
+          <div class="role">family meals, home economy, balance and caretaking</div>
+          <blockquote>
+            A meal is nurture, not arithmetic. Begin from the family; let the formula speak only afterwards.
+            <cite>The Table-Grandmother&rsquo;s verdict</cite>
+          </blockquote>
+        </div>
+
+        <div class="ancestor-card" style="--pl:#35537e">
+          <div class="mini-plate"><span>&#10022;</span></div>
+          <div class="lineage">The evidence lineage</div>
+          <h3>The Kitchen Scientist</h3>
+          <div class="role">nutrition research, the education of eaters, the reasons why</div>
+          <blockquote>
+            Teach the why, and the how follows. A child who understands a choice will outlive one who merely counts it.
+            <cite>The Kitchen Scientist&rsquo;s verdict</cite>
+          </blockquote>
+        </div>
+      </div>
+
+      <div class="reconcile">
+        <div class="instr">The council reconciles</div>
+        <h3>OpenPlate is a <em>COACH</em>, not a calculator.</h3>
+        <div class="axis">
+          <span class="ax">holistic balance</span>
+          <span class="ax">education</span>
+          <span class="ax">self-ownership</span>
+          <span class="ax">never meals-as-math-and-guilt</span>
+        </div>
+        <div class="lockup">
+          <div class="tag-big" style="--tone:var(--gold-soft)">Coaching, not counting.</div>
+          <div class="tag-sub" style="color:rgba(247,236,210,.7)">Principle &amp; potential tagline</div>
+        </div>
+      </div>
+
+      <p style="text-align:center;margin-top:22px;font-size:13px;color:var(--ink-soft)">
+        Ways of eating inherited from three wise elders &mdash; reconciled, not ranked.
+      </p>
+    </div>
+  </section>
+
+  <section class="course three" id="three">
+    <div class="wrap">
+      <div class="course-head">
+        <span class="course-no">III</span>
+        <div class="course-meta">
+          <div class="sub">A deep read &middot; the plate after dark</div>
+          <h2>Emergent Thinking</h2>
+        </div>
+      </div>
+      <p class="course-intro">
+        The deep work happened once the table cleared and only the truth remained.
+        And the truth is: <span class="sound">yes &mdash; it <b>is</b> a tracker too.</span> The delicate part is what
+        the tracker is allowed to do with its numbers.
+      </p>
+
+      <div class="constellation">
+        <div class="stars-row">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#f0c877" aria-hidden="true">
+            <path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/>
+          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#e9e2d4" aria-hidden="true">
+            <path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/>
+          </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#cf3d24" opacity=".85" aria-hidden="true">
+            <path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/>
+          </svg>
+        </div>
+
+        <div class="con-orbits">
+          <div class="orbit" style="--star:#f0c877">
+            <div class="glow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            </div>
+            <h3>WHAT we eat</h3>
+            <p>the honest record &mdash; what actually lands on the plate</p>
+          </div>
+          <div class="orbit" style="--star:#e9e2d4">
+            <div class="glow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3.5 2"/></svg>
+            </div>
+            <h3>WHEN</h3>
+            <p>eating one thing instead of another &mdash; timing as a choice</p>
+          </div>
+          <div class="orbit" style="--star:#cf3d24">
+            <div class="glow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/></svg>
+            </div>
+            <h3>WHY it wins</h3>
+            <p>why one choice beats another &mdash; the reasoning a child can keep</p>
+          </div>
+        </div>
+
+        <div class="con-spoke"></div>
+        <div class="con-core">
+          <small>The emergent line, in one breath</small>
+          <div class="big-line">&ldquo;Not all calories are equal.&rdquo;</div>
+        </div>
+      </div>
+
+      <div class="strike-wrap">
+        <div class="ledger-strike">240 calories + 240 calories = 480 calories. Done.</div>
+        <div class="instead">
+          ...a doughnut and a bowl of greens are not the same meal, and the ledger sees no difference at all.
+          <b style="color:#fff">Counting alone fails.</b> The tracker&rsquo;s true output is never a number.
+        </div>
+      </div>
+
+      <div class="converge">
+        <div class="big">The eye on the plate becomes a way of eating.</div>
+        <p>Here endeth the deep read (insight by user): understanding what we eat and when to eat one thing
+        vs. another &mdash; that is <i>improving our way of eating</i>, not balancing a spiral notebook.</p>
+      </div>
+
+      <p style="text-align:center;margin-top:26px;font-size:13px;color:rgba(233,226,212,.6)">
+        <!-- kept minimal -->
+        An idea map, drawn in the dark: every node leads back to the same plate.
+      </p>
+    </div>
+  </section>
+
+  <section class="course syn" id="syn">
+    <div class="wrap">
+      <div class="course-head" style="justify-content:center;text-align:center">
+        <div class="course-meta" style="flex:none">
+          <div class="sub" style="justify-content:center">The climax &middot; everything served at once</div>
+          <h2>The Serving</h2>
+        </div>
+      </div>
+      <p class="syn-intro">
+        In the end we didn&rsquo;t choose between the techniques. Each dish earned a colour, and the whole session
+        was plated together. <span class="sound">Five connections, one plate.</span> Tap an offering to plate it.
+      </p>
+
+      <div class="serving-plate" id="servingPlate">
+        <div class="sp-void"><svg width="26" height="26" viewBox="0 0 24 24" fill="#dfa63c" aria-hidden="true"><path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/></svg></div>
+
+        <div class="sp-center">
+          <div class="plate big">
+            <div class="speckle"></div>
+            <div class="core">
+              <div class="ct-cue">the core of the plate</div>
+              <div class="ct-title" id="coreTitle">Coaching, not counting.</div>
+              <div class="ct-copy" id="coreCopy">The plate holds five offerings. Take one &mdash; it plates itself.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-void"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3f7d52" aria-hidden="true"><path d="M12 2l2.6 7.4L22 12l-7.4 2.6L12 22l-2.6-7.4L2 12l7.4-2.6z"/></svg></div>
+
+        <div class="sp-cell" style="grid-column:1;grid-row:1">
+          <button class="offering active" data-t="Frugality = Trust" data-c="The economics ARE the ethics. At a true $0 &mdash; self-host, BYOK, no growth spend &mdash; the product holds no incentive but honesty. Kid-safe isn&rsquo;t a sticker; it&rsquo;s the price." style="--oc:var(--tomato);--ac:var(--tomato)">
+            <div class="o-num">&#9776;</div>
+            <div class="o-title">Frugality = Trust</div>
+            <div class="o-ess">The economics ARE the ethics. Nothing to sell, nothing to hide.</div>
+            <div class="o-see">plate this &rarr;</div>
+          </button>
+        </div>
+
+        <div class="sp-cell" style="grid-column:3;grid-row:1">
+          <button class="offering" data-t="Sequence, not a fork" data-c="A sequence, not a fork: first the honest tracker, then the coach unfolds behind it. Record before you&rsquo;re guided &mdash; guidance built on the family&rsquo;s own record isn&rsquo;t counting, it&rsquo;s coaching." style="--oc:var(--leaf);--ac:var(--leaf)">
+            <div class="o-num">&#8243;</div>
+            <div class="o-title">Track first, coach second</div>
+            <div class="o-ess">A sequence, not a fork &mdash; record first, then be guided.</div>
+            <div class="o-see">plate this &rarr;</div>
+          </button>
+        </div>
+
+        <div class="sp-cell" style="grid-column:1;grid-row:2">
+          <button class="offering" data-t="Community = Product" data-c="A $0 growth loop: the First-100 feedback engine + free-quota AI + coaching content knit together. The community feeds the coach, and the coach coaches the community back." style="--oc:var(--plum);--ac:var(--plum)">
+            <div class="o-num">&#10022;</div>
+            <div class="o-title">The community IS the product</div>
+            <div class="o-ess">Feedback engine + free AI + coaching content: one loop, priced $0.</div>
+            <div class="o-see">plate this &rarr;</div>
+          </button>
+        </div>
+
+        <div class="sp-cell" style="grid-column:2;grid-row:2">
+          <button class="offering" data-t="Calories &#8800; Equal" data-c="The differentiator &mdash; and the reason the AI has a chair at the table. If counting were enough, a spreadsheet would come to dinner. Context hides inside every calorie, so understanding needs a mind." style="--oc:var(--gold);--ac:var(--gold)">
+            <div class="o-num">&#9733;</div>
+            <div class="o-title">&ldquo;Not all calories are equal&rdquo;</div>
+            <div class="o-ess">The differentiator &mdash; and the reason a mind sits beside the numbers.</div>
+            <div class="o-see">plate this &rarr;</div>
+          </button>
+        </div>
+
+        <div class="sp-cell" style="grid-column:3;grid-row:2">
+          <button class="offering" data-t="Open = Brand" data-c="Open source, open key, open plate. The name IS the alliance: the openness is the promise, and $0 is its price. The brand isn&rsquo;t a logo &mdash; it&rsquo;s the door." style="--oc:var(--blue);--ac:var(--blue)">
+            <div class="o-num">&#9678;</div>
+            <div class="o-title">OpenPlate = openness</div>
+            <div class="o-ess">The name is the brand: open source, open key, open plate.</div>
+            <div class="o-see">plate this &rarr;</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="progression">
+        <div class="cap">Offering 2, spelled out &mdash; a sequence, not a fork</div>
+        <div class="prog-row">
+          <span class="prog-node one">TRACK</span><span class="prog-arrow">&rarr;</span>
+          <span class="prog-node two">UNDERSTAND</span><span class="prog-arrow">&rarr;</span>
+          <span class="prog-node three">CHOOSE WISER</span>
+        </div>
+        <div class="prog-note">track-first, coach-second: the coach arrives only after the honest record exists.</div>
+      </div>
+
+      <div class="climax">
+        <div class="instr">The soul of the product, served last</div>
+        <h2>A food tracker that TEACHES.</h2>
+        <div class="lil">&ldquo;Coaching, not counting&rdquo;</div>
+        <div class="verse">
+          Not all calories are equal.<br>
+          A coach, not a calculator.<br>
+          Open &mdash; in the <b>source</b>, the <b>key</b>, and the <b>plate</b>.
+        </div>
+      </div>
+
+      <p style="text-align:center;margin-top:26px;font-size:13px;color:var(--ink-soft)">
+        <i>The five connections above were voiced by the coach at wrap-up (insight by coach), gathered from the
+        insights you had laid on the table all session.</i>
+      </p>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <div class="wrap">
+      <div class="colophon-grid">
+        <div>
+          <h4>Session record</h4>
+          <dl class="kv"><dt>Topic</dt><dd>OpenPlate product full check</dd></dl>
+          <dl class="kv"><dt>Goal</dt><dd>Full validation &amp; sharpening</dd></dl>
+          <dl class="kv"><dt>Mode</dt><dd>Creative Partner</dd></dl>
+          <dl class="kv"><dt>Status</dt><dd>complete</dd></dl>
+          <dl class="kv"><dt>Updated</dt><dd>2026-08-11 20:21</dd></dl>
+        </div>
+        <div>
+          <h4>Who spoke</h4>
+          <div class="authorship">
+            <div class="identity">
+              <span class="who"><span class="voice user">user</span></span>
+              <p>raised every direction, the product&rsquo;s two founding ideas, and all three deep insights &mdash;
+              coach-not-calculator, &ldquo;Coaching, not counting,&rdquo; and not-all-calories-equal.</p>
+            </div>
+            <div class="identity">
+              <span class="who"><span class="voice coach">coach</span></span>
+              <p>listened beside you and voiced the five synthesis connections that tie the session together.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Kept warm from the session record of 11 Aug 2026 &middot; composite of three techniques &mdash; The $0 Mandate,
+        the Ancestor Council, and Emergent Thinking &mdash; plated into one keepsake. Meant to be shared at the family table.
+        The persons of the ancestors are the keepsake&rsquo;s own staging; every quoted claim is the session&rsquo;s record, and
+        authorship is marked voice by voice. No calories were counted in the making.
+      </p>
+    </div>
+  </footer>
+
+<script>
+(function () {
+  var plate = document.getElementById('servingPlate');
+  if (!plate) return;
+  var offer = Array.prototype.slice.call(plate.querySelectorAll('.offering'));
+  var title = document.getElementById('coreTitle');
+  var copy = document.getElementById('coreCopy');
+
+  function hasMoon(s){ return /[\u2600-\u27bf\u2e80-\u2fff]/.test(s || ''); }
+
+  offer.forEach(function (b) {
+    b.addEventListener('click', function () {
+      offer.forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      title.textContent = b.getAttribute('data-t');
+      copy.classList.remove('fade');
+      void copy.offsetWidth;
+      copy.innerHTML = b.getAttribute('data-c');
+      copy.classList.add('fade');
+    });
+  });
+
+  if (!hasMoon(offer[0].getAttribute('data-t'))) { /* decorative no-op */ }
+})();
+</script>
+
+</body>
+</html>

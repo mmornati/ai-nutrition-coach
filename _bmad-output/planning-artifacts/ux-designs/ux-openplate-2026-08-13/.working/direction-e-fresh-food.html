@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlate · Direction E — Fresh Food-Forward</title>
+<style>
+/* ============================================================
+   DIRECTION E · FRESH FOOD-FORWARD
+   File: direction-e-fresh-food-forward.html
+   Personality: photographic, playful but never childish, bright.
+   ------------------------------------------------------------
+   PALETTE (hex)
+   --bg        #FBF7F1  warm bright paper
+   --ink       #26231F  deep cocoa ink
+   --ink-soft  #7C735F  warm grey-brown
+   --berry     #E4573D  tomato-berry red   (protein / snapshot)
+   --basil     #4A9B68  basil green        (veg / key)
+   --sun       #F5B423  sun mustard        (starch)
+   --butter    #EDE3C3  dairy cream-white
+   --blush     #FCE7D7  blush wash
+   --leaf      #E3F0E0  leaf wash
+   --sunwash   #FCEFC9  sun wash
+   --line      #F0E6D6  hairline
+   FONT STACK
+   display/body: "Avenir Next Rounded", "Nunito", "Trebuchet MS",
+                 system-ui, sans-serif   (playful round)
+   accents:     "Avenir Next", "SF Pro Display", system-ui
+   ============================================================ */
+:root{
+  --bg:#FBF7F1; --ink:#26231F; --ink-soft:#7C735F;
+  --berry:#E4573D; --basil:#4A9B68; --sun:#F5B423; --butter:#EDE3C3;
+  --blush:#FCE7D7; --leaf:#E3F0E0; --sunwash:#FCEFC9; --line:#F0E6D6;
+  --round:"Avenir Next Rounded","Nunito","Trebuchet MS",system-ui,sans-serif;
+  --ui:"Avenir Next","SF Pro Display",-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F3EBDD;color:var(--ink);font-family:var(--round);padding:40px 22px 80px}
+header{max-width:1240px;margin:0 auto 34px}
+.kicker{font:800 12px/1 var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--berry);margin-bottom:10px}
+h1{font-size:34px;font-weight:800;letter-spacing:-.01em}
+.rationale{max-width:660px;margin-top:12px;font-size:16px;line-height:1.65;color:var(--ink-soft)}
+.shelf{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.spec{max-width:1240px;margin:0 auto;padding-top:30px;font:500 13px/1.7 var(--ui);color:var(--ink-soft)}
+.spec b{color:var(--ink)}
+
+/* ---------- phone ---------- */
+.phone{width:370px;border-radius:44px;padding:12px;background:#3D3A34;box-shadow:0 28px 60px -18px rgba(60,52,40,.45);outline:1px solid rgba(255,255,255,.1)}
+.capsule{font:700 11px/1 var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin:18px 0 4px}
+.screen{height:730px;border-radius:32px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden auto;padding:32px 20px 24px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- chrome ---------- */
+.statusbar{display:flex;justify-content:space-between;padding:14px 24px 0;font:700 12px/1 var(--ui);color:var(--ink-soft)}
+.titlebar{margin:24px 2px 20px;display:flex;justify-content:space-between;align-items:flex-end}
+.titlebar h2{font-size:28px;font-weight:800;letter-spacing:-.015em;line-height:1.1}
+.titlebar .mood{font:700 11px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--basil);background:var(--leaf);padding:6px 11px;border-radius:16px}
+
+/* ---------- photo-tile plates ---------- */
+.plate{border-radius:28px;overflow:hidden;background:var(--card,#FFF);border:1px solid var(--line);margin-bottom:16px;box-shadow:0 16px 30px -20px rgba(60,52,40,.42)}
+.phe1{height:120px;background:
+  radial-gradient(circle at 22% 62%, rgba(94,58,48,.9) 0 30px, transparent 32px),
+  radial-gradient(circle at 34% 60%, #B4553A 0 24px, transparent 26px),
+  radial-gradient(circle at 47% 66%, #D98A5A 0 26px, transparent 28px),
+  radial-gradient(circle at 62% 58%, #8C5338 0 22px, transparent 26px),
+  linear-gradient(160deg,#E98562, #B4553A 60%, #8A4A33);}
+.phe2{height:120px;background:
+  radial-gradient(circle at 24% 60%, rgba(246,214,64,.95) 0 26px, transparent 30px),
+  radial-gradient(circle at 38% 55%, #F5B423 0 20px, transparent 24px),
+  radial-gradient(circle at 52% 60%, rgba(246,214,64,.9) 0 24px, transparent 28px),
+  radial-gradient(circle at 66% 62%, #F5B423 0 20px, transparent 25px),
+  radial-gradient(circle at 40% 38%, #4A9B68 0 12px, transparent 14px),
+  linear-gradient(160deg,#F6D640,#ECB02B 55%,#E0971F);}
+.phe3{height:120px;background:
+  radial-gradient(circle at 50% 58%, rgba(255,255,255,.75) 0 22px, transparent 26px),
+  radial-gradient(circle at 56% 56%, rgba(255,255,255,.7) 0 20px, transparent 24px),
+  radial-gradient(circle at 44% 60%, rgba(255,255,255,.7) 0 20px, transparent 24px),
+  linear-gradient(160deg,#F2E9C6,#E0D2A4 60%,#C9B678);}
+.photo{position:relative}
+.photo .pillcap{position:absolute;left:14px;top:12px;background:rgba(38,35,31,.6);color:#FFF6E8;font:800 11px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border-radius:14px}
+.photo .qtypill{position:absolute;right:12px;bottom:12px;background:#FFF9EF;color:var(--ink);font:800 12px/1 var(--ui);box-shadow:0 8px 16px -8px rgba(0,0,0,.45);padding:7px 12px;border-radius:14px}
+.body{padding:16px 18px 18px}
+.body .name{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.body .taste{font-size:14px;color:var(--ink-soft);margin-top:3px}
+.bites{display:flex;gap:8px;margin-top:12px}
+.bite{font:800 10.5px/1 var(--ui);letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:12px}
+.bite.on{border:1.5px solid currentColor}
+.bite.off{background:var(--line);color:var(--ink-soft)}
+.track{display:inline-block;width:9px;height:9px;border-radius:3px}
+
+/* ---------- the empty dent ---------- */
+.waiting{border-radius:28px;border:2px dashed var(--basil);background:var(--leaf);padding:20px;margin-bottom:14px}
+.waiting .wtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.waiting .label{font:800 13px/1 var(--round);color:var(--basil)}
+.waiting .open{font:800 11px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--basil);background:#FDFEF8;padding:6px 11px;border-radius:14px}
+.dentrow{display:flex;gap:18px;align-items:center}
+.dentring{width:88px;height:88px;flex:none}
+.dentblank{font-size:15px;font-weight:700;color:var(--ink);line-height:1.4}
+.dentblank span{display:block;font-weight:500;font-size:13.5px;color:var(--ink-soft);margin-top:4px}
+
+/* ---------- coach ---------- */
+.coach{background:var(--sunwash);border-radius:24px;padding:16px 18px;margin:6px 0 16px;position:relative;overflow:hidden}
+.coach::before{content:"";position:absolute;inset:auto -20px -30px auto;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle, rgba(245,180,35,.35), transparent 70%)}
+.coach p{font-size:16.5px;font-weight:800;line-height:1.45;position:relative}
+.coach p span{color:var(--basil)}
+.coachbtns{display:flex;gap:10px;margin-top:14px;position:relative}
+.btn{font:800 13px/1 var(--ui);border-radius:22px;padding:12px 18px;cursor:pointer;border:none}
+.btn.sure{background:var(--basil);color:#FCF9EF;box-shadow:0 8px 16px -8px rgba(74,155,104,.75)}
+.btn.later{background:#FDFCF7;border:1.5px solid var(--sun);color:var(--ink)}
+
+/* ---------- week ---------- */
+.week{display:flex;align-items:center;gap:12px;padding-top:14px;border-top:1px solid var(--line)}
+.minis{display:flex;gap:6px}
+.mini{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:#FEFDF9}
+.mini.on{background:var(--basil);border-color:var(--basil)}
+.mini.soon{background:var(--leaf);border-color:var(--basil);opacity:.65}
+.weeklabel{font-size:14px;font-weight:800;color:var(--ink-soft);flex:1}
+.weeklabel b{color:var(--basil)}
+
+/* ---------- fab / footer ---------- */
+.fab{position:absolute;right:18px;bottom:122px;width:62px;height:62px;border-radius:50%;background:var(--berry);color:#FFF;font:800 34px/1 var(--ui);display:flex;align-items:center;justify-content:center;box-shadow:0 16px 30px -10px rgba(228,87,61,.8)}
+.foot{margin-top:16px;text-align:center;font:700 10.5px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.foot b{color:var(--berry)}
+
+/* ---------- capture sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#FFFDF8;border-radius:34px 34px 0 0;padding:16px 20px 22px;box-shadow:0 -20px 44px -18px rgba(60,52,40,.45);animation:rise .4s ease-out both}
+@keyframes rise{from{transform:translateY(120px)}to{transform:none}}
+.grab{width:46px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheethead{text-align:center;font:800 17px/1 var(--round);margin-bottom:16px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.snap{grid-column:1/-1;border-radius:26px;overflow:hidden;background:#FFF;border:2px solid var(--berry);display:flex;cursor:pointer}
+.snap .sbody{padding:18px 16px;flex:1}
+.snap .sbody b{font-size:23px;font-weight:800;letter-spacing:-.01em;display:block;color:var(--berry)}
+.snap .sbody span{font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-top:4px}
+.snap .lensbox{width:96px;background:
+  radial-gradient(circle at 40% 40%, #4A9B68 0 14px, transparent 15px),
+  radial-gradient(circle at 62% 60%, #F5B423 0 16px, transparent 18px),
+  radial-gradient(circle at 48% 72%, #E4573D 0 14px, transparent 16px),
+  linear-gradient(140deg,#FCE7D7,#E3F0E0 55%,#FCEFC9)}
+.snap .lensbox .hole{width:100%;height:100%;position:relative}
+.snap .lensbox .hole::after{content:"";position:absolute;inset:0;border-radius:0 24px 24px 0;box-shadow:inset 0 0 0 4px #FFF}
+.subtile{border:2px solid var(--line);border-radius:24px;padding:16px 14px;cursor:pointer;background:#FFFDF8}
+.subtile b{font-size:14.5px;font-weight:800;display:block}
+.subtile span{font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-top:4px}
+.barcode{height:18px;margin-top:10px;border-radius:4px;background:repeating-linear-gradient(90deg,var(--berry) 0 2px,transparent 2px 4px,var(--berry) 4px 6px,transparent 6px 9px);opacity:.75}
+
+/* ---------- variant: snapshot caught ---------- */
+.flashshot{position:absolute;inset:0;background:
+  radial-gradient(circle at 50% 42%, rgba(255,244,214,.5), transparent 40%),
+  linear-gradient(160deg, rgba(228,87,61,.35), rgba(74,155,104,.35));}
+.flashshot .platecapture{position:absolute;left:30px;right:30px;top:34%;aspect-ratio:1/1;border-radius:40%;border:2px dashed rgba(255,255,255,.85);background:rgba(255,255,255,.12)}
+.flashshot .capturetile{position:absolute;bottom:26px;left:20px;right:20px;background:#FFFDF8;border-radius:26px;padding:18px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 22px 44px -18px rgba(38,35,31,.5)}
+.flashshot .capturetile b{font-size:16px;font-weight:800;display:block}
+.flashshot .capturetile span{font-size:12px;font-weight:600;color:var(--ink-soft)}
+.flashshot .shutter{width:56px;height:56px;border-radius:50%;background:var(--berry);border:4px solid #FFF;box-shadow:0 10px 20px -8px rgba(228,87,61,.8)}
+.flashshot .tag{position:absolute;top:120px;left:0;right:0;text-align:center;font:800 11px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--leaf)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">OpenPlate · Direction E</div>
+  <h1>Fresh Food-Forward</h1>
+  <p class="rationale">The meal is the hero: photograph-sized color plates, bright-but-not-pastel washes of tomato, basil, mustard and butter, and playful rounded type that stays adult. Capturing by snapshot feels like the natural instinct here — the camera tile is the loudest thing on screen, because food is what this app is really about.</p>
+</header>
+
+<section class="shelf">
+
+  <!-- ============ PHONE 1 · DAY BOARD ============ -->
+  <figure>
+    <div class="capsule">Day Board — dinner open, photo plates</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>pasta time</span></div>
+        <div class="scroll">
+          <div class="titlebar">
+            <h2>Tue · dinner <span style="color:var(--basil)">done</span></h2>
+            <div class="mood">plate no.3</div>
+          </div>
+
+          <div class="plate">
+            <div class="photo">
+              <div class="phe1"></div>
+              <span class="pillcap">Breakfast</span>
+              <span class="qtypill">~2 fists</span>
+            </div>
+            <div class="body">
+              <div class="name">Oat bowl · blueberries</div>
+              <div class="taste">Blueberry oat bowl — berry sweet, morning easy.</div>
+              <div class="bites">
+                <span class="bite on" style="color:var(--basil)"><i class="track" style="background:var(--basil)"></i> veg &amp; fruit</span>
+                <span class="bite on" style="color:var(--berry)"><i class="track" style="background:var(--berry)"></i> protein</span>
+                <span class="bite on" style="color:var(--sun)"><i class="track" style="background:var(--sun)"></i> starch</span>
+                <span class="bite off">dairy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="photo">
+              <div class="phe2"></div>
+              <span class="pillcap">Lunch</span>
+              <span class="qtypill">~2 fists</span>
+            </div>
+            <div class="body">
+              <div class="name">Pasta · chicken · tomatoes</div>
+              <div class="taste">Pasta in tomato, torn herb, pulled chicken.</div>
+              <div class="bites">
+                <span class="bite on" style="color:var(--basil)"><i class="track" style="background:var(--basil)"></i> veg &amp; fruit</span>
+                <span class="bite on" style="color:var(--berry)"><i class="track" style="background:var(--berry)"></i> protein</span>
+                <span class="bite off">starch</span>
+                <span class="bite off">dairy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="waiting">
+            <div class="wtop">
+              <span class="label">Dinner — the day's last plate</span>
+              <span class="open">open</span>
+            </div>
+            <div class="dentrow">
+              <svg class="dentring" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--basil)" stroke-width="13" stroke-dasharray="5 10" stroke-linecap="round" opacity=".5"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#BFE0C8" stroke-width="13" opacity=".8"/>
+                <circle cx="50" cy="50" r="6" fill="var(--basil)" opacity=".45"/>
+              </svg>
+              <div class="dentblank">Savory dinner or leftover-mash night — either counts.
+                <span>The dent fills in once you snap it.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="coach">
+            <p>Greens would round this plate out <span>— want a 10-second suggestion?</span></p>
+            <div class="coachbtns">
+              <button class="btn sure">Sure</button>
+              <button class="btn later">Ask later</button>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="minis">
+              <span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini on"></span><span class="mini soon"></span><span class="mini"></span><span class="mini"></span>
+            </div>
+            <div class="weeklabel">This week: <b>4 balanced days</b></div>
+          </div>
+
+          <div class="foot">Yours to run · <b>open source</b> · home-cooked data</div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 2 · CAPTURE SHEET ============ -->
+  <figure>
+    <div class="capsule">Capture — the snapshot first, always</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>pasta time</span></div>
+        <div class="scroll" style="padding-bottom:130px">
+          <div class="titlebar"><h2 style="font-size:24px">Save that dinner</h2></div>
+        </div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheethead">How do you want to log it?</div>
+          <div class="tiles">
+            <div class="snap">
+              <div class="sbody">
+                <b>Snapshot</b>
+                <span>The star of the show — one tap, dinner's saved.</span>
+              </div>
+              <div class="lensbox"><div class="hole"></div></div>
+            </div>
+            <div class="subtile"><b>Scan a barcode</b><span>that box of something at the back</span><div class="barcode"></div></div>
+            <div class="subtile"><b>Type or talk</b><span>too dark for a photo? fingers or voice win</span></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ============ PHONE 3 · VARIANT: SNAPSHOT IN PROGRESS ============ -->
+  <figure>
+    <div class="capsule">Variant — the shot being taken</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="flashshot">
+          <div class="tag">Aim · steady hands · it's just dinner</div>
+          <div class="platecapture"></div>
+          <div class="capturetile">
+            <div><b>Snap a plate</b><span>the app reads protein, veg &amp; friends</span></div>
+            <div class="shutter"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+</section>
+
+<p class="spec"><b>Specs for this direction:</b> photo-sized gradient plates replacing text-first cards · bold bite-pills for groups (on/off state per color) · favorite colors: berry #E4573D, basil #4A9B68, sun #F5B423 · rounded-bundle type · the dent is drawn as a leafy dashed ring · every state keeps the taste-line, so logging feels like remembering, not reporting.</p>
+
+</body>
+</html>
