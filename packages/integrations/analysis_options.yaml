@@ -1,0 +1,10 @@
+include: package:lints/recommended.yaml
+
+# Mirror the posture set in `packages/domain_core/analysis_options.yaml`:
+# public surface stays small, no classes that are only static-member
+# holders. The linter block is shared so both packages lint the same way.
+
+linter:
+  rules:
+    library_private_types_in_public_api: true
+    avoid_classes_with_only_static_members: true

@@ -1,0 +1,67 @@
+# OpenPlate CI — reproducible build gate (NFR9).
+#
+# Runs on every pull request and push to main. Three responsibilities:
+#   1. Static analysis across the whole workspace via `melos run analyze`,
+#      which delegates to `flutter analyze` (apps/client) and `dart analyze`
+#      (pure-Dart packages) — see melos.yaml.
+#   2. Format check via `melos run format:check` so whitespace drift is
+#      caught before review.
+#   3. A smoke test (the canonical `domain_core` AD-1 invariant + the
+#      `openplate_client` widget smoke test). The AD-1 test is the
+#      architectural gate that catches a forbidden import landing in
+#      `packages/domain_core` before it reaches main.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel in-progress runs on the same ref — keeps PR feedback loops fast
+# without burning runner minutes on superseded commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Analyze + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Read-only token is enough for checkout + the container's tooling.
+    permissions:
+      contents: read
+
+    container:
+      # Pin the same image the production self-host build uses. Full
+      # registry path so the job resolves on every GitHub-hosted runner.
+      image: ghcr.io/cirruslabs/flutter:stable
+      options: --user root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print toolchain
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Activate melos
+        run: flutter pub global activate melos 8.2.2
+
+      - name: Add melos to PATH
+        run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Format check
+        run: melos run format:check
+
+      - name: Static analysis (AD-1 + per-package lints)
+        run: melos run analyze
+
+      - name: Smoke test (domain_core AD-1 + client widget smoke)
+        run: melos run test

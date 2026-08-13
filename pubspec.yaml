@@ -1,0 +1,18 @@
+name: _openplate_workspace
+description: "OpenPlate monorepo root — Dart pub workspace. See melos.yaml for orchestration."
+publish_to: 'none'
+version: 0.0.0
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+# Dart pub workspaces: lists every member package. `melos bootstrap` walks
+# the same set via `packages:` in melos.yaml and links path dependencies.
+workspace:
+  - apps/client
+  - packages/domain_core
+  - packages/integrations
+
+dev_dependencies:
+  melos: 8.2.2

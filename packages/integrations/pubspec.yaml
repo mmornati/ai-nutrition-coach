@@ -1,0 +1,19 @@
+name: integrations
+description: "OpenPlate adapter package — drift store, OFF/USDA catalog clients, secure-storage wiring. Path-depends on domain_core."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  # Ports + entities — adapter implementations live here.
+  domain_core:
+    path: ../domain_core
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+  melos: 8.2.2

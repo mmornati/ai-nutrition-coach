@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────
+# OpenPlate — .dockerignore
+# Mirrors .gitignore for paths the Docker build context should
+# not carry. Anything listed here is excluded from the build
+# context sent to the Docker daemon; smaller context = faster
+# builds and fewer surprises inside the container.
+# ─────────────────────────────────────────────────────────────
+
+# ── OS / editor / IDE ────────────────────────────────────────
+**/.DS_Store
+.idea/
+.vscode/
+
+# ── Secrets / credentials ────────────────────────────────────
+.env
+.env.*
+
+# ── Dart / Flutter ───────────────────────────────────────────
+.dart_tool/
+.pub-cache/
+build/
+
+# ── Android build outputs ────────────────────────────────────
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+
+# ── iOS build outputs ────────────────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+
+# ── macOS (future-proof, AD-2 keeps desktop deferred) ────────
+macos/Pods/
+
+# ── Test / coverage ──────────────────────────────────────────
+coverage/
+
+# ── Node (tooling only) ──────────────────────────────────────
+node_modules/
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+
+# ── Git ──────────────────────────────────────────────────────
+.git/
+
+# ── BMad / agent tooling ─────────────────────────────────────
+_bmad/
+_bmad-output/
+.opencode/
+.agents/

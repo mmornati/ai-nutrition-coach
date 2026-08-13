@@ -1,0 +1,29 @@
+include: package:lints/recommended.yaml
+
+# AD-1 invariant: `packages/domain_core` is pure Dart.
+#
+# UI / I-O adapters belong in `apps/client` and `packages/integrations`. The
+# core owns entities, use-cases, and ports only. There is no built-in
+# analyzer flag that rejects specific imports, so the rule is enforced two
+# ways:
+#   * This file tightens analyzer hygiene (strict casts/inference/raw types,
+#     unused imports and dead code as warnings, exclusion of `example/` and
+#     `.dart_tool/`).
+#   * `test/domain_core_test.dart` is the canonical CI gate: it greps every
+#     `.dart` file under `lib/` for forbidden fragments
+#     (`package:flutter*`, `drift`, `dio`, `mobile_scanner`, `dart:ui`,
+#     `dart:io`, `sqlite3`, `http`) and fails the build if any show up.
+analyzer:
+  errors:
+    import_of_legacy_library_into_null_safe: error
+    unused_import: warning
+    dead_code: warning
+  exclude:
+    - example/**
+    - .dart_tool/**
+
+linter:
+  rules:
+    # Public surface stays small; private helpers don't leak.
+    library_private_types_in_public_api: true
+    avoid_classes_with_only_static_members: true
