@@ -1,19 +1,32 @@
-// The Day Board — today's plates (UX-DR3 / UX-DR10 / NFR6 / NFR7 / NFR8).
+// The Day Board — selected day's plates (UX-DR3 / UX-DR10 / NFR6 /
+// NFR7 / NFR8).
 //
 // Vertical stack of meal rows (Breakfast / Lunch / Dinner) interleaved
 // with open dents where no plate was logged. The full day is always
 // visible; hairline rules separate rows; no cards, no fills, no
 // dashboard grid (UX-DR3). On `StoreFailure` the screen renders a
-// single calm line "History can't load right now." under the title — no
-// retry button, no spinner, no countdown.
+// single calm line "History can't load right now." under the title —
+// no retry button, no spinner, no countdown.
+//
+// Story 1.4 split the data source:
+//   * `selectedDateProvider == null` → use the today provider
+//     (`dayBoardProvider`); the title reads "Today".
+//   * `selectedDateProvider != null` → use the date-aware family
+//     (`dayBoardForDateProvider`); the title reads the weekday of the
+//     selected day, e.g. "Tuesday" / "Yesterday".
+// The 7-dot `WeekStrip` lives below the plate stack — tapping a dot
+// updates `selectedDateProvider` and the surface re-renders for that
+// day (UX-DR8).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/day_board_provider.dart';
+import '../state/selected_date_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/open_dent.dart';
 import '../widgets/plate_row.dart';
+import '../widgets/week_strip.dart';
 
 class DayBoardScreen extends ConsumerWidget {
   const DayBoardScreen({super.key});
@@ -23,7 +36,10 @@ class DayBoardScreen extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final state = ref.watch(dayBoardProvider);
+    final selected = ref.watch(selectedDateProvider);
+    final state = selected == null
+        ? ref.watch(dayBoardProvider)
+        : ref.watch(dayBoardForDateProvider(selected));
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -37,7 +53,7 @@ class DayBoardScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Today',
+                _titleFor(selected),
                 style: AppTypography.ui.copyWith(color: palette.ink),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -57,12 +73,49 @@ class DayBoardScreen extends ConsumerWidget {
                     data: (day) => _BoardList(day: day, palette: palette),
                   ),
                 ),
+              const SizedBox(height: AppSpacing.lg),
+              const WeekStrip(),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Title for the rendered day. `null` → "Today" (the default view);
+  /// any other day → the weekday name, or "Yesterday" / "Today" / a
+  /// weekday depending on how far back it sits. The strip below
+  /// already tells the user which day is selected; the title's job is
+  /// to keep that consistent with what the screen is showing.
+  String _titleFor(DateTime? selected) {
+    if (selected == null) return 'Today';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (selected.year == today.year &&
+        selected.month == today.month &&
+        selected.day == today.day) {
+      return 'Today';
+    }
+    if (selected.year == yesterday.year &&
+        selected.month == yesterday.month &&
+        selected.day == yesterday.day) {
+      return 'Yesterday';
+    }
+    return _weekdayName(selected.weekday);
+  }
+
+  static const List<String> _weekdayNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  String _weekdayName(int weekday) => _weekdayNames[weekday - 1];
 
   // Reduced-motion / NFR7: no spinner ever on this surface (UX-DR10).
   // While the store is opening, the screen renders the three open

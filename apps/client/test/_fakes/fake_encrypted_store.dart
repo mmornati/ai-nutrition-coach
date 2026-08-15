@@ -8,6 +8,13 @@
 // override `encryptedStoreProvider` with this fake exercise the same
 // shape they would in production. The fake is intentionally tiny — no
 // drift, no timers, no I/O.
+//
+// Story 1.4 swap: the underlying stream is now a broadcast controller
+// so `seed()` (and `recordPlate()`) re-emit the new snapshot to active
+// subscribers — the week-strip tests need the strip to refresh after a
+// new plate is added or after a multi-day seed lands. The first emit
+// for each subscriber is still the snapshot the fake was constructed
+// with, so existing 1.3 tests that await `.first` keep working.
 
 import 'dart:async';
 
@@ -18,27 +25,29 @@ class FakeEncryptedStore implements EncryptedStore {
     List<PlateLog>? initial,
     this.recordResult,
   })  : _plates = [...?initial],
-        _stream = Stream<List<PlateLog>>.value(
-          List<PlateLog>.unmodifiable([...?initial]),
-        );
+        _controller = StreamController<List<PlateLog>>.broadcast();
 
   final RecordPlateResult? recordResult;
   final List<FoodEntryDraft> _seenDrafts = [];
   final List<DateTime?> _seenLoggedAt = [];
   List<PlateLog> _plates;
-  final Stream<List<PlateLog>> _stream;
+  final StreamController<List<PlateLog>> _controller;
   int _nextPlateId = 1;
   int _nextEntryId = 1;
 
-  /// Snapshots the test has seen via `watchRecent`. Most-recent last.
+  /// Snapshots the test has seen via `watchRecent` (initial seed +
+  /// every push via `seed()` / `recordPlate()`). Most-recent last.
   final List<List<PlateLog>> emittedSnapshots = [];
 
-  /// Replaces the current snapshot — reuses the existing stream for
-  /// reposing; the initial snapshot is already what the test started
-  /// with.
+  /// Replaces the current snapshot and pushes the new list to all
+  /// active `watchRecent()` subscribers. Tests that hold a reference to
+  /// the fake can swap data mid-test (e.g. the week-strip suite
+  /// `seed()`s a multi-day history after the widget tree is built).
   void seed(List<PlateLog> plates) {
     _plates = [...plates];
-    emittedSnapshots.add(List<PlateLog>.unmodifiable(_plates));
+    final snapshot = List<PlateLog>.unmodifiable(_plates);
+    emittedSnapshots.add(snapshot);
+    _controller.add(snapshot);
   }
 
   @override
@@ -72,17 +81,28 @@ class FakeEncryptedStore implements EncryptedStore {
       entries: committedEntries,
     );
     _plates = [plate, ..._plates];
-    emittedSnapshots.add(List<PlateLog>.unmodifiable(_plates));
+    final snapshot = List<PlateLog>.unmodifiable(_plates);
+    emittedSnapshots.add(snapshot);
+    _controller.add(snapshot);
     return RecordPlateSuccess(plate);
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) => _stream;
+  Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
+    // Yield the current snapshot synchronously (mimics drift's
+    // `query.watch()` behavior — every subscriber sees the initial
+    // state immediately) then forward every subsequent push to active
+    // listeners. Broadcast streams don't replay, so we must yield the
+    // initial state here rather than queueing it on the controller.
+    yield List<PlateLog>.unmodifiable(_plates);
+    yield* _controller.stream;
+  }
 
   @override
   Future<void> close() async {
-    // No-op: the fake owns its stream as a static value; Riverpod will
-    // stop listening on its own when the widget tree is torn down.
+    if (!_controller.isClosed) {
+      await _controller.close();
+    }
   }
 }
 

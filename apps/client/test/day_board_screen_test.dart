@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
 import 'package:openplate_client/state/day_board_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:openplate_client/state/selected_date_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
 import 'package:openplate_client/widgets/balance_arc.dart';
 import 'package:openplate_client/widgets/open_dent.dart';
@@ -251,6 +252,83 @@ void main() {
 
       expect(find.byType(BalanceArc), findsOneWidget);
       expect(find.text('· local'), findsOneWidget);
+    });
+
+    testWidgets(
+        'tap on a WeekStrip dot flips DayBoardScreen to that local day',
+        (tester) async {
+      // Story 1.4 review — M2. The screen's data source is the
+      // conditional `selected == null ? dayBoardProvider :
+      // dayBoardForDateProvider(selected)`; only an end-to-end mount
+      // exercises the branch. Seed plates on yesterday (local) and
+      // today (local), tap the leftmost dot in the strip, and verify
+      // the board re-renders for yesterday.
+      final today = DateTime.now();
+      final localToday = DateTime(today.year, today.month, today.day);
+      final localYesterday =
+          localToday.subtract(const Duration(days: 1));
+
+      final store = FakeEncryptedStore(initial: [
+        plateAt(
+          1,
+          localTime: DateTime(
+            localYesterday.year,
+            localYesterday.month,
+            localYesterday.day,
+            19,
+            0,
+          ),
+          dish: 'Yesterday Pizza',
+        ),
+        plateAt(
+          2,
+          localTime: DateTime(
+            localToday.year,
+            localToday.month,
+            localToday.day,
+            7,
+            30,
+          ),
+          dish: 'Today Oatmeal',
+        ),
+      ]);
+      addTearDown(store.close);
+
+      // Use UncontrolledProviderScope so the test can flip
+      // `selectedDateProvider` mid-test (see M2 review).
+      final container = ProviderContainer(
+        overrides: [
+          encryptedStoreProvider.overrideWithValue(store),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(brightness: Brightness.light),
+            home: const DayBoardScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Default view — today's plate is rendered.
+      expect(find.text('Today Oatmeal'), findsOneWidget);
+      expect(find.text('Yesterday Pizza'), findsNothing);
+
+      // The WeekStrip sits below the board; the leftmost dot is
+      // 6 days ago. To land on yesterday we set
+      // `selectedDateProvider` directly — that's the same value the
+      // strip writes when the user taps the second-from-left dot.
+      container.read(selectedDateProvider.notifier).state =
+          localYesterday;
+      await tester.pumpAndSettle();
+
+      // Now yesterday's plate is rendered and today's is gone.
+      expect(find.text('Yesterday Pizza'), findsOneWidget);
+      expect(find.text('Today Oatmeal'), findsNothing);
     });
   });
 }

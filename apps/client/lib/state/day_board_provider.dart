@@ -3,16 +3,22 @@
 // Reads the existing `recentPlatesProvider` stream and projects it into the
 // three-slot shape the screen renders: one bucket per meal slot
 // (Breakfast / Lunch / Dinner) plus an "open dents" view for any slot with
-// no plate today. Filters to the user's local day boundary so yesterday's
-// plates never leak into the surface.
+// no plate on the selected local day. Filters to the local day boundary
+// so plates from other days never leak into the surface.
 //
 // The provider does not mutate anything; it is a `Provider` over the
 // `AsyncValue<List<PlateLog>>` so the screen still sees loading / error
 // states the same way it does today. The pre-classification is what the
 // screen consumes — no slot arithmetic on the render path.
+//
+// Story 1.4 split the bucket logic into a `_classifyForDate(plates,
+// date)` helper so the same view serves both `dayBoardProvider` (today)
+// and `dayBoardForDateProvider(date)` (the selected local day from the
+// week strip). The no-arg `dayBoardProvider` is preserved for
+// backward compatibility with Story 1.3's call sites.
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/record_plate_provider.dart';
@@ -96,30 +102,61 @@ class DayBoardState {
   DayBoardDay? get data => async.value;
 }
 
-/// Derived provider — local-day filter + slot bucketing.
+/// Derived provider — local-day filter + slot bucketing, scoped to
+/// "today" (local). Hour buckets are evaluated in local time
+/// (`loggedAtUtc.toLocal().hour`) so a plate logged at 08:00 UTC on a
+/// device in UTC-7 lands in Breakfast (1am local), and the same plate
+/// in UTC+9 lands in Dinner (5pm local).
 ///
-/// Hour buckets are evaluated in local time (`loggedAtUtc.toLocal().hour`)
-/// so a plate logged at 08:00 UTC on a device in UTC-7 lands in
-/// Breakfast (1am local), and the same plate in UTC+9 lands in Dinner
-/// (5pm local). The week strip (Story 1.4) handles the day picker; this
-/// view only ever renders "today".
+/// Backward compat: this provider remains the no-arg "today" view that
+/// Story 1.3 wired into `DayBoardScreen`; the day-strip navigation
+/// surface added in Story 1.4 reads `selectedDateProvider` and
+/// switches to `dayBoardForDateProvider` for non-today selections.
 final dayBoardProvider = Provider<AsyncValue<DayBoardDay>>((ref) {
   final plates = ref.watch(recentPlatesProvider);
   final now = DateTime.now();
   return plates.when(
     loading: () => const AsyncValue.loading(),
     error: (e, st) => AsyncValue.error(e, st),
-    data: (list) => AsyncValue.data(_classifyToday(list, now: now)),
+    data: (list) => AsyncValue.data(_classifyForDate(list, date: now)),
+  );
+});
+
+/// Date-aware variant of [dayBoardProvider] — used by `DayBoardScreen`
+/// after the user taps a week-strip dot. The argument is a local-midnight
+/// `DateTime` for the day to render; passing `DateTime.now()` is
+/// equivalent to the no-arg [dayBoardProvider] above.
+///
+/// The family key is normalized via `DateUtils.dateOnly` so two
+/// `DateTime`s that point at the same local midnight collapse to one
+/// cache entry — otherwise `DateTime(2026, 8, 15)` (midnight) and
+/// `DateTime(2026, 8, 15, 0, 0, 0, 1)` (1ms past midnight) would each
+/// allocate their own slot in the family cache.
+final dayBoardForDateProvider =
+    Provider.family<AsyncValue<DayBoardDay>, DateTime>((ref, date) {
+  final localDay = DateUtils.dateOnly(date);
+  final plates = ref.watch(recentPlatesProvider);
+  return plates.when(
+    loading: () => const AsyncValue.loading(),
+    error: (e, st) => AsyncValue.error(e, st),
+    data: (list) =>
+        AsyncValue.data(_classifyForDate(list, date: localDay)),
   );
 });
 
 @visibleForTesting
-DayBoardDay classifyToday(List<PlateLog> plates, {DateTime? now}) {
-  return _classifyToday(plates, now: now ?? DateTime.now());
+DayBoardDay classifyForDate(
+  List<PlateLog> plates, {
+  required DateTime date,
+}) {
+  return _classifyForDate(plates, date: date);
 }
 
-DayBoardDay _classifyToday(List<PlateLog> plates, {required DateTime now}) {
-  final start = DateTime(now.year, now.month, now.day);
+DayBoardDay _classifyForDate(
+  List<PlateLog> plates, {
+  required DateTime date,
+}) {
+  final start = DateTime(date.year, date.month, date.day);
   final end = start.add(const Duration(days: 1));
 
   final perSlot = <MealSlot, PlateLog?>{
