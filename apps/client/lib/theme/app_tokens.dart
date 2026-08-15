@@ -56,8 +56,6 @@ class AppRadii {
 /// Cream backgrounds, deep ink text, one sage accent. No red. The "warning"
 /// tone is a muted amber so the UI never reads as guilt-driven.
 class AppPalette {
-  AppPalette._();
-
   static const AppPalette light = AppPalette._light();
   static const AppPalette dark = AppPalette._dark();
 

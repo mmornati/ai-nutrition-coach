@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
+import 'package:integrations/integrations.dart';
 
-void main() {
-  runApp(const ProviderScope(child: OpenPlateApp()));
+import 'screens/log_plate_screen.dart';
+import 'state/record_plate_provider.dart';
+import 'theme/app_tokens.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final store = await createEncryptedStore();
+  runApp(
+    ProviderScope(
+      overrides: [
+        encryptedStoreProvider.overrideWithValue(store),
+      ],
+      child: const OpenPlateApp(),
+    ),
+  );
 }
 
 class OpenPlateApp extends StatelessWidget {
@@ -58,31 +71,8 @@ class _Scaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Read the resolved palette from Theme so the scaffold tracks whichever
-    // brightness MaterialApp picked (light or dark).
-    final palette = Theme.of(context).brightness == Brightness.dark
-        ? AppPalette.dark
-        : AppPalette.light;
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'OpenPlate',
-                style: AppTypography.ui.copyWith(color: palette.ink),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'An open, quiet place.',
-                style: AppTypography.coach.copyWith(color: palette.inkMuted),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return const Scaffold(
+      body: LogPlateScreen(),
     );
   }
 }

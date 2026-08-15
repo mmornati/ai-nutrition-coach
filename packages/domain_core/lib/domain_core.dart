@@ -16,4 +16,13 @@
 /// Stories 1.2+ populate this surface (PlateLog, FoodEntry, ports, use-cases).
 library;
 
+export 'src/entities/database_food.dart';
+export 'src/entities/food_entry.dart';
+export 'src/entities/plate_log.dart';
+export 'src/ports/encrypted_store.dart';
+export 'src/results/store_failure.dart';
+export 'src/use_cases/record_plate.dart';
+export 'src/value_types/food_entry_draft.dart';
+export 'src/value_types/quantity_range.dart';
+
 const String domainCoreVersion = '0.1.0';

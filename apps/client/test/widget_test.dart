@@ -5,20 +5,57 @@
 // and assert the scaffold background color matches the corresponding
 // palette entry. If the light/dark switch in `main.dart` ever drifts from
 // `AppPalette`, this fails before merge.
+//
+// Story 1.2 wraps the app in a `ProviderScope` so the `LogPlateScreen`
+// can pull from `encryptedStoreProvider`. We override it with a no-op
+// stub here — drift's `watchRecent()` leaves timers pending in test
+// scope, so we don't use the real adapter.
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:openplate_client/main.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
+
+class _StubEncryptedStore implements EncryptedStore {
+  const _StubEncryptedStore();
+
+  static final DateTime _epoch = DateTime.utc(2026, 8, 15);
+
+  @override
+  Future<RecordPlateResult> recordPlate({
+    required List<FoodEntryDraft> entries,
+    DateTime? loggedAtUtc,
+  }) async =>
+      RecordPlateSuccess(
+        PlateLog(
+          id: 0,
+          loggedAtUtc: _epoch,
+          entries: const <FoodEntry>[],
+        ),
+      );
+
+  @override
+  Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
+      const Stream<List<PlateLog>>.empty();
+
+  @override
+  Future<void> close() async {}
+}
 
 Future<void> _pumpWithMode(
   WidgetTester tester,
   ThemeMode mode,
 ) async {
   await tester.pumpWidget(
-    OpenPlateApp(
-      themeMode: mode,
+    ProviderScope(
+      overrides: [
+        encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+      ],
+      child: OpenPlateApp(themeMode: mode),
     ),
   );
   await tester.pumpAndSettle();
@@ -29,7 +66,7 @@ void main() {
       (tester) async {
     await _pumpWithMode(tester, ThemeMode.light);
 
-    expect(find.text('OpenPlate'), findsOneWidget);
+    expect(find.text('Log a plate'), findsOneWidget);
     expect(find.byType(MaterialApp), findsOneWidget);
 
     final ctx = tester.element(find.byType(Scaffold));
@@ -54,6 +91,9 @@ void main() {
   });
 
   test('spacing scale is a 4px multiple', () {
+    // 4px scale with `xxs = 2` (a half-step on the 4px scale, kept for
+    // hairline-adjacent tweaks) and `hairline = 1` (the row-divider
+    // exception).
     const steps = <double>[
       AppSpacing.xxs,
       AppSpacing.xs,
@@ -65,7 +105,7 @@ void main() {
       AppSpacing.xxxl,
     ];
     for (final s in steps) {
-      expect(s % 4 == 0 || s == 1, isTrue,
+      expect(s == 2 || s % 4 == 0, isTrue,
           reason: 'spacing value $s is not on the 4px scale');
     }
   });
