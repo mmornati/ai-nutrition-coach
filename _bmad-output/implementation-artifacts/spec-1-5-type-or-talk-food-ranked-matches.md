@@ -2,9 +2,9 @@
 title: 'Story 1.5 — Type or talk a food, get ranked matches (FR3)'
 type: 'feature'
 created: '2026-08-15'
-status: 'ready-for-dev'
+status: 'review'
 review_loop_iteration: 0
-baseline_commit: '37e22d7'
+baseline_commit: '640aef3'
 context:
   - _bmad-output/implementation-artifacts/epic-1-context.md
   - _bmad-output/specs/spec-openplate/conventions.md
@@ -82,23 +82,24 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/domain_core/lib/src/entities/database_food.dart` -- add `FoodGroup` enum + `foodGroup` field; preserve value equality + copyWith -- used by 1.3's balance arc
-- [ ] `packages/domain_core/lib/src/results/catalog_failure.dart` -- sealed-style `CatalogFailure`, `NotFoundFailure`, `RankedMatches(FoodMatch)` -- typed result
-- [ ] `packages/domain_core/lib/src/ports/food_catalog.dart` -- `abstract interface class FoodCatalog` with `search` method -- AD-4 single port
-- [ ] `packages/domain_core/lib/domain_core.dart:19` -- export new symbols
-- [ ] `packages/domain_core/test/food_catalog_test.dart` -- AD-1 invariant still holds; port is interface-only
-- [ ] `packages/integrations/lib/src/catalog/seed_foods.dart` -- ≥30 foods with food-group tags + quantity presets
-- [ ] `packages/integrations/lib/src/catalog/lru_cache.dart` -- small in-memory LRU (≥20 entries)
-- [ ] `packages/integrations/lib/src/catalog/offline_first_food_catalog.dart` -- adapter implementing `FoodCatalog` against seed + LRU -- NFR5 offline-first
-- [ ] `packages/integrations/lib/src/voice/noop_voice_transcriber.dart` -- returns `TranscriptionFailure(unsupportedInV1)` -- seam declared without audio capture
-- [ ] `packages/integrations/lib/integrations.dart:1` -- barrel update
-- [ ] `packages/integrations/test/offline_first_food_catalog_test.dart` -- ranked order, offline replay, empty result
-- [ ] `apps/client/lib/state/manual_entry_provider.dart` -- `manualEntryProvider` (StateNotifier), `foodCatalogProvider` (Provider), `voiceTranscriberProvider` (Provider)
-- [ ] `apps/client/lib/screens/manual_entry_screen.dart` -- text field + ranked list + quantity presets + `Log` button + no-match fallback + mic button (quiet copy)
-- [ ] `apps/client/test/screens/manual_entry_screen_test.dart` -- widget test using a fake store + fake catalog
-- [ ] `apps/client/test/state/manual_entry_provider_test.dart` -- state transition test
-- [ ] `apps/client/lib/main.dart:1` -- wire `foodCatalogProvider` + `voiceTranscriberProvider` overrides at the root
-- [ ] `packages/domain_core/test/domain_core_test.dart:19` -- AD-1 grep test remains green
+- [x] `packages/domain_core/lib/src/entities/database_food.dart` -- add `FoodGroup` enum + `foodGroup` field; preserve value equality + copyWith -- used by 1.3's balance arc
+- [x] `packages/domain_core/lib/src/results/catalog_failure.dart` -- sealed-style `CatalogFailure`, `NotFoundFailure`, `RankedMatches(FoodMatch)` -- typed result
+- [x] `packages/domain_core/lib/src/ports/food_catalog.dart` -- `abstract interface class FoodCatalog` with `search` method -- AD-4 single port
+- [x] `packages/domain_core/lib/src/ports/voice_transcriber.dart` -- `abstract interface class VoiceTranscriber` + sealed `TranscribeResult` -- FR3 / FR13
+- [x] `packages/domain_core/lib/domain_core.dart:19` -- export new symbols
+- [x] `packages/domain_core/test/food_catalog_test.dart` -- AD-1 invariant still holds; port is interface-only
+- [x] `packages/integrations/lib/src/catalog/seed_foods.dart` -- ≥30 foods with food-group tags + quantity presets
+- [x] `packages/integrations/lib/src/catalog/lru_cache.dart` -- small in-memory LRU (≥20 entries)
+- [x] `packages/integrations/lib/src/catalog/offline_first_food_catalog.dart` -- adapter implementing `FoodCatalog` against seed + LRU -- NFR5 offline-first
+- [x] `packages/integrations/lib/src/voice/noop_voice_transcriber.dart` -- returns `TranscriptionFailure(unsupportedInV1)` -- seam declared without audio capture
+- [x] `packages/integrations/lib/integrations.dart:1` -- barrel update
+- [x] `packages/integrations/test/offline_first_food_catalog_test.dart` -- ranked order, offline replay, empty result
+- [x] `apps/client/lib/state/manual_entry_provider.dart` -- `manualEntryProvider` (StateNotifier), `foodCatalogProvider` (Provider), `voiceTranscriberProvider` (Provider)
+- [x] `apps/client/lib/screens/manual_entry_screen.dart` -- text field + ranked list + quantity presets + `Log` button + no-match fallback + mic button (quiet copy)
+- [x] `apps/client/test/screens/manual_entry_screen_test.dart` -- widget test using a fake store + fake catalog
+- [x] `apps/client/test/state/manual_entry_provider_test.dart` -- state transition test
+- [x] `apps/client/lib/main.dart:1` -- wire `foodCatalogProvider` + `voiceTranscriberProvider` overrides at the root
+- [x] `packages/domain_core/test/domain_core_test.dart:19` -- AD-1 grep test remains green
 
 **Acceptance Criteria:**
 - Given the user types a partial food name, when ranked matches render, then they resolve from the `FoodCatalog` port and display with quantity presets (FR3, UX-DR11).
@@ -139,3 +140,146 @@ context:
 **Manual entry screen (UX-DR11)**
 - Text field + ranked list + quantity presets + `Log` button + no-match path + mic button (quiet copy).
   [`manual_entry_screen.dart`](../../apps/client/lib/screens/manual_entry_screen.dart)
+
+## Dev Agent Record
+
+### Implementation Plan
+
+The story splits into three layers that match the monorepo's
+hexagonal shape — domain port + result hierarchy, integrations
+adapter, app surface — plus the spec's I/O matrix locked into tests.
+
+**Domain port (`packages/domain_core`).** Added `FoodCatalog` as a
+sealed-port result hierarchy (`RankedMatches | NotFoundFailure |
+CatalogFailure`) and `FoodMatch` as the per-result value carrying the
+`DatabaseFood`, a confidence score, and the food's quantity presets.
+Extended `DatabaseFood` with a `FoodGroup` enum (`vegFruit | protein |
+starch | dairy | other`) so the balance arc can compute real values
+from the resolved food; defaulted `FoodGroup.other` so pre-1.5 call
+sites still compile. Added a parallel `VoiceTranscriber` port with a
+sealed `TranscribeResult` (`TranscribedText | TranscriptionFailure`),
+parameterless in v1 so the no-op adapter never holds audio.
+
+**Adapter (`packages/integrations`).** Implemented
+`OfflineFirstFoodCatalog` against a seeded list of 35 foods across
+the four groups (9 vegFruit, 8 protein, 8 starch, 7 dairy, 3 other)
+with honest `QuantityRange` presets (`~1 fist`, `~2 cups`, `~½–1 cup`).
+Ranking: exact match (1.0) > prefix (0.8) > substring (0.6) > token-
+overlap (0.4 × fraction). `LruCache<K,V>` is a tiny `LinkedHashMap`-
+backed LRU with FIFO eviction at capacity 32. `NoopVoiceTranscriber`
+always returns `TranscriptionFailure(unsupportedInV1)` — no platform
+channel, no audio buffer.
+
+**Screen (`apps/client`).** `ManualEntryScreen` is a
+`ConsumerStatefulWidget`: text field + mic button on the top row, a
+ranked list of matches with the food-group tag, a `ChoiceChip`-based
+quantity preset row that auto-picks the first preset on selection,
+and a `Log` `FilledButton`. The notifier pattern-matches the sealed
+`CatalogResult` into a screen-facing `ManualEntryCatalogStatus`
+(idle / matched / notFound / catalogFailure) and renders the manual-
+add form (`DatabaseFood(source: manual, foodGroup: other)`) for the
+not-found path. The mic button always surfaces the calm "Voice not
+available in v1 — type instead" copy via a `SnackBar` — the
+`voiceTranscriberProvider` is wired through but no audio ever flows.
+
+### Completion Notes
+
+- AD-1 grep test stays green — no Flutter / drift / dio /
+  `speech_to_text` imports in `packages/domain_core/lib/`.
+- AD-3 convergent write: the manual-entry screen calls
+  `recordPlateProvider`, which delegates to `RecordPlate`. The fake
+  store in widget tests confirms exactly one `FoodEntryDraft` lands
+  per commit with the chosen preset.
+- AD-4 single seam: `FoodCatalog` is the only port the screen reads;
+  the no-match fallback calls into the same use-case with a manual
+  `DatabaseFood`, not a second mutation source.
+- NFR5 offline replay: the LRU returns the same ranked list the
+  online call would have produced; tested via repeat-query assertions
+  on `cachedQueries` and identical `RankedMatches` payloads.
+- NFR6 honest ranges: every preset is a `QuantityRange(low, high,
+  unit, displayLabel)`; no kcal-as-float crosses the port.
+- FR13 / UX-DR11: the mic button's on-tap copy is the only path the
+  v1 user can reach the voice seam; the underlying adapter is a
+  no-op so no audio is ever captured or biometrically identified.
+- UX-DR10: no spinner ever. The seeded list is in-memory and
+  synchronous; the offline replay path skips the catalog call
+  entirely.
+- NFR7 / NFR8: every interactive surface hits the 48px floor; the
+  dark-mode test confirms `AppPalette.dark.background` flows through.
+
+### Debug Log
+
+- `flutter test` runs against `apps/client` first hit the 48px hit-
+  target assertion against the mic `Icon` itself (24px) rather than
+  the surrounding 48px tap area. Fixed by walking the `Icon` up to
+  its `GestureDetector` ancestor and asserting the tap area's size.
+- `flutter analyze` initially flagged the abstract-class
+  instantiation in the sealed-type compile-time-check test; replaced
+  with a const sample of each variant.
+
+### File List
+
+**New (domain_core):**
+- `packages/domain_core/lib/src/ports/food_catalog.dart`
+- `packages/domain_core/lib/src/ports/voice_transcriber.dart`
+- `packages/domain_core/lib/src/results/catalog_failure.dart`
+- `packages/domain_core/test/food_catalog_test.dart`
+
+**Modified (domain_core):**
+- `packages/domain_core/lib/domain_core.dart` (barrel exports)
+- `packages/domain_core/lib/src/entities/database_food.dart`
+  (added `FoodGroup` enum + `foodGroup` field with default)
+
+**New (integrations):**
+- `packages/integrations/lib/src/catalog/seed_foods.dart`
+- `packages/integrations/lib/src/catalog/lru_cache.dart`
+- `packages/integrations/lib/src/catalog/offline_first_food_catalog.dart`
+- `packages/integrations/lib/src/voice/noop_voice_transcriber.dart`
+- `packages/integrations/test/offline_first_food_catalog_test.dart`
+
+**Modified (integrations):**
+- `packages/integrations/lib/integrations.dart` (barrel exports)
+
+**New (apps/client):**
+- `apps/client/lib/state/manual_entry_provider.dart`
+- `apps/client/lib/screens/manual_entry_screen.dart`
+- `apps/client/test/screens/manual_entry_screen_test.dart`
+- `apps/client/test/state/manual_entry_provider_test.dart`
+
+**Modified (apps/client):**
+- `apps/client/lib/main.dart` (override `foodCatalogProvider` +
+  `voiceTranscriberProvider` at the root)
+- `apps/client/test/_fakes/fake_encrypted_store.dart`
+  (added public `capturedDrafts` getter for widget-test assertions)
+
+**Modified (planning artifacts):**
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+  (1-5 → review)
+- `_bmad-output/implementation-artifacts/spec-1-5-...md`
+  (status, task checkboxes, Dev Agent Record)
+
+### Change Log
+
+- 2026-08-15 — Story 1.5 implemented end-to-end (domain port, LRU-
+  backed offline-first adapter, no-op voice transcriber, manual-entry
+  screen + state machine, full test coverage). Status → review.
+- 2026-08-15 — Code review patches (blocking + non-blocking). On the
+  `catalogFailure` path the screen now renders the manual-add form
+  alongside the calm failure line so the I/O matrix's
+  CATALOG_FAILURE row holds (`_Body` accepts the `submitting` flag and
+  passes it through to `_ManualAddForm`). The `_ManualAddForm` Log
+  button is now gated on `_submitting` (mirrors the `_MatchRow` /
+  FilledButton pattern) and its label flips to "Logging…" while a
+  commit is in flight. `_PresetRow` chips each carry a
+  `ConstrainedBox(minHeight: AppTouchTargets.min)` +
+  `materialTapTargetSize: MaterialTapTargetSize.padded` so the hit
+  area clears the NFR7 48-px floor. `_QueryField`'s `TextField` now
+  declares `InputDecoration.labelText: 'Food search'` so Material
+  forwards a stable semantic label (NFR7 / a11y). The throw-catch
+  path in `manual_entry_provider.dart` no longer prints to stdout
+  (the catch is retained for the UX surface). Tests updated: catalog-
+  failure assertion now also covers the manual-add form; the
+  NFR7 hit-target test adds `_MatchRow` + `_PresetRow` chip
+  assertions; the `TextField` lookup switches from "Food" to
+  "Food search". All four verification commands pass with only the
+  three pre-existing analyzer issues remaining.

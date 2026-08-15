@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import 'screens/day_board_screen.dart';
+import 'state/manual_entry_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'theme/app_tokens.dart';
 
@@ -13,6 +14,14 @@ void main() async {
     ProviderScope(
       overrides: [
         encryptedStoreProvider.overrideWithValue(store),
+        // Story 1.5 — wire the manual-entry + voice seams. The catalog
+        // is offline-first; the voice transcriber is a no-op (FR3 /
+        // FR13). Both are swapped out behind the same port shapes when
+        // Epic 3+ ships real adapters.
+        foodCatalogProvider
+            .overrideWithValue(OfflineFirstFoodCatalog()),
+        voiceTranscriberProvider
+            .overrideWithValue(const NoopVoiceTranscriber()),
       ],
       child: const OpenPlateApp(),
     ),

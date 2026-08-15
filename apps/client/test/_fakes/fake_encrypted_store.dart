@@ -30,6 +30,11 @@ class FakeEncryptedStore implements EncryptedStore {
   final RecordPlateResult? recordResult;
   final List<FoodEntryDraft> _seenDrafts = [];
   final List<DateTime?> _seenLoggedAt = [];
+
+  /// Captured drafts from every `recordPlate` call — exposed so tests
+  /// (notably the Story 1.5 manual-entry widget test) can assert on
+  /// what the screen actually committed. Most-recent last.
+  List<FoodEntryDraft> get capturedDrafts => List.unmodifiable(_seenDrafts);
   List<PlateLog> _plates;
   final StreamController<List<PlateLog>> _controller;
   int _nextPlateId = 1;
