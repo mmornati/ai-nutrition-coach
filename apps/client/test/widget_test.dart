@@ -10,6 +10,11 @@
 // can pull from `encryptedStoreProvider`. We override it with a no-op
 // stub here — drift's `watchRecent()` leaves timers pending in test
 // scope, so we don't use the real adapter.
+//
+// Story 1.3 swaps the home to `DayBoardScreen`. The fake store here
+// must hold at least one commit so the screen has a Day Board to render;
+// an empty store still renders the open-dent state, which is also
+// verifiable. We assert the title text + the light/dark token wiring.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
@@ -17,13 +22,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:openplate_client/main.dart';
+import 'package:openplate_client/screens/day_board_screen.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
 
+import '_fakes/fake_encrypted_store.dart';
+
 class _StubEncryptedStore implements EncryptedStore {
   const _StubEncryptedStore();
-
-  static final DateTime _epoch = DateTime.utc(2026, 8, 15);
 
   @override
   Future<RecordPlateResult> recordPlate({
@@ -33,7 +39,7 @@ class _StubEncryptedStore implements EncryptedStore {
       RecordPlateSuccess(
         PlateLog(
           id: 0,
-          loggedAtUtc: _epoch,
+          loggedAtUtc: DateTime.utc(2026, 8, 15),
           entries: const <FoodEntry>[],
         ),
       );
@@ -66,10 +72,12 @@ void main() {
       (tester) async {
     await _pumpWithMode(tester, ThemeMode.light);
 
-    expect(find.text('Log a plate'), findsOneWidget);
+    // Story 1.3: home is the Day Board — its title is "Today".
+    expect(find.text('Today'), findsOneWidget);
     expect(find.byType(MaterialApp), findsOneWidget);
 
-    final ctx = tester.element(find.byType(Scaffold));
+    // The DayBoardScreen owns its own Scaffold; pick the deepest one.
+    final ctx = tester.element(find.byType(DayBoardScreen));
     final theme = Theme.of(ctx);
     expect(theme.brightness, Brightness.light);
     expect(theme.scaffoldBackgroundColor, AppPalette.light.background);
@@ -79,7 +87,7 @@ void main() {
       (tester) async {
     await _pumpWithMode(tester, ThemeMode.dark);
 
-    final ctx = tester.element(find.byType(Scaffold));
+    final ctx = tester.element(find.byType(DayBoardScreen));
     final theme = Theme.of(ctx);
     expect(theme.brightness, Brightness.dark);
     expect(theme.scaffoldBackgroundColor, AppPalette.dark.background);
@@ -108,5 +116,17 @@ void main() {
       expect(s == 2 || s % 4 == 0, isTrue,
           reason: 'spacing value $s is not on the 4px scale');
     }
+  });
+
+  test('FakeEncryptedStore yields seeded plates through watchRecent', () async {
+    final today = DateTime(2026, 8, 15, 7, 30);
+    final store = FakeEncryptedStore(initial: [
+      plateAt(1, localTime: today, dish: 'Oatmeal'),
+    ]);
+
+    final plates = await store.watchRecent().first;
+    expect(plates, hasLength(1));
+    expect(plates.single.entries.single.databaseFood.displayName, 'Oatmeal');
+    await store.close();
   });
 }

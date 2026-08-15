@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
-import 'screens/log_plate_screen.dart';
+import 'screens/day_board_screen.dart';
 import 'state/record_plate_provider.dart';
 import 'theme/app_tokens.dart';
 
@@ -72,7 +72,7 @@ class _Scaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: LogPlateScreen(),
+      body: DayBoardScreen(),
     );
   }
 }

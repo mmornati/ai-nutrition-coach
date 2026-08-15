@@ -1,9 +1,12 @@
 // 32-byte DB key handling for the encrypted drift store (AD-8).
 //
 // On a fresh device the alias `openplate_db_key_v1` is absent from the
-// secure storage; we generate `Random.secure().nextBytes(32)`, write it
-// under that alias, and use it for every subsequent open. On a warm
-// start we read the alias verbatim. If either operation throws, the
+// secure storage; we generate 32 randbytes via `Random.secure().nextInt(256)`
+// (the API locally available on Dart 3.12.0 — the spec's `nextBytes` was
+// bumped in Dart 3.4+ but the `_SecureRandom` returned by
+// `Random.secure()` in this SDK ships only `nextInt/nextDouble/nextBool`),
+// write it under that alias, and use it for every subsequent open. On a
+// warm start we read the alias verbatim. If either operation throws, the
 // adapter refuses to open and surfaces a typed `SecureKeyFailure`.
 //
 // The cold-start guarantee is "generate-or-fetch, then open — atomic":
@@ -42,7 +45,7 @@ class SecureKeySourceImpl implements SecureKeySource {
     if (existing != null && existing.isNotEmpty) {
       return Uint8List.fromList(base64.decode(existing));
     }
-    final fresh = Random.secure().nextBytes(32);
+    final fresh = _secureBytes(32);
     await _storage.write(key: alias, value: base64.encode(fresh));
     return fresh;
   }
@@ -62,8 +65,23 @@ class InMemoryKeySource implements SecureKeySource {
   Future<Uint8List> getOrCreateDbKey() async {
     final existing = _key;
     if (existing != null) return existing;
-    final fresh = Random.secure().nextBytes(32);
+    final fresh = _secureBytes(32);
     _key = fresh;
     return fresh;
   }
+}
+
+/// Generate [count] cryptographically-strong random bytes.
+///
+/// Throws [RangeError] when [count] is less than 1.
+Uint8List _secureBytes(int count) {
+  if (count <= 0) {
+    throw RangeError.range(count, 1, 1 << 31, 'count');
+  }
+  final rng = Random.secure();
+  final out = Uint8List(count);
+  for (var i = 0; i < count; i++) {
+    out[i] = rng.nextInt(256);
+  }
+  return out;
 }
