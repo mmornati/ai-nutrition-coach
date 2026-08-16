@@ -548,4 +548,68 @@ void main() {
       expect(coach.calls, isEmpty);
     });
   });
+
+  group('Open-plate dismissal path (Story 2.3 / FR5 / UX-DR5 / AC #4)', () {
+    test(
+        'recordOpenPlateDismiss appends a synthetic CoachNote with anchor '
+        'openPlate + records the dismiss interaction (HAPPY_PATH_OPEN_PLATE_HINT)',
+        () async {
+      final coach = _FakeCoach();
+      final store = _FakeCoachNoteStore();
+      final useCase = RecordCoachInteraction(coach: coach, store: store);
+
+      final result = await useCase.recordOpenPlateDismiss(
+        questionKey: 'openPlate.balanced',
+        questionText: 'A calm, varied plate — anything you want to add?',
+      );
+
+      // The synthetic CoachNote lands in the store with the openPlate
+      // anchor and the documented `plateLogId: 0` sentinel.
+      expect(store.appended, hasLength(1));
+      expect(store.appended.first.anchor, CoachAnchor.openPlate);
+      expect(store.appended.first.plateLogId, 0);
+      expect(store.appended.first.questionKey, 'openPlate.balanced');
+      expect(
+        store.appended.first.text,
+        'A calm, varied plate — anything you want to add?',
+      );
+      // The interaction log row references the committed note id.
+      expect(store.interactions, hasLength(1));
+      expect(store.interactions.first.kind, CoachInteraction.dismiss);
+      expect(store.interactions.first.noteId, store.appended.first.id);
+      expect(result, isA<RecordCoachInteractionDismiss>());
+      expect(result.kind, CoachInteraction.dismiss);
+      // No coach port call — the open-plate path is a quiet dismissal.
+      expect(coach.calls, isEmpty);
+    });
+
+    test(
+        'recordOpenPlateDismiss append failure collapses to typed '
+        'CoachInteractionFailed — UI still records the dismiss intent '
+        '(STORE_WRITE_FAILURE)',
+        () async {
+      final coach = _FakeCoach();
+      final store = _FakeCoachNoteStore()..forceAppendFailure();
+      final useCase = RecordCoachInteraction(coach: coach, store: store);
+
+      final result = await useCase.recordOpenPlateDismiss(
+        questionKey: 'openPlate.balanced',
+        questionText: 'A calm, varied plate — anything you want to add?',
+      );
+
+      // The synthetic CoachNote did NOT land — but the dismiss
+      // interaction is still recorded against the draft's id (0).
+      expect(store.appended, isEmpty);
+      expect(store.interactions, hasLength(1));
+      expect(store.interactions.first.kind, CoachInteraction.dismiss);
+      expect(store.interactions.first.noteId, 0);
+      expect(result, isA<RecordCoachInteractionDismiss>());
+      // The interaction log write may also fail — the typed result
+      // collapses to CoachInteractionFailed.
+      expect(
+        result.recordInteractionOutcome,
+        isA<CoachInteractionRecorded>(),
+      );
+    });
+  });
 }

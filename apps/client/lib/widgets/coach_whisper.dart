@@ -9,23 +9,25 @@
 // question, the color is the affordance only.
 //
 // Story 2.3 wires the answer / dismiss / depth interaction:
-//   * `[sure]` calls `onSure` which the parent wires to the depth
-//     panel via `depthFollowUpProvider`. The widget renders an
-//     inline `CoachDepthPanel` below the question when the
-//     provider resolves to a follow-up note (or to `null` for the
-//     calm-degrade path).
-//   * `[ask later]` calls `onAskLater` which the parent wires to
-//     `RecordCoachInteraction(kind: askLater)` and clears the
-//     whisper.
-//   * `[close]` on the depth panel calls `onClose` which the
-//     parent wires to `RecordCoachInteraction(kind: depthAnswer)`
-//     and removes the depth panel.
+//   * `[sure]` opens an inline `CoachDepthPanel` via the
+//     `depthFollowUpProvider` family. The provider resolves to the
+//     bounded follow-up note (or `null` on the calm-degrade path)
+//     and the panel renders the follow-up copy + `[close]` pill.
+//   * `[ask later]` records the `askLater` interaction through the
+//     use-case AND self-clears — the widget removes itself from the
+//     tree (`_dismissed` flag) so the whisper disappears with no
+//     nag. The widget no longer depends on the parent wiring
+//     `onAskLater` for the AC #2 contract.
+//   * `[close]` on the depth panel records the `depthAnswer`
+//     interaction through the use-case and removes the depth panel.
+//     The underlying whisper returns to its `[sure]` / `[ask later]`
+//     form.
 //
 // The widget is a `ConsumerStatefulWidget` — the depth panel's
-// visibility is local state (Riverpod's `autoDispose` family keys
-// each follow-up on the post-resolve note, so the widget owns the
-// "is the panel showing" boolean to avoid re-firing the use-case
-// on every rebuild).
+// visibility and the dismissed state are local (Riverpod's
+// `autoDispose` family keys each follow-up on the post-resolve
+// note, so the widget owns the "is the panel showing" boolean to
+// avoid re-firing the use-case on every rebuild).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +72,13 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
   /// widget doesn't re-fire the use-case on every rebuild.
   bool _depthPanelVisible = false;
 
+  /// `true` after the user taps `[ask later]` — the widget removes
+  /// itself from the tree so the whisper disappears (AC #2, FR5).
+  /// The interaction log row was already written through
+  /// `recordCoachInteractionProvider` before this flag flips; local
+  /// state is the calm UI.
+  bool _dismissed = false;
+
   void _openDepthPanel() {
     setState(() => _depthPanelVisible = true);
   }
@@ -90,13 +99,18 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
 
   Future<void> _onAskLater() async {
     // Record the `askLater` interaction through the use-case so the
-    // local log captures the dismissal (FR5 / FR9). The parent can
-    // chain a follow-up callback via `widget.onAskLater` for its
-    // own UI hygiene (e.g. hiding the row).
+    // local log captures the dismissal (FR5 / FR9). The widget then
+    // self-clears via `_dismissed` so the whisper disappears with no
+    // nag (AC #2, HAPPY_PATH_ASK_LATER) — the parent can also chain
+    // a follow-up callback via `widget.onAskLater` for its own UI
+    // hygiene, but the widget no longer depends on the parent to
+    // disappear.
     await ref.read(recordCoachInteractionProvider)(
       note: widget.note,
       kind: CoachInteraction.askLater,
     );
+    if (!mounted) return;
+    setState(() => _dismissed = true);
     widget.onAskLater?.call();
   }
 
@@ -108,6 +122,16 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
     // NFR8: reduced-motion collapses the entrance to a fade only.
     final motion = MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
+
+    // Self-managed dismissal: once the user taps `[ask later]`, the
+    // widget removes itself from the tree. AC #2 / HAPPY_PATH_ASK_LATER
+    // require "the whisper disappears with no nag" — the parent may
+    // also be hiding the row, but the widget must clear itself
+    // regardless so the contract holds even when the parent does
+    // not wire `onAskLater`.
+    if (_dismissed) {
+      return const SizedBox.shrink();
+    }
 
     // Watch the depth follow-up provider so the depth panel renders
     // when the use-case resolves. The family is keyed on the

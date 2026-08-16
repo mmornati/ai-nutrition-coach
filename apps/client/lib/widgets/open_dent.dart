@@ -56,6 +56,10 @@ class _OpenDentState extends ConsumerState<OpenDent> {
       CoachFound(:final question) => question.text,
       NoCoachQuestion() => null,
     };
+    final String? hintKey = switch (result) {
+      CoachFound(:final question) => question.key,
+      NoCoachQuestion() => null,
+    };
 
     return Semantics(
       container: true,
@@ -99,8 +103,9 @@ class _OpenDentState extends ConsumerState<OpenDent> {
                   ),
                   if (hintText != null && !_hintDismissed)
                     OpenPlateHint(
+                      questionKey: hintKey!,
                       question: hintText,
-                      onTap: () => setState(() => _hintDismissed = true),
+                      onDismissed: () => setState(() => _hintDismissed = true),
                     ),
                 ],
               ),

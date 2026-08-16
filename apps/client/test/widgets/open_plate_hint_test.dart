@@ -1,11 +1,12 @@
 // `OpenPlateHint` widget tests — serif-italic open-plate whisper
 // rendered inside an `OpenDent` row when the active `Coach` port
-// returns a non-empty `openPlate` question (FR5 / UX-DR5).
+// returns a non-empty `openPlate` question (FR5 / UX-DR5 / AC #4).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
 import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/day_board_provider.dart';
@@ -18,11 +19,13 @@ import '../_fakes/fake_encrypted_store.dart';
 Widget _wrap(
   Widget child, {
   FakeCoach? coach,
+  FakeCoachNoteStore? notes,
 }) {
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
       coachProvider.overrideWithValue(coach ?? FakeCoach()),
+      coachNoteStoreProvider.overrideWithValue(notes ?? FakeCoachNoteStore()),
     ],
     child: MaterialApp(
       home: Scaffold(
@@ -39,8 +42,9 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           OpenPlateHint(
+            questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
-            onTap: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -55,8 +59,9 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           OpenPlateHint(
+            questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
-            onTap: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -65,13 +70,14 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min));
     });
 
-    testWidgets('fires onTap callback when tapped', (tester) async {
+    testWidgets('fires onDismissed callback when tapped', (tester) async {
       var fired = 0;
       await tester.pumpWidget(
         _wrap(
           OpenPlateHint(
+            questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
-            onTap: () => fired++,
+            onDismissed: () => fired++,
           ),
         ),
       );
@@ -85,8 +91,9 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           OpenPlateHint(
+            questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
-            onTap: () {},
+            onDismissed: () {},
           ),
         ),
       );
@@ -133,7 +140,9 @@ void main() {
       expect(find.text('An open, quiet place.'), findsOneWidget);
     });
 
-    testWidgets('tapping the hint hides it locally', (tester) async {
+    testWidgets('tapping the hint hides it locally AND records a dismiss '
+        'interaction through the use-case (AC #4 / HAPPY_PATH_OPEN_PLATE_HINT)',
+        (tester) async {
       final coach = FakeCoach()
         ..emit(
           const CoachFound(
@@ -145,17 +154,27 @@ void main() {
             ),
           ),
         );
+      final notes = FakeCoachNoteStore();
 
       await tester.pumpWidget(
-        _wrap(const OpenDent(slot: MealSlot.breakfast), coach: coach),
+        _wrap(
+          const OpenDent(slot: MealSlot.breakfast),
+          coach: coach,
+          notes: notes,
+        ),
       );
       expect(find.byType(OpenPlateHint), findsOneWidget);
 
       await tester.tap(find.byType(OpenPlateHint));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // The hint hides; the dent returns to its quiet form.
       expect(find.byType(OpenPlateHint), findsNothing);
+      // The store saw the dismiss interaction (mirrors the
+      // coach_whisper_test.dart assertions for `sure` / `askLater` /
+      // `depthAnswer`).
+      expect(notes.interactions, hasLength(1));
+      expect(notes.interactions.first.kind, CoachInteraction.dismiss);
     });
   });
 }
