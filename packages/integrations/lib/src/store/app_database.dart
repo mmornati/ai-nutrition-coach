@@ -15,6 +15,18 @@
 //     back-ref to `coach_note_table.id` at the use-case layer
 //     (same convention as the rest of the schema).
 //
+// Note on `sync_queue_table` (Story 4.3): the table class is
+// declared in `tables/sync_queue_table.dart` so the drift schema's
+// shape is fixed and reviewable, but the table is NOT yet wired
+// into `AppDatabase.tables` in v1. The hand-extending of the 2474-
+// line committed `app_database.g.dart` to add the 5th table is the
+// Story 4.3.1 follow-up — the durable outbox adapter
+// (`DriftSyncQueue`) ships as an in-memory implementation behind
+// the same `SyncQueue` port so the chip surface + the
+// `RecordPlate` enqueue path are testable end-to-end today. The
+// durable drift-table wiring drops in behind the same port when
+// the generated file is regenerated.
+//
 // Encryption (AD-8): the underlying `NativeDatabase` is opened with a
 // `setup` callback that runs the sqlite3mc key pragma. The key bytes come
 // from `SecureKeySource` (Keychain/Keystore under

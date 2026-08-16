@@ -17,6 +17,7 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'coach_note_provider.dart';
+import 'sync_queue_provider.dart';
 
 /// The wired `EncryptedStore` — overridden in `main.dart` with the
 /// platform-selected adapter (`createEncryptedStore()`).
@@ -30,9 +31,14 @@ final encryptedStoreProvider = Provider<EncryptedStore>(
 /// The single sanctioned mutation path through the domain. Story 2.2
 /// wires the post-resolve `CoachNoteGenerator` so every plate path
 /// (manual / barcode / photo) fires the whisper after a successful
-/// commit.
+/// commit. Story 4.3 wires the `RecordSyncOp` enqueue so the
+/// durable outbox receives the op right after the local commit
+/// (AD-3 + AD-6 + FR-10).
 final recordPlateProvider = Provider<RecordPlate>(
-  (ref) => RecordPlate(generator: ref.watch(coachNoteGeneratorProvider)),
+  (ref) => RecordPlate(
+    generator: ref.watch(coachNoteGeneratorProvider),
+    syncOpEnqueue: ref.watch(recordSyncOpProvider),
+  ),
 );
 
 /// Recent plates — derived view over `watchRecent`, no cached mirror.

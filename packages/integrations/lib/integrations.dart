@@ -33,6 +33,8 @@ export 'src/store/local_coach_note_store.dart';
 export 'src/store/lock_screen.dart';
 export 'src/store/wasm_encrypted_store.dart';
 export 'src/store/web_session_key.dart';
+export 'src/sync/drift_sync_queue.dart';
+export 'src/sync/local_only_sync_adapter.dart';
 export 'src/export/csv_exporter.dart';
 export 'src/export/json_exporter.dart';
 export 'src/export/export_destination.dart';

@@ -89,6 +89,10 @@ class AppPalette {
   /// Status chip base state in this epic: `· local`. Tiny mono, low contrast.
   final Color statusLocal;
 
+  /// Status chip `· synced` state — sage-tint wash (UX-DR6). The
+  /// sync whisper flips `· syncing → · synced` with this colour.
+  final Color statusSynced;
+
   const AppPalette._light()
       : background = const Color(0xFFFBF7EE),
         surface = const Color(0xFFF3ECDD),
@@ -99,7 +103,8 @@ class AppPalette {
         sageDeep = const Color(0xFF3F5A36),
         sageTrack = const Color(0xFFD7E1C9),
         coach = const Color(0xFFB07A2E),
-        statusLocal = const Color(0xFF8A8C82);
+        statusLocal = const Color(0xFF8A8C82),
+        statusSynced = const Color(0xFF6B8E5A);
 
   const AppPalette._dark()
       : background = const Color(0xFF161A18),
@@ -111,7 +116,8 @@ class AppPalette {
         sageDeep = const Color(0xFFB7CFA8),
         sageTrack = const Color(0xFF33402C),
         coach = const Color(0xFFD8A35A),
-        statusLocal = const Color(0xFF7E8579);
+        statusLocal = const Color(0xFF7E8579),
+        statusSynced = const Color(0xFF9DBE8A);
 }
 
 /// Typography voices. Role-bound; do not cross (epic-1-context.md § UX).

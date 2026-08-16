@@ -553,3 +553,56 @@ const ExportStrings enExportStrings = ExportStrings(
   exportedLine: 'exported: ',
   failedLine: 'export failed — try again',
 );
+
+/// The v1 `en` strings for the sync-queue chip surface
+/// (Story 4.3 / AD-6 / FR-10 / UX-DR6). The chip is the only
+/// user-facing surface the sync queue owns — calm non-judgmental
+/// copy; no spinner, no countdown, no red-guilt state (FR-15).
+///
+/// The named NDP reviewer signs off this single value; the keys
+/// are the identity the chip widget binds to.
+class SyncQueueStrings {
+  const SyncQueueStrings({
+    required this.localChip,
+    required this.pendingChip,
+    required this.syncedChip,
+    required this.failedChip,
+    required this.retryLaterHint,
+  });
+
+  /// The default chip state — no op enqueued for this plate yet.
+  /// Rendered as `· local` in mono.
+  final String localChip;
+
+  /// The op is enqueued but the durable remote ack has not landed.
+  /// Rendered as `· pending` in mono.
+  final String pendingChip;
+
+  /// The durable remote ack landed (or the no-op v1 transport
+  /// marked it `synced`). Rendered as `· synced` with the sage-tint
+  /// wash.
+  final String syncedChip;
+
+  /// The transport returned a permanent failure. The chip never
+  /// uses a red-guilt state (FR-15 / NFR3); the failed chip is the
+  /// same mono voice as `pending` / `synced`, with a calm
+  /// `· retry later` hint rendered below the plate row when the
+  /// queue's `failed` count is non-zero.
+  final String failedChip;
+
+  /// The calm hint rendered below the plate stack when the queue
+  /// has any `failed` ops. Single quiet line; never a banner, never
+  /// a modal.
+  final String retryLaterHint;
+}
+
+const SyncQueueStrings enSyncQueueStrings = SyncQueueStrings(
+  localChip: 'local',
+  pendingChip: 'pending',
+  syncedChip: 'synced',
+  failedChip: 'retry later',
+  retryLaterHint:
+      'Some plates are waiting to sync — they will retry silently '
+      'when the connection returns.',
+);
+);
