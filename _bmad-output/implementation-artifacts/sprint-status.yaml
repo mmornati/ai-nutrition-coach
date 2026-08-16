@@ -12,6 +12,9 @@ development_status:
   "1-6-capture-sheet-fan-out": review
   "1-7-scan-barcode-packaged-food": review
   "1-8-photograph-a-plate": review
+  "2-1-coach-taxonomy-and-localization-key-store": ready-for-dev
+  "2-2-coach-note-generation-post-resolve-whisper": ready-for-dev
+  "2-3-coach-question-interaction-answer-dismiss-depth": ready-for-dev
 
 epics:
   - id: 1
@@ -49,3 +52,18 @@ epics:
         title: photograph-a-plate
         status: review
         file: "spec-1-8-photograph-a-plate.md"
+  - id: 2
+    title: A coach, not a calculator (the coaching loop)
+    stories:
+      - key: "2-1"
+        title: coach-taxonomy-and-localization-key-store
+        status: ready-for-dev
+        file: "spec-2-1-coach-taxonomy-and-localization-key-store.md"
+      - key: "2-2"
+        title: coach-note-generation-post-resolve-whisper
+        status: ready-for-dev
+        file: "spec-2-2-coach-note-generation-post-resolve-whisper.md"
+      - key: "2-3"
+        title: coach-question-interaction-answer-dismiss-depth
+        status: ready-for-dev
+        file: "spec-2-3-coach-question-interaction-answer-dismiss-depth.md"

@@ -1,31 +1,14 @@
 # Loop Status
-started: "2026-08-15"
-total_stories: 6
-current_index: 6
+started: "2026-08-16"
+total_stories: 3
+current_index: 0
 stories:
-  - key: "1-3"
-    title: "day-board-todays-plates"
-    status: done
-    commit: "7897a69"
-  - key: "1-4"
-    title: "week-strip-tap-a-day-navigation"
-    status: done
-    commit: "640aef3"
-  - key: "1-5"
-    title: "type-or-talk-food-ranked-matches"
-    status: done
-    commit: "5432246"
-  - key: "1-6"
-    title: "capture-sheet-fan-out"
-    status: done
-    commit: "add2cf0"
-  - key: "1-7"
-    title: "scan-barcode-packaged-food"
-    status: done
-    commit: "44a9e7f"
-  - key: "1-8"
-    title: "photograph-a-plate"
-    status: done
-    commit: "c61c9df"
-finished_at: "2026-08-16"
-overall_status: "done"
+  - key: "2-1"
+    title: "coach-taxonomy-and-localization-key-store"
+    status: pending
+  - key: "2-2"
+    title: "coach-note-generation-post-resolve-whisper"
+    status: pending
+  - key: "2-3"
+    title: "coach-question-interaction-answer-dismiss-depth"
+    status: pending
