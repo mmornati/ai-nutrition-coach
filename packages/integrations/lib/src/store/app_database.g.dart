@@ -844,6 +844,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $PlateLogTableTable plateLogTable = $PlateLogTableTable(this);
   late final $FoodEntryTableTable foodEntryTable = $FoodEntryTableTable(this);
+  late final $CoachNoteTableTable coachNoteTable = $CoachNoteTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -851,7 +852,433 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     plateLogTable,
     foodEntryTable,
+    coachNoteTable,
   ];
+}
+
+class $CoachNoteTableTable extends CoachNoteTable
+    with TableInfo<$CoachNoteTableTable, CoachNoteTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CoachNoteTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _plateLogIdMeta = const VerificationMeta(
+    'plateLogId',
+  );
+  @override
+  late final GeneratedColumn<int> plateLogId = GeneratedColumn<int>(
+    'plate_log_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _anchorMeta =
+      const VerificationMeta('anchor');
+  @override
+  late final GeneratedColumn<String> anchor = GeneratedColumn<String>(
+    'anchor',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _questionKeyMeta =
+      const VerificationMeta('questionKey');
+  @override
+  late final GeneratedColumn<String> questionKey = GeneratedColumn<String>(
+    'question_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteTextMeta =
+      const VerificationMeta('noteText');
+  @override
+  late final GeneratedColumn<String> noteText = GeneratedColumn<String>(
+    'note_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _generatedAtMeta =
+      const VerificationMeta('generatedAt');
+  @override
+  late final GeneratedColumn<String> generatedAt = GeneratedColumn<String>(
+    'generated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, plateLogId, anchor, questionKey, noteText, generatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'coach_note_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CoachNoteTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('plate_log_id')) {
+      context.handle(
+        _plateLogIdMeta,
+        plateLogId.isAcceptableOrUnknown(
+          data['plate_log_id']!,
+          _plateLogIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_plateLogIdMeta);
+    }
+    if (data.containsKey('anchor')) {
+      context.handle(
+        _anchorMeta,
+        anchor.isAcceptableOrUnknown(data['anchor']!, _anchorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anchorMeta);
+    }
+    if (data.containsKey('question_key')) {
+      context.handle(
+        _questionKeyMeta,
+        questionKey.isAcceptableOrUnknown(
+          data['question_key']!,
+          _questionKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_questionKeyMeta);
+    }
+    if (data.containsKey('note_text')) {
+      context.handle(
+        _noteTextMeta,
+        noteText.isAcceptableOrUnknown(data['note_text']!, _noteTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteTextMeta);
+    }
+    if (data.containsKey('generated_at')) {
+      context.handle(
+        _generatedAtMeta,
+        generatedAt.isAcceptableOrUnknown(
+          data['generated_at']!,
+          _generatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_generatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CoachNoteTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CoachNoteTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      plateLogId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plate_log_id'],
+      )!,
+      anchor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anchor'],
+      )!,
+      questionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}question_key'],
+      )!,
+      noteText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_text'],
+      )!,
+      generatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}generated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CoachNoteTableTable createAlias(String alias) {
+    return $CoachNoteTableTable(attachedDatabase, alias);
+  }
+}
+
+class CoachNoteTableData extends DataClass
+    implements Insertable<CoachNoteTableData> {
+  final int id;
+
+  /// FK to `plate_log_table.id`. Database-level constraint via
+  /// `customConstraint` on the column declaration in
+  /// `coach_note_table.dart`.
+  final int plateLogId;
+
+  /// Anchor enum, stored as text. Matches `CoachAnchor.name`.
+  final String anchor;
+
+  /// Reviewable key from the localized store.
+  final String questionKey;
+
+  /// Verbatim localized copy the whisper renders.
+  final String noteText;
+
+  /// UTC ISO-8601 — authoritative moment of generation; rendered
+  /// local by the UI.
+  final String generatedAt;
+  const CoachNoteTableData({
+    required this.id,
+    required this.plateLogId,
+    required this.anchor,
+    required this.questionKey,
+    required this.noteText,
+    required this.generatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['plate_log_id'] = Variable<int>(plateLogId);
+    map['anchor'] = Variable<String>(anchor);
+    map['question_key'] = Variable<String>(questionKey);
+    map['note_text'] = Variable<String>(noteText);
+    map['generated_at'] = Variable<String>(generatedAt);
+    return map;
+  }
+
+  CoachNoteTableCompanion toCompanion(bool nullToAbsent) {
+    return CoachNoteTableCompanion(
+      id: Value(id),
+      plateLogId: Value(plateLogId),
+      anchor: Value(anchor),
+      questionKey: Value(questionKey),
+      noteText: Value(noteText),
+      generatedAt: Value(generatedAt),
+    );
+  }
+
+  factory CoachNoteTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CoachNoteTableData(
+      id: serializer.fromJson<int>(json['id']),
+      plateLogId: serializer.fromJson<int>(json['plateLogId']),
+      anchor: serializer.fromJson<String>(json['anchor']),
+      questionKey: serializer.fromJson<String>(json['questionKey']),
+      noteText: serializer.fromJson<String>(json['noteText']),
+      generatedAt: serializer.fromJson<String>(json['generatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'plateLogId': serializer.toJson<int>(plateLogId),
+      'anchor': serializer.toJson<String>(anchor),
+      'questionKey': serializer.toJson<String>(questionKey),
+      'noteText': serializer.toJson<String>(noteText),
+      'generatedAt': serializer.toJson<String>(generatedAt),
+    };
+  }
+
+  CoachNoteTableData copyWith({
+    int? id,
+    int? plateLogId,
+    String? anchor,
+    String? questionKey,
+    String? noteText,
+    String? generatedAt,
+  }) => CoachNoteTableData(
+    id: id ?? this.id,
+    plateLogId: plateLogId ?? this.plateLogId,
+    anchor: anchor ?? this.anchor,
+    questionKey: questionKey ?? this.questionKey,
+    noteText: noteText ?? this.noteText,
+    generatedAt: generatedAt ?? this.generatedAt,
+  );
+  CoachNoteTableData copyWithCompanion(CoachNoteTableCompanion data) {
+    return CoachNoteTableData(
+      id: data.id.present ? data.id.value : this.id,
+      plateLogId: data.plateLogId.present
+          ? data.plateLogId.value
+          : this.plateLogId,
+      anchor: data.anchor.present ? data.anchor.value : this.anchor,
+      questionKey: data.questionKey.present
+          ? data.questionKey.value
+          : this.questionKey,
+      noteText: data.noteText.present ? data.noteText.value : this.noteText,
+      generatedAt: data.generatedAt.present
+          ? data.generatedAt.value
+          : this.generatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachNoteTableData(')
+          ..write('id: $id, ')
+          ..write('plateLogId: $plateLogId, ')
+          ..write('anchor: $anchor, ')
+          ..write('questionKey: $questionKey, ')
+          ..write('noteText: $noteText, ')
+          ..write('generatedAt: $generatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    plateLogId,
+    anchor,
+    questionKey,
+    noteText,
+    generatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CoachNoteTableData &&
+          other.id == this.id &&
+          other.plateLogId == this.plateLogId &&
+          other.anchor == this.anchor &&
+          other.questionKey == this.questionKey &&
+          other.noteText == this.noteText &&
+          other.generatedAt == this.generatedAt);
+}
+
+class CoachNoteTableCompanion extends UpdateCompanion<CoachNoteTableData> {
+  final Value<int> id;
+  final Value<int> plateLogId;
+  final Value<String> anchor;
+  final Value<String> questionKey;
+  final Value<String> noteText;
+  final Value<String> generatedAt;
+  const CoachNoteTableCompanion({
+    this.id = const Value.absent(),
+    this.plateLogId = const Value.absent(),
+    this.anchor = const Value.absent(),
+    this.questionKey = const Value.absent(),
+    this.noteText = const Value.absent(),
+    this.generatedAt = const Value.absent(),
+  });
+  CoachNoteTableCompanion.insert({
+    this.id = const Value.absent(),
+    required int plateLogId,
+    required String anchor,
+    required String questionKey,
+    required String noteText,
+    required String generatedAt,
+  }) : plateLogId = Value(plateLogId),
+       anchor = Value(anchor),
+       questionKey = Value(questionKey),
+       noteText = Value(noteText),
+       generatedAt = Value(generatedAt);
+  static Insertable<CoachNoteTableData> custom({
+    Expression<int>? id,
+    Expression<int>? plateLogId,
+    Expression<String>? anchor,
+    Expression<String>? questionKey,
+    Expression<String>? noteText,
+    Expression<String>? generatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (plateLogId != null) 'plate_log_id': plateLogId,
+      if (anchor != null) 'anchor': anchor,
+      if (questionKey != null) 'question_key': questionKey,
+      if (noteText != null) 'note_text': noteText,
+      if (generatedAt != null) 'generated_at': generatedAt,
+    });
+  }
+
+  CoachNoteTableCompanion copyWith({
+    Value<int>? id,
+    Value<int>? plateLogId,
+    Value<String>? anchor,
+    Value<String>? questionKey,
+    Value<String>? noteText,
+    Value<String>? generatedAt,
+  }) {
+    return CoachNoteTableCompanion(
+      id: id ?? this.id,
+      plateLogId: plateLogId ?? this.plateLogId,
+      anchor: anchor ?? this.anchor,
+      questionKey: questionKey ?? this.questionKey,
+      noteText: noteText ?? this.noteText,
+      generatedAt: generatedAt ?? this.generatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (plateLogId.present) {
+      map['plate_log_id'] = Variable<int>(plateLogId.value);
+    }
+    if (anchor.present) {
+      map['anchor'] = Variable<String>(anchor.value);
+    }
+    if (questionKey.present) {
+      map['question_key'] = Variable<String>(questionKey.value);
+    }
+    if (noteText.present) {
+      map['note_text'] = Variable<String>(noteText.value);
+    }
+    if (generatedAt.present) {
+      map['generated_at'] = Variable<String>(generatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachNoteTableCompanion(')
+          ..write('id: $id, ')
+          ..write('plateLogId: $plateLogId, ')
+          ..write('anchor: $anchor, ')
+          ..write('questionKey: $questionKey, ')
+          ..write('noteText: $noteText, ')
+          ..write('generatedAt: $generatedAt')
+          ..write(')'))
+        .toString();
+  }
 }
 
 typedef $$PlateLogTableTableCreateCompanionBuilder =
@@ -1291,4 +1718,230 @@ class $AppDatabaseManager {
       $$PlateLogTableTableTableManager(_db, _db.plateLogTable);
   $$FoodEntryTableTableTableManager get foodEntryTable =>
       $$FoodEntryTableTableTableManager(_db, _db.foodEntryTable);
+  $$CoachNoteTableTableTableManager get coachNoteTable =>
+      $$CoachNoteTableTableTableManager(_db, _db.coachNoteTable);
 }
+
+typedef $$CoachNoteTableTableCreateCompanionBuilder =
+    CoachNoteTableCompanion Function({
+      Value<int> id,
+      required int plateLogId,
+      required String anchor,
+      required String questionKey,
+      required String noteText,
+      required String generatedAt,
+    });
+typedef $$CoachNoteTableTableUpdateCompanionBuilder =
+    CoachNoteTableCompanion Function({
+      Value<int> id,
+      Value<int> plateLogId,
+      Value<String> anchor,
+      Value<String> questionKey,
+      Value<String> noteText,
+      Value<String> generatedAt,
+    });
+
+class $$CoachNoteTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CoachNoteTableTable> {
+  $$CoachNoteTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plateLogId => $composableBuilder(
+    column: $table.plateLogId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anchor => $composableBuilder(
+    column: $table.anchor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get questionKey => $composableBuilder(
+    column: $table.questionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteText => $composableBuilder(
+    column: $table.noteText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CoachNoteTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CoachNoteTableTable> {
+  $$CoachNoteTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plateLogId => $composableBuilder(
+    column: $table.plateLogId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anchor => $composableBuilder(
+    column: $table.anchor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get questionKey => $composableBuilder(
+    column: $table.questionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteText => $composableBuilder(
+    column: $table.noteText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CoachNoteTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CoachNoteTableTable> {
+  $$CoachNoteTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get plateLogId =>
+      $composableBuilder(column: $table.plateLogId, builder: (column) => column);
+
+  GeneratedColumn<String> get anchor =>
+      $composableBuilder(column: $table.anchor, builder: (column) => column);
+
+  GeneratedColumn<String> get questionKey => $composableBuilder(
+    column: $table.questionKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get noteText =>
+      $composableBuilder(column: $table.noteText, builder: (column) => column);
+
+  GeneratedColumn<String> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$CoachNoteTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CoachNoteTableTable,
+          CoachNoteTableData,
+          $$CoachNoteTableTableFilterComposer,
+          $$CoachNoteTableTableOrderingComposer,
+          $$CoachNoteTableTableAnnotationComposer,
+          $$CoachNoteTableTableCreateCompanionBuilder,
+          $$CoachNoteTableTableUpdateCompanionBuilder,
+          (
+            CoachNoteTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CoachNoteTableTable,
+              CoachNoteTableData
+            >,
+          ),
+          CoachNoteTableData,
+          PrefetchHooks Function()
+        > {
+  $$CoachNoteTableTableTableManager(
+    _$AppDatabase db,
+    $CoachNoteTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CoachNoteTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CoachNoteTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CoachNoteTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> plateLogId = const Value.absent(),
+                Value<String> anchor = const Value.absent(),
+                Value<String> questionKey = const Value.absent(),
+                Value<String> noteText = const Value.absent(),
+                Value<String> generatedAt = const Value.absent(),
+              }) => CoachNoteTableCompanion(
+                id: id,
+                plateLogId: plateLogId,
+                anchor: anchor,
+                questionKey: questionKey,
+                noteText: noteText,
+                generatedAt: generatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int plateLogId,
+                required String anchor,
+                required String questionKey,
+                required String noteText,
+                required String generatedAt,
+              }) => CoachNoteTableCompanion.insert(
+                id: id,
+                plateLogId: plateLogId,
+                anchor: anchor,
+                questionKey: questionKey,
+                noteText: noteText,
+                generatedAt: generatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CoachNoteTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CoachNoteTableTable,
+      CoachNoteTableData,
+      $$CoachNoteTableTableFilterComposer,
+      $$CoachNoteTableTableOrderingComposer,
+      $$CoachNoteTableTableAnnotationComposer,
+      $$CoachNoteTableTableCreateCompanionBuilder,
+      $$CoachNoteTableTableUpdateCompanionBuilder,
+      (
+        CoachNoteTableData,
+        BaseReferences<_$AppDatabase, $CoachNoteTableTable, CoachNoteTableData>,
+      ),
+      CoachNoteTableData,
+      PrefetchHooks Function()
+    >;

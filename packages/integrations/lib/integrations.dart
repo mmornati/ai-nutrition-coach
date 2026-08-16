@@ -17,6 +17,7 @@ export 'src/catalog/seed_foods.dart';
 export 'src/coach/template_coach.dart';
 export 'src/l10n/coach_strings.dart';
 export 'src/store/create_encrypted_store.dart';
+export 'src/store/local_coach_note_store.dart';
 export 'src/store/secure_key_source.dart';
 export 'src/store/web_encrypted_store_stub.dart';
 export 'src/voice/noop_voice_transcriber.dart';

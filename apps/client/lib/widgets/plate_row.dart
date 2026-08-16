@@ -2,19 +2,29 @@
 //
 // Vertical stack with hairline rules — no cards, no fills, no dashboard
 // grid. The row's hit target is the full 48px minimum (NFR7) and the
-// time stamp, balance arc, quantity hint, and status chip all share the
-// same horizontal line. Text scales gracefully (NFR7) and the dark-mode
-// palette comes from `AppPalette.dark` (NFR8).
+// time stamp, balance arc, quantity hint, and status chip all share
+// the same horizontal line. Text scales gracefully (NFR7) and the
+// dark-mode palette comes from `AppPalette.dark` (NFR8).
+//
+// Story 2.2 surfaces the post-resolve whisper below the food entry
+// summary and above the balance arc when the plate has at least one
+// `CoachNote` in the store. Plates without a note (the legacy-data
+// path) render unchanged. Story 2.3 wires the whisper's
+// `[sure]` / `[ask later]` callbacks to the answer / dismiss /
+// depth interaction.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/coach_note_provider.dart';
 import '../state/day_board_provider.dart';
 import '../theme/app_tokens.dart';
 import 'balance_arc.dart';
+import 'coach_whisper.dart';
 import 'status_chip.dart';
 
-class PlateRow extends StatelessWidget {
+class PlateRow extends ConsumerWidget {
   const PlateRow({
     super.key,
     required this.slot,
@@ -25,7 +35,7 @@ class PlateRow extends StatelessWidget {
   final PlateLog plate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
@@ -36,6 +46,19 @@ class PlateRow extends StatelessWidget {
     final time = _localTime(plate.loggedAtUtc);
     final range = _rangeLabel(first?.quantity);
     final filled = _filledFor(first);
+
+    // Story 2.2: the post-resolve whisper anchors to this plate
+    // when the store has at least one CoachNote for it. The
+    // legacy-data path (pre-2.2 plates) renders without the
+    // whisper.
+    final notesAsync = ref.watch(coachNotesForPlateProvider(plate.id));
+    final notes = notesAsync.maybeWhen(
+      data: (list) => list,
+      orElse: () => const <CoachNote>[],
+    );
+    final hasWhisper = notes.isNotEmpty;
+    final whisperText =
+        hasWhisper ? notes.first.text : '';
 
     return Semantics(
       container: true,
@@ -84,6 +107,12 @@ class PlateRow extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (hasWhisper) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      CoachWhisper(
+                        question: whisperText,
+                      ),
+                    ],
                   ],
                 ),
               ),

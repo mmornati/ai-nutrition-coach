@@ -15,6 +15,10 @@
 // new plate is added or after a multi-day seed lands. The first emit
 // for each subscriber is still the snapshot the fake was constructed
 // with, so existing 1.3 tests that await `.first` keep working.
+//
+// Story 2.2 swap: `FakeCoachNoteStore` (a paired helper for the
+// `CoachNoteStore` port) lives below so the post-resolve whisper path
+// can be exercised in widget tests without a real drift database.
 
 import 'dart:async';
 
@@ -123,6 +127,7 @@ PlateLog plateAt(
   num high = 1,
   String displayLabel = '~1 serving',
   SourceCatalog source = SourceCatalog.manual,
+  FoodGroup foodGroup = FoodGroup.other,
   List<FoodEntry> extraEntries = const [],
 }) {
   final entries = <FoodEntry>[
@@ -133,6 +138,7 @@ PlateLog plateAt(
         sourceRef: 'manual:${dish.toLowerCase()}',
         displayName: dish,
         source: source,
+        foodGroup: foodGroup,
       ),
       quantity: QuantityRange(
         low: low,
@@ -148,4 +154,41 @@ PlateLog plateAt(
     loggedAtUtc: localTime.toUtc(),
     entries: entries,
   );
+}
+
+/// Test-only `CoachNoteStore` fake — paired with `FakeEncryptedStore`
+/// so the post-resolve whisper path can be exercised in widget tests
+/// without a real drift database. Story 2.2 ships the real
+/// `LocalCoachNoteStore` adapter; tests that exercise the whisper
+/// surface use this fake to avoid pulling in drift + sqlite3mc.
+class FakeCoachNoteStore implements CoachNoteStore {
+  FakeCoachNoteStore();
+
+  final Map<int, List<CoachNote>> byPlate = {};
+  int _nextId = 1;
+
+  /// Pre-seed a coach note for the given plate — used by tests that
+  /// want to render the whisper without driving the full
+  /// `RecordPlate → CoachNoteGenerator` chain.
+  void seed(int plateLogId, CoachNote note) {
+    final assigned = note.copyWith(
+      id: note.id == 0 ? _nextId++ : note.id,
+      plateLogId: plateLogId,
+    );
+    byPlate.putIfAbsent(plateLogId, () => []).add(assigned);
+  }
+
+  @override
+  Future<CoachNoteAppendResult> append(CoachNote note) async {
+    final assigned = note.copyWith(id: _nextId++);
+    byPlate.putIfAbsent(assigned.plateLogId, () => []).add(assigned);
+    return CoachNoteAppended(assigned);
+  }
+
+  @override
+  Future<List<CoachNote>> forPlate(int plateLogId) async {
+    return List<CoachNote>.unmodifiable(
+      byPlate[plateLogId] ?? const <CoachNote>[],
+    );
+  }
 }

@@ -28,6 +28,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openplate_client/screens/capture_barcode_screen.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/manual_entry_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/scanner_provider.dart';
@@ -68,6 +70,11 @@ Widget _wrap(
       foodCatalogProvider.overrideWithValue(catalog),
       barcodeScannerProvider.overrideWithValue(scanner),
       cameraPermissionProvider.overrideWithValue(permission),
+      // Story 2.2: the record-plate chain now requires the coach
+      // providers to be overridden — wire them so the test path can
+      // drive `RecordPlate` end-to-end.
+      coachProvider.overrideWithValue(FakeCoach()),
+      coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
     ],
     child: MaterialApp(
       themeMode: mode,

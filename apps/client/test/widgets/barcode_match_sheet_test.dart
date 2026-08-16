@@ -13,6 +13,8 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/last_log_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/widgets/barcode_match_sheet.dart';
@@ -26,6 +28,11 @@ Widget _wrap(
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(store),
+      // Story 2.2: the record-plate chain now requires the coach
+      // providers to be overridden — the production wiring sets them
+      // up in `main.dart`, so tests must do the same.
+      coachProvider.overrideWithValue(FakeCoach()),
+      coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
     ],
     child: MaterialApp(
       theme: ThemeData(brightness: Brightness.light),

@@ -26,6 +26,8 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/last_log_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/widgets/recognized_match_sheet.dart';
@@ -40,6 +42,10 @@ Widget _wrap(
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(store),
+      // Story 2.2: wire the coach providers so the post-resolve
+      // whisper path can be exercised end-to-end.
+      coachProvider.overrideWithValue(FakeCoach()),
+      coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
     ],
     child: MaterialApp(
       themeMode: mode,
@@ -156,7 +162,11 @@ void main() {
       addTearDown(store.close);
 
       final ProviderContainer container = ProviderContainer(
-        overrides: [encryptedStoreProvider.overrideWithValue(store)],
+        overrides: [
+          encryptedStoreProvider.overrideWithValue(store),
+          coachProvider.overrideWithValue(FakeCoach()),
+          coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
+        ],
       );
       addTearDown(container.dispose);
 

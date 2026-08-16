@@ -1,6 +1,7 @@
 // `RecordPlate` use-case contract — locks the AD-3 invariant that every
 // mutation flows through the use-case, with validation refusal at the
-// domain boundary before any port call.
+// domain boundary before any port call, and the post-resolve coach note
+// fires AFTER the store commit (best-effort).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:test/test.dart';
@@ -45,9 +46,31 @@ class _FakeEncryptedStore implements EncryptedStore {
   Future<void> close() async {}
 }
 
+/// Inert `Coach` — never consulted; the use-case test does not exercise
+/// the coach dispatch path. Each test that does need the coach path
+/// wires its own fakes (Story 2.2's `coach_note_generator_test.dart`).
+class _StubCoach implements Coach {
+  const _StubCoach();
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('not used');
+}
+
+/// Inert `CoachNoteStore` — never consulted by these tests.
+class _StubCoachNoteStore implements CoachNoteStore {
+  const _StubCoachNoteStore();
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('not used');
+}
+
 void main() {
   group('RecordPlate use-case', () {
-    const useCase = RecordPlate();
+    final generator = CoachNoteGenerator(
+      coach: const _StubCoach(),
+      store: const _StubCoachNoteStore(),
+    );
+    final useCase = RecordPlate(generator: generator);
 
     test('happy path: delegates to the store with entries + loggedAtUtc',
         () async {
