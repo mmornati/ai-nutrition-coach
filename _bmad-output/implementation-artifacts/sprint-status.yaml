@@ -18,6 +18,12 @@ development_status:
   "3-1-ai-rung-port-with-swappable-implementations": review
   "3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion": review
   "3-3-byok-bring-your-own-api-key": review
+  "4-1-web-encrypted-store-wasm-pbkdf2-session-seal": review
+  "4-2-exporter-csv-json-offline-no-account": review
+  "4-3-durable-outbox-sync-to-user-controlled-infra": review
+  "4-4-one-command-self-host-install": review
+  "4-5-telemetry-and-privacy-posture": review
+  "4-6-oss-release-posture-license-contributing-ndp": review
 
 epics:
   - id: 1
@@ -85,3 +91,30 @@ epics:
         title: byok-bring-your-own-api-key
         status: ready-for-dev
         file: "spec-3-3-byok-bring-your-own-api-key.md"
+  - id: 4
+    title: Your data stays yours (data ownership & self-host)
+    stories:
+      - key: "4-1"
+        title: web-encrypted-store-wasm-pbkdf2-session-seal
+        status: ready-for-dev
+        file: "spec-4-1-web-encrypted-store-wasm-pbkdf2-session-seal.md"
+      - key: "4-2"
+        title: exporter-csv-json-offline-no-account
+        status: ready-for-dev
+        file: "spec-4-2-exporter-csv-json-offline-no-account.md"
+      - key: "4-3"
+        title: durable-outbox-sync-to-user-controlled-infra
+        status: ready-for-dev
+        file: "spec-4-3-durable-outbox-sync-to-user-controlled-infra.md"
+      - key: "4-4"
+        title: one-command-self-host-install
+        status: ready-for-dev
+        file: "spec-4-4-one-command-self-host-install.md"
+      - key: "4-5"
+        title: telemetry-and-privacy-posture
+        status: ready-for-dev
+        file: "spec-4-5-telemetry-and-privacy-posture.md"
+      - key: "4-6"
+        title: oss-release-posture-license-contributing-ndp
+        status: ready-for-dev
+        file: "spec-4-6-oss-release-posture-license-contributing-ndp.md"
