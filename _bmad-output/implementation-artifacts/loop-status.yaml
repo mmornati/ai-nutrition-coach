@@ -23,5 +23,6 @@ stories:
     merged_at: "2026-08-16"
   - key: "2-3"
     title: "coach-question-interaction-answer-dismiss-depth"
-    status: dev-in-progress
+    status: dev-done
+    commit: "bd18dbd"
     baseline_commit: "c244106"
