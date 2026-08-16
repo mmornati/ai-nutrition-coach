@@ -19,7 +19,9 @@ stories:
     merged_at: "2026-08-16"
   - key: "5-2"
     title: "managed-oversight-seam-v2-coppa-blocked"
-    status: pending
+    status: committed
+    commit: "359a1c4"
+    merged_at: "2026-08-16"
   - key: "5-3"
     title: "no-dark-patterns-named-qa-gate"
     status: pending
