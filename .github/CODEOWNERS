@@ -1,0 +1,44 @@
+# CODEOWNERS — OpenPlate v1
+# Story 5.3 — pins the named-reviewer ownership on every path
+# that touches user-facing copy.
+#
+# The named reviewer is documented in REVIEWERS.md at the repo
+# root. Replace `@openplate-maintainer` with the actual GitHub
+# handle when forking the repo.
+#
+# Format: <pattern>  <owner>
+# Trailing `/` matches directories. `*` is a wildcard.
+
+# ── Default owner (catches everything not explicitly pinned) ──
+*  @openplate-maintainer
+
+# ── Coach strings (every user-facing string lives here) ──
+/packages/integrations/lib/src/l10n/coach_strings.dart  @openplate-maintainer
+
+# ── All user-facing widgets ──
+/apps/client/lib/widgets/  @openplate-maintainer
+
+# ── All user-facing screens ──
+/apps/client/lib/screens/  @openplate-maintainer
+
+# ── All docs (user-facing + contributor-facing) ──
+/docs/  @openplate-maintainer
+
+# ── No-Dark-Patterns Standard + release checklist ──
+/docs/no-dark-patterns-standard.md  @openplate-maintainer
+/docs/release-checklist.md  @openplate-maintainer
+/docs/v2-managed-oversight.md  @openplate-maintainer
+/docs/adults-only.md  @openplate-maintainer
+
+# ── Reviewers file ──
+/REVIEWERS.md  @openplate-maintainer
+
+# ── Verification scripts (the gate itself) ──
+/tools/check_release_posture.dart  @openplate-maintainer
+/tools/check_adults_only.dart  @openplate-maintainer
+/tools/check_no_under_13_profiles.dart  @openplate-maintainer
+
+# ── CI workflows that run the gate ──
+/.github/workflows/release-gate.yml  @openplate-maintainer
+/.github/workflows/ndp-review.yml  @openplate-maintainer
+/.github/workflows/self-host-smoke.yml  @openplate-maintainer
