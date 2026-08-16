@@ -241,8 +241,44 @@ See "files touched" in the final report.
 
 ### Review Date
 
+2026-08-16
+
 ### Review Outcome
+
+Recommend changes before merging. 2 high-severity patch items (one spec AC violation with no test coverage, one widget clears UI but never records the interaction); 4 medium patch items; 2 defers.
+
+### Layer Results
+
+- blind-hunter — ran (inline; subagent delegation unavailable in this invocation)
+- edge-case-hunter — ran
+- verification-gap — ran
+- acceptance-auditor — ran
+- failed_layers: none
 
 ### Action Items
 
+#### Patch
+
+- [ ] [Review][Patch] **Open-plate hint tap does NOT record `dismiss` interaction** — `OpenDent.build` wires `OpenPlateHint(onTap: () => setState(() => _hintDismissed = true))` (local state only). The widget itself is a `StatelessWidget` with no `Consumer`/`ref`, so `recordCoachInteractionProvider(kind: dismiss)` is never invoked. Spec AC #4: "tapping the hint records the interaction and clears the hint" is half-met — the hint clears locally but the interaction log gets no row. Wire `recordCoachInteractionProvider` in `OpenPlateHint` (or `OpenDent` via `ref.listen` on the tap) and have the store log the dismiss. [`apps/client/lib/widgets/open_dent.dart:101-104`]
+- [ ] [Review][Patch] **`[ask later]` records the interaction but the whisper stays visible** — `CoachWhisper._onAskLater` calls `recordCoachInteraction(kind: askLater)` then `widget.onAskLater?.call()`, but `PlateRow` never wires `onAskLater` (no override in `plate_row.dart:114-119`). The widget never clears its own `_depthPanelVisible`/`_hintDismissed` state on `ask later`. Spec I/O matrix row `HAPPY_PATH_ASK_LATER` and AC #2 say "the whisper disappears". Make `CoachWhisper` self-managing: on `ask later`, set local state so the widget removes itself from the tree (or have `PlateRow` filter out dismissed notes). [`apps/client/lib/widgets/coach_whisper.dart:91-101`, `apps/client/lib/widgets/plate_row.dart:114-119`]
+- [ ] [Review][Patch] **No test asserts the open-plate hint records a `dismiss` interaction** — `open_plate_hint_test.dart:136-159` ("tapping the hint hides it locally") only checks the local `_hintDismissed` flag, never `notes.interactions.length` / `notes.interactions.first.kind == CoachInteraction.dismiss`. Compare with `coach_whisper_test.dart:155-156, 176-177, 213` which DO assert the store saw `sure` / `askLater` / `depthAnswer`. Add an assertion on `FakeCoachNoteStore.interactions` mirroring the whisper tests. [`apps/client/test/widgets/open_plate_hint_test.dart:136-159`]
+- [ ] [Review][Patch] **`RecordCoachInteractionSure.followedUpNote` shadows the base-class field** — `RecordCoachInteractionResult.followedUpNote` is declared on the base (line 77) and re-declared on `RecordCoachInteractionSure` (line 97). The base field is dead for the `Sure` variant; a future refactor that reads `result.followedUpNote` on a base reference will get the base value (always set from the `Sure` ctor's `super(followedUpNote: followedUpNote)` so it happens to match). Either remove the base field (it's `null` for `askLater | dismiss | depthAnswer`) and only put it on the `Sure` variant, or remove the override on `Sure` so a single source of truth exists. [`packages/domain_core/lib/src/use_cases/record_coach_interaction.dart:75-98`]
+- [ ] [Review][Patch] **Unused fields in `record_coach_interaction_test.dart` fakes** — `_FakeCoach._nextInteraction`, `_nextInteractionId`, `_nextNoteId`, `_nextAppendResult` and `_FakeCoachNoteStore._nextAppendResult`, `_nextNoteId`, `_nextInteractionId` are assigned but never read (analyzer warnings). Remove the dead fields, or wire them up to the fake's response setters (`forceInteractionFailure` already does). [`packages/domain_core/test/record_coach_interaction_test.dart:50-56, 113-115`]
+- [ ] [Review][Patch] **`isRecorded` helper in `coach_interaction_failure.dart` is unused** — the helper is defined but no caller (use-case, port, widget) pattern-matches on the `bool isRecorded(result)` shape; everything uses `is CoachInteractionRecorded`. Either delete the helper or wire it into `RecordCoachInteraction` to keep the sealed result + helper co-located (current comment promises co-location but the helper sits unused). [`packages/domain_core/lib/src/results/coach_interaction_failure.dart:92-94`]
+
+#### Decision-needed
+
+- (none)
+
+#### Defer (pre-existing or non-blocking)
+
+- [x] [Review][Defer] Four pre-existing baseline failures in `day_board_screen_test.dart` — 4 of the Day Board integration tests (`DayBoardScreen dynamic type at max scale`, `DayBoardScreen full day`, `DayBoardScreen partial day`, `DayBoardScreen plate row carries a BalanceArc`) hard-code `DateTime(2026, 8, 15, ...)` "today" plates that the day-board local-day filter excludes today (2026-08-16). Confirmed identical to baseline `c244106`. Story 2.3 only added `coachProvider.overrideWithValue(FakeCoach())` overrides so the tests build with the new `OpenDent` consumer; the date fragility predates this story (already deferred from 1.6 / 2.2). Pre-existing. [`apps/client/test/day_board_screen_test.dart:80,100,106,112,199,259`]
+- [x] [Review][Defer] `app_database.g.dart` hand-extension drift-codegen concern closed for Story 2.3 — I rebuilt with `dart run build_runner clean && dart run build_runner build` inside the cirruslabs/flutter:stable image; the byte-level diff between the hand-extended file (commit `bd18dbd`) and the live drift codegen is zero. The 2-2 deferred concern ("reviewers should re-run build_runner to confirm byte-for-byte equivalence") is closed by this commit. Re-arm if a future story adds drift tables. [`packages/integrations/lib/src/store/app_database.g.dart:1275-2474`]
+- [x] [Review][Defer] `RecordPlate` non-SqliteException store throws (2-2 deferred concern) — closed for the new code path. `RecordCoachInteraction._recordInteraction` wraps `await _store.recordInteraction(log)` in `try { ... } on Object { ... }` (use_case/record_coach_interaction.dart:202-212) so a `StateError`, `Error`, or any other throw from a future adapter collapses to `CoachInteractionFailed`, exactly mirroring the calm-degrade contract the 2-2 use-case is missing. The 2-2 `RecordPlate._generator.generateFor(...)` (packages/domain_core/lib/src/use_cases/record_plate.dart:50-54) gap remains deferred. — deferred, pre-existing.
+
 ## Review Follow-ups (AI)
+
+- Carry forward the open `RecordPlate.best-effort.try/catch.gap` (Story 2-2 review) — `RecordPlate._generator.generateFor(...)` still awaits without a try/catch on non-SqliteException throws. Not introduced by Story 2-3 but still on the board.
+- The `depthFollowUpProvider.family.autoDispose` is keyed on the `CoachNote` instance via `id`-equality; safe across rebuilds. A future Story that introduces `CoachNote` mutations (e.g. an "edit note" action) will need to revisit the family key.
+- `_openDent` `OpenPlateHint` cannot record a `dismiss` interaction with the current data model (`CoachInteractionLog.noteId` is mandatory and no `CoachNote` row exists for an open plate). A future Story that introduces a "user-tapped-the-hint" counter would either need to (a) make `noteId` nullable, (b) create a synthetic `CoachNote` row for the open-plate anchor, or (c) drop the recording requirement from the open-plate surface. The patch item above wires the recording — but the data-model mismatch is real and may need a deeper fix.
+- The 4 pre-existing date-fragile `day_board_screen_test.dart` failures should be moved to a one-time mechanical fix (replace `DateTime(2026, 8, 15, ...)` with `DateTime.now().subtract(Duration(...))`) in a follow-up story — not this one.
