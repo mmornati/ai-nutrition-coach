@@ -30,7 +30,9 @@ stories:
     note: "in-memory DriftSyncQueue ships; durable drift-table wiring is the Story 4.3.1 follow-up (hand-extending app_database.g.dart is impractical in-session)."
   - key: "4-4"
     title: "one-command-self-host-install"
-    status: pending
+    status: committed
+    commit: "50449dc"
+    merged_at: "2026-08-16"
   - key: "4-5"
     title: "telemetry-and-privacy-posture"
     status: pending
