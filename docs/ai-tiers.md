@@ -103,6 +103,13 @@ BYOK provider is called without an analytics wrapper. The
 quota counter, the BYOK key store, and the rung config are
 never wrapped in an analytics call.
 
+Story 4.5 pins this claim with a verification gate:
+`melos run check:telemetry` walks the source tree and asserts no
+unsanctioned path opens a socket. The gate is part of the standard
+test suite and the release-gate CI. See
+[`docs/telemetry-posture.md`](./telemetry-posture.md) for the
+full user-facing posture.
+
 ## v2 local-model seam (FR8)
 
 The `local` rung is reserved for v2. The v1 adapter
