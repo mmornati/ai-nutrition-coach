@@ -1,7 +1,7 @@
 # Loop Status
 started: "2026-08-16"
 total_stories: 3
-current_index: 1
+current_index: 2
 stories:
   - key: "2-1"
     title: "coach-taxonomy-and-localization-key-store"
@@ -14,8 +14,13 @@ stories:
     merged_at: "2026-08-16"
   - key: "2-2"
     title: "coach-note-generation-post-resolve-whisper"
-    status: dev-done
+    status: merged
     commit: "c838dbd"
+    review_summary: "Architecture sound; 0 high / 3 medium / 3 low; no merge blockers. AD-1/AD-3/AD-7 invariants hold; sealed results + best-effort calm-degrade + single encrypted store. Medium patches deferred to deferred-work.md (Day Board integration test, dark-mode color assertion, RecordPlate try/catch)."
+    high_count: 0
+    medium_count: 3
+    low_count: 3
+    merged_at: "2026-08-16"
   - key: "2-3"
     title: "coach-question-interaction-answer-dismiss-depth"
-    status: pending
+    status: dev-in-progress
