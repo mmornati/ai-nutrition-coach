@@ -1,7 +1,7 @@
 # Loop Status
 started: "2026-08-15"
 total_stories: 6
-current_index: 5
+current_index: 6
 stories:
   - key: "1-3"
     title: "day-board-todays-plates"
@@ -25,4 +25,7 @@ stories:
     commit: "44a9e7f"
   - key: "1-8"
     title: "photograph-a-plate"
-    status: review-in-progress
+    status: done
+    commit: "c61c9df"
+finished_at: "2026-08-16"
+overall_status: "done"
