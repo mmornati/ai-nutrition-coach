@@ -26,6 +26,7 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/last_log_provider.dart';
 import '../state/manual_entry_provider.dart';
 import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
@@ -72,6 +73,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
+      ref.read(lastLogProvider.notifier).state = DateTime.now();
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();
     } else if (result is StoreFailure) {
@@ -107,6 +109,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
+      ref.read(lastLogProvider.notifier).state = DateTime.now();
       _manualController.clear();
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();

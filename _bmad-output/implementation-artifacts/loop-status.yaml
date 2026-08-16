@@ -17,7 +17,7 @@ stories:
     commit: "5432246"
   - key: "1-6"
     title: "capture-sheet-fan-out"
-    status: pending
+    status: review-in-progress
   - key: "1-7"
     title: "scan-barcode-packaged-food"
     status: pending

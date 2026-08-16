@@ -8,6 +8,7 @@
 //   * store failure       → calm "History can't load right now." line
 //   * dark mode           → AppPalette.dark background
 //   * dynamic type largest→ no truncation, ≥48px touch target
+//   * quick-repeat link   → ≥48px hit target + surfaces after a log
 //
 // Plates are seeded through a `FakeEncryptedStore` (test/_fakes/) so the
 // `encryptedStoreProvider` override is the same shape used in production.
@@ -18,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
 import 'package:openplate_client/state/day_board_provider.dart';
+import 'package:openplate_client/state/last_log_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/selected_date_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
@@ -329,6 +331,94 @@ void main() {
       // Now yesterday's plate is rendered and today's is gone.
       expect(find.text('Yesterday Pizza'), findsOneWidget);
       expect(find.text('Today Oatmeal'), findsNothing);
+    });
+
+    testWidgets(
+        'quick-repeat `_QuickRepeatLink` hit target is ≥48px on both axes',
+        (tester) async {
+      final store = FakeEncryptedStore();
+      addTearDown(store.close);
+
+      // Use an `UncontrolledProviderScope` so the test can write to
+      // `lastLogProvider` and surface the link without depending on a
+      // wall-clock side channel.
+      final container = ProviderContainer(
+        overrides: [
+          encryptedStoreProvider.overrideWithValue(store),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(brightness: Brightness.light),
+            home: const DayBoardScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Surface the link — the screen reacts to `lastLogProvider`
+      // changes and renders the `_QuickRepeatLink` widget above the
+      // plate stack.
+      container.read(lastLogProvider.notifier).state = DateTime.now();
+      await tester.pumpAndSettle();
+
+      expect(find.text('+ log another plate'), findsOneWidget);
+
+      // The hit target is the `GestureDetector` ancestor of the text
+      // label — the `_QuickRepeatLink` builds a `ConstrainedBox`
+      // (minHeight: 48) inside that gesture detector.
+      final tapTarget = find
+          .ancestor(
+            of: find.text('+ log another plate'),
+            matching: find.byType(GestureDetector),
+          )
+          .first;
+      final size = tester.getSize(tapTarget);
+      expect(size.width, greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'quick-repeat width ${size.width} below 48px');
+      expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'quick-repeat height ${size.height} below 48px');
+    });
+
+    testWidgets(
+        'writing to lastLogProvider surfaces the quick-repeat affordance',
+        (tester) async {
+      final store = FakeEncryptedStore();
+      addTearDown(store.close);
+
+      final container = ProviderContainer(
+        overrides: [
+          encryptedStoreProvider.overrideWithValue(store),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(brightness: Brightness.light),
+            home: const DayBoardScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No log yet — the affordance is hidden (rendered conditionally,
+      // not via `AnimatedOpacity`, so a fresh Day Board reserves zero
+      // vertical space for it).
+      expect(find.text('+ log another plate'), findsNothing);
+
+      // Stamp `lastLogProvider` — same write the entry surfaces do on a
+      // successful `RecordPlate` commit.
+      container.read(lastLogProvider.notifier).state = DateTime.now();
+      await tester.pumpAndSettle();
+
+      expect(find.text('+ log another plate'), findsOneWidget);
     });
   });
 }

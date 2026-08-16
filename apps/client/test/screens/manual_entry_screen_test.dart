@@ -9,12 +9,19 @@
 //   * mic button shows the calm "Voice not available in v1" copy;
 //   * no-match path renders the manual-add form;
 //   * dark mode + 48px hit targets hold (NFR7 / NFR8).
+//
+// Story 1.6 patches: the screen is the canonical commit seam — every
+// successful `RecordPlate` write must also stamp `lastLogProvider` so
+// the Day Board's quick-repeat affordance can surface. The
+// `Log writes lastLogProvider` tests below pin that contract for both
+// the matched-food path and the manual-add fallback.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openplate_client/screens/manual_entry_screen.dart';
+import 'package:openplate_client/state/last_log_provider.dart';
 import 'package:openplate_client/state/manual_entry_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
@@ -379,6 +386,64 @@ void main() {
 
       final ctx = tester.element(find.byType(ManualEntryScreen));
       expect(Theme.of(ctx).scaffoldBackgroundColor, AppPalette.dark.background);
+    });
+
+    testWidgets('Log stamps lastLogProvider on the matched-food path',
+        (tester) async {
+      final catalog = _FakeFoodCatalog({
+        'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
+      });
+      final store = FakeEncryptedStore();
+      await _pumpManualEntry(
+        tester,
+        catalog: catalog,
+        store: store,
+      );
+
+      await tester.enterText(_textFieldByLabel('Food search'), 'salm');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salmon'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Log'));
+      await tester.pumpAndSettle();
+
+      // The screen popped after the Log tap, so the live container
+      // hangs off `MaterialApp`'s element — same `UncontrolledProviderScope`
+      // the screen was reading `lastLogProvider` through.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      expect(container.read(lastLogProvider), isNotNull,
+          reason: 'lastLogProvider should be stamped after a successful log');
+    });
+
+    testWidgets('Log custom food stamps lastLogProvider on the manual path',
+        (tester) async {
+      final catalog = _FakeFoodCatalog({'zxqwer': _notFound});
+      final store = FakeEncryptedStore();
+      await _pumpManualEntry(
+        tester,
+        catalog: catalog,
+        store: store,
+      );
+
+      await tester.enterText(_textFieldByLabel('Food search'), 'zxqwer');
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        _textFieldByLabel('Custom food name'),
+        'Mystery Stew',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Log custom food'),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      expect(container.read(lastLogProvider), isNotNull,
+          reason: 'lastLogProvider should be stamped after a manual log');
     });
   });
 }

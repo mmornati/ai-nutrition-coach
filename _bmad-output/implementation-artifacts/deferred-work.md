@@ -19,3 +19,6 @@
 - source_spec: _bmad-output/implementation-artifacts/spec-1-1-scaffold-monorepo-and-build.md
   summary: `apps/client/lib/theme/app_tokens.dart` has an unused private constructor `AppPalette._()` that the analyzer flags as `unused_element`.
   evidence: Cosmetic; a one-line `// ignore: unused_element` or removing the constructor cleans it up. Not in the patch list — flagging for a tidy pass.
+- source_spec: _bmad-output/implementation-artifacts/spec-1-6-capture-sheet-fan-out.md
+  summary: Four pre-existing date-sensitive tests in `apps/client/test/day_board_screen_test.dart` hard-code `DateTime(2026, 8, 15, ...)` and fail today (2026-08-16) — confirmed to fail identically at the pre-story baseline (`3b24994`).
+  evidence: Tests at `apps/client/test/day_board_screen_test.dart:72,92,98,104,187,244` seed plates dated `DateTime(2026, 8, 15, ...)` while the running clock reads `2026-08-16`. The day_board_provider's local-day filter excludes the seeded plate, leaving zero `PlateRow` widgets. The fix is mechanical — replace hard-coded dates with `DateTime.now()`-relative dates — but out of scope for story 1.6 (no 1.6 code drives those tests).

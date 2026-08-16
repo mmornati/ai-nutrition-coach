@@ -12,27 +12,154 @@
 //   * `selectedDateProvider == null` → use the today provider
 //     (`dayBoardProvider`); the title reads "Today".
 //   * `selectedDateProvider != null` → use the date-aware family
-//     (`dayBoardForDateProvider`); the title reads the weekday of the
+//     (`dayBoardForDateProvider(selected)`); the title reads the weekday of the
 //     selected day, e.g. "Tuesday" / "Yesterday".
 // The 7-dot `WeekStrip` lives below the plate stack — tapping a dot
 // updates `selectedDateProvider` and the surface re-renders for that
 // day (UX-DR8).
+//
+// Story 1.6 layered two affordances on top of the board:
+//   * The `CaptureFab` floats at bottom-right; tapping it opens
+//     `CaptureSheet`, which fans out to the three entry surfaces
+//     (Snapshot / Scan / Type or talk).
+//   * A quiet `+ log another plate` link lives above the plate stack
+//     for 5 seconds after every successful `RecordPlate` commit, then
+//     disappears (UX-DR7 / UX-DR10). Tapping the link re-opens the
+//     capture sheet without bouncing the user back through the menu.
+//     Rendered conditionally — no `AnimatedOpacity` — so a fresh Day
+//     Board does not reserve vertical space for an invisible link.
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/day_board_provider.dart';
+import '../state/last_log_provider.dart';
 import '../state/selected_date_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/capture_fab.dart';
+import '../widgets/capture_sheet.dart';
 import '../widgets/open_dent.dart';
 import '../widgets/plate_row.dart';
 import '../widgets/week_strip.dart';
+import 'capture_barcode_screen.dart';
+import 'capture_photo_screen.dart';
+import 'manual_entry_screen.dart';
 
-class DayBoardScreen extends ConsumerWidget {
+class DayBoardScreen extends ConsumerStatefulWidget {
   const DayBoardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DayBoardScreen> createState() => _DayBoardScreenState();
+}
+
+class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
+  /// True while the `+ log another plate` link should be visible
+  /// above the plate stack. The state is driven by `lastLogProvider`
+  /// (set by the entry surfaces after a successful commit) and is
+  /// reset to `false` after the 5-second visibility window elapses
+  /// (UX-DR7).
+  bool _quickRepeatVisible = false;
+
+  /// Timer that flips `_quickRepeatVisible` back to `false` after the
+  /// 5-second window. Cancelled and re-armed on every new log so a
+  /// rapid sequence of commits extends the window rather than
+  /// stacking timers.
+  Timer? _hideTimer;
+
+  /// How long the quick-repeat link stays visible after the most
+  /// recent successful log. Five seconds — long enough that a thumb
+  /// can reach for it, short enough that it never lingers.
+  static const Duration _quickRepeatWindow = Duration(seconds: 5);
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, peek at the provider in case a log
+    // happened during a prior screen and the listener hasn't fired
+    // yet (the listener only reacts to value changes, so a still-fresh
+    // value on first build needs to be picked up here).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _armFromProvider());
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Read `lastLogProvider` once on mount and, if the value is still
+  /// within the visibility window, surface the affordance + arm a
+  /// timer for the remainder.
+  void _armFromProvider() {
+    if (!mounted) return;
+    final lastLog = ref.read(lastLogProvider);
+    if (lastLog == null) return;
+    final age = DateTime.now().difference(lastLog);
+    if (age >= _quickRepeatWindow) return;
+    setState(() => _quickRepeatVisible = true);
+    _hideTimer?.cancel();
+    _hideTimer = Timer(_quickRepeatWindow - age, _hideQuickRepeat);
+  }
+
+  /// Hide the link after the 5-second window elapses. Idempotent —
+  /// safe to call from a Timer after the state was already cleared.
+  void _hideQuickRepeat() {
+    if (!mounted) return;
+    setState(() => _quickRepeatVisible = false);
+  }
+
+  /// Open the capture sheet with the canonical routing wiring. Used
+  /// by both the `CaptureFab` and the quick-repeat link so the routes
+  /// stay in one place.
+  void _openCaptureSheet() {
+    showCaptureSheet(
+      context,
+      onSnapshot: _pushSnapshot,
+      onScan: _pushScan,
+      onTypeOrTalk: _pushTypeOrTalk,
+    );
+  }
+
+  /// Push the Snapshot placeholder screen (Story 1.8 wiring). Lives
+  /// here so the `CaptureFab` and `_openCaptureSheet` share one
+  /// routing site — Story 1.7 / 1.8 replace the placeholder targets
+  /// without touching the call sites.
+  void _pushSnapshot() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CapturePhotoScreen()),
+    );
+  }
+
+  /// Push the barcode-scan placeholder screen (Story 1.7 wiring).
+  void _pushScan() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CaptureBarcodeScreen()),
+    );
+  }
+
+  /// Push the manual entry screen (Story 1.5, already shipped).
+  void _pushTypeOrTalk() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // React to `RecordPlate` commits: surface the quick-repeat
+    // affordance and arm the 5-second hide timer. We listen for value
+    // changes; the initial-state check on first build is in
+    // `_armFromProvider`.
+    ref.listen<DateTime?>(lastLogProvider, (_, next) {
+      if (next == null) return;
+      if (!mounted) return;
+      setState(() => _quickRepeatVisible = true);
+      _hideTimer?.cancel();
+      _hideTimer = Timer(_quickRepeatWindow, _hideQuickRepeat);
+    });
+
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
@@ -43,6 +170,12 @@ class DayBoardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: palette.background,
+      floatingActionButton: CaptureFab(
+        onSnapshot: _pushSnapshot,
+        onScan: _pushScan,
+        onTypeOrTalk: _pushTypeOrTalk,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -63,6 +196,13 @@ class DayBoardScreen extends ConsumerWidget {
                   style: AppTypography.coach.copyWith(color: palette.inkMuted),
                 ),
               const SizedBox(height: AppSpacing.lg),
+              if (_quickRepeatVisible) ...[
+                _QuickRepeatLink(
+                  onTap: _openCaptureSheet,
+                  palette: palette,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               if (state.hasError)
                 const SizedBox.shrink()
               else
@@ -124,6 +264,50 @@ class DayBoardScreen extends ConsumerWidget {
         day: null,
         palette: palette,
       );
+}
+
+/// The `+ log another plate` link that surfaces for 5 seconds after a
+/// successful `RecordPlate` commit (UX-DR7 / UX-DR10). Quiet copy, no
+/// icon, no card, no celebration — just a tap target with the same
+/// typography as the open-dent whispers below it.
+class _QuickRepeatLink extends StatelessWidget {
+  const _QuickRepeatLink({
+    required this.onTap,
+    required this.palette,
+  });
+
+  final VoidCallback onTap;
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Log another plate',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+              horizontal: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '+ log another plate',
+                  style: AppTypography.coach.copyWith(color: palette.sage),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _BoardList extends StatelessWidget {
