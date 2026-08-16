@@ -44,4 +44,4 @@ scripts:
 
   check:release-posture:
     description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist (Story 4.6).
-    run: dart run tools/check_release_posture.dart
+    run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart

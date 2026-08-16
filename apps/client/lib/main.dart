@@ -14,10 +14,17 @@ import 'state/scanner_provider.dart';
 import 'state/web_session_key_provider.dart';
 import 'state/web_unlock_probe_provider.dart';
 import 'theme/app_tokens.dart';
+import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Story 5.1 / FR-13 — assert the v1 surface is strictly
+  // adults-only (no biometric import, no under-13 profile
+  // machinery). The runtime guard is a safety net; the durable
+  // enforcement is the static check (tools/check_adults_only.dart)
+  // + the named-reviewer gate (Story 5.3).
+  PrivacyGuard.assertAdultsOnly();
   final bundle = await createStores();
   runApp(
     ProviderScope(
