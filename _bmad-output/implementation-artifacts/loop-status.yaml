@@ -1,9 +1,9 @@
 # Loop Status
-# Epic 4 — commit-only mode (no remote, no push, no PR, no CI).
+# Epic 5 — commit-only mode (no remote, no push, no PR, no CI).
 # Each story is implemented, reviewed via self-check, committed on main, then
 # the next story begins. Status transitions are tracked inline below.
 started: "2026-08-16"
-total_stories: 6
+total_stories: 4
 current_index: 0
 workflow_overrides:
   skip_push: true
@@ -12,34 +12,15 @@ workflow_overrides:
   branch_strategy: "main"          # commit straight to main; no per-story branches
   review_strategy: "self"          # implementer self-reviews; no bmad-code-review subagent
 stories:
-  - key: "4-1"
-    title: "web-encrypted-store-wasm-pbkdf2-session-seal"
-    status: committed
-    commit: "f2b877d"
-    merged_at: "2026-08-16"
-  - key: "4-2"
-    title: "exporter-csv-json-offline-no-account"
-    status: committed
-    commit: "8fc5b44"
-    merged_at: "2026-08-16"
-  - key: "4-3"
-    title: "durable-outbox-sync-to-user-controlled-infra"
-    status: committed
-    commit: "73ccecd"
-    merged_at: "2026-08-16"
-    note: "in-memory DriftSyncQueue ships; durable drift-table wiring is the Story 4.3.1 follow-up (hand-extending app_database.g.dart is impractical in-session)."
-  - key: "4-4"
-    title: "one-command-self-host-install"
-    status: committed
-    commit: "50449dc"
-    merged_at: "2026-08-16"
-  - key: "4-5"
-    title: "telemetry-and-privacy-posture"
-    status: committed
-    commit: "c8e0a29"
-    merged_at: "2026-08-16"
-  - key: "4-6"
-    title: "oss-release-posture-license-contributing-ndp"
-    status: committed
-    commit: "a89ad0a"
-    merged_at: "2026-08-16"
+  - key: "5-1"
+    title: "adults-only-no-under-13-no-biometrics"
+    status: pending
+  - key: "5-2"
+    title: "managed-oversight-seam-v2-coppa-blocked"
+    status: pending
+  - key: "5-3"
+    title: "no-dark-patterns-named-qa-gate"
+    status: pending
+  - key: "5-4"
+    title: "accessibility-floor-enforced"
+    status: pending

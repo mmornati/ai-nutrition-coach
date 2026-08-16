@@ -24,6 +24,10 @@ development_status:
   "4-4-one-command-self-host-install": review
   "4-5-telemetry-and-privacy-posture": review
   "4-6-oss-release-posture-license-contributing-ndp": review
+  "5-1-adults-only-no-under-13-no-biometrics": review
+  "5-2-managed-oversight-seam-v2-coppa-blocked": review
+  "5-3-no-dark-patterns-named-qa-gate": review
+  "5-4-accessibility-floor-enforced": review
 
 epics:
   - id: 1
@@ -118,3 +122,22 @@ epics:
         title: oss-release-posture-license-contributing-ndp
         status: ready-for-dev
         file: "spec-4-6-oss-release-posture-license-contributing-ndp.md"
+  - id: 5
+    title: Trust by default (adults-only & no dark patterns)
+    stories:
+      - key: "5-1"
+        title: adults-only-no-under-13-no-biometrics
+        status: ready-for-dev
+        file: "spec-5-1-adults-only-no-under-13-no-biometrics.md"
+      - key: "5-2"
+        title: managed-oversight-seam-v2-coppa-blocked
+        status: ready-for-dev
+        file: "spec-5-2-managed-oversight-seam-v2-coppa-blocked.md"
+      - key: "5-3"
+        title: no-dark-patterns-named-qa-gate
+        status: ready-for-dev
+        file: "spec-5-3-no-dark-patterns-named-qa-gate.md"
+      - key: "5-4"
+        title: accessibility-floor-enforced
+        status: ready-for-dev
+        file: "spec-5-4-accessibility-floor-enforced.md"
