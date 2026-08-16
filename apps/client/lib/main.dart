@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
-import 'screens/day_board_screen.dart';
 import 'state/ai_rung_provider.dart';
 import 'state/coach_note_provider.dart';
 import 'state/coach_provider.dart';
@@ -12,7 +11,10 @@ import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
+import 'state/web_session_key_provider.dart';
+import 'state/web_unlock_probe_provider.dart';
 import 'theme/app_tokens.dart';
+import 'widgets/unlock_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +68,19 @@ void main() async {
         // behind the same `Coach` port without touching Stories
         // 2.2 / 2.3 (AD-5).
         coachProvider.overrideWithValue(const TemplateCoach()),
+        // Story 4.1 — wire the web session key + the unlock probe.
+        // Both are only populated on the web bundle (Story 4.1
+        // added the optional fields to `StoreBundle` for exactly
+        // this wiring). On io the lock screen never renders (the
+        // `UnlockGate` is `kIsWeb`-aware), so the providers fall
+        // back to the throw-on-unoverridden defaults — which are
+        // unreachable.
+        if (bundle.webSessionKey != null)
+          webSessionKeyProvider
+              .overrideWithValue(bundle.webSessionKey!),
+        if (bundle.webUnlockProbe != null)
+          webUnlockProbeProvider
+              .overrideWithValue(bundle.webUnlockProbe!),
       ],
       child: const OpenPlateApp(),
     ),
@@ -114,18 +129,7 @@ class OpenPlateApp extends StatelessWidget {
           labelSmall: AppTypography.mono,
         ),
       ),
-      home: const _Scaffold(),
-    );
-  }
-}
-
-class _Scaffold extends StatelessWidget {
-  const _Scaffold();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: DayBoardScreen(),
+      home: const UnlockGate(),
     );
   }
 }

@@ -164,23 +164,150 @@ context:
 
 ### Implementation Plan
 
-To be filled by the dev agent.
+The story lands in three layers, mirroring the Epic 1/2/3 conventions:
+
+1. **`packages/domain_core` (pure-Dart core)** — a `WebSessionKey` marker
+   value type (no key material; the holder lives in `integrations`).
+   The `StoreFailure` envelope gains a sealed `EncryptedStoreFailure`
+   supertype so `SecureKeyFailure` (mobile, Story 1.2) and
+   `WebSessionKeyFailure` (web, Story 4.1) share a single field shape;
+   pattern-match call sites in Stories 1.5/1.7/1.8/2.x continue to
+   compile unchanged.
+
+2. **`packages/integrations` (adapter package)** — three new files in
+   `src/store/`: `web_session_key.dart` (in-memory PBKDF2-HMAC-SHA256
+   holder; constants `kWebPbkdf2Iterations=100_000`,
+   `kWebSessionKeyBytes=32`, `kWebSessionSaltBytes=16`; `unlock(passphrase,
+   probe)` derives + calls the probe; `lock()` clears the derived key but
+   keeps the salt; `toString` redacted to `WebSessionKey(isOpen: <bool>)`),
+   `wasm_encrypted_store.dart` (the web-side `EncryptedStore` — takes
+   the `WebSessionKey` + a `Future<AppDatabase> Function(Uint8List)`
+   opener; locked-when-closed returns typed `WebSessionKeyFailure`;
+   reuses the same `AppDatabase` schema as mobile — NFR2), and
+   `lock_screen.dart` (the `LockScreenBody` widget — 48px unlock pill,
+   `obscureText: true`, keyed copy from `WebSessionStrings`).
+   `create_encrypted_store_web.dart` swaps `WebEncryptedStoreStub` for
+   the `WasmEncryptedStore`; the `_openWasmDatabase` placeholder
+   returns `AppDatabase(NativeDatabase.memory())` until the
+   `drift_flutter` + `sqlite3.wasm` binary land in v1.1.
+   `coach_strings.dart` gains `WebSessionStrings` (4 entries) +
+   `enWebSessionStrings`; the l10n file also gains `YourDataStrings`
+   (3 entries) + `enYourDataStrings` for the AD-8 honest-copy anchor
+   on the Your data sub-screen. The `pubspec.yaml` adds
+   `crypto: ^3.0.6` (used only by the `WebSessionKey`'s HMAC-SHA256
+   PBKDF2; never imported from `domain_core`).
+
+3. **`apps/client` (Flutter UI)** — three new files: `state/web_session_key_provider.dart`
+   (a `Provider<WebSessionKey>` returning the process-wide singleton),
+   `state/web_unlock_probe_provider.dart` (the public probe
+   `Provider` that the `LockScreen` reads; the default throws
+   `UnimplementedError` so the production `main.dart` override is
+   explicit), `screens/lock_screen.dart` (the `LockScreen` wrapper
+   that wires the unlock probe to the `WebSessionKey.unlock` API),
+   `widgets/unlock_gate.dart` (the `UnlockGate` — `kIsWeb`-aware; on
+   io it always renders the Day Board; on web it renders the
+   `LockScreen` while locked and the Day Board once open), and
+   `screens/your_data_screen.dart` (the sub-screen shell that
+   carries the AD-8 honest-copy line; the export + sync surfaces
+   land here in Stories 4.2 / 4.3). `main.dart` replaces `_Scaffold`
+   with `UnlockGate`; the override list gains
+   `webSessionKeyProvider` + `webUnlockProbeProvider` wired to the
+   bundle's `webSessionKey` + `webUnlockProbe` fields (new optional
+   fields on `StoreBundle`, populated only on the web factory).
+
+Tests follow the Epic 1/2/3 conventions: `packages/domain_core/test/web_session_key_test.dart`
+pins the marker equality + the redacted `toString`; `store_failure_test.dart`
+pins the sealed `EncryptedStoreFailure` family; `packages/integrations/test/wasm_encrypted_store_test.dart`
+pins the locked-when-closed typed `WebSessionKeyFailure` +
+`watchRecent` empty stream + `tryOpen` probe behaviour + the
+`WebSessionKey` PBKDF2 round-trip; `apps/client/test/state/web_session_key_provider_test.dart`
+pins the singleton identity; `apps/client/test/screens/your_data_screen_test.dart`
+pins the AD-8 honest-copy line on both locked and unlocked paths.
 
 ### Completion Notes
 
-To be filled by the dev agent.
+All 19 execution tasks complete. The `StoreBundle` was extended with
+two optional fields (`webSessionKey`, `webUnlockProbe`) so the
+`apps/client` `ProviderScope` can override the Riverpod providers
+with the same `WebSessionKey` instance the `WasmEncryptedStore` was
+built against (without the override, the lock screen would probe a
+fresh `WebSessionKey` while the store would read from the bundle's
+singleton — the round-trip would land on different objects and the
+unlock would never flip the gate).
+
+I/O matrix coverage:
+- `HAPPY_PATH_FIRST_OPEN` → `web_unlock_probe_provider.dart` + `unlock_gate.dart` + `lock_screen.dart` wire the unlock path; the test pins the locked-protection line.
+- `HAPPY_PATH_WARM_OPEN` → in-tab `isOpen` carries the open state; the `UnlockGate` flips to the Day Board.
+- `WRONG_PASSPHRASE` → `wasm_encrypted_store_test.dart` pins the refused-probe behaviour; the `LockScreenBody` renders `enWebSessionStrings.wrongPassphrase`.
+- `EMPTY_PASSPHRASE` → `LockScreenBody` short-circuits before the probe.
+- `STORE_OPEN_EXPORTER` → reserved for Story 4.2 (the `Exporter` port reads the same `AppDatabase`).
+- `RELOAD_NO_PASSPHRASE` → the salt is held in memory; the page reload drops the holder; the lock screen is the first paint again.
+- `AD8_HONEST_COPY` → `your_data_screen_test.dart` pins the locked-protection line on the locked-web path; `docs/your-data.md` is the user-facing explanation.
+- `ANALYZER_GUARD` → `domain_core_test.dart` AD-1 grep test remains green; no new forbidden imports in `domain_core`; `crypto` is added to `integrations` only.
+- `AD1_GUARD` → same.
+- `TELEMETRY_GUARD` → no network code in the lock path; the PBKDF2 is pure-Dart; the unlock event never opens a socket.
+
+AD-1 invariant — `crypto: ^3.0.6` is added to `packages/integrations/pubspec.yaml`
+only. `packages/domain_core` remains Flutter/SQLite/HTTP/web-free.
 
 ### Debug Log
 
-To be filled by the dev agent.
+- The `WasmEncryptedStore` was originally constructed with a private
+  `_sessionKey` in `create_encrypted_store_web.dart`; the
+  `apps/client` `webSessionKeyProvider` defaulted to a fresh
+  `WebSessionKey()`. The two instances never met, so the unlock
+  would never flip the gate. Fixed by adding `webSessionKey` +
+  `webUnlockProbe` to the `StoreBundle` and overriding the
+  providers in `main.dart` with the bundle's values.
+- The `UnlockGate` was originally unconditional; on io the lock
+  screen would have rendered because `webSessionKeyProvider` is
+  always locked initially. Fixed with `kIsWeb` — the gate is a
+  no-op on io (the mobile `EncryptedStoreAdapter` opens with the
+  secure-storage key at startup, AD-8 mobile).
+- The `LockScreen` had a private `_probeStoreProvider` defined in
+  the same file as the screen. Moved to
+  `apps/client/lib/state/web_unlock_probe_provider.dart` so
+  `main.dart` can override it from outside the screen file.
 
 ### File List
 
-To be filled by the dev agent.
+New files:
+- `packages/domain_core/lib/src/value_types/web_session_key.dart`
+- `packages/domain_core/test/web_session_key_test.dart`
+- `packages/domain_core/test/store_failure_test.dart`
+- `packages/integrations/lib/src/store/web_session_key.dart`
+- `packages/integrations/lib/src/store/wasm_encrypted_store.dart`
+- `packages/integrations/lib/src/store/lock_screen.dart`
+- `packages/integrations/test/wasm_encrypted_store_test.dart`
+- `apps/client/lib/state/web_session_key_provider.dart`
+- `apps/client/lib/state/web_unlock_probe_provider.dart`
+- `apps/client/lib/screens/lock_screen.dart`
+- `apps/client/lib/widgets/unlock_gate.dart`
+- `apps/client/lib/screens/your_data_screen.dart`
+- `apps/client/test/state/web_session_key_provider_test.dart`
+- `apps/client/test/screens/your_data_screen_test.dart`
+- `docs/your-data.md`
+
+Modified files:
+- `packages/domain_core/lib/src/results/store_failure.dart` (added `EncryptedStoreFailure` sealed class; `SecureKeyFailure` + `WebSessionKeyFailure` both implement it; field `encryptedStoreError` now `EncryptedStoreFailure?`)
+- `packages/domain_core/lib/src/ports/encrypted_store.dart` (docstring updated for the web rung)
+- `packages/domain_core/lib/domain_core.dart` (barrel export for `web_session_key`)
+- `packages/integrations/lib/src/store/create_encrypted_store.dart` (StoreBundle extended with `webSessionKey` + `webUnlockProbe` optional fields)
+- `packages/integrations/lib/src/store/create_encrypted_store_web.dart` (factory returns `WasmEncryptedStore` + populates the new fields; `_WasmCoachNoteStore` is now `const`)
+- `packages/integrations/lib/src/store/in_memory_encrypted_store.dart` (docstring updated to point to `WasmEncryptedStore`)
+- `packages/integrations/lib/src/l10n/coach_strings.dart` (added `WebSessionStrings` + `enWebSessionStrings` + `YourDataStrings` + `enYourDataStrings`)
+- `packages/integrations/lib/integrations.dart` (barrel updated: removed `web_encrypted_store_stub.dart`; added `lock_screen.dart` + `wasm_encrypted_store.dart` + `web_session_key.dart`)
+- `packages/integrations/pubspec.yaml` (added `crypto: ^3.0.6`)
+- `packages/integrations/test/encrypted_store_adapter_test.dart` (removed the `WebEncryptedStoreStub` group)
+- `apps/client/lib/main.dart` (replaced `_Scaffold` with `UnlockGate`; added the web session-key + probe overrides from the bundle)
+- `_bmad-output/implementation-artifacts/spec-4-1-web-encrypted-store-wasm-pbkdf2-session-seal.md` (frontmatter status / Dev Agent Record populated)
+
+Deleted files:
+- `packages/integrations/lib/src/store/web_encrypted_store_stub.dart` (no longer exported, no longer referenced)
 
 ### Change Log
 
-To be filled by the dev agent.
+- 2026-08-16 — Initial implementation of Story 4.1 (web encrypted store, PBKDF2 session seal, AD-8 honest copy). All 19 execution tasks complete.
 
 ---
 

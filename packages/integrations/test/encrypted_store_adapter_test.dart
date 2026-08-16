@@ -1,6 +1,10 @@
 // `EncryptedStoreAdapter` round-trip test — locks the drift mapping,
 // the commit-then-watch contract (AD-3), and the `QuantityRange` verbatim
 // round-trip (NFR6).
+//
+// Story 4.1 — the previous `WebEncryptedStoreStub` group is removed; the
+// web rung now ships behind `WasmEncryptedStore` (see
+// `wasm_encrypted_store_test.dart`).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
@@ -171,35 +175,6 @@ void main() {
           .map((r) => (r as RecordPlateSuccess).plateLog.id)
           .toList();
       expect(ids[0], isNot(ids[1]));
-    });
-  });
-
-  group('WebEncryptedStoreStub', () {
-    test('every method returns UnsupportedPlatformFailure synchronously',
-        () async {
-      const stub = WebEncryptedStoreStub();
-      final result = await stub.recordPlate(
-        entries: [
-          FoodEntryDraft(
-            databaseFood: const DatabaseFood(
-              sourceRef: 'manual:x',
-              displayName: 'X',
-              source: SourceCatalog.manual,
-            ),
-            quantity: const QuantityRange(
-              low: 0,
-              high: 0,
-              unit: 'g',
-              displayLabel: '~0 g',
-            ),
-          ),
-        ],
-      );
-      expect(result, isA<StoreFailure>());
-      final failure = result as StoreFailure;
-      expect(failure.platformError, isA<UnsupportedPlatformFailure>());
-      expect(failure.validationError, isNull);
-      expect(failure.encryptedStoreError, isNull);
     });
   });
 }

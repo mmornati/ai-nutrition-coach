@@ -414,3 +414,87 @@ const ByokStrings enByokStrings = ByokStrings(
   statusQuotaExhausted: 'your key — quota done',
   previousRungHint: 'removing this key returns to {previousRungLabel}',
 );
+
+/// The web session strings (Story 4.1 / AD-8). The lock screen
+/// body in `packages/integrations/lib/src/store/lock_screen.dart`
+/// reads these for the heading, the placeholder, the unlock
+/// affordance, and the calm wrong-passphrase line.
+///
+/// AD-7: keyed, never interpolated, named NDP reviewer signs off.
+/// FR-15: calm non-judgmental copy; no countdown, no
+/// "Don't show again" easter egg, no "wrong" judgement framing.
+class WebSessionStrings {
+  const WebSessionStrings({
+    required this.label,
+    required this.placeholder,
+    required this.unlock,
+    required this.wrongPassphrase,
+  });
+
+  /// The lock-screen heading. Calm copy; the gate is the first
+  /// paint on the web rung, and the heading names the action.
+  final String label;
+
+  /// The passphrase field placeholder. Calm non-judgmental copy;
+  /// explains on-device sealing.
+  final String placeholder;
+
+  /// The unlock pill label. Calm copy; no celebration.
+  final String unlock;
+
+  /// The calm wrong-passphrase line. Renders below the pill when
+  /// `tryOpen` returns `false`. No exception crosses the port.
+  final String wrongPassphrase;
+}
+
+/// The v1 `en` web session strings (Story 4.1). The named NDP
+/// reviewer signs off on this single value; the keys are the
+/// identity the `LockScreenBody` binds to.
+const WebSessionStrings enWebSessionStrings = WebSessionStrings(
+  label: 'Unlock your store',
+  placeholder: 'Passphrase — kept in memory for this session only',
+  unlock: 'Unlock',
+  wrongPassphrase: 'That passphrase does not open this store.',
+);
+
+/// The v1 `en` strings for the Settings → Your data sub-screen
+/// (Story 4.1 / AD-8 / FR-9). The named NDP reviewer signs off on
+/// this single value; the keys are the identity the `YourDataScreen`
+/// binds to.
+///
+/// The `lockedProtection` line is the AD-8 honest-copy anchor: web
+/// protection is described as \"session-sealed, not at-rest
+/// encrypted\" — weaker than mobile, never overclaimed.
+class YourDataStrings {
+  const YourDataStrings({
+    required this.title,
+    required this.lockedProtection,
+    required this.unlockedProtection,
+  });
+
+  /// The sub-screen heading. Calm copy; the surface is one calm
+  /// list under Settings.
+  final String title;
+
+  /// Rendered when the web session is locked. AD-8 honest copy:
+  /// \"session-sealed, not at-rest encrypted\". Tells the user the
+  /// posture plainly — never asserts \"at-rest\" on web.
+  final String lockedProtection;
+
+  /// Rendered when the web session is unlocked or on mobile. The
+  /// mobile posture is AES-256 at rest via Keychain/Keystore; the
+  /// web posture is session-sealed. Both are stated plainly.
+  final String unlockedProtection;
+}
+
+const YourDataStrings enYourDataStrings = YourDataStrings(
+  title: 'Your data',
+  lockedProtection:
+      'Session-sealed, not at-rest encrypted — this record is '
+      'protected by the passphrase you entered on this device. '
+      'Reload the page and it stays sealed.',
+  unlockedProtection:
+      'Encrypted at rest on mobile (AES-256, Keychain/Keystore); '
+      'session-sealed on the web (the key is held in memory for this '
+      'session only — never written to disk).',
+);

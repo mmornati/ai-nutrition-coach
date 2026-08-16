@@ -43,6 +43,13 @@ dependencies:
   # for diagnostics — `meta` lets us add a `@sealed` annotation hint.
   meta: ^1.16.0
 
+  # Story 4.1 — PBKDF2-HMAC-SHA256 for the in-memory web session key
+  # (AD-8: the key is held in memory only, derived from a user-supplied
+  # passphrase, never persisted). The web rung has no OS keystore; the
+  # derived key is the only protection between the user's passphrase
+  # and the on-disk schema. Pure-Dart, no JS interop.
+  crypto: ^3.0.6
+
 dev_dependencies:
   drift_dev: ^2.34.3
   lints: ^5.0.0

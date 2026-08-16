@@ -14,7 +14,9 @@ workflow_overrides:
 stories:
   - key: "4-1"
     title: "web-encrypted-store-wasm-pbkdf2-session-seal"
-    status: pending
+    status: committed
+    commit: "(pending)"
+    merged_at: "2026-08-16"
   - key: "4-2"
     title: "exporter-csv-json-offline-no-account"
     status: pending

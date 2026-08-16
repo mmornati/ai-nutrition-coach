@@ -6,11 +6,18 @@
 //   * the lifetime owner (`close`).
 //
 // Implementations live in `packages/integrations`:
-//   * `EncryptedStoreAdapter` — mobile (drift on sqlite3mc, AES-256).
-//   * `WebEncryptedStoreStub` — web build until Story 4.1.
+//   * `EncryptedStoreAdapter` — mobile (drift on sqlite3mc, AES-256,
+//     AD-8: at-rest via Keychain/Keystore).
+//   * `WasmEncryptedStore` — web (Story 4.1 / AD-8: same drift schema
+//     on `sqlite3.wasm` with a PBKDF2-derived session key held in
+//     memory for the session lifetime only — session-sealed, not
+//     at-rest encrypted).
 //
-// No domain mutation crosses this port as a raw exception — drift errors
-// are caught at the adapter boundary and surfaced as `StoreFailure`.
+// No domain mutation crosses this port as a raw exception — drift
+// errors and web-side key-derivation failures are caught at the
+// adapter boundary and surfaced as `StoreFailure`. The web adapter
+// returns `StoreFailure(encryptedStoreError: WebSessionKeyFailure())`
+// while the session is locked.
 
 import '../entities/plate_log.dart';
 import '../results/store_failure.dart';

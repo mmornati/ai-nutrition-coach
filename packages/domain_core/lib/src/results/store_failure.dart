@@ -4,9 +4,10 @@
 // than a deep sealed hierarchy — callers pattern-match by which field is
 // non-null, which keeps the call sites compact and matches the I/O matrix
 // (each scenario owns exactly one of the three fields). The marker types
-// `UnsupportedPlatformFailure`, `EmptyPlateFailure`, `SecureKeyFailure`
-// are the only valid arguments to those fields, so a typo at the call
-// site is a compile error.
+// `UnsupportedPlatformFailure`, `EmptyPlateFailure`, and the
+// `EncryptedStoreFailure` sealed family (`SecureKeyFailure` on mobile,
+// `WebSessionKeyFailure` on web) are the only valid arguments to those
+// fields, so a typo at the call site is a compile error.
 
 import '../entities/plate_log.dart';
 
@@ -50,7 +51,8 @@ class StoreFailure extends RecordPlateResult {
         );
 
   /// The current build target does not implement the encrypted store —
-  /// used by `WebEncryptedStoreStub` until Story 4.1 (sqlite3.wasm + PBKDF2).
+  /// used by `WebEncryptedStoreStub` (the v0 web stub) before
+  /// Story 4.1 lands. Story 4.1 ships a real wasm-backed store.
   final UnsupportedPlatformFailure? platformError;
 
   /// Use-case-level validation refusal — currently only the empty-plate
@@ -58,8 +60,12 @@ class StoreFailure extends RecordPlateResult {
   final EmptyPlateFailure? validationError;
 
   /// Adapter-level key handling failure — read or write to
-  /// `flutter_secure_storage` under `openplate_db_key_v1` failed.
-  final SecureKeyFailure? encryptedStoreError;
+  /// `flutter_secure_storage` under `openplate_db_key_v1` failed
+  /// (mobile), or the web session is locked and the user has not
+  /// entered a passphrase yet (Story 4.1 / AD-8). The field is
+  /// sealed: only `SecureKeyFailure` (mobile) or `WebSessionKeyFailure`
+  /// (web) are valid arguments.
+  final EncryptedStoreFailure? encryptedStoreError;
 
   @override
   bool operator ==(Object other) {
@@ -109,7 +115,7 @@ class EmptyPlateFailure {
   String toString() => 'EmptyPlateFailure()';
 }
 
-class SecureKeyFailure {
+class SecureKeyFailure implements EncryptedStoreFailure {
   const SecureKeyFailure();
 
   @override
@@ -121,4 +127,33 @@ class SecureKeyFailure {
 
   @override
   String toString() => 'SecureKeyFailure()';
+}
+
+/// Story 4.1 / AD-8 — the web session is locked. The user has not
+/// entered a passphrase yet, or the session was reset (page reload).
+/// The `WasmEncryptedStore` returns this typed failure rather than
+/// throwing a raw exception so the UI can render the calm
+/// "unlock the store first" line.
+class WebSessionKeyFailure implements EncryptedStoreFailure {
+  const WebSessionKeyFailure();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is WebSessionKeyFailure;
+
+  @override
+  int get hashCode => (WebSessionKeyFailure).hashCode;
+
+  @override
+  String toString() => 'WebSessionKeyFailure()';
+}
+
+/// Sealed marker for any failure that originates in the encrypted
+/// store's key handling. Mobile returns `SecureKeyFailure` (Keychain
+/// read/write under `openplate_db_key_v1` failed); web returns
+/// `WebSessionKeyFailure` (the session is locked, AD-8). Both shapes
+/// ride the same `StoreFailure.encryptedStoreError` field so the UI
+/// can pattern-match with a single check.
+sealed class EncryptedStoreFailure {
+  const EncryptedStoreFailure();
 }

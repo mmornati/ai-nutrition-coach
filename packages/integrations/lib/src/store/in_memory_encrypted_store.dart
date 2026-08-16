@@ -1,9 +1,11 @@
 // Dev-only in-memory `EncryptedStore` for local web testing.
 //
-// The real web store is `WebEncryptedStoreStub` (Story 4.1 swaps in a
-// wasm-backed implementation), which fails every `recordPlate`. That's
-// correct for production honesty but makes a local web run useless for
-// exercising the capture → log → Day Board loop.
+// The real web store is `WasmEncryptedStore` (Story 4.1), which opens
+// the same drift schema on `sqlite3.wasm` with a PBKDF2-derived session
+// key (AD-8: in-memory only, never persisted). The wasm binding is
+// still being wired — for now the web factory falls back to an
+// in-memory store so the capture → log → Day Board loop can be
+// exercised in a browser without the wasm binary.
 //
 // This store is selected ONLY when the web build is compiled with
 // `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true` (see
