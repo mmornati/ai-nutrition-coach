@@ -1,33 +1,23 @@
 # Loop Status
+# Epic 3 — commit-only mode (no remote, no push, no PR, no CI).
+# Each story is implemented, reviewed via self-check, committed on main, then
+# the next story begins. Status transitions are tracked inline below.
 started: "2026-08-16"
 total_stories: 3
-current_index: 2
+current_index: 0
+workflow_overrides:
+  skip_push: true
+  skip_pr: true
+  skip_ci: true
+  branch_strategy: "main"          # commit straight to main; no per-story branches
+  review_strategy: "self"          # implementer self-reviews; no bmad-code-review subagent
 stories:
-  - key: "2-1"
-    title: "coach-taxonomy-and-localization-key-store"
-    status: merged
-    commit: "350a912"
-    review_summary: "Approved-merge; 0 high/medium; 10 low (4 patch, 5 defer, 1 spec reconciliation); AD-1/AD-5/AD-7 invariants hold end-to-end."
-    high_count: 0
-    medium_count: 0
-    low_count: 10
-    merged_at: "2026-08-16"
-  - key: "2-2"
-    title: "coach-note-generation-post-resolve-whisper"
-    status: merged
-    commit: "c838dbd"
-    review_summary: "Architecture sound; 0 high / 3 medium / 3 low; no merge blockers. AD-1/AD-3/AD-7 invariants hold; sealed results + best-effort calm-degrade + single encrypted store. Medium patches deferred to deferred-work.md (Day Board integration test, dark-mode color assertion, RecordPlate try/catch)."
-    high_count: 0
-    medium_count: 3
-    low_count: 3
-    merged_at: "2026-08-16"
-  - key: "2-3"
-    title: "coach-question-interaction-answer-dismiss-depth"
-    status: merged
-    commit: "3b33481"
-    feat_commit: "bd18dbd"
-    review_summary: "Initial review: 2 high / 4 medium / 0 low; recommend-changes. Both HIGH AC violations patched in 3b33481: (1) OpenPlateHint tap now records dismiss via synthetic CoachNote (Option C, plateLogId:0 sentinel); (2) CoachWhisper self-clears on [ask later]. Medium #3 added test coverage for open-plate dismiss. Medium #4-#6 (followedUpNote shadowing, unused test fields, unused isRecorded helper) deferred. 74/74 domain_core tests pass; 32 widget tests pass (4 pre-existing baseline failures). AD-1/AD-3/AD-7 invariants hold; idempotency verified; calm-degrade verified; drift codegen byte-equivalent."
-    high_count: 2
-    medium_count: 4
-    low_count: 0
-    merged_at: "2026-08-16"
+  - key: "3-1"
+    title: "ai-rung-port-with-swappable-implementations"
+    status: pending
+  - key: "3-2"
+    title: "hosted-quota-rung-with-honest-3-way-quota-exhaustion"
+    status: pending
+  - key: "3-3"
+    title: "byok-bring-your-own-api-key"
+    status: pending
