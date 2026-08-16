@@ -257,8 +257,19 @@ Modified:
 
 ### Review Date
 
+2026-08-16
+
 ### Review Outcome
 
+Recommend changes before merging (3 medium-severity patch items + 1 spec drift).
+
 ### Action Items
+
+- [ ] [Review][Patch] No Day Board integration test for whisper rendering — the spec AC "Given a committed plate with a note, when the Day Board renders, then the plate row shows a serif-italic whisper" is only covered by widget-level tests (`coach_whisper_test.dart`) and provider-level tests (`coach_note_provider_test.dart`). No test seeds a plate + `CoachNote` via the Day Board flow and asserts the `CoachWhisper` appears on the plate row. [`apps/client/test/day_board_screen_test.dart`]
+- [ ] [Review][Patch] Dark-mode color assertion deferred but never landed — `coach_whisper_test.dart` dark-mode test only checks structural render; the test comment defers the `palette.sage` / `palette.coach` assertion to "the parent widget test (the Day Board screen)" which does not assert those colors. Spec AC #6 (text reads `palette.ink`, `[sure]` uses `palette.sage`, `[ask later]` uses `palette.coach`) is unverified. [`apps/client/test/widgets/coach_whisper_test.dart:141-167`]
+- [ ] [Review][Patch] Best-effort claim is wrong for non-SqliteException store throws — `record_plate.dart` awaits `_generator.generateFor(...)` without a try/catch, but the generator only catches exceptions from `_coach.questionFor`, not from `_store.append`. If `LocalCoachNoteStore.append` throws something other than `sqlite3.SqliteException` (runtime Error, etc.), the exception propagates and breaks the "best-effort, never blocks the log" promise documented in the comment. [`packages/domain_core/lib/src/use_cases/record_plate.dart:50-54`]
+- [ ] [Review][Patch] `withCoachProviders` helper in `test_overrides.dart` is dead code — defined but no test file imports it. Six tests hand-code the same 2-line `coachProvider`/`coachNoteStoreProvider` override pattern that the helper exists to consolidate. Either delete the helper or refactor the tests to use it. [`apps/client/test/_fakes/test_overrides.dart:28-40`]
+- [ ] [Review][Patch] Spec I/O & Edge-Case Matrix row "STORE_WRITE_FAILURE" says "Use-case returns `CoachNoteGenerationFailure`" but the implementation (and the approach text) return `NoCoachNoteGenerated(reason: 'appendFailed')`. The matrix line should be corrected to match the approach. [`_bmad-output/implementation-artifacts/spec-2-2-coach-note-generation-post-resolve-whisper.md:55`]
+- [x] [Review][Defer] 6 hard-coded `DateTime(2026, 8, 15, ...)` "today" plates in `day_board_screen_test.dart` — environment is now 2026-08-16, so the day-board local-day filter excludes them and 4 of the 6 tests fail today. Pre-existing (already documented at `_bmad-output/implementation-artifacts/deferred-work.md:22-24` from story 1.6); not introduced by Story 2.2. Out of scope. [`apps/client/test/day_board_screen_test.dart:80,100,106,112,195,232,252`]
 
 ## Review Follow-ups (AI)

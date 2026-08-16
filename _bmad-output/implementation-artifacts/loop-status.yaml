@@ -14,7 +14,8 @@ stories:
     merged_at: "2026-08-16"
   - key: "2-2"
     title: "coach-note-generation-post-resolve-whisper"
-    status: dev-in-progress
+    status: dev-done
+    commit: "c838dbd"
   - key: "2-3"
     title: "coach-question-interaction-answer-dismiss-depth"
     status: pending

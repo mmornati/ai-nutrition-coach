@@ -37,3 +37,9 @@
 - source_spec: _bmad-output/implementation-artifacts/spec-2-1-coach-taxonomy-and-localization-key-store.md
   summary: No sentinel test asserts the AI_OFF_ACTIVE row's "no network call" claim.
   evidence: Spec I/O matrix row AI_OFF_ACTIVE states coach questions resolve from the key store and never touch the network. Structural absence of `package:dio`/`http` imports in `packages/integrations/lib/src/coach/` and `packages/integrations/lib/src/l10n/` covers it; a runtime sentinel test would be valuable but low-priority.
+
+## Deferred from: code review of spec-2-2 (2026-08-16)
+
+- source_spec: _bmad-output/implementation-artifacts/spec-2-2-coach-note-generation-post-resolve-whisper.md
+  summary: Six hard-coded `DateTime(2026, 8, 15, ...)` "today" plates in `day_board_screen_test.dart` are date-fragile (environment is now 2026-08-16). 4 of the 6 tests fail today. Pre-existing — already deferred from story 1.6; story 2.2 only added two provider-overrides to keep the tests buildable, not to fix the dates.
+  evidence: `apps/client/test/day_board_screen_test.dart:80,100,106,112,195,232,252` seed plates at `DateTime(2026, 8, 15, ...)`. The day-board provider's local-day filter excludes them when the running clock reads 2026-08-16.
