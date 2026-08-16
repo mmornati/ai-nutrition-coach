@@ -12,6 +12,13 @@
 //   * `VoiceTranscriber.transcribe` returns a sealed
 //     `TranscribeResult` (`TranscribedText | TranscriptionFailure`).
 //
+// Story 1.7 adds `FoodCatalog.lookupByBarcode` (FR2). The default
+// implementation throws `UnimplementedError` so a future adapter
+// without barcode support remains valid against the port; an adapter
+// that *opts in* must override the method. The port-contract test
+// pins this so the adapter cannot accidentally regress to the
+// `UnimplementedError` default.
+//
 // AD-1 is enforced by the grep test in `domain_core_test.dart`; this
 // test pins the API contracts.
 
@@ -57,6 +64,23 @@ void main() {
       const a = RankedMatches(<FoodMatch>[]);
       const b = RankedMatches(<FoodMatch>[]);
       expect(a, b);
+    });
+
+    test(
+        'lookupByBarcode default impl throws UnimplementedError so adapters '
+        'without barcode support still compile against the port', () {
+      // The default implementation is intentional: a future adapter
+      // that doesn't ship barcode support (e.g. a USDA-only catalog)
+      // remains valid against the `FoodCatalog` type as long as it
+      // overrides `search` + `lookupBySourceRef`. Adapters that *do*
+      // support barcode lookups (the offline-first one) must override
+      // `lookupByBarcode` so this default path is never reached in
+      // production.
+      final catalog = _NoBarcodeAdapter();
+      expect(
+        () => catalog.lookupByBarcode('3017620422003'),
+        throwsA(isA<UnimplementedError>()),
+      );
     });
   });
 
@@ -118,4 +142,31 @@ void main() {
       expect(FoodGroup.other.label, 'Other');
     });
   });
+}
+
+/// Test double — a `FoodCatalog` that satisfies the bare minimum
+/// (search returning an empty list, `lookupBySourceRef` returning
+/// `null`) and explicitly rethrows the port's default
+/// `UnimplementedError` for `lookupByBarcode`. Lets the port-
+/// contract test assert that the default `UnimplementedError` path
+/// is reachable on an adapter that ships without barcode support.
+class _NoBarcodeAdapter implements FoodCatalog {
+  @override
+  Future<CatalogResult> search(String query, {int limit = 10}) async =>
+      const RankedMatches(<FoodMatch>[]);
+
+  @override
+  Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+
+  @override
+  Future<CatalogResult> lookupByBarcode(String code) {
+    // Mirrors the port's default implementation — re-throws so the
+    // contract test can lock the semantics for adapters that ship
+    // without barcode support.
+    throw UnimplementedError(
+      'FoodCatalog.lookupByBarcode has no default implementation; '
+      'adapters must opt in. See OfflineFirstFoodCatalog.lookupByBarcode '
+      'for the offline-first + OFF read path.',
+    );
+  }
 }

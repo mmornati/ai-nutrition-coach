@@ -1,7 +1,7 @@
 generated: "2026-08-15T00:00:00Z"
 project: openplate
 tracking_system: local-files
-last_updated: "2026-08-15"
+last_updated: "2026-08-16"
 
 development_status:
   "1-1-scaffold-monorepo-and-build": done
@@ -10,7 +10,7 @@ development_status:
   "1-4-week-strip-tap-a-day-navigation": done
   "1-5-type-or-talk-food-ranked-matches": review
   "1-6-capture-sheet-fan-out": review
-  "1-7-scan-barcode-packaged-food": ready-for-dev
+  "1-7-scan-barcode-packaged-food": review
   "1-8-photograph-a-plate": ready-for-dev
 
 epics:
@@ -43,7 +43,7 @@ epics:
         file: "spec-1-6-capture-sheet-fan-out.md"
       - key: "1-7"
         title: scan-barcode-packaged-food
-        status: ready-for-dev
+        status: review
         file: "spec-1-7-scan-barcode-packaged-food.md"
       - key: "1-8"
         title: photograph-a-plate

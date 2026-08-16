@@ -2,8 +2,10 @@
 // photo) resolves to a `DatabaseFood` through this single seam.
 //
 // Story 1.5 ships the manual/voice adapter (`OfflineFirstFoodCatalog`)
-// and the no-op voice transcriber. Stories 1.7 (barcode) and 1.8
-// (photo) plug into the same port.
+// and the no-op voice transcriber. Story 1.7 (barcode) extends the
+// port with `lookupByBarcode` and plumbs OFF reads (no API key)
+// + the same offline LRU so a repeat scan works offline. Story 1.8
+// (photo) plugs into the same port.
 //
 // The port deliberately returns a sealed `CatalogResult` rather than a
 // raw `List<DatabaseFood>` so the adapter can communicate "no matches
@@ -19,6 +21,8 @@ import '../results/catalog_failure.dart';
 /// Adapters live in `packages/integrations`:
 ///   * `OfflineFirstFoodCatalog` — Story 1.5 manual/voice surface,
 ///     ships an in-memory seeded list + LRU for offline replay.
+///     Story 1.7 extends it with `lookupByBarcode` for the FR2
+///     barcode path; the OFF read source is the only network call.
 ///   * `OpenFoodFactsCatalog`    — Epic 3+ swaps in real OFF lookups
 ///     behind the same port.
 ///   * `UsdaCatalog`             — Epic 3+ swaps in real USDA lookups.
@@ -54,4 +58,34 @@ abstract interface class FoodCatalog {
   /// the seeded list so the offline-first adapter honours the contract
   /// without an extra code path.
   Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+
+  /// Resolve a packaged-food barcode into a ranked match list (Story 1.7 / FR2).
+  ///
+  /// [code] is the raw barcode string the scanner produced (EAN-8 /
+  /// EAN-13 / UPC-A / UPC-E). Adapters are responsible for trimming
+  /// before the lookup; callers do not normalise first.
+  ///
+  /// Returns:
+  ///   * [RankedMatches] — one or more matches (most relevant first).
+  ///     A typical OFF barcode lookup returns a single match (the
+  ///     product OFF resolved) — the adapter still wraps it in
+  ///     [RankedMatches] so the UI can use the same list rendering.
+  ///   * [NotFoundFailure] — the barcode matched nothing in the
+  ///     catalog (UI pushes the user to the manual-add path with the
+  ///     scanned code pre-filled).
+  ///   * [CatalogFailure] — adapter could not produce a result
+  ///     (network down, OFF 5xx, etc.). UI renders the calm
+  ///     "Search isn't available right now" line and still offers
+  ///     manual entry.
+  ///
+  /// The default implementation throws [UnimplementedError] so
+  /// adapters without barcode support (e.g. a future USDA-only
+  /// adapter) remain valid against the port, but the production
+  /// offline-first adapter opts in with a real lookup.
+  Future<CatalogResult> lookupByBarcode(String code) =>
+      throw UnimplementedError(
+        'FoodCatalog.lookupByBarcode has no default implementation; '
+        'adapters must opt in. See OfflineFirstFoodCatalog.lookupByBarcode '
+        'for the offline-first + OFF read path.',
+      );
 }

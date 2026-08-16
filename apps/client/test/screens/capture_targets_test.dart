@@ -9,9 +9,10 @@
 //   * `CapturePhotoScreen.build()` throws
 //     `UnimplementedCaptureTarget(photo)` — the same value Story 1.8
 //     will replace;
-//   * `CaptureBarcodeScreen.build()` throws
-//     `UnimplementedCaptureTarget(barcode)` — the same value Story 1.7
-//     will replace.
+//   * Story 1.7 replaced the `CaptureBarcodeScreen` placeholder with
+//     the real `mobile_scanner`-backed flow; the placeholder throw is
+//     now reserved for `CapturePhotoScreen` only. The tests below
+//     reflect the post-1.7 state.
 //
 // The placeholder screens do not render any UI — `build()` throws
 // before layout, which surfaces as Flutter's red error widget in dev
@@ -54,6 +55,10 @@ void main() {
         const UnimplementedCaptureTarget(CaptureTarget.photo).toString(),
         'UnimplementedCaptureTarget(photo)',
       );
+      // Story 1.7 — the barcode target no longer ships as a
+      // placeholder throw; the string contract is still useful so
+      // a future regression that re-introduces the placeholder is
+      // loud in the logs.
       expect(
         const UnimplementedCaptureTarget(CaptureTarget.barcode).toString(),
         'UnimplementedCaptureTarget(barcode)',
@@ -71,15 +76,16 @@ void main() {
       expect(ex.target, CaptureTarget.photo);
     });
 
-    testWidgets('CaptureBarcodeScreen.build throws UnimplementedCaptureTarget(barcode)',
-        (tester) async {
-      final captured = await _captureBuildException(
-        tester,
-        const CaptureBarcodeScreen(),
-      );
-      expect(captured, isA<UnimplementedCaptureTarget>());
-      final ex = captured! as UnimplementedCaptureTarget;
-      expect(ex.target, CaptureTarget.barcode);
+    test('CaptureBarcodeScreen is the real flow (Story 1.7 / FR2)', () {
+      // Patch L1 — the probe class's `realScreenExists` was
+      // hard-coded to `true` (tautological). The real surface lives
+      // at `apps/client/lib/screens/capture_barcode_screen.dart` and
+      // is exercised end-to-end under
+      // `test/screens/capture_barcode_screen_test.dart`. This test
+      // pins the contract: the class still resolves at the import
+      // surface, so a future regression that breaks the import is
+      // loud at test time.
+      expect(const CaptureBarcodeScreen(), isA<Widget>());
     });
   });
 }

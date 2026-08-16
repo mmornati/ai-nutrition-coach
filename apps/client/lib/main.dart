@@ -5,6 +5,8 @@ import 'package:integrations/integrations.dart';
 import 'screens/day_board_screen.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/record_plate_provider.dart';
+import 'state/scanner_adapters.dart';
+import 'state/scanner_provider.dart';
 import 'theme/app_tokens.dart';
 
 void main() async {
@@ -22,6 +24,17 @@ void main() async {
             .overrideWithValue(OfflineFirstFoodCatalog()),
         voiceTranscriberProvider
             .overrideWithValue(const NoopVoiceTranscriber()),
+        // Story 1.7 — wire the barcode seam. `mobile_scanner` is the
+        // only camera dependency; `permission_handler` is the
+        // cross-platform permission surface (NFR7). Both are wrapped
+        // behind the `BarcodeScanner` / `CameraPermission` ports so
+        // tests can substitute fakes without touching the camera.
+        barcodeScannerProvider.overrideWithValue(
+          MobileScannerBarcodeScanner(),
+        ),
+        cameraPermissionProvider.overrideWithValue(
+          const PermissionHandlerCameraPermission(),
+        ),
       ],
       child: const OpenPlateApp(),
     ),

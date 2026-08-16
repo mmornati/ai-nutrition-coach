@@ -32,7 +32,13 @@ import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
 
 class ManualEntryScreen extends ConsumerStatefulWidget {
-  const ManualEntryScreen({super.key});
+  const ManualEntryScreen({super.key, this.prefilledBarcode});
+
+  /// Optional barcode that the screen should pre-populate. Used by
+  /// the barcode path (Story 1.7) to hand the scanned code over
+  /// when OFF couldn't resolve it — the user types the food name
+  /// while the barcode is already in the field as the source ref.
+  final String? prefilledBarcode;
 
   @override
   ConsumerState<ManualEntryScreen> createState() => _ManualEntryScreenState();
@@ -47,6 +53,26 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
   void initState() {
     super.initState();
     _queryController = TextEditingController();
+    final prefilled = widget.prefilledBarcode;
+    if (prefilled != null && prefilled.isNotEmpty) {
+      // Patch M3: when the barcode path hands us a scanned code,
+      // seed BOTH the visible search field AND the provider state
+      // so the user lands on a screen where the barcode is already
+      // typed into the search bar (not the custom-name field which
+      // only renders AFTER the user types a query and gets zero
+      // matches). The provider update is deferred to post-frame so
+      // the initial build completes first.
+      _queryController.text = prefilled;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(manualEntryProvider.notifier).updateQuery(prefilled);
+      });
+      // Pre-fill the manual-add controller too so the "Custom food
+      // name" field has the barcode pre-loaded when the user reaches
+      // the no-match form (FR3 fallback — the user can either commit
+      // it verbatim or replace it with a human-readable name).
+      _manualController.text = prefilled;
+    }
   }
 
   @override

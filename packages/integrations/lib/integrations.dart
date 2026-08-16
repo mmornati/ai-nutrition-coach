@@ -9,6 +9,7 @@
 library;
 
 export 'src/catalog/lru_cache.dart';
+export 'src/catalog/off_barcode_source.dart';
 export 'src/catalog/offline_first_food_catalog.dart';
 export 'src/catalog/seed_foods.dart';
 export 'src/store/create_encrypted_store.dart';

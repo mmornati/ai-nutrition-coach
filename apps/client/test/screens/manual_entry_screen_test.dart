@@ -40,6 +40,12 @@ class _FakeFoodCatalog implements FoodCatalog {
 
   @override
   Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+
+  @override
+  Future<CatalogResult> lookupByBarcode(String code) async =>
+      // Manual-entry tests don't exercise the barcode path; the
+      // default is not-found so any accidental call is loud.
+      NotFoundFailure(code);
 }
 
 const _salmonMatch = FoodMatch(

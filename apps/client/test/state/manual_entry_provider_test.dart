@@ -34,6 +34,13 @@ class _FakeFoodCatalog implements FoodCatalog {
 
   @override
   Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+
+  @override
+  Future<CatalogResult> lookupByBarcode(String code) async =>
+      // The manual-entry provider doesn't exercise the barcode
+      // path; default to a not-found so any accidental invocation
+      // is loud.
+      NotFoundFailure(code);
 }
 
 CatalogResult _matched(List<FoodMatch> matches) => RankedMatches(matches);
@@ -290,4 +297,8 @@ class _ThrowingFoodCatalog implements FoodCatalog {
 
   @override
   Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+
+  @override
+  Future<CatalogResult> lookupByBarcode(String code) async =>
+      throw StateError('simulated adapter failure');
 }

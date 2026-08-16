@@ -1,7 +1,7 @@
 # Loop Status
 started: "2026-08-15"
 total_stories: 6
-current_index: 4
+current_index: 5
 stories:
   - key: "1-3"
     title: "day-board-todays-plates"
@@ -21,6 +21,9 @@ stories:
     commit: "add2cf0"
   - key: "1-7"
     title: "scan-barcode-packaged-food"
+    status: review-in-progress
+  - key: "1-8"
+    title: "photograph-a-plate"
     status: pending
   - key: "1-8"
     title: "photograph-a-plate"

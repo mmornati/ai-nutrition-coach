@@ -23,6 +23,14 @@ dependencies:
   integrations:
     path: ../../packages/integrations
 
+  # Story 1.7 / FR2 — barcode scanner surface. `mobile_scanner` is
+  # the only camera dependency in the repo (no `qr_code_scanner` or
+  # alt). `permission_handler` handles the cross-platform camera
+  # permission prompt so the calm "Camera denied — type it instead"
+  # fallback has a single seam (NFR7).
+  mobile_scanner: ^7.4.0
+  permission_handler: ^11.3.1
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
