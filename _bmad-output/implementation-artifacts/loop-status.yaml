@@ -15,7 +15,7 @@ stories:
   - key: "4-1"
     title: "web-encrypted-store-wasm-pbkdf2-session-seal"
     status: committed
-    commit: "(pending)"
+    commit: "f2b877d"
     merged_at: "2026-08-16"
   - key: "4-2"
     title: "exporter-csv-json-offline-no-account"
