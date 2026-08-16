@@ -29,4 +29,6 @@ stories:
     merged_at: "2026-08-16"
   - key: "5-4"
     title: "accessibility-floor-enforced"
-    status: pending
+    status: committed
+    commit: "af1bf53"
+    merged_at: "2026-08-16"
