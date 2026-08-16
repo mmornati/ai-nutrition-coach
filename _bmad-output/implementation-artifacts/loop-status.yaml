@@ -24,4 +24,6 @@ stories:
     merged_at: "2026-08-16"
   - key: "3-3"
     title: "byok-bring-your-own-api-key"
-    status: pending
+    status: committed
+    commit: "22e0d71"
+    merged_at: "2026-08-16"
