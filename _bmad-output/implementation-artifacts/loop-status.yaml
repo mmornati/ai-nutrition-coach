@@ -23,6 +23,11 @@ stories:
     merged_at: "2026-08-16"
   - key: "2-3"
     title: "coach-question-interaction-answer-dismiss-depth"
-    status: dev-done
-    commit: "bd18dbd"
-    baseline_commit: "c244106"
+    status: merged
+    commit: "3b33481"
+    feat_commit: "bd18dbd"
+    review_summary: "Initial review: 2 high / 4 medium / 0 low; recommend-changes. Both HIGH AC violations patched in 3b33481: (1) OpenPlateHint tap now records dismiss via synthetic CoachNote (Option C, plateLogId:0 sentinel); (2) CoachWhisper self-clears on [ask later]. Medium #3 added test coverage for open-plate dismiss. Medium #4-#6 (followedUpNote shadowing, unused test fields, unused isRecorded helper) deferred. 74/74 domain_core tests pass; 32 widget tests pass (4 pre-existing baseline failures). AD-1/AD-3/AD-7 invariants hold; idempotency verified; calm-degrade verified; drift codegen byte-equivalent."
+    high_count: 2
+    medium_count: 4
+    low_count: 0
+    merged_at: "2026-08-16"
