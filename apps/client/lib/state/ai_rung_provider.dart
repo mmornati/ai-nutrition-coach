@@ -46,13 +46,37 @@ final aiRungConfigProvider = Provider<AiRungConfig>(
   ),
 );
 
+/// The `QuotaCounter` seam — overridden in `main.dart` with the
+/// production `SecureStorageQuotaCounter(ceiling: kHostedQuotaPerDay)`
+/// (Story 3.2 / FR6). Tests inject an `InMemoryQuotaCounter`.
+final quotaCounterProvider = Provider<QuotaCounter>(
+  (ref) => throw UnimplementedError(
+    'quotaCounterProvider must be overridden at the ProviderScope root '
+    'with the result of `SecureStorageQuotaCounter(ceiling: '
+    'kHostedQuotaPerDay)` — see apps/client/lib/main.dart.',
+  ),
+);
+
+/// The `HostedQuotaProvider` transport seam — overridden in
+/// `main.dart` with the production `CloudflareWorkersAiProvider`
+/// (Story 3.2 / FR6 / OQ-2 default). Tests inject a fake
+/// provider; the OQ-2 build-time swap replaces this with the
+/// `GeminiFreeProvider` stub.
+final hostedQuotaProviderProvider = Provider<HostedQuotaProvider>(
+  (ref) => throw UnimplementedError(
+    'hostedQuotaProviderProvider must be overridden at the ProviderScope '
+    'root with the result of `CloudflareWorkersAiProvider(...)` — see '
+    'apps/client/lib/main.dart.',
+  ),
+);
+
 /// The config-driven `AiRung` adapter selection. Reads
 /// `aiRungConfigProvider` and constructs the matching adapter:
 ///
 ///   * `AiRungKind.noOp`         → `NoopAiRung()` (Story 1.8,
 ///     v1 default)
-///   * `AiRungKind.hostedQuota`  → `HostedQuotaAiRung()` (Story
-///     3.1 stub; Story 3.2 fills the body)
+///   * `AiRungKind.hostedQuota`  → `HostedQuotaAiRung(quotaCounter,
+///     hostedQuotaProvider)` (Story 3.2 / FR6)
 ///   * `AiRungKind.byok`         → `ByokAiRung()` (Story 3.1
 ///     stub; Story 3.3 fills the body)
 ///   * `AiRungKind.local`        → `LocalAiRung()` (FR8 v2 seam;
@@ -70,7 +94,10 @@ final aiRungProvider = Provider<AiRung>(
       case AiRungKind.noOp:
         return const NoopAiRung();
       case AiRungKind.hostedQuota:
-        return const HostedQuotaAiRung();
+        return HostedQuotaAiRung(
+          quotaCounter: ref.watch(quotaCounterProvider),
+          provider: ref.watch(hostedQuotaProviderProvider),
+        );
       case AiRungKind.byok:
         return const ByokAiRung();
       case AiRungKind.local:

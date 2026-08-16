@@ -2,7 +2,7 @@
 title: 'Story 3.2 — Hosted-quota rung with honest 3-way quota exhaustion (FR6)'
 type: 'feature'
 created: '2026-08-16'
-status: 'in-progress'
+status: 'review'
 review_loop_iteration: 0
 baseline_commit: 'e6708b2'
 context:
@@ -169,23 +169,120 @@ context:
 
 ### Implementation Plan
 
-(To be populated by the dev agent on completion.)
+The story fills in the Story 3.1 `HostedQuotaAiRung` stub behind
+two new abstractions in `packages/integrations`:
+
+1. **`QuotaCounter`** — a day-keyed counter that tracks how many
+   calls the rung has made today. Two implementations:
+   `InMemoryQuotaCounter` (tests, no I/O) and
+   `SecureStorageQuotaCounter` (production, persists via
+   `flutter_secure_storage`; mobile persists, web session-only per
+   AD-8). The counter resets at UTC midnight local; the
+   `resetAt()` returns the next UTC midnight local for the UI to
+   render the calm "wait for reset" copy. `kHostedQuotaPerDay = 50`
+   is the v1 disclosed quota ceiling (FR6).
+
+2. **`HostedQuotaProvider`** — a transport port the rung reads
+   through. The concrete provider (`CloudflareWorkersAiProvider`
+   by default; `GeminiFreeProvider` as the OQ-2 build-time swap)
+   lives behind the port so the core and the rung never see the
+   transport. The Story 3.2 bodies return `HostedQuotaFailure`
+   stubs — the Cloudflare Workers AI integration is an OQ-2 v1.1
+   effort documented in `docs/ai-tiers.md`.
+
+The rung maps the four `HostedQuotaOutcome` variants onto the
+`RecognitionResult` sealed hierarchy per the I/O matrix:
+- `HostedQuotaRecognized(foods)` → `RecognizedPlate(foods)`,
+  increments the counter only when foods is non-empty (NFR5).
+- `HostedQuotaRecognized([])` → `RecognizedPlate(foods: [])`,
+  no counter increment (NFR5 — empty recognition is not a
+  successful recognition).
+- `HostedQuotaNoMatch()` → `NoMatch()`, no counter increment
+  (NFR5 — no recognition happened).
+- `HostedQuotaFailure(cause)` → `RecognitionFailure(cause)`,
+  no counter increment (NFR5 — transport failure is not a
+  recognition).
+
+On quota exhaustion the rung returns
+`QuotaExhausted(resetAt: <next UTC midnight local>)` BEFORE any
+transport call (FR6 — "zero pressure, no countdown").
+
+The localization key store (`coach_strings.dart`) gains a new
+`AiRungStrings` value carrying the eight rung copy entries
+(freeModelRemaining, freeModelResetAt, offlineNoAi, noticeShort,
+noticeLong, keepLogging, bringYourOwnKey, waitForReset,
+quotaStatusHeading). Calm non-judgmental copy; no countdown
+vocabulary; no "Don't show again" easter eggs.
+
+`apps/client/lib/state/ai_rung_provider.dart` extends with two
+new providers (`quotaCounterProvider`,
+`hostedQuotaProviderProvider`) and the `hostedQuota` branch of
+`aiRungProvider` constructs `HostedQuotaAiRung(quotaCounter,
+provider)`. `main.dart` is unchanged — `aiRungConfigProvider`
+remains the opt-in flip.
 
 ### Completion Notes
 
-(To be populated by the dev agent on completion.)
+All 17 execution tasks complete.
+
+I/O matrix coverage:
+- `HAPPY_PATH_RECOGNIZE` → `hosted_quota_ai_rung_test.dart` (`HostedQuotaRecognized with foods maps to RecognizedPlate and increments the counter`).
+- `HAPPY_PATH_NO_MATCH` → `hosted_quota_ai_rung_test.dart` (`HostedQuotaNoMatch maps to NoMatch and does NOT increment the counter`).
+- `HAPPY_PATH_QUOTA_LEFT_STATUS` → `coach_strings.dart` carries `freeModelRemaining`; surfaced via `enAiRungStrings`.
+- `QUOTA_EXHAUSTED` → `hosted_quota_ai_rung_test.dart` (`quota exhaustion returns QuotaExhausted BEFORE any transport call`) + `resetAt propagates from the counter to the result`.
+- `PROVIDER_DOWN` → `hosted_quota_ai_rung_test.dart` (`HostedQuotaFailure maps to RecognitionFailure and does NOT increment the counter`).
+- `QUOTA_RESET` → `quota_counter_test.dart` (`day rollover resets the counter to zero`).
+- `KEEP_LOGGING_WITHOUT_AI` → rung flips to `noOp` via the existing `aiRungConfigProvider` override; out-of-scope UI (Settings → Your AI) lands in Story 3.3.
+- `BRING_YOUR_OWN_KEY` → opens BYOK entry surface (Story 3.3); out-of-scope for 3.2.
+- `WAIT_FOR_RESET` → status line reads `freeModelResetAt` (FR6, no countdown).
+- `WEB_SESSION_RESET` → AD-8 honest-difference story documented in `docs/ai-tiers.md`.
+- `DARK_MODE` → N/A for the rung; the UI theme is applied at the call sites (out of scope for 3.2).
+- `REDUCED_MOTION` → N/A for the rung; the UI animations land with Story 3.3's Your AI surface.
+
+NFR5 honesty — the counter only increments on a non-empty
+`RecognizedPlate`. Empty recognition, no-match, and transport
+failure do not burn a quota slot. This is the v1 contract and is
+pinned by three `hosted_quota_ai_rung_test.dart` tests.
 
 ### Debug Log
 
-(To be populated by the dev agent on completion.)
+- The initial `QuotaCounter` shape lived entirely in
+  `packages/integrations/lib/src/ai/`. The AD-1 grep test in
+  `domain_core_test.dart` is unaffected because no new file
+  lives in the core.
+- The initial `_FakeQuotaCounter` test helper used a mutable
+  `initialCalls` field; refactored to a final field with an
+  internal `_calls` counter so the test can observe increments
+  after construction.
+- The `CloudflareWorkersAiProvider` and `GeminiFreeProvider`
+  ship as stubs (returning `HostedQuotaFailure`) in v1 because
+  the actual transport integration is an OQ-2 v1.1 effort
+  documented in `docs/ai-tiers.md`. The ladder carries the quota
+  counter + the 3-way notice surface so the OQ-2 transport swap
+  is a one-file change.
 
 ### File List
 
-(To be populated by the dev agent on completion.)
+New files:
+- `packages/integrations/lib/src/ai/quota_counter.dart`
+- `packages/integrations/lib/src/ai/hosted_quota_provider.dart`
+- `packages/integrations/lib/src/ai/cloudflare_workers_ai_provider.dart`
+- `packages/integrations/lib/src/ai/gemini_free_provider.dart`
+- `packages/integrations/test/quota_counter_test.dart`
+- `packages/integrations/test/hosted_quota_ai_rung_test.dart`
+- `docs/ai-tiers.md`
+
+Modified files:
+- `packages/integrations/lib/src/ai/hosted_quota_ai_rung.dart` (filled in the Story 3.1 stub; added `kHostedQuotaPerDay = 50`).
+- `packages/integrations/lib/src/l10n/coach_strings.dart` (extended with `AiRungStrings` + `enAiRungStrings` value carrying the nine rung copy entries).
+- `packages/integrations/lib/integrations.dart` (barrel export added for the new rung + provider + counter files).
+- `apps/client/lib/state/ai_rung_provider.dart` (extended with `quotaCounterProvider` + `hostedQuotaProviderProvider`; the `hostedQuota` branch of `aiRungProvider` constructs `HostedQuotaAiRung(quotaCounter, provider)`).
+- `apps/client/test/state/ai_rung_provider_test.dart` (the `hostedQuota config → HostedQuotaAiRung stub` test is replaced with the `hostedQuota config → HostedQuotaAiRung wired with quota counter + provider` test).
+- `_bmad-output/implementation-artifacts/spec-3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion.md` (frontmatter status; Dev Agent Record populated).
 
 ### Change Log
 
-(To be populated by the dev agent on completion.)
+- 2026-08-16 — Initial implementation of Story 3.2 (hosted-quota rung + quota counter + transport port + 3-way copy + docs). All 17 execution tasks complete.
 
 ---
 

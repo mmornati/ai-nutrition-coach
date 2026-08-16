@@ -236,3 +236,100 @@ class CoachQuestionKey {
   @override
   String toString() => 'CoachQuestionKey($value)';
 }
+
+// =====================================================================
+// Story 3.2 / 3.3 — AI rung copy (FR6 / FR7 / AD-7).
+//
+// The v1 coach question key store above owns the question text;
+// this section owns the rung copy the Your AI surface renders.
+// Every entry is calm, non-judgmental, mono-status-line copy —
+// no countdown vocabulary, no "Don't show again" easter eggs, no
+// "you failed" framing (FR15 / UX-DR10). The named NDP reviewer
+// signs off on this file in one review pass; a future locale
+// extension lands here, not in widgets.
+//
+// Story 3.2 owns the hosted-quota copy; Story 3.3 extends with
+// the BYOK copy. The two stories share this single reviewable
+// surface so the named reviewer can sign off in one file.
+// =====================================================================
+
+/// The hosted-quota copy (Story 3.2 / FR6). The status line on
+/// Settings → Your AI uses `freeModelRemaining` when the counter
+/// is below the ceiling and `freeModelResetAt` when the user
+/// has chosen to wait for the quota to reset; the quota notice
+/// on the capture screen uses `noticeShort` and `noticeLong`;
+/// the 3-way choice uses `keepLogging`, `bringYourOwnKey`, and
+/// `waitForReset`.
+class AiRungStrings {
+  const AiRungStrings({
+    required this.freeModelRemaining,
+    required this.freeModelResetAt,
+    required this.offlineNoAi,
+    required this.noticeShort,
+    required this.noticeLong,
+    required this.keepLogging,
+    required this.bringYourOwnKey,
+    required this.waitForReset,
+    required this.quotaStatusHeading,
+  });
+
+  /// Status line: "free model — N calls left today".
+  /// Calm mono copy; never a countdown (FR6).
+  final String freeModelRemaining;
+
+  /// Status line: "free model — resets at <human-readable local
+  /// time>". Calm mono copy; never a countdown (FR6).
+  final String freeModelResetAt;
+
+  /// Status line: "offline (no AI)". Calm mono copy; surfaces
+  /// when the user has flipped to the no-AI rung or when the
+  /// noop rung is the v1 default (Story 1.8 carry-over).
+  final String offlineNoAi;
+
+  /// Short quota notice rendered on the capture screen after a
+  /// `QuotaExhausted` returns: "the free quota is done — choose
+  /// what you'd like to do". Calm mono copy.
+  final String noticeShort;
+
+  /// Long quota notice rendered in Settings → Your AI when the
+  /// user opens the rung change surface after a quota exhaustion.
+  /// Calm mono copy; the 3-way choice follows immediately after.
+  final String noticeLong;
+
+  /// First calm path: "keep logging without AI". No pressure, no
+  /// countdown — the rung flips to `AiRungKind.noOp` instantly.
+  final String keepLogging;
+
+  /// Second calm path: "bring your own key". Opens the BYOK
+  /// entry surface (Story 3.3).
+  final String bringYourOwnKey;
+
+  /// Third calm path: "wait for the quota to reset". No
+  /// countdown; the status line surfaces the reset timestamp.
+  final String waitForReset;
+
+  /// Settings → Your AI heading for the quota status block.
+  /// Calm mono copy.
+  final String quotaStatusHeading;
+}
+
+/// The v1 `en` AI rung strings (Story 3.2). The named NDP
+/// reviewer signs off on this single value; the keys are the
+/// identity the UI binds to.
+///
+/// Every entry is calm non-judgmental copy (FR15 / NFR3 / NFR7);
+/// none of the entries use countdown vocabulary, restriction
+/// framing, or "Don't show again" easter eggs.
+const AiRungStrings enAiRungStrings = AiRungStrings(
+  freeModelRemaining: 'free model — {N} calls left today',
+  freeModelResetAt: 'free model — resets at {time}',
+  offlineNoAi: 'offline (no AI)',
+  noticeShort: 'the free quota is done — choose what you\'d like to do.',
+  noticeLong:
+      'The free quota is done for today. The photo still logs '
+      'to the no-AI core either way — pick what feels right.',
+  keepLogging: 'keep logging without AI',
+  bringYourOwnKey: 'bring your own key',
+  waitForReset: 'wait for the quota to reset',
+  quotaStatusHeading: 'When the free quota runs out',
+);

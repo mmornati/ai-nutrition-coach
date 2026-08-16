@@ -1,49 +1,98 @@
-// `HostedQuotaAiRung` stub (Story 3.1 / AD-5 / FR6).
+// `HostedQuotaAiRung` — the hosted-quota rung (Story 3.2 / FR6 / AD-5).
 //
-// Story 3.1 declares the `hostedQuota` rung slot behind the `AiRung`
-// port so the provider graph compiles against all four kinds. The
-// full implementation lands in Story 3.2 (per-day quota counter,
-// configured free provider, `QuotaExhausted(resetAt)` return shape,
-// Settings → Your AI 3-way choice surface).
+// Fills in the Story 3.1 stub. The rung reads through the
+// `QuotaCounter` for the per-day quota bookkeeping and through the
+// `HostedQuotaProvider` for the transport. The four outcomes map
+// onto the `RecognitionResult` sealed hierarchy as:
+//   * `HostedQuotaRecognized(foods)` → `RecognizedPlate(foods: foods)`
+//   * `HostedQuotaNoMatch()`          → `NoMatch()`
+//   * `HostedQuotaFailure(cause)`     → `RecognitionFailure(cause)`
 //
-// This stub returns `RecognitionFailure('hosted-quota not yet wired
-// (Story 3.2)')` so a v1 build that mistakenly selects
-// `AiRungKind.hostedQuota` degrades honestly — the closest-matches
-// + manual fallback surface renders the calm "Search isn't
-// available right now" line and the user can still log the plate.
+// On quota exhaustion (counter reaches `ceiling`), the rung
+// returns `QuotaExhausted(resetAt: <next UTC midnight local>)` so
+// the UI can render the calm 3-way choice (FR6). The rung never
+// throws across the `AiRung` port boundary — transport failures
+// are wrapped in `RecognitionFailure` so the UI renders a single
+// calm message regardless of cause. The v1 quota ceiling is
+/// `kHostedQuotaPerDay = 50` (FR6 disclosed in-app and in docs).
 //
-// AD-5: the port shape is the single contract. The core never
-// branches on which rung is active; the UI never imports the
-// concrete adapter type — it reads `aiRungProvider` and dispatches
-// through `AiRung.recognize`. Story 3.2 swaps the body of this
-// class without changing the port or the call sites.
+// AD-5: the core never branches on whether the rung is
+// `hostedQuota` vs `noOp`. The active rung is selected by config
+// and reads through `aiRungProvider`; a quota notice from
+// `QuotaExhausted` triggers a config update on the user-driven
+// path (Story 3.3 owns the Settings surface).
 //
-// FR13: no biometric identification in this path.
+// FR6: the quota is disclosed in-app (Settings → Your AI status
+// line) and in docs (`docs/ai-tiers.md`).
+//
+// FR13: no biometric identification. The rung takes raw photo
+// bytes and returns foods; no device fingerprint, no user identity.
 
 import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 
-/// The `hostedQuota` rung stub (Story 3.1). The full implementation
-/// lands in Story 3.2 (per-day quota counter + configured free
-/// provider + `QuotaExhausted(resetAt)` return shape).
-///
-/// The v1 default build never selects this rung — `AiRungConfig
-/// .kind == AiRungKind.hostedQuota` is wired in Story 3.2. If a
-/// v1 build accidentally does, this stub returns the documented
-/// `RecognitionFailure` so the UI renders the calm failure line.
+import 'hosted_quota_provider.dart';
+import 'quota_counter.dart';
+
+/// The per-day quota ceiling (FR6). Disclosed in-app (Settings →
+/// Your AI status line) and in docs (`docs/ai-tiers.md`).
+const int kHostedQuotaPerDay = 50;
+
+/// The v1 active rung for the `hostedQuota` slot (Story 3.2 / FR6).
+/// Reads through the [QuotaCounter] for quota bookkeeping and
+/// through the [HostedQuotaProvider] for the transport. Returns
+/// the four `RecognitionResult` variants per the I/O matrix in
+/// `spec-3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion.md`.
 class HostedQuotaAiRung implements AiRung {
-  const HostedQuotaAiRung();
+  const HostedQuotaAiRung({
+    required QuotaCounter quotaCounter,
+    required HostedQuotaProvider provider,
+  })  : _quotaCounter = quotaCounter,
+        _provider = provider;
+
+  final QuotaCounter _quotaCounter;
+  final HostedQuotaProvider _provider;
 
   @override
   Future<RecognitionResult> recognize(Uint8List photoBytes) async {
-    // Story 3.1 stub. Story 3.2 swaps this body for the
-    // per-day-quota + free-provider + `QuotaExhausted(resetAt)`
-    // return shape. The `photoBytes` are dropped on the floor by
-    // design — the stub has no use for them, and persisting them
-    // would violate FR13's no-identity-linkage guarantee.
-    return const RecognitionFailure(
-      'hosted-quota not yet wired (Story 3.2)',
-    );
+    // Quota check first — if exhausted, return `QuotaExhausted`
+    // before any transport call (FR6 — "zero pressure, no
+    // countdown"; the user sees the calm 3-way choice instead of
+    // a network round-trip that would fail anyway).
+    final exhausted = await _quotaCounter.isExhausted();
+    if (exhausted) {
+      final resetAt = await _quotaCounter.resetAt();
+      return QuotaExhausted(resetAt: resetAt);
+    }
+
+    // Make the transport call — wrap outcomes in the sealed
+    // `RecognitionResult` hierarchy. The rung never throws across
+    // the `AiRung` port boundary; transport errors are wrapped in
+    // `RecognitionFailure` so the UI renders a single calm message
+    // regardless of cause.
+    final outcome = await _provider.recognize(photoBytes: photoBytes);
+
+    switch (outcome) {
+      case HostedQuotaRecognized(:final foods):
+        // Count the successful recognition (not the no-match —
+        // no recognition happened on no-match; NFR5 honesty).
+        if (foods.isNotEmpty) {
+          await _quotaCounter.recordCall();
+        }
+        return RecognizedPlate(foods: foods);
+
+      case HostedQuotaNoMatch():
+        // No recognition happened — no quota call to record
+        // (NFR5 honesty; the user didn't burn a quota slot on a
+        // non-match).
+        return const NoMatch();
+
+      case HostedQuotaFailure(:final cause):
+        // Transport failure — the counter does not increment
+        // (NFR5 honesty; the user didn't burn a quota slot on a
+        // transport failure).
+        return RecognitionFailure(cause);
+    }
   }
 }

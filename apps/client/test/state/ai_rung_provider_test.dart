@@ -80,16 +80,31 @@ void main() {
       expect(rung, isA<NoopAiRung>());
     });
 
-    test('hostedQuota config → HostedQuotaAiRung stub (Story 3.2 '
-        'fills the body)', () {
-      final container = _container(
-        config: const AiRungConfig(kind: AiRungKind.hostedQuota),
+    test('hostedQuota config → HostedQuotaAiRung wired with quota '
+        'counter + provider (Story 3.2)', () {
+      final container = ProviderContainer(
+        overrides: [
+          aiRungConfigProvider.overrideWithValue(
+            const AiRungConfig(kind: AiRungKind.hostedQuota),
+          ),
+          quotaCounterProvider.overrideWithValue(
+            InMemoryQuotaCounter(ceiling: 5),
+          ),
+          hostedQuotaProviderProvider.overrideWithValue(
+            const CloudflareWorkersAiProvider(),
+          ),
+        ],
       );
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
       expect(rung, isA<AiRung>());
       expect(rung, isA<HostedQuotaAiRung>());
+
+      // The seam hands out `AiRung` (the interface) — not the
+      // concrete adapter type — at the call site.
+      final AiRung abstractRung = rung;
+      expect(abstractRung, isA<AiRung>());
     });
 
     test('byok config → ByokAiRung stub (Story 3.3 fills the body)',
