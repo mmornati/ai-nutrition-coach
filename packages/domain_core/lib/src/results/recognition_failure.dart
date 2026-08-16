@@ -20,8 +20,9 @@
 
 import '../value_types/recognized_food.dart';
 
-/// Result of an `AiRung.recognize` call. Exactly one of the three
-/// variants applies per call.
+/// Result of an `AiRung.recognize` call. Exactly one of the four
+/// variants applies per call (Story 3.1 added `QuotaExhausted` to
+/// the three Story 1.8 variants).
 sealed class RecognitionResult {
   const RecognitionResult();
 }
@@ -35,7 +36,8 @@ class RecognizedPlate extends RecognitionResult {
 
   /// The foods the rung resolved from the photo. May be empty —
   /// callers pattern-match on this list separately from
-  /// [RecognitionFailure] and [NoMatch] to decide the next surface.
+  /// [RecognitionFailure], [NoMatch], and [QuotaExhausted] to decide
+  /// the next surface.
   final List<RecognizedFood> foods;
 
   @override
@@ -86,6 +88,39 @@ class RecognitionFailure extends RecognitionResult {
 
   @override
   String toString() => 'RecognitionFailure($cause)';
+}
+
+/// The rung's per-day quota is exhausted (Story 3.1 / FR6). The UI
+/// renders the calm 3-way choice (keep logging without AI / bring
+/// your own key / wait for reset) — never a spinner, never a
+/// countdown.
+///
+/// [resetAt] is the optional timestamp the quota next resets (UTC
+/// midnight local, or the provider-documented reset time). `null`
+/// means "the rung doesn't know when the quota resets" — the UI
+/// renders the calm "wait for the quota to reset" copy without a
+/// timestamp.
+///
+/// Distinct from [RecognitionFailure] so the UI can route the
+/// exhaustion path to the quota notice without inspecting the
+/// transport cause (AD-5 / FR6).
+class QuotaExhausted extends RecognitionResult {
+  const QuotaExhausted({this.resetAt});
+
+  /// Optional reset timestamp. The UI renders this as a human-
+  /// readable local string when present; never as a countdown.
+  final DateTime? resetAt;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuotaExhausted && other.resetAt == resetAt);
+
+  @override
+  int get hashCode => Object.hash('QuotaExhausted', resetAt);
+
+  @override
+  String toString() => 'QuotaExhausted(resetAt: $resetAt)';
 }
 
 bool _listEq<T>(List<T> a, List<T> b) {

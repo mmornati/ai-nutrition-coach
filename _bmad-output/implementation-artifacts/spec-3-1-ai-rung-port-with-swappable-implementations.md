@@ -2,7 +2,7 @@
 title: 'Story 3.1 — AiRung port with swappable implementations'
 type: 'feature'
 created: '2026-08-16'
-status: 'in-progress'
+status: 'review'
 review_loop_iteration: 0
 baseline_commit: 'e6708b2'
 context:
@@ -154,23 +154,63 @@ context:
 
 ### Implementation Plan
 
-(To be populated by the dev agent on completion.)
+The story lands in three layers, mirroring the Epic 1/2 conventions:
+
+1. **`packages/domain_core` (pure-Dart core)** — value types (`AiRungKind` four-enum + `label` / `keyToken` getters; `AiRungConfig({required AiRungKind kind})` value type with equality by `kind`). The `RecognitionResult` sealed hierarchy gains `QuotaExhausted({this.resetAt})` alongside the existing three variants. The `AiRung` port docstring is updated to describe the four rungs + the new variant; the port signature is unchanged. The barrel `domain_core.dart` re-exports the new symbols. The AD-1 grep test adds `package:flutter_secure_storage/` to the forbidden list (Story 3.1 ships the rule that secure storage is an adapter concern, not a core concern).
+
+2. **`packages/integrations` (adapter package)** — three new rung adapters live alongside the existing `NoopAiRung`: `LocalAiRung` (the FR8 v2 seam — throws `UnsupportedError` on `recognize`), `HostedQuotaAiRung` (Story 3.1 stub returning `RecognitionFailure('hosted-quota not yet wired (Story 3.2)')`), `ByokAiRung` (Story 3.1 stub returning `RecognitionFailure('byok not yet wired (Story 3.3)')`). The barrel re-exports all three.
+
+3. **`apps/client` (Flutter UI)** — new `ai_rung_provider.dart` exposes `aiRungConfigProvider` (a `Provider<AiRungConfig>` with the defensive `UnimplementedError` throw) and `aiRungProvider` (a `Provider<AiRung>` that reads the config and returns the matching adapter). `main.dart` overrides `aiRungConfigProvider` with `const AiRungConfig(kind: AiRungKind.noOp)` so the v1 default (`NoopAiRung`) keeps shipping.
+
+Tests follow the Epic 1/2 conventions: `packages/domain_core/test/ai_rung_config_test.dart` pins the enum surface + config equality; `packages/domain_core/test/ai_rung_test.dart` is extended with the `QuotaExhausted` variant tests; `packages/integrations/test/ai_rung_adapters_test.dart` pins the four-rung interface conformance + the v2-seam `UnsupportedError` throw + the two stub failure shapes; `apps/client/test/state/ai_rung_provider_test.dart` pins the config-driven adapter selection + the defensive-seam `UnimplementedError` throw.
 
 ### Completion Notes
 
-(To be populated by the dev agent on completion.)
+All 16 execution tasks complete.
+
+I/O matrix coverage:
+- `HAPPY_PATH_NOOP_ACTIVE` → `ai_rung_adapters_test.dart` (`NoopAiRung ... RecognizedPlate`) + `ai_rung_provider_test.dart` (`noOp config → NoopAiRung`).
+- `HAPPY_PATH_HOSTED_QUOTA_STUB` → `ai_rung_adapters_test.dart` (`HostedQuotaAiRung ... RecognitionFailure`) + `ai_rung_provider_test.dart` (`hostedQuota config → HostedQuotaAiRung`).
+- `HAPPY_PATH_BYOK_STUB` → `ai_rung_adapters_test.dart` (`ByokAiRung ... RecognitionFailure`) + `ai_rung_provider_test.dart` (`byok config → ByokAiRung`).
+- `HAPPY_PATH_LOCAL_SEAM` → `ai_rung_adapters_test.dart` (`LocalAiRung ... UnsupportedError`) + `ai_rung_provider_test.dart` (`local config → LocalAiRung ... throws UnsupportedError`).
+- `CONFIG_UNSET` → `ai_rung_provider_test.dart` (`throws UnimplementedError when not overridden`).
+- `QUOTA_EXHAUSTED_VARIANT` → `ai_rung_test.dart` (`QuotaExhausted carries an optional resetAt` + `QuotaExhausted equality` + `QuotaExhausted is distinct from RecognitionFailure`).
+- `UI_PATTERN_MATCH` → covered by the four `RecognizedPlate | NoMatch | RecognitionFailure | QuotaExhausted` arms in `ai_rung_test.dart`; the analyzer will warn if a call site pattern-matches non-exhaustively.
+- `EXISTING_TESTS_GREEN` → the Story 1.8 `NoopAiRung` shape is unchanged; the `ai_rung_test.dart` carry-over tests still pass without modification.
+- `PROVIDER_OVERRIDE` → `main.dart` overrides `aiRungConfigProvider` with `const AiRungConfig(kind: AiRungKind.noOp)`; Stories 3.2 / 3.3 flip the config to `hostedQuota` / `byok` without touching the screen.
+
+AD-1 invariant — the grep test in `domain_core_test.dart` is extended with `package:flutter_secure_storage/` in the forbidden list. The new files introduce no forbidden imports; the existing files (`ai_rung.dart`, `recognition_failure.dart`) remain Flutter-free.
 
 ### Debug Log
 
-(To be populated by the dev agent on completion.)
+- The provider test file initially declared `typedef Uint8List = List<int>;` at the bottom — wrong, because `Uint8List` from `dart:typed_data` is a typed buffer with a different shape than `List<int>`. Fixed by importing `dart:typed_data` at the top and removing the `typedef`.
 
 ### File List
 
-(To be populated by the dev agent on completion.)
+New files:
+- `packages/domain_core/lib/src/value_types/ai_rung_kind.dart`
+- `packages/domain_core/lib/src/value_types/ai_rung_config.dart`
+- `packages/domain_core/test/ai_rung_config_test.dart`
+- `packages/integrations/lib/src/ai/local_ai_rung.dart`
+- `packages/integrations/lib/src/ai/hosted_quota_ai_rung.dart`
+- `packages/integrations/lib/src/ai/byok_ai_rung.dart`
+- `packages/integrations/test/ai_rung_adapters_test.dart`
+- `apps/client/lib/state/ai_rung_provider.dart`
+- `apps/client/test/state/ai_rung_provider_test.dart`
+
+Modified files:
+- `packages/domain_core/lib/src/results/recognition_failure.dart` (added `QuotaExhausted` variant; sealed hierarchy docstring updated)
+- `packages/domain_core/lib/src/ports/ai_rung.dart` (docstring updated for the four rungs + the new variant; port signature unchanged)
+- `packages/domain_core/lib/domain_core.dart` (barrel export added for `ai_rung_kind`, `ai_rung_config`)
+- `packages/domain_core/test/domain_core_test.dart` (forbidden-list extended with `package:flutter_secure_storage/`; `pubspec.yaml` check extended with `flutter_secure_storage:`)
+- `packages/domain_core/test/ai_rung_test.dart` (extended with three `QuotaExhausted` tests)
+- `packages/integrations/lib/integrations.dart` (barrel export added for the three new rung adapters)
+- `apps/client/lib/main.dart` (override `aiRungConfigProvider` with `const AiRungConfig(kind: AiRungKind.noOp)`; added import for `state/ai_rung_provider.dart` + `domain_core`)
+- `_bmad-output/implementation-artifacts/spec-3-1-ai-rung-port-with-swappable-implementations.md` (frontmatter status / Dev Agent Record populated)
 
 ### Change Log
 
-(To be populated by the dev agent on completion.)
+- 2026-08-16 — Initial implementation of Story 3.1 (AiRung config + four rung slot + `QuotaExhausted` variant + AD-1 `flutter_secure_storage` ban). All 16 execution tasks complete.
 
 ---
 

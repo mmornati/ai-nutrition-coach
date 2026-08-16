@@ -23,6 +23,7 @@ const _forbiddenImportFragments = <String>[
   'package:drift_flutter/',
   'package:dio',
   'package:mobile_scanner/',
+  'package:flutter_secure_storage/', // AD-8 / Story 3.1 — secure storage is an adapter concern
   'dart:ui',
   'dart:io', // no filesystem access in the core — adapters live elsewhere
   'package:sqlite3',
@@ -138,6 +139,7 @@ void main() {
         'drift:',
         'dio:',
         'mobile_scanner:',
+        'flutter_secure_storage:',
         'sqlite3',
         'http:',
       ];

@@ -15,7 +15,7 @@ development_status:
   "2-1-coach-taxonomy-and-localization-key-store": review
   "2-2-coach-note-generation-post-resolve-whisper": review
   "2-3-coach-question-interaction-answer-dismiss-depth": review
-  "3-1-ai-rung-port-with-swappable-implementations": ready-for-dev
+  "3-1-ai-rung-port-with-swappable-implementations": review
   "3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion": ready-for-dev
   "3-3-byok-bring-your-own-api-key": ready-for-dev
 

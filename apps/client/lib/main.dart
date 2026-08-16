@@ -1,8 +1,10 @@
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import 'screens/day_board_screen.dart';
+import 'state/ai_rung_provider.dart';
 import 'state/coach_note_provider.dart';
 import 'state/coach_provider.dart';
 import 'state/manual_entry_provider.dart';
@@ -46,14 +48,15 @@ void main() async {
         cameraPermissionProvider.overrideWithValue(
           const PermissionHandlerCameraPermission(),
         ),
-        // Story 1.8 — wire the photo seam. `image_picker` is the
-        // only photo-capture dependency in the repo; it lives here
-        // (and only here) — `packages/integrations` and
-        // `packages/domain_core` never import it (AD-1 grep test
-        // pins the rule). The v1 active rung is `NoopAiRung` so the
-        // photo path exercises the closest-matches + manual fallback
-        // (NFR5 / AD-5).
-        aiRungProvider.overrideWithValue(const NoopAiRung()),
+        // Story 3.1 — wire the AI rung config. The v1 default is
+        // `AiRungKind.noOp` (Story 1.8 carry-over); `aiRungProvider`
+        // reads the config and returns the matching adapter. The
+        // provider graph compiles against all four kinds
+        // (`noOp | hostedQuota | byok | local`) so Stories 3.2 /
+        // 3.3 can flip the config without touching the screen.
+        aiRungConfigProvider.overrideWithValue(
+          const AiRungConfig(kind: AiRungKind.noOp),
+        ),
         photoCaptureProvider
             .overrideWithValue(const ImagePickerPhotoCapture()),
         // Story 2.1 — wire the coach seam. `TemplateCoach` is the

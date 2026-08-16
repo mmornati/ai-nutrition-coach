@@ -25,13 +25,42 @@ import 'package:test/test.dart';
 void main() {
   group('AiRung port contract', () {
     test('RecognitionResult is sealed: RecognizedPlate | NoMatch | '
-        'RecognitionFailure', () {
+        'RecognitionFailure | QuotaExhausted', () {
       const r = RecognizedPlate(foods: <RecognizedFood>[]);
       const n = NoMatch();
       const f = RecognitionFailure('offline');
+      const q = QuotaExhausted();
       expect(r, isA<RecognitionResult>());
       expect(n, isA<RecognitionResult>());
       expect(f, isA<RecognitionResult>());
+      expect(q, isA<RecognitionResult>());
+    });
+
+    test('QuotaExhausted carries an optional resetAt timestamp', () {
+      const noReset = QuotaExhausted();
+      final reset = QuotaExhausted(
+        resetAt: DateTime.utc(2026, 8, 17),
+      );
+      expect(noReset.resetAt, isNull);
+      expect(reset.resetAt, DateTime.utc(2026, 8, 17));
+    });
+
+    test('QuotaExhausted equality: same resetAt compares equal', () {
+      final a = QuotaExhausted(resetAt: DateTime.utc(2026, 8, 17));
+      final b = QuotaExhausted(resetAt: DateTime.utc(2026, 8, 17));
+      final c = QuotaExhausted(resetAt: DateTime.utc(2026, 8, 18));
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a, isNot(c));
+    });
+
+    test(
+        'QuotaExhausted is distinct from RecognitionFailure: the UI routes '
+        'them to different surfaces (FR6 / AD-5)', () {
+      const failure = RecognitionFailure('byok key rejected');
+      const exhausted = QuotaExhausted();
+      expect(exhausted, isNot(failure));
+      expect(exhausted, isNot(isA<RecognitionFailure>()));
     });
 
     test('RecognizedFood carries food + confidence + quantity', () {

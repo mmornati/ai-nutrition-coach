@@ -7,6 +7,7 @@
 /// * No `package:drift*` / SQLite
 /// * No `package:dio` / HTTP
 /// * No `package:mobile_scanner*`
+/// * No `package:flutter_secure_storage*` (Story 3.1 / AD-1)
 ///
 /// The invariant is enforced two ways:
 /// 1. `analysis_options.yaml` runs the analyzer in pure-Dart mode.
@@ -36,6 +37,8 @@ export 'src/results/store_failure.dart';
 export 'src/use_cases/generate_coach_note.dart';
 export 'src/use_cases/record_coach_interaction.dart';
 export 'src/use_cases/record_plate.dart';
+export 'src/value_types/ai_rung_config.dart';
+export 'src/value_types/ai_rung_kind.dart';
 export 'src/value_types/coach_interaction.dart';
 export 'src/value_types/composition_pattern.dart';
 export 'src/value_types/food_entry_draft.dart';
