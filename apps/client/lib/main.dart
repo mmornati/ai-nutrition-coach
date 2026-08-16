@@ -13,6 +13,7 @@ import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
 import 'state/web_session_key_provider.dart';
 import 'state/web_unlock_probe_provider.dart';
+import 'state/your_ai_provider.dart';
 import 'theme/app_tokens.dart';
 import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';
@@ -26,6 +27,40 @@ void main() async {
   // + the named-reviewer gate (Story 5.3).
   PrivacyGuard.assertAdultsOnly();
   final bundle = await createStores();
+
+  // Build-time BYOK affordance (Story 3.3 / FR-7 + the mobile-test
+  // wiring). When `--dart-define=OPENPLATE_BYOK_API_KEY=...` is
+  // passed at run time alongside the matching endpoint + model,
+  // the production app:
+  //   1. Seeds the secure-storage key store with the build-time
+  //      key so Settings → Your AI reports `hasKey = true` and the
+  //      Settings key entry is optional.
+  //   2. Wires the BYOK provider with the build-time endpoint +
+  //      model so `byokOpenAiCompatibleProviderProvider` resolves
+  //      to a working OpenAI-compatible HTTP adapter.
+  //   3. Flips the rung config to `AiRungKind.byok` so the photo
+  //      path resolves through the BYOK rung rather than the no-op
+  //      v1 default.
+  // The user can still override the key in Settings → Your AI; the
+  // secure-storage write is a one-time seed (the user-supplied key
+  // wins if present).
+  const buildConfig = BuildConfig();
+  final byokKeyStore = SecureStorageByokKeyStore();
+  if (buildConfig.hasByokDefaults &&
+      !await byokKeyStore.hasKey()) {
+    await byokKeyStore.write(buildConfig.byokApiKey);
+  }
+  final byokProvider = buildConfig.byokEndpointUrl.isNotEmpty &&
+          buildConfig.byokModel.isNotEmpty
+      ? OpenAiCompatibleByokProvider(
+          endpointUrl: buildConfig.byokEndpointUrl,
+          model: buildConfig.byokModel,
+        )
+      : const OpenAiCompatibleByokProvider();
+  final initialRung = buildConfig.hasByokDefaults
+      ? const AiRungConfig(kind: AiRungKind.byok)
+      : const AiRungConfig(kind: AiRungKind.noOp);
+
   runApp(
     ProviderScope(
       overrides: [
@@ -57,15 +92,23 @@ void main() async {
         cameraPermissionProvider.overrideWithValue(
           const PermissionHandlerCameraPermission(),
         ),
-        // Story 3.1 — wire the AI rung config. The v1 default is
-        // `AiRungKind.noOp` (Story 1.8 carry-over); `aiRungProvider`
-        // reads the config and returns the matching adapter. The
-        // provider graph compiles against all four kinds
-        // (`noOp | hostedQuota | byok | local`) so Stories 3.2 /
-        // 3.3 can flip the config without touching the screen.
-        aiRungConfigProvider.overrideWithValue(
-          const AiRungConfig(kind: AiRungKind.noOp),
-        ),
+        // Story 3.1 + 3.3 — wire the AI rung config. The v1 default
+        // is `AiRungKind.noOp`; when a build-time BYOK key is
+        // supplied (see the `BuildConfig` block above) the rung
+        // flips to `AiRungKind.byok` so the photo path resolves
+        // through the user's key. The provider graph compiles
+        // against all four kinds (`noOp | hostedQuota | byok |
+        // local`) so a runtime flip without a rebuild is a
+        // Settings → Your AI tap.
+        aiRungConfigProvider.overrideWithValue(initialRung),
+        // Story 3.3 — wire the BYOK key store + the
+        // OpenAI-compatible provider. The build-time defaults
+        // resolve to a working HTTP adapter when the three
+        // `--dart-define`s are supplied; the default-construct
+        // provider returns `ByokFailure` for the unconfigured case
+        // so the rung never crashes the photo path.
+        byokKeyStoreProvider.overrideWithValue(byokKeyStore),
+        byokOpenAiCompatibleProviderProvider.overrideWithValue(byokProvider),
         photoCaptureProvider
             .overrideWithValue(const ImagePickerPhotoCapture()),
         // Story 2.1 — wire the coach seam. `TemplateCoach` is the
