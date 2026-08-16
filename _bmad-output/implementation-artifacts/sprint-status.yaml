@@ -12,7 +12,7 @@ development_status:
   "1-6-capture-sheet-fan-out": review
   "1-7-scan-barcode-packaged-food": review
   "1-8-photograph-a-plate": review
-  "2-1-coach-taxonomy-and-localization-key-store": ready-for-dev
+  "2-1-coach-taxonomy-and-localization-key-store": review
   "2-2-coach-note-generation-post-resolve-whisper": ready-for-dev
   "2-3-coach-question-interaction-answer-dismiss-depth": ready-for-dev
 
@@ -57,7 +57,7 @@ epics:
     stories:
       - key: "2-1"
         title: coach-taxonomy-and-localization-key-store
-        status: ready-for-dev
+        status: review
         file: "spec-2-1-coach-taxonomy-and-localization-key-store.md"
       - key: "2-2"
         title: coach-note-generation-post-resolve-whisper
