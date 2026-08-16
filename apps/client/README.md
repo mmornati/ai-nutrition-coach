@@ -34,10 +34,15 @@ exercises:
 * `melos run format:check` — keeps formatting consistent.
 * `melos run test` — the AD-1 purity test for `domain_core` plus the
   client widget smoke test.
+* `melos run smoke:self-host` — the Story 4.4 / FR-11 self-host
+  smoke test (builds the `bin/openplate` image end-to-end and
+  curls the lock-screen HTML). See
+  [`docs/self-host.md`](../../docs/self-host.md).
 
 Local mirror:
 
 ```
 melos run analyze
 melos run test
+melos run smoke:self-host
 ```

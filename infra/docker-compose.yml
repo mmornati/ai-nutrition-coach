@@ -1,0 +1,27 @@
+# Story 4.4 — opt-in persistent-data compose file (FR-11).
+#
+# `bin/openplate up` uses `docker run` so the zero-config path has
+# zero dependencies. `bin/openplate up --with-persist` starts this
+# stack instead: the sqlite3mc database is bind-mounted at `/data`
+# inside the container so it survives container restarts.
+#
+# The container runs as the non-root `openplate` user the
+# Dockerfile declares (see `infra/Dockerfile`). The bind mount is
+# owned by the same uid so the database file is writable.
+#
+# No reverse-proxy / TLS termination in v1. Put nginx / caddy /
+# traefik in front of the container; a v1.1 follow-up adds a
+# self-signed TLS option.
+
+services:
+  openplate:
+    image: openplate:dev
+    container_name: openplate
+    ports:
+      - "80:80"
+    volumes:
+      - openplate-data:/data
+    restart: unless-stopped
+
+volumes:
+  openplate-data:

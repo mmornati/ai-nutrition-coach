@@ -1,0 +1,103 @@
+#!/bin/sh
+# ────────────────────────────────────────────────────────────────────────────
+# openplate — the one-command self-host affordance (Story 4.4 / FR-11).
+#
+#   bin/openplate up              — zero-config docker run (data lives and
+#                                   dies with the container).
+#   bin/openplate up --with-persist
+#                                 — docker compose with a bind-mounted
+#                                   volume at /data so the sqlite3mc
+#                                   database survives container restarts.
+#
+# Exit codes:
+#   0   — success (image built + container started, or compose stack up).
+#   10  — docker not installed.
+#   20  — image build failed (build log tail printed).
+#   30  — docker run failed.
+#   40  — compose stack failed to start.
+#
+# The script is POSIX shell only (no bash-isms). It targets the bare
+# `sh` so it runs unchanged on Linux + macOS + the alpine base that
+# ships in many CI runners.
+# ────────────────────────────────────────────────────────────────────────────
+
+set -eu
+
+IMAGE_TAG="${OPENPLATE_IMAGE_TAG:-openplate:dev}"
+CONTAINER_NAME="${OPENPLATE_CONTAINER_NAME:-openplate}"
+HOST_PORT="${OPENPLATE_HOST_PORT:-80}"
+
+up() {
+  persist=0
+  for arg in "$@"; do
+    case "$arg" in
+      --with-persist) persist=1 ;;
+      --help|-h) usage; exit 0 ;;
+      *) printf 'openplate: unknown argument: %s\n' "$arg" >&2; usage; exit 1 ;;
+    esac
+  done
+
+  if ! command -v docker >/dev/null 2>&1; then
+    printf 'openplate: docker is required — install it from https://docs.docker.com/get-docker/\n' >&2
+    exit 10
+  fi
+
+  printf 'openplate: building %s ...\n' "$IMAGE_TAG"
+  if ! docker build -t "$IMAGE_TAG" . ; then
+    printf 'openplate: image build failed — see the log tail above.\n' >&2
+    exit 20
+  fi
+
+  if [ "$persist" = 1 ]; then
+    printf 'openplate: starting compose stack (persistent data at /data) ...\n'
+    if ! docker compose -f infra/docker-compose.yml up -d ; then
+      printf 'openplate: compose stack failed to start.\n' >&2
+      exit 40
+    fi
+    printf 'openplate is up at http://localhost:%s/\n' "$HOST_PORT"
+    exit 0
+  fi
+
+  printf 'openplate: starting container (data lives and dies with the container) ...\n'
+  if ! docker run --rm -d \
+        --name "$CONTAINER_NAME" \
+        -p "${HOST_PORT}:80" \
+        "$IMAGE_TAG" ; then
+    printf 'openplate: docker run failed.\n' >&2
+    exit 30
+  fi
+  printf 'openplate is up at http://localhost:%s/\n' "$HOST_PORT"
+}
+
+down() {
+  if ! command -v docker >/dev/null 2>&1; then exit 10; fi
+  if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}\$"; then
+    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+  fi
+  if command -v docker >/dev/null 2>&1 && [ -f infra/docker-compose.yml ]; then
+    docker compose -f infra/docker-compose.yml down >/dev/null 2>&1 || true
+  fi
+  printf 'openplate: stopped.\n'
+}
+
+usage() {
+  cat <<USAGE
+openplate — self-host affordance (Story 4.4 / FR-11)
+
+Usage:
+  bin/openplate up [--with-persist]
+  bin/openplate down
+
+Environment overrides:
+  OPENPLATE_IMAGE_TAG       image tag (default: openplate:dev)
+  OPENPLATE_CONTAINER_NAME  container name (default: openplate)
+  OPENPLATE_HOST_PORT       host port (default: 80)
+USAGE
+}
+
+case "${1:-}" in
+  up)   shift; up "$@" ;;
+  down) shift; down "$@" ;;
+  ""|help|-h|--help) usage ;;
+  *)    printf 'openplate: unknown command: %s\n' "$1" >&2; usage; exit 1 ;;
+esac
