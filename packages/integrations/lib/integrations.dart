@@ -14,7 +14,6 @@ export 'src/catalog/off_barcode_source.dart';
 export 'src/catalog/offline_first_food_catalog.dart';
 export 'src/catalog/seed_foods.dart';
 export 'src/store/create_encrypted_store.dart';
-export 'src/store/encrypted_store_adapter.dart';
 export 'src/store/secure_key_source.dart';
 export 'src/store/web_encrypted_store_stub.dart';
 export 'src/voice/noop_voice_transcriber.dart';

@@ -6,6 +6,7 @@ import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
 import 'package:integrations/integrations.dart';
 import 'package:integrations/src/store/app_database.dart';
+import 'package:integrations/src/store/encrypted_store_adapter.dart';
 import 'package:test/test.dart';
 
 void main() {
