@@ -40,4 +40,6 @@ stories:
     merged_at: "2026-08-16"
   - key: "4-6"
     title: "oss-release-posture-license-contributing-ndp"
-    status: pending
+    status: committed
+    commit: "a89ad0a"
+    merged_at: "2026-08-16"
