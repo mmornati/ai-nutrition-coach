@@ -11,12 +11,15 @@
 library;
 
 export 'src/ai/byok_ai_rung.dart';
+export 'src/ai/byok_key_store.dart';
+export 'src/ai/byok_openai_compatible_provider.dart';
 export 'src/ai/cloudflare_workers_ai_provider.dart';
 export 'src/ai/gemini_free_provider.dart';
 export 'src/ai/hosted_quota_ai_rung.dart';
 export 'src/ai/hosted_quota_provider.dart';
 export 'src/ai/local_ai_rung.dart';
 export 'src/ai/noop_ai_rung.dart';
+export 'src/ai/openai_compatible_byok_provider.dart';
 export 'src/ai/quota_counter.dart';
 export 'src/catalog/lru_cache.dart';
 export 'src/catalog/off_barcode_source.dart';

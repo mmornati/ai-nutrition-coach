@@ -333,3 +333,84 @@ const AiRungStrings enAiRungStrings = AiRungStrings(
   waitForReset: 'wait for the quota to reset',
   quotaStatusHeading: 'When the free quota runs out',
 );
+
+/// The BYOK copy (Story 3.3 / FR7). The Your AI sub-screen reads
+/// these for the masked key entry, the Save / Remove affordances,
+/// the active-status line, and the previous-rung hint. Calm
+/// non-judgmental copy (FR15 / NFR3 / NFR7); no countdown
+/// vocabulary, no key-shape preview, no "your key starts with
+/// sk-..." toast.
+class ByokStrings {
+  const ByokStrings({
+    required this.title,
+    required this.label,
+    required this.placeholder,
+    required this.save,
+    required this.remove,
+    required this.statusActive,
+    required this.statusMissing,
+    required this.statusRejected,
+    required this.statusQuotaExhausted,
+    required this.previousRungHint,
+  });
+
+  /// The Your AI sub-screen title (Settings → Your AI).
+  final String title;
+
+  /// The rung label rendered on the Settings list row ("Your AI"
+  /// surfaces the rung label as the row title; the row's subtitle
+  /// is the status line).
+  final String label;
+
+  /// The masked text field placeholder copy. Explains on-device
+  /// encryption so the user knows the key is never uploaded (FR7).
+  final String placeholder;
+
+  /// The `Save` affordance label.
+  final String save;
+
+  /// The `Remove key` affordance label.
+  final String remove;
+
+  /// Status line when the BYOK rung is active and a key is stored.
+  /// Reads "your key — 1 model" (calm mono copy; FR7 / FR15).
+  final String statusActive;
+
+  /// Status line when no key is stored.
+  /// Reads "your key — none" (calm mono copy).
+  final String statusMissing;
+
+  /// Status line when the provider rejected the key.
+  /// Reads "your key — rejected" (calm mono copy; FR7).
+  final String statusRejected;
+
+  /// Status line when the provider's quota is exhausted.
+  /// Reads "your key — quota done" (calm mono copy; FR6 carry-over).
+  final String statusQuotaExhausted;
+
+  /// Hint copy rendered under the BYOK entry form when the
+  /// previous rung is recorded. Reads "removing this key returns
+  /// to <previous rung label>" (calm non-judgmental; FR7).
+  final String previousRungHint;
+}
+
+/// The v1 `en` BYOK strings (Story 3.3). The named NDP reviewer
+/// signs off on this single value; the keys are the identity the
+/// UI binds to.
+///
+/// Every entry is calm non-judgmental copy (FR15 / NFR3 / NFR7);
+/// none of the entries use countdown vocabulary, restriction
+/// framing, or key-shape previews.
+const ByokStrings enByokStrings = ByokStrings(
+  title: 'Your AI',
+  label: 'your key',
+  placeholder:
+      'paste your OpenAI-compatible key — stored encrypted on this device',
+  save: 'Save',
+  remove: 'Remove key',
+  statusActive: 'your key — 1 model',
+  statusMissing: 'your key — none',
+  statusRejected: 'your key — rejected',
+  statusQuotaExhausted: 'your key — quota done',
+  previousRungHint: 'removing this key returns to {previousRungLabel}',
+);

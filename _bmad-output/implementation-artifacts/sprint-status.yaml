@@ -17,7 +17,7 @@ development_status:
   "2-3-coach-question-interaction-answer-dismiss-depth": review
   "3-1-ai-rung-port-with-swappable-implementations": review
   "3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion": review
-  "3-3-byok-bring-your-own-api-key": ready-for-dev
+  "3-3-byok-bring-your-own-api-key": review
 
 epics:
   - id: 1

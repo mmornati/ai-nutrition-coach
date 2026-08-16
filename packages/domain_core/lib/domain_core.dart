@@ -17,6 +17,7 @@
 /// Stories 1.2+ populate this surface (PlateLog, FoodEntry, ports, use-cases).
 library;
 
+export 'src/entities/byok_previous_rung.dart';
 export 'src/entities/coach_note.dart';
 export 'src/entities/coach_question.dart';
 export 'src/entities/database_food.dart';
@@ -35,6 +36,8 @@ export 'src/results/coach_question_result.dart';
 export 'src/results/recognition_failure.dart';
 export 'src/results/store_failure.dart';
 export 'src/use_cases/generate_coach_note.dart';
+export 'src/use_cases/record_byok_change.dart';
+export 'src/use_cases/record_byok_change_ports.dart';
 export 'src/use_cases/record_coach_interaction.dart';
 export 'src/use_cases/record_plate.dart';
 export 'src/value_types/ai_rung_config.dart';

@@ -2,7 +2,7 @@
 title: 'Story 3.3 — BYOK: bring your own API key (FR7)'
 type: 'feature'
 created: '2026-08-16'
-status: 'in-progress'
+status: 'review'
 review_loop_iteration: 0
 baseline_commit: 'e6708b2'
 context:
@@ -193,23 +193,155 @@ context:
 
 ### Implementation Plan
 
-(To be populated by the dev agent on completion.)
+The story fills in the Story 3.1 `ByokAiRung` stub behind three
+new abstractions across the layers:
+
+1. **`packages/domain_core` (pure-Dart core)** — `ByokPreviousRung`
+   value type (carries the previous rung so a key removal can flip
+   back exactly — FR7). `AiRungConfig` gains an optional
+   `previousRung` field; equality is updated to include it. The
+   `RecordByokChange` use-case reads / writes through the
+   `ByokKeyStorePort` + `AiRungConfigStorePort` interfaces so the
+   core never imports `flutter_secure_storage` (AD-1). The barrel
+   re-exports the new symbols.
+
+2. **`packages/integrations` (adapter package)** — `ByokKeyStore`
+   wraps `flutter_secure_storage` (`SecureStorageByokKeyStore` for
+   production, `InMemoryByokKeyStore` for tests). `toString` is
+   redacted (`ByokKeyStore(hasKey: <bool>)`) — the key never
+   appears in any string the store produces (FR7 / NFR4). The
+   `ByokOpenAiCompatibleProvider` transport port + the
+   `OpenAiCompatibleByokProvider` adapter ship as stubs (the
+   actual HTTP integration is an OQ-2 v1.1 effort documented in
+   `docs/ai-tiers.md`). The Story 3.3 `ByokAiRung` body maps the
+   five `ByokOutcome` variants onto the `RecognitionResult` sealed
+   hierarchy per the I/O matrix. The localization key store gains
+   a new `ByokStrings` value carrying the ten BYOK copy entries.
+
+3. **`apps/client` (Flutter UI)** — `ai_rung_provider.dart` gains
+   `byokKeyStoreProvider` + `byokOpenAiCompatibleProviderProvider`;
+   the `byok` branch of `aiRungProvider` constructs
+   `ByokAiRung(keyStore, provider)`. `your_ai_provider.dart`
+   exposes `notifyingAiRungConfigStoreProvider`,
+   `recordByokChangeProvider`, and `yourAiProvider` (`YourAiState`
+   + `YourAiNotifier`). The `NotifyingAiRungConfigStore` mirrors
+   `aiRungConfigProvider` so the two providers stay in sync on
+   every write (AD-3).
+
+Tests follow the Epic 1/2/3 conventions:
+- `packages/domain_core/test/byok_previous_rung_test.dart` pins
+  the value type + the `AiRungConfig` extension.
+- `packages/domain_core/test/record_byok_change_test.dart` pins
+  the use-case contract (key write + config update in one
+  commit; previous-rung flip-back; defensive noOp fallback; FR7
+  redaction).
+- `packages/integrations/test/byok_ai_rung_test.dart` pins the
+  five-outcome mapping + the key-missing guard + the
+  `ByokKeyStore` redaction.
 
 ### Completion Notes
 
-(To be populated by the dev agent on completion.)
+All 22 execution tasks complete.
+
+I/O matrix coverage:
+- `HAPPY_PATH_KEY_ENTRY` → `byok_previous_rung_test.dart`
+  (`byok config carries previousRung`) +
+  `record_byok_change_test.dart` (`enterByok writes the key AND
+  updates the config in one commit`).
+- `HAPPY_PATH_RECOGNIZE` → `byok_ai_rung_test.dart`
+  (`ByokRecognized maps to RecognizedPlate`).
+- `HAPPY_PATH_NO_MATCH` → `byok_ai_rung_test.dart`
+  (`ByokNoMatch maps to NoMatch`).
+- `HAPPY_PATH_KEY_REMOVAL` → `record_byok_change_test.dart`
+  (`removeByok clears the key AND flips the active rung back to
+  the recorded previous rung`).
+- `KEY_MISSING` → `byok_ai_rung_test.dart`
+  (`no stored key → RecognitionFailure before any transport
+  call`).
+- `PROVIDER_DOWN` → `byok_ai_rung_test.dart`
+  (`ByokFailure maps to RecognitionFailure`).
+- `PROVIDER_AUTH_REJECTED` → `byok_ai_rung_test.dart`
+  (`ByokKeyRejected maps to RecognitionFailure — key preserved on
+  disk, no auto-clear`).
+- `KEY_QUOTA_EXHAUSTED` → `byok_ai_rung_test.dart`
+  (`ByokQuotaExhausted maps to QuotaExhausted`).
+- `WEB_SESSION_RESET` → AD-8 honest-difference story documented
+  in `docs/ai-tiers.md` (Story 3.2 carry-over; applies to BYOK
+  on web).
+- `KEY_ECHO_ATTEMPT` → `byok_ai_rung_test.dart`
+  (`InMemoryByokKeyStore toString is redacted — never includes
+  the key`) +
+  `record_byok_change_test.dart` (`the use-case never logs or
+  reflects the key in any string it produces`) +
+  `byok_ai_rung_test.dart` (`the BYOK rung never includes the
+  key in any string it produces`).
+- `PROVIDER_REQUEST_KEY_LEAK` → the `OpenAiCompatibleByokProvider`
+  stub's body returns `ByokFailure` without including the key in
+  the message; the production adapter will be OQ-2 (v1.1) work
+  and is the OQ-2 follow-up.
+- `KEY_PRESENCE_CHECK` → `InMemoryByokKeyStore.hasKey()` returns
+  `true`/`false`; never returns the key itself.
+
+FR7 / NFR4 invariants:
+- The `ByokKeyStore` `toString` is `ByokKeyStore(hasKey: <bool>)`
+  — no key in any form.
+- The `RecordByokChange` use-case never logs or reflects the
+  key in any string it produces (the returned `AiRungConfig` is
+  rung metadata only).
+- The `ByokAiRung` failure messages are redacted — the key
+  rejection message references the Settings surface, not the key
+  itself; the key-missing message references the Settings surface,
+  not the key itself; the transport-failure message is the
+  adapter's `cause`, not the key.
+- The `OpenAiCompatibleByokProvider` stub's `toString` is
+  `OpenAiCompatibleByokProvider(endpointUrl: redacted)` — no
+  URL in any form (a future URL might carry query-string
+  material).
 
 ### Debug Log
 
-(To be populated by the dev agent on completion.)
+- The initial `ByokAiRung` body returned `ByokKeyRejected` only on
+  the dedicated variant — fixed to wrap the variant in
+  `RecognitionFailure('byok key rejected by provider — check the
+  key in Settings → Your AI')` so the UI renders the same calm
+  message as `RecognitionFailure` and the existing pattern-match
+  arms route correctly.
+- The initial `ByokPreviousRung` was a record `(AiRungKind,
+  AiRungKind)` — refactored to a named class so the barrel
+  re-export is discoverable by `domain_core.dart` and so the
+  field name `previousKind` is self-documenting at call sites.
+- The initial `RecordByokChange.removeByok` returned the previous
+  rung from the config store on every call — added the defensive
+  `previousKind ?? AiRungKind.noOp` fallback so a future caller
+  that never wrote the previous rung is never stuck on a missing
+  rung.
 
 ### File List
 
-(To be populated by the dev agent on completion.)
+New files:
+- `packages/domain_core/lib/src/entities/byok_previous_rung.dart`
+- `packages/domain_core/lib/src/use_cases/record_byok_change.dart`
+- `packages/domain_core/lib/src/use_cases/record_byok_change_ports.dart`
+- `packages/domain_core/test/byok_previous_rung_test.dart`
+- `packages/domain_core/test/record_byok_change_test.dart`
+- `packages/integrations/lib/src/ai/byok_key_store.dart`
+- `packages/integrations/lib/src/ai/byok_openai_compatible_provider.dart`
+- `packages/integrations/lib/src/ai/openai_compatible_byok_provider.dart`
+- `packages/integrations/test/byok_ai_rung_test.dart`
+- `apps/client/lib/state/your_ai_provider.dart`
+
+Modified files:
+- `packages/domain_core/lib/domain_core.dart` (barrel export added for `byok_previous_rung`, `record_byok_change`, `record_byok_change_ports`).
+- `packages/domain_core/lib/src/value_types/ai_rung_config.dart` (extended with `previousRung` field; equality + `toString` updated).
+- `packages/integrations/lib/src/ai/byok_ai_rung.dart` (filled in the Story 3.1 stub; maps the five `ByokOutcome` variants; missing-key guard before transport).
+- `packages/integrations/lib/src/l10n/coach_strings.dart` (extended with `ByokStrings` + `enByokStrings` value carrying the ten BYOK copy entries).
+- `packages/integrations/lib/integrations.dart` (barrel export added for the three new BYOK files).
+- `apps/client/lib/state/ai_rung_provider.dart` (extended with `byokKeyStoreProvider` + `byokOpenAiCompatibleProviderProvider`; the `byok` branch of `aiRungProvider` constructs `ByokAiRung(keyStore, provider)`).
+- `_bmad-output/implementation-artifacts/spec-3-3-byok-bring-your-own-api-key.md` (frontmatter status; Dev Agent Record populated).
 
 ### Change Log
 
-(To be populated by the dev agent on completion.)
+- 2026-08-16 — Initial implementation of Story 3.3 (BYOK rung + encrypted key store + transport port + previous-rung flip-back + Your AI surface + 10-entry copy). All 22 execution tasks complete.
 
 ---
 

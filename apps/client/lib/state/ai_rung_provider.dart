@@ -16,8 +16,7 @@
 // Story 3.2 extends `aiRungProvider` with the `hostedQuota` branch
 // (constructs `HostedQuotaAiRung(quotaCounter, hostedQuotaProvider)`);
 // Story 3.3 adds the `byok` branch (constructs
-// `ByokAiRung(byokKeyStore, byokOpenAiCompatibleProvider,
-// recordByokChange)`).
+// `ByokAiRung(byokKeyStore, byokOpenAiCompatibleProvider)`).
 //
 // AD-1: this file lives under `apps/client/lib/` (the only place
 // Riverpod state and the rung port seam live together). The domain
@@ -70,6 +69,32 @@ final hostedQuotaProviderProvider = Provider<HostedQuotaProvider>(
   ),
 );
 
+/// The BYOK key store seam (Story 3.3 / FR7). Overridden in
+/// `main.dart` with the production `SecureStorageByokKeyStore()` so
+/// the key persists encrypted at rest (Keychain on iOS / macOS,
+/// EncryptedSharedPreferences on Android). Tests inject an
+/// `InMemoryByokKeyStore`.
+final byokKeyStoreProvider = Provider<ByokKeyStore>(
+  (ref) => throw UnimplementedError(
+    'byokKeyStoreProvider must be overridden at the ProviderScope root '
+    'with the result of `SecureStorageByokKeyStore()` — see '
+    'apps/client/lib/main.dart.',
+  ),
+);
+
+/// The BYOK transport seam (Story 3.3 / FR7). Overridden in
+/// `main.dart` with `OpenAiCompatibleByokProvider()` so the
+/// production wiring resolves to the v1 default. Tests inject a
+/// fake provider.
+final byokOpenAiCompatibleProviderProvider =
+    Provider<ByokOpenAiCompatibleProvider>(
+  (ref) => throw UnimplementedError(
+    'byokOpenAiCompatibleProviderProvider must be overridden at the '
+    'ProviderScope root with the result of '
+    '`OpenAiCompatibleByokProvider()` — see apps/client/lib/main.dart.',
+  ),
+);
+
 /// The config-driven `AiRung` adapter selection. Reads
 /// `aiRungConfigProvider` and constructs the matching adapter:
 ///
@@ -77,8 +102,8 @@ final hostedQuotaProviderProvider = Provider<HostedQuotaProvider>(
 ///     v1 default)
 ///   * `AiRungKind.hostedQuota`  → `HostedQuotaAiRung(quotaCounter,
 ///     hostedQuotaProvider)` (Story 3.2 / FR6)
-///   * `AiRungKind.byok`         → `ByokAiRung()` (Story 3.1
-///     stub; Story 3.3 fills the body)
+///   * `AiRungKind.byok`         → `ByokAiRung(byokKeyStore,
+///     byokProvider)` (Story 3.3 / FR7)
 ///   * `AiRungKind.local`        → `LocalAiRung()` (FR8 v2 seam;
 ///
 ///     throws `UnsupportedError` on `recognize`)
@@ -99,7 +124,10 @@ final aiRungProvider = Provider<AiRung>(
           provider: ref.watch(hostedQuotaProviderProvider),
         );
       case AiRungKind.byok:
-        return const ByokAiRung();
+        return ByokAiRung(
+          keyStore: ref.watch(byokKeyStoreProvider),
+          provider: ref.watch(byokOpenAiCompatibleProviderProvider),
+        );
       case AiRungKind.local:
         return const LocalAiRung();
     }
