@@ -212,9 +212,40 @@ Modified files:
 ## Senior Developer Review (AI)
 
 ### Review Date
+2026-08-16
 
 ### Review Outcome
+Approve-merge. All findings are low-severity. No blockers; one spec reconciliation needed (Code Map drift on map-key type). Domain-core analyzer + 33-test suite pass locally; integration/client suites need a Flutter SDK the container image doesn't supply (`cirruslabs/flutter:stable` ships a SDK that conflicts with `^3.12.0`; `3.27` and `3.32` are too old; `3.47` tag absent from the registry).
+
+### Layer Results
+- blind-hunter — ran
+- edge-case-hunter — ran
+- verification-gap — ran
+- acceptance-auditor — ran
+- failed_layers: none
 
 ### Action Items
+
+#### Patch
+
+- [ ] [Review][Patch] `coach_question.dart:19-22` docstring claims text/anchor/pattern participate in `hashCode`; the implementation hashes `key` only. Fix the comment to match the code (equality is by `key` only — no other field belongs in `hashCode`).
+
+- [ ] [Review][Patch] `coach_strings.dart` entries hand-write `key: 'post.resolve.vegLight'` for each row; the canonical `_coachKey(anchor, pattern)` helper is only used by `CoachQuestionKey.value`, never by the entry rows. Add an assertion that ties entry keys to the canonical form, e.g. `expect(entry.key, equals(_coachKey(entry.anchor, entry.pattern)))` in `template_coach_test.dart`, so a future rename of an enum `keyToken` fails CI.
+
+- [ ] [Review][Patch] `coach_question.dart` ships a `copyWith` that no caller in the diff (and no planned caller in Stories 2.2/2.3) exercises. Remove the method (or annotate as `@visibleForTesting` and document the future-use case) to keep the key-store value type surface minimal.
+
+- [ ] [Review][Patch] `template_coach_test.dart` and `coach_provider_test.dart` each carry their own `_PartialCoach` / `_PartialTemplateCoach` lookup — small but real duplication of the `TemplateCoach` `Map<CoachQuestionKey, CoachQuestion>` lookup pattern. Promote one to a shared test helper or accept the duplication as test isolation; either is fine, but the duplication should be deliberate.
+
+#### Decision-needed
+
+- [ ] [Review][Bad-Spec] The spec Code Map says `coach_strings.dart` ships `Map<({CoachAnchor, CompositionPattern}), CoachQuestion>` (a record-keyed map); the implementation ships `Map<CoachQuestionKey, CoachQuestion>` (a named-class key with `toString` / `value` getter for the canonical `'anchor.pattern'` string). Behaviour is equivalent — the new class is an intentional improvement. Update the Code Map paragraph in the spec to reflect the actual implementation.
+
+#### Defer (pre-existing or non-blocking)
+
+- [x] [Review][Defer] `UnimplementedError`-on-unoverridden seam relies on `thrown.toString().contains(...)` substring matching in `coach_provider_test.dart:62-64` because Riverpod 3.x wraps the thrown error in `ProviderException` — deferred, pre-existing Riverpod-version-coupling pattern; revisit on Riverpod upgrade.
+- [x] [Review][Defer] `TemplateCoach` returns `NoCoachQuestion` only on missing map entry, not on empty `text`. V1 entries are non-empty by construction; the EMPTY_KEY_STORE row of the I/O matrix is satisfied vacuously. — deferred, non-blocking.
+- [x] [Review][Defer] `bannedFragments` list (`template_coach_test.dart:62-78`) is curated for v1; terms like "ideal", "should", "limit", "track" are not banned. Current copy is genuinely calm so this is not actionable now. — deferred, copy stays clean at review time.
+- [x] [Review][Defer] Identical copy across two anchors (`post.resolve.starchHeavy` == `openPlate.starchHeavy`; same for `proteinHeavy` and `vegRich`) — reviewer judgement call; reuse is fine since the suggestion applies equally. — deferred.
+- [x] [Review][Defer] No sentinel test asserts "no network call" for AI_OFF_ACTIVE. Structural absence of `package:dio`/`http` in the coach path covers it. — deferred.
 
 ## Review Follow-ups (AI)

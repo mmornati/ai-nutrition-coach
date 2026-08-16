@@ -1,11 +1,16 @@
 # Loop Status
 started: "2026-08-16"
 total_stories: 3
-current_index: 0
+current_index: 1
 stories:
   - key: "2-1"
     title: "coach-taxonomy-and-localization-key-store"
-    status: pending
+    status: merged
+    commit: "350a912"
+    review_summary: "Approved-merge; 0 high/medium; 10 low (4 patch, 5 defer, 1 spec reconciliation); AD-1/AD-5/AD-7 invariants hold end-to-end."
+    high_count: 0
+    medium_count: 0
+    low_count: 10
   - key: "2-2"
     title: "coach-note-generation-post-resolve-whisper"
     status: pending
