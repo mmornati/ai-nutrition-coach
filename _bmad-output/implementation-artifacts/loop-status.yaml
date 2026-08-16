@@ -19,7 +19,9 @@ stories:
     merged_at: "2026-08-16"
   - key: "4-2"
     title: "exporter-csv-json-offline-no-account"
-    status: pending
+    status: committed
+    commit: "(pending)"
+    merged_at: "2026-08-16"
   - key: "4-3"
     title: "durable-outbox-sync-to-user-controlled-infra"
     status: pending

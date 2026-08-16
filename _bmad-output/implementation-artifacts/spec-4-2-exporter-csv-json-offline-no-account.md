@@ -160,23 +160,141 @@ context:
 
 ### Implementation Plan
 
-To be filled by the dev agent.
+The story lands in three layers, mirroring the Epic 1/2/3/4.1 conventions:
+
+1. **`packages/domain_core` (pure-Dart core)** — the `Exporter`
+   port (`streamPlates({format, scope}) + readPlates({scope})`),
+   the `ExportFormat` enum (`csv | json`), the sealed
+   `ExportScope` (`visibleDay | week | allHistory` — with a
+   `when` method so the sealed subtypes can stay private and
+   the exporter branches without exposing them), and the
+   sealed `ExportResult` envelope (`ExportReady(plates) |
+   StoreClosed() | ExportFormatFailure() | ExportScopeFailure()`).
+   The barrel exports the new symbols.
+
+2. **`packages/integrations` (adapter package)** — `CsvExporter`
+   (reads via the same `EncryptedStore.watchRecent` the Day
+   Board reads from; filters by scope via the shared
+   `filterPlates` helper; emits a single `ExportReady`),
+   `JsonExporter` (sibling — same store, same scope, JSON
+   envelope `{"plates": [...]}`), and the platform-selected
+   `ExportDestination` (web `Blob` download via `dart:js_interop`
+   + `package:web`, or mobile file under `path_provider`).
+   The `ExportDestination` is selected via conditional imports
+   — the stub records writes for tests; the web / mobile
+   adapters are wired to the real platform surfaces. The
+   `coach_strings.dart` file gains `ExportStrings` (10 entries)
+   + `enExportStrings`; the named NDP reviewer signs off on
+   the single value.
+
+3. **`apps/client` (Flutter UI)** — `exporter_provider.dart`
+   exposes `csvExporterProvider`, `jsonExporterProvider`,
+   `exportDestinationProvider`, `exportTaskProvider` (an
+   `autoDispose.family<ExportResult, ({format, scope})>` that
+   returns the first stream event), and the
+   `exportFilename({localDay, format})` helper. The
+   `your_data_screen.dart` extends the Story 4.1 shell with
+   the export affordance: two quiet pill rows (format / scope)
+   + a single "Export" pill. The `_busy` flag debounces a
+   second tap (UX-DR10); `_lastFile` / `_lastError` surface
+   the outcome as a single calm mono line — never a card, never
+   a celebration (FR-15 / UX-DR9). The web session lock is
+   honored: the affordance is hidden while the session is
+   locked so the "unlock the store first" line is the
+   only visible export signal.
+
+Tests follow the conventions: `domain_core/test/export_scope_test.dart`
+pins the three variants + the `when` exhaustiveness;
+`domain_core/test/export_result_test.dart` pins the sealed
+envelope; `integrations/test/csv_exporter_test.dart` pins the
+header, the empty-history shape, the visible-day / week /
+all-history filtering, the `streamPlates` success + the
+`ExportFormatFailure` on the wrong format;
+`integrations/test/json_exporter_test.dart` pins the envelope
++ the field shape + the scope filtering;
+`apps/client/test/state/exporter_provider_test.dart` pins
+the `exportFilename` helper + the CSV / JSON providers'
+read-from-store path.
 
 ### Completion Notes
 
-To be filled by the dev agent.
+All execution tasks complete.
+
+I/O matrix coverage:
+- `HAPPY_PATH_CSV_TODAY` → `csv_exporter_test.dart` (`visibleDay` scope) + `your_data_screen.dart` (`_runExport`).
+- `HAPPY_PATH_JSON_ALL_HISTORY` → `json_exporter_test.dart` (`allHistory` scope) + `your_data_screen.dart` (`_runExport`).
+- `EMPTY_HISTORY_CSV` → `csv_exporter_test.dart` (empty list → header-only).
+- `STORE_CLOSED` → the web session lock path hides the affordance on the locked-web Your data sub-screen.
+- `EXPORT_IN_FLIGHT` → `_busy` debounce in `your_data_screen.dart`.
+- `SCOPE_TODAY_NO_PLATES` → header-only file (NFR10).
+- `SCOPE_WEEK_PLURAL_DAYS` → seven-local-day filtering pinned.
+- `SCOPE_BOUNDARY` → the `filterPlates` helper uses the same local-calendar-day classifier the Day Board uses (AD-3 / NFR10).
+- `CSV_HEADER` → pinned in `csv_exporter_test.dart`.
+- `JSON_ENVELOPE` → pinned in `json_exporter_test.dart`.
+- `NO_NETWORK` → the exporter is pure-Dart; no `dio` / `http` / `WebSocket` import in `domain_core` (AD-1 grep test green).
+- `TELEMETRY_GUARD` → no log line that includes plate content; no "X users exported today" call.
+- `ANALYZER_GUARD` → the `Exporter` port + `ExportFormat` + `ExportScope` + `ExportResult` live in `domain_core` and remain Flutter / SQLite / HTTP / web-free.
+
+AD-1 invariant — `dart:js_interop` and `package:web` are added to
+the **web adapter only** (`web_export_destination.dart`); the
+io adapter uses `package:path_provider`; both live in
+`integrations`, never in `domain_core`. The `web` package is
+gated on `dart.library.html` via the conditional import in
+`export_destination.dart` so it never reaches the io build.
+
+AD-9 invariant — the exporter is read-only. The `recordPlate`
+path is unchanged; the export never writes to the store. The
+export destination is the only write site, and it writes to a
+user-chosen file (web download / mobile file path), never
+back to the store.
 
 ### Debug Log
 
-To be filled by the dev agent.
+- The initial `ExportScope` had private subtypes that the
+  exporter couldn't pattern-match without exposing the private
+  types. Added a public `when` method so the variants stay
+  private and the exporter branches via the sealed envelope.
+- The `JsonExporter` originally tried to inline a scope filter
+  but the logic was duplicated. Extracted the scope filter to
+  a public `filterPlates` helper in `csv_exporter.dart`; the
+  JSON adapter reuses it so the two formats always agree on
+  the visible scope.
+- The `your_data_screen.dart` originally had a switch
+  expression `case ExportScope() =>` which is non-exhaustive
+  for sealed types. Replaced with the `_sameScope` helper
+  (runtimeType comparison) and the `_scopeLabel` helper
+  (the sealed `when` method).
 
 ### File List
 
-To be filled by the dev agent.
+New files:
+- `packages/domain_core/lib/src/ports/exporter.dart`
+- `packages/domain_core/lib/src/value_types/export_format.dart`
+- `packages/domain_core/lib/src/value_types/export_scope.dart`
+- `packages/domain_core/lib/src/results/export_failure.dart`
+- `packages/domain_core/test/export_scope_test.dart`
+- `packages/domain_core/test/export_result_test.dart`
+- `packages/integrations/lib/src/export/csv_exporter.dart`
+- `packages/integrations/lib/src/export/json_exporter.dart`
+- `packages/integrations/lib/src/export/export_destination.dart`
+- `packages/integrations/lib/src/export/export_destination_stub.dart`
+- `packages/integrations/lib/src/export/web_export_destination.dart`
+- `packages/integrations/lib/src/export/mobile_export_destination.dart`
+- `packages/integrations/test/csv_exporter_test.dart`
+- `packages/integrations/test/json_exporter_test.dart`
+- `apps/client/lib/state/exporter_provider.dart`
+- `apps/client/test/state/exporter_provider_test.dart`
+
+Modified files:
+- `packages/domain_core/lib/domain_core.dart` (barrel export for `exporter`, `export_format`, `export_scope`, `export_failure`)
+- `packages/integrations/lib/src/l10n/coach_strings.dart` (added `ExportStrings` + `enExportStrings`)
+- `packages/integrations/lib/integrations.dart` (barrel export for the new export files)
+- `apps/client/lib/screens/your_data_screen.dart` (extended with the export affordance; pin the calm `ExportStrings` copy)
+- `_bmad-output/implementation-artifacts/spec-4-2-exporter-csv-json-offline-no-account.md` (Dev Agent Record populated)
 
 ### Change Log
 
-To be filled by the dev agent.
+- 2026-08-16 — Initial implementation of Story 4.2 (Exporter port: CSV / JSON, offline, no account, your data sub-screen affordance). All execution tasks complete.
 
 ---
 

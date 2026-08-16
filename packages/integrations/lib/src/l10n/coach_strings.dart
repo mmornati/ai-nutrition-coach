@@ -498,3 +498,58 @@ const YourDataStrings enYourDataStrings = YourDataStrings(
       'session-sealed on the web (the key is held in memory for this '
       'session only — never written to disk).',
 );
+
+/// The v1 `en` strings for the export affordance (Story 4.2 /
+/// AD-9 / FR-9 / NFR10). The named NDP reviewer signs off on
+/// this single value; the keys are the identity the Your data
+/// sub-screen binds to.
+///
+/// AD-7: keyed, never interpolated. FR-15: calm non-judgmental
+/// copy; no countdown, no celebration, no "Don't show again"
+/// easter egg. UX-DR9: the affordance is reversible — the
+/// export is a read-only copy, the source is untouched.
+class ExportStrings {
+  const ExportStrings({
+    required this.formatLabel,
+    required this.formatCsv,
+    required this.formatJson,
+    required this.scopeLabel,
+    required this.scopeToday,
+    required this.scopeWeek,
+    required this.scopeAll,
+    required this.exportButton,
+    required this.exportedLine,
+    required this.failedLine,
+  });
+
+  final String formatLabel;
+  final String formatCsv;
+  final String formatJson;
+  final String scopeLabel;
+  final String scopeToday;
+  final String scopeWeek;
+  final String scopeAll;
+  final String exportButton;
+
+  /// The calm line after a successful export. Renders as
+  /// "exported: <file>" with the filename in mono. No card, no
+  /// celebration.
+  final String exportedLine;
+
+  /// The calm line after a failed export. Renders below the
+  /// export pill. No exception is ever thrown across the port.
+  final String failedLine;
+}
+
+const ExportStrings enExportStrings = ExportStrings(
+  formatLabel: 'Format',
+  formatCsv: 'CSV',
+  formatJson: 'JSON',
+  scopeLabel: 'Scope',
+  scopeToday: 'Today',
+  scopeWeek: 'This week',
+  scopeAll: 'All history',
+  exportButton: 'Export',
+  exportedLine: 'exported: ',
+  failedLine: 'export failed — try again',
+);

@@ -33,6 +33,10 @@ export 'src/store/local_coach_note_store.dart';
 export 'src/store/lock_screen.dart';
 export 'src/store/wasm_encrypted_store.dart';
 export 'src/store/web_session_key.dart';
+export 'src/export/csv_exporter.dart';
+export 'src/export/json_exporter.dart';
+export 'src/export/export_destination.dart';
+export 'src/export/export_destination_stub.dart';
 export 'src/voice/noop_voice_transcriber.dart';
 
 const String integrationsVersion = '0.1.0';
