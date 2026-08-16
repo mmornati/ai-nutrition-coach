@@ -2,7 +2,8 @@
 title: 'Story 2.1 — Coach taxonomy and localization key store'
 type: 'feature'
 created: '2026-08-16'
-status: 'ready-for-dev'
+status: 'review'
+baseline_commit: '9f6eaf893e367014bebb590b0a1f7444fa2c4da7'
 review_loop_iteration: 0
 context:
   - _bmad-output/implementation-artifacts/epic-2-context.md
@@ -73,19 +74,19 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/domain_core/lib/src/value_types/composition_pattern.dart` -- `enum CompositionPattern` (vegLight, proteinHeavy, starchHeavy, dairyLight, vegRich, balanced) + `enum CoachAnchor` (postResolve, openPlate) -- the v1 taxonomy
-- [ ] `packages/domain_core/lib/src/entities/coach_question.dart` -- `CoachQuestion` value type with `key`, `text`, `anchor`, `pattern`; equality by `key`
-- [ ] `packages/domain_core/lib/src/results/coach_question_result.dart` -- sealed `CoachQuestionResult = CoachFound(CoachQuestion) | NoCoachQuestion`
-- [ ] `packages/domain_core/lib/src/ports/coach.dart` -- `abstract interface class Coach` with `questionFor({anchor, pattern})` -- AD-1 single port, no Flutter imports
-- [ ] `packages/domain_core/lib/domain_core.dart:19` -- barrel update exporting the new symbols
-- [ ] `packages/domain_core/test/coach_test.dart` -- AD-1 invariant holds; `Coach` is interface-only; `CoachQuestion` equality by key
-- [ ] `packages/integrations/lib/src/l10n/coach_strings.dart` -- single typed `Map<({CoachAnchor, CompositionPattern}), CoachQuestion>` for the `en` locale; one calm non-judgmental string per entry; ≥1 char per entry; named reviewer can sign off in one file
-- [ ] `packages/integrations/lib/src/coach/template_coach.dart` -- `TemplateCoach` resolving the `en` key store; returns `CoachFound(question)` for known keys, `NoCoachQuestion` for unknown patterns
-- [ ] `packages/integrations/lib/integrations.dart:1` -- barrel update
-- [ ] `packages/integrations/test/template_coach_test.dart` -- every v1 `(anchor, pattern)` returns a non-empty `CoachQuestion`; unknown patterns return `NoCoachQuestion`; same key → same question
-- [ ] `apps/client/lib/main.dart` -- override `coachProvider` with `TemplateCoach()` so Story 2.2 / 2.3 can read it
-- [ ] `apps/client/test/coach_provider_test.dart` -- Riverpod override resolves to `TemplateCoach` and returns the expected key for a known pattern
-- [ ] `packages/domain_core/test/domain_core_test.dart:19` -- AD-1 grep test remains green (no Flutter/drift/dio imports in `domain_core/lib/`)
+- [x] `packages/domain_core/lib/src/value_types/composition_pattern.dart` -- `enum CompositionPattern` (vegLight, proteinHeavy, starchHeavy, dairyLight, vegRich, balanced) + `enum CoachAnchor` (postResolve, openPlate) -- the v1 taxonomy
+- [x] `packages/domain_core/lib/src/entities/coach_question.dart` -- `CoachQuestion` value type with `key`, `text`, `anchor`, `pattern`; equality by `key`
+- [x] `packages/domain_core/lib/src/results/coach_question_result.dart` -- sealed `CoachQuestionResult = CoachFound(CoachQuestion) | NoCoachQuestion`
+- [x] `packages/domain_core/lib/src/ports/coach.dart` -- `abstract interface class Coach` with `questionFor({anchor, pattern})` -- AD-1 single port, no Flutter imports
+- [x] `packages/domain_core/lib/domain_core.dart:19` -- barrel update exporting the new symbols
+- [x] `packages/domain_core/test/coach_test.dart` -- AD-1 invariant holds; `Coach` is interface-only; `CoachQuestion` equality by key
+- [x] `packages/integrations/lib/src/l10n/coach_strings.dart` -- single typed `Map<({CoachAnchor, CompositionPattern}), CoachQuestion>` for the `en` locale; one calm non-judgmental string per entry; ≥1 char per entry; named reviewer can sign off in one file
+- [x] `packages/integrations/lib/src/coach/template_coach.dart` -- `TemplateCoach` resolving the `en` key store; returns `CoachFound(question)` for known keys, `NoCoachQuestion` for unknown patterns
+- [x] `packages/integrations/lib/integrations.dart:1` -- barrel update
+- [x] `packages/integrations/test/template_coach_test.dart` -- every v1 `(anchor, pattern)` returns a non-empty `CoachQuestion`; unknown patterns return `NoCoachQuestion`; same key → same question
+- [x] `apps/client/lib/main.dart` -- override `coachProvider` with `TemplateCoach()` so Story 2.2 / 2.3 can read it
+- [x] `apps/client/test/coach_provider_test.dart` -- Riverpod override resolves to `TemplateCoach` and returns the expected key for a known pattern
+- [x] `packages/domain_core/test/domain_core_test.dart:19` -- AD-1 grep test remains green (no Flutter/drift/dio imports in `domain_core/lib/`)
 
 **Acceptance Criteria:**
 - Given the v1 taxonomy, when `Coach.questionFor(anchor: postResolve, pattern: vegLight)` is called with `TemplateCoach` active, then a non-empty, calm, non-judgmental `CoachQuestion` with key `post.resolve.vegLight` is returned.
@@ -142,13 +143,69 @@ context:
 
 ### Implementation Plan
 
+The story lands in three layers, mirroring the Epic 1 conventions:
+
+1. **`packages/domain_core` (pure-Dart core)** — value types (`CompositionPattern`, `CoachAnchor` enums + `keyToken` getters), entity (`CoachQuestion` value type with equality by `key`), sealed result hierarchy (`CoachFound | NoCoachQuestion`), and the `abstract interface class Coach` port. All four new files are pure-Dart — no Flutter / drift / dio / image_picker / mobile_scanner imports. The barrel `domain_core.dart` re-exports them so downstream packages reach the symbols via `package:domain_core/domain_core.dart`.
+
+2. **`packages/integrations` (adapter package)** — `coach_strings.dart` ships the v1 `en` key store as a single `const Map<CoachQuestionKey, CoachQuestion>` with 12 entries (2 anchors × 6 patterns). `CoachQuestionKey` is a value type so the map keys are immutable and hashable. `TemplateCoach` implements `Coach` and resolves the map for every `(anchor, pattern)` pair, returning `CoachFound(question)` for known entries and `NoCoachQuestion` for anything else. The barrel re-exports both.
+
+3. **`apps/client` (Flutter UI)** — new `coach_provider.dart` exposes `coachProvider` (a Riverpod `Provider<Coach>` with the spec-mandated defensive `UnimplementedError` throw) and a `FakeCoach` test double. `main.dart` overrides `coachProvider` with `const TemplateCoach()` so Stories 2.2 / 2.3 read from the same seam.
+
+Tests follow the Epic 1 conventions: `packages/domain_core/test/coach_test.dart` pins the value types + sealed result + port contract; `packages/integrations/test/template_coach_test.dart` pins the key store shape + non-empty / non-judgmental text + unknown-pattern `NoCoachQuestion`; `apps/client/test/state/coach_provider_test.dart` pins the Riverpod override shape.
+
 ### Completion Notes
+
+All 13 tasks complete. Test results:
+- `packages/domain_core`: 33 tests pass (including the 8 new `coach_test.dart` tests + AD-1 invariant).
+- `packages/integrations`: 52 tests pass (including the 10 new `template_coach_test.dart` tests).
+- `apps/client`: state/ and widgets/ tests pass (56 tests). The 4 pre-existing `day_board_screen_test.dart` failures are not caused by this story (verified by stashing and re-running). `widget_test.dart` (which exercises the production `main.dart` seam) passes.
+
+I/O matrix coverage:
+- HAPPY_PATH_POST_RESOLVE_VEG_LIGHT → `template_coach_test.dart: 'questionFor returns CoachFound …'` + `coach_provider_test.dart: 'production override resolves to TemplateCoach …'`
+- HAPPY_PATH_OPEN_PLATE_HINT → same tests cover every `(anchor, pattern)`.
+- UNKNOWN_PATTERN → `template_coach_test.dart: 'unknown pattern returns NoCoachQuestion …'` + `coach_provider_test.dart: 'unknown (anchor, pattern) returns NoCoachQuestion …'`.
+- AI_OFF_ACTIVE → `template_coach_test.dart: 'same (anchor, pattern) returns the same CoachQuestion instance …'` + the coach_provider_test.dart production-override tests.
+- AI_ON_FUTURE → `coach_test.dart: 'Coach is interface-only: a minimal adapter …'` — any adapter returning the sealed result compiles against the port.
+- DARK_MODE → `widget_test.dart: 'OpenPlate scaffold resolves dark tokens from Theme.of'` (pre-existing, still passes).
+- EMPTY_KEY_STORE → `template_coach_test.dart: 'unknown pattern returns NoCoachQuestion …'` (exercises a partial map).
+- REDUCED_MOTION → handled by Story 2.2 (out of scope for 2.1).
+- MULTI_PATTERN_SAME_ANCHOR → N/A (UI is responsible; spec says this story does not pick).
+
+Key equality invariant — `CoachQuestion.==` uses `key` only; `hashCode` is `key.hashCode`. `NoCoachQuestion` is a singleton-by-type. The grep test in `domain_core_test.dart` still passes (the new files introduce no forbidden imports).
+
+The key store copy was authored against the FR15 / NFR3 / NFR6 / NFR7 standard: calm suggestions (`a handful`, `a small bowl`, `a bit of`), no kcal-as-float, no calorie-shaming / streak / restriction / guilt vocabulary. A banned-fragments test pins the same vocabulary ban so a regression in the key store fails before the NDP review pass.
 
 ### Debug Log
 
+- First run of `dart test` for `packages/domain_core` failed because the coach_question.dart import path was relative (it lives in `entities/` but composition_pattern.dart lives in `value_types/`). Fixed with `import '../value_types/composition_pattern.dart';`.
+- `CoachQuestion` initially hashed `key + text + anchor + pattern`, breaking the contract that equality is by `key` (the test "same key compares equal regardless of text" failed because `a.hashCode != b.hashCode`). Fixed by hashing only `key`.
+- `NoCoachQuestion.hashCode` was recursive (`const NoCoachQuestion().hashCode` from inside the `hashCode` getter — infinite loop). Fixed with `(NoCoachQuestion).hashCode` (the type literal's hash).
+- First run of `apps/client/test/state/coach_provider_test.dart` failed to compile because `encryptedStoreProvider` was not imported. Fixed by importing `state/record_plate_provider.dart` and inlining a minimal `_StubEncryptedStore` (the test does not exercise the store path).
+- The defensive-seam test (`coachProvider` throws when not overridden) failed because Riverpod 3.x wraps the provider's thrown `UnimplementedError` in a `ProviderException`. Switched to a try/catch that asserts on the message substring rather than the exception type.
+
 ### File List
 
+New files:
+- `packages/domain_core/lib/src/value_types/composition_pattern.dart`
+- `packages/domain_core/lib/src/entities/coach_question.dart`
+- `packages/domain_core/lib/src/results/coach_question_result.dart`
+- `packages/domain_core/lib/src/ports/coach.dart`
+- `packages/domain_core/test/coach_test.dart`
+- `packages/integrations/lib/src/l10n/coach_strings.dart`
+- `packages/integrations/lib/src/coach/template_coach.dart`
+- `packages/integrations/test/template_coach_test.dart`
+- `apps/client/lib/state/coach_provider.dart`
+- `apps/client/test/state/coach_provider_test.dart`
+
+Modified files:
+- `packages/domain_core/lib/domain_core.dart` (barrel export added for coach_question, composition_pattern, coach_question_result, coach)
+- `packages/integrations/lib/integrations.dart` (barrel export added for `src/coach/template_coach.dart` + `src/l10n/coach_strings.dart`)
+- `apps/client/lib/main.dart` (override `coachProvider` with `const TemplateCoach()`; added import for `state/coach_provider.dart`)
+- `_bmad-output/implementation-artifacts/spec-2-1-coach-taxonomy-and-localization-key-store.md` (frontmatter status / baseline_commit; tasks checked; Dev Agent Record populated)
+
 ### Change Log
+
+- 2026-08-16 — Initial implementation of Story 2.1 (key store + port + template rung). All 13 execution tasks complete; all in-scope tests green.
 
 ---
 

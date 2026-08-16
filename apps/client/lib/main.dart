@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import 'screens/day_board_screen.dart';
+import 'state/coach_provider.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
@@ -46,6 +47,13 @@ void main() async {
         aiRungProvider.overrideWithValue(const NoopAiRung()),
         photoCaptureProvider
             .overrideWithValue(const ImagePickerPhotoCapture()),
+        // Story 2.1 — wire the coach seam. `TemplateCoach` is the
+        // v1 active rung; it resolves the `en` key store at
+        // `packages/integrations/lib/src/l10n/coach_strings.dart`
+        // (AD-7 / NFR3). An AI-backed rung (Epic 3+) drops in
+        // behind the same `Coach` port without touching Stories
+        // 2.2 / 2.3 (AD-5).
+        coachProvider.overrideWithValue(const TemplateCoach()),
       ],
       child: const OpenPlateApp(),
     ),
