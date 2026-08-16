@@ -49,6 +49,7 @@ export 'src/use_cases/record_sync_op.dart';
 export 'src/value_types/ai_rung_config.dart';
 export 'src/value_types/ai_rung_kind.dart';
 export 'src/value_types/coach_interaction.dart';
+export 'src/value_types/managed_oversight_seam.dart';
 export 'src/value_types/composition_pattern.dart';
 export 'src/value_types/export_format.dart';
 export 'src/value_types/export_scope.dart';

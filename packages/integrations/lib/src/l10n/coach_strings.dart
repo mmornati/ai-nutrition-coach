@@ -605,4 +605,30 @@ const SyncQueueStrings enSyncQueueStrings = SyncQueueStrings(
       'Some plates are waiting to sync — they will retry silently '
       'when the connection returns.',
 );
+
+/// The v1 `en` strings for the managed-oversight v2 seam notice
+/// (Story 5.2 / FR-14 / OQ-4). The Settings → About sub-screen
+/// renders a single calm line that says "Family oversight is a v2
+/// seam — not in v1" so the v1 surface doesn't imply the v2 feature
+/// exists (AD-7 / FR-15).
+///
+/// The named NDP reviewer signs off this single value; the keys
+/// are the identity the `AboutScreen` binds to.
+class ManagedOversightStrings {
+  const ManagedOversightStrings({
+    required this.v2Notice,
+  });
+
+  /// The single calm line that surfaces in Settings → About.
+  /// Plain "not in v1" framing — never "coming soon", never a
+  /// countdown (FR-15 ban list).
+  final String v2Notice;
+}
+
+const ManagedOversightStrings enManagedOversightStrings =
+    ManagedOversightStrings(
+  v2Notice:
+      'Family oversight is a v2 seam — not in v1. Read-only, '
+      'support-not-surveillance, pending COPPA review.',
+);
 );
