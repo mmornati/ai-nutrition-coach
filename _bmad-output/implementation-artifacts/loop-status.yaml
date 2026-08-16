@@ -35,7 +35,9 @@ stories:
     merged_at: "2026-08-16"
   - key: "4-5"
     title: "telemetry-and-privacy-posture"
-    status: pending
+    status: committed
+    commit: "c8e0a29"
+    merged_at: "2026-08-16"
   - key: "4-6"
     title: "oss-release-posture-license-contributing-ndp"
     status: pending
