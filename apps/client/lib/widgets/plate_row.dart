@@ -11,7 +11,7 @@
 // `CoachNote` in the store. Plates without a note (the legacy-data
 // path) render unchanged. Story 2.3 wires the whisper's
 // `[sure]` / `[ask later]` callbacks to the answer / dismiss /
-// depth interaction.
+// depth interaction via the `recordCoachInteractionProvider`.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
@@ -59,6 +59,10 @@ class PlateRow extends ConsumerWidget {
     final hasWhisper = notes.isNotEmpty;
     final whisperText =
         hasWhisper ? notes.first.text : '';
+    // Story 2.3: the first note is the post-resolve anchor. The
+    // whisper passes it to `CoachWhisper` so the depth follow-up
+    // use-case appends to the same plate.
+    final postResolveNote = hasWhisper ? notes.first : null;
 
     return Semantics(
       container: true,
@@ -107,10 +111,11 @@ class PlateRow extends ConsumerWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (hasWhisper) ...[
+                    if (hasWhisper && postResolveNote != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       CoachWhisper(
                         question: whisperText,
+                        note: postResolveNote,
                       ),
                     ],
                   ],

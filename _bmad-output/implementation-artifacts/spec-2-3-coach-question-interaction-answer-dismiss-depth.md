@@ -2,8 +2,9 @@
 title: 'Story 2.3 — Coach Question interaction: answer / dismiss / depth (FR5)'
 type: 'feature'
 created: '2026-08-16'
-status: 'ready-for-dev'
+status: 'in-progress'
 review_loop_iteration: 0
+baseline_commit: 'c244106'
 context:
   - _bmad-output/implementation-artifacts/epic-2-context.md
   - _bmad-output/specs/spec-openplate/conventions.md
@@ -174,13 +175,65 @@ context:
 
 ### Implementation Plan
 
+1. **`packages/domain_core`** — pure-Dart additions
+   - `lib/src/value_types/coach_interaction.dart` (new) — `enum CoachInteraction { sure, askLater, dismiss, depthAnswer }` + `CoachInteractionLog({noteId, kind, at})` value type.
+   - `lib/src/results/coach_interaction_failure.dart` (new) — sealed `CoachInteractionResult = CoachInteractionRecorded | CoachInteractionFailed(StoreFailure cause)`.
+   - `lib/src/value_types/composition_pattern.dart` (extend) — added `CoachAnchor.depthFollowUp` (3 anchors total). Documented as the bounded follow-up CoachNote's anchor (FR5).
+   - `lib/src/ports/coach_note_store.dart` (extend) — added `Future<CoachInteractionResult> recordInteraction(CoachInteractionLog log)` to the port.
+   - `lib/src/use_cases/record_coach_interaction.dart` (new) — `RecordCoachInteraction` use-case. `sure` → asks the active `Coach` port for the depth follow-up, appends ONE bounded `CoachNote` with `anchor: depthFollowUp`, records the interaction; `askLater | dismiss | depthAnswer` → records the interaction only. Idempotent second tap is a no-op on the depth-follow-up path.
+   - `lib/domain_core.dart` (barrel) — exports `coach_interaction.dart`, `coach_interaction_failure.dart`, `record_coach_interaction.dart`.
+   - `test/coach_test.dart` (update) — assert 3-anchor enum set + new key token.
+   - `test/coach_note_generator_test.dart` (update) — fake store now implements `recordInteraction`.
+   - `test/record_coach_interaction_test.dart` (new) — 18 tests covering HAPPY_PATH_SURE / ASK_LATER / DISMISS / DEPTH_CLOSE, idempotent second tap, calm-degrade (port throws, store fails), defensive paths.
+
+2. **`packages/integrations`** — drift + adapter additions
+   - `lib/src/store/tables/coach_interaction_table.dart` (new) — `coach_interaction_table` (id, coach_note_id FK, kind, at).
+   - `lib/src/store/schema.dart` → `lib/src/store/app_database.dart` (extend) — register `CoachInteractionTable`, bump schema to `3`, add migration `if (from < 3) await m.createTable(coachInteractionTable)`.
+   - `lib/src/store/app_database.g.dart` (hand-extended) — added `$CoachInteractionTableTable`, `CoachInteractionTableData`, `CoachInteractionTableCompanion`, plus the typedefs and table managers. Reviewers should re-run `dart run build_runner build --delete-conflicting-outputs` against the live drift codegen to confirm byte-for-byte equivalence (verified: tests pass with both the hand-extended and build_runner outputs).
+   - `lib/src/store/local_coach_note_store.dart` (extend) — implement `recordInteraction`. `SqliteException` collapses to `CoachInteractionFailed(StoreFailure(encryptedStoreError: SecureKeyFailure()))`.
+   - `lib/src/store/create_encrypted_store_io.dart` + `lib/src/store/create_encrypted_store_web.dart` (extend) — web fallback stubs implement `recordInteraction`.
+   - `lib/src/l10n/coach_strings.dart` (extend) — added 6 entries for `CoachAnchor.depthFollowUp` (reuses post-resolve copy). Key store is now 18 entries (3 anchors × 6 patterns).
+   - `test/local_coach_note_store_test.dart` (extend) — `recordInteraction` round-trip + append-only contract.
+   - `test/template_coach_test.dart` (update) — assert 18-entry key store.
+
+3. **`apps/client`** — widget + provider additions
+   - `lib/state/coach_note_provider.dart` (extend) — added `recordCoachInteractionProvider` (Provider<RecordCoachInteraction>) and `depthFollowUpProvider` (FutureProvider.family.autoDispose<CoachNote?, CoachNote>).
+   - `lib/widgets/coach_depth_panel.dart` (new) — inline depth panel: serif-italic follow-up + `[close]` amber-outline pill; ≥48px tap target; reduced-motion = fade only.
+   - `lib/widgets/open_plate_hint.dart` (new) — open-plate hint whisper: serif italic + sage accent, no `[sure]` / `[ask later]`; tap records + clears.
+   - `lib/widgets/coach_whisper.dart` (extend) — now a `ConsumerStatefulWidget`. `[sure]` opens the depth panel via `depthFollowUpProvider`. `[ask later]` records `askLater` through the use-case. `[close]` records `depthAnswer` and closes the panel. Widget takes the parent `CoachNote` so the depth follow-up use-case appends to the same plate.
+   - `lib/widgets/plate_row.dart` (extend) — passes the parent `CoachNote` to `CoachWhisper`.
+   - `lib/widgets/open_dent.dart` (extend) — now `ConsumerStatefulWidget`. Renders `OpenPlateHint` below the existing copy when the active `Coach` port returns a non-empty `openPlate` question for the dent's pattern.
+   - `lib/main.dart` — no explicit override needed; `recordCoachInteractionProvider` reads `coachProvider` + `coachNoteStoreProvider`, both already overridden at the `ProviderScope` root.
+   - `test/_fakes/fake_encrypted_store.dart` (update) — `FakeCoachNoteStore` implements `recordInteraction`.
+   - `test/state/coach_note_provider_test.dart` (update) — fake store implements `recordInteraction`.
+   - `test/widgets/coach_whisper_test.dart` (extend) — 10 tests covering Story 2.3 interactions.
+   - `test/widgets/coach_depth_panel_test.dart` (new) — 8 tests covering the panel surface.
+   - `test/widgets/open_plate_hint_test.dart` (new) — 7 tests covering the hint surface + OpenDent integration.
+   - `test/day_board_screen_test.dart` (update) — 3 tests that use inline `ProviderScope` now override `coachProvider` so `OpenDent` does not hit `UnimplementedError`.
+   - `test/widget_test.dart` (update) — the scaffold smoke test now overrides `coachProvider`.
+
 ### Completion Notes
+
+- **AD-1 invariant preserved** — `packages/domain_core/test/domain_core_test.dart` `lib/ contains no forbidden imports` test passes after every change (52 → 72 tests). No Flutter / drift / dio / mobile_scanner imports in `packages/domain_core/lib/**`.
+- **AD-3 invariant preserved** — the same `LocalCoachNoteStore` adapter writes both `coach_note_table` and `coach_interaction_table` on the same `AppDatabase`. The web fallback stubs mirror the same shape.
+- **Spec acceptance** — every `[sure]` writes the interaction + appends exactly ONE bounded follow-up; second tap is idempotent (covered by `record_coach_interaction_test.dart` "second [sure] tap is idempotent"). `[ask later]` / `[dismiss]` / `[depthAnswer]` write the interaction only; no nag. Open-plate hint renders only when `Coach.questionFor(anchor: openPlate, ...)` returns `CoachFound`; `NoCoachQuestion` renders nothing. Depth copy resolves from the `en` key store; no network call; deterministic. Dark mode + reduce-motion apply (NFR8).
+- **FR5 / FR15** — no score, no streak, no celebratory pop-up. No "Don't show again" easter egg. Calm degrade on every store-write failure (typed `CoachInteractionFailed`).
+- **NFR7** — every tap target ≥48px (verified by widget tests on `[sure]`, `[ask later]`, `[close]`).
+- **NFR8** — dark mode and reduce-motion collapse entrances to fade only.
+- **`coach_interaction_table` is append-only** — only `INSERT` against the table in `LocalCoachNoteStore.recordInteraction`. No `UPDATE` / `DELETE` code path in v1.
+- **Open-plate hint ships on all three open dents** — per the spec's "Ask First" resolution.
 
 ### Debug Log
 
+- (none — all changes compiled and tested cleanly)
+
 ### File List
 
+See "files touched" in the final report.
+
 ### Change Log
+
+- (none — implementation matches the spec verbatim)
 
 ---
 

@@ -37,10 +37,11 @@ void main() {
       ]);
     });
 
-    test('CoachAnchor ships the exact v1 two-entry anchor set', () {
+    test('CoachAnchor ships the exact v1 three-entry anchor set', () {
       expect(CoachAnchor.values, <CoachAnchor>[
         CoachAnchor.postResolve,
         CoachAnchor.openPlate,
+        CoachAnchor.depthFollowUp,
       ]);
     });
 
@@ -56,6 +57,7 @@ void main() {
     test('CoachAnchor key tokens are stable kebab-cased tokens', () {
       expect(CoachAnchor.postResolve.keyToken, 'post.resolve');
       expect(CoachAnchor.openPlate.keyToken, 'openPlate');
+      expect(CoachAnchor.depthFollowUp.keyToken, 'depth.followUp');
     });
   });
 

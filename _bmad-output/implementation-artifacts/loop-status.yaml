@@ -24,3 +24,4 @@ stories:
   - key: "2-3"
     title: "coach-question-interaction-answer-dismiss-depth"
     status: dev-in-progress
+    baseline_commit: "c244106"

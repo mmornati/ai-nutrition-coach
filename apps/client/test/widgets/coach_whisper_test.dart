@@ -2,15 +2,48 @@
 // sage pill + `[ask later]` amber outline pill; ≥48px tap targets;
 // reduced-motion collapses the entrance to a fade only (UX-DR5 /
 // NFR3 / NFR7 / NFR8).
+//
+// Story 2.3 extends the tests to cover the answer / dismiss / depth
+// interaction:
+//   * `[sure]` opens the depth panel via `depthFollowUpProvider`.
+//   * `[ask later]` records the interaction through
+//     `recordCoachInteractionProvider` and clears the whisper.
+//   * Depth `[close]` records `depthAnswer` and closes the panel.
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
+import 'package:openplate_client/widgets/coach_depth_panel.dart';
 import 'package:openplate_client/widgets/coach_whisper.dart';
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(
-    MaterialApp(
+import '../_fakes/fake_encrypted_store.dart';
+
+final _postResolveNote = CoachNote(
+  id: 1,
+  plateLogId: 7,
+  anchor: CoachAnchor.postResolve,
+  questionKey: 'post.resolve.vegLight',
+  text: 'A handful of greens would round this plate out.',
+  generatedAt: DateTime.utc(2026, 8, 16),
+);
+
+Widget _wrap(
+  Widget child, {
+  FakeCoachNoteStore? notes,
+  FakeCoach? coach,
+}) {
+  return ProviderScope(
+    overrides: [
+      encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
+      coachProvider.overrideWithValue(coach ?? FakeCoach()),
+      coachNoteStoreProvider.overrideWithValue(notes ?? FakeCoachNoteStore()),
+    ],
+    child: MaterialApp(
       home: Scaffold(
         backgroundColor: AppPalette.light.background,
         body: Center(child: child),
@@ -23,14 +56,15 @@ void main() {
   group('CoachWhisper', () {
     testWidgets('renders the question text in serif italic (UX-DR5)',
         (tester) async {
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'A handful of greens would round this plate out.',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A handful of greens would round this plate out.',
+            note: _postResolveNote,
+          ),
         ),
       );
 
-      // The question text is on the tree.
       expect(
         find.text('A handful of greens would round this plate out.'),
         findsOneWidget,
@@ -39,10 +73,12 @@ void main() {
 
     testWidgets('renders [sure] + [ask later] buttons (NFR7 / UX-DR5)',
         (tester) async {
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'Nice plate — anything you would change next time?',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'Nice plate — anything you would change next time?',
+            note: _postResolveNote,
+          ),
         ),
       );
 
@@ -52,16 +88,15 @@ void main() {
 
     testWidgets('both pills hit ≥48px on the short axis (NFR7)',
         (tester) async {
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'A protein on the side would complete this plate.',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A protein on the side would complete this plate.',
+            note: _postResolveNote,
+          ),
         ),
       );
 
-      // The tap target is the inner `Container` (the pill body),
-      // not the `Text` label inside it. The `Text` widget itself is
-      // small — the `Container` enforces `minHeight: 48`.
       final surePill = find
           .ancestor(
             of: find.text('sure'),
@@ -81,53 +116,120 @@ void main() {
       expect(askLaterSize.height, greaterThanOrEqualTo(AppTouchTargets.min));
     });
 
-    testWidgets('[sure] fires onSure callback when tapped', (tester) async {
-      var fired = 0;
-      await _pump(
-        tester,
-        CoachWhisper(
-          question: 'A handful of greens would round this plate out.',
-          onSure: () => fired++,
+    testWidgets('[sure] opens the depth panel via depthFollowUpProvider '
+        '(Story 2.3 / FR5)', (tester) async {
+      final coach = FakeCoach()
+        ..emit(
+          const CoachFound(
+            CoachQuestion(
+              key: 'depth.followUp.vegLight',
+              text: 'A handful of greens would round this plate out.',
+              anchor: CoachAnchor.depthFollowUp,
+              pattern: CompositionPattern.vegLight,
+            ),
+          ),
+        );
+      final notes = FakeCoachNoteStore();
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A handful of greens would round this plate out.',
+            note: _postResolveNote,
+          ),
+          notes: notes,
+          coach: coach,
         ),
       );
 
+      expect(find.byType(CoachDepthPanel), findsNothing);
+
       await tester.tap(find.text('sure'));
       await tester.pump();
-      expect(fired, 1);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CoachDepthPanel), findsOneWidget);
+      expect(
+        find.text('A handful of greens would round this plate out.'),
+        findsWidgets,
+      );
+      expect(notes.interactions, hasLength(1));
+      expect(notes.interactions.first.kind, CoachInteraction.sure);
     });
 
-    testWidgets('[ask later] fires onAskLater callback when tapped',
-        (tester) async {
-      var fired = 0;
-      await _pump(
-        tester,
-        CoachWhisper(
-          question: 'Nice plate.',
-          onAskLater: () => fired++,
+    testWidgets('[ask later] records the interaction through the parent '
+        'callback (Story 2.3 / FR5)', (tester) async {
+      final notes = FakeCoachNoteStore();
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'Nice plate.',
+            note: _postResolveNote,
+            onAskLater: () {},
+          ),
+          notes: notes,
         ),
       );
 
       await tester.tap(find.text('ask later'));
-      await tester.pump();
-      expect(fired, 1);
+      await tester.pumpAndSettle();
+
+      expect(notes.interactions, hasLength(1));
+      expect(notes.interactions.first.kind, CoachInteraction.askLater);
+    });
+
+    testWidgets('depth [close] records depthAnswer and closes the panel',
+        (tester) async {
+      final coach = FakeCoach()
+        ..emit(
+          const CoachFound(
+            CoachQuestion(
+              key: 'depth.followUp.vegLight',
+              text: 'A handful of greens would round this plate out.',
+              anchor: CoachAnchor.depthFollowUp,
+              pattern: CompositionPattern.vegLight,
+            ),
+          ),
+        );
+      final notes = FakeCoachNoteStore();
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A handful of greens would round this plate out.',
+            note: _postResolveNote,
+          ),
+          notes: notes,
+          coach: coach,
+        ),
+      );
+
+      await tester.tap(find.text('sure'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CoachDepthPanel), findsOneWidget);
+
+      await tester.tap(find.text('close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CoachDepthPanel), findsNothing);
+      expect(notes.interactions, hasLength(2));
+      expect(notes.interactions[0].kind, CoachInteraction.sure);
+      expect(notes.interactions[1].kind, CoachInteraction.depthAnswer);
     });
 
     testWidgets('a11y: question is announced + buttons are labelled by name',
         (tester) async {
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'A handful of greens would round this plate out.',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A handful of greens would round this plate out.',
+            note: _postResolveNote,
+          ),
         ),
       );
 
-      // The container announces the question verbatim so a screen
-      // reader user hears the question even if the visual style is
-      // overridden (NFR7 — color is never the sole signal).
-      final whisperSemantics = tester.getSemantics(find.byType(CoachWhisper));
+      final whisperSemantics =
+          tester.getSemantics(find.byType(CoachWhisper));
       expect(whisperSemantics.label, contains('A handful of greens'));
 
-      // The buttons are individually labelled.
       expect(
         tester.getSemantics(find.text('sure')).label,
         contains('sure'),
@@ -141,65 +243,59 @@ void main() {
     testWidgets('dark mode: pill colors come from AppPalette.dark (NFR8)',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark(),
-          home: Scaffold(
-            backgroundColor: AppPalette.dark.background,
-            body: Center(
-              child: CoachWhisper(
-                question: 'A handful of greens would round this plate out.',
-                onSure: () {},
-                onAskLater: () {},
+        ProviderScope(
+          overrides: [
+            encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
+            coachProvider.overrideWithValue(FakeCoach()),
+            coachNoteStoreProvider
+                .overrideWithValue(FakeCoachNoteStore()),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark(),
+            home: Scaffold(
+              backgroundColor: AppPalette.dark.background,
+              body: Center(
+                child: CoachWhisper(
+                  question: 'A handful of greens would round this plate out.',
+                  note: _postResolveNote,
+                ),
               ),
             ),
           ),
         ),
       );
 
-      // The sage pill and amber outline are Material widgets; their
-      // painted colors come from the palette via the widget
-      // implementation. The structural assertion is "the widget
-      // builds without crashing on the dark theme" — the visual
-      // color check happens via the parent widget test (the Day
-      // Board screen).
       expect(find.text('sure'), findsOneWidget);
       expect(find.text('ask later'), findsOneWidget);
     });
 
     testWidgets('reduced-motion: still renders without crashing (NFR8)',
         (tester) async {
-      // We can't programmatically toggle MediaQuery.disableAnimations
-      // in pumpWidget, but the structural assertion is "the widget
-      // builds under any accessibility config". The reduced-motion
-      // branch lives inside the build method; we cover the
-      // happy-path render here.
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'Nice plate — anything you would change next time?',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'Nice plate — anything you would change next time?',
+            note: _postResolveNote,
+          ),
         ),
       );
       expect(find.byType(CoachWhisper), findsOneWidget);
     });
 
-    testWidgets('null callbacks: pills render but do not crash on tap',
+    testWidgets('null onAskLater: pill renders but does not crash on tap',
         (tester) async {
-      await _pump(
-        tester,
-        const CoachWhisper(
-          question: 'A handful of greens would round this plate out.',
+      await tester.pumpWidget(
+        _wrap(
+          CoachWhisper(
+            question: 'A handful of greens would round this plate out.',
+            note: _postResolveNote,
+          ),
         ),
       );
 
-      // The pills render — they don't crash if callbacks are null.
       expect(find.text('sure'), findsOneWidget);
       expect(find.text('ask later'), findsOneWidget);
 
-      // The buttons are present in the tree (we exercise them by
-      // tapping — the test passes if no exception is thrown and the
-      // callback is not invoked, since the callbacks are null).
-      await tester.tap(find.text('sure'));
-      await tester.pump();
       await tester.tap(find.text('ask later'));
       await tester.pump();
     });

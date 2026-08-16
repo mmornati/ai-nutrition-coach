@@ -165,7 +165,9 @@ class FakeCoachNoteStore implements CoachNoteStore {
   FakeCoachNoteStore();
 
   final Map<int, List<CoachNote>> byPlate = {};
+  final List<CoachInteractionLog> interactions = [];
   int _nextId = 1;
+  int _nextInteractionId = 1;
 
   /// Pre-seed a coach note for the given plate — used by tests that
   /// want to render the whisper without driving the full
@@ -190,5 +192,13 @@ class FakeCoachNoteStore implements CoachNoteStore {
     return List<CoachNote>.unmodifiable(
       byPlate[plateLogId] ?? const <CoachNote>[],
     );
+  }
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    interactions.add(log);
+    return CoachInteractionRecorded(_nextInteractionId++);
   }
 }

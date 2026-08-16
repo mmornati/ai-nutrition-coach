@@ -64,7 +64,9 @@ class _FakeCoachNoteStore implements CoachNoteStore {
   _FakeCoachNoteStore();
 
   final Map<int, List<CoachNote>> byPlate = {};
+  final List<CoachInteractionLog> interactions = [];
   int _nextId = 1;
+  int _nextInteractionId = 1;
 
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
@@ -76,6 +78,14 @@ class _FakeCoachNoteStore implements CoachNoteStore {
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async {
     return List<CoachNote>.unmodifiable(byPlate[plateLogId] ?? const []);
+  }
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    interactions.add(log);
+    return CoachInteractionRecorded(_nextInteractionId++);
   }
 }
 

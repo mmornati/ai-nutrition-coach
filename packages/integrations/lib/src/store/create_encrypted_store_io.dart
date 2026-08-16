@@ -78,8 +78,10 @@ class _SecureKeyFailureStore implements EncryptedStore {
 }
 
 /// Web stub paired with the no-op plate-log store — every
-/// `append` returns a `CoachNoteAppendFailure` and every `forPlate`
-/// returns an empty list, so the UI never blocks on the web fallback.
+/// `append` returns a `CoachNoteAppendFailure`, every
+/// `recordInteraction` returns a `CoachInteractionFailed`, and every
+/// `forPlate` returns an empty list, so the UI never blocks on the
+/// web fallback.
 class _NoopCoachNoteStore implements CoachNoteStore {
   const _NoopCoachNoteStore();
 
@@ -92,6 +94,15 @@ class _NoopCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    return const CoachInteractionFailed(
+      StoreFailure(platformError: UnsupportedPlatformFailure()),
+    );
+  }
 }
 
 Future<void> _attachKey(sqlite3.Database raw, List<int> key) async {

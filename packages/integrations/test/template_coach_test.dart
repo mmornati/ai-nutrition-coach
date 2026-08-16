@@ -26,10 +26,10 @@ void main() {
     });
 
     test(
-        'en key store ships exactly the 12-entry v1 taxonomy '
-        '(2 anchors × 6 patterns)', () {
+        'en key store ships exactly the 18-entry v1 taxonomy '
+        '(3 anchors × 6 patterns)', () {
       // The named NDP reviewer signs off on this exact count.
-      expect(enCoachStrings.length, 12);
+      expect(enCoachStrings.length, 18);
       for (final anchor in CoachAnchor.values) {
         for (final pattern in CompositionPattern.values) {
           expect(

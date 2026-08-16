@@ -58,6 +58,7 @@ class _FakeCoachNoteStore implements CoachNoteStore {
   final Map<int, List<CoachNote>> byPlate = {};
   CoachNoteAppendResult? _nextAppendResult;
   int _nextId = 1;
+  int _nextInteractionId = 1;
 
   /// Force the next `append` to succeed (returning `CoachNoteAppended`
   /// with an autoincrement id) — the default is to fail so the
@@ -88,6 +89,13 @@ class _FakeCoachNoteStore implements CoachNoteStore {
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async {
     return List<CoachNote>.unmodifiable(byPlate[plateLogId] ?? const []);
+  }
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    return CoachInteractionRecorded(_nextInteractionId++);
   }
 }
 

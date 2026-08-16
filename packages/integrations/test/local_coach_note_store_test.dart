@@ -1,8 +1,9 @@
 // `LocalCoachNoteStore` round-trip test — locks the drift mapping,
-// the append-then-read contract (AD-3), and the best-effort
+// the append-then-read contract (AD-3), the best-effort
 // `CoachNoteAppendFailure` path on a drift `SqliteException` (the
 // store failure cannot leak across the port boundary as a raw
-// exception — conventions.md).
+// exception — conventions.md), and the Story 2.3
+// `recordInteraction` append + FK back-ref to `coach_note_table.id`.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
@@ -127,6 +128,97 @@ void main() {
         ),
       );
       await db.close();
+    });
+  });
+
+  group('LocalCoachNoteStore.recordInteraction (Story 2.3)', () {
+    late AppDatabase db;
+    late LocalCoachNoteStore store;
+
+    setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
+      store = LocalCoachNoteStore(database: db);
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('recordInteraction assigns an autoincrement id and round-trips the '
+        'kind + at', () async {
+      // Seed a parent note so the FK back-ref is satisfied.
+      final appended = await store.append(
+        CoachNote(
+          id: 0,
+          plateLogId: 7,
+          anchor: CoachAnchor.postResolve,
+          questionKey: 'post.resolve.vegLight',
+          text: 'A handful of greens would round this plate out.',
+          generatedAt: DateTime.utc(2026, 8, 16, 12),
+        ),
+      );
+      final noteId = (appended as CoachNoteAppended).note.id;
+
+      final result = await store.recordInteraction(
+        CoachInteractionLog(
+          noteId: noteId,
+          kind: CoachInteraction.sure,
+          at: DateTime.utc(2026, 8, 16, 12, 30),
+        ),
+      );
+
+      expect(result, isA<CoachInteractionRecorded>());
+      expect((result as CoachInteractionRecorded).interactionId, isPositive);
+    });
+
+    test(
+        'recordInteraction is append-only: no DB-level FK constraint to '
+        'coach_note_table.id (FK lives at the use-case layer, same '
+        'convention as the rest of the schema)', () async {
+      // The v1 schema does not enforce a DB-level FK on
+      // `coach_interactions.coach_note_id` — the same convention
+      // `coach_note_table.plate_log_id` and
+      // `food_entry_table.plate_log_id` follow (Story 1.2). The
+      // use-case reads the parent note first, so the back-ref is
+      // always satisfied when the row lands. The adapter accepts an
+      // orphan row; the typed `CoachInteractionRecorded` carries the
+      // autoincrement id back to the caller.
+      final result = await store.recordInteraction(
+        CoachInteractionLog(
+          noteId: 99999,
+          kind: CoachInteraction.askLater,
+          at: DateTime.utc(2026, 8, 16),
+        ),
+      );
+
+      expect(result, isA<CoachInteractionRecorded>(),
+          reason: 'FK lives at the use-case layer, not at the DB layer');
+    });
+
+    test('every interaction kind persists verbatim', () async {
+      final appended = await store.append(
+        CoachNote(
+          id: 0,
+          plateLogId: 7,
+          anchor: CoachAnchor.postResolve,
+          questionKey: 'post.resolve.vegLight',
+          text: 'A handful of greens would round this plate out.',
+          generatedAt: DateTime.utc(2026, 8, 16),
+        ),
+      );
+      final noteId = (appended as CoachNoteAppended).note.id;
+
+      for (final kind in CoachInteraction.values) {
+        final result = await store.recordInteraction(
+          CoachInteractionLog(
+            noteId: noteId,
+            kind: kind,
+            at: DateTime.utc(2026, 8, 16),
+          ),
+        );
+        expect(result, isA<CoachInteractionRecorded>(),
+            reason: 'kind=$kind must record');
+      }
     });
   });
 }

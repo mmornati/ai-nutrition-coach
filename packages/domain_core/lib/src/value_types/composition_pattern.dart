@@ -7,10 +7,17 @@
 // key store; the spec ships the exact six-pattern set below.
 //
 // `CoachAnchor` is the surface the coach question fires against. The
-// v1 set is two anchors:
-//   * `postResolve` — the whisper that lands on a just-logged plate.
-//   * `openPlate`   — the open-plate hint that lands on next/empty
+// v1 set is three anchors:
+//   * `postResolve`    — the whisper that lands on a just-logged plate.
+//   * `openPlate`      — the open-plate hint that lands on next/empty
 //     plates ("Greens would round this plate out…").
+//   * `depthFollowUp`  — the bounded follow-up coach note the
+//     `RecordCoachInteraction(sure)` use-case writes when the user
+//     taps `[sure]` on a post-resolve whisper (Story 2.3, FR5). The
+//     follow-up is itself a `CoachNote` with `anchor: depthFollowUp`;
+//     the `key` store does not need a separate entry because the
+//     key store holds the question, the anchor only carries the
+//     surface.
 //
 // Both enums live in the core so the port, the result hierarchy, the
 // value types, and the key store all agree on the same identifiers
@@ -54,21 +61,26 @@ enum CompositionPattern {
   }
 }
 
-/// The surface a coach question fires against. The v1 set is two
+/// The surface a coach question fires against. The v1 set is three
 /// anchors; future anchors (e.g. a settings nudge) would land here
 /// after the NDP reviewer signs off in the key store.
 enum CoachAnchor {
   postResolve,
-  openPlate;
+  openPlate,
+  depthFollowUp;
 
   /// The token used in coach question keys, kebab-cased from the
-  /// enum name.
+  /// enum name. `depthFollowUp` is not keyed in the v1 store — the
+  /// depth follow-up is itself a `CoachNote`, not a typed entry in
+  /// the `(anchor, pattern)` taxonomy.
   String get keyToken {
     switch (this) {
       case CoachAnchor.postResolve:
         return 'post.resolve';
       case CoachAnchor.openPlate:
         return 'openPlate';
+      case CoachAnchor.depthFollowUp:
+        return 'depth.followUp';
     }
   }
 }

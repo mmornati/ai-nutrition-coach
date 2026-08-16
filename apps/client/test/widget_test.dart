@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:openplate_client/main.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
+import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
 
@@ -60,6 +61,10 @@ Future<void> _pumpWithMode(
     ProviderScope(
       overrides: [
         encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+        // Story 2.3: OpenDent now reads `coachProvider` — wire a
+        // fake so the scaffold smoke tests do not hit
+        // `UnimplementedError`.
+        coachProvider.overrideWithValue(FakeCoach()),
       ],
       child: OpenPlateApp(themeMode: mode),
     ),

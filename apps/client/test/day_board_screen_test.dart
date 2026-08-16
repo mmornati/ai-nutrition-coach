@@ -170,6 +170,10 @@ void main() {
         ProviderScope(
           overrides: [
             encryptedStoreProvider.overrideWithValue(store),
+            // Story 2.3: OpenDent now reads `coachProvider` to gate
+            // the open-plate hint; override the seam so the test
+            // does not hit `UnimplementedError`.
+            coachProvider.overrideWithValue(FakeCoach()),
           ],
           child: MaterialApp(
             theme: ThemeData(
@@ -203,6 +207,9 @@ void main() {
         ProviderScope(
           overrides: [
             encryptedStoreProvider.overrideWithValue(store),
+            // Story 2.3: OpenDent reads `coachProvider` — override
+            // the seam so the test does not hit `UnimplementedError`.
+            coachProvider.overrideWithValue(FakeCoach()),
           ],
           child: MaterialApp(
             home: MediaQuery(
@@ -307,6 +314,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           encryptedStoreProvider.overrideWithValue(store),
+          // Story 2.3: OpenDent reads `coachProvider` — override
+          // the seam so the test does not hit `UnimplementedError`.
+          coachProvider.overrideWithValue(FakeCoach()),
         ],
       );
       addTearDown(container.dispose);
@@ -351,6 +361,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           encryptedStoreProvider.overrideWithValue(store),
+          // Story 2.3: OpenDent reads `coachProvider` — override
+          // the seam so the test does not hit `UnimplementedError`.
+          coachProvider.overrideWithValue(FakeCoach()),
         ],
       );
       addTearDown(container.dispose);
@@ -399,6 +412,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           encryptedStoreProvider.overrideWithValue(store),
+          // Story 2.3: OpenDent reads `coachProvider` — override
+          // the seam so the test does not hit `UnimplementedError`.
+          coachProvider.overrideWithValue(FakeCoach()),
         ],
       );
       addTearDown(container.dispose);

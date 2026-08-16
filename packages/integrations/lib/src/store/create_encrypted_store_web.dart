@@ -49,11 +49,13 @@ Future<StoreBundle> createStores() async {
 class _DevInMemoryCoachNoteStore implements CoachNoteStore {
   _DevInMemoryCoachNoteStore();
   final Map<int, List<CoachNote>> _byPlate = {};
-  int _nextId = 1;
+  final List<CoachInteractionLog> _interactions = [];
+  int _nextNoteId = 1;
+  int _nextInteractionId = 1;
 
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
-    final assigned = note.copyWith(id: _nextId++);
+    final assigned = note.copyWith(id: _nextNoteId++);
     _byPlate.putIfAbsent(assigned.plateLogId, () => []).add(assigned);
     return CoachNoteAppended(assigned);
   }
@@ -64,11 +66,20 @@ class _DevInMemoryCoachNoteStore implements CoachNoteStore {
       _byPlate[plateLogId] ?? const <CoachNote>[],
     );
   }
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    _interactions.add(log);
+    return CoachInteractionRecorded(_nextInteractionId++);
+  }
 }
 
 /// Production web stub — every `append` returns a typed
-/// `CoachNoteAppendFailure` and every `forPlate` returns an empty
-/// list. The UI handles the empty case by hiding the whisper.
+/// `CoachNoteAppendFailure`, every `recordInteraction` returns a
+/// typed `CoachInteractionFailed`, and every `forPlate` returns an
+/// empty list. The UI handles the empty case by hiding the whisper.
 class _WebCoachNoteStore implements CoachNoteStore {
   const _WebCoachNoteStore();
   @override
@@ -79,4 +90,12 @@ class _WebCoachNoteStore implements CoachNoteStore {
   }
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    return const CoachInteractionFailed(
+      StoreFailure(platformError: UnsupportedPlatformFailure()),
+    );
+  }
 }

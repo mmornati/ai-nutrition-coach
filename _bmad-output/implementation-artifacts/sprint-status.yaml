@@ -14,7 +14,7 @@ development_status:
   "1-8-photograph-a-plate": review
   "2-1-coach-taxonomy-and-localization-key-store": review
   "2-2-coach-note-generation-post-resolve-whisper": review
-  "2-3-coach-question-interaction-answer-dismiss-depth": ready-for-dev
+  "2-3-coach-question-interaction-answer-dismiss-depth": review
 
 epics:
   - id: 1
@@ -65,5 +65,5 @@ epics:
         file: "spec-2-2-coach-note-generation-post-resolve-whisper.md"
       - key: "2-3"
         title: coach-question-interaction-answer-dismiss-depth
-        status: ready-for-dev
+        status: review
         file: "spec-2-3-coach-question-interaction-answer-dismiss-depth.md"

@@ -839,23 +839,6 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $PlateLogTableTable plateLogTable = $PlateLogTableTable(this);
-  late final $FoodEntryTableTable foodEntryTable = $FoodEntryTableTable(this);
-  late final $CoachNoteTableTable coachNoteTable = $CoachNoteTableTable(this);
-  @override
-  Iterable<TableInfo<Table, Object?>> get allTables =>
-      allSchemaEntities.whereType<TableInfo<Table, Object?>>();
-  @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [
-    plateLogTable,
-    foodEntryTable,
-    coachNoteTable,
-  ];
-}
-
 class $CoachNoteTableTable extends CoachNoteTable
     with TableInfo<$CoachNoteTableTable, CoachNoteTableData> {
   @override
@@ -886,8 +869,7 @@ class $CoachNoteTableTable extends CoachNoteTable
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _anchorMeta =
-      const VerificationMeta('anchor');
+  static const VerificationMeta _anchorMeta = const VerificationMeta('anchor');
   @override
   late final GeneratedColumn<String> anchor = GeneratedColumn<String>(
     'anchor',
@@ -896,8 +878,9 @@ class $CoachNoteTableTable extends CoachNoteTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _questionKeyMeta =
-      const VerificationMeta('questionKey');
+  static const VerificationMeta _questionKeyMeta = const VerificationMeta(
+    'questionKey',
+  );
   @override
   late final GeneratedColumn<String> questionKey = GeneratedColumn<String>(
     'question_key',
@@ -906,8 +889,9 @@ class $CoachNoteTableTable extends CoachNoteTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _noteTextMeta =
-      const VerificationMeta('noteText');
+  static const VerificationMeta _noteTextMeta = const VerificationMeta(
+    'noteText',
+  );
   @override
   late final GeneratedColumn<String> noteText = GeneratedColumn<String>(
     'note_text',
@@ -916,8 +900,9 @@ class $CoachNoteTableTable extends CoachNoteTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _generatedAtMeta =
-      const VerificationMeta('generatedAt');
+  static const VerificationMeta _generatedAtMeta = const VerificationMeta(
+    'generatedAt',
+  );
   @override
   late final GeneratedColumn<String> generatedAt = GeneratedColumn<String>(
     'generated_at',
@@ -927,8 +912,14 @@ class $CoachNoteTableTable extends CoachNoteTable
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, plateLogId, anchor, questionKey, noteText, generatedAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    plateLogId,
+    anchor,
+    questionKey,
+    noteText,
+    generatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1039,18 +1030,24 @@ class CoachNoteTableData extends DataClass
     implements Insertable<CoachNoteTableData> {
   final int id;
 
-  /// FK to `plate_log_table.id`. Database-level constraint via
-  /// `customConstraint` on the column declaration in
-  /// `coach_note_table.dart`.
+  /// Back-ref to `plate_log_table.id`. The `RecordPlate` use-case
+  /// commits the plate before invoking the `CoachNoteGenerator`, so
+  /// the back-ref is always satisfied. No DB-level FK constraint
+  /// here — same convention as `food_entry_table` (Story 1.2).
   final int plateLogId;
 
-  /// Anchor enum, stored as text. Matches `CoachAnchor.name`.
+  /// Anchor enum, stored as text. Values match `CoachAnchor.name`
+  /// (`postResolve`, `openPlate`).
   final String anchor;
 
-  /// Reviewable key from the localized store.
+  /// Reviewable key from the localized store
+  /// (`packages/integrations/lib/src/l10n/coach_strings.dart`).
   final String questionKey;
 
-  /// Verbatim localized copy the whisper renders.
+  /// Verbatim localized copy the whisper renders. Column name is
+  /// `note_text` (not `text`) because `text()` is the drift
+  /// `Table` base-class column-builder method — the SQL column
+  /// name collides with the inherited builder.
   final String noteText;
 
   /// UTC ISO-8601 — authoritative moment of generation; rendered
@@ -1160,14 +1157,8 @@ class CoachNoteTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    plateLogId,
-    anchor,
-    questionKey,
-    noteText,
-    generatedAt,
-  );
+  int get hashCode =>
+      Object.hash(id, plateLogId, anchor, questionKey, noteText, generatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1279,6 +1270,343 @@ class CoachNoteTableCompanion extends UpdateCompanion<CoachNoteTableData> {
           ..write(')'))
         .toString();
   }
+}
+
+class $CoachInteractionTableTable extends CoachInteractionTable
+    with TableInfo<$CoachInteractionTableTable, CoachInteractionTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CoachInteractionTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _coachNoteIdMeta = const VerificationMeta(
+    'coachNoteId',
+  );
+  @override
+  late final GeneratedColumn<int> coachNoteId = GeneratedColumn<int>(
+    'coach_note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<String> at = GeneratedColumn<String>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, coachNoteId, kind, at];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'coach_interaction_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CoachInteractionTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('coach_note_id')) {
+      context.handle(
+        _coachNoteIdMeta,
+        coachNoteId.isAcceptableOrUnknown(
+          data['coach_note_id']!,
+          _coachNoteIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_coachNoteIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CoachInteractionTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CoachInteractionTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      coachNoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}coach_note_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}at'],
+      )!,
+    );
+  }
+
+  @override
+  $CoachInteractionTableTable createAlias(String alias) {
+    return $CoachInteractionTableTable(attachedDatabase, alias);
+  }
+}
+
+class CoachInteractionTableData extends DataClass
+    implements Insertable<CoachInteractionTableData> {
+  final int id;
+
+  /// Back-ref to `coach_note_table.id`. The `RecordCoachInteraction`
+  /// use-case reads the note first, so the back-ref is always
+  /// satisfied. No DB-level FK constraint here — same convention as
+  /// `coach_note_table` (Story 2.2).
+  final int coachNoteId;
+
+  /// The user action, stored as the `CoachInteraction.name` string
+  /// (`sure`, `askLater`, `dismiss`, `depthAnswer`).
+  final String kind;
+
+  /// UTC ISO-8601 — authoritative moment of the interaction;
+  /// rendered local by the UI. Same convention as
+  /// `coach_note_table.generatedAt`.
+  final String at;
+  const CoachInteractionTableData({
+    required this.id,
+    required this.coachNoteId,
+    required this.kind,
+    required this.at,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['coach_note_id'] = Variable<int>(coachNoteId);
+    map['kind'] = Variable<String>(kind);
+    map['at'] = Variable<String>(at);
+    return map;
+  }
+
+  CoachInteractionTableCompanion toCompanion(bool nullToAbsent) {
+    return CoachInteractionTableCompanion(
+      id: Value(id),
+      coachNoteId: Value(coachNoteId),
+      kind: Value(kind),
+      at: Value(at),
+    );
+  }
+
+  factory CoachInteractionTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CoachInteractionTableData(
+      id: serializer.fromJson<int>(json['id']),
+      coachNoteId: serializer.fromJson<int>(json['coachNoteId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      at: serializer.fromJson<String>(json['at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'coachNoteId': serializer.toJson<int>(coachNoteId),
+      'kind': serializer.toJson<String>(kind),
+      'at': serializer.toJson<String>(at),
+    };
+  }
+
+  CoachInteractionTableData copyWith({
+    int? id,
+    int? coachNoteId,
+    String? kind,
+    String? at,
+  }) => CoachInteractionTableData(
+    id: id ?? this.id,
+    coachNoteId: coachNoteId ?? this.coachNoteId,
+    kind: kind ?? this.kind,
+    at: at ?? this.at,
+  );
+  CoachInteractionTableData copyWithCompanion(
+    CoachInteractionTableCompanion data,
+  ) {
+    return CoachInteractionTableData(
+      id: data.id.present ? data.id.value : this.id,
+      coachNoteId: data.coachNoteId.present
+          ? data.coachNoteId.value
+          : this.coachNoteId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      at: data.at.present ? data.at.value : this.at,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachInteractionTableData(')
+          ..write('id: $id, ')
+          ..write('coachNoteId: $coachNoteId, ')
+          ..write('kind: $kind, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, coachNoteId, kind, at);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CoachInteractionTableData &&
+          other.id == this.id &&
+          other.coachNoteId == this.coachNoteId &&
+          other.kind == this.kind &&
+          other.at == this.at);
+}
+
+class CoachInteractionTableCompanion
+    extends UpdateCompanion<CoachInteractionTableData> {
+  final Value<int> id;
+  final Value<int> coachNoteId;
+  final Value<String> kind;
+  final Value<String> at;
+  const CoachInteractionTableCompanion({
+    this.id = const Value.absent(),
+    this.coachNoteId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.at = const Value.absent(),
+  });
+  CoachInteractionTableCompanion.insert({
+    this.id = const Value.absent(),
+    required int coachNoteId,
+    required String kind,
+    required String at,
+  }) : coachNoteId = Value(coachNoteId),
+       kind = Value(kind),
+       at = Value(at);
+  static Insertable<CoachInteractionTableData> custom({
+    Expression<int>? id,
+    Expression<int>? coachNoteId,
+    Expression<String>? kind,
+    Expression<String>? at,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (coachNoteId != null) 'coach_note_id': coachNoteId,
+      if (kind != null) 'kind': kind,
+      if (at != null) 'at': at,
+    });
+  }
+
+  CoachInteractionTableCompanion copyWith({
+    Value<int>? id,
+    Value<int>? coachNoteId,
+    Value<String>? kind,
+    Value<String>? at,
+  }) {
+    return CoachInteractionTableCompanion(
+      id: id ?? this.id,
+      coachNoteId: coachNoteId ?? this.coachNoteId,
+      kind: kind ?? this.kind,
+      at: at ?? this.at,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (coachNoteId.present) {
+      map['coach_note_id'] = Variable<int>(coachNoteId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<String>(at.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachInteractionTableCompanion(')
+          ..write('id: $id, ')
+          ..write('coachNoteId: $coachNoteId, ')
+          ..write('kind: $kind, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+}
+
+abstract class _$AppDatabase extends GeneratedDatabase {
+  _$AppDatabase(QueryExecutor e) : super(e);
+  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $PlateLogTableTable plateLogTable = $PlateLogTableTable(this);
+  late final $FoodEntryTableTable foodEntryTable = $FoodEntryTableTable(this);
+  late final $CoachNoteTableTable coachNoteTable = $CoachNoteTableTable(this);
+  late final $CoachInteractionTableTable coachInteractionTable =
+      $CoachInteractionTableTable(this);
+  @override
+  Iterable<TableInfo<Table, Object?>> get allTables =>
+      allSchemaEntities.whereType<TableInfo<Table, Object?>>();
+  @override
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    plateLogTable,
+    foodEntryTable,
+    coachNoteTable,
+    coachInteractionTable,
+  ];
 }
 
 typedef $$PlateLogTableTableCreateCompanionBuilder =
@@ -1710,18 +2038,6 @@ typedef $$FoodEntryTableTableProcessedTableManager =
       FoodEntryTableData,
       PrefetchHooks Function()
     >;
-
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
-  $$PlateLogTableTableTableManager get plateLogTable =>
-      $$PlateLogTableTableTableManager(_db, _db.plateLogTable);
-  $$FoodEntryTableTableTableManager get foodEntryTable =>
-      $$FoodEntryTableTableTableManager(_db, _db.foodEntryTable);
-  $$CoachNoteTableTableTableManager get coachNoteTable =>
-      $$CoachNoteTableTableTableManager(_db, _db.coachNoteTable);
-}
-
 typedef $$CoachNoteTableTableCreateCompanionBuilder =
     CoachNoteTableCompanion Function({
       Value<int> id,
@@ -1833,8 +2149,10 @@ class $$CoachNoteTableTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get plateLogId =>
-      $composableBuilder(column: $table.plateLogId, builder: (column) => column);
+  GeneratedColumn<int> get plateLogId => $composableBuilder(
+    column: $table.plateLogId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get anchor =>
       $composableBuilder(column: $table.anchor, builder: (column) => column);
@@ -1945,3 +2263,212 @@ typedef $$CoachNoteTableTableProcessedTableManager =
       CoachNoteTableData,
       PrefetchHooks Function()
     >;
+typedef $$CoachInteractionTableTableCreateCompanionBuilder =
+    CoachInteractionTableCompanion Function({
+      Value<int> id,
+      required int coachNoteId,
+      required String kind,
+      required String at,
+    });
+typedef $$CoachInteractionTableTableUpdateCompanionBuilder =
+    CoachInteractionTableCompanion Function({
+      Value<int> id,
+      Value<int> coachNoteId,
+      Value<String> kind,
+      Value<String> at,
+    });
+
+class $$CoachInteractionTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CoachInteractionTableTable> {
+  $$CoachInteractionTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get coachNoteId => $composableBuilder(
+    column: $table.coachNoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CoachInteractionTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CoachInteractionTableTable> {
+  $$CoachInteractionTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get coachNoteId => $composableBuilder(
+    column: $table.coachNoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CoachInteractionTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CoachInteractionTableTable> {
+  $$CoachInteractionTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get coachNoteId => $composableBuilder(
+    column: $table.coachNoteId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+}
+
+class $$CoachInteractionTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CoachInteractionTableTable,
+          CoachInteractionTableData,
+          $$CoachInteractionTableTableFilterComposer,
+          $$CoachInteractionTableTableOrderingComposer,
+          $$CoachInteractionTableTableAnnotationComposer,
+          $$CoachInteractionTableTableCreateCompanionBuilder,
+          $$CoachInteractionTableTableUpdateCompanionBuilder,
+          (
+            CoachInteractionTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CoachInteractionTableTable,
+              CoachInteractionTableData
+            >,
+          ),
+          CoachInteractionTableData,
+          PrefetchHooks Function()
+        > {
+  $$CoachInteractionTableTableTableManager(
+    _$AppDatabase db,
+    $CoachInteractionTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CoachInteractionTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CoachInteractionTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CoachInteractionTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> coachNoteId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> at = const Value.absent(),
+              }) => CoachInteractionTableCompanion(
+                id: id,
+                coachNoteId: coachNoteId,
+                kind: kind,
+                at: at,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int coachNoteId,
+                required String kind,
+                required String at,
+              }) => CoachInteractionTableCompanion.insert(
+                id: id,
+                coachNoteId: coachNoteId,
+                kind: kind,
+                at: at,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CoachInteractionTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CoachInteractionTableTable,
+      CoachInteractionTableData,
+      $$CoachInteractionTableTableFilterComposer,
+      $$CoachInteractionTableTableOrderingComposer,
+      $$CoachInteractionTableTableAnnotationComposer,
+      $$CoachInteractionTableTableCreateCompanionBuilder,
+      $$CoachInteractionTableTableUpdateCompanionBuilder,
+      (
+        CoachInteractionTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $CoachInteractionTableTable,
+          CoachInteractionTableData
+        >,
+      ),
+      CoachInteractionTableData,
+      PrefetchHooks Function()
+    >;
+
+class $AppDatabaseManager {
+  final _$AppDatabase _db;
+  $AppDatabaseManager(this._db);
+  $$PlateLogTableTableTableManager get plateLogTable =>
+      $$PlateLogTableTableTableManager(_db, _db.plateLogTable);
+  $$FoodEntryTableTableTableManager get foodEntryTable =>
+      $$FoodEntryTableTableTableManager(_db, _db.foodEntryTable);
+  $$CoachNoteTableTableTableManager get coachNoteTable =>
+      $$CoachNoteTableTableTableManager(_db, _db.coachNoteTable);
+  $$CoachInteractionTableTableTableManager get coachInteractionTable =>
+      $$CoachInteractionTableTableTableManager(_db, _db.coachInteractionTable);
+}

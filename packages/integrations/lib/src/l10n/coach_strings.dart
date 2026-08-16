@@ -10,9 +10,12 @@
 // Widgets never interpolate strings; the key is the reviewable
 // identity and `text` is the verbatim copy.
 //
-// NFR3: v1 is a bounded curated taxonomy — 2 anchors × 6 patterns =
-// 12 entries. No unbounded generative output. If the reviewer rejects
-// an entry, the task is to remove the entry, not add a new one.
+// NFR3: v1 is a bounded curated taxonomy — 3 anchors × 6 patterns =
+// 18 entries. No unbounded generative output. The `depthFollowUp`
+// anchor follows a `[sure]` tap on a post-resolve whisper; the text
+// reuses the calm post-resolve copy so the user sees the same
+// non-judgmental nudge one notch deeper. If the reviewer rejects an
+// entry, the task is to remove the entry, not add a new one.
 //
 // FR15: copy is calm, non-judgmental, no calorie-shaming, no
 // streak-pressure, no restriction framing. Each entry is one plain
@@ -32,8 +35,9 @@
 //
 // `keyToken` follows the rule `{anchor.keyToken}.{pattern.keyToken}`
 // (e.g. `post.resolve.vegLight` for the post-resolve whisper on a
-// veg-light plate). The convention makes the key sortable and
-// greppable for the reviewer.
+// veg-light plate, `depth.followUp.vegLight` for the depth
+// follow-up on the same plate). The convention makes the key
+// sortable and greppable for the reviewer.
 
 import 'package:domain_core/domain_core.dart';
 
@@ -49,10 +53,14 @@ String _coachKey(CoachAnchor anchor, CompositionPattern pattern) =>
 
 /// The v1 `en` coach question key store.
 ///
-/// Two anchors (`postResolve`, `openPlate`) × six composition patterns
-/// (`vegLight`, `proteinHeavy`, `starchHeavy`, `dairyLight`, `vegRich`,
-/// `balanced`) = 12 entries. Each entry is a `CoachQuestion` whose
-/// `text` is the verbatim calm copy the whisper renders.
+/// Three anchors (`postResolve`, `openPlate`, `depthFollowUp`) × six
+/// composition patterns (`vegLight`, `proteinHeavy`, `starchHeavy`,
+/// `dairyLight`, `vegRich`, `balanced`) = 18 entries. Each entry is
+/// a `CoachQuestion` whose `text` is the verbatim calm copy the
+/// whisper renders. The `depthFollowUp` entries reuse the calm
+/// post-resolve copy so the user sees the same non-judgmental nudge
+/// one notch deeper — the key is the reviewable identity, the text
+/// is the verbatim copy the active rung hands back.
 ///
 /// The `const` map is evaluated at compile time; the `TemplateCoach`
 /// adapter returns the same `CoachQuestion` instance for the same
@@ -145,6 +153,56 @@ final Map<CoachQuestionKey, CoachQuestion> enCoachStrings =
     key: 'openPlate.balanced',
     text: 'A calm, varied plate — anything you want to add?',
     anchor: CoachAnchor.openPlate,
+    pattern: CompositionPattern.balanced,
+  ),
+
+  // --- depth follow-up (Story 2.3 lands the surface) ---
+  // Reuses the post-resolve calm copy — the key is the reviewable
+  // identity, so each depth entry is its own reviewable item; the
+  // text mirrors the post-resolve wording so the user sees the same
+  // non-judgmental nudge one notch deeper. A future AI rung can
+  // replace the depth text behind the same key without changing the
+  // core.
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.vegLight):
+      const CoachQuestion(
+    key: 'depth.followUp.vegLight',
+    text: 'A handful of greens would round this plate out.',
+    anchor: CoachAnchor.depthFollowUp,
+    pattern: CompositionPattern.vegLight,
+  ),
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.proteinHeavy):
+      const CoachQuestion(
+    key: 'depth.followUp.proteinHeavy',
+    text: 'A small bowl of greens or roasted veg would lighten this up.',
+    anchor: CoachAnchor.depthFollowUp,
+    pattern: CompositionPattern.proteinHeavy,
+  ),
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.starchHeavy):
+      const CoachQuestion(
+    key: 'depth.followUp.starchHeavy',
+    text: 'Some veg on the side would balance this nicely.',
+    anchor: CoachAnchor.depthFollowUp,
+    pattern: CompositionPattern.starchHeavy,
+  ),
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.dairyLight):
+      const CoachQuestion(
+    key: 'depth.followUp.dairyLight',
+    text: 'If you have a bit of dairy around, it would round this off.',
+    anchor: CoachAnchor.depthFollowUp,
+    pattern: CompositionPattern.dairyLight,
+  ),
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.vegRich):
+      const CoachQuestion(
+    key: 'depth.followUp.vegRich',
+    text: 'A protein on the side would complete this plate.',
+    anchor: CoachAnchor.depthFollowUp,
+    pattern: CompositionPattern.vegRich,
+  ),
+  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.balanced):
+      const CoachQuestion(
+    key: 'depth.followUp.balanced',
+    text: 'Nice plate — anything you would change next time?',
+    anchor: CoachAnchor.depthFollowUp,
     pattern: CompositionPattern.balanced,
   ),
 };

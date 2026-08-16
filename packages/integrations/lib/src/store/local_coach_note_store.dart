@@ -1,7 +1,8 @@
 // `LocalCoachNoteStore` — drift-on-sqlite3mc adapter for the
-// `CoachNoteStore` port (FR4 / FR9 / AD-3).
+// `CoachNoteStore` port (FR4 / FR5 / FR9 / AD-3).
 //
-// Writes to the `coach_note_table` on the same encrypted drift
+// Writes to the `coach_note_table` (Story 2.2) and
+// `coach_interaction_table` (Story 2.3) on the same encrypted drift
 // store `EncryptedStoreAdapter` writes to. The AD-3 invariant holds:
 // one encrypted store, no second source, no second mutation path.
 //
@@ -17,6 +18,14 @@
 // insertion order (oldest first, matching the `id ASC` sort) so the
 // UI renders the whisper deterministically on reload (no random
 // ordering — UX-DR10).
+//
+// `recordInteraction` (Story 2.3) appends a row to the
+// `coach_interaction_table` and returns the autoincrement id. The
+// FK back-ref to `coach_note_table.id` lives at the use-case layer
+// (same convention as the rest of the schema); the adapter catches
+// drift errors and returns the typed failure shape so the
+// `RecordCoachInteraction` use-case never inspects a thrown
+// exception.
 
 import 'dart:async';
 
@@ -70,16 +79,36 @@ class LocalCoachNoteStore implements CoachNoteStore {
         )
         .toList(growable: false);
   }
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async {
+    try {
+      final id = await _db.into(_db.coachInteractionTable).insert(
+            CoachInteractionTableCompanion.insert(
+              coachNoteId: log.noteId,
+              kind: log.kind.persistedName,
+              at: log.at.toUtc().toIso8601String(),
+            ),
+          );
+      return CoachInteractionRecorded(id);
+    } on sqlite3.SqliteException catch (_) {
+      return const CoachInteractionFailed(
+        StoreFailure(encryptedStoreError: SecureKeyFailure()),
+      );
+    }
+  }
 }
 
 CoachAnchor _parseAnchor(String raw) {
   for (final candidate in CoachAnchor.values) {
     if (candidate.name == raw) return candidate;
   }
-  // Defensive fallback. The v1 set is two anchors
-  // (`postResolve`, `openPlate`); a future anchor the v1 store
-  // does not know about must not crash the read path — return
-  // `postResolve` and let the render surface decide whether to
-  // display the note.
+  // Defensive fallback. The v1 set is three anchors
+  // (`postResolve`, `openPlate`, `depthFollowUp`); a future anchor
+  // the v1 store does not know about must not crash the read path —
+  // return `postResolve` and let the render surface decide whether
+  // to display the note.
   return CoachAnchor.postResolve;
 }
