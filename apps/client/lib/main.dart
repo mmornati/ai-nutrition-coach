@@ -4,6 +4,7 @@ import 'package:integrations/integrations.dart';
 
 import 'screens/day_board_screen.dart';
 import 'state/manual_entry_provider.dart';
+import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
@@ -35,6 +36,16 @@ void main() async {
         cameraPermissionProvider.overrideWithValue(
           const PermissionHandlerCameraPermission(),
         ),
+        // Story 1.8 — wire the photo seam. `image_picker` is the
+        // only photo-capture dependency in the repo; it lives here
+        // (and only here) — `packages/integrations` and
+        // `packages/domain_core` never import it (AD-1 grep test
+        // pins the rule). The v1 active rung is `NoopAiRung` so the
+        // photo path exercises the closest-matches + manual fallback
+        // (NFR5 / AD-5).
+        aiRungProvider.overrideWithValue(const NoopAiRung()),
+        photoCaptureProvider
+            .overrideWithValue(const ImagePickerPhotoCapture()),
       ],
       child: const OpenPlateApp(),
     ),

@@ -31,6 +31,14 @@ dependencies:
   mobile_scanner: ^7.4.0
   permission_handler: ^11.3.1
 
+  # Story 1.8 / FR1 — photo capture surface. `image_picker` is the
+  # single camera dependency for the photo path; the `photo_provider`
+  # seam abstracts the picker so tests inject a fake without ever
+  # mounting a real camera. `image_picker` lives ONLY here — neither
+  # `packages/integrations` nor `packages/domain_core` may import it
+  # (AD-1 grep test pins the rule).
+  image_picker: ^1.2.3
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

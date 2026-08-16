@@ -19,13 +19,16 @@ library;
 export 'src/entities/database_food.dart';
 export 'src/entities/food_entry.dart';
 export 'src/entities/plate_log.dart';
+export 'src/ports/ai_rung.dart';
 export 'src/ports/encrypted_store.dart';
 export 'src/ports/food_catalog.dart';
 export 'src/ports/voice_transcriber.dart';
 export 'src/results/catalog_failure.dart';
+export 'src/results/recognition_failure.dart';
 export 'src/results/store_failure.dart';
 export 'src/use_cases/record_plate.dart';
 export 'src/value_types/food_entry_draft.dart';
 export 'src/value_types/quantity_range.dart';
+export 'src/value_types/recognized_food.dart';
 
 const String domainCoreVersion = '0.1.0';

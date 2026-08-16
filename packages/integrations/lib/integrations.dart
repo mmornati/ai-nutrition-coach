@@ -8,6 +8,7 @@
 /// land here; later stories add the remaining adapters.
 library;
 
+export 'src/ai/noop_ai_rung.dart';
 export 'src/catalog/lru_cache.dart';
 export 'src/catalog/off_barcode_source.dart';
 export 'src/catalog/offline_first_food_catalog.dart';

@@ -11,7 +11,7 @@ development_status:
   "1-5-type-or-talk-food-ranked-matches": review
   "1-6-capture-sheet-fan-out": review
   "1-7-scan-barcode-packaged-food": review
-  "1-8-photograph-a-plate": ready-for-dev
+  "1-8-photograph-a-plate": review
 
 epics:
   - id: 1
@@ -47,5 +47,5 @@ epics:
         file: "spec-1-7-scan-barcode-packaged-food.md"
       - key: "1-8"
         title: photograph-a-plate
-        status: ready-for-dev
+        status: review
         file: "spec-1-8-photograph-a-plate.md"

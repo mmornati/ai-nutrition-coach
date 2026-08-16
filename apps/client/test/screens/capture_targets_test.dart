@@ -1,46 +1,24 @@
-// Tests for the placeholder capture screens + `UnimplementedCaptureTarget`
-// (Story 1.6 / UX-DR7 / NFR7).
+// Tests for the capture routing helpers + `UnimplementedCaptureTarget`
+// (Stories 1.6 / 1.7 / 1.8 / UX-DR7 / NFR7).
 //
 // Three contracts pinned:
 //
 //   * `UnimplementedCaptureTarget` is an immutable exception that
 //     round-trips through `toString()` as `UnimplementedCaptureTarget(<name>)`
 //     so the typed failure surfaces in dev error widgets and logs;
-//   * `CapturePhotoScreen.build()` throws
-//     `UnimplementedCaptureTarget(photo)` — the same value Story 1.8
-//     will replace;
-//   * Story 1.7 replaced the `CaptureBarcodeScreen` placeholder with
-//     the real `mobile_scanner`-backed flow; the placeholder throw is
-//     now reserved for `CapturePhotoScreen` only. The tests below
-//     reflect the post-1.7 state.
+//   * `CaptureBarcodeScreen` is the real `mobile_scanner`-backed flow
+//     (Story 1.7 replaced the placeholder);
+//   * `CapturePhotoScreen` is the real `image_picker`-backed flow
+//     (Story 1.8 replaced the placeholder).
 //
-// The placeholder screens do not render any UI — `build()` throws
-// before layout, which surfaces as Flutter's red error widget in dev
-// and an uncaught exception in production. The widget tests below
-// route `FlutterError.onError` through `tester.takeException()` so
-// we can inspect the typed exception without the test framework
-// flagging it as a failure.
+// Story 1.6's placeholder throw is no longer on the surface for
+// either entry — the tests below reflect the post-1.8 state.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openplate_client/screens/capture_barcode_screen.dart';
 import 'package:openplate_client/screens/capture_photo_screen.dart';
 import 'package:openplate_client/screens/capture_targets.dart';
-
-/// Mount [child] inside a host tree and return whatever exception the
-/// framework surfaces from its build pass. The framework reports
-/// exceptions thrown by `build` through `FlutterError.onError`; we
-/// park that callback on the test binding so `takeException` captures
-/// it without the test framework flagging a failure.
-Future<Object?> _captureBuildException(
-  WidgetTester tester,
-  Widget child,
-) async {
-  await tester.pumpWidget(
-    MaterialApp(home: child),
-  );
-  return tester.takeException();
-}
 
 void main() {
   group('UnimplementedCaptureTarget', () {
@@ -65,15 +43,15 @@ void main() {
       );
     });
 
-    testWidgets('CapturePhotoScreen.build throws UnimplementedCaptureTarget(photo)',
+    testWidgets('CapturePhotoScreen is the real flow (Story 1.8 / FR1)',
         (tester) async {
-      final captured = await _captureBuildException(
-        tester,
-        const CapturePhotoScreen(),
-      );
-      expect(captured, isA<UnimplementedCaptureTarget>());
-      final ex = captured! as UnimplementedCaptureTarget;
-      expect(ex.target, CaptureTarget.photo);
+      // Story 1.8 replaced the 1.6 placeholder with the real
+      // `image_picker`-backed flow (FR1). The probe here just
+      // asserts the class still resolves at the import surface —
+      // a future regression that breaks the import is loud at test
+      // time; the behavioural coverage lives in
+      // `test/screens/capture_photo_screen_test.dart`.
+      expect(const CapturePhotoScreen(), isA<Widget>());
     });
 
     test('CaptureBarcodeScreen is the real flow (Story 1.7 / FR2)', () {
