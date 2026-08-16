@@ -14,7 +14,9 @@ workflow_overrides:
 stories:
   - key: "5-1"
     title: "adults-only-no-under-13-no-biometrics"
-    status: pending
+    status: committed
+    commit: "cb3b8ac"
+    merged_at: "2026-08-16"
   - key: "5-2"
     title: "managed-oversight-seam-v2-coppa-blocked"
     status: pending
