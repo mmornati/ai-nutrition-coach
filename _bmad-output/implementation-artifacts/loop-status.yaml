@@ -25,7 +25,7 @@ stories:
   - key: "4-3"
     title: "durable-outbox-sync-to-user-controlled-infra"
     status: committed
-    commit: "(pending)"
+    commit: "73ccecd"
     merged_at: "2026-08-16"
     note: "in-memory DriftSyncQueue ships; durable drift-table wiring is the Story 4.3.1 follow-up (hand-extending app_database.g.dart is impractical in-session)."
   - key: "4-4"
