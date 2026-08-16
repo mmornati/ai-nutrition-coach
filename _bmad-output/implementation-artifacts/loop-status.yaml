@@ -21,10 +21,8 @@ stories:
     commit: "add2cf0"
   - key: "1-7"
     title: "scan-barcode-packaged-food"
-    status: review-in-progress
-  - key: "1-8"
-    title: "photograph-a-plate"
-    status: pending
+    status: done
+    commit: "44a9e7f"
   - key: "1-8"
     title: "photograph-a-plate"
     status: pending
