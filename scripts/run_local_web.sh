@@ -45,12 +45,37 @@ IMAGE="ghcr.io/cirruslabs/flutter:stable"
 # Persistent pub-cache volume so repeated runs don't re-download packages.
 PUB_VOLUME="openplate_pubcache"
 
-echo "▶ Building web bundle (with dev in-memory store)…"
+# Load the developer's local runtime configuration (gitignored). Any
+# `OPENPLATE_*` value present in .env is forwarded as a `--dart-define`
+# flag into the web build. Values are optional — omit any you don't
+# need and the build simply skips it.
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+fi
+
+BYOK_DEFINES=""
+if [[ -n "${OPENPLATE_BYOK_ENDPOINT_URL:-}" ]]; then
+  BYOK_DEFINES="$BYOK_DEFINES --dart-define=OPENPLATE_BYOK_ENDPOINT_URL=$OPENPLATE_BYOK_ENDPOINT_URL"
+fi
+if [[ -n "${OPENPLATE_BYOK_MODEL:-}" ]]; then
+  BYOK_DEFINES="$BYOK_DEFINES --dart-define=OPENPLATE_BYOK_MODEL=$OPENPLATE_BYOK_MODEL"
+fi
+if [[ -n "${OPENPLATE_BYOK_API_KEY:-}" ]]; then
+  BYOK_DEFINES="$BYOK_DEFINES --dart-define=OPENPLATE_BYOK_API_KEY=$OPENPLATE_BYOK_API_KEY"
+fi
+if [[ -n "${OPENPLATE_DEV_IN_MEMORY_STORE:-}" ]]; then
+  BYOK_DEFINES="$BYOK_DEFINES --dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=$OPENPLATE_DEV_IN_MEMORY_STORE"
+fi
+
+echo "▶ Building web bundle (BYOK defines: ${OPENPLATE_BYOK_MODEL:-<none>})…"
 docker run --rm \
   -v "$ROOT":/work -w /work \
   -v "$PUB_VOLUME":/root/.pub-cache \
   "$IMAGE" \
-  sh -c "cd apps/client && flutter build web --release --dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true" \
+  sh -c "cd apps/client && flutter build web --release $BYOK_DEFINES" \
   >/tmp/openplate_web_build.log 2>&1 || {
     echo "✗ web build failed — tail of log:" >&2
     tail -30 /tmp/openplate_web_build.log >&2
