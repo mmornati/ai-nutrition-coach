@@ -154,7 +154,7 @@ echo "▶ Building web bundle (${#DEFINES[@]} define(s))…"
 # `bash -c '…' _ "$@"`: the defines reach flutter as separate argv entries;
 # flutter_docker.sh %q-quotes every argument on the way into the container.
 if ! "$ROOT/scripts/flutter_docker.sh" \
-  bash -c 'cd apps/client && exec flutter build web --release "$@"' _ \
+  bash -c 'cd apps/client && exec flutter build web --release --no-web-resources-cdn "$@"' _ \
   "${DEFINES[@]+"${DEFINES[@]}"}" >"$BUILD_LOG" 2>&1; then
   echo "✗ web build failed — tail of log:" >&2
   tail -30 "$BUILD_LOG" >&2

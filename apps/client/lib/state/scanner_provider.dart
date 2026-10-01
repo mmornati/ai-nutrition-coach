@@ -174,6 +174,12 @@ final cameraPermissionProvider = Provider<CameraPermission>(
   ),
 );
 
+/// Whether this platform can decode a barcode locally (see
+/// `barcode_detector_support.dart`). `main.dart` overrides it with the real
+/// capability probe; tests override it to exercise the "no detector" path.
+/// Defaults to `true` so existing screens/tests are unaffected.
+final barcodeDetectorAvailableProvider = Provider<bool>((ref) => true);
+
 /// Family-keyed barcode lookup. The screen calls
 /// `ref.read(barcodeLookupProvider(code).future)` after a scan and
 /// pattern-matches the sealed `CatalogResult` to drive the next

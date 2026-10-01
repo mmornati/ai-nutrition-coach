@@ -63,6 +63,7 @@ Widget _wrap(
   required FakeCameraPermission permission,
   required FoodCatalog catalog,
   ThemeMode mode = ThemeMode.light,
+  bool detectorAvailable = true,
 }) {
   return ProviderScope(
     overrides: [
@@ -70,6 +71,7 @@ Widget _wrap(
       foodCatalogProvider.overrideWithValue(catalog),
       barcodeScannerProvider.overrideWithValue(scanner),
       cameraPermissionProvider.overrideWithValue(permission),
+      barcodeDetectorAvailableProvider.overrideWithValue(detectorAvailable),
       // Story 2.2: the record-plate chain now requires the coach
       // providers to be overridden — wire them so the test path can
       // drive `RecordPlate` end-to-end.
@@ -97,6 +99,30 @@ const _nutella = FoodMatch(
 );
 
 void main() {
+  testWidgets(
+    'no local barcode detector -> manual-entry copy, camera never requested',
+    (tester) async {
+      final permission = FakeCameraPermission();
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: FakeEncryptedStore(),
+          scanner: FakeBarcodeScanner(),
+          permission: permission,
+          catalog: _FakeFoodCatalog(const {}),
+          detectorAvailable: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining("isn't available in this browser"),
+        findsOneWidget,
+      );
+      expect(find.text('Type it manually'), findsWidgets);
+      expect(permission.requestCount, 0);
+    },
+  );
+
   group('CaptureBarcodeScreen', () {
     testWidgets(
       'HAPPY_PATH_KNOWN: scan + RankedMatches opens BarcodeMatchSheet',

@@ -83,12 +83,20 @@ jobs:
         run: |
           bash scripts/fetch_web_sqlite.sh
           cd apps/client
-          flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+          flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost
 
       - name: Secrets scan — web bundle (S1)
         run: |
           bash tools/check_no_secrets_in_build.sh --self-test
           bash tools/check_no_secrets_in_build.sh --web-only
+
+      - name: Third-party host scan — web bundle (N5)
+        run: |
+          bash tools/check_no_external_hosts.sh --self-test
+          bash tools/check_no_external_hosts.sh
+
+      - name: Telemetry gate (import-based, N6)
+        run: dart run tools/check_telemetry_claims.dart
 
       - name: Build Android APK (debug)
         # flutter_secure_storage 11 compiles against android-37, which the

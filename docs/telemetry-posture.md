@@ -14,17 +14,25 @@
 
 **Nothing.** No telemetry, no analytics, no error reporting, no
 crash dumps, no usage beacons. The production `main.dart` does not
-invoke a network code path at startup. The `dart test`/`flutter
-test` suite includes a static + behavioural test (`tools/check_telemetry_claims.dart`)
-that fails the build if any non-sanctioned path opens a socket.
+invoke a network code path at startup. The gate
+(`tools/check_telemetry_claims.dart`, also run by the `no_telemetry` unit
+test) is **import-based**: a Dart file cannot reach the network without
+importing a transport (`package:dio`, `package:http`, `dart:io` sockets,
+`package:web` `fetch`/XHR/WebSocket, ...), so only an explicit allow-list of
+adapter files may, and no analytics / crash-reporting SDK may be declared or
+imported anywhere.
 
 ## What is user-enabled
 
-Three paths open a socket — each one only after the user explicitly
-enables the feature:
+Three paths open a connection — each one only after the user explicitly
+enables the feature. In the browser build the Content-Security-Policy enforces
+this list (`connect-src 'self' https://world.openfoodfacts.org` plus the AI
+endpoint you add via `OPENPLATE_CONNECT_SRC_EXTRA`; see
+[`docs/self-host.md`](./self-host.md)):
 
-- **The food catalog** (OFF / USDA HTTP, Stories 1.5 / 1.7). A
-  user-initiated lookup on a barcode or a typed query. The catalog
+- **The food catalog** (Open Food Facts barcode lookup,
+  `world.openfoodfacts.org`; Stories 1.5 / 1.7). A user-initiated lookup on a
+  scanned barcode. The catalog
   is offline-first; the local cache answers most calls without a
   round-trip. The remote call is a typed `CatalogResult` (never a
   raw exception crossing the port).
@@ -48,24 +56,39 @@ enables the feature:
 
 ## Self-host
 
-The self-host build ([`docs/self-host.md`](./self-host.md)) is the
-strongest version of the posture. The container's network namespace
-is quiet by default — the smoke test
-(`scripts/smoke_self_host.sh`) inspects the running image and
-asserts no outbound network calls are opened. Put nginx / caddy /
-traefik in front of the container for TLS; AI Nutrition Coach itself does
-not phone home.
+The self-host build ([`docs/self-host.md`](./self-host.md)) is the strongest
+version of the posture:
+
+- The **server needs no outbound network**: `scripts/smoke_self_host.sh` runs
+  the container on a docker `--internal` network (no route out) and asserts it
+  still boots and serves, that an outbound request from it fails, and that its
+  rendered nginx config contains no `proxy_pass` / `resolver`. (That shows the
+  server is self-contained; it is not a packet capture.)
+- The **bundle loads nothing from a third party**: CanvasKit and fonts are
+  served from your own origin (`--no-web-resources-cdn`, bundled Roboto, local
+  glyph-fallback path), and the web barcode scanner is pinned to the browser's
+  native detector instead of a CDN-hosted fallback (browsers without that API
+  — Firefox, desktop Windows/Linux, Safari by default — use manual entry).
+  `tools/check_no_external_hosts.sh` scans the built bundle and fails on any
+  host outside a short, justified allow-list (`melos run check:hosts`): inert doc links by host, and
+  the four known engine/scanner default CDN URLs only as exact strings with exact counts.
+- Your data never reaches the server: it is encrypted in your browser.
+- Put TLS in front for other devices (`bin/openplate up --tls`); OpenPlate
+  itself does not phone home.
 
 ## How to verify
 
 ```sh
-melos run check:telemetry
+melos run check:telemetry   # import-based source gate
+melos run check:hosts       # built-bundle third-party host scan (after build:web)
+bash scripts/smoke_self_host.sh   # container: headers, CSP, non-root, no egress
 ```
 
-The script (`tools/check_telemetry_claims.dart`) walks the source
-tree, asserts the only socket-opening paths are the sanctioned
-list, and asserts the user-facing docs match the actual code. The
-check is part of `melos run test` so a regression fails the build.
+`check:telemetry` parses the source tree with the analyzer (conditional
+imports, re-exports, `part` files and `Image.network` included), asserts only the allow-listed adapters
+import a network transport, rejects telemetry SDKs by name prefix (imports and pubspecs) and
+checks that the user-facing docs are anchored to the gate. It runs in the unit
+tests and in CI, so a regression fails the build.
 
 ## Cross-references
 

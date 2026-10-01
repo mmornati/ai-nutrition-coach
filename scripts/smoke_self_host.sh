@@ -1,95 +1,246 @@
-#!/bin/sh
-# Story 4.4 — CI / local smoke test for the self-host build.
+#!/usr/bin/env bash
+# Self-host smoke test (Story 4.4, hardened in Phase 4 / I8, N6).
 #
 #   bash scripts/smoke_self_host.sh
 #
-# Asserts:
-#   * `bin/ai-nutrition-coach up` builds the image in under 5 minutes
-#     (FR-11 / NFR9).
-#   * `curl http://localhost/` returns 200 + the lock-screen HTML.
-#   * The `nginx:alpine` base in `infra/Dockerfile` is digest-pinned.
-#   * The container's network namespace is quiet — no outbound calls
-#     (FR-12 / NFR4).
+# Builds the image through `bin/openplate up` (so the real run flags are what
+# is tested) and asserts:
+#   * the base images are digest-pinned (nginx-unprivileged, Caddy);
+#   * readiness (a poll loop, no fixed sleep) and HTTP 200 for the app shell,
+#     SPA deep links, a 404 for a missing asset and 405 for POST;
+#   * the versioned sqlite3mc wasm is served as application/wasm and immutable;
+#   * the security headers (CSP, nosniff, ...) are on html, js AND wasm
+#     responses, `Server` carries no version, index/js are `no-cache`;
+#   * the CSP has no 'unsafe-inline' script, no blanket https: connect-src;
+#   * the container is non-root, has a read-only root filesystem, dropped
+#     capabilities and no-new-privileges;
+#   * a second `bin/openplate up` fails with a clear name-collision error;
+#   * EGRESS: the same hardened container, on a docker `--internal` network
+#     (no outbound route), still boots and serves — i.e. it NEEDS no outbound
+#     network — and the rendered nginx config contains no proxy_pass /
+#     resolver (nothing in it could make a request). This shows the server is
+#     self-contained; it is not a packet capture. A deliberate outbound
+#     request from the container fails, so the test notices if the network
+#     were not actually isolated;
+#   * OPENPLATE_CONNECT_SRC_EXTRA values that could rewrite the CSP (quote
+#     injection, `;`, `*`, newline) make the container refuse to start;
+#   * the OPENPLATE_CONNECT_SRC_EXTRA knob reaches the CSP;
+#   * the compose file is valid, binds 127.0.0.1 by default, has the tls
+#     profile, and the shipped bundle has no third-party hosts.
 #
-# Exit codes:
-#   0   — all assertions hold.
-#   10  — docker not installed.
-#   20  — image build failed.
-#   30  — healthcheck failed.
-#   40  — digest-pin missing.
-#   50  — outbound network call detected.
+# Exit codes: 0 ok; 10 no docker; 20 build failed; 30 readiness/HTTP failure;
+#             40 pin/config assertion failed; 50 header/CSP assertion failed;
+#             60 hardening assertion failed; 70 egress assertion failed.
 
-set -eu
+set -euo pipefail
 
-# Run from the repository root (build context for infra/Dockerfile).
 cd "$(dirname "$0")/.."
 
-CONTAINER_NAME="openplate-smoke"
-HOST_PORT="${OPENPLATE_SMOKE_PORT:-8088}"
-IMAGE_TAG="openplate:smoke"
+NAME="openplate-smoke"
+NET="openplate-smoke-internal"
+NAME_ISO="openplate-smoke-iso"
+PORT="${OPENPLATE_SMOKE_PORT:-8088}"
+IMAGE="openplate:smoke"
+BUDGET="${OPENPLATE_SMOKE_BUDGET:-300}"
 START_TS=$(date +%s)
-BUDGET_SECONDS="${AI_NUTRITION_COACH_SMOKE_BUDGET:-300}"
+TMP="$(mktemp -d)"
 
 cleanup() {
-  if command -v docker >/dev/null 2>&1; then
-    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-  fi
+  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" >/dev/null 2>&1 || true
+  docker network rm "$NET" >/dev/null 2>&1 || true
+  rm -rf "$TMP"
 }
 trap cleanup EXIT
 
-if ! command -v docker >/dev/null 2>&1; then
-  printf 'smoke: docker is required.\n' >&2
-  exit 10
+fail() { # fail <exit-code> <message>
+  printf 'smoke: FAIL — %s\n' "$2" >&2
+  exit "$1"
+}
+ok() { printf 'smoke: ok — %s\n' "$1"; }
+
+command -v docker >/dev/null 2>&1 || { printf 'smoke: docker is required.\n' >&2; exit 10; }
+command -v curl >/dev/null 2>&1 || fail 10 "curl is required"
+docker rm -f "$NAME" "$NAME_ISO" >/dev/null 2>&1 || true
+
+# ── pins ────────────────────────────────────────────────────────────────────
+grep -Eq '^FROM nginxinc/nginx-unprivileged:[0-9][^ @]*@sha256:[0-9a-f]{64}' infra/Dockerfile \
+  || fail 40 "serve stage is not nginx-unprivileged pinned by digest (infra/Dockerfile)"
+! grep -Eq '^FROM nginx:' infra/Dockerfile || fail 40 "root nginx base image still referenced"
+grep -Eq 'image: caddy:[0-9][^ @]*@sha256:[0-9a-f]{64}' infra/docker-compose.yml \
+  || fail 40 "Caddy is not pinned by digest (infra/docker-compose.yml)"
+ok "base images pinned by digest"
+
+# ── compose config ──────────────────────────────────────────────────────────
+compose_cfg="$(docker compose -f infra/docker-compose.yml config 2>&1)" \
+  || fail 40 "docker-compose.yml is invalid: $compose_cfg"
+grep -q 'host_ip: 127.0.0.1' <<<"$compose_cfg" \
+  || fail 40 "compose default does not bind 127.0.0.1"
+! grep -q 'caddy:' <<<"$compose_cfg" || fail 40 "caddy runs without the tls profile"
+OPENPLATE_DOMAIN=plate.example.test docker compose -f infra/docker-compose.yml --profile tls config 2>&1 \
+  | grep -q 'caddy:' || fail 40 "tls profile does not define caddy"
+! grep -q 'openplate-data' infra/docker-compose.yml || fail 40 "compose still references the removed /data volume"
+ok "compose: loopback by default, tls profile present, no /data volume"
+
+# ── build + run through the real entry point ────────────────────────────────
+printf 'smoke: building and starting via bin/openplate up (port %s) ...\n' "$PORT"
+export OPENPLATE_IMAGE_TAG="$IMAGE" OPENPLATE_CONTAINER_NAME="$NAME" OPENPLATE_PORT="$PORT"
+rc=0
+bin/openplate up >"$TMP/up.log" 2>&1 || rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  tail -30 "$TMP/up.log" >&2
+  fail 20 "bin/openplate up exited $rc"
 fi
 
-printf 'smoke: asserting nginx:alpine digest pin in infra/Dockerfile ...\n'
-if ! grep -q 'nginx:alpine@sha256:4a73073bd' infra/Dockerfile; then
-  printf 'smoke: nginx:alpine digest pin is missing — see infra/Dockerfile.\n' >&2
-  exit 40
+# readiness loop (replaces the old fixed sleep)
+BASE="http://127.0.0.1:${PORT}"
+ready=0
+for _ in $(seq 1 60); do
+  if curl -fsS -o /dev/null "$BASE/" 2>/dev/null; then ready=1; break; fi
+  sleep 0.5
+done
+[[ "$ready" -eq 1 ]] || { docker logs "$NAME" 2>&1 | tail -20 >&2; fail 30 "no HTTP 200 from $BASE/ within 30s"; }
+ok "ready, HTTP 200 for /"
+
+# ── name collision ──────────────────────────────────────────────────────────
+rc=0
+bin/openplate up >"$TMP/dup.log" 2>&1 || rc=$?
+[[ "$rc" -eq 31 ]] && grep -q 'already exists' "$TMP/dup.log" \
+  || fail 30 "second 'bin/openplate up' did not fail with the name-collision error (exit $rc)"
+ok "container name collision is reported clearly"
+
+# ── HTTP behaviour ──────────────────────────────────────────────────────────
+body="$(curl -fsS "$BASE/")"
+grep -q 'flutter' <<<"$body" || fail 30 "index.html lacks the flutter bootstrap"
+if grep -qiE 'analytics|telemetry|tracking|googletagmanager|sentry' <<<"$body"; then
+  fail 50 "telemetry-style reference in index.html"
 fi
+[[ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/board/2026-08-13")" == 200 ]] \
+  || fail 30 "SPA deep link did not fall back to index.html"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/assets/does-not-exist.png")" == 404 ]] \
+  || fail 30 "missing asset did not 404 (SPA fallback is swallowing it)"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/")" == 405 ]] \
+  || fail 30 "POST was not rejected with 405"
+# Error responses carry the security headers too, and a 404 is never publicly cacheable.
+for spec in "-X POST $BASE/" "$BASE/assets/does-not-exist.png"; do
+  # shellcheck disable=SC2086
+  eh="$(curl -sS -D - -o /dev/null $spec | tr -d '\r')"
+  for want in 'content-security-policy:' 'x-content-type-options: nosniff' 'cross-origin-opener-policy:'; do
+    grep -qiF "$want" <<<"$eh" || fail 50 "error response ($spec) is missing header: $want"
+  done
+  ! grep -qi '^cache-control:.*public' <<<"$eh" || fail 50 "error response ($spec) is publicly cacheable"
+done
+ok "SPA fallback, 404 for missing assets, 405 for POST; headers on error responses"
 
-printf 'smoke: building %s ...\n' "$IMAGE_TAG"
-if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
-  printf 'smoke: image build failed.\n' >&2
-  exit 20
+WASM="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html | grep -E "^sqlite3mc-[0-9.]+\.wasm$"' | head -1)"
+[[ -n "$WASM" ]] || fail 30 "no versioned sqlite3mc-<ver>.wasm in the image"
+
+hdr() { curl -sS -D - -o /dev/null "$BASE$1"; }
+for path in "/" "/main.dart.js" "/flutter_bootstrap.js" "/$WASM" "/canvaskit/chromium/canvaskit.wasm" "/assets/FontManifest.json"; do
+  h="$(hdr "$path")"
+  head -1 <<<"$h" | grep -q ' 200' || fail 30 "$path did not return 200"
+  for want in 'content-security-policy:' 'x-content-type-options: nosniff' 'referrer-policy: no-referrer' \
+              'x-frame-options: deny' 'permissions-policy: camera=(self), microphone=()' \
+              'cross-origin-opener-policy: same-origin' 'cross-origin-resource-policy: same-origin'; do
+    tr -d '\r' <<<"$h" | grep -qiF "$want" || fail 50 "$path is missing header: $want"
+  done
+  tr -d '\r' <<<"$h" | grep -qi '^server: nginx$' || fail 50 "$path: Server header exposes a version"
+done
+ok "security headers on html, js, wasm and asset responses; Server has no version"
+
+hdr "/$WASM" | tr -d '\r' | grep -qi '^content-type: application/wasm' || fail 50 "$WASM is not application/wasm"
+hdr "/$WASM" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "$WASM is not immutable"
+for p in / /main.dart.js /flutter_bootstrap.js; do
+  hdr "$p" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
+done
+hdr "/assets/FontManifest.json" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "asset manifests are not no-cache"
+ok "wasm: application/wasm + immutable; index/bootstrap/app code/manifests: no-cache"
+
+csp="$(hdr / | tr -d '\r' | grep -i '^content-security-policy:')"
+script_src="$(tr ';' '\n' <<<"$csp" | grep -i "script-src")"
+grep -q "'wasm-unsafe-eval'" <<<"$script_src" || fail 50 "CSP script-src lacks 'wasm-unsafe-eval'"
+! grep -q "unsafe-inline" <<<"$script_src" || fail 50 "CSP script-src allows 'unsafe-inline'"
+connect_src="$(tr ';' '\n' <<<"$csp" | grep -i 'connect-src')"
+! grep -Eq "(^| )(https:|\*)( |$)" <<<"$connect_src" || fail 50 "CSP connect-src allows any https:/* origin by default"
+grep -q 'https://world.openfoodfacts.org' <<<"$connect_src" || fail 50 "CSP connect-src lacks Open Food Facts"
+for d in "default-src 'self'" "object-src 'none'" "frame-ancestors 'none'" "form-action 'none'" "base-uri 'self'"; do
+  grep -qF "$d" <<<"$csp" || fail 50 "CSP lacks: $d"
+done
+ok "CSP: strict script-src, explicit connect-src allow-list"
+
+curl -sS -H 'Accept-Encoding: gzip' -D - -o /dev/null "$BASE/assets/assets/fonts/Roboto-Regular.ttf" | tr -d '\r' \
+  | grep -qi '^content-encoding: gzip' || fail 50 "ttf fonts are not gzip-compressed"
+ok "ttf fonts are compressed"
+
+# ── hardening ───────────────────────────────────────────────────────────────
+uid="$(docker exec "$NAME" id -u)"
+[[ "$uid" != 0 ]] || fail 60 "container runs as root"
+[[ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$NAME")" == true ]] || fail 60 "root filesystem is not read-only"
+! docker exec "$NAME" sh -c 'touch /usr/share/nginx/html/.w 2>/dev/null' || fail 60 "docroot is writable"
+! docker exec "$NAME" sh -c 'touch /etc/nginx/.w 2>/dev/null' || fail 60 "/etc/nginx is writable"
+docker inspect -f '{{.HostConfig.CapDrop}}' "$NAME" | grep -qi 'ALL' || fail 60 "capabilities not dropped"
+docker inspect -f '{{.HostConfig.SecurityOpt}}' "$NAME" | grep -q 'no-new-privileges' || fail 60 "no-new-privileges not set"
+ok "non-root (uid $uid), read-only rootfs, cap_drop ALL, no-new-privileges"
+
+# ── static bundle host scan ─────────────────────────────────────────────────
+docker cp "$NAME:/usr/share/nginx/html" "$TMP/html" >/dev/null
+bash tools/check_no_external_hosts.sh "$TMP/html" >/dev/null 2>"$TMP/hosts.log" \
+  || { cat "$TMP/hosts.log" >&2; fail 50 "third-party hosts in the shipped bundle"; }
+ok "no third-party hosts in the shipped bundle"
+
+# ── egress: serve on a network with no outbound route ───────────────────────
+docker network create --internal "$NET" >/dev/null
+docker run -d --name "$NAME_ISO" --network "$NET" \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  -e OPENPLATE_CONNECT_SRC_EXTRA="https://api.byok.example.test" \
+  "$IMAGE" >/dev/null
+ready=0
+for _ in $(seq 1 60); do
+  if docker exec "$NAME_ISO" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null; then ready=1; break; fi
+  sleep 0.5
+done
+[[ "$ready" -eq 1 ]] || fail 70 "container does not serve on an internal (no-egress) network"
+# The isolation must be real, or the test above proves nothing.
+if docker exec "$NAME_ISO" wget -q -T 4 -O /dev/null https://example.com/ 2>/dev/null; then
+  fail 70 "the --internal network is not isolated (outbound request succeeded)"
 fi
+ok "boots and serves with no outbound network (needs none); outbound requests from it fail"
+docker exec "$NAME_ISO" wget -q -S -O /dev/null http://127.0.0.1:8080/ 2>&1 \
+  | grep -i 'content-security-policy' | grep -qF 'connect-src '"'self'"' https://world.openfoodfacts.org https://api.byok.example.test' \
+  || fail 50 "OPENPLATE_CONNECT_SRC_EXTRA did not reach the CSP"
+ok "OPENPLATE_CONNECT_SRC_EXTRA reaches the CSP"
 
-printf 'smoke: starting container on :%s ...\n' "$HOST_PORT"
-docker run --rm -d --name "$CONTAINER_NAME" \
-  -p "${HOST_PORT}:80" "$IMAGE_TAG" >/dev/null
-
-# Give nginx a moment to come up. The Dockerfile's HEALTHCHECK has a
-# 5s start-period so the container is healthy by the time we curl.
-sleep 8
-
-printf 'smoke: curling http://localhost:%s/ ...\n' "$HOST_PORT"
-HTTP_BODY=$(curl -sf "http://localhost:${HOST_PORT}/" || true)
-if [ -z "$HTTP_BODY" ]; then
-  printf 'smoke: healthcheck failed — no response from the lock screen.\n' >&2
-  exit 30
+# The rendered config cannot make a request: no proxying, no DNS resolver.
+cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/openplate.conf /tmp/openplate-headers.inc /etc/nginx/nginx.conf')"
+if grep -Eq '^[[:space:]]*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b' <<<"$cfg"; then
+  fail 70 "rendered nginx config contains proxy_pass/resolver-style directives"
 fi
+ok "rendered nginx config contains no proxy_pass / resolver"
 
-# The Flutter web release bundle ships a single index.html that
-# includes the bootstrap script. We assert the body is non-empty
-# and that no telemetry endpoint is referenced.
-if ! printf '%s' "$HTTP_BODY" | grep -q 'flutter'; then
-  printf 'smoke: response did not contain the flutter bootstrap.\n' >&2
-  exit 30
-fi
+# ── CSP injection: hostile OPENPLATE_CONNECT_SRC_EXTRA must stop the container ──
+inject_cases=("https://a.test'; script-src *" "https://a.test; script-src 'unsafe-inline'" "*" "https:" \
+              $'https://a.test\nhttps://b.test' "https://a.test/path" "http://evil.test")
+for bad in "${inject_cases[@]}"; do
+  docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
+  if docker run -d --name "$NAME_ISO-bad" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+       --cap-drop ALL --security-opt no-new-privileges:true \
+       -e OPENPLATE_CONNECT_SRC_EXTRA="$bad" "$IMAGE" >/dev/null 2>&1; then
+    sleep 2
+    state="$(docker inspect -f '{{.State.Running}}' "$NAME_ISO-bad" 2>/dev/null || echo false)"
+    docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
+    [[ "$state" == false ]] || fail 50 "container started with hostile OPENPLATE_CONNECT_SRC_EXTRA: $(printf %q "$bad")"
+  fi
+  docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
+done
+ok "hostile OPENPLATE_CONNECT_SRC_EXTRA values (quote, ;, *, https:, newline, path, http) refuse to start"
+rc=0
+OPENPLATE_CONNECT_SRC_EXTRA="*" bin/openplate up >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 50 "bin/openplate accepted a hostile OPENPLATE_CONNECT_SRC_EXTRA (exit $rc)"
+rc=0
+OPENPLATE_DOMAIN=$'a.test\nevil' bin/openplate up --tls >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 50 "bin/openplate accepted a hostile OPENPLATE_DOMAIN (exit $rc)"
+ok "bin/openplate rejects hostile OPENPLATE_CONNECT_SRC_EXTRA / OPENPLATE_DOMAIN"
 
-printf 'smoke: asserting no telemetry endpoint in the bundle ...\n'
-if printf '%s' "$HTTP_BODY" | grep -qiE 'analytics|telemetry|tracking|googletagmanager|sentry'; then
-  printf 'smoke: a telemetry-style reference was found in the bundle.\n' >&2
-  exit 50
-fi
-
-END_TS=$(date +%s)
-ELAPSED=$((END_TS - START_TS))
-if [ "$ELAPSED" -gt "$BUDGET_SECONDS" ]; then
-  printf 'smoke: build + start exceeded the %ss budget (took %ss).\n' \
-    "$BUDGET_SECONDS" "$ELAPSED" >&2
-  exit 30
-fi
-
-printf 'smoke: OK — image built + lock screen served in %ss.\n' "$ELAPSED"
-exit 0
+ELAPSED=$(($(date +%s) - START_TS))
+[[ "$ELAPSED" -le "$BUDGET" ]] || fail 30 "exceeded the ${BUDGET}s budget (took ${ELAPSED}s)"
+printf 'smoke: ALL OK in %ss.\n' "$ELAPSED"

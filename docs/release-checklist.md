@@ -20,9 +20,18 @@ named reviewer records the human sign-off.
 
 - [ ] `melos run smoke:self-host` is green (FR-11 / NFR9).
   - Image builds in under 5 minutes on a standard CI runner.
-  - `curl http://localhost/` returns 200 + the lock-screen HTML.
-  - The `nginx:alpine` base is digest-pinned in `infra/Dockerfile`.
-  - The container's network namespace is quiet (FR-12 / NFR4).
+  - The app shell is served on `http://localhost:<port>/` (loopback by
+    default); `sqlite3mc-<ver>.wasm` is `application/wasm`.
+  - `nginxinc/nginx-unprivileged` and `caddy` are digest-pinned.
+  - CSP + security headers are present on html, js and wasm responses; no
+    server version is disclosed.
+  - The container is non-root, read-only, `cap_drop: ALL`,
+    `no-new-privileges`.
+  - It boots and serves on a docker `--internal` network (no egress).
+- [ ] `melos run check:hosts` is green: the built web bundle references no
+  third-party host (CanvasKit + fonts are self-hosted).
+- [ ] `docs/self-host.md` still states that plain HTTP over a network is
+  unsupported and that data lives in the browser (export = backup).
 
 ## Gate C — Release posture (Story 4.6 / FR-12)
 
@@ -36,10 +45,10 @@ named reviewer records the human sign-off.
 
 ## Gate D — Telemetry (Story 4.5 / FR-12)
 
-- [ ] `melos run check:telemetry` is green.
-- [ ] No unsanctioned path opens a socket.
-- [ ] The production `main.dart` does not invoke a network path
-  at startup.
+- [ ] `melos run check:telemetry` is green (import-based).
+- [ ] Only the allow-listed adapters import a network transport; no
+  telemetry SDK is declared or imported.
+- [ ] The production `main.dart` imports no network transport.
 - [ ] Every "no telemetry" claim in `docs/` is anchored to the
   gate.
 

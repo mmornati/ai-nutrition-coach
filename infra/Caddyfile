@@ -1,0 +1,27 @@
+# Caddy reverse proxy for the opt-in `tls` compose profile.
+#
+# Automatic HTTPS for $OPENPLATE_DOMAIN (certificate issuance + renewal, and
+# HTTP -> HTTPS redirect, are Caddy defaults). The app container sets every
+# other security header (CSP, COOP, ...); HSTS belongs here because only this
+# layer speaks HTTPS.
+
+{
+	# No admin API listener inside the container.
+	admin off
+	# HTTP/1.1 + HTTP/2 only: HTTP/3 would need 443/udp published, and the
+	# Alt-Svc header Caddy would otherwise send advertises it.
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$OPENPLATE_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+		# reverse_proxy adds "Via: 1.1 Caddy"; strip it after the proxy ran.
+		-Via
+		defer
+	}
+	reverse_proxy openplate:8080
+}

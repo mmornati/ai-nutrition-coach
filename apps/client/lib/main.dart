@@ -5,9 +5,11 @@ import 'package:integrations/integrations.dart';
 
 import 'state/ai_rung_provider.dart';
 import 'state/ai_settings_provider.dart';
+import 'state/barcode_detector_support.dart';
 import 'state/coach_note_provider.dart';
 import 'state/coach_provider.dart';
 import 'state/erase_provider.dart';
+import 'state/font_licenses.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
@@ -26,6 +28,8 @@ void main() async {
   // enforcement is the static check (tools/check_adults_only.dart)
   // + the named-reviewer gate (Story 5.3).
   PrivacyGuard.assertAdultsOnly();
+  configureWebBarcodeReader();
+  registerBundledFontLicenses();
   runApp(const OpenPlateBootstrap());
 }
 
@@ -130,6 +134,9 @@ Future<List<Override>> _bootOverrides(VoidCallback restart) async {
     // behind the `BarcodeScanner` / `CameraPermission` ports so
     // tests can substitute fakes without touching the camera.
     barcodeScannerProvider.overrideWithValue(MobileScannerBarcodeScanner()),
+    barcodeDetectorAvailableProvider.overrideWithValue(
+      barcodeDetectorAvailable(),
+    ),
     cameraPermissionProvider.overrideWithValue(
       const PermissionHandlerCameraPermission(),
     ),

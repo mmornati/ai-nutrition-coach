@@ -3,9 +3,10 @@
 # The single "is this change verified?" gate (security review B2).
 #
 #   scripts/verify.sh              format:check, analyze (infos fatal), test,
-#                                  the release web build, and the secrets scan
+#                                  the release web build, the secrets scan
 #                                  of that build (S1: no key-shaped string may
-#                                  be compiled into a bundle)
+#                                  be compiled into a bundle) and the
+#                                  third-party host scan (N5)
 #   scripts/verify.sh --with-apk   additionally `flutter build apk --debug`
 #                                  (slow; needs the Android SDK platform 37 —
 #                                  CI installs it, see .github/workflows/ci.yml)
@@ -37,7 +38,9 @@ run melos run format:check
 run melos run analyze
 run melos run test
 run bash tools/check_no_secrets_in_build.sh --self-test
-# build:web builds the bundle and scans it (--web-only) as its last step.
+run bash tools/check_no_external_hosts.sh --self-test
+# build:web builds the bundle and scans it (secrets --web-only, then the
+# third-party host scan) as its last steps.
 run melos run build:web
 
 if [[ "$WITH_APK" -eq 1 ]]; then

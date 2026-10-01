@@ -83,9 +83,10 @@ melos run smoke:self-host
 
 End-to-end test of the `bin/ai-nutrition-coach up` flow — builds the
 multi-stage `infra/Dockerfile`, starts the container, curls the
-lock-screen HTML, asserts the `nginx:alpine` digest pin is in
-place, and asserts no outbound network calls from the running
-image. Budget is `<5 min` on a standard CI runner (NFR9 / FR-11).
+app shell, asserts the base images are digest-pinned, the
+security headers/CSP on html/js/wasm, a non-root read-only container,
+that it serves on a network with no egress, and that the bundle has
+no third-party hosts. Budget is `<5 min` on a standard CI runner (NFR9 / FR-11).
 
 ## Release posture gates
 
@@ -96,7 +97,8 @@ Three gates run on every PR and every tag:
 | `melos run analyze`           | No analyzer regressions.                                 |
 | `melos run test`              | All unit tests + the AD-1 purity test + the no-telemetry test. |
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
-| `melos run check:telemetry`   | No unsanctioned socket users; doc claims are anchored.   |
+| `melos run check:telemetry`   | Import-based: only allow-listed adapters import a network transport; no telemetry SDKs; doc claims are anchored. |
+| `melos run check:hosts`       | The built web bundle references no third-party host.     |
 | `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD. |
 | CI: `self-host-smoke`         | Same as `melos run smoke:self-host` on every PR.         |
 | CI: `release-gate`            | Same posture checks at tag time.                         |

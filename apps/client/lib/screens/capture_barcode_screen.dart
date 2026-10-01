@@ -69,6 +69,10 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   /// permission API during build.
   CameraPermissionStatus? _permission;
 
+  /// `true` when the platform has no local barcode decoder (web browsers
+  /// without `BarcodeDetector`). The camera is never requested then.
+  bool _noDetector = false;
+
   /// The current lookup result for the most recently scanned
   /// barcode. `null` while a lookup is in flight or before the
   /// first scan lands.
@@ -120,6 +124,12 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   }
 
   Future<void> _ensurePermission() async {
+    if (!ref.read(barcodeDetectorAvailableProvider)) {
+      // Nothing could decode the frames: skip the permission prompt and the
+      // camera and offer manual entry (calm copy, no error tone).
+      setState(() => _noDetector = true);
+      return;
+    }
     final permission = ref.read(cameraPermissionProvider);
     final status = await permission.request();
     if (!mounted) return;
@@ -334,6 +344,9 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   }
 
   Widget _buildBody(AppPalette palette) {
+    if (_noDetector) {
+      return _UnavailableCalm(palette: palette, detectorMissing: true);
+    }
     final permission = _permission;
     if (permission == null) {
       return const _Hint(text: 'Checking camera permission…');
@@ -534,8 +547,11 @@ class _DeniedCalm extends StatelessWidget {
 }
 
 class _UnavailableCalm extends StatelessWidget {
-  const _UnavailableCalm({required this.palette});
+  const _UnavailableCalm({required this.palette, this.detectorMissing = false});
   final AppPalette palette;
+
+  /// The browser cannot read barcodes locally (no `BarcodeDetector`).
+  final bool detectorMissing;
 
   @override
   Widget build(BuildContext context) {
@@ -543,12 +559,18 @@ class _UnavailableCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera unavailable — type it instead',
+          detectorMissing
+              ? 'Scanning isn\'t available in this browser — type it instead'
+              : 'Camera unavailable — type it instead',
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'We couldn\'t start the camera. Manual entry still works.',
+          detectorMissing
+              ? 'This browser can\'t read barcodes on your device, and '
+                    'OpenPlate never sends camera images elsewhere. Manual '
+                    'entry still works.'
+              : 'We couldn\'t start the camera. Manual entry still works.',
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),

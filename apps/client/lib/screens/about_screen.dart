@@ -53,6 +53,21 @@ class AboutScreen extends StatelessWidget {
                 'yours to run · open source',
                 style: AppTypography.mono.copyWith(color: palette.inkMuted),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(AppTouchTargets.min),
+                  alignment: Alignment.centerLeft,
+                ),
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: 'OpenPlate',
+                ),
+                child: Text(
+                  'Open-source licences',
+                  style: AppTypography.ui.copyWith(color: palette.ink),
+                ),
+              ),
             ],
           ),
         ),

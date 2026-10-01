@@ -29,6 +29,21 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../state/scanner_provider.dart';
 
+/// Phase 4 / N5 — keep barcode decoding fully local on the web.
+///
+/// `mobile_scanner`'s default web reader falls back, on browsers without the
+/// native `BarcodeDetector` API (e.g. Firefox), to `zxing-wasm`, which it
+/// downloads from cdn.jsdelivr.net at first use. That is a third-party script
+/// load (blocked by the CSP, and contrary to the zero-third-party posture), so
+/// the web build is pinned to the native detector. Where that API is missing
+/// the scanner reports an error and the user types the barcode / uses manual
+/// entry instead. No-op on Android/iOS (they use the platform ML kits).
+void configureWebBarcodeReader() {
+  MobileScannerPlatform.instance.setWebBarcodeReader(
+    WebBarcodeReader.barcodeDetector,
+  );
+}
+
 /// `BarcodeScanner` adapter — wraps `MobileScannerController` and
 /// forwards each decoded code into the `BarcodeScanner` stream.
 ///

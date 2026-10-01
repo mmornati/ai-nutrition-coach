@@ -1,27 +1,75 @@
-# Story 4.4 — opt-in persistent-data compose file (FR-11).
+# OpenPlate self-host stack.
 #
-# `bin/ai-nutrition-coach up` uses `docker run` so the zero-config path has
-# zero dependencies. `bin/ai-nutrition-coach up --with-persist` starts this
-# stack instead: the sqlite3mc database is bind-mounted at `/data`
-# inside the container so it survives container restarts.
+#   docker compose -f infra/docker-compose.yml up -d                 # app on 127.0.0.1:8080
+#   OPENPLATE_DOMAIN=plate.example.com \
+#     docker compose -f infra/docker-compose.yml --profile tls up -d # + Caddy, automatic HTTPS
 #
-# The container runs as the non-root `ai-nutrition-coach` user the
-# Dockerfile declares (see `infra/Dockerfile`). The bind mount is
-# owned by the same uid so the database file is writable.
+# (`bin/openplate up --compose` / `bin/openplate up --tls` wrap these.)
 #
-# No reverse-proxy / TLS termination in v1. Put nginx / caddy /
-# traefik in front of the container; a v1.1 follow-up adds a
-# self-signed TLS option.
+# The app container is a STATIC web server: it holds no user data and has no
+# volume. Your data lives encrypted in your browser (IndexedDB, ADR-0002); use
+# the in-app export for backups. See docs/self-host.md.
+#
+# Plain HTTP on anything but localhost is unsupported: the web store refuses to
+# run without a secure context (https:// or localhost). Hence the default bind
+# of 127.0.0.1 — to reach it from other devices, use the `tls` profile.
+#
+# Environment (all optional; set OPENPLATE_DOMAIN for a real tls deployment):
+#   OPENPLATE_IMAGE_TAG          image to run (default openplate:dev)
+#   OPENPLATE_BIND               host interface for the app port (default 127.0.0.1)
+#   OPENPLATE_PORT               host port for the app (default 8080)
+#   OPENPLATE_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK AI
+#                                endpoint: "https://api.openai.com"
+#   OPENPLATE_DOMAIN             public DNS name for the tls profile (default
+#                                `localhost`: a local, self-signed trial)
+#   OPENPLATE_TLS_BIND           interface Caddy listens on (default 0.0.0.0)
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
 
 services:
-  ai-nutrition-coach:
-    image: ai-nutrition-coach:dev
-    container_name: ai-nutrition-coach
+  openplate:
+    <<: *hardening
+    image: ${OPENPLATE_IMAGE_TAG:-openplate:dev}
     ports:
-      - "80:80"
+      - "${OPENPLATE_BIND:-127.0.0.1}:${OPENPLATE_PORT:-8080}:8080"
+    environment:
+      OPENPLATE_CONNECT_SRC_EXTRA: ${OPENPLATE_CONNECT_SRC_EXTRA:-}
+    # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+
+  # Opt-in HTTPS: Caddy obtains and renews a certificate for OPENPLATE_DOMAIN
+  # automatically (Let's Encrypt; ports 80 + 443 must be reachable from the
+  # internet for a public domain; use `localhost` for a local, self-signed
+  # trial) and adds HSTS. It is the only service that publishes 80/443.
+  caddy:
+    <<: *hardening
+    profiles: ["tls"]
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    depends_on:
+      openplate:
+        condition: service_healthy
+    ports:
+      - "${OPENPLATE_TLS_BIND:-0.0.0.0}:80:80"
+      - "${OPENPLATE_TLS_BIND:-0.0.0.0}:443:443"
+    environment:
+      OPENPLATE_DOMAIN: ${OPENPLATE_DOMAIN:-localhost}
     volumes:
-      - ai-nutrition-coach-data:/data
-    restart: unless-stopped
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data       # certificates + ACME account (keep this!)
+      - caddy-config:/config
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    # Binding 80/443 as root-in-container needs only this one capability.
+    cap_add: [NET_BIND_SERVICE]
 
 volumes:
-  ai-nutrition-coach-data:
+  caddy-data:
+  caddy-config:

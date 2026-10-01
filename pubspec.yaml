@@ -16,6 +16,10 @@ workspace:
 
 dev_dependencies:
   melos: 8.2.2
+  # tools/telemetry_scan.dart parses Dart with the analyzer (N6). Already in the
+  # lockfile (drift_dev needs it); declared here so `dart run tools/...` from the
+  # workspace root resolves it.
+  analyzer: ^13.0.0
 
 # AD-8 / D3: opt into SQLite3MultipleCiphers (sqlite3mc) at the build-hook
 # level so the sqlite3 binary the app links against supports the cipher
@@ -59,8 +63,12 @@ melos:
         dart format --output=none --set-exit-if-changed tools
 
     build:web:
-      description: Fetch + verify the pinned sqlite3mc.wasm, build the responsive client as a release web bundle (self-host), then scan it for secret-shaped strings (S1).
-      run: bash scripts/fetch_web_sqlite.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost) && bash tools/check_no_secrets_in_build.sh --web-only
+      description: Fetch + verify the pinned sqlite3mc.wasm, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn), then scan it for secret-shaped strings (S1) and third-party hosts (N5).
+      run: bash scripts/fetch_web_sqlite.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost) && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+
+    check:hosts:
+      description: Fail if the built web bundle references a third-party host outside the allow-list (N5). Run after a build.
+      run: bash tools/check_no_external_hosts.sh
 
     check:secrets:
       description: Scan the built web bundle (and any APK) for key-shaped strings — sk-, sk-or-v1-, AIza, Bearer <token> (S1). Run after a build.

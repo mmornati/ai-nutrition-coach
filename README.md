@@ -27,12 +27,16 @@ optional sync to your own infrastructure, zero telemetry by default.
 ### Self-host
 
 ```sh
-bin/ai-nutrition-coach up                 # zero-config; data lives and dies with the container
-bin/ai-nutrition-coach up --with-persist  # docker compose with a bind-mounted volume
+bin/openplate up         # builds + serves http://localhost:8080 (loopback only)
+bin/openplate up --tls   # + automatic HTTPS for $OPENPLATE_DOMAIN (Caddy), for other devices
+bin/openplate down
 ```
 
-Open `http://localhost/`. The lock screen is the first paint; enter a
-passphrase to unlock your store. See [`docs/self-host.md`](./docs/self-host.md).
+Open `http://localhost:8080/`; choose a passphrase to create your store. The
+container is a static server and holds no data: your history is encrypted in
+*your browser*, and the in-app export is the backup path. Plain HTTP over a
+network is unsupported (the web store needs https or localhost). See
+[`docs/self-host.md`](./docs/self-host.md).
 
 ### Build from source
 
@@ -58,7 +62,7 @@ expectations. The release posture is enforced by
 apps/client/             one Flutter responsive codebase (iOS + Android + web)
 packages/domain_core/    pure-Dart domain (no Flutter/SQLite/HTTP imports)
 packages/integrations/   adapters (drift store, OFF/USDA, AI rungs, sync, export)
-infra/                   Docker + nginx self-host definition
+infra/                   Docker + nginx (+ Caddy TLS profile) self-host definition
 docs/                    user-facing docs (your-data, self-host, ai-tiers,
                          telemetry-posture, no-dark-patterns-standard)
 _bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
