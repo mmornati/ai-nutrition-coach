@@ -147,6 +147,28 @@ pubspec.yaml             workspace + the `melos:` scripts block (single source)
 scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```
 
+## Android release signing
+
+Debug and CI builds need no signing material. A release build
+(`flutter build apk --release` / `appbundle --release`, run in
+`apps/client`) requires `apps/client/android/key.properties`, which is
+gitignored and must never be committed:
+
+```
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+Without it the release build fails with an explanatory message instead of
+signing with the debug key. See `docs/release-checklist.md` (Gate F).
+
+## Reporting vulnerabilities
+
+Please do not open public issues for security problems; follow
+[`SECURITY.md`](SECURITY.md).
+
 ## Community
 
 AI Nutrition Coach is yours to run and yours to shape. The release pipeline

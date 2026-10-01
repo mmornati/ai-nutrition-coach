@@ -6,6 +6,7 @@
 #   * `melos run smoke:self-host`   — Gate B.
 #   * `melos run check:telemetry`   — Gate D.
 #   * `melos run check:release-posture` — Gate C.
+#   * an SBOM of the self-host image, uploaded as a workflow artifact (B6).
 #
 # A regression on any gate fails the build. The named-reviewer
 # sign-off is recorded in the PR thread; the durable artefact is
@@ -18,6 +19,11 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  workflow_dispatch:
+
+# Least privilege: jobs that need more must escalate at job level.
+permissions:
+  contents: read
 
 jobs:
   release-gate:
@@ -26,10 +32,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - name: Check out the source
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: '3.44.0'
           channel: stable
@@ -63,4 +69,33 @@ jobs:
 
       - name: Gate summary
         if: success()
-        run: echo "release-gate: PASS"
+        run: 'echo "release-gate: PASS"'
+
+  sbom:
+    name: SBOM (self-host image)
+    # Release tags and manual runs only; never on pull requests.
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build infra/Dockerfile
+        run: docker build -f infra/Dockerfile -t openplate:release .
+
+      - name: Generate SBOM (SPDX JSON)
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: openplate:release
+          format: spdx-json
+          output-file: openplate-image.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openplate-image-sbom
+          path: openplate-image.spdx.json
+          if-no-files-found: error

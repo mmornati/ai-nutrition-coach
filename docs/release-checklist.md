@@ -52,6 +52,45 @@ named reviewer records the human sign-off.
 - [ ] Every "no telemetry" claim in `docs/` is anchored to the
   gate.
 
+## Gate F — Mobile signing and store metadata
+
+- [ ] **Android signing.** Release builds are signed only with a key from
+  `apps/client/android/key.properties` (gitignored, as are `*.jks` and
+  `*.keystore`). Create it with `storeFile` (absolute path), `storePassword`,
+  `keyAlias`, `keyPassword`. Without it `flutter build apk --release` /
+  `appbundle --release` fails with a clear message; it never falls back to the
+  debug key. Keep the keystore and passwords in the maintainer's password
+  manager, never in the repo or CI logs.
+- [ ] The release APK/AAB passes `bash tools/check_no_secrets_in_build.sh`.
+- [ ] **iOS usage strings and permission_handler.** `ios/Runner/Info.plist`
+  declares `NSCameraUsageDescription` (barcode scan + photo capture). The photo
+  library and microphone are not used, so they are deliberately not declared.
+  With Flutter 3.44's default Swift Package Manager integration, the Info.plist
+  key is the real switch: `permission_handler_apple`'s `Package.swift` enables
+  the camera code when it finds that key. The `PERMISSION_CAMERA=1` macro in
+  `ios/Podfile` only applies under CocoaPods and is kept as a fallback.
+  `Package.swift` cannot locate the Info.plist when archiving from Xcode.app,
+  so build release archives with `flutter build ipa`, or, if archiving from
+  Xcode, set `PERMISSION_HANDLER_INFO_PLIST` to the absolute path of
+  `ios/Runner/Info.plist` (for example via `launchctl setenv`) and clear
+  DerivedData. Set `PERMISSION_HANDLER_VERBOSE=1` to see what it enabled.
+  Verify on a device that the camera prompt appears in the archived build.
+- [ ] **Export compliance (not decided here).** `Info.plist` deliberately does
+  NOT set `ITSAppUsesNonExemptEncryption`; App Store Connect will ask at
+  upload and the maintainer answers. Facts for that answer: the iOS app
+  bundles its own standard cryptography (SQLite3MultipleCiphers,
+  ChaCha20-Poly1305, with PBKDF2 key derivation on the web build) for
+  data at rest, in addition to the operating system's HTTPS. The likely
+  answer to Apple's questionnaire is therefore "yes, standard algorithms", and
+  the likely US classification is mass-market 5D992.c. France may require a
+  declaration to ANSSI, uploaded in App Store Connect. Whether a Note 4
+  exemption can be argued is a legal call. This is not legal advice: the
+  maintainer must confirm the answers before the first App Store submission.
+- [ ] `ios/Podfile` still matches Flutter's template for the pinned version
+  (regenerate with `flutter create` into a scratch dir and diff when the Flutter
+  pin changes). iOS cannot be built in the project's Docker toolchain; build
+  and run on a Mac before shipping.
+
 ## Gate E — Tag
 
 - [ ] The version tag (`vX.Y.Z`) is created from `main`.

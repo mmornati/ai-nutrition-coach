@@ -27,7 +27,10 @@ void main() {
     expect(got.salt, _salt());
     expect(got.kdf, const WebKdfParams());
     expect(got.version, kWebStoreFormatVersion);
-    expect(jsonDecode(meta.encode())['pw'], 'nfc-utf8');
+    expect(
+      (jsonDecode(meta.encode()) as Map<String, Object?>)['pw'],
+      'nfc-utf8',
+    );
   });
 
   test('toString does not leak the salt', () {

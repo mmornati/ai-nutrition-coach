@@ -282,10 +282,11 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
               children: [
                 _Header(palette: palette, result: widget.result),
                 const SizedBox(height: AppSpacing.md),
-                if (widget.result is RecognizedPlate &&
-                    (widget.result as RecognizedPlate).foods.isNotEmpty)
+                if (widget.result case RecognizedPlate(
+                  :final foods,
+                ) when foods.isNotEmpty)
                   _RecognizedList(
-                    foods: (widget.result as RecognizedPlate).foods,
+                    foods: foods,
                     palette: palette,
                     selected: _selected,
                     onPick: _selectRecognized,
@@ -299,11 +300,11 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                     onPick: _selectClosestMatch,
                   ),
                 ],
-                if (_selected != null) ...[
+                if (_selected case final selected?) ...[
                   const SizedBox(height: AppSpacing.md),
                   _PresetRow(
                     presets: _presets,
-                    chosen: _selected!.quantity,
+                    chosen: selected.quantity,
                     palette: palette,
                     onPick: _selectPreset,
                   ),

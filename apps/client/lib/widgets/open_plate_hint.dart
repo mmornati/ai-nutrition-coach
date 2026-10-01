@@ -77,12 +77,13 @@ class OpenPlateHint extends ConsumerWidget {
   Widget _buildBody(BuildContext context, WidgetRef ref, AppPalette palette) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onDismissed == null
-          ? null
-          : () async {
-              await _recordDismiss(ref);
-              onDismissed!.call();
-            },
+      onTap: switch (onDismissed) {
+        final onDismissed? => () async {
+          await _recordDismiss(ref);
+          onDismissed();
+        },
+        null => null,
+      },
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
         child: Padding(

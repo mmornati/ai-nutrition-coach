@@ -32,6 +32,9 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'scanner_adapters.dart' show PermissionHandlerCameraPermission;
+import 'scanner_provider.dart' show CameraPermission, CameraPermissionStatus;
+
 /// Photo-capture port. The production adapter wraps `image_picker`'s
 /// `ImagePicker().pickImage(source: ImageSource.camera)`; tests
 /// inject a `FakePhotoCapture` that returns canned bytes.
@@ -70,13 +73,23 @@ class ImagePickerPhotoCapture implements PhotoCapture {
   /// [picker] `null` and the constructor falls back to
   /// `ImagePicker()` at call time so the field stays nullable but
   /// is read fresh on every `capture()` call.
-  // ignore: prefer_initializing_formals
-  const ImagePickerPhotoCapture({ImagePicker? picker}) : _picker = picker;
+  const ImagePickerPhotoCapture({
+    this._picker,
+    this._permission = const PermissionHandlerCameraPermission(),
+  });
 
   final ImagePicker? _picker;
 
+  /// Asked BEFORE the picker opens. On Android the CAMERA permission is
+  /// declared (merged from mobile_scanner's manifest), so image_picker's
+  /// camera intent throws a SecurityException unless it has been granted at
+  /// runtime. A refusal collapses to `null` — the same calm copy as a cancel.
+  final CameraPermission _permission;
+
   @override
   Future<Uint8List?> capture() async {
+    final status = await _permission.request();
+    if (status != CameraPermissionStatus.granted) return null;
     final picker = _picker ?? ImagePicker();
     // N1: ask the platform to downscale and re-encode. This reduces what is
     // uploaded, but is NOT relied on to drop EXIF (the Android plugin copies
@@ -91,8 +104,7 @@ class ImagePickerPhotoCapture implements PhotoCapture {
       requestFullMetadata: false,
     );
     if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return bytes;
+    return file.readAsBytes();
   }
 }
 

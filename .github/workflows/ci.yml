@@ -4,9 +4,11 @@
 #   verify  — format check, static analysis (`melos run analyze`), the full
 #             test suite (`melos run test`), then the two compile gates:
 #             `flutter build web --release` and `flutter build apk --debug`
-#             (debug: the release APK needs a signing key — Phase 6).
+#             (debug: a release build needs apps/client/android/key.properties,
+#             which CI deliberately does not have; see docs/release-checklist.md).
 #   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
-#             actually builds (it is built from the committed pubspec.lock).
+#             actually builds (it is built from the committed pubspec.lock),
+#             then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
 #
 # Secret scanning of the git history lives in gitleaks.yml (push, PR, weekly
 # schedule and manual dispatch).
@@ -33,6 +35,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: jobs that need more must escalate at job level.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Analyze, test, build web + apk
@@ -48,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Print toolchain
         run: |
@@ -121,7 +127,16 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build infra/Dockerfile
         run: docker build -f infra/Dockerfile -t openplate:ci .
+
+      - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: openplate:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table

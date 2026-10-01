@@ -98,13 +98,6 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
   /// capture, or when the catalog returned `NotFoundFailure`.
   List<FoodMatch> _closestMatches = const [];
 
-  /// In-flight recognition call. Riverpod's `autoDispose` family
-  /// disposes the provider when this widget unmounts; we keep a
-  /// local handle so a late result from a stale call does not flash
-  /// on screen while the new capture is resolving. Set / cleared
-  /// on every capture.
-  Future<RecognitionResult>? _recognitionFuture;
-
   @override
   void initState() {
     super.initState();
@@ -187,12 +180,12 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       // throwing adapter lands on the calm failure line, never on an
       // endless shimmer. A "not now" never reaches the rung: the photo is
       // dropped and the no-AI core (closest matches + manual) takes over.
-      _recognitionFuture = consented
+      final future = consented
           ? ref.read(aiRungProvider).recognize(bytes)
           : Future<RecognitionResult>.value(
               const RecognizedPlate(foods: <RecognizedFood>[]),
             );
-      recognition = await _recognitionFuture!;
+      recognition = await future;
     } on Object catch (_) {
       // Defensive — adapters must wrap in `RecognitionFailure`,
       // but a contract violation here should not crash the camera
@@ -306,7 +299,7 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()));
     if (!mounted) return;
-    Navigator.of(context).maybePop();
+    unawaited(Navigator.of(context).maybePop());
   }
 
   @override

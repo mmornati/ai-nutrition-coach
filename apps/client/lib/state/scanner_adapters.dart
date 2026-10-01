@@ -70,6 +70,7 @@ class MobileScannerBarcodeScanner implements BarcodeScanner {
           );
 
   final MobileScannerController _controller;
+  // ignore: close_sinks
   StreamController<BarcodeScan>? _broadcast;
   StreamSubscription<BarcodeCapture>? _sub;
 
@@ -82,11 +83,13 @@ class MobileScannerBarcodeScanner implements BarcodeScanner {
 
   @override
   Stream<BarcodeScan> scan() async* {
-    _broadcast ??= StreamController<BarcodeScan>.broadcast(
+    // Closed in [dispose].
+    // ignore: close_sinks
+    final broadcast = _broadcast ??= StreamController<BarcodeScan>.broadcast(
       onListen: _attach,
       onCancel: _detach,
     );
-    yield* _broadcast!.stream;
+    yield* broadcast.stream;
   }
 
   @override

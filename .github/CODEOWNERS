@@ -3,8 +3,10 @@
 # that touches user-facing copy.
 #
 # The named reviewer is documented in REVIEWERS.md at the repo
-# root. Replace `@mmornati` with your own GitHub
-# handle when forking the repo.
+# root. Replace `@openplate-maintainer` with the actual GitHub
+# handle when forking the repo. The ndp-review gate reads the owner handles
+# from this file generically (it requires each to be listed in REVIEWERS.md),
+# so it needs no change when the placeholder is replaced.
 #
 # Format: <pattern>  <owner>
 # Trailing `/` matches directories. `*` is a wildcard.
@@ -30,6 +32,17 @@
 /docs/v2-managed-oversight.md  @mmornati
 /docs/adults-only.md  @mmornati
 
+# ── Build, release and supply-chain surface (anything that changes what
+#    ships or what runs in CI is reviewed like code) ──
+/infra/  @openplate-maintainer
+/bin/  @openplate-maintainer
+/scripts/  @openplate-maintainer
+/tools/  @openplate-maintainer
+/.github/  @openplate-maintainer
+/SECURITY.md  @openplate-maintainer
+/apps/client/android/  @openplate-maintainer
+/apps/client/ios/  @openplate-maintainer
+
 # ── Reviewers file ──
 /REVIEWERS.md  @mmornati
 
@@ -38,7 +51,5 @@
 /tools/check_adults_only.dart  @mmornati
 /tools/check_no_under_13_profiles.dart  @mmornati
 
-# ── CI workflows that run the gate ──
-/.github/workflows/release-gate.yml  @mmornati
-/.github/workflows/ndp-review.yml  @mmornati
-/.github/workflows/self-host-smoke.yml  @mmornati
+# ── CI workflows that run the gate (also covered by /.github/ above) ──
+/.github/workflows/  @openplate-maintainer

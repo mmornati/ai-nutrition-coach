@@ -6,8 +6,8 @@
 # gitleaks-action because the action scans only the PR's commits on
 # pull_request events and needs a license for organisation repositories.
 #
-# Findings are redacted in the log. TODO(phase-6, B5): pin actions/checkout by
-# SHA like everything else and let Dependabot bump the image digest.
+# Findings are redacted in the log. Actions are pinned by SHA and the image by
+# digest; Dependabot (.github/dependabot.yml) proposes bumps.
 
 name: gitleaks
 
@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 

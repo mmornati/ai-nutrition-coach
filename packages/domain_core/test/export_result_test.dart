@@ -35,7 +35,7 @@ void main() {
       // analyzer enforces exhaustive coverage when a call site
       // pattern-matches on `ExportResult`. This test pins the
       // shape; the analyzer is the actual gate.
-      ExportResult r = const StoreClosed();
+      const ExportResult r = StoreClosed();
       switch (r) {
         case ExportReady():
           fail('did not expect ExportReady');
