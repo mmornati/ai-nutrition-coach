@@ -41,8 +41,8 @@ class CoachNoteGenerator {
   const CoachNoteGenerator({
     required Coach coach,
     required CoachNoteStore store,
-  })  : _coach = coach,
-        _store = store;
+  }) : _coach = coach,
+       _store = store;
 
   final Coach _coach;
   final CoachNoteStore _store;

@@ -50,7 +50,9 @@ class OpenPlateHint extends ConsumerWidget {
     // synthetic CoachNote (anchor: openPlate, plateLogId: 0) gives
     // the interaction log row a durable back-ref at the database
     // layer (same convention as the rest of the schema).
-    await ref.read(recordCoachInteractionProvider).recordOpenPlateDismiss(
+    await ref
+        .read(recordCoachInteractionProvider)
+        .recordOpenPlateDismiss(
           questionKey: questionKey,
           questionText: question,
         );
@@ -61,7 +63,8 @@ class OpenPlateHint extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final motion = MediaQuery.of(context).accessibleNavigation ||
+    final motion =
+        MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
     return Semantics(
       button: true,

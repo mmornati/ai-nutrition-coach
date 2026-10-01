@@ -16,8 +16,10 @@ class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
   final List<PlateLog> _plates;
   @override
-  Future<RecordPlateResult> recordPlate(
-      {required List<FoodEntryDraft> entries, DateTime? loggedAtUtc}) async {
+  Future<RecordPlateResult> recordPlate({
+    required List<FoodEntryDraft> entries,
+    DateTime? loggedAtUtc,
+  }) async {
     throw UnimplementedError();
   }
 
@@ -31,11 +33,7 @@ class _FakeStore implements EncryptedStore {
 }
 
 PlateLog _plate(int id, DateTime loggedAt, List<FoodEntry> entries) {
-  return PlateLog(
-    id: id,
-    loggedAtUtc: loggedAt.toUtc(),
-    entries: entries,
-  );
+  return PlateLog(id: id, loggedAtUtc: loggedAt.toUtc(), entries: entries);
 }
 
 FoodEntry _entry(int id, int plateId, String name) {
@@ -70,11 +68,9 @@ void main() {
     });
 
     test('one plate one entry emits one header + one data row', () {
-      final plate = _plate(
-        1,
-        DateTime(2026, 8, 16, 9),
-        [_entry(1, 1, 'Oatmeal')],
-      );
+      final plate = _plate(1, DateTime(2026, 8, 16, 9), [
+        _entry(1, 1, 'Oatmeal'),
+      ]);
       final csv = serializePlatesToCsv([plate]);
       final lines = csv.split('\n').where((l) => l.isNotEmpty).toList();
       expect(lines.length, 2);
@@ -84,11 +80,10 @@ void main() {
     });
 
     test('one plate two entries emits two data rows', () {
-      final plate = _plate(
-        1,
-        DateTime(2026, 8, 16, 9),
-        [_entry(1, 1, 'A'), _entry(2, 1, 'B')],
-      );
+      final plate = _plate(1, DateTime(2026, 8, 16, 9), [
+        _entry(1, 1, 'A'),
+        _entry(2, 1, 'B'),
+      ]);
       final csv = serializePlatesToCsv([plate]);
       final lines = csv.split('\n').where((l) => l.isNotEmpty).toList();
       expect(lines.length, 3);
@@ -127,9 +122,7 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = CsvExporter(store: store);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 2);
     });
 

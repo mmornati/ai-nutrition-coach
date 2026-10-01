@@ -15,8 +15,10 @@ class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
   final List<PlateLog> _plates;
   @override
-  Future<RecordPlateResult> recordPlate(
-      {required List<FoodEntryDraft> entries, DateTime? loggedAtUtc}) async {
+  Future<RecordPlateResult> recordPlate({
+    required List<FoodEntryDraft> entries,
+    DateTime? loggedAtUtc,
+  }) async {
     throw UnimplementedError();
   }
 
@@ -30,11 +32,7 @@ class _FakeStore implements EncryptedStore {
 }
 
 PlateLog _plate(int id, DateTime loggedAt, List<FoodEntry> entries) {
-  return PlateLog(
-    id: id,
-    loggedAtUtc: loggedAt.toUtc(),
-    entries: entries,
-  );
+  return PlateLog(id: id, loggedAtUtc: loggedAt.toUtc(), entries: entries);
 }
 
 FoodEntry _entry(int id, int plateId, String name) {
@@ -71,11 +69,9 @@ void main() {
     });
 
     test('one plate one entry round-trips', () {
-      final plate = _plate(
-        1,
-        DateTime.utc(2026, 8, 16, 9),
-        [_entry(1, 1, 'Oatmeal')],
-      );
+      final plate = _plate(1, DateTime.utc(2026, 8, 16, 9), [
+        _entry(1, 1, 'Oatmeal'),
+      ]);
       final json = serializePlatesToJson([plate]);
       final decoded = jsonDecode(json) as Map<String, Object?>;
       final plates = decoded['plates'] as List<dynamic>;
@@ -123,9 +119,7 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = JsonExporter(store: store);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 2);
     });
 

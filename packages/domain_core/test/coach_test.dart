@@ -75,8 +75,7 @@ void main() {
       expect(q.pattern, CompositionPattern.vegLight);
     });
 
-    test('equality is by key: same key compares equal regardless of text',
-        () {
+    test('equality is by key: same key compares equal regardless of text', () {
       const a = CoachQuestion(
         key: 'post.resolve.vegLight',
         text: 'First copy.',
@@ -125,8 +124,7 @@ void main() {
   });
 
   group('CoachQuestionResult is sealed: CoachFound | NoCoachQuestion', () {
-    test('the two variants are the only members of the sealed hierarchy',
-        () {
+    test('the two variants are the only members of the sealed hierarchy', () {
       const found = CoachFound(
         CoachQuestion(
           key: 'post.resolve.vegLight',
@@ -162,8 +160,7 @@ void main() {
   });
 
   group('Coach port contract (AD-1 / AD-5)', () {
-    test(
-        'Coach is interface-only: a minimal adapter returning the sealed '
+    test('Coach is interface-only: a minimal adapter returning the sealed '
         'result shape compiles against the port', () async {
       // The behavioural lock for AD-5: any adapter that returns the
       // sealed `CoachQuestionResult` shape is valid against the port.
@@ -183,8 +180,7 @@ void main() {
       expect(none, isA<NoCoachQuestion>());
     });
 
-    test('the port signature accepts every (anchor, pattern) combination',
-        () {
+    test('the port signature accepts every (anchor, pattern) combination', () {
       // Compile-time + runtime lock: every entry in the v1 taxonomy
       // (2 anchors × 6 patterns = 12 calls) is a valid signature.
       const coach = _StubCoach();
@@ -192,8 +188,7 @@ void main() {
         for (final pattern in CompositionPattern.values) {
           // The call itself is the assertion — if the signature
           // drifts, this won't compile.
-          final result =
-              coach.questionFor(anchor: anchor, pattern: pattern);
+          final result = coach.questionFor(anchor: anchor, pattern: pattern);
           expect(result, isA<CoachQuestionResult>());
         }
       }

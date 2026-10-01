@@ -47,10 +47,8 @@ Future<void> showRecognizedMatchSheet(
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => RecognizedMatchSheet(
-      result: result,
-      closestMatches: closestMatches,
-    ),
+    builder: (sheetCtx) =>
+        RecognizedMatchSheet(result: result, closestMatches: closestMatches),
   );
 }
 
@@ -149,9 +147,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
   List<QuantityRange> _presetsFor(FoodMatch? match) {
     final result = widget.result;
     QuantityRange? rungQuantity;
-    if (result is RecognizedPlate &&
-        match != null &&
-        result.foods.isNotEmpty) {
+    if (result is RecognizedPlate && match != null && result.foods.isNotEmpty) {
       for (final rec in result.foods) {
         if (rec.databaseFood == match.food) {
           rungQuantity = rec.quantity;
@@ -186,10 +182,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
         quantity: rec.quantity,
       );
       _presets = _presetsFor(null);
-      _presets = [
-        rec.quantity,
-        ..._presets.where((p) => p != rec.quantity),
-      ];
+      _presets = [rec.quantity, ..._presets.where((p) => p != rec.quantity)];
       // Try to enrich with the closest match's catalog presets if
       // one matches the recognized food.
       for (final match in widget.closestMatches) {
@@ -323,8 +316,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     return Material(
       color: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -380,15 +372,13 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                   child: OutlinedButton(
                     onPressed: _submitting ? null : _onLogManual,
                     style: OutlinedButton.styleFrom(
-                      minimumSize:
-                          const Size.fromHeight(AppTouchTargets.min),
+                      minimumSize: const Size.fromHeight(AppTouchTargets.min),
                       side: BorderSide(color: palette.hairline),
                       foregroundColor: palette.ink,
                     ),
                     child: Text(
                       _submitting ? 'Logging…' : 'Log custom food',
-                      style:
-                          AppTypography.ui.copyWith(color: palette.ink),
+                      style: AppTypography.ui.copyWith(color: palette.ink),
                     ),
                   ),
                 ),
@@ -396,17 +386,18 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed:
-                        (_selected == null || _submitting) ? null : _onLog,
+                    onPressed: (_selected == null || _submitting)
+                        ? null
+                        : _onLog,
                     style: FilledButton.styleFrom(
-                      minimumSize:
-                          const Size.fromHeight(AppTouchTargets.min),
+                      minimumSize: const Size.fromHeight(AppTouchTargets.min),
                       backgroundColor: palette.sageDeep,
                     ),
                     child: Text(
                       _submitting ? 'Logging…' : 'Log',
-                      style: AppTypography.ui
-                          .copyWith(color: palette.background),
+                      style: AppTypography.ui.copyWith(
+                        color: palette.background,
+                      ),
                     ),
                   ),
                 ),
@@ -438,7 +429,8 @@ class _Header extends StatelessWidget {
           title = 'Nothing matched';
           subtitle = 'Pick a closest match or type the food manually.';
         } else {
-          title = 'Looks like ${foods.length} food${foods.length == 1 ? '' : 's'}';
+          title =
+              'Looks like ${foods.length} food${foods.length == 1 ? '' : 's'}';
           subtitle = 'Tap one to confirm, or pick another match.';
         }
       case NoMatch():
@@ -455,15 +447,11 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          title,
-          style: AppTypography.ui.copyWith(color: palette.ink),
-        ),
+        Text(title, style: AppTypography.ui.copyWith(color: palette.ink)),
         const SizedBox(height: AppSpacing.xxs),
         Text(
           subtitle,
-          style:
-              AppTypography.coach.copyWith(color: palette.inkMuted),
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
       ],
     );
@@ -555,8 +543,9 @@ class _RecognizedRow extends StatelessWidget {
                         '${food.databaseFood.foodGroup.label}  '
                         '· ${food.quantity.displayLabel}  '
                         '· ${(food.confidence * 100).toStringAsFixed(0)}%',
-                        style: AppTypography.monoWhisper
-                            .copyWith(color: palette.inkMuted),
+                        style: AppTypography.monoWhisper.copyWith(
+                          color: palette.inkMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -596,8 +585,7 @@ class _ClosestMatchesRow extends StatelessWidget {
       children: [
         Text(
           'Closest matches',
-          style:
-              AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
+          style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.xs),
         for (final match in matches)
@@ -662,8 +650,9 @@ class _ClosestMatchRow extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         match.food.foodGroup.label,
-                        style: AppTypography.monoWhisper
-                            .copyWith(color: palette.inkMuted),
+                        style: AppTypography.monoWhisper.copyWith(
+                          color: palette.inkMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -703,15 +692,12 @@ class _PresetRow extends StatelessWidget {
       children: [
         for (final preset in presets)
           ConstrainedBox(
-            constraints:
-                const BoxConstraints(minHeight: AppTouchTargets.min),
+            constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
             child: ChoiceChip(
               label: Text(
                 preset.displayLabel,
                 style: AppTypography.mono.copyWith(
-                  color: chosen == preset
-                      ? palette.background
-                      : palette.ink,
+                  color: chosen == preset ? palette.background : palette.ink,
                 ),
               ),
               selected: chosen == preset,
@@ -742,8 +728,7 @@ class _ManualAddField extends StatelessWidget {
       style: AppTypography.ui.copyWith(color: palette.ink),
       decoration: InputDecoration(
         labelText: 'Custom food name',
-        labelStyle:
-            AppTypography.uiMuted.copyWith(color: palette.inkMuted),
+        labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: palette.hairline),
         ),

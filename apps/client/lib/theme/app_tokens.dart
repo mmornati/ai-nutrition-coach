@@ -26,8 +26,8 @@ import 'package:flutter/painting.dart';
 class AppSpacing {
   AppSpacing._();
 
-  static const double xxs = 2;   // hairline-adjacent
-  static const double xs = 4;    // base step
+  static const double xxs = 2; // hairline-adjacent
+  static const double xs = 4; // base step
   static const double sm = 8;
   static const double md = 12;
   static const double lg = 16;
@@ -94,30 +94,30 @@ class AppPalette {
   final Color statusSynced;
 
   const AppPalette._light()
-      : background = const Color(0xFFFBF7EE),
-        surface = const Color(0xFFF3ECDD),
-        ink = const Color(0xFF1F2421),
-        inkMuted = const Color(0xFF6E7066),
-        hairline = const Color(0xFFE2DBC6),
-        sage = const Color(0xFF6B8E5A),
-        sageDeep = const Color(0xFF3F5A36),
-        sageTrack = const Color(0xFFD7E1C9),
-        coach = const Color(0xFFB07A2E),
-        statusLocal = const Color(0xFF8A8C82),
-        statusSynced = const Color(0xFF6B8E5A);
+    : background = const Color(0xFFFBF7EE),
+      surface = const Color(0xFFF3ECDD),
+      ink = const Color(0xFF1F2421),
+      inkMuted = const Color(0xFF6E7066),
+      hairline = const Color(0xFFE2DBC6),
+      sage = const Color(0xFF6B8E5A),
+      sageDeep = const Color(0xFF3F5A36),
+      sageTrack = const Color(0xFFD7E1C9),
+      coach = const Color(0xFFB07A2E),
+      statusLocal = const Color(0xFF8A8C82),
+      statusSynced = const Color(0xFF6B8E5A);
 
   const AppPalette._dark()
-      : background = const Color(0xFF161A18),
-        surface = const Color(0xFF1F2421),
-        ink = const Color(0xFFEDE7D6),
-        inkMuted = const Color(0xFF9AA197),
-        hairline = const Color(0xFF2C332E),
-        sage = const Color(0xFF9DBE8A),
-        sageDeep = const Color(0xFFB7CFA8),
-        sageTrack = const Color(0xFF33402C),
-        coach = const Color(0xFFD8A35A),
-        statusLocal = const Color(0xFF7E8579),
-        statusSynced = const Color(0xFF9DBE8A);
+    : background = const Color(0xFF161A18),
+      surface = const Color(0xFF1F2421),
+      ink = const Color(0xFFEDE7D6),
+      inkMuted = const Color(0xFF9AA197),
+      hairline = const Color(0xFF2C332E),
+      sage = const Color(0xFF9DBE8A),
+      sageDeep = const Color(0xFFB7CFA8),
+      sageTrack = const Color(0xFF33402C),
+      coach = const Color(0xFFD8A35A),
+      statusLocal = const Color(0xFF7E8579),
+      statusSynced = const Color(0xFF9DBE8A);
 }
 
 /// Typography voices. Role-bound; do not cross (epic-1-context.md § UX).

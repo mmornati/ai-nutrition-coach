@@ -105,9 +105,7 @@ class CoachInteractionLog {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! CoachInteractionLog) return false;
-    return other.noteId == noteId &&
-        other.kind == kind &&
-        other.at == at;
+    return other.noteId == noteId && other.kind == kind && other.at == at;
   }
 
   @override

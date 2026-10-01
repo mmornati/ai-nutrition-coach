@@ -5,9 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('CaptureSheet a11y floor (Story 5.4 / NFR-7)', () {
-    testWidgets('every affordance carries a Semantics wrapper', (
-      tester,
-    ) async {
+    testWidgets('every affordance carries a Semantics wrapper', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -18,11 +16,7 @@ void main() {
                   label: 'Snapshot',
                   child: Text('Snapshot'),
                 ),
-                Semantics(
-                  button: true,
-                  label: 'Scan',
-                  child: Text('Scan'),
-                ),
+                Semantics(button: true, label: 'Scan', child: Text('Scan')),
                 Semantics(
                   button: true,
                   label: 'Type or talk',

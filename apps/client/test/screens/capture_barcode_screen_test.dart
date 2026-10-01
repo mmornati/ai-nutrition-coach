@@ -99,50 +99,53 @@ const _nutella = FoodMatch(
 void main() {
   group('CaptureBarcodeScreen', () {
     testWidgets(
-        'HAPPY_PATH_KNOWN: scan + RankedMatches opens BarcodeMatchSheet',
-        (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
-      final scanner = FakeBarcodeScanner();
-      addTearDown(scanner.stop);
-      final permission = FakeCameraPermission();
-      final catalog = _FakeFoodCatalog({
-        '3017620422003': const RankedMatches([_nutella]),
-      });
+      'HAPPY_PATH_KNOWN: scan + RankedMatches opens BarcodeMatchSheet',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
+        final scanner = FakeBarcodeScanner();
+        addTearDown(scanner.stop);
+        final permission = FakeCameraPermission();
+        final catalog = _FakeFoodCatalog({
+          '3017620422003': const RankedMatches([_nutella]),
+        });
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
-      // Let permission request + scanner mount settle.
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrap(
+            const CaptureBarcodeScreen(),
+            store: store,
+            scanner: scanner,
+            permission: permission,
+            catalog: catalog,
+          ),
+        );
+        // Let permission request + scanner mount settle.
+        await tester.pumpAndSettle();
 
-      scanner.emit('3017620422003');
-      // Lookup microtask + UI re-render.
-      await tester.pumpAndSettle();
+        scanner.emit('3017620422003');
+        // Lookup microtask + UI re-render.
+        await tester.pumpAndSettle();
 
-      // The match sheet is up — its title block carries the food
-      // name + group label and the Log button is enabled.
-      expect(find.text('Nutella'), findsOneWidget);
-      expect(find.text('Other'), findsOneWidget);
-      expect(find.text('Log'), findsOneWidget);
+        // The match sheet is up — its title block carries the food
+        // name + group label and the Log button is enabled.
+        expect(find.text('Nutella'), findsOneWidget);
+        expect(find.text('Other'), findsOneWidget);
+        expect(find.text('Log'), findsOneWidget);
 
-      // Catalog saw exactly one lookup.
-      expect(catalog.calls, ['3017620422003']);
+        // Catalog saw exactly one lookup.
+        expect(catalog.calls, ['3017620422003']);
 
-      // Tap Log — commits through RecordPlate + pops back.
-      await tester.tap(find.text('Log'));
-      await tester.pumpAndSettle();
+        // Tap Log — commits through RecordPlate + pops back.
+        await tester.tap(find.text('Log'));
+        await tester.pumpAndSettle();
 
-      expect(store.capturedDrafts, hasLength(1));
-      final draft = store.capturedDrafts.single;
-      expect(draft.databaseFood.displayName, 'Nutella');
-      expect(draft.databaseFood.sourceRef, '3017620422003');
-      expect(draft.quantity.unit, 'serving');
-    });
+        expect(store.capturedDrafts, hasLength(1));
+        final draft = store.capturedDrafts.single;
+        expect(draft.databaseFood.displayName, 'Nutella');
+        expect(draft.databaseFood.sourceRef, '3017620422003');
+        expect(draft.quantity.unit, 'serving');
+      },
+    );
 
     testWidgets('UNKNOWN_BARCODE: NotFoundFailure renders the "Not found" '
         'dialog with a tap-to-type affordance', (tester) async {
@@ -155,13 +158,15 @@ void main() {
         '0000000000000': const NotFoundFailure('0000000000000'),
       });
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: store,
+          scanner: scanner,
+          permission: permission,
+          catalog: catalog,
+        ),
+      );
       await tester.pumpAndSettle();
 
       scanner.emit('0000000000000');
@@ -169,10 +174,7 @@ void main() {
 
       // The "Not found" dialog surfaces.
       expect(find.text('Not found'), findsOneWidget);
-      expect(
-        find.textContaining('This barcode isn'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('This barcode isn'), findsOneWidget);
       // Dialog button is present (alongside the AppBar tooltip, so
       // use the dialog-scoped finder for the button).
       expect(
@@ -209,23 +211,22 @@ void main() {
         '3017620422003': const CatalogFailure('OFF HTTP 500'),
       });
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: store,
+          scanner: scanner,
+          permission: permission,
+          catalog: catalog,
+        ),
+      );
       await tester.pumpAndSettle();
 
       scanner.emit('3017620422003');
       await tester.pumpAndSettle();
 
       // Calm copy — no retry button, no countdown (FR15 / UX-DR10).
-      expect(
-        find.text("Search isn't available right now."),
-        findsOneWidget,
-      );
+      expect(find.text("Search isn't available right now."), findsOneWidget);
       // Manual entry still works.
       expect(find.text('Type it manually'), findsOneWidget);
     });
@@ -236,31 +237,29 @@ void main() {
       addTearDown(store.close);
       final scanner = FakeBarcodeScanner();
       addTearDown(scanner.stop);
-      final permission = FakeCameraPermission(
-        CameraPermissionStatus.denied,
-      );
+      final permission = FakeCameraPermission(CameraPermissionStatus.denied);
       final catalog = _FakeFoodCatalog({});
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: store,
+          scanner: scanner,
+          permission: permission,
+          catalog: catalog,
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Camera denied — type it instead'),
-        findsOneWidget,
-      );
+      expect(find.text('Camera denied — type it instead'), findsOneWidget);
       // No nag, no retry button (NFR7).
       expect(find.widgetWithText(FilledButton, 'Retry'), findsNothing);
       expect(find.text('Type it manually'), findsOneWidget);
     });
 
-    testWidgets('CAMERA_INIT_FAILURE: "Camera unavailable — type it instead"',
-        (tester) async {
+    testWidgets('CAMERA_INIT_FAILURE: "Camera unavailable — type it instead"', (
+      tester,
+    ) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
       final scanner = FakeBarcodeScanner();
@@ -270,25 +269,23 @@ void main() {
       );
       final catalog = _FakeFoodCatalog({});
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: store,
+          scanner: scanner,
+          permission: permission,
+          catalog: catalog,
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Camera unavailable — type it instead'),
-        findsOneWidget,
-      );
+      expect(find.text('Camera unavailable — type it instead'), findsOneWidget);
       expect(find.text('Type it manually'), findsOneWidget);
     });
 
     testWidgets('MULTI_SCAN: two back-to-back scans process sequentially; '
-        'previous sheet is awaited before the next scan lands',
-        (tester) async {
+        'previous sheet is awaited before the next scan lands', (tester) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
       final scanner = FakeBarcodeScanner();
@@ -299,13 +296,15 @@ void main() {
         '737628064502': const NotFoundFailure('737628064502'),
       });
 
-      await tester.pumpWidget(_wrap(
-        const CaptureBarcodeScreen(),
-        store: store,
-        scanner: scanner,
-        permission: permission,
-        catalog: catalog,
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: store,
+          scanner: scanner,
+          permission: permission,
+          catalog: catalog,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // First scan — match sheet opens.

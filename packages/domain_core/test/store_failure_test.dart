@@ -28,10 +28,7 @@ void main() {
     });
 
     test('exactly one field set — assert rejects zero', () {
-      expect(
-        () => const StoreFailure(),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => const StoreFailure(), throwsA(isA<AssertionError>()));
     });
 
     test('exactly one field set — assert rejects two', () {

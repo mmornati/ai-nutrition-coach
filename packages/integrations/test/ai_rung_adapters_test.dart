@@ -32,10 +32,14 @@ void main() {
       const AiRung rung = HostedQuotaAiRung();
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('hosted-quota not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.2'));
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('hosted-quota not yet wired'),
+      );
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('Story 3.2'),
+      );
     });
 
     test('ByokAiRung implements AiRung and returns the documented '
@@ -43,10 +47,14 @@ void main() {
       const AiRung rung = ByokAiRung();
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('byok not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.3'));
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('byok not yet wired'),
+      );
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('Story 3.3'),
+      );
     });
 
     test('LocalAiRung implements AiRung and throws UnsupportedError '

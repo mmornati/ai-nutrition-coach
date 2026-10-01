@@ -68,9 +68,9 @@ class _FakeCoachNoteStore implements CoachNoteStore {
   }
 
   void forceFailure() {
-    _nextAppendResult = const CoachNoteAppendFailure(StoreFailure(
-      encryptedStoreError: SecureKeyFailure(),
-    ));
+    _nextAppendResult = const CoachNoteAppendFailure(
+      StoreFailure(encryptedStoreError: SecureKeyFailure()),
+    );
   }
 
   @override
@@ -131,8 +131,7 @@ PlateLog _plateWith({
 
 void main() {
   group('CoachNoteGenerator pattern pick logic', () {
-    test('balanced plate (veg+protein+starch) resolves to balanced',
-        () async {
+    test('balanced plate (veg+protein+starch) resolves to balanced', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore()..succeed();
       coach.emit(
@@ -191,49 +190,53 @@ void main() {
       expect(coach.calls.first.pattern, CompositionPattern.vegRich);
     });
 
-    test('protein-heavy plate (3 protein, 1 veg) resolves to proteinHeavy',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore()..succeed();
-      coach.emit(const NoCoachQuestion());
-      final gen = CoachNoteGenerator(coach: coach, store: store);
+    test(
+      'protein-heavy plate (3 protein, 1 veg) resolves to proteinHeavy',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore()..succeed();
+        coach.emit(const NoCoachQuestion());
+        final gen = CoachNoteGenerator(coach: coach, store: store);
 
-      final plate = _plateWith(
-        id: 1,
-        entries: const [
-          (group: FoodGroup.vegFruit, name: 'Salad'),
-          (group: FoodGroup.protein, name: 'Chicken'),
-          (group: FoodGroup.protein, name: 'Fish'),
-          (group: FoodGroup.protein, name: 'Eggs'),
-        ],
-      );
+        final plate = _plateWith(
+          id: 1,
+          entries: const [
+            (group: FoodGroup.vegFruit, name: 'Salad'),
+            (group: FoodGroup.protein, name: 'Chicken'),
+            (group: FoodGroup.protein, name: 'Fish'),
+            (group: FoodGroup.protein, name: 'Eggs'),
+          ],
+        );
 
-      await gen.generateFor(plate);
+        await gen.generateFor(plate);
 
-      expect(coach.calls.first.pattern, CompositionPattern.proteinHeavy);
-    });
+        expect(coach.calls.first.pattern, CompositionPattern.proteinHeavy);
+      },
+    );
 
-    test('starch-heavy plate (3 starch, 1 veg) resolves to starchHeavy',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore()..succeed();
-      coach.emit(const NoCoachQuestion());
-      final gen = CoachNoteGenerator(coach: coach, store: store);
+    test(
+      'starch-heavy plate (3 starch, 1 veg) resolves to starchHeavy',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore()..succeed();
+        coach.emit(const NoCoachQuestion());
+        final gen = CoachNoteGenerator(coach: coach, store: store);
 
-      final plate = _plateWith(
-        id: 1,
-        entries: const [
-          (group: FoodGroup.vegFruit, name: 'Salad'),
-          (group: FoodGroup.starch, name: 'Rice'),
-          (group: FoodGroup.starch, name: 'Pasta'),
-          (group: FoodGroup.starch, name: 'Bread'),
-        ],
-      );
+        final plate = _plateWith(
+          id: 1,
+          entries: const [
+            (group: FoodGroup.vegFruit, name: 'Salad'),
+            (group: FoodGroup.starch, name: 'Rice'),
+            (group: FoodGroup.starch, name: 'Pasta'),
+            (group: FoodGroup.starch, name: 'Bread'),
+          ],
+        );
 
-      await gen.generateFor(plate);
+        await gen.generateFor(plate);
 
-      expect(coach.calls.first.pattern, CompositionPattern.starchHeavy);
-    });
+        expect(coach.calls.first.pattern, CompositionPattern.starchHeavy);
+      },
+    );
 
     test('plate with no veg at all resolves to vegLight', () async {
       final coach = _FakeCoach();
@@ -262,9 +265,7 @@ void main() {
 
       final plate = _plateWith(
         id: 1,
-        entries: const [
-          (group: FoodGroup.vegFruit, name: 'Salad'),
-        ],
+        entries: const [(group: FoodGroup.vegFruit, name: 'Salad')],
       );
 
       await gen.generateFor(plate);
@@ -272,27 +273,29 @@ void main() {
       expect(coach.calls.first.pattern, CompositionPattern.dairyLight);
     });
 
-    test('only-other-entries returns NoCoachNoteGenerated(unknownPattern)',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore()..succeed();
-      final gen = CoachNoteGenerator(coach: coach, store: store);
+    test(
+      'only-other-entries returns NoCoachNoteGenerated(unknownPattern)',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore()..succeed();
+        final gen = CoachNoteGenerator(coach: coach, store: store);
 
-      final plate = _plateWith(
-        id: 1,
-        entries: const [
-          (group: FoodGroup.other, name: 'Olive oil'),
-          (group: FoodGroup.other, name: 'Salt'),
-        ],
-      );
+        final plate = _plateWith(
+          id: 1,
+          entries: const [
+            (group: FoodGroup.other, name: 'Olive oil'),
+            (group: FoodGroup.other, name: 'Salt'),
+          ],
+        );
 
-      final result = await gen.generateFor(plate);
+        final result = await gen.generateFor(plate);
 
-      expect(result, isA<NoCoachNoteGenerated>());
-      expect((result as NoCoachNoteGenerated).reason, 'unknownPattern');
-      expect(coach.calls, isEmpty);
-      expect(store.appended, isEmpty);
-    });
+        expect(result, isA<NoCoachNoteGenerated>());
+        expect((result as NoCoachNoteGenerated).reason, 'unknownPattern');
+        expect(coach.calls, isEmpty);
+        expect(store.appended, isEmpty);
+      },
+    );
 
     test('empty plate returns NoCoachNoteGenerated(emptyPlate) and does '
         'not consult the coach or store', () async {
@@ -335,57 +338,62 @@ void main() {
       expect(store.appended, isEmpty);
     });
 
-    test('coach port throwing collapses to NoCoachNoteGenerated(coachEmpty)',
-        () async {
-      final coach = _FakeCoach()..throwOnNextCall = true;
-      final store = _FakeCoachNoteStore()..succeed();
-      final gen = CoachNoteGenerator(coach: coach, store: store);
+    test(
+      'coach port throwing collapses to NoCoachNoteGenerated(coachEmpty)',
+      () async {
+        final coach = _FakeCoach()..throwOnNextCall = true;
+        final store = _FakeCoachNoteStore()..succeed();
+        final gen = CoachNoteGenerator(coach: coach, store: store);
 
-      final plate = _plateWith(
-        id: 1,
-        entries: const [
-          (group: FoodGroup.vegFruit, name: 'Salad'),
-        ],
-      );
+        final plate = _plateWith(
+          id: 1,
+          entries: const [(group: FoodGroup.vegFruit, name: 'Salad')],
+        );
 
-      final result = await gen.generateFor(plate);
+        final result = await gen.generateFor(plate);
 
-      expect(result, isA<NoCoachNoteGenerated>());
-      expect((result as NoCoachNoteGenerated).reason, 'coachEmpty');
-      expect(store.appended, isEmpty);
-    });
+        expect(result, isA<NoCoachNoteGenerated>());
+        expect((result as NoCoachNoteGenerated).reason, 'coachEmpty');
+        expect(store.appended, isEmpty);
+      },
+    );
 
-    test('store write failure collapses to NoCoachNoteGenerated(appendFailed)',
-        () async {
-      final coach = _FakeCoach();
-      coach.emit(
-        CoachFound(
-          const CoachQuestion(
-            key: 'post.resolve.balanced',
-            text: 'Nice plate.',
-            anchor: CoachAnchor.postResolve,
-            pattern: CompositionPattern.balanced,
+    test(
+      'store write failure collapses to NoCoachNoteGenerated(appendFailed)',
+      () async {
+        final coach = _FakeCoach();
+        coach.emit(
+          CoachFound(
+            const CoachQuestion(
+              key: 'post.resolve.balanced',
+              text: 'Nice plate.',
+              anchor: CoachAnchor.postResolve,
+              pattern: CompositionPattern.balanced,
+            ),
           ),
-        ),
-      );
-      final store = _FakeCoachNoteStore()..forceFailure();
-      final gen = CoachNoteGenerator(coach: coach, store: store);
+        );
+        final store = _FakeCoachNoteStore()..forceFailure();
+        final gen = CoachNoteGenerator(coach: coach, store: store);
 
-      final plate = _plateWith(
-        id: 1,
-        entries: const [
-          (group: FoodGroup.vegFruit, name: 'Salad'),
-          (group: FoodGroup.protein, name: 'Chicken'),
-        ],
-      );
+        final plate = _plateWith(
+          id: 1,
+          entries: const [
+            (group: FoodGroup.vegFruit, name: 'Salad'),
+            (group: FoodGroup.protein, name: 'Chicken'),
+          ],
+        );
 
-      final result = await gen.generateFor(plate);
+        final result = await gen.generateFor(plate);
 
-      expect(result, isA<NoCoachNoteGenerated>());
-      expect((result as NoCoachNoteGenerated).reason, 'appendFailed');
-      expect(store.appended, isEmpty,
-          reason: 'failed append must not record a note');
-    });
+        expect(result, isA<NoCoachNoteGenerated>());
+        expect((result as NoCoachNoteGenerated).reason, 'appendFailed');
+        expect(
+          store.appended,
+          isEmpty,
+          reason: 'failed append must not record a note',
+        );
+      },
+    );
   });
 
   group('CoachNote value type (FR9)', () {
@@ -472,9 +480,7 @@ void main() {
     });
 
     test('CoachNoteAppendFailure carries a StoreFailure cause', () {
-      final cause = const StoreFailure(
-        encryptedStoreError: SecureKeyFailure(),
-      );
+      final cause = const StoreFailure(encryptedStoreError: SecureKeyFailure());
       final result = CoachNoteAppendFailure(cause);
       expect(result.cause, cause);
       expect(result, isA<CoachNoteAppendResult>());

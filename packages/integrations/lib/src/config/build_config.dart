@@ -26,8 +26,7 @@ class BuildConfig {
   /// The model id the endpoint should serve (e.g.
   /// `google/gemini-2.0-flash-exp:free`). Empty in default v1
   /// builds.
-  String get byokModel =>
-      const String.fromEnvironment('AI_NUTRITION_COACH_BYOK_MODEL');
+  String get byokModel => const String.fromEnvironment('OPENPLATE_BYOK_MODEL');
 
   /// The user-supplied API key. Empty in default v1 builds; the
   /// BYOK rung reads from the secure-storage key store at runtime

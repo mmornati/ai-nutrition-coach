@@ -45,16 +45,20 @@ void main() {
       final line = lines[i].trim();
       for (final banned in _bannedProfileTypes) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned profile '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned profile '
+            'reference: $banned',
+          );
         }
       }
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:no-under-13-profiles: OK — no under-13 / '
-        'teen / parent / child profile machinery.');
+    stdout.writeln(
+      'check:no-under-13-profiles: OK — no under-13 / '
+      'teen / parent / child profile machinery.',
+    );
     exit(0);
   }
   stderr.writeln('check:no-under-13-profiles: FAIL');

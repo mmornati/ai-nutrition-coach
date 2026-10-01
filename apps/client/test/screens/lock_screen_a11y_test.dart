@@ -15,12 +15,8 @@ void main() {
     testWidgets('passphrase field is announced by name', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            webSessionKeyProvider.overrideWithValue(WebSessionKey()),
-          ],
-          child: const MaterialApp(
-            home: LockScreen(),
-          ),
+          overrides: [webSessionKeyProvider.overrideWithValue(WebSessionKey())],
+          child: const MaterialApp(home: LockScreen()),
         ),
       );
       // The lock screen's LockScreenBody wraps the label in

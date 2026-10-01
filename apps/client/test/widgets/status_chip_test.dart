@@ -46,8 +46,9 @@ void main() {
       expect(find.text('· local'), findsNothing);
     });
 
-    testWidgets('exposes a Semantics label announcing the status',
-        (tester) async {
+    testWidgets('exposes a Semantics label announcing the status', (
+      tester,
+    ) async {
       await pump(tester, const StatusChip());
 
       final semantics = tester.getSemantics(find.byType(StatusChip));
@@ -56,11 +57,7 @@ void main() {
     });
 
     testWidgets('reads dark-palette status color in dark mode', (tester) async {
-      await pump(
-        tester,
-        const StatusChip(),
-        brightness: Brightness.dark,
-      );
+      await pump(tester, const StatusChip(), brightness: Brightness.dark);
 
       final text = tester.widget<Text>(find.text('· local'));
       expect(text.style!.color, AppPalette.dark.statusLocal);

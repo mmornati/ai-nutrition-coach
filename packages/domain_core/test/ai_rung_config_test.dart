@@ -17,15 +17,17 @@ import 'package:test/test.dart';
 
 void main() {
   group('AiRungKind (Story 3.1 / AD-5)', () {
-    test('ships exactly four kinds: noOp | hostedQuota | byok | local',
-        () {
+    test('ships exactly four kinds: noOp | hostedQuota | byok | local', () {
       expect(AiRungKind.values, hasLength(4));
-      expect(AiRungKind.values, containsAll(<AiRungKind>[
-        AiRungKind.noOp,
-        AiRungKind.hostedQuota,
-        AiRungKind.byok,
-        AiRungKind.local,
-      ]));
+      expect(
+        AiRungKind.values,
+        containsAll(<AiRungKind>[
+          AiRungKind.noOp,
+          AiRungKind.hostedQuota,
+          AiRungKind.byok,
+          AiRungKind.local,
+        ]),
+      );
     });
 
     test('the v2 `local` seam is a first-class enum value (FR8)', () {
@@ -42,8 +44,11 @@ void main() {
       for (final label in labels) {
         expect(label, isNotEmpty);
       }
-      expect(labels.toSet(), hasLength(labels.length),
-          reason: 'every rung must have a distinct label');
+      expect(
+        labels.toSet(),
+        hasLength(labels.length),
+        reason: 'every rung must have a distinct label',
+      );
     });
 
     test('every keyToken is non-empty and distinct', () {
@@ -51,8 +56,11 @@ void main() {
       for (final token in tokens) {
         expect(token, isNotEmpty);
       }
-      expect(tokens.toSet(), hasLength(tokens.length),
-          reason: 'every rung must have a distinct log token');
+      expect(
+        tokens.toSet(),
+        hasLength(tokens.length),
+        reason: 'every rung must have a distinct log token',
+      );
     });
 
     test('label vs keyToken — labels are human-readable, tokens are '
@@ -62,8 +70,11 @@ void main() {
       // intentionally different — a label like "free model" is
       // user-facing copy, a token like "hostedQuota" is structural.
       for (final kind in AiRungKind.values) {
-        expect(kind.label, isNot(equals(kind.keyToken)),
-            reason: '$kind label should differ from its keyToken');
+        expect(
+          kind.label,
+          isNot(equals(kind.keyToken)),
+          reason: '$kind label should differ from its keyToken',
+        );
       }
     });
   });

@@ -39,6 +39,7 @@ class ByokPreviousRung {
   int get hashCode => previousKind.hashCode;
 
   @override
-  String toString() => 'ByokPreviousRung(previousKind: '
+  String toString() =>
+      'ByokPreviousRung(previousKind: '
       '${previousKind.keyToken})';
 }

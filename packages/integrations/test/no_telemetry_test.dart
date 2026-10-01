@@ -29,10 +29,16 @@ void main() {
       // the documented user-enabled paths.
       final sanctionedPaths = <Pattern>[
         RegExp(r'packages/integrations/lib/src/catalog/'),
-        RegExp(r'packages/integrations/lib/src/ai/cloudflare_workers_ai_provider\.dart'),
+        RegExp(
+          r'packages/integrations/lib/src/ai/cloudflare_workers_ai_provider\.dart',
+        ),
         RegExp(r'packages/integrations/lib/src/ai/gemini_free_provider\.dart'),
-        RegExp(r'packages/integrations/lib/src/ai/byok_openai_compatible_provider\.dart'),
-        RegExp(r'packages/integrations/lib/src/ai/openai_compatible_byok_provider\.dart'),
+        RegExp(
+          r'packages/integrations/lib/src/ai/byok_openai_compatible_provider\.dart',
+        ),
+        RegExp(
+          r'packages/integrations/lib/src/ai/openai_compatible_byok_provider\.dart',
+        ),
         RegExp(r'packages/integrations/lib/src/sync/'),
         RegExp(r'test/'),
         RegExp(r'integration_test/'),
@@ -62,8 +68,7 @@ void main() {
       );
     });
 
-    test('production main.dart does not invoke a network path at startup',
-        () {
+    test('production main.dart does not invoke a network path at startup', () {
       final main = File('apps/client/lib/main.dart').readAsStringSync();
       // Strip comments / strings before scanning.
       final stripped = main
@@ -77,26 +82,27 @@ void main() {
       expect(stripped.contains('WebSocket'), isFalse);
     });
 
-    test('docs/ai-tiers.md + docs/self-host.md no-telemetry copy is anchored',
-        () {
-      final aiTiers = File('docs/ai-tiers.md').readAsStringSync();
-      final selfHost = File('docs/self-host.md').readAsStringSync();
-      // Both files must assert "no telemetry by default" — Story 4.5
-      // ships this anchor copy and the test pins it.
-      expect(
-        aiTiers.toLowerCase().contains('no telemetry'),
-        isTrue,
-        reason: 'docs/ai-tiers.md must anchor the FR-12 claim',
-      );
-      expect(
-        selfHost.toLowerCase().contains('no telemetry'),
-        isTrue,
-        reason: 'docs/self-host.md must anchor the FR-12 claim',
-      );
-    });
+    test(
+      'docs/ai-tiers.md + docs/self-host.md no-telemetry copy is anchored',
+      () {
+        final aiTiers = File('docs/ai-tiers.md').readAsStringSync();
+        final selfHost = File('docs/self-host.md').readAsStringSync();
+        // Both files must assert "no telemetry by default" — Story 4.5
+        // ships this anchor copy and the test pins it.
+        expect(
+          aiTiers.toLowerCase().contains('no telemetry'),
+          isTrue,
+          reason: 'docs/ai-tiers.md must anchor the FR-12 claim',
+        );
+        expect(
+          selfHost.toLowerCase().contains('no telemetry'),
+          isTrue,
+          reason: 'docs/self-host.md must anchor the FR-12 claim',
+        );
+      },
+    );
 
-    test('Tip Jar is Settings-only, never in a task flow (FR-15 / UX-DR9)',
-        () {
+    test('Tip Jar is Settings-only, never in a task flow (FR-15 / UX-DR9)', () {
       // The Day Board, capture sheet, and coach whisper widgets must
       // not render a Tip Jar affordance. The Settings sub-screen
       // (Story 4.1/4.2 / apps/client/lib/screens/) is the only

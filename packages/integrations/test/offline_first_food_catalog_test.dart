@@ -51,45 +51,56 @@ void main() {
       expect(seedFoods.length, greaterThanOrEqualTo(30));
 
       final groups = <FoodGroup>{for (final s in seedFoods) s.foodGroup};
-      expect(groups, containsAll(<FoodGroup>[
-        FoodGroup.vegFruit,
-        FoodGroup.protein,
-        FoodGroup.starch,
-        FoodGroup.dairy,
-      ]));
+      expect(
+        groups,
+        containsAll(<FoodGroup>[
+          FoodGroup.vegFruit,
+          FoodGroup.protein,
+          FoodGroup.starch,
+          FoodGroup.dairy,
+        ]),
+      );
 
       // Each food has at least one quantity preset (UX-DR11).
       for (final s in seedFoods) {
-        expect(s.presets, isNotEmpty,
-            reason: 'SeedFood "$s" has no quantity presets');
+        expect(
+          s.presets,
+          isNotEmpty,
+          reason: 'SeedFood "$s" has no quantity presets',
+        );
       }
     });
 
-    test('HAPPY_PATH: partial query "salm" surfaces Salmon ranked first',
-        () async {
-      final result = await catalog.search('salm');
-      expect(result, isA<RankedMatches>());
-      final ranked = result as RankedMatches;
-      expect(ranked.matches, isNotEmpty);
-      expect(ranked.matches.first.food.displayName, 'Salmon');
-    });
+    test(
+      'HAPPY_PATH: partial query "salm" surfaces Salmon ranked first',
+      () async {
+        final result = await catalog.search('salm');
+        expect(result, isA<RankedMatches>());
+        final ranked = result as RankedMatches;
+        expect(ranked.matches, isNotEmpty);
+        expect(ranked.matches.first.food.displayName, 'Salmon');
+      },
+    );
 
-    test('EMPTY_QUERY returns empty RankedMatches (never NotFoundFailure)',
-        () async {
-      final result = await catalog.search('');
-      expect(result, isA<RankedMatches>());
-      expect((result as RankedMatches).matches, isEmpty);
-    });
+    test(
+      'EMPTY_QUERY returns empty RankedMatches (never NotFoundFailure)',
+      () async {
+        final result = await catalog.search('');
+        expect(result, isA<RankedMatches>());
+        expect((result as RankedMatches).matches, isEmpty);
+      },
+    );
 
-    test('NO_MATCH returns typed NotFoundFailure with the original query',
-        () async {
-      final result = await catalog.search('zxqwer');
-      expect(result, isA<NotFoundFailure>());
-      expect((result as NotFoundFailure).query, 'zxqwer');
-    });
+    test(
+      'NO_MATCH returns typed NotFoundFailure with the original query',
+      () async {
+        final result = await catalog.search('zxqwer');
+        expect(result, isA<NotFoundFailure>());
+        expect((result as NotFoundFailure).query, 'zxqwer');
+      },
+    );
 
-    test('RANKED_ORDER: exact > prefix > substring > token-overlap',
-        () async {
+    test('RANKED_ORDER: exact > prefix > substring > token-overlap', () async {
       // "Apple" matches exactly (1.0). "app" is a prefix of "apple"
       // (0.8). "ppl" is a substring of "apple" (0.6). "berry" overlaps
       // via token-overlap with "Strawberries" only (0.4). For a query
@@ -104,8 +115,11 @@ void main() {
 
       // Confidence is monotonically non-increasing.
       for (var i = 1; i < ranked.length; i++) {
-        expect(ranked[i - 1].confidence, greaterThanOrEqualTo(ranked[i].confidence),
-            reason: 'ranked list must be non-increasing in confidence');
+        expect(
+          ranked[i - 1].confidence,
+          greaterThanOrEqualTo(ranked[i].confidence),
+          reason: 'ranked list must be non-increasing in confidence',
+        );
       }
     });
 
@@ -129,24 +143,31 @@ void main() {
       expect(ranked.length, lessThanOrEqualTo(3));
     });
 
-    test('OFFLINE_HIT: repeat query returns cached list without re-ranking',
-        () async {
-      // First call — populates the LRU.
-      final first = await catalog.search('rice');
-      expect(first, isA<RankedMatches>());
-      expect(catalog.cachedQueries, 1);
+    test(
+      'OFFLINE_HIT: repeat query returns cached list without re-ranking',
+      () async {
+        // First call — populates the LRU.
+        final first = await catalog.search('rice');
+        expect(first, isA<RankedMatches>());
+        expect(catalog.cachedQueries, 1);
 
-      // Second call — replays from the cache.
-      final second = await catalog.search('rice');
-      expect(second, isA<RankedMatches>());
+        // Second call — replays from the cache.
+        final second = await catalog.search('rice');
+        expect(second, isA<RankedMatches>());
 
-      final firstNames =
-          (first as RankedMatches).matches.map((m) => m.food.displayName).toList();
-      final secondNames =
-          (second as RankedMatches).matches.map((m) => m.food.displayName).toList();
-      expect(secondNames, firstNames,
-          reason: 'cached replay must return the same ranked order');
-    });
+        final firstNames = (first as RankedMatches).matches
+            .map((m) => m.food.displayName)
+            .toList();
+        final secondNames = (second as RankedMatches).matches
+            .map((m) => m.food.displayName)
+            .toList();
+        expect(
+          secondNames,
+          firstNames,
+          reason: 'cached replay must return the same ranked order',
+        );
+      },
+    );
 
     test('cache key is case-insensitive + trimmed', () async {
       await catalog.search('rice');
@@ -156,23 +177,26 @@ void main() {
       expect(catalog.cachedQueries, 1);
     });
 
-    test('FoodMatch carries the food + confidence + quantity presets',
-        () async {
-      final result = await catalog.search('salmon');
-      final matches = (result as RankedMatches).matches;
-      final salmon = matches.firstWhere((m) => m.food.displayName == 'Salmon');
+    test(
+      'FoodMatch carries the food + confidence + quantity presets',
+      () async {
+        final result = await catalog.search('salmon');
+        final matches = (result as RankedMatches).matches;
+        final salmon = matches.firstWhere(
+          (m) => m.food.displayName == 'Salmon',
+        );
 
-      expect(salmon.confidence, inInclusiveRange(0.0, 1.0));
-      expect(salmon.food.foodGroup, FoodGroup.protein);
-      expect(salmon.presets, isNotEmpty);
-      // Honest quantity range — NFR6.
-      expect(salmon.presets.first.low, salmon.presets.first.high);
-      expect(salmon.presets.first.unit, isNotEmpty);
-      expect(salmon.presets.first.displayLabel, startsWith('~'));
-    });
+        expect(salmon.confidence, inInclusiveRange(0.0, 1.0));
+        expect(salmon.food.foodGroup, FoodGroup.protein);
+        expect(salmon.presets, isNotEmpty);
+        // Honest quantity range — NFR6.
+        expect(salmon.presets.first.low, salmon.presets.first.high);
+        expect(salmon.presets.first.unit, isNotEmpty);
+        expect(salmon.presets.first.displayLabel, startsWith('~'));
+      },
+    );
 
-    test('CatalogResult is sealed — only RankedMatches / NotFoundFailure',
-        () {
+    test('CatalogResult is sealed — only RankedMatches / NotFoundFailure', () {
       // Compile-time exhaustive-switch check: every variant of the
       // sealed `CatalogResult` must be pattern-matchable. If a new
       // variant lands in domain_core without updating the adapter
@@ -195,8 +219,7 @@ void main() {
     });
 
     test('HAPPY_PATH_KNOWN: barcode resolves to a single RankedMatches '
-        'with OFF display name and the matched barcode in sourceRef',
-        () async {
+        'with OFF display name and the matched barcode in sourceRef', () async {
       offSource.setMatch(
         '3017620422003',
         displayName: 'Nutella',
@@ -230,11 +253,18 @@ void main() {
 
       // Second call — replay from cache, no second network round-trip.
       final second = await catalog.lookupByBarcode('3017620422003');
-      expect(second, first,
-          reason: 'cached replay must return the same `CatalogResult` '
-              'shape — never re-hits OFF');
-      expect(offSource.callCount('3017620422003'), 1,
-          reason: 'second scan must not re-hits OFF (NFR5)');
+      expect(
+        second,
+        first,
+        reason:
+            'cached replay must return the same `CatalogResult` '
+            'shape — never re-hits OFF',
+      );
+      expect(
+        offSource.callCount('3017620422003'),
+        1,
+        reason: 'second scan must not re-hits OFF (NFR5)',
+      );
     });
 
     test('CACHE_KEY_TRIMMED: whitespace around a barcode resolves to '
@@ -247,8 +277,11 @@ void main() {
 
       await catalog.lookupByBarcode('3017620422003');
       await catalog.lookupByBarcode('  3017620422003  ');
-      expect(offSource.callCount('3017620422003'), 1,
-          reason: 'trimmed key — both scans must hit the same cache entry');
+      expect(
+        offSource.callCount('3017620422003'),
+        1,
+        reason: 'trimmed key — both scans must hit the same cache entry',
+      );
       expect(catalog.cachedBarcodes, 1);
     });
 
@@ -334,28 +367,33 @@ void main() {
       source = OffBarcodeSource(dio: harness.dio);
     });
 
-    test('HAPPY: 200 with status=1 + product maps to OffBarcodeMatch',
-        () async {
-      harness.respondJson(200, {
-        'status': 1,
-        'status_verbose': 'product found',
-        'product': {
-          'product_name': 'Nutella',
-          'brands': 'Ferrero',
-          'categories_tags': ['en:spreads', 'en:sweet-spreads'],
-        },
-      });
+    test(
+      'HAPPY: 200 with status=1 + product maps to OffBarcodeMatch',
+      () async {
+        harness.respondJson(200, {
+          'status': 1,
+          'status_verbose': 'product found',
+          'product': {
+            'product_name': 'Nutella',
+            'brands': 'Ferrero',
+            'categories_tags': ['en:spreads', 'en:sweet-spreads'],
+          },
+        });
 
-      final result = await source.lookup('3017620422003');
-      expect(result, isA<OffBarcodeMatch>());
-      final match = result as OffBarcodeMatch;
-      expect(match.barcode, '3017620422003');
-      expect(match.displayName, 'Nutella');
-      expect(match.categoryTags, ['en:spreads', 'en:sweet-spreads']);
-    });
+        final result = await source.lookup('3017620422003');
+        expect(result, isA<OffBarcodeMatch>());
+        final match = result as OffBarcodeMatch;
+        expect(match.barcode, '3017620422003');
+        expect(match.displayName, 'Nutella');
+        expect(match.categoryTags, ['en:spreads', 'en:sweet-spreads']);
+      },
+    );
 
     test('NOT_FOUND_404: HTTP 404 maps to OffBarcodeNotFound', () async {
-      harness.respondJson(404, {'status': 0, 'status_verbose': 'product not found'});
+      harness.respondJson(404, {
+        'status': 0,
+        'status_verbose': 'product not found',
+      });
       final result = await source.lookup('0000000000000');
       expect(result, isA<OffBarcodeNotFound>());
       expect((result as OffBarcodeNotFound).barcode, '0000000000000');
@@ -408,10 +446,7 @@ void main() {
         'OffBarcodeNotFound (the UI hands off to manual entry)', () async {
       harness.respondJson(200, {
         'status': 1,
-        'product': {
-          'product_name': '',
-          'categories_tags': const <String>[],
-        },
+        'product': {'product_name': '', 'categories_tags': const <String>[]},
       });
       final result = await source.lookup('3017620422003');
       expect(result, isA<OffBarcodeNotFound>());
@@ -454,7 +489,10 @@ void main() {
     });
 
     test('constructor asserts capacity > 0', () {
-      expect(() => LruCache<String, int>(capacity: 0), throwsA(isA<AssertionError>()));
+      expect(
+        () => LruCache<String, int>(capacity: 0),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 

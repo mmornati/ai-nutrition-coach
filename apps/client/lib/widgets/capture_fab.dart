@@ -60,11 +60,7 @@ class CaptureFab extends StatelessWidget {
             width: _diameter,
             height: _diameter,
             child: Center(
-              child: Icon(
-                Icons.add,
-                color: palette.background,
-                size: 28,
-              ),
+              child: Icon(Icons.add, color: palette.background, size: 28),
             ),
           ),
         ),

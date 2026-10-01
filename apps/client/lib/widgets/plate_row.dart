@@ -25,11 +25,7 @@ import 'coach_whisper.dart';
 import 'status_chip.dart';
 
 class PlateRow extends ConsumerWidget {
-  const PlateRow({
-    super.key,
-    required this.slot,
-    required this.plate,
-  });
+  const PlateRow({super.key, required this.slot, required this.plate});
 
   final MealSlot slot;
   final PlateLog plate;
@@ -41,8 +37,9 @@ class PlateRow extends ConsumerWidget {
         : AppPalette.light;
     final first = plate.entries.isEmpty ? null : plate.entries.first;
     final dish = first?.databaseFood.displayName ?? '—';
-    final more =
-        plate.entries.length > 1 ? ' +${plate.entries.length - 1}' : '';
+    final more = plate.entries.length > 1
+        ? ' +${plate.entries.length - 1}'
+        : '';
     final time = _localTime(plate.loggedAtUtc);
     final range = _rangeLabel(first?.quantity);
     final filled = _filledFor(first);
@@ -57,8 +54,7 @@ class PlateRow extends ConsumerWidget {
       orElse: () => const <CoachNote>[],
     );
     final hasWhisper = notes.isNotEmpty;
-    final whisperText =
-        hasWhisper ? notes.first.text : '';
+    final whisperText = hasWhisper ? notes.first.text : '';
     // Story 2.3: the first note is the post-resolve anchor. The
     // whisper passes it to `CoachWhisper` so the depth follow-up
     // use-case appends to the same plate.
@@ -85,11 +81,7 @@ class PlateRow extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              BalanceArc(
-                filled: filled,
-                size: 48,
-                announceFilled: false,
-              ),
+              BalanceArc(filled: filled, size: 48, announceFilled: false),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(

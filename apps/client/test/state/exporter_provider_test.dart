@@ -22,8 +22,10 @@ class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
   final List<PlateLog> _plates;
   @override
-  Future<RecordPlateResult> recordPlate(
-      {required List<FoodEntryDraft> entries, DateTime? loggedAtUtc}) async {
+  Future<RecordPlateResult> recordPlate({
+    required List<FoodEntryDraft> entries,
+    DateTime? loggedAtUtc,
+  }) async {
     throw UnimplementedError();
   }
 
@@ -50,10 +52,10 @@ class _RecordingDestination implements ExportDestination {
 }
 
 PlateLog _plate(int id) => PlateLog(
-      id: id,
-      loggedAtUtc: DateTime.utc(2026, 8, 16, 9),
-      entries: const <FoodEntry>[],
-    );
+  id: id,
+  loggedAtUtc: DateTime.utc(2026, 8, 16, 9),
+  entries: const <FoodEntry>[],
+);
 
 void main() {
   group('exportFilename', () {
@@ -74,27 +76,23 @@ void main() {
   group('exporter providers', () {
     test('csvExporterProvider reads from the encrypted store', (() async {
       final store = _FakeStore([_plate(1), _plate(2)]);
-      final container = ProviderContainer(overrides: [
-        encryptedStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [encryptedStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final exp = container.read(csvExporterProvider);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 2);
     }));
 
     test('jsonExporterProvider reads from the same store', (() async {
       final store = _FakeStore([_plate(1)]);
-      final container = ProviderContainer(overrides: [
-        encryptedStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [encryptedStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final exp = container.read(jsonExporterProvider);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 1);
     }));
   });

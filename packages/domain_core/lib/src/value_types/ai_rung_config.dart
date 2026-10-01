@@ -50,6 +50,7 @@ class AiRungConfig {
   int get hashCode => Object.hash(kind, previousRung);
 
   @override
-  String toString() => 'AiRungConfig(kind: ${kind.keyToken}, '
+  String toString() =>
+      'AiRungConfig(kind: ${kind.keyToken}, '
       'previousRung: $previousRung)';
 }

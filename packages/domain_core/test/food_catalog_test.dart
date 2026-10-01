@@ -66,8 +66,7 @@ void main() {
       expect(a, b);
     });
 
-    test(
-        'lookupByBarcode default impl throws UnimplementedError so adapters '
+    test('lookupByBarcode default impl throws UnimplementedError so adapters '
         'without barcode support still compile against the port', () {
       // The default implementation is intentional: a future adapter
       // that doesn't ship barcode support (e.g. a USDA-only catalog)
@@ -85,30 +84,38 @@ void main() {
   });
 
   group('VoiceTranscriber port contract', () {
-    test('TranscribeResult is sealed: TranscribedText | TranscriptionFailure',
-        () {
-      const t = TranscribedText('apple');
-      const f = TranscriptionFailure(TranscriptionFailureReason.unsupportedInV1);
-      expect(t, isA<TranscribeResult>());
-      expect(f, isA<TranscribeResult>());
-    });
+    test(
+      'TranscribeResult is sealed: TranscribedText | TranscriptionFailure',
+      () {
+        const t = TranscribedText('apple');
+        const f = TranscriptionFailure(
+          TranscriptionFailureReason.unsupportedInV1,
+        );
+        expect(t, isA<TranscribeResult>());
+        expect(f, isA<TranscribeResult>());
+      },
+    );
 
     test('TranscriptionFailure carries a typed reason', () {
-      const f = TranscriptionFailure(TranscriptionFailureReason.microphoneDenied);
+      const f = TranscriptionFailure(
+        TranscriptionFailureReason.microphoneDenied,
+      );
       expect(f.reason, TranscriptionFailureReason.microphoneDenied);
     });
   });
 
   group('DatabaseFood foodGroup field', () {
-    test('defaults to FoodGroup.other (back-compat with pre-1.5 call sites)',
-        () {
-      const f = DatabaseFood(
-        sourceRef: 'x',
-        displayName: 'X',
-        source: SourceCatalog.manual,
-      );
-      expect(f.foodGroup, FoodGroup.other);
-    });
+    test(
+      'defaults to FoodGroup.other (back-compat with pre-1.5 call sites)',
+      () {
+        const f = DatabaseFood(
+          sourceRef: 'x',
+          displayName: 'X',
+          source: SourceCatalog.manual,
+        );
+        expect(f.foodGroup, FoodGroup.other);
+      },
+    );
 
     test('explicit foodGroup participates in equality + hashCode', () {
       const a = DatabaseFood(

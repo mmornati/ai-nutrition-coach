@@ -79,30 +79,29 @@ Future<void> _drainForPlate(
 /// The `SyncAdapter` port's default implementation. The v1 no-op
 /// `LocalOnlySyncAdapter` ships here (FR-10 / AD-6: no third-party
 /// transport).
-final Provider<SyncAdapter> syncAdapterProvider = Provider<SyncAdapter>((
-  ref,
-) {
+final Provider<SyncAdapter> syncAdapterProvider = Provider<SyncAdapter>((ref) {
   return const LocalOnlySyncAdapter();
 });
 
 /// The chip surface's `SyncQueueState` snapshot.
 final StreamProvider<SyncQueueState> syncQueueStateProvider =
     StreamProvider<SyncQueueState>((ref) {
-  final queue = ref.watch(syncQueueProvider);
-  return queue.watchState();
-});
+      final queue = ref.watch(syncQueueProvider);
+      return queue.watchState();
+    });
 
 /// The chip surface's per-plate `(plateLogId, status)` snapshot.
 final StreamProvider<List<SyncOpStatus>> syncQueuePerPlateProvider =
     StreamProvider<List<SyncOpStatus>>((ref) {
-  final queue = ref.watch(syncQueueProvider);
-  return queue.watchPerPlate();
-});
+      final queue = ref.watch(syncQueueProvider);
+      return queue.watchPerPlate();
+    });
 
 /// The single sanctioned `RecordSyncOp` use-case binding (AD-3
 /// invariant: the use-case owns the enqueue; widgets never call
 /// `SyncQueue.enqueue` directly).
-final Provider<RecordSyncOp> recordSyncOpProvider =
-    Provider<RecordSyncOp>((ref) {
+final Provider<RecordSyncOp> recordSyncOpProvider = Provider<RecordSyncOp>((
+  ref,
+) {
   return RecordSyncOp(queue: ref.watch(syncQueueProvider));
 });

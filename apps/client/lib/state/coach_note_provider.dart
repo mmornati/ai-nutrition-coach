@@ -66,8 +66,10 @@ final coachNoteGeneratorProvider = Provider<CoachNoteGenerator>(
 /// Coach notes anchored to a given `plateLogId`, in insertion order
 /// (oldest first). The empty list is the legacy-data path — a plate
 /// with no note renders without the whisper.
-final coachNotesForPlateProvider =
-    FutureProvider.family<List<CoachNote>, int>((ref, plateLogId) async {
+final coachNotesForPlateProvider = FutureProvider.family<List<CoachNote>, int>((
+  ref,
+  plateLogId,
+) async {
   final store = ref.watch(coachNoteStoreProvider);
   return store.forPlate(plateLogId);
 });
@@ -107,14 +109,11 @@ final recordCoachInteractionProvider = Provider<RecordCoachInteraction>(
 /// (FR5).
 final depthFollowUpProvider = FutureProvider.family
     .autoDispose<CoachNote?, CoachNote>((ref, note) async {
-  final useCase = ref.watch(recordCoachInteractionProvider);
-  final result = await useCase(
-    note: note,
-    kind: CoachInteraction.sure,
-  );
-  // The use-case returns a `RecordCoachInteractionSure` with the
-  // (possibly-null) `followedUpNote`. The provider resolves to the
-  // note itself so the UI does not have to pattern-match on the
-  // sealed result hierarchy.
-  return result.followedUpNote;
-});
+      final useCase = ref.watch(recordCoachInteractionProvider);
+      final result = await useCase(note: note, kind: CoachInteraction.sure);
+      // The use-case returns a `RecordCoachInteractionSure` with the
+      // (possibly-null) `followedUpNote`. The provider resolves to the
+      // note itself so the UI does not have to pattern-match on the
+      // sealed result hierarchy.
+      return result.followedUpNote;
+    });

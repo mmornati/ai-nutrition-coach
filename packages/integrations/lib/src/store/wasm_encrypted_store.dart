@@ -40,10 +40,9 @@ import 'web_session_key.dart';
 class WasmEncryptedStore implements EncryptedStore {
   WasmEncryptedStore({
     required WebSessionKey sessionKey,
-    required Future<AppDatabase> Function(Uint8List derivedKey)
-        databaseOpener,
-  })  : _sessionKey = sessionKey,
-        _openDatabase = databaseOpener;
+    required Future<AppDatabase> Function(Uint8List derivedKey) databaseOpener,
+  }) : _sessionKey = sessionKey,
+       _openDatabase = databaseOpener;
 
   final WebSessionKey _sessionKey;
   final Future<AppDatabase> Function(Uint8List) _openDatabase;
@@ -96,11 +95,13 @@ class WasmEncryptedStore implements EncryptedStore {
     final loggedAtIso = loggedAt.toUtc().toIso8601String();
     try {
       final plateLogId = await db.transaction(() async {
-        final plateId = await db.into(db.plateLogTable).insert(
-              PlateLogTableCompanion.insert(loggedAtUtc: loggedAtIso),
-            );
+        final plateId = await db
+            .into(db.plateLogTable)
+            .insert(PlateLogTableCompanion.insert(loggedAtUtc: loggedAtIso));
         for (final entry in entries) {
-          await db.into(db.foodEntryTable).insert(
+          await db
+              .into(db.foodEntryTable)
+              .insert(
                 FoodEntryTableCompanion.insert(
                   plateLogId: plateId,
                   databaseFoodSourceRef: entry.databaseFood.sourceRef,
@@ -144,11 +145,7 @@ class WasmEncryptedStore implements EncryptedStore {
         final loggedAt = DateTime.parse(row.loggedAtUtc).toUtc();
         final entries = await _entriesFor(db, row.id);
         plates.add(
-          PlateLog(
-            id: row.id,
-            loggedAtUtc: loggedAt,
-            entries: entries,
-          ),
+          PlateLog(id: row.id, loggedAtUtc: loggedAt, entries: entries),
         );
       }
       return plates;
@@ -170,11 +167,7 @@ class WasmEncryptedStore implements EncryptedStore {
     DateTime loggedAt,
   ) async {
     final entries = await _entriesFor(db, plateLogId);
-    return PlateLog(
-      id: plateLogId,
-      loggedAtUtc: loggedAt,
-      entries: entries,
-    );
+    return PlateLog(id: plateLogId, loggedAtUtc: loggedAt, entries: entries);
   }
 
   Future<List<FoodEntry>> _entriesFor(AppDatabase db, int plateLogId) async {

@@ -108,8 +108,7 @@ class CoachNoteGenerated extends CoachNoteGenerationResult {
   int get hashCode => Object.hash('CoachNoteGenerated', note, reason);
 
   @override
-  String toString() =>
-      'CoachNoteGenerated(${note.id}, reason: "$reason")';
+  String toString() => 'CoachNoteGenerated(${note.id}, reason: "$reason")';
 }
 
 /// No note was generated. The UI renders nothing (no whisper, no

@@ -53,7 +53,13 @@ void main() {
       .replaceAll(RegExp(r'//.*'), '')
       .replaceAll(RegExp(r"'.*?'"), "''")
       .replaceAll(RegExp(r'".*?"'), '""');
-  for (final pattern in ['dio.get', 'dio.post', 'http.get', 'http.post', 'WebSocket']) {
+  for (final pattern in [
+    'dio.get',
+    'dio.post',
+    'http.get',
+    'http.post',
+    'WebSocket',
+  ]) {
     if (stripped.contains(pattern)) {
       failures.add('apps/client/lib/main.dart invokes $pattern at startup');
     }
@@ -79,8 +85,10 @@ void main() {
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:telemetry: OK — no unsanctioned sockets; '
-        'docs match code.');
+    stdout.writeln(
+      'check:telemetry: OK — no unsanctioned sockets; '
+      'docs match code.',
+    );
     exit(0);
   }
   stderr.writeln('check:telemetry: FAIL');

@@ -48,8 +48,8 @@ class HostedQuotaAiRung implements AiRung {
   const HostedQuotaAiRung({
     required QuotaCounter quotaCounter,
     required HostedQuotaProvider provider,
-  })  : _quotaCounter = quotaCounter,
-        _provider = provider;
+  }) : _quotaCounter = quotaCounter,
+       _provider = provider;
 
   final QuotaCounter _quotaCounter;
   final HostedQuotaProvider _provider;

@@ -43,12 +43,12 @@ class StoreFailure extends RecordPlateResult {
     this.validationError,
     this.encryptedStoreError,
   }) : assert(
-          (platformError == null ? 0 : 1) +
-                  (validationError == null ? 0 : 1) +
-                  (encryptedStoreError == null ? 0 : 1) ==
-              1,
-          'StoreFailure must have exactly one failure field set',
-        );
+         (platformError == null ? 0 : 1) +
+                 (validationError == null ? 0 : 1) +
+                 (encryptedStoreError == null ? 0 : 1) ==
+             1,
+         'StoreFailure must have exactly one failure field set',
+       );
 
   /// The current build target does not implement the encrypted store —
   /// used by `WebEncryptedStoreStub` (the v0 web stub) before
@@ -81,7 +81,8 @@ class StoreFailure extends RecordPlateResult {
       Object.hash(platformError, validationError, encryptedStoreError);
 
   @override
-  String toString() => 'StoreFailure('
+  String toString() =>
+      'StoreFailure('
       'platformError: $platformError, '
       'validationError: $validationError, '
       'encryptedStoreError: $encryptedStoreError)';

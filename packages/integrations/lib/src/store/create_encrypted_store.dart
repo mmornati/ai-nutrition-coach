@@ -30,7 +30,8 @@
 import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 
 import 'create_encrypted_store_web.dart'
-    if (dart.library.io) 'create_encrypted_store_io.dart' as impl;
+    if (dart.library.io) 'create_encrypted_store_io.dart'
+    as impl;
 import 'web_session_key.dart';
 
 /// The bundle of adapters `main.dart` wires into the `ProviderScope`.

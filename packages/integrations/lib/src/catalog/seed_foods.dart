@@ -100,7 +100,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Avocado',
     foodGroup: FoodGroup.vegFruit,
     presets: <QuantityRange>[
-      QuantityRange(low: 0.5, high: 1, unit: 'piece', displayLabel: '~½–1 piece'),
+      QuantityRange(
+        low: 0.5,
+        high: 1,
+        unit: 'piece',
+        displayLabel: '~½–1 piece',
+      ),
     ],
   ),
   SeedFood(
@@ -117,7 +122,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     foodGroup: FoodGroup.protein,
     presets: <QuantityRange>[
       QuantityRange(low: 1, high: 1, unit: 'fist', displayLabel: '~1 fist'),
-      QuantityRange(low: 1.5, high: 1.5, unit: 'fist', displayLabel: '~1.5 fists'),
+      QuantityRange(
+        low: 1.5,
+        high: 1.5,
+        unit: 'fist',
+        displayLabel: '~1.5 fists',
+      ),
     ],
   ),
   SeedFood(
@@ -131,7 +141,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Eggs',
     foodGroup: FoodGroup.protein,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'piece', displayLabel: '~1–2 pieces'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'piece',
+        displayLabel: '~1–2 pieces',
+      ),
       QuantityRange(low: 3, high: 3, unit: 'piece', displayLabel: '~3 pieces'),
     ],
   ),
@@ -191,7 +206,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Bread',
     foodGroup: FoodGroup.starch,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'slice', displayLabel: '~1–2 slices'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'slice',
+        displayLabel: '~1–2 slices',
+      ),
     ],
   ),
   SeedFood(
@@ -226,7 +246,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Tortilla',
     foodGroup: FoodGroup.starch,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'piece', displayLabel: '~1–2 pieces'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'piece',
+        displayLabel: '~1–2 pieces',
+      ),
     ],
   ),
 
@@ -250,7 +275,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Cheese',
     foodGroup: FoodGroup.dairy,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'slice', displayLabel: '~1–2 slices'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'slice',
+        displayLabel: '~1–2 slices',
+      ),
     ],
   ),
   SeedFood(
@@ -287,7 +317,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Mixed Nuts',
     foodGroup: FoodGroup.other,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'handful', displayLabel: '~1–2 handfuls'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'handful',
+        displayLabel: '~1–2 handfuls',
+      ),
     ],
   ),
   SeedFood(
@@ -301,7 +336,12 @@ const List<SeedFood> seedFoods = <SeedFood>[
     displayName: 'Dark Chocolate',
     foodGroup: FoodGroup.other,
     presets: <QuantityRange>[
-      QuantityRange(low: 1, high: 2, unit: 'square', displayLabel: '~1–2 squares'),
+      QuantityRange(
+        low: 1,
+        high: 2,
+        unit: 'square',
+        displayLabel: '~1–2 squares',
+      ),
     ],
   ),
 ];

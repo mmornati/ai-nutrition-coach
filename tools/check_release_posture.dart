@@ -56,13 +56,13 @@ void main() {
 
   // 3. The NDP standard's banned-everywhere list is unchanged.
   final ndp = File('docs/no-dark-patterns-standard.md').existsSync()
-      ? File('docs/no-dark-patterns-standard.md').readAsStringSync().toLowerCase()
+      ? File(
+          'docs/no-dark-patterns-standard.md',
+        ).readAsStringSync().toLowerCase()
       : '';
   for (final banned in _bannedEverywhereBaseline) {
     if (!ndp.contains(banned)) {
-      failures.add(
-        'NDP standard missing banned-everywhere term: "$banned"',
-      );
+      failures.add('NDP standard missing banned-everywhere term: "$banned"');
     }
   }
 
@@ -70,15 +70,21 @@ void main() {
   final contributing = File('CONTRIBUTING.md').existsSync()
       ? File('CONTRIBUTING.md').readAsStringSync()
       : '';
-  for (final command in ['melos bootstrap', 'melos run test', 'melos run smoke:self-host']) {
+  for (final command in [
+    'melos bootstrap',
+    'melos run test',
+    'melos run smoke:self-host',
+  ]) {
     if (!contributing.contains(command)) {
       failures.add('CONTRIBUTING.md missing command: $command');
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:release-posture: OK — '
-        'LICENSE, CONTRIBUTING, NDP standard at HEAD.');
+    stdout.writeln(
+      'check:release-posture: OK — '
+      'LICENSE, CONTRIBUTING, NDP standard at HEAD.',
+    );
     exit(0);
   }
   stderr.writeln('check:release-posture: FAIL');

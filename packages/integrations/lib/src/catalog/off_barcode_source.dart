@@ -94,8 +94,8 @@ sealed class OffBarcodeResult {
 /// `MockAdapter`).
 class OffBarcodeSource {
   OffBarcodeSource({Dio? dio, String? baseUrl})
-      : _dio = dio ?? Dio(),
-        _baseUrl = baseUrl ?? 'https://world.openfoodfacts.org';
+    : _dio = dio ?? Dio(),
+      _baseUrl = baseUrl ?? 'https://world.openfoodfacts.org';
 
   /// `dio` client. Tests inject a `Dio` with a `MockAdapter` so the
   /// network is never actually touched.
@@ -127,9 +127,7 @@ class OffBarcodeSource {
         uri.toString(),
         options: Options(
           responseType: ResponseType.json,
-          headers: <String, String>{
-            'Accept': 'application/json',
-          },
+          headers: <String, String>{'Accept': 'application/json'},
         ),
       );
       return _parseResponse(trimmed, response);
@@ -211,7 +209,8 @@ class OffBarcodeSource {
       return null;
     }
 
-    final raw = pick('product_name') ??
+    final raw =
+        pick('product_name') ??
         pick('product_name_en') ??
         pick('generic_name') ??
         '';

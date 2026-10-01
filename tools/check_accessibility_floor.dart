@@ -48,8 +48,10 @@ void main() {
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:accessibility-floor: OK — every interactive '
-        'widget has a Semantics wrapper + a 48px hit target.');
+    stdout.writeln(
+      'check:accessibility-floor: OK — every interactive '
+      'widget has a Semantics wrapper + a 48px hit target.',
+    );
     exit(0);
   }
   stderr.writeln('check:accessibility-floor: FAIL');
@@ -88,8 +90,10 @@ void _checkFile(String path, String body, List<String> failures) {
     // not, the file's interactive widgets are not wrapped — fail.
     final hasSemantics = stripped.contains('Semantics(');
     if (!hasSemantics) {
-      failures.add('$path: interactive widget $widget without a '
-          'Semantics wrapper (NFR-7).');
+      failures.add(
+        '$path: interactive widget $widget without a '
+        'Semantics wrapper (NFR-7).',
+      );
     }
   }
 }

@@ -55,8 +55,9 @@ Widget _wrap(
 
 void main() {
   group('DayBoardScreen', () {
-    testWidgets('empty day renders 3 open dents with the quiet copy',
-        (tester) async {
+    testWidgets('empty day renders 3 open dents with the quiet copy', (
+      tester,
+    ) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
@@ -74,14 +75,16 @@ void main() {
     });
 
     testWidgets('partial day: 1 plate + 2 open dents', (tester) async {
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(2026, 8, 15, 7, 30),
-          dish: 'Avocado Toast',
-          displayLabel: '~1 slice',
-        ),
-      ]);
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            1,
+            localTime: DateTime(2026, 8, 15, 7, 30),
+            dish: 'Avocado Toast',
+            displayLabel: '~1 slice',
+          ),
+        ],
+      );
       addTearDown(store.close);
 
       await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
@@ -92,28 +95,31 @@ void main() {
       expect(find.text('Avocado Toast'), findsOneWidget);
     });
 
-    testWidgets('full day: 3 plates across breakfast/lunch/dinner',
-        (tester) async {
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(2026, 8, 15, 7, 30),
-          dish: 'Oatmeal',
-          displayLabel: '~1 bowl',
-        ),
-        plateAt(
-          2,
-          localTime: DateTime(2026, 8, 15, 12, 45),
-          dish: 'Salad Bowl',
-          displayLabel: '~2 cups',
-        ),
-        plateAt(
-          3,
-          localTime: DateTime(2026, 8, 15, 19, 0),
-          dish: 'Pasta',
-          displayLabel: '~1.5 cups',
-        ),
-      ]);
+    testWidgets('full day: 3 plates across breakfast/lunch/dinner', (
+      tester,
+    ) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            1,
+            localTime: DateTime(2026, 8, 15, 7, 30),
+            dish: 'Oatmeal',
+            displayLabel: '~1 bowl',
+          ),
+          plateAt(
+            2,
+            localTime: DateTime(2026, 8, 15, 12, 45),
+            dish: 'Salad Bowl',
+            displayLabel: '~2 cups',
+          ),
+          plateAt(
+            3,
+            localTime: DateTime(2026, 8, 15, 19, 0),
+            dish: 'Pasta',
+            displayLabel: '~1.5 cups',
+          ),
+        ],
+      );
       addTearDown(store.close);
 
       await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
@@ -142,9 +148,7 @@ void main() {
             encryptedStoreProvider.overrideWithValue(store),
             dayBoardProvider.overrideWithValue(
               AsyncValue.error(
-                const StoreFailure(
-                  encryptedStoreError: SecureKeyFailure(),
-                ),
+                const StoreFailure(encryptedStoreError: SecureKeyFailure()),
                 StackTrace.current,
               ),
             ),
@@ -191,16 +195,19 @@ void main() {
       expect(bg, AppPalette.dark.background);
     });
 
-    testWidgets('dynamic type at max scale: rows reflow, touch target ≥48px',
-        (tester) async {
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(2026, 8, 15, 7, 30),
-          dish: 'Oatmeal',
-          displayLabel: '~1 bowl',
-        ),
-      ]);
+    testWidgets('dynamic type at max scale: rows reflow, touch target ≥48px', (
+      tester,
+    ) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            1,
+            localTime: DateTime(2026, 8, 15, 7, 30),
+            dish: 'Oatmeal',
+            displayLabel: '~1 bowl',
+          ),
+        ],
+      );
       addTearDown(store.close);
 
       await tester.pumpWidget(
@@ -231,15 +238,18 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min));
     });
 
-    testWidgets('filter: yesterday plate does not appear on the board',
-        (tester) async {
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(2026, 8, 14, 19, 0),
-          dish: 'Yesterday Pizza',
-        ),
-      ]);
+    testWidgets('filter: yesterday plate does not appear on the board', (
+      tester,
+    ) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            1,
+            localTime: DateTime(2026, 8, 14, 19, 0),
+            dish: 'Yesterday Pizza',
+          ),
+        ],
+      );
       addTearDown(store.close);
 
       await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
@@ -251,15 +261,14 @@ void main() {
       expect(find.text('Yesterday Pizza'), findsNothing);
     });
 
-    testWidgets('plate row carries a BalanceArc and a `· local` status chip',
-        (tester) async {
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(2026, 8, 15, 7, 30),
-          dish: 'Oatmeal',
-        ),
-      ]);
+    testWidgets('plate row carries a BalanceArc and a `· local` status chip', (
+      tester,
+    ) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(1, localTime: DateTime(2026, 8, 15, 7, 30), dish: 'Oatmeal'),
+        ],
+      );
       addTearDown(store.close);
 
       await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
@@ -270,177 +279,186 @@ void main() {
     });
 
     testWidgets(
-        'tap on a WeekStrip dot flips DayBoardScreen to that local day',
-        (tester) async {
-      // Story 1.4 review — M2. The screen's data source is the
-      // conditional `selected == null ? dayBoardProvider :
-      // dayBoardForDateProvider(selected)`; only an end-to-end mount
-      // exercises the branch. Seed plates on yesterday (local) and
-      // today (local), tap the leftmost dot in the strip, and verify
-      // the board re-renders for yesterday.
-      final today = DateTime.now();
-      final localToday = DateTime(today.year, today.month, today.day);
-      final localYesterday =
-          localToday.subtract(const Duration(days: 1));
+      'tap on a WeekStrip dot flips DayBoardScreen to that local day',
+      (tester) async {
+        // Story 1.4 review — M2. The screen's data source is the
+        // conditional `selected == null ? dayBoardProvider :
+        // dayBoardForDateProvider(selected)`; only an end-to-end mount
+        // exercises the branch. Seed plates on yesterday (local) and
+        // today (local), tap the leftmost dot in the strip, and verify
+        // the board re-renders for yesterday.
+        final today = DateTime.now();
+        final localToday = DateTime(today.year, today.month, today.day);
+        final localYesterday = localToday.subtract(const Duration(days: 1));
 
-      final store = FakeEncryptedStore(initial: [
-        plateAt(
-          1,
-          localTime: DateTime(
-            localYesterday.year,
-            localYesterday.month,
-            localYesterday.day,
-            19,
-            0,
+        final store = FakeEncryptedStore(
+          initial: [
+            plateAt(
+              1,
+              localTime: DateTime(
+                localYesterday.year,
+                localYesterday.month,
+                localYesterday.day,
+                19,
+                0,
+              ),
+              dish: 'Yesterday Pizza',
+            ),
+            plateAt(
+              2,
+              localTime: DateTime(
+                localToday.year,
+                localToday.month,
+                localToday.day,
+                7,
+                30,
+              ),
+              dish: 'Today Oatmeal',
+            ),
+          ],
+        );
+        addTearDown(store.close);
+
+        // Use UncontrolledProviderScope so the test can flip
+        // `selectedDateProvider` mid-test (see M2 review).
+        final container = ProviderContainer(
+          overrides: [
+            encryptedStoreProvider.overrideWithValue(store),
+            // Story 2.3: OpenDent reads `coachProvider` — override
+            // the seam so the test does not hit `UnimplementedError`.
+            coachProvider.overrideWithValue(FakeCoach()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: ThemeData(brightness: Brightness.light),
+              home: const DayBoardScreen(),
+            ),
           ),
-          dish: 'Yesterday Pizza',
-        ),
-        plateAt(
-          2,
-          localTime: DateTime(
-            localToday.year,
-            localToday.month,
-            localToday.day,
-            7,
-            30,
-          ),
-          dish: 'Today Oatmeal',
-        ),
-      ]);
-      addTearDown(store.close);
+        );
+        await tester.pumpAndSettle();
 
-      // Use UncontrolledProviderScope so the test can flip
-      // `selectedDateProvider` mid-test (see M2 review).
-      final container = ProviderContainer(
-        overrides: [
-          encryptedStoreProvider.overrideWithValue(store),
-          // Story 2.3: OpenDent reads `coachProvider` — override
-          // the seam so the test does not hit `UnimplementedError`.
-          coachProvider.overrideWithValue(FakeCoach()),
-        ],
-      );
-      addTearDown(container.dispose);
+        // Default view — today's plate is rendered.
+        expect(find.text('Today Oatmeal'), findsOneWidget);
+        expect(find.text('Yesterday Pizza'), findsNothing);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: ThemeData(brightness: Brightness.light),
-            home: const DayBoardScreen(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        // The WeekStrip sits below the board; the leftmost dot is
+        // 6 days ago. To land on yesterday we set
+        // `selectedDateProvider` directly — that's the same value the
+        // strip writes when the user taps the second-from-left dot.
+        container.read(selectedDateProvider.notifier).state = localYesterday;
+        await tester.pumpAndSettle();
 
-      // Default view — today's plate is rendered.
-      expect(find.text('Today Oatmeal'), findsOneWidget);
-      expect(find.text('Yesterday Pizza'), findsNothing);
-
-      // The WeekStrip sits below the board; the leftmost dot is
-      // 6 days ago. To land on yesterday we set
-      // `selectedDateProvider` directly — that's the same value the
-      // strip writes when the user taps the second-from-left dot.
-      container.read(selectedDateProvider.notifier).state =
-          localYesterday;
-      await tester.pumpAndSettle();
-
-      // Now yesterday's plate is rendered and today's is gone.
-      expect(find.text('Yesterday Pizza'), findsOneWidget);
-      expect(find.text('Today Oatmeal'), findsNothing);
-    });
+        // Now yesterday's plate is rendered and today's is gone.
+        expect(find.text('Yesterday Pizza'), findsOneWidget);
+        expect(find.text('Today Oatmeal'), findsNothing);
+      },
+    );
 
     testWidgets(
-        'quick-repeat `_QuickRepeatLink` hit target is ≥48px on both axes',
-        (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
+      'quick-repeat `_QuickRepeatLink` hit target is ≥48px on both axes',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
 
-      // Use an `UncontrolledProviderScope` so the test can write to
-      // `lastLogProvider` and surface the link without depending on a
-      // wall-clock side channel.
-      final container = ProviderContainer(
-        overrides: [
-          encryptedStoreProvider.overrideWithValue(store),
-          // Story 2.3: OpenDent reads `coachProvider` — override
-          // the seam so the test does not hit `UnimplementedError`.
-          coachProvider.overrideWithValue(FakeCoach()),
-        ],
-      );
-      addTearDown(container.dispose);
+        // Use an `UncontrolledProviderScope` so the test can write to
+        // `lastLogProvider` and surface the link without depending on a
+        // wall-clock side channel.
+        final container = ProviderContainer(
+          overrides: [
+            encryptedStoreProvider.overrideWithValue(store),
+            // Story 2.3: OpenDent reads `coachProvider` — override
+            // the seam so the test does not hit `UnimplementedError`.
+            coachProvider.overrideWithValue(FakeCoach()),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: ThemeData(brightness: Brightness.light),
-            home: const DayBoardScreen(),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: ThemeData(brightness: Brightness.light),
+              home: const DayBoardScreen(),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Surface the link — the screen reacts to `lastLogProvider`
-      // changes and renders the `_QuickRepeatLink` widget above the
-      // plate stack.
-      container.read(lastLogProvider.notifier).state = DateTime.now();
-      await tester.pumpAndSettle();
+        // Surface the link — the screen reacts to `lastLogProvider`
+        // changes and renders the `_QuickRepeatLink` widget above the
+        // plate stack.
+        container.read(lastLogProvider.notifier).state = DateTime.now();
+        await tester.pumpAndSettle();
 
-      expect(find.text('+ log another plate'), findsOneWidget);
+        expect(find.text('+ log another plate'), findsOneWidget);
 
-      // The hit target is the `GestureDetector` ancestor of the text
-      // label — the `_QuickRepeatLink` builds a `ConstrainedBox`
-      // (minHeight: 48) inside that gesture detector.
-      final tapTarget = find
-          .ancestor(
-            of: find.text('+ log another plate'),
-            matching: find.byType(GestureDetector),
-          )
-          .first;
-      final size = tester.getSize(tapTarget);
-      expect(size.width, greaterThanOrEqualTo(AppTouchTargets.min),
-          reason: 'quick-repeat width ${size.width} below 48px');
-      expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min),
-          reason: 'quick-repeat height ${size.height} below 48px');
-    });
+        // The hit target is the `GestureDetector` ancestor of the text
+        // label — the `_QuickRepeatLink` builds a `ConstrainedBox`
+        // (minHeight: 48) inside that gesture detector.
+        final tapTarget = find
+            .ancestor(
+              of: find.text('+ log another plate'),
+              matching: find.byType(GestureDetector),
+            )
+            .first;
+        final size = tester.getSize(tapTarget);
+        expect(
+          size.width,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'quick-repeat width ${size.width} below 48px',
+        );
+        expect(
+          size.height,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'quick-repeat height ${size.height} below 48px',
+        );
+      },
+    );
 
     testWidgets(
-        'writing to lastLogProvider surfaces the quick-repeat affordance',
-        (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
+      'writing to lastLogProvider surfaces the quick-repeat affordance',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
 
-      final container = ProviderContainer(
-        overrides: [
-          encryptedStoreProvider.overrideWithValue(store),
-          // Story 2.3: OpenDent reads `coachProvider` — override
-          // the seam so the test does not hit `UnimplementedError`.
-          coachProvider.overrideWithValue(FakeCoach()),
-        ],
-      );
-      addTearDown(container.dispose);
+        final container = ProviderContainer(
+          overrides: [
+            encryptedStoreProvider.overrideWithValue(store),
+            // Story 2.3: OpenDent reads `coachProvider` — override
+            // the seam so the test does not hit `UnimplementedError`.
+            coachProvider.overrideWithValue(FakeCoach()),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: ThemeData(brightness: Brightness.light),
-            home: const DayBoardScreen(),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: ThemeData(brightness: Brightness.light),
+              home: const DayBoardScreen(),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // No log yet — the affordance is hidden (rendered conditionally,
-      // not via `AnimatedOpacity`, so a fresh Day Board reserves zero
-      // vertical space for it).
-      expect(find.text('+ log another plate'), findsNothing);
+        // No log yet — the affordance is hidden (rendered conditionally,
+        // not via `AnimatedOpacity`, so a fresh Day Board reserves zero
+        // vertical space for it).
+        expect(find.text('+ log another plate'), findsNothing);
 
-      // Stamp `lastLogProvider` — same write the entry surfaces do on a
-      // successful `RecordPlate` commit.
-      container.read(lastLogProvider.notifier).state = DateTime.now();
-      await tester.pumpAndSettle();
+        // Stamp `lastLogProvider` — same write the entry surfaces do on a
+        // successful `RecordPlate` commit.
+        container.read(lastLogProvider.notifier).state = DateTime.now();
+        await tester.pumpAndSettle();
 
-      expect(find.text('+ log another plate'), findsOneWidget);
-    });
+        expect(find.text('+ log another plate'), findsOneWidget);
+      },
+    );
   });
 }

@@ -21,10 +21,7 @@ import 'package:ai_nutrition_coach/widgets/barcode_match_sheet.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 
-Widget _wrap(
-  Widget child, {
-  required FakeEncryptedStore store,
-}) {
+Widget _wrap(Widget child, {required FakeEncryptedStore store}) {
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(store),
@@ -86,10 +83,7 @@ void main() {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        const _SheetHarness(),
-        store: store,
-      ));
+      await tester.pumpWidget(_wrap(const _SheetHarness(), store: store));
       await tester.pumpAndSettle();
 
       await _showSheet(tester);
@@ -104,15 +98,11 @@ void main() {
     });
 
     testWidgets('tap Log commits the food + chosen preset through '
-        'RecordPlate, stamps lastLogProvider, and pops back',
-        (tester) async {
+        'RecordPlate, stamps lastLogProvider, and pops back', (tester) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        const _SheetHarness(),
-        store: store,
-      ));
+      await tester.pumpWidget(_wrap(const _SheetHarness(), store: store));
       await tester.pumpAndSettle();
 
       await _showSheet(tester);
@@ -150,15 +140,11 @@ void main() {
       expect(find.byType(BarcodeMatchSheet), findsNothing);
     });
 
-    testWidgets('Log button has a ≥48px hit target (NFR7)',
-        (tester) async {
+    testWidgets('Log button has a ≥48px hit target (NFR7)', (tester) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        const _SheetHarness(),
-        store: store,
-      ));
+      await tester.pumpWidget(_wrap(const _SheetHarness(), store: store));
       await tester.pumpAndSettle();
 
       await _showSheet(tester);
@@ -167,8 +153,11 @@ void main() {
       final logButton = find.widgetWithText(FilledButton, 'Log');
       expect(logButton, findsOneWidget);
       final size = tester.getSize(logButton);
-      expect(size.height, greaterThanOrEqualTo(48),
-          reason: 'Log button height ${size.height} below 48px');
+      expect(
+        size.height,
+        greaterThanOrEqualTo(48),
+        reason: 'Log button height ${size.height} below 48px',
+      );
     });
   });
 }

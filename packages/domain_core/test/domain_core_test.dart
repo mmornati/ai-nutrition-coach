@@ -92,8 +92,11 @@ void main() {
   group('AD-1: domain_core purity', () {
     test('lib/ contains no forbidden imports', () async {
       final libDir = Directory('lib');
-      expect(libDir.existsSync(), isTrue,
-          reason: 'lib/ directory must exist for the core package.');
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason: 'lib/ directory must exist for the core package.',
+      );
 
       final offenders = <String>[];
 
@@ -106,7 +109,8 @@ void main() {
         final lines = stripped.split('\n');
         for (var i = 0; i < lines.length; i++) {
           final line = lines[i].trim();
-          if (!line.startsWith("import") && !line.startsWith("export") &&
+          if (!line.startsWith("import") &&
+              !line.startsWith("export") &&
               !line.startsWith("part")) {
             continue;
           }
@@ -124,7 +128,8 @@ void main() {
       expect(
         offenders,
         isEmpty,
-        reason: 'AD-1 violation — domain_core must remain pure Dart:\n'
+        reason:
+            'AD-1 violation — domain_core must remain pure Dart:\n'
             '${offenders.join('\n')}',
       );
     });

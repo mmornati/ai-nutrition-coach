@@ -60,28 +60,36 @@ void main() {
       for (final banned in _bannedBiometricImports) {
         if (line.contains('import \'$banned') ||
             line.contains('import "$banned')) {
-          failures.add('${entity.path}:${i + 1}: banned biometric import: '
-              '$banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned biometric import: '
+            '$banned',
+          );
         }
       }
       for (final banned in _bannedBiometricReferences) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned biometric '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned biometric '
+            'reference: $banned',
+          );
         }
       }
       for (final banned in _bannedUnder13References) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned under-13 '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned under-13 '
+            'reference: $banned',
+          );
         }
       }
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:adults-only: OK — no biometric imports, '
-        'no under-13 references.');
+    stdout.writeln(
+      'check:adults-only: OK — no biometric imports, '
+      'no under-13 references.',
+    );
     exit(0);
   }
   stderr.writeln('check:adults-only: FAIL');

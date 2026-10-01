@@ -37,14 +37,12 @@ import 'in_memory_encrypted_store.dart';
 import 'wasm_encrypted_store.dart';
 import 'web_session_key.dart';
 
-const bool _devInMemory =
-    bool.fromEnvironment('AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE');
+const bool _devInMemory = bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
 
 /// Singleton stores for the dev-in-memory path so successive
 /// `recordPlate` / `forPlate` calls share the same in-memory list.
 final InMemoryEncryptedStore _devStore = InMemoryEncryptedStore();
-final _DevInMemoryCoachNoteStore _devCoachNotes =
-    _DevInMemoryCoachNoteStore();
+final _DevInMemoryCoachNoteStore _devCoachNotes = _DevInMemoryCoachNoteStore();
 
 /// Process-wide web session-key holder. Same instance the
 /// `WasmEncryptedStore` reads.
@@ -151,9 +149,9 @@ class _WasmCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
-    return const CoachNoteAppendFailure(StoreFailure(
-      encryptedStoreError: WebSessionKeyFailure(),
-    ));
+    return const CoachNoteAppendFailure(
+      StoreFailure(encryptedStoreError: WebSessionKeyFailure()),
+    );
   }
 
   @override

@@ -248,6 +248,7 @@ class OpenAiCompatibleByokProvider implements ByokOpenAiCompatibleProvider {
   /// Redacted `toString` (FR7 / NFR4). Never include the endpoint
   /// URL, the model id, or the key.
   @override
-  String toString() => 'OpenAiCompatibleByokProvider(endpointUrl: redacted, '
+  String toString() =>
+      'OpenAiCompatibleByokProvider(endpointUrl: redacted, '
       'model: redacted)';
 }
