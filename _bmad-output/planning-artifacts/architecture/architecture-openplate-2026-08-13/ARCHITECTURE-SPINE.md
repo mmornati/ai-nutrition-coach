@@ -77,7 +77,7 @@ infra/                    # Docker/nginx self-host definition for the web build
 
 - **Binds:** FR-9, FR-7 (key storage), UJ-3.
 - **Prevents:** overclaiming "cannot be breached" on web, where OS keystores don't exist.
-- **Rule:** Mobile: store encrypted with AES-256 via `package:sqlite3` sqlite3mc build-hook; the 32-byte DB key comes from `flutter_secure_storage` (Keychain/Keystore). Web: the same drift schema runs on sqlite3.wasm with a passphrase-derived key (PBKDF2) held in memory for the session only; the web client's weaker key-holding story is documented, never asserted as equivalent. A BYOK key is always stored via `flutter_secure_storage` and never leaves the device (FR-7).
+- **Rule:** Mobile: store encrypted with **ChaCha20-Poly1305** (SQLite3MultipleCiphers `chacha20`, pinned explicitly with `PRAGMA cipher` and verified after keying) via the `package:sqlite3` sqlite3mc build hook — which must be declared in the **workspace-root** `pubspec.yaml` (`hooks.user_defines`); the 32-byte DB key comes from `flutter_secure_storage` (Keychain/Keystore, `first_unlock_this_device`) and is supplied as `PRAGMA hexkey`. The key is never regenerated for an existing database (lost key ⇒ explicit "Erase local data and start over"). Web: the same drift schema runs on sqlite3.wasm with a passphrase-derived key (PBKDF2) held in memory for the session only; the web client's weaker key-holding story is documented, never asserted as equivalent. A BYOK key is always stored via `flutter_secure_storage` and never leaves the device (FR-7).
 
 ### AD-9 — Export is a read-only port over the store
 
@@ -126,7 +126,7 @@ flowchart LR
     A[apps/client\nFlutter responsive UI] -->|port calls| C[packages/domain_core\nentities · use-cases · ports]
     A -->|binds adapters| I[packages/integrations]
     C -->|implements| I
-    I -->|sqlite3mc AES-256| DB[(local drift store)]
+    I -->|sqlite3mc ChaCha20-Poly1305| DB[(local drift store)]
     I -->|HTTP| OFF[Open Food Facts]
     I -->|HTTP| USDA[USDA FoodData Central]
     I -->|HTTP| AI[AI rungs: hosted-quota · byok · local]

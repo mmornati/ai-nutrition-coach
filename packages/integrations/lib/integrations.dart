@@ -1,7 +1,7 @@
 /// AI Nutrition Coach adapter package.
 ///
 /// Houses concrete implementations of the ports declared in `domain_core`:
-/// the drift encrypted store (AD-8 — mobile sqlite3mc + web
+/// the drift encrypted store (AD-8 — mobile sqlite3mc ChaCha20-Poly1305 + web
 /// `WasmEncryptedStore` with PBKDF2 session key, Story 4.1), the
 /// OFF/USDA `FoodCatalog` adapters (AD-4), the four `AiRung` adapters
 /// (no-op / hosted-quota / byok / local seam; AD-5), and the v1
@@ -29,7 +29,13 @@ export 'src/catalog/seed_foods.dart';
 export 'src/coach/template_coach.dart';
 export 'src/l10n/coach_strings.dart';
 export 'src/store/create_encrypted_store.dart';
+export 'src/store/failed_store.dart';
 export 'src/store/local_coach_note_store.dart';
+export 'src/store/local_data_eraser_stub.dart'
+    if (dart.library.io) 'src/store/local_data_eraser_io.dart';
+export 'src/store/secure_key_source.dart';
+export 'src/store/secure_storage_options.dart';
+export 'src/store/sqlite_key_attach.dart';
 export 'src/store/wasm_encrypted_store.dart';
 export 'src/store/web_session_key.dart';
 export 'src/sync/drift_sync_queue.dart';
@@ -38,6 +44,7 @@ export 'src/config/build_config.dart';
 export 'src/export/csv_exporter.dart';
 export 'src/export/json_exporter.dart';
 export 'src/export/export_destination.dart';
+export 'src/export/export_paths.dart';
 export 'src/export/export_destination_stub.dart'
     show RecordingExportDestination;
 export 'src/voice/noop_voice_transcriber.dart';

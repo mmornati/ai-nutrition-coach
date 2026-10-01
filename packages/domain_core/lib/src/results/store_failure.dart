@@ -63,8 +63,9 @@ class StoreFailure extends RecordPlateResult {
   /// `flutter_secure_storage` under `ai_nutrition_coach_db_key_v1` failed
   /// (mobile), or the web session is locked and the user has not
   /// entered a passphrase yet (Story 4.1 / AD-8). The field is
-  /// sealed: only `SecureKeyFailure` (mobile) or `WebSessionKeyFailure`
-  /// (web) are valid arguments.
+  /// sealed: only the `EncryptedStoreFailure` family is valid
+  /// (`SecureKeyFailure`, `KeyLostFailure`, `StoreOperationFailure` on
+  /// mobile; `WebSessionKeyFailure` on web).
   final EncryptedStoreFailure? encryptedStoreError;
 
   @override
@@ -149,10 +150,65 @@ class WebSessionKeyFailure implements EncryptedStoreFailure {
   String toString() => 'WebSessionKeyFailure()';
 }
 
+/// Phase 2A / D7 — the database file exists on this device but its key
+/// does not (the Keychain / Keystore entry was lost: restored backup,
+/// keystore reset, new device). The data cannot be opened and silently
+/// minting a new key would only bury it, so the factory reports this
+/// distinct state and the UI offers the explicit "Erase local data and
+/// start over" action (D8). Never carries key material.
+class KeyLostFailure implements EncryptedStoreFailure {
+  const KeyLostFailure();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is KeyLostFailure;
+
+  @override
+  int get hashCode => (KeyLostFailure).hashCode;
+
+  @override
+  String toString() => 'KeyLostFailure()';
+}
+
+/// Phase 2A / D10 — a storage-layer failure that is NOT a key or cipher
+/// problem (disk full, locked database, corrupt page, ...). Mapped from
+/// the underlying exception by cause so the UI is never told "key
+/// problem" for an unrelated SQL error. Carries no cause text: the raw
+/// message can contain SQL or paths.
+class StoreOperationFailure implements EncryptedStoreFailure {
+  const StoreOperationFailure();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is StoreOperationFailure;
+
+  @override
+  int get hashCode => (StoreOperationFailure).hashCode;
+
+  @override
+  String toString() => 'StoreOperationFailure()';
+}
+
+/// The typed error a store's `watchRecent` stream (or a coach-note watch
+/// stream) emits instead of a raw adapter exception (D10). Streams have
+/// no result channel, so the typed [failure] rides the error channel;
+/// consumers (`AsyncValue.error` in the client) never see SQLite, drift
+/// or isolate types.
+class StoreStreamException implements Exception {
+  const StoreStreamException(this.failure);
+
+  final StoreFailure failure;
+
+  @override
+  String toString() => 'StoreStreamException($failure)';
+}
+
 /// Sealed marker for any failure that originates in the encrypted
 /// store's key handling. Mobile returns `SecureKeyFailure` (Keychain
-/// read/write under `ai_nutrition_coach_db_key_v1` failed); web returns
-/// `WebSessionKeyFailure` (the session is locked, AD-8). Both shapes
+/// read/write under `openplate_db_key_v1` failed, or the cipher / key
+/// could not be applied), `KeyLostFailure` (database present, key gone)
+/// or `StoreOperationFailure` (any other storage error); web returns
+/// `WebSessionKeyFailure` (the session is locked, AD-8). All shapes
 /// ride the same `StoreFailure.encryptedStoreError` field so the UI
 /// can pattern-match with a single check.
 sealed class EncryptedStoreFailure {

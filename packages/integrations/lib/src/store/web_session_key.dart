@@ -30,7 +30,7 @@ const int kWebPbkdf2Iterations = 100_000;
 
 /// The default key length in bytes. 32 bytes (256 bits) matches the
 /// `WasmEncryptedStore` cipher (drift's `WebSqlCipher` from
-/// `drift_flutter`) and the mobile story's AES-256.
+/// `drift_flutter`) and the mobile story's ChaCha20-Poly1305.
 const int kWebSessionKeyBytes = 32;
 
 /// The default salt length in bytes. The salt is bound to the

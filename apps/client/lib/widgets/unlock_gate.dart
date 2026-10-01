@@ -20,11 +20,14 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import '../screens/day_board_screen.dart';
+import '../screens/key_lost_screen.dart';
 import '../screens/lock_screen.dart';
+import '../state/erase_provider.dart';
 import '../state/web_session_key_provider.dart';
 
 class UnlockGate extends ConsumerStatefulWidget {
@@ -62,6 +65,17 @@ class _UnlockGateState extends ConsumerState<UnlockGate> {
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb) {
+      // D7 / review 2: the store did not open (lost key, bad key, failed
+      // migration, ...) — the Day Board could never read it, so offer the
+      // explicit erase instead.
+      final startup = ref.watch(storeStartupFailureProvider);
+      if (startup != null) {
+        return KeyLostScreen(
+          copy: startup.encryptedStoreError is KeyLostFailure
+              ? enKeyLostStrings
+              : enStoreOpenFailedStrings,
+        );
+      }
       return const DayBoardScreen();
     }
     final sessionKey = ref.watch(webSessionKeyProvider);

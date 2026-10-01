@@ -518,6 +518,15 @@ class YourDataStrings {
     required this.title,
     required this.lockedProtection,
     required this.unlockedProtection,
+    required this.eraseLabel,
+    required this.eraseExplain,
+    required this.eraseButton,
+    required this.eraseConfirmTitle,
+    required this.eraseConfirmBody,
+    required this.eraseConfirmAction,
+    required this.eraseCancel,
+    required this.eraseDone,
+    required this.eraseFailed,
   });
 
   /// The sub-screen heading. Calm copy; the surface is one calm
@@ -530,9 +539,39 @@ class YourDataStrings {
   final String lockedProtection;
 
   /// Rendered when the web session is unlocked or on mobile. The
-  /// mobile posture is AES-256 at rest via Keychain/Keystore; the
-  /// web posture is session-sealed. Both are stated plainly.
+  /// mobile posture is ChaCha20-Poly1305 at rest with a key held in
+  /// the Keychain/Keystore (AD-8 / D4 — the cipher is named
+  /// truthfully, never "AES-256"); the web posture is session-sealed.
+  /// Both are stated plainly.
   final String unlockedProtection;
+
+  /// Section label for the erase affordance (Phase 2A / D8).
+  final String eraseLabel;
+
+  /// One calm sentence on what erasing does and that it cannot be
+  /// undone. No scare language.
+  final String eraseExplain;
+
+  /// The erase pill label.
+  final String eraseButton;
+
+  /// Confirmation dialog title.
+  final String eraseConfirmTitle;
+
+  /// Confirmation dialog body: lists what goes, says export first.
+  final String eraseConfirmBody;
+
+  /// Confirmation dialog destructive action label.
+  final String eraseConfirmAction;
+
+  /// Confirmation dialog dismiss label — the safe choice.
+  final String eraseCancel;
+
+  /// Shown after a successful erase. The app must be reopened.
+  final String eraseDone;
+
+  /// Shown when at least one erase step failed; honest, no cause text.
+  final String eraseFailed;
 }
 
 const YourDataStrings enYourDataStrings = YourDataStrings(
@@ -542,9 +581,76 @@ const YourDataStrings enYourDataStrings = YourDataStrings(
       'protected by the passphrase you entered on this device. '
       'Reload the page and it stays sealed.',
   unlockedProtection:
-      'Encrypted at rest on mobile (AES-256, Keychain/Keystore); '
-      'session-sealed on the web (the key is held in memory for this '
-      'session only — never written to disk).',
+      'Encrypted at rest on mobile (ChaCha20-Poly1305; the key is held in '
+      'the Keychain/Keystore, stays on this device and is not included in '
+      'backups); session-sealed on the web (the key is held in memory for '
+      'this session only — never written to disk).',
+  eraseLabel: 'Erase local data',
+  eraseExplain:
+      'Removes your history, coach notes, saved AI key and any export '
+      'files from this device. There is no copy anywhere else, so this '
+      'cannot be undone — export first if you want to keep a copy.',
+  eraseButton: 'Erase all local data',
+  eraseConfirmTitle: 'Erase everything on this device?',
+  eraseConfirmBody:
+      'Your plates, coach notes, saved AI key and exports on this device '
+      'will be deleted for good.',
+  eraseConfirmAction: 'Erase',
+  eraseCancel: 'Keep my data',
+  eraseDone:
+      'All local data was erased. Close and reopen OpenPlate to start '
+      'fresh.',
+  eraseFailed:
+      'Some data could not be erased. Please try again, or clear the '
+      "app's storage in your device settings.",
+);
+
+/// The v1 `en` strings for the "history can't be opened" surface shown
+/// when the database exists but its key is gone (Phase 2A / D7 / D8).
+///
+/// Calm and factual; it never blames the user, never shows a stack, and
+/// offers exactly one way forward — the explicit erase. The named NDP
+/// reviewer signs off on this single value.
+class KeyLostStrings {
+  const KeyLostStrings({
+    required this.title,
+    required this.body,
+    required this.action,
+  });
+
+  /// Heading of the surface.
+  final String title;
+
+  /// Why the history cannot be opened and what the only option is.
+  final String body;
+
+  /// The single action: erase and start over.
+  final String action;
+}
+
+const KeyLostStrings enKeyLostStrings = KeyLostStrings(
+  title: "Your history can't be opened",
+  body:
+      'This device no longer has the key that protects your saved '
+      'history, so it cannot be read. This can happen after restoring '
+      'from a backup or resetting the device. You can erase the unreadable '
+      'data and start over.',
+  action: 'Erase local data and start over',
+);
+
+/// Copy for every OTHER startup failure (Phase 2A review 2): the protected
+/// store could not be opened for a reason other than a lost key — e.g. a
+/// keystore error or a legacy file that could not be upgraded. Same
+/// single action, but the body is honest that closing and reopening may
+/// help first, because erasing is permanent.
+const KeyLostStrings enStoreOpenFailedStrings = KeyLostStrings(
+  title: "Your history can't be opened right now",
+  body:
+      'The protected store on this device could not be opened. Closing and '
+      'reopening OpenPlate sometimes fixes this. If it keeps happening, '
+      'you can erase the unreadable data and start over — this removes '
+      'everything saved on this device.',
+  action: 'Erase local data and start over',
 );
 
 /// The v1 `en` strings for the export affordance (Story 4.2 /

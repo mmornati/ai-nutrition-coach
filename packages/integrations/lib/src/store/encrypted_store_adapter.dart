@@ -1,62 +1,52 @@
 // `EncryptedStore` mobile implementation — drift on sqlite3mc with
-// AES-256 at rest (AD-8).
+// ChaCha20-Poly1305 at rest (AD-8).
 //
 // The adapter owns:
 //   * the drift `AppDatabase`,
-//   * the `SecureKeySource` (cold-start key generation),
 //   * the row → domain entity mapping (`_toPlateLog`, `_toFoodEntry`),
-//   * the boundary that converts `drift.Exceptions` to typed
-//     `StoreFailure` values so the port never throws.
+//   * the boundary that converts drift / SQLite / isolate errors to
+//     typed `StoreFailure` values (`mapStoreError`, D10) so the port
+//     never throws.
 //
 // `recordPlate` runs a single drift transaction that inserts the parent
 // `PlateLogTable` row, then each `FoodEntryTable` row with the assigned
 // `plateLogId`. `watchRecent` exposes a query stream — every commit
 // triggers a fresh emit (drift's `Stream` is the underlying mechanism
-// behind AD-3's "derived view" rule).
+// behind AD-3's "derived view" rule). Errors on that stream are mapped
+// to a typed `StoreStreamException`; a stored row that cannot be mapped
+// (bad date, non-finite quantity, ...) is skipped and reported through
+// `onCorruptRow` so it can never poison the stream.
 //
-// Encryption (AD-8): the workspace pubspec.yaml opts into the sqlite3mc
-// source via `hooks.user_defines.sqlite3.source`. The `setup` callback
-// here runs `PRAGMA key = ...` against the raw database with the
-// 32-byte key from `SecureKeySource`. The cipher pragma is checked at
-// runtime so a misconfigured build surfaces as a typed `StoreFailure`
-// instead of silently writing plaintext.
+// Encryption (AD-8): the key is attached by the shared synchronous
+// `attachKeyAndVerify` (`sqlite_key_attach.dart`), reached through
+// `openEncryptedStore` (`native_database_opener.dart`). This class no
+// longer contains any keying code.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite3;
-
 import 'package:domain_core/domain_core.dart';
 
 import 'app_database.dart';
-import 'secure_key_source.dart';
+import 'store_error_mapper.dart';
+
+/// Reports a stored row that was skipped because it could not be mapped
+/// to a domain value. Receives the table-local row id and a short,
+/// content-free reason; never the row's values.
+typedef CorruptRowReporter = void Function(int rowId, String reason);
 
 class EncryptedStoreAdapter implements EncryptedStore {
-  EncryptedStoreAdapter({required AppDatabase database}) : _db = database;
+  EncryptedStoreAdapter({
+    required AppDatabase database,
+    CorruptRowReporter? onCorruptRow,
+  }) : _db = database,
+       _onCorruptRow = onCorruptRow;
 
-  /// Convenience for production: builds an `AppDatabase` against a file
-  /// on disk, opens it with the sqlite3mc key pragma, and yields a
-  /// ready adapter.
-  ///
-  /// Tests should call the named-args constructor directly with
-  /// `AppDatabase(NativeDatabase.memory())` + an in-memory key source.
-  static Future<EncryptedStoreAdapter> open({
-    required String filePath,
-    required SecureKeySource keySource,
-  }) async {
-    final key = await keySource.getOrCreateDbKey();
-    final db = AppDatabase(
-      NativeDatabase.createInBackground(
-        File(filePath),
-        setup: (sqlite3.Database raw) => _attachKey(raw, key),
-      ),
-    );
-    return EncryptedStoreAdapter(database: db);
-  }
-
+  /// Tests call this directly with `AppDatabase(NativeDatabase.memory())`;
+  /// production builds the database through `openEncryptedStore`
+  /// (`native_database_opener.dart`), the single keyed open path.
   final AppDatabase _db;
+  final CorruptRowReporter? _onCorruptRow;
 
   @override
   Future<RecordPlateResult> recordPlate({
@@ -91,8 +81,8 @@ class EncryptedStoreAdapter implements EncryptedStore {
 
       final committed = await _readPlateLog(plateLogId, loggedAt);
       return RecordPlateSuccess(committed);
-    } on sqlite3.SqliteException catch (_) {
-      return const StoreFailure(encryptedStoreError: SecureKeyFailure());
+    } on Exception catch (e) {
+      return mapStoreError(e);
     }
   }
 
@@ -105,17 +95,40 @@ class EncryptedStoreAdapter implements EncryptedStore {
         (t) => t.loggedAtUtc.isBiggerThanValue(since.toUtc().toIso8601String()),
       );
     }
-    return query.watch().asyncMap((rows) async {
-      final plates = <PlateLog>[];
-      for (final row in rows) {
-        final loggedAt = DateTime.parse(row.loggedAtUtc).toUtc();
-        final entries = await _entriesFor(row.id);
-        plates.add(
-          PlateLog(id: row.id, loggedAtUtc: loggedAt, entries: entries),
+    return query
+        .watch()
+        .asyncMap((rows) async {
+          final plates = <PlateLog>[];
+          for (final row in rows) {
+            final DateTime loggedAt;
+            try {
+              loggedAt = DateTime.parse(row.loggedAtUtc).toUtc();
+            } on FormatException {
+              _onCorruptRow?.call(row.id, 'plate: unparseable timestamp');
+              continue;
+            }
+            final entries = await _entriesFor(row.id);
+            plates.add(
+              PlateLog(id: row.id, loggedAtUtc: loggedAt, entries: entries),
+            );
+          }
+          return plates;
+        })
+        .transform(
+          StreamTransformer<List<PlateLog>, List<PlateLog>>.fromHandlers(
+            handleError: (error, stackTrace, sink) {
+              if (error is StoreStreamException || error is! Exception) {
+                // Typed already, or a programming Error: pass through.
+                sink.addError(error, stackTrace);
+              } else {
+                sink.addError(
+                  StoreStreamException(mapStoreError(error)),
+                  stackTrace,
+                );
+              }
+            },
+          ),
         );
-      }
-      return plates;
-    });
   }
 
   @override
@@ -131,64 +144,45 @@ class EncryptedStoreAdapter implements EncryptedStore {
       ..where((t) => t.plateLogId.equals(plateLogId))
       ..orderBy([(t) => OrderingTerm.asc(t.id)]);
     final rows = await query.get();
-    return rows
-        .map(
-          (r) => FoodEntry(
-            id: r.id,
-            plateLogId: r.plateLogId,
-            databaseFood: DatabaseFood(
-              sourceRef: r.databaseFoodSourceRef,
-              displayName: r.databaseFoodDisplayName,
-              source: _parseSource(r.databaseFoodSource),
-            ),
-            quantity: QuantityRange(
-              low: _parseNum(r.quantityLow),
-              high: _parseNum(r.quantityHigh),
-              unit: r.quantityUnit,
-              displayLabel: r.quantityDisplayLabel,
-            ),
+    final entries = <FoodEntry>[];
+    for (final r in rows) {
+      final low = _parseFinite(r.quantityLow);
+      final high = _parseFinite(r.quantityHigh);
+      if (low == null || high == null) {
+        _onCorruptRow?.call(r.id, 'entry: non-finite quantity');
+        continue;
+      }
+      entries.add(
+        FoodEntry(
+          id: r.id,
+          plateLogId: r.plateLogId,
+          databaseFood: DatabaseFood(
+            sourceRef: r.databaseFoodSourceRef,
+            displayName: r.databaseFoodDisplayName,
+            source: _parseSource(r.databaseFoodSource),
           ),
-        )
-        .toList(growable: false);
-  }
-}
-
-Future<void> _attachKey(sqlite3.Database raw, List<int> key) async {
-  if (!_hasCipher(raw)) {
-    throw const _MissingCipherFailure();
-  }
-  final hex = StringBuffer('X\'');
-  for (final b in key) {
-    hex.write(b.toRadixString(16).padLeft(2, '0'));
-  }
-  hex.write('\'');
-  raw.execute("PRAGMA key = $hex");
-}
-
-class _MissingCipherFailure implements Exception {
-  const _MissingCipherFailure();
-  @override
-  String toString() =>
-      'sqlite3mc cipher pragma is missing — the build did not pick up '
-      'the sqlite3mc hook. Check pubspec.yaml `hooks.user_defines`.';
-}
-
-bool _hasCipher(sqlite3.Database raw) {
-  try {
-    final rows = raw.select('PRAGMA cipher');
-    return rows.isNotEmpty && rows.first.values.first != null;
-  } on Object {
-    return false;
+          quantity: QuantityRange(
+            low: low,
+            high: high,
+            unit: r.quantityUnit,
+            displayLabel: r.quantityDisplayLabel,
+          ),
+        ),
+      );
+    }
+    return entries;
   }
 }
 
 String _formatNum(num n) => n.toString();
 
-num _parseNum(String raw) {
-  if (raw.contains('.') || raw.contains('e') || raw.contains('E')) {
-    return double.parse(raw);
-  }
-  return int.parse(raw);
+/// Parse a stored quantity; `null` for anything that is not a finite
+/// number (`NaN`, `Infinity`, garbage) so a corrupt row is skipped
+/// rather than surfacing a non-finite value to the UI.
+num? _parseFinite(String raw) {
+  final value = num.tryParse(raw);
+  if (value == null || (value is double && !value.isFinite)) return null;
+  return value;
 }
 
 SourceCatalog _parseSource(String raw) {

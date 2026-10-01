@@ -72,7 +72,7 @@ Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) async {
   );
 }
 
-Future<StoreBundle> createStores() async {
+Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
   if (_devInMemory) {
     // The in-memory placeholder has no cipher, so any passphrase "opens"
     // it; the lock screen is still wired so the web gate flow is exercised.

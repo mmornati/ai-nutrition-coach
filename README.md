@@ -14,7 +14,7 @@ optional sync to your own infrastructure, zero telemetry by default.
 
 | Promise                                    | Where it lives                                            |
 | ------------------------------------------ | --------------------------------------------------------- |
-| Local encrypted store (AES-256 mobile)     | Story 1.2 / AD-8                                          |
+| Local encrypted store (ChaCha20-Poly1305, mobile) | Story 1.2 / AD-8                                          |
 | Web session-sealed store (PBKDF2 + WASM)   | Story 4.1 / AD-8 — [`docs/your-data.md`](./docs/your-data.md) |
 | Exporter: CSV/JSON offline, no account     | Story 4.2 / AD-9                                          |
 | Durable outbox sync to user-controlled infra | Story 4.3 / AD-6 (in-memory v1; drift-table is 4.3.1)   |

@@ -8,10 +8,54 @@ rest" on a platform that can't honour it would be a trust break.
 ## Mobile (iOS, Android)
 
 Your history lives in a local SQLite database encrypted at rest with
-AES-256. The 32-byte key is held in the OS keystore
-(iOS Keychain / Android EncryptedSharedPreferences) and never leaves
-the device. There is no server mirror, no third-party sync, no
-telemetry. (Stories 1.2 / AD-8.)
+**ChaCha20-Poly1305** (SQLite3MultipleCiphers' `chacha20`, pinned
+explicitly; an authenticated cipher, so tampered pages are detected).
+The cipher is *not* AES-256 — earlier copy said so; it was wrong. The
+32-byte key is generated on first run and held in the OS keystore
+(iOS Keychain, accessible after first unlock and **this device only**;
+Android Keystore-wrapped storage). It is not synced, and it is excluded
+from backups. There is no server mirror, no third-party sync, no
+telemetry. (Stories 1.2 / AD-8; Phase 2A.)
+
+What this means in practice:
+
+- On open the app verifies the database really is encrypted with the
+  expected cipher and the key works; if not, it **refuses to open**
+  (it never falls back to an unencrypted file).
+- **Backups.** Android backup and device-transfer are disabled
+  (`allowBackup=false` + `dataExtractionRules`). On iOS the keychain
+  item is `first_unlock_this_device`, so a restored backup has no key.
+  The encrypted database *file* currently still lives in the app's
+  Documents directory, which iOS includes in iCloud / iTunes backups
+  (it is useless without the key). Excluding it
+  (`NSURLIsExcludedFromBackupKey`) needs a small native hook in
+  `AppDelegate` and is a tracked follow-up — see
+  `_bmad-output/review/security-and-quality-review-2026-10-01.md`
+  (D5). Until then, do not describe the data as "never leaves the
+  device" in a backup context; the key does, the ciphertext may.
+- **Lost key.** If the database exists but its key is gone (restored
+  backup, keystore reset, new device) the app does not invent a new
+  key. It shows a calm message and one action, *Erase local data and
+  start over*.
+- **Erase all local data** (Your data screen, behind a confirmation)
+  closes the database and deletes the file and its `-wal` / `-shm` /
+  `-journal` sidecars, every secure-storage item (database key, BYOK
+  key, quota counters, rung config) and any export files.
+- **Exports** are plaintext copies. They are written to the system
+  temp directory (not the backed-up Documents directory), handed to
+  the system share sheet so *you* choose where they go, and our
+  original is deleted straight after the hand-off whatever its outcome.
+  On Android the share library first copies the file into the app cache
+  (`share_plus/`) and shares that copy; we cannot know when the
+  receiving app has finished with it, so those cache copies are purged
+  when more than an hour old at the start of the next export, removed by
+  *Erase all local data*, or dropped when the OS clears its cache.
+  Until then a plaintext copy can exist in the app's private cache.
+- **Upgrading from an early build.** Very early builds wrote the
+  database unencrypted. On first launch the app detects the plaintext
+  header and encrypts the file in place (keeping your data); if that
+  fails it refuses to open and offers *Erase local data and start over*
+  rather than use the plaintext file.
 
 ## Web (self-host, Flutter web build)
 

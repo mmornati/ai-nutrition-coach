@@ -14,24 +14,33 @@
 // into a web build at all (conditional imports are the only way to keep the
 // web bundle compilable).
 //
+// Phase 2A: `createStores` takes optional `StoreOpenOverrides` so the
+// encryption integration test (and only tests) can inject the database
+// file path and the key source while exercising the REAL factory path.
+// Production passes nothing.
+//
 // AD-3: the factory hands back BOTH the encrypted plate-log store AND
 // the coach-note store, opened against the SAME `AppDatabase` instance
 // so the AD-3 invariant ("one store, no second source, no second
 // mutation path") holds. Failure containment stays on the io side:
-// when the secure-storage read or the sqlite3mc cipher attach fails,
-// the io factory hands back a `_SecureKeyFailureStore` so every
-// `recordPlate` returns
-// `StoreFailure(encryptedStoreError: SecureKeyFailure())` and the UI
-// renders the calm "history can't open on this device" surface instead
-// of an uncaught async error. On web, the equivalent failure is
+// when the secure-storage read, the sqlite3mc cipher attach or the key
+// verification fails, the io factory hands back a `FailedEncryptedStore`
+// carrying the typed reason (`SecureKeyFailure`, `KeyLostFailure`,
+// `StoreOperationFailure`) so every `recordPlate` returns that
+// `StoreFailure` and the UI renders the calm "history can't open on
+// this device" surface instead of an uncaught async error. The same
+// reason is exposed as `StoreBundle.startupFailure`. On web, the equivalent failure is
 // `WebSessionKeyFailure()` — the session is locked or the passphrase
 // did not derive a usable key (Story 4.1).
 
-import 'package:domain_core/domain_core.dart' hide WebSessionKey;
+import 'dart:async';
+
+import 'package:domain_core/domain_core.dart';
 
 import 'create_encrypted_store_web.dart'
     if (dart.library.io) 'create_encrypted_store_io.dart'
     as impl;
+import 'secure_key_source.dart';
 import 'web_session_key.dart';
 
 /// The bundle of adapters `main.dart` wires into the `ProviderScope`.
@@ -51,10 +60,21 @@ class StoreBundle {
     required this.coachNoteStore,
     this.webSessionKey,
     this.webUnlockProbe,
+    this.startupFailure,
+    this.closeDatabase,
   });
 
   final EncryptedStore encryptedStore;
   final CoachNoteStore coachNoteStore;
+
+  /// Non-null when the store could not be opened at startup; the stores
+  /// above are then the failing stand-ins. `KeyLostFailure` is the case
+  /// the app surfaces with "Erase local data and start over" (D7).
+  final StoreFailure? startupFailure;
+
+  /// Closes the shared database handle so the eraser (D8) can delete the
+  /// files. `null` on targets with no native database.
+  final Future<void> Function()? closeDatabase;
 
   /// Web-only: the session-key holder the lock screen reads. Same
   /// instance the `WasmEncryptedStore` was built against so the
@@ -69,4 +89,21 @@ class StoreBundle {
   final Future<bool> Function(List<int> derivedKey)? webUnlockProbe;
 }
 
-Future<StoreBundle> createStores() => impl.createStores();
+/// Test seams for `createStores` (Phase 2A). Both fields are optional and
+/// production never sets them. Ignored on web.
+class StoreOpenOverrides {
+  const StoreOpenOverrides({this.databaseFilePath, this.keySource});
+
+  /// Absolute path of the database file; replaces the
+  /// `path_provider` documents-directory lookup.
+  final String? databaseFilePath;
+
+  /// Replaces the Keychain / Keystore-backed key source.
+  final SecureKeySource? keySource;
+}
+
+/// The file name of the mobile database inside the documents directory.
+const String kDatabaseFileName = 'openplate_v1.sqlite';
+
+Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) =>
+    impl.createStores(overrides: overrides);

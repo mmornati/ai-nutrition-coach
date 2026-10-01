@@ -40,7 +40,7 @@ A pain + an opportunity + a vision to realize, in that order. MyFitnessPal moved
   - **success:** Quota exhaustion downgrades to the no-AI core with a plain-language choice (keep logging without AI / bring your own key / wait for reset) — zero pressure; BYOK key is stored encrypted on-device, never transmitted to any server, and removing it returns the app cleanly to the previous rung. (FR-6, FR-7, UJ-3, UJ-4)
 - **CAP-7 Local-first encrypted data**
   - **intent:** System stores all Plate Logs and Coach Note history in an encrypted local store with no server-side mirror and no account requirement, and can export them in a portable format.
-  - **success:** Full feature set works with network revoked; at-rest data encrypted AES-256 (platform-aware); CSV/JSON export available offline. (FR-9, UJ-1, UJ-5)
+  - **success:** Full feature set works with network revoked; at-rest data encrypted (ChaCha20-Poly1305 on mobile; platform-aware); CSV/JSON export available offline. (FR-9, UJ-1, UJ-5)
 - **CAP-8 Sync**
   - **intent:** User can sync their local store across their own devices via a mechanism that keeps data on user-controlled infrastructure only.
   - **success:** No third-party sync; sync never drops or duplicates a Plate Log; retries silently on reconnection; a log flips to synced only after durable remote acknowledgment. (FR-10, UJ-5)
@@ -60,7 +60,7 @@ A pain + an opportunity + a vision to realize, in that order. MyFitnessPal moved
 - **AD-5** AI is a swappable tier behind one `AiRung` port with exactly one active implementation chosen by config: `no-op` (complete no-AI core), `hosted-quota`, `byok`, `local` (v2 seam). Core never branches on which rung is active — only on whether a port call succeeded.
 - **AD-6** Offline-first writes; sync is an adapter draining a durable outbox queue to user-controlled infrastructure only; retries silently on reconnection; a log is synced only after durable remote acknowledgment; no third-party sync; status chips derive from queue state.
 - **AD-7** Every user-facing coach string (whispers, notes, quota notices) is a keyed, localized template in a key store, with no string interpolation in widgets; the No-Dark-Patterns Standard is a QA checklist gate in CI/review owned by a named reviewer.
-- **AD-8** At-rest encryption is honest and platform-aware: mobile AES-256 via sqlite3mc build hook, 32-byte DB key from Keychain/Keystore; web runs the same drift schema on sqlite3.wasm with a passphrase-derived PBKDF2 key in memory for the session only, documented as weaker, never asserted equivalent; BYOK key always via Keychain/Keystore, never leaves the device.
+- **AD-8** At-rest encryption is honest and platform-aware: mobile ChaCha20-Poly1305 (sqlite3mc `chacha20`, pinned) via the sqlite3mc build hook (declared in the workspace-root pubspec), 32-byte DB key from Keychain/Keystore; web runs the same drift schema on sqlite3.wasm with a passphrase-derived PBKDF2 key in memory for the session only, documented as weaker, never asserted equivalent; BYOK key always via Keychain/Keystore, never leaves the device.
 - **AD-9** Export is a read-only `Exporter` port streaming the store's Plate Logs to CSV/JSON on demand; available offline; never requires an account.
 - Telemetry off by default in all shipped builds; no hosted backend in v1.
 - Quantities stored and rendered as honest ranges, never false-exact kcal; no red-as-guilt color, no score, no streak across any surface.

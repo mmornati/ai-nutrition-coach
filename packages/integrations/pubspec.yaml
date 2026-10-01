@@ -19,10 +19,14 @@ dependencies:
   # AD-8 mobile-first encrypted local store.
   drift: 2.34.3
 
-  # AES-256 at-rest crypto for the drift database. The
-  # `hooks.user_defines.sqlite3.source = sqlite3mc` block at the bottom
-  # of this file opts into the SQLite3MultipleCiphers build hook so the
-  # sqlite3 binary the runtime links against understands `PRAGMA key`.
+  # At-rest crypto for the drift database: SQLite3MultipleCiphers with the
+  # cipher pinned to ChaCha20-Poly1305 (`kPinnedCipher`, AD-8). The
+  # `hooks.user_defines.sqlite3.source = sqlite3mc` opt-in that links the
+  # multiple-ciphers build lives in the WORKSPACE ROOT `pubspec.yaml`, not
+  # here: in a pub workspace the hooks runner reads user-defines only from
+  # the workspace root (hooks_runner `UserDefines.workspacePubspec`), so a
+  # block in this member is silently ignored and the plain-SQLite build
+  # would be linked (security review D3).
   sqlite3: ^3.5.0
 
   # Keychain/Keystore for the 32-byte DB key alias `ai_nutrition_coach_db_key_v1`.
@@ -50,6 +54,10 @@ dependencies:
   # and the on-disk schema. Pure-Dart, no JS interop.
   crypto: ^3.0.6
 
+  # D9 — hand a mobile export to the platform share sheet (the file is
+  # written to a temp dir and deleted after the hand-off).
+  share_plus: ^13.3.1
+
   # `package:web` — the Blob-download export destination (web only).
   web: ^1.1.1
 
@@ -67,12 +75,3 @@ dependency_overrides:
   # flutter SDK's bundled flutter_test pinning to test_api 0.7.11.
   # This override is removed once the workspace is bumped to Flutter 3.47.
   test_api: ^0.7.13
-
-# AD-8: opt into SQLite3MultipleCiphers (sqlite3mc) at the build-hook
-# level so the bundled sqlite3 binary understands `PRAGMA key`. Without
-# this the cipher pragma is silently unsupported and the DB would write
-# plaintext.
-hooks:
-  user_defines:
-    sqlite3:
-      source: sqlite3mc

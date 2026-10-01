@@ -8,8 +8,9 @@
 //
 // `append` assigns the autoincrement `id` on insert and returns the
 // resolved `CoachNote` (with the real `id`) inside a typed
-// `CoachNoteAppended`. Drift `SqliteException` is collapsed to
-// `StoreFailure(encryptedStoreError: SecureKeyFailure())` — the same
+// `CoachNoteAppended`. Any storage error (including drift's
+// `DriftRemoteException` from the background isolate) is mapped by cause
+// to a typed `StoreFailure` (`mapStoreError`, D10) — the same
 // shape the encrypted store surfaces — so the use-case collapses
 // every failure into a typed `NoCoachNoteGenerated` result without
 // inspecting the cause.
@@ -31,9 +32,8 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:domain_core/domain_core.dart';
-import 'package:sqlite3/common.dart' as sqlite3;
-
 import 'app_database.dart';
+import 'store_error_mapper.dart';
 
 class LocalCoachNoteStore implements CoachNoteStore {
   LocalCoachNoteStore({required AppDatabase database}) : _db = database;
@@ -55,31 +55,45 @@ class LocalCoachNoteStore implements CoachNoteStore {
             ),
           );
       return CoachNoteAppended(note.copyWith(id: id));
-    } on sqlite3.SqliteException catch (_) {
-      return const CoachNoteAppendFailure(
-        StoreFailure(encryptedStoreError: SecureKeyFailure()),
-      );
+    } on Exception catch (e) {
+      return CoachNoteAppendFailure(mapStoreError(e));
     }
   }
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async {
-    final query = _db.select(_db.coachNoteTable)
-      ..where((t) => t.plateLogId.equals(plateLogId))
-      ..orderBy([(t) => OrderingTerm.asc(t.id)]);
-    final rows = await query.get();
-    return rows
-        .map(
-          (r) => CoachNote(
-            id: r.id,
-            plateLogId: r.plateLogId,
-            anchor: _parseAnchor(r.anchor),
-            questionKey: r.questionKey,
-            text: r.noteText,
-            generatedAt: DateTime.parse(r.generatedAt).toUtc(),
-          ),
-        )
-        .toList(growable: false);
+    final List<CoachNoteTableData> rows;
+    try {
+      final query = _db.select(_db.coachNoteTable)
+        ..where((t) => t.plateLogId.equals(plateLogId))
+        ..orderBy([(t) => OrderingTerm.asc(t.id)]);
+      rows = await query.get();
+    } on Exception {
+      // Port contract: never a thrown exception. A whisper that cannot
+      // be read is hidden, exactly like the legacy no-note path.
+      return const [];
+    }
+    final notes = <CoachNote>[];
+    for (final r in rows) {
+      final DateTime generatedAt;
+      try {
+        generatedAt = DateTime.parse(r.generatedAt).toUtc();
+      } on FormatException {
+        // Corrupt stored timestamp: skip the row, never poison the read.
+        continue;
+      }
+      notes.add(
+        CoachNote(
+          id: r.id,
+          plateLogId: r.plateLogId,
+          anchor: _parseAnchor(r.anchor),
+          questionKey: r.questionKey,
+          text: r.noteText,
+          generatedAt: generatedAt,
+        ),
+      );
+    }
+    return notes;
   }
 
   @override
@@ -97,10 +111,8 @@ class LocalCoachNoteStore implements CoachNoteStore {
             ),
           );
       return CoachInteractionRecorded(id);
-    } on DriftWrappedException catch (_) {
-      return const CoachInteractionFailed(
-        StoreFailure(encryptedStoreError: SecureKeyFailure()),
-      );
+    } on Exception catch (e) {
+      return CoachInteractionFailed(mapStoreError(e));
     }
   }
 }

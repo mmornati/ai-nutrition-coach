@@ -20,6 +20,8 @@ import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../store/secure_storage_options.dart';
+
 /// The encrypted on-device key store for the BYOK rung (FR7).
 abstract interface class ByokKeyStore {
   /// Read the stored key, or `null` if no key is stored.
@@ -47,18 +49,18 @@ abstract interface class ByokKeyStore {
 /// on web, documented in `docs/ai-tiers.md`).
 class SecureStorageByokKeyStore implements ByokKeyStore {
   SecureStorageByokKeyStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? openPlateSecureStorage;
 
   /// The secure-storage alias. Versioned (`_v1`) so a future
   /// storage-format change can ship without colliding with
   /// existing installs.
-  static const String alias = 'ai_nutrition_coach_byok_key_v1';
+  static const String alias = SecureStorageAliases.byokKey;
 
   final FlutterSecureStorage _storage;
 
   @override
   Future<String?> read() async {
-    return _storage.read(key: alias);
+    return secureReadMigrating(_storage, alias);
   }
 
   @override
@@ -68,12 +70,12 @@ class SecureStorageByokKeyStore implements ByokKeyStore {
 
   @override
   Future<void> clear() async {
-    await _storage.delete(key: alias);
+    await secureDeleteEverywhere(_storage, alias);
   }
 
   @override
   Future<bool> hasKey() async {
-    final existing = await _storage.read(key: alias);
+    final existing = await secureReadMigrating(_storage, alias);
     return existing != null && existing.isNotEmpty;
   }
 

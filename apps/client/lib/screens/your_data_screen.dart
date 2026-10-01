@@ -16,8 +16,13 @@
 // The screen is web-aware: on `kIsWeb` it reads the
 // `webSessionKeyProvider`'s `isOpen` to render the locked /
 // unlocked posture. On io the line is the unlocked posture (the
-// mobile store is AES-256 at rest via Keychain/Keystore — Story
-// 1.2 / AD-8).
+// mobile store is ChaCha20-Poly1305 at rest with its key in the
+// Keychain/Keystore — Story 1.2 / AD-8, cipher pinned in Phase 2A).
+//
+// Phase 2A / D8: the screen also carries the "Erase all local data"
+// action, behind a confirmation dialog. (This screen is not reachable
+// from navigation yet — Phase 5 wires Settings; the action lives here
+// so it is ready when the route lands.)
 //
 // The export affordance is a quiet two-segment row: format (CSV
 // / JSON) + scope (today / this week / all history) + a single
@@ -35,10 +40,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
+import '../state/erase_provider.dart';
 import '../state/exporter_provider.dart';
 import '../state/platform_provider.dart';
 import '../state/web_session_key_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/erase_local_data_dialog.dart';
 
 class YourDataScreen extends ConsumerStatefulWidget {
   const YourDataScreen({super.key, this.copy = enYourDataStrings});
@@ -55,6 +62,8 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
   bool _busy = false;
   String? _lastFile;
   String? _lastError;
+  bool _erasing = false;
+  String? _eraseMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -79,8 +88,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.lg,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
               Text(
                 locked
@@ -93,11 +101,75 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
               const SizedBox(height: AppSpacing.lg),
               if (!locked) _exportSection(palette, widget.copy),
               // Story 4.3 — sync status surface lands here.
+              const SizedBox(height: AppSpacing.lg),
+              const Divider(height: AppSpacing.hairline),
+              const SizedBox(height: AppSpacing.lg),
+              _eraseSection(palette, widget.copy),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// The "Erase all local data" affordance (Phase 2A / D8): a label, one
+  /// calm explanatory sentence, and a single quiet pill that opens the
+  /// confirmation dialog.
+  Widget _eraseSection(AppPalette palette, YourDataStrings copy) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          copy.eraseLabel,
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          copy.eraseExplain,
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SizedBox(
+          height: AppTouchTargets.min,
+          child: OutlinedButton(
+            onPressed: _erasing ? null : _runErase,
+            child: Text(copy.eraseButton),
+          ),
+        ),
+        if (_eraseMessage != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _eraseMessage!,
+            style: AppTypography.coach.copyWith(color: palette.inkMuted),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _runErase() async {
+    if (_erasing) return;
+    final result = await confirmAndEraseLocalData(
+      context: context,
+      copy: widget.copy,
+      erase: () {
+        setState(() => _erasing = true);
+        return ref.read(eraseLocalDataProvider)();
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _erasing = false;
+      _eraseMessage = switch (result) {
+        null => null,
+        EraseLocalDataSuccess() => widget.copy.eraseDone,
+        EraseLocalDataFailure() => widget.copy.eraseFailed,
+      };
+    });
+    if (result is EraseLocalDataSuccess) {
+      // First-run state: rebuild the app on a fresh store (review 8).
+      ref.read(appRestartProvider)();
+    }
   }
 
   /// The export affordance. Two rows (format / scope) of two

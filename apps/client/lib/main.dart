@@ -1,11 +1,13 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:integrations/integrations.dart';
 
 import 'state/ai_rung_provider.dart';
 import 'state/coach_note_provider.dart';
 import 'state/coach_provider.dart';
+import 'state/erase_provider.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
@@ -25,6 +27,57 @@ void main() async {
   // enforcement is the static check (tools/check_adults_only.dart)
   // + the named-reviewer gate (Story 5.3).
   PrivacyGuard.assertAdultsOnly();
+  runApp(const OpenPlateBootstrap());
+}
+
+/// Builds the stores and the provider overrides, and rebuilds them from
+/// scratch on request (Phase 2A review 8): after "Erase all local data"
+/// succeeds the old database handle is closed and its files are gone, so
+/// the app must not keep running on it. `appRestartProvider` hands the
+/// restart callback to the screens; calling it discards the whole
+/// `ProviderScope` and re-runs `createStores()` — a first-run state.
+class OpenPlateBootstrap extends StatefulWidget {
+  const OpenPlateBootstrap({super.key});
+
+  @override
+  State<OpenPlateBootstrap> createState() => _OpenPlateBootstrapState();
+}
+
+class _OpenPlateBootstrapState extends State<OpenPlateBootstrap> {
+  int _generation = 0;
+  late Future<List<Override>> _overrides = _bootOverrides(_restart);
+
+  void _restart() {
+    if (!mounted) return;
+    setState(() {
+      _generation++;
+      _overrides = _bootOverrides(_restart);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Override>>(
+      key: ValueKey<int>(_generation),
+      future: _overrides,
+      builder: (context, snapshot) {
+        final overrides = snapshot.data;
+        if (overrides == null) {
+          // Opening the store is quick; paint nothing rather than a
+          // spinner that would flash on every launch.
+          return const SizedBox.shrink();
+        }
+        return ProviderScope(
+          key: ValueKey<int>(_generation),
+          overrides: overrides,
+          child: const OpenPlateApp(),
+        );
+      },
+    );
+  }
+}
+
+Future<List<Override>> _bootOverrides(VoidCallback restart) async {
   final bundle = await createStores();
 
   // Build-time BYOK affordance (Story 3.3 / FR-7 + the mobile-test
@@ -59,75 +112,76 @@ void main() async {
       ? const AiRungConfig(kind: AiRungKind.byok)
       : const AiRungConfig(kind: AiRungKind.noOp);
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        encryptedStoreProvider.overrideWithValue(bundle.encryptedStore),
-        // Story 2.2 — wire the coach-note store against the same
-        // encrypted database the plate-log store writes to (AD-3
-        // invariant: one store, no second source). The
-        // `CoachNoteGenerator` is constructed from
-        // `coachNoteGeneratorProvider` (in `coach_note_provider.dart`)
-        // and `RecordPlate` reads it through
-        // `recordPlateProvider` after this override is in scope.
-        coachNoteStoreProvider.overrideWithValue(bundle.coachNoteStore),
-        // Story 1.5 — wire the manual-entry + voice seams. The catalog
-        // is offline-first; the voice transcriber is a no-op (FR3 /
-        // FR13). Both are swapped out behind the same port shapes when
-        // Epic 3+ ships real adapters.
-        foodCatalogProvider.overrideWithValue(OfflineFirstFoodCatalog()),
-        voiceTranscriberProvider.overrideWithValue(
-          const NoopVoiceTranscriber(),
-        ),
-        // Story 1.7 — wire the barcode seam. `mobile_scanner` is the
-        // only camera dependency; `permission_handler` is the
-        // cross-platform permission surface (NFR7). Both are wrapped
-        // behind the `BarcodeScanner` / `CameraPermission` ports so
-        // tests can substitute fakes without touching the camera.
-        barcodeScannerProvider.overrideWithValue(MobileScannerBarcodeScanner()),
-        cameraPermissionProvider.overrideWithValue(
-          const PermissionHandlerCameraPermission(),
-        ),
-        // Story 3.1 + 3.3 — wire the AI rung config. The v1 default
-        // is `AiRungKind.noOp`; when a build-time BYOK key is
-        // supplied (see the `BuildConfig` block above) the rung
-        // flips to `AiRungKind.byok` so the photo path resolves
-        // through the user's key. The provider graph compiles
-        // against all four kinds (`noOp | hostedQuota | byok |
-        // local`) so a runtime flip without a rebuild is a
-        // Settings → Your AI tap.
-        aiRungConfigProvider.overrideWithValue(initialRung),
-        // Story 3.3 — wire the BYOK key store + the
-        // OpenAI-compatible provider. The build-time defaults
-        // resolve to a working HTTP adapter when the three
-        // `--dart-define`s are supplied; the default-construct
-        // provider returns `ByokFailure` for the unconfigured case
-        // so the rung never crashes the photo path.
-        byokKeyStoreProvider.overrideWithValue(byokKeyStore),
-        byokOpenAiCompatibleProviderProvider.overrideWithValue(byokProvider),
-        photoCaptureProvider.overrideWithValue(const ImagePickerPhotoCapture()),
-        // Story 2.1 — wire the coach seam. `TemplateCoach` is the
-        // v1 active rung; it resolves the `en` key store at
-        // `packages/integrations/lib/src/l10n/coach_strings.dart`
-        // (AD-7 / NFR3). An AI-backed rung (Epic 3+) drops in
-        // behind the same `Coach` port without touching Stories
-        // 2.2 / 2.3 (AD-5).
-        coachProvider.overrideWithValue(const TemplateCoach()),
-        // Story 4.1 — wire the web session key + the unlock probe.
-        // Both are only populated on the web bundle (Story 4.1
-        // added the optional fields to `StoreBundle` for exactly
-        // this wiring). On io the lock screen never renders (the
-        // `UnlockGate` is `kIsWeb`-aware), so the providers fall
-        // back to the throw-on-unoverridden defaults — which are
-        // unreachable.
-        if (bundle.webSessionKey != null)
-          webSessionKeyProvider.overrideWithValue(bundle.webSessionKey!),
-        if (bundle.webUnlockProbe != null)
-          webUnlockProbeProvider.overrideWithValue(bundle.webUnlockProbe!),
-      ],
-      child: const AiNutritionCoachApp(),
+  return [
+    encryptedStoreProvider.overrideWithValue(bundle.encryptedStore),
+    // Story 2.2 — wire the coach-note store against the same
+    // encrypted database the plate-log store writes to (AD-3
+    // invariant: one store, no second source). The
+    // `CoachNoteGenerator` is constructed from
+    // `coachNoteGeneratorProvider` (in `coach_note_provider.dart`)
+    // and `RecordPlate` reads it through
+    // `recordPlateProvider` after this override is in scope.
+    coachNoteStoreProvider.overrideWithValue(bundle.coachNoteStore),
+    // Phase 2A / D7 + D8 — the startup failure drives the lost-key
+    // surface; the eraser holds the bundle's close handle so the
+    // database is released before its files are deleted.
+    storeStartupFailureProvider.overrideWithValue(bundle.startupFailure),
+    localDataEraserProvider.overrideWithValue(
+      LocalDataEraserImpl(closeDatabase: bundle.closeDatabase),
     ),
-  );
+    // Story 1.5 — wire the manual-entry + voice seams. The catalog
+    // is offline-first; the voice transcriber is a no-op (FR3 /
+    // FR13). Both are swapped out behind the same port shapes when
+    // Epic 3+ ships real adapters.
+    foodCatalogProvider.overrideWithValue(OfflineFirstFoodCatalog()),
+    voiceTranscriberProvider.overrideWithValue(const NoopVoiceTranscriber()),
+    // Story 1.7 — wire the barcode seam. `mobile_scanner` is the
+    // only camera dependency; `permission_handler` is the
+    // cross-platform permission surface (NFR7). Both are wrapped
+    // behind the `BarcodeScanner` / `CameraPermission` ports so
+    // tests can substitute fakes without touching the camera.
+    barcodeScannerProvider.overrideWithValue(MobileScannerBarcodeScanner()),
+    cameraPermissionProvider.overrideWithValue(
+      const PermissionHandlerCameraPermission(),
+    ),
+    // Story 3.1 + 3.3 — wire the AI rung config. The v1 default
+    // is `AiRungKind.noOp`; when a build-time BYOK key is
+    // supplied (see the `BuildConfig` block above) the rung
+    // flips to `AiRungKind.byok` so the photo path resolves
+    // through the user's key. The provider graph compiles
+    // against all four kinds (`noOp | hostedQuota | byok |
+    // local`) so a runtime flip without a rebuild is a
+    // Settings → Your AI tap.
+    aiRungConfigProvider.overrideWithValue(initialRung),
+    // Story 3.3 — wire the BYOK key store + the
+    // OpenAI-compatible provider. The build-time defaults
+    // resolve to a working HTTP adapter when the three
+    // `--dart-define`s are supplied; the default-construct
+    // provider returns `ByokFailure` for the unconfigured case
+    // so the rung never crashes the photo path.
+    byokKeyStoreProvider.overrideWithValue(byokKeyStore),
+    byokOpenAiCompatibleProviderProvider.overrideWithValue(byokProvider),
+    photoCaptureProvider.overrideWithValue(const ImagePickerPhotoCapture()),
+    // Story 2.1 — wire the coach seam. `TemplateCoach` is the
+    // v1 active rung; it resolves the `en` key store at
+    // `packages/integrations/lib/src/l10n/coach_strings.dart`
+    // (AD-7 / NFR3). An AI-backed rung (Epic 3+) drops in
+    // behind the same `Coach` port without touching Stories
+    // 2.2 / 2.3 (AD-5).
+    coachProvider.overrideWithValue(const TemplateCoach()),
+    // Story 4.1 — wire the web session key + the unlock probe.
+    // Both are only populated on the web bundle (Story 4.1
+    // added the optional fields to `StoreBundle` for exactly
+    // this wiring). On io the lock screen never renders (the
+    // `UnlockGate` is `kIsWeb`-aware), so the providers fall
+    // back to the throw-on-unoverridden defaults — which are
+    // unreachable.
+    if (bundle.webSessionKey != null)
+      webSessionKeyProvider.overrideWithValue(bundle.webSessionKey!),
+    if (bundle.webUnlockProbe != null)
+      webUnlockProbeProvider.overrideWithValue(bundle.webUnlockProbe!),
+    appRestartProvider.overrideWithValue(restart),
+  ];
 }
 
 class AiNutritionCoachApp extends StatelessWidget {

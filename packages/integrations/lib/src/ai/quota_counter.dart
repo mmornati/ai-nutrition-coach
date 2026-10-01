@@ -20,6 +20,8 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../store/secure_storage_options.dart';
+
 /// The day-keyed quota counter for the hosted-quota rung (FR6).
 abstract interface class QuotaCounter {
   /// The number of calls made today against the configured free
@@ -107,7 +109,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
     required this.ceiling,
     FlutterSecureStorage? storage,
     DateTime Function()? now,
-  }) : _storage = storage ?? const FlutterSecureStorage(),
+  }) : _storage = storage ?? openPlateSecureStorage,
        _now = now ?? DateTime.now;
 
   /// The per-day ceiling (FR6).
@@ -119,8 +121,9 @@ class SecureStorageQuotaCounter implements QuotaCounter {
   /// The secure-storage alias. The provider kind is part of the
   /// alias so a future v2 multi-provider world can ship a
   /// separate counter per provider without collision.
-  static String _alias(String providerKind) =>
-      'ai_nutrition_coach_quota_${providerKind}_v1';
+  static String _alias(String providerKind) => providerKind == 'hostedQuota'
+      ? SecureStorageAliases.quotaHostedQuota
+      : 'openplate_quota_${providerKind}_v1';
 
   /// Counter value encoded as a JSON envelope: `{"day":"YYYY-MM-DD","calls":N}`.
   static String _encode(DateTime dayKey, int calls) => jsonEncode(
@@ -149,7 +152,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
   }
 
   Future<({DateTime day, int calls})> _read(String providerKind) async {
-    final raw = await _storage.read(key: _alias(providerKind));
+    final raw = await secureReadMigrating(_storage, _alias(providerKind));
     if (raw == null || raw.isEmpty) {
       return (day: _today(), calls: 0);
     }
