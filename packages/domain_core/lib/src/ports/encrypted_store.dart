@@ -2,7 +2,8 @@
 //
 // Everything that wants to commit a `PlateLog` goes through this port:
 //   * the `RecordPlate` use-case (which validates `entries.isNotEmpty`),
-//   * the watch stream for the UI (`watchRecent`),
+//   * the date-ranged watch stream for the UI (`watchRange`) and the
+//     one-shot range read for export (`readRange`),
 //   * the lifetime owner (`close`).
 //
 // Implementations live in `packages/integrations`:
@@ -32,10 +33,25 @@ abstract interface class EncryptedStore {
     DateTime? loggedAtUtc,
   });
 
-  /// Watch committed plates, newest first. `since` is a UTC cutoff for
-  /// pagination / incremental loads. The stream emits one full snapshot
-  /// per commit — never a cached copy held by a notifier (AD-3).
-  Stream<List<PlateLog>> watchRecent({DateTime? since});
+  /// Watch the plates logged in the half-open instant range `[from, to)`,
+  /// newest first (the Day Board and the week strip pass local-calendar-day
+  /// boundaries computed with `addCalendarDays`). Implemented as ONE join
+  /// query — plates with their entries — served by the `logged_at_utc` and
+  /// `plate_log_id` indexes, so cost follows the range, not the whole
+  /// history, and is never one query per plate. The stream
+  /// emits one full snapshot per change — never a cached copy held by a
+  /// notifier (AD-3). While the store cannot serve reads (web: locked) it
+  /// emits nothing or a typed `StoreStreamException`; it never throws raw.
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  });
+
+  /// One-shot read of the plates in `[from, to)` (either bound may be
+  /// omitted for an open end; both omitted reads everything — "all
+  /// history" export). Newest first. Never throws: a failure is a typed
+  /// `PlatesReadFailed`.
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to});
 
   /// Release any underlying handles (drift `NativeDatabase`, etc.).
   /// Called when the app shuts down or the provider is disposed.

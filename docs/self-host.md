@@ -197,8 +197,9 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 
 ## What's NOT in v1
 
-- **A relay / sync server.** The sync seam ships the durable outbox and a
-  local-only adapter; a self-host relay is future work.
+- **A relay / sync server.** The sync seam ships an in-memory outbox and a
+  local-only adapter that sends nothing (so the app says "on this device" and
+  never "synced"); a self-host relay and a durable outbox are future work.
 - **Server-side accounts or storage** — by design.
 
 ## Telemetry

@@ -38,7 +38,6 @@ import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'manual_entry_provider.dart';
@@ -78,6 +77,15 @@ abstract interface class BarcodeScanner {
   /// Stop scanning. Idempotent; safe to call after [scan] has been
   /// cancelled by the caller.
   Future<void> stop();
+
+  /// Switch the camera OFF because the app went to the background (a
+  /// camera held while backgrounded is a privacy and battery problem, and
+  /// the OS revokes it anyway). Does nothing for adapters without a camera.
+  Future<void> pauseCamera();
+
+  /// Switch the camera back ON when the app returns to the foreground,
+  /// after a [pauseCamera]. Does nothing for adapters without a camera.
+  Future<void> resumeCamera();
 }
 
 /// Camera permission port. Adapters wrap `permission_handler`'s
@@ -127,6 +135,16 @@ class FakeBarcodeScanner implements BarcodeScanner {
       await _controller.close();
     }
   }
+
+  /// How often the screen paused / resumed the camera (lifecycle tests).
+  int pauseCalls = 0;
+  int resumeCalls = 0;
+
+  @override
+  Future<void> pauseCamera() async => pauseCalls++;
+
+  @override
+  Future<void> resumeCamera() async => resumeCalls++;
 }
 
 /// Test double — defaults to [CameraPermissionStatus.granted] so the
@@ -195,7 +213,3 @@ final barcodeLookupProvider = FutureProvider.autoDispose
       final catalog = ref.watch(foodCatalogProvider);
       return catalog.lookupByBarcode(code);
     });
-
-/// Holds the most recent scanned barcode. Drives the `lookupByBarcode`
-/// invocation on the screen. Empty string means "no scan yet".
-final lastScannedBarcodeProvider = StateProvider<String>((_) => '');

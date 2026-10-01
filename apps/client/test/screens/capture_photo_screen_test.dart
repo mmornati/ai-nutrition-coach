@@ -111,6 +111,17 @@ const _appleMatch = FoodMatch(
   ],
 );
 
+/// A plate logged a moment ago — the "recent foods" the closest-matches row
+/// offers (the fake query that searched the literal 'closest' is gone, F9).
+PlateLog _recentApplePlate() => plateAt(
+  1,
+  localTime: DateTime.now().subtract(const Duration(minutes: 5)),
+  dish: 'Apple',
+  unit: 'piece',
+  displayLabel: '~1 piece',
+  foodGroup: FoodGroup.vegFruit,
+);
+
 void main() {
   // The match sheet + the screen's body can overflow the default
   // 800x600 test surface. Bump the size + zero the DPR for the
@@ -131,9 +142,10 @@ void main() {
   group('CapturePhotoScreen', () {
     testWidgets(
       'HAPPY_PATH_NOOP: capture + NoopAiRung default (empty plate) opens '
-      'the match sheet with closest-matches + manual; tap Log commits',
+      'the match sheet with closest-matches (recent foods) + manual; tap Log '
+      'commits',
       (tester) async {
-        final store = FakeEncryptedStore();
+        final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
         addTearDown(store.close);
         final capture = FakePhotoCapture();
         final rung = FakeAiRung();
@@ -283,7 +295,7 @@ void main() {
       'AI_RUNG_FAILURE: rung returning RecognitionFailure surfaces the '
       'calm line + closest-matches row + manual still works',
       (tester) async {
-        final store = FakeEncryptedStore();
+        final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
         addTearDown(store.close);
         final capture = FakePhotoCapture();
         final rung = FakeAiRung();
@@ -330,6 +342,90 @@ void main() {
     );
   });
 
+  group('closest matches (F9)', () {
+    testWidgets('are catalog matches for each RECOGNISED name, then recent '
+        'foods — and never a query for a literal placeholder', (tester) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            2,
+            localTime: DateTime.now().subtract(const Duration(hours: 1)),
+            dish: 'Rye bread',
+            displayLabel: '~2 slices',
+          ),
+        ],
+      );
+      addTearDown(store.close);
+      final rung = FakeAiRung()
+        ..emit(
+          const RecognizedPlate(
+            foods: [
+              RecognizedFood(
+                databaseFood: DatabaseFood(
+                  sourceRef: 'byok-m-Apple',
+                  displayName: 'Apple',
+                  source: SourceCatalog.manual,
+                  foodGroup: FoodGroup.vegFruit,
+                ),
+                confidence: 0.5,
+                quantity: QuantityRange(
+                  low: 1,
+                  high: 1,
+                  unit: 'piece',
+                  displayLabel: '~1 piece',
+                ),
+              ),
+            ],
+          ),
+        );
+      final catalog = _FakeFoodCatalog(const [_appleMatch]);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: rung,
+          catalog: catalog,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(catalog.calls, ['Apple']);
+      expect(catalog.calls, isNot(contains('closest')));
+      expect(find.text('Closest matches'), findsOneWidget);
+      expect(find.text('Rye bread'), findsOneWidget);
+    });
+
+    testWidgets('with no history and nothing recognised the row is simply '
+        'absent and manual-add remains', (tester) async {
+      final store = FakeEncryptedStore();
+      addTearDown(store.close);
+      final catalog = _FakeFoodCatalog(const [_appleMatch]);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: FakeAiRung(),
+          catalog: catalog,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(catalog.calls, isEmpty);
+      expect(find.text('Closest matches'), findsNothing);
+      expect(find.text('Custom food name'), findsOneWidget);
+    });
+  });
+
   group('CapturePhotoScreen photo consent (N1 / N10)', () {
     const byok = AiSettings(
       rung: AiRungConfig(
@@ -346,7 +442,7 @@ void main() {
       required AiSettings settings,
       InMemoryAiSettingsStore? settingsStore,
     }) async {
-      final store = FakeEncryptedStore();
+      final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
       addTearDown(store.close);
       final capture = FakePhotoCapture()
         ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));

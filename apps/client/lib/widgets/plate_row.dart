@@ -7,11 +7,17 @@
 // dark-mode palette comes from `AppPalette.dark` (NFR8).
 //
 // Story 2.2 surfaces the post-resolve whisper below the food entry
-// summary and above the balance arc when the plate has at least one
-// `CoachNote` in the store. Plates without a note (the legacy-data
-// path) render unchanged. Story 2.3 wires the whisper's
+// summary and above the balance arc when the plate has a post-resolve
+// `CoachNote` in the store (watched as a stream, so a note written just
+// after the commit still appears — F6) that the user has not dismissed
+// (durable marker, `coachDismissalsProvider`). Plates without a note (the
+// legacy-data path) render unchanged. Story 2.3 wires the whisper's
 // `[sure]` / `[ask later]` callbacks to the answer / dismiss /
 // depth interaction via the `recordCoachInteractionProvider`.
+//
+// The balance arc is computed from the food groups of the plate's entries
+// (persisted since schema v4 — F2 / F9): a quadrant is filled when a food
+// of that group is on the plate. It is a quiet marker, never a score.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
@@ -42,23 +48,31 @@ class PlateRow extends ConsumerWidget {
         : '';
     final time = _localTime(plate.loggedAtUtc);
     final range = _rangeLabel(first?.quantity);
-    final filled = _filledFor(first);
+    final filled = balanceCoverage([
+      for (final e in plate.entries) e.databaseFood.foodGroup,
+    ]);
 
     // Story 2.2: the post-resolve whisper anchors to this plate
-    // when the store has at least one CoachNote for it. The
+    // when the store has a post-resolve CoachNote for it. The
     // legacy-data path (pre-2.2 plates) renders without the
     // whisper.
-    final notesAsync = ref.watch(coachNotesForPlateProvider(plate.id));
-    final notes = notesAsync.maybeWhen(
-      data: (list) => list,
-      orElse: () => const <CoachNote>[],
-    );
-    final hasWhisper = notes.isNotEmpty;
-    final whisperText = hasWhisper ? notes.first.text : '';
-    // Story 2.3: the first note is the post-resolve anchor. The
-    // whisper passes it to `CoachWhisper` so the depth follow-up
-    // use-case appends to the same plate.
-    final postResolveNote = hasWhisper ? notes.first : null;
+    final notes = ref.watch(coachNotesForPlateProvider(plate.id)).value;
+    final dismissed =
+        ref.watch(coachDismissalsProvider).value ?? const <String>{};
+    // Story 2.3: the post-resolve note is the whisper's anchor; the depth
+    // follow-up use-case appends to the same plate.
+    CoachNote? anchorNote;
+    for (final n in notes ?? const <CoachNote>[]) {
+      if (n.anchor == CoachAnchor.postResolve) {
+        anchorNote = n;
+        break;
+      }
+    }
+    final whisperNote =
+        anchorNote != null &&
+            !dismissed.contains(coachNoteDismissalKey(anchorNote.id))
+        ? anchorNote
+        : null;
 
     return Semantics(
       container: true,
@@ -103,11 +117,12 @@ class PlateRow extends ConsumerWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (hasWhisper && postResolveNote != null) ...[
+                    if (whisperNote != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       CoachWhisper(
-                        question: whisperText,
-                        note: postResolveNote,
+                        key: ValueKey<int>(whisperNote.id),
+                        question: whisperNote.text,
+                        note: whisperNote,
                       ),
                     ],
                   ],
@@ -130,15 +145,6 @@ class PlateRow extends ConsumerWidget {
   String _rangeLabel(QuantityRange? q) {
     if (q == null) return '';
     return q.displayLabel;
-  }
-
-  /// V1 placeholder: the balance arc shows a fixed 3-of-4 fill regardless
-  /// of the food on the plate. The `DatabaseFood.foodGroup` taxonomy lands
-  /// with the catalog (Story 1.5) — at that point we swap this for a
-  /// real coverage computation. Until then the arc is a quiet marker,
-  /// not a calorie verdict.
-  List<bool> _filledFor(FoodEntry? _) {
-    return const [true, true, true, false];
   }
 }
 

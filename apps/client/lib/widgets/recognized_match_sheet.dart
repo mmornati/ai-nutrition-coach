@@ -31,7 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import '../state/last_log_provider.dart';
-import '../state/record_plate_provider.dart';
+import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
 
 /// Show the recognized match sheet. The future completes when the
@@ -120,14 +120,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
       final first = widget.closestMatches.first;
       _selected = _SheetSelection(
         food: first.food,
-        quantity: first.presets.isNotEmpty
-            ? first.presets.first
-            : const QuantityRange(
-                low: 1,
-                high: 1,
-                unit: 'serving',
-                displayLabel: '~1 serving',
-              ),
+        quantity: first.presets.isNotEmpty ? first.presets.first : kOneServing,
       );
       _presets = _presetsFor(first);
     }
@@ -164,14 +157,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
       }
     }
     if (out.isEmpty) {
-      out.add(
-        const QuantityRange(
-          low: 1,
-          high: 1,
-          unit: 'serving',
-          displayLabel: '~1 serving',
-        ),
-      );
+      out.add(kOneServing);
     }
     return out;
   }
@@ -199,14 +185,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     setState(() {
       _selected = _SheetSelection(
         food: match.food,
-        quantity: match.presets.isNotEmpty
-            ? match.presets.first
-            : const QuantityRange(
-                low: 1,
-                high: 1,
-                unit: 'serving',
-                displayLabel: '~1 serving',
-              ),
+        quantity: match.presets.isNotEmpty ? match.presets.first : kOneServing,
       );
       _presets = _presetsFor(match);
     });
@@ -221,86 +200,53 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
   }
 
   Future<void> _onLog() async {
+    if (_submitting) return;
     final selection = _selected;
     if (selection == null) {
       _showSnack('Pick a food first');
       return;
     }
-    setState(() => _submitting = true);
-
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
-        FoodEntryDraft(
-          databaseFood: selection.food,
-          quantity: selection.quantity,
-        ),
-      ],
-      store: store,
+    await _commit(
+      FoodEntryDraft(
+        databaseFood: selection.food,
+        quantity: selection.quantity,
+      ),
     );
-
-    if (!mounted) return;
-    setState(() => _submitting = false);
-
-    if (result is RecordPlateSuccess) {
-      ref.read(lastLogProvider.notifier).state = DateTime.now();
-      Navigator.of(context).pop();
-    } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
-    }
   }
 
   Future<void> _onLogManual() async {
+    if (_submitting) return;
     final name = _manualController.text.trim();
     if (name.isEmpty) {
       _showSnack('Type a name first');
       return;
     }
-    setState(() => _submitting = true);
-
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
-        FoodEntryDraft(
-          databaseFood: DatabaseFood(
-            sourceRef: 'manual:${name.toLowerCase()}',
-            displayName: name,
-            source: SourceCatalog.manual,
-            foodGroup: FoodGroup.other,
-          ),
-          quantity: const QuantityRange(
-            low: 1,
-            high: 1,
-            unit: 'serving',
-            displayLabel: '~1 serving',
-          ),
-        ),
-      ],
-      store: store,
+    final committed = await _commit(
+      FoodEntryDraft(databaseFood: manualFood(name), quantity: kOneServing),
     );
+    if (committed) _manualController.clear();
+  }
 
-    if (!mounted) return;
-    setState(() => _submitting = false);
+  /// Commit one entry; `true` when the plate was logged (the sheet then
+  /// closes). The busy flag is reset in `finally` so a throwing store call
+  /// can never leave the sheet stuck on "Logging…" (F7).
+  Future<bool> _commit(FoodEntryDraft draft) async {
+    setState(() => _submitting = true);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [draft]);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+    if (!mounted) return false;
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
-      _manualController.clear();
       Navigator.of(context).pop();
-    } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      return true;
     }
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
+    if (result is StoreFailure) _showSnack(logFailureMessage(result));
+    return false;
   }
 
   void _showSnack(String message) {

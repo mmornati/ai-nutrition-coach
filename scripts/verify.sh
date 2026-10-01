@@ -3,6 +3,8 @@
 # The single "is this change verified?" gate (security review B2).
 #
 #   scripts/verify.sh              format:check, analyze (infos fatal), test,
+#                                  the DST re-run of the calendar-day tests
+#                                  (TZ=Europe/Paris, F3),
 #                                  the release web build, the secrets scan
 #                                  of that build (S1: no key-shaped string may
 #                                  be compiled into a bundle) and the
@@ -37,6 +39,7 @@ run melos bootstrap
 run melos run format:check
 run melos run analyze
 run melos run test
+run melos run test:dst
 run bash tools/check_no_secrets_in_build.sh --self-test
 run bash tools/check_no_external_hosts.sh --self-test
 # build:web builds the bundle and scans it (secrets --web-only, then the

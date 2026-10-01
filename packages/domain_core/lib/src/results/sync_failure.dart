@@ -56,8 +56,9 @@ sealed class DrainResult {
   const DrainResult();
 }
 
-/// The transport acknowledged the op durably. The outbox moves the
-/// row to `synced`.
+/// The transport acknowledged the op durably (the data reached the
+/// remote). The outbox moves the row to `synced`. Never returned by an
+/// adapter that sent nothing.
 final class Drained extends DrainResult {
   const Drained();
 }
@@ -76,6 +77,13 @@ final class DrainFailedRetryable extends DrainResult {
 final class DrainFailedPermanent extends DrainResult {
   const DrainFailedPermanent(this.reason);
   final String reason;
+}
+
+/// There is no transport to send the op over (v1: `LocalOnlySyncAdapter`).
+/// Nothing was sent, so the row stays `pending` — it is neither synced nor
+/// failed — and the drain loop stops without touching the queue.
+final class DrainSkippedNoTransport extends DrainResult {
+  const DrainSkippedNoTransport();
 }
 
 /// The reason `SyncQueue.markFailed` / `markSynced` returns when

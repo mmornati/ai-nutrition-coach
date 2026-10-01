@@ -265,22 +265,27 @@ void main() {
       expect(find.text('Yesterday Pizza'), findsNothing);
     });
 
-    testWidgets('plate row carries a BalanceArc and a `· local` status chip', (
-      tester,
-    ) async {
-      final store = FakeEncryptedStore(
-        initial: [
-          plateAt(1, localTime: DateTime(2026, 8, 15, 7, 30), dish: 'Oatmeal'),
-        ],
-      );
-      addTearDown(store.close);
+    testWidgets(
+      'plate row carries a BalanceArc and a `· on this device` status chip',
+      (tester) async {
+        final store = FakeEncryptedStore(
+          initial: [
+            plateAt(
+              1,
+              localTime: DateTime(2026, 8, 15, 7, 30),
+              dish: 'Oatmeal',
+            ),
+          ],
+        );
+        addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(BalanceArc), findsOneWidget);
-      expect(find.text('· local'), findsOneWidget);
-    });
+        expect(find.byType(BalanceArc), findsOneWidget);
+        expect(find.text('· on this device'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'tap on a WeekStrip dot flips DayBoardScreen to that local day',

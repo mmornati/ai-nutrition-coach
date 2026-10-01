@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:domain_core/domain_core.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'corrupt_row_log.dart';
 import 'create_encrypted_store.dart';
 import 'encrypted_store_adapter.dart';
 import 'failed_store.dart';
@@ -44,7 +45,10 @@ Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
       // One `AppDatabase` backs both stores so `coach_notes` shares the
       // key and cipher (AD-3).
       return StoreBundle(
-        encryptedStore: EncryptedStoreAdapter(database: database),
+        encryptedStore: EncryptedStoreAdapter(
+          database: database,
+          onCorruptRow: reportCorruptRow,
+        ),
         coachNoteStore: LocalCoachNoteStore(database: database),
         closeDatabase: database.close,
       );

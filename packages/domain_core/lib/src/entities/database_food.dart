@@ -10,14 +10,16 @@
 // `SourceCatalog` is the discriminated source enum (`off`, `usda`,
 // `manual`) so the UI can colour a chip later without re-parsing the ref.
 //
-// `foodGroup` is the four-bucket balance tag the arc computes on (UX-DR4 /
-// FR-12). Story 1.5 ships it so the catalog can classify seed entries and
-// future stories can compute a real balance arc from the resolved food. The
-// field defaults to `FoodGroup.other` so existing call sites that pre-date
-// Story 1.5 keep compiling without an exhaustive migration pass — the drift
-// adapter still round-trips the new column explicitly when it's available.
+// `foodGroup` is the four-bucket balance tag the arc and the coach compute
+// on (UX-DR4 / FR-12). It is persisted with the entry (`food_group` column,
+// schema v4 — security review F2), so a re-read plate keeps the group it was
+// logged with. The field defaults to `FoodGroup.other` for foods whose group
+// is unknown (user-typed names, rows written before v4).
 
-enum SourceCatalog { off, usda, manual }
+/// Where a `DatabaseFood` came from. `seed` is the curated list shipped in
+/// the app (`seed:<name>` refs); `off` is a real Open Food Facts product
+/// (a barcode ref); `manual` is a name the user typed or a model returned.
+enum SourceCatalog { off, usda, manual, seed }
 
 /// The four food-group buckets the balance arc reports on (UX-DR4).
 ///
@@ -40,6 +42,19 @@ enum FoodGroup {
     FoodGroup.dairy => 'Dairy',
     FoodGroup.other => 'Other',
   };
+
+  /// Parse a closed-enum name (`vegFruit`, `protein`, ...) coming from
+  /// storage or from an untrusted source (a model's JSON). Returns `null`
+  /// for anything that is not exactly one of the enum names — never a
+  /// guess — so the caller can fall back to its own classifier.
+  static FoodGroup? tryParse(Object? raw) {
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    for (final group in FoodGroup.values) {
+      if (group.name == trimmed) return group;
+    }
+    return null;
+  }
 }
 
 class DatabaseFood {

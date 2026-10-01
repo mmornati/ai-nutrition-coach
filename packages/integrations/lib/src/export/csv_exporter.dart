@@ -1,8 +1,8 @@
 // CSV exporter adapter (Story 4.2 / AD-9 / FR-9 / NFR10).
 //
 // The exporter reads the plates for the requested scope from the
-// same `EncryptedStore` the Day Board reads from (AD-3), filters
-// by the scope, then emits a single `ExportReady` carrying the
+// same `EncryptedStore` the Day Board reads from (AD-3) with one bounded
+// range read, then emits a single `ExportReady` carrying the
 // `PlateLog` list. The destination adapter (`web_export_destination`
 // / `mobile_export_destination`) serializes the list to a CSV
 // string and writes it to the user-chosen destination.
@@ -24,12 +24,14 @@ import 'package:domain_core/domain_core.dart';
 /// The CSV header — one column per field, fixed order, no
 /// interpolation. Changing the order is a breaking change for
 /// downstream consumers; the order is pinned in
-/// `csv_exporter_test.dart`.
+/// `csv_exporter_test.dart`. New columns are only ever APPENDED (the
+/// `food_group` column was, in schema v4) so a consumer that reads by
+/// position keeps working.
 const String kCsvHeader =
     'id,logged_at_utc,entry_id,database_food_source,'
     'database_food_ref,database_food_display_name,'
     'quantity_low,quantity_high,quantity_unit,'
-    'quantity_display_label';
+    'quantity_display_label,food_group';
 
 class CsvExporter implements Exporter {
   CsvExporter({required EncryptedStore store}) : _store = store;
@@ -45,60 +47,31 @@ class CsvExporter implements Exporter {
       yield const ExportFormatFailure();
       return;
     }
-    final plates = await readPlates(scope: scope);
-    yield ExportReady(plates);
+    yield await readPlates(scope: scope);
   }
 
   @override
-  Future<List<PlateLog>> readPlates({required ExportScope scope}) async {
-    final all = await _readAll();
-    return _filter(all, scope);
-  }
-
-  /// Read every plate from the store. The `watchRecent` stream
-  /// is the only mutation-source-agnostic surface the store
-  /// exposes (AD-3); we take the first emission as the snapshot.
-  Future<List<PlateLog>> _readAll() async {
-    // `.first` cancels the subscription itself once the snapshot lands.
-    return _store.watchRecent().first;
-  }
-
-  /// Filter the plate list to the requested scope. Visible day
-  /// uses the local calendar day; the week uses seven local
-  /// calendar days starting at `start` (inclusive); all history
-  /// returns the list verbatim.
-  List<PlateLog> _filter(List<PlateLog> plates, ExportScope scope) {
-    return filterPlates(plates, scope);
-  }
+  Future<ExportResult> readPlates({required ExportScope scope}) =>
+      readPlatesForScope(_store, scope);
 }
 
-/// Public so the `JsonExporter` (sibling adapter) can reuse the
-/// same scope-resolution logic — the export must always match
-/// what's on screen (AD-3 / NFR10).
-List<PlateLog> filterPlates(List<PlateLog> plates, ExportScope scope) {
-  return scope.when(
-    visibleDay: (day) {
-      final start = DateTime(day.year, day.month, day.day);
-      final end = DateTime(day.year, day.month, day.day + 1);
-      return plates
-          .where((p) {
-            final local = p.loggedAtUtc.toLocal();
-            return !local.isBefore(start) && local.isBefore(end);
-          })
-          .toList(growable: false);
-    },
-    week: (start) {
-      final startLocal = DateTime(start.year, start.month, start.day);
-      final endLocal = DateTime(start.year, start.month, start.day + 7);
-      return plates
-          .where((p) {
-            final local = p.loggedAtUtc.toLocal();
-            return !local.isBefore(startLocal) && local.isBefore(endLocal);
-          })
-          .toList(growable: false);
-    },
-    allHistory: () => plates,
-  );
+/// The one range read both exporters share. The scope resolves to local
+/// calendar-day boundaries (`ExportScope.range`, `DateTime(y, m, d + n)` —
+/// DST-safe), and the store filters in SQL: the export matches what is on
+/// screen without loading the whole history (AD-3 / NFR10 / F8).
+Future<ExportResult> readPlatesForScope(
+  EncryptedStore store,
+  ExportScope scope,
+) async {
+  final range = scope.range;
+  final result = await store.readRange(from: range.from, to: range.to);
+  return switch (result) {
+    PlatesRead(:final plates) => ExportReady(plates),
+    PlatesReadFailed(:final failure) =>
+      failure.encryptedStoreError is WebSessionKeyFailure
+          ? const StoreClosed()
+          : const ExportReadFailed(),
+  };
 }
 
 /// Serialize a `PlateLog` list to a CSV string. The header is
@@ -128,6 +101,8 @@ String serializePlatesToCsv(List<PlateLog> plates) {
         ..write(_csvText(entry.quantity.unit))
         ..write(',')
         ..write(_csvText(entry.quantity.displayLabel))
+        ..write(',')
+        ..write(_csvText(entry.databaseFood.foodGroup.name))
         ..write('\n');
     }
   }

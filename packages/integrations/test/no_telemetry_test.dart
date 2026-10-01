@@ -272,7 +272,6 @@ void main() {
         'apps/client/lib/screens/capture_photo_screen.dart',
         'apps/client/lib/screens/capture_barcode_screen.dart',
         'apps/client/lib/screens/manual_entry_screen.dart',
-        'apps/client/lib/screens/log_plate_screen.dart',
         'apps/client/lib/widgets/coach_whisper.dart',
         'apps/client/lib/widgets/capture_sheet.dart',
         'apps/client/lib/widgets/capture_fab.dart',

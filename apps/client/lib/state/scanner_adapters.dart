@@ -94,6 +94,29 @@ class MobileScannerBarcodeScanner implements BarcodeScanner {
     await _detach();
   }
 
+  @override
+  Future<void> pauseCamera() async {
+    await _controller.stop();
+  }
+
+  @override
+  Future<void> resumeCamera() async {
+    await _controller.start();
+  }
+
+  /// Release everything the adapter owns: the stream subscription, the
+  /// broadcast controller and the camera controller itself (F10 — it was
+  /// created but never disposed). Called by the provider scope on dispose.
+  Future<void> dispose() async {
+    await _detach();
+    final broadcast = _broadcast;
+    _broadcast = null;
+    if (broadcast != null && !broadcast.isClosed) {
+      await broadcast.close();
+    }
+    await _controller.dispose();
+  }
+
   void _attach() {
     // Patch H1: do NOT call `_controller.start()` here. The screen
     // owns the lifecycle and calls `start()` exactly once after the

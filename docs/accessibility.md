@@ -15,7 +15,7 @@ The floor is part of the named-reviewer QA gate (Story 5.3 / FR-15)
 | Dynamic type honoured at the largest setting | `MediaQuery.textScalerOf(context)` honoured (NFR-7) |
 | Dark mode is a first-class skin            | `AppPalette.light` + `AppPalette.dark` + device theming (NFR-8) |
 | Balance arc announces food groups          | `Semantics(label: ...)` per arc segment (NFR-7) |
-| Status chips announce transitions          | `Semantics(label: 'Status: synced')` per flip (NFR-7 + AD-6) |
+| Status chips announce their state          | `Semantics(label: 'Status: on this device')` (NFR-7 + AD-6); a sync state is only announced once a transport exists |
 | A11y floor is part of the named-reviewer gate | `tools/check_accessibility_floor.dart` (Story 5.4 / FR-15) |
 
 ## Verification

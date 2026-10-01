@@ -1,33 +1,25 @@
-// The `DriftSyncQueue` adapter — durable outbox rows live here
-// (Story 4.3 / AD-6 / FR-10).
+// The `InMemorySyncQueue` adapter — the v1 outbox behind the `SyncQueue`
+// port (Story 4.3 / AD-6 / FR-10; renamed from `DriftSyncQueue` in the
+// security review F4: it never touched drift, so the name lied).
 //
-// **Story 4.3 ships this adapter as an in-memory implementation.**
-// The drift `sync_queue_table` is declared in
-// `tables/sync_queue_table.dart` so the schema is reviewable, but
-// it is NOT wired into `AppDatabase.tables` in v1 — hand-extending
-// the 2474-line committed `app_database.g.dart` to add the 5th
-// table is the Story 4.3.1 follow-up. This adapter's interface is
-// drift-shaped so swapping in the durable table-backed
-// implementation is a one-class change behind the same `SyncQueue`
-// port.
+// It is in-memory ON PURPOSE. v1 has no sync transport, so a persisted outbox
+// would only accumulate rows that nothing consumes (and a `sync_queue_table`
+// would have to be carried through every schema migration for nothing). The
+// durable, drift-table-backed queue arrives with the first real transport,
+// behind this same port; until then ops live for the session and every one
+// stays `pending` — the UI says "saved on this device", never "synced".
 //
-// The in-memory backing is keyed on `(opId)` for idempotent
-// enqueue (FR-10 / NFR5: no duplicates) and on `plateLogId` for
-// the chip's per-plate view. A change stream fans out to both
-// `watchState` and `watchPerPlate` subscribers; the adapter never
-// blocks, never loses an update, and the chip surface never
-// reflects a log before the local commit (the `RecordSyncOp`
-// use-case owns the call ordering — AD-3 invariant).
-//
-// AD-7: the queue's only user-facing surface is the chip; copy
-// lives in `SyncQueueStrings` (in `coach_strings.dart`).
+// Keyed on `(opId)` for idempotent enqueue (FR-10 / NFR5: no duplicates) and
+// on `plateLogId` for the per-plate view. A change stream fans out to both
+// `watchState` and `watchPerPlate` subscribers; the adapter never blocks and
+// never loses an update.
 
 import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
 
-class DriftSyncQueue implements SyncQueue {
-  DriftSyncQueue();
+class InMemorySyncQueue implements SyncQueue {
+  InMemorySyncQueue();
 
   /// `opId` → row. The unique key for idempotent enqueue.
   final Map<String, _QueueRow> _byOpId = {};
@@ -56,6 +48,18 @@ class DriftSyncQueue implements SyncQueue {
     _byPlate.putIfAbsent(op.plateLogId, () => <String>{}).add(op.opId);
     _emit();
     return const Enqueued();
+  }
+
+  @override
+  Future<List<SyncOp>> pending({int limit = 50}) async {
+    final out = <SyncOp>[];
+    // `_byOpId` is insertion-ordered: oldest first.
+    for (final row in _byOpId.values) {
+      if (row.status != SyncOpStatusValue.pending) continue;
+      out.add(row.op);
+      if (out.length >= limit) break;
+    }
+    return List<SyncOp>.unmodifiable(out);
   }
 
   @override
@@ -110,8 +114,7 @@ class DriftSyncQueue implements SyncQueue {
     return SyncQueueState(pending: pending, synced: synced, failed: failed);
   }
 
-  /// Snapshot the per-plate view. The chip widget reads this to
-  /// derive `local` (no op) / `pending` / `synced` for each plate.
+  /// Snapshot the per-plate view (`pending` / `synced` / `failed`).
   List<SyncOpStatus> _perPlate() {
     final out = <SyncOpStatus>[];
     for (final entry in _byPlate.entries) {

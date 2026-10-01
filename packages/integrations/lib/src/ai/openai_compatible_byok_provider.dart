@@ -26,7 +26,7 @@
 //
 // HTTP status routing:
 //   * 200 → parse `choices[0].message.content` as a JSON array of
-//     `{name, quantityHint}` objects. An empty array or a parse
+//     `{name, quantityHint, group}` objects. An empty array or a parse
 //     failure → `ByokNoMatch`. Any non-empty array → `ByokRecognized`.
 //   * 401 / 403 → `ByokKeyRejected`. The key is preserved on disk.
 //   * 429 → `ByokQuotaExhausted(resetAt: ...)` from `retry-after` /
@@ -40,6 +40,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:domain_core/domain_core.dart';
 
+import '../catalog/food_group_classifier.dart';
 import '../net/capped_response.dart';
 import 'byok_endpoint.dart';
 import 'byok_openai_compatible_provider.dart';
@@ -145,10 +146,13 @@ class OpenAiCompatibleByokProvider
   /// transport-only).
   static const String _prompt =
       'Look at the plate in the photo. Return a JSON array of the '
-      'foods you see. For each food, return an object with two '
-      'string fields: `name` (the food name, plain English) and '
+      'foods you see. For each food, return an object with three '
+      'string fields: `name` (the food name, plain English), '
       '`quantityHint` (an honest quantity range the user could '
-      'commit to, e.g. "1 piece", "about 2 fists", "~1 cup"). '
+      'commit to, e.g. "1 piece", "about 2 fists", "~1 cup") and '
+      '`group` (the food group, EXACTLY one of: `vegFruit`, '
+      '`protein`, `starch`, `dairy`, `other` — `other` for oils, '
+      'sweets, drinks and mixed dishes that fit none of the four). '
       'Return an empty array `[]` if the plate is empty or the '
       'photo is unreadable. Return ONLY the JSON array — no '
       'prose, no markdown fences, no commentary.';
@@ -367,7 +371,9 @@ class OpenAiCompatibleByokProvider
   }
 
   /// Parse the model's text response as a JSON array of
-  /// `{name, quantityHint}` objects. Returns `ByokNoMatch` on any
+  /// `{name, quantityHint, group}` objects. `group` is validated against the
+  /// closed `FoodGroup` enum; a missing / unknown value falls back to the
+  /// catalog classifier on the (cleaned) name, never to a guess. Returns `ByokNoMatch` on any
   /// parse failure or an empty list. The model's output is untrusted:
   /// at most [kMaxRecognizedFoods] entries are kept and every string is
   /// cleaned and capped at [kMaxFoodTextLength].
@@ -404,12 +410,15 @@ class OpenAiCompatibleByokProvider
       final name = _cleanText(entry['name']);
       final hint = _cleanText(entry['quantityHint']);
       if (name == null) continue;
+      final group =
+          FoodGroup.tryParse(entry['group']) ?? classifyFoodGroup([name]);
       foods.add(
         RecognizedFood(
           databaseFood: DatabaseFood(
             sourceRef: 'byok-$model-$name',
             displayName: name,
             source: SourceCatalog.manual,
+            foodGroup: group,
           ),
           confidence: 0.5,
           quantity: QuantityRange(

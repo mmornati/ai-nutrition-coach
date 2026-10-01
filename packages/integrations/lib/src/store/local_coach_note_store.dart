@@ -20,6 +20,11 @@
 // UI renders the whisper deterministically on reload (no random
 // ordering — UX-DR10).
 //
+// `watchForPlate` (F6) is a drift watch on the same query: it re-emits when a
+// note is appended, so a whisper written a moment AFTER the plate commit
+// still appears. `recordDismissal` / `watchDismissals` persist the durable
+// "quiet" markers (`coach_dismissal_table`, schema v4).
+//
 // `recordInteraction` (Story 2.3) appends a row to the
 // `coach_interaction_table` and returns the autoincrement id. The
 // FK back-ref to `coach_note_table.id` lives at the use-case layer
@@ -62,17 +67,35 @@ class LocalCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async {
-    final List<CoachNoteTableData> rows;
     try {
-      final query = _db.select(_db.coachNoteTable)
-        ..where((t) => t.plateLogId.equals(plateLogId))
-        ..orderBy([(t) => OrderingTerm.asc(t.id)]);
-      rows = await query.get();
+      return _toNotes(await _notesQuery(plateLogId).get());
     } on Exception {
       // Port contract: never a thrown exception. A whisper that cannot
       // be read is hidden, exactly like the legacy no-note path.
       return const [];
     }
+  }
+
+  @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) {
+    return _notesQuery(plateLogId)
+        .watch()
+        .map(_toNotes)
+        .transform(
+          StreamTransformer<List<CoachNote>, List<CoachNote>>.fromHandlers(
+            // A read failure hides the whisper; it never poisons the stream.
+            handleError: (error, stackTrace, sink) => sink.add(const []),
+          ),
+        );
+  }
+
+  SimpleSelectStatement<$CoachNoteTableTable, CoachNoteTableData> _notesQuery(
+    int plateLogId,
+  ) => _db.select(_db.coachNoteTable)
+    ..where((t) => t.plateLogId.equals(plateLogId))
+    ..orderBy([(t) => OrderingTerm.asc(t.id)]);
+
+  List<CoachNote> _toNotes(List<CoachNoteTableData> rows) {
     final notes = <CoachNote>[];
     for (final r in rows) {
       final DateTime generatedAt;
@@ -94,6 +117,60 @@ class LocalCoachNoteStore implements CoachNoteStore {
       );
     }
     return notes;
+  }
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async {
+    try {
+      final id = await _db
+          .into(_db.coachDismissalTable)
+          .insert(
+            CoachDismissalTableCompanion.insert(
+              dismissalKey: key,
+              dismissedAtUtc: DateTime.now().toUtc().toIso8601String(),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+      await _pruneOldOpenPlateKeys();
+      return CoachInteractionRecorded(id);
+    } on Exception catch (e) {
+      return CoachInteractionFailed(mapStoreError(e));
+    }
+  }
+
+  /// Open-plate keys are per (day, slot), so they pile up forever although a
+  /// day outside the 7-day week strip can never be shown again. Pruned on
+  /// every dismissal write (the only place the table grows): keys dated
+  /// before today minus 7 days go. (`openPlate:` is 10 characters, so the
+  /// ISO date starts at position 11 and compares as text.) Best-effort.
+  Future<void> _pruneOldOpenPlateKeys() async {
+    try {
+      final cutoff = addCalendarDays(DateTime.now(), -7);
+      final iso =
+          '${cutoff.year.toString().padLeft(4, '0')}-'
+          '${cutoff.month.toString().padLeft(2, '0')}-'
+          '${cutoff.day.toString().padLeft(2, '0')}';
+      await _db.customStatement(
+        "DELETE FROM coach_dismissal_table WHERE dismissal_key LIKE "
+        "'openPlate:%' AND substr(dismissal_key, 11, 10) < ?",
+        [iso],
+      );
+    } on Exception {
+      // Housekeeping only; the dismissal itself was recorded.
+    }
+  }
+
+  @override
+  Stream<Set<String>> watchDismissals() {
+    return _db
+        .select(_db.coachDismissalTable)
+        .watch()
+        .map((rows) => {for (final r in rows) r.dismissalKey})
+        .transform(
+          StreamTransformer<Set<String>, Set<String>>.fromHandlers(
+            handleError: (error, stackTrace, sink) => sink.add(<String>{}),
+          ),
+        );
   }
 
   @override

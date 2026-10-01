@@ -18,7 +18,6 @@
 // runtime, so the variant is web-only in practice but lives in
 // the result type so the pattern match is uniform.
 
-import '../entities/plate_log.dart';
 import '../results/export_failure.dart';
 import '../value_types/export_format.dart';
 import '../value_types/export_scope.dart';
@@ -33,9 +32,10 @@ abstract interface class Exporter {
     required ExportScope scope,
   });
 
-  /// Read a snapshot of the plates for the requested scope. The
-  /// default implementation in adapters takes the first event
-  /// from `streamPlates` and awaits it; the port surface is
-  /// single-method so the tests have a uniform shape.
-  Future<List<PlateLog>> readPlates({required ExportScope scope});
+  /// Read a snapshot of the plates for the requested scope with ONE
+  /// bounded range read on the store (`EncryptedStore.readRange`) — not a
+  /// watch stream, and never the whole history for a one-day export.
+  /// `ExportReady` on success; `StoreClosed` while the web store is locked;
+  /// `ExportReadFailed` for any other store failure.
+  Future<ExportResult> readPlates({required ExportScope scope});
 }

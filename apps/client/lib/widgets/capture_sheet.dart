@@ -163,7 +163,7 @@ class _SnapshotTile extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
-                          'photo · coming soon',
+                          'photo of your plate',
                           style: AppTypography.monoWhisper.copyWith(
                             color: palette.background.withValues(alpha: 0.85),
                           ),

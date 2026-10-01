@@ -46,6 +46,9 @@ jobs:
       - name: Gate A — test
         run: melos run test
 
+      - name: Gate A — test (DST zone)
+        run: melos run test:dst
+
       - name: Gate D — check telemetry
         run: melos run check:telemetry
 

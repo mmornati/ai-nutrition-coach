@@ -17,7 +17,7 @@ optional sync to your own infrastructure, zero telemetry by default.
 | Local encrypted store (ChaCha20-Poly1305, mobile) | Story 1.2 / AD-8                                          |
 | Web encrypted store (sqlite3mc-wasm in IndexedDB, passphrase-derived key) | Phase 2B / AD-8, ADR-0002 — [`docs/your-data.md`](./docs/your-data.md) |
 | Exporter: CSV/JSON offline, no account     | Story 4.2 / AD-9                                          |
-| Durable outbox sync to user-controlled infra | Story 4.3 / AD-6 (in-memory v1; drift-table is 4.3.1)   |
+| Sync seam for user-controlled infra        | Story 4.3 / AD-6 — seam only: in-memory outbox, no transport yet; the UI says "on this device", never "synced" |
 | One-command self-host install              | Story 4.4 / FR-11 — [`docs/self-host.md`](./docs/self-host.md) |
 | Zero telemetry by default                  | Story 4.5 / FR-12 — [`docs/telemetry-posture.md`](./docs/telemetry-posture.md) |
 | No-Dark-Patterns Standard                  | Story 4.6 / FR-15 — [`docs/no-dark-patterns-standard.md`](./docs/no-dark-patterns-standard.md) |

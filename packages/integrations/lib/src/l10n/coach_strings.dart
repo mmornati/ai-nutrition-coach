@@ -828,43 +828,32 @@ class SyncQueueStrings {
     required this.pendingChip,
     required this.syncedChip,
     required this.failedChip,
-    required this.retryLaterHint,
   });
 
-  /// The default chip state — no op enqueued for this plate yet.
-  /// Rendered as `· local` in mono.
+  /// The default chip state, and the ONLY one while there is no sync
+  /// transport (v1): the plate is saved on this device and nowhere else.
+  /// Rendered as `· on this device` in mono.
   final String localChip;
 
   /// The op is enqueued but the durable remote ack has not landed.
   /// Rendered as `· pending` in mono.
   final String pendingChip;
 
-  /// The durable remote ack landed (or the no-op v1 transport
-  /// marked it `synced`). Rendered as `· synced` with the sage-tint
-  /// wash.
+  /// The durable remote ack landed (only possible once a transport
+  /// exists). Rendered as `· synced` with the sage-tint wash.
   final String syncedChip;
 
   /// The transport returned a permanent failure. The chip never
   /// uses a red-guilt state (FR-15 / NFR3); the failed chip is the
-  /// same mono voice as `pending` / `synced`, with a calm
-  /// `· retry later` hint rendered below the plate row when the
-  /// queue's `failed` count is non-zero.
+  /// same mono voice as `pending` / `synced`.
   final String failedChip;
-
-  /// The calm hint rendered below the plate stack when the queue
-  /// has any `failed` ops. Single quiet line; never a banner, never
-  /// a modal.
-  final String retryLaterHint;
 }
 
 const SyncQueueStrings enSyncQueueStrings = SyncQueueStrings(
-  localChip: 'local',
+  localChip: 'on this device',
   pendingChip: 'pending',
   syncedChip: 'synced',
   failedChip: 'retry later',
-  retryLaterHint:
-      'Some plates are waiting to sync — they will retry silently '
-      'when the connection returns.',
 );
 
 /// The v1 `en` strings for the managed-oversight v2 seam notice
@@ -1195,4 +1184,30 @@ const PhotoConsentStrings enPhotoConsentStrings = PhotoConsentStrings(
   learnMore: 'Copy a link to how this works',
   linkCopied: 'Link copied.',
   docsPath: 'docs/ai-tiers.md',
+);
+
+/// The v1 `en` strings for the Day Board's meal slots (keyed copy, AD-7).
+///
+/// `lateOther` is ONE slot for 23:00-04:59, ordered by time of day inside it
+/// (00:00-04:59 plates come before the 23:xx ones, because a day runs
+/// 00:00 -> 23:59). It is shown only when it holds a plate.
+class DayBoardStrings {
+  const DayBoardStrings({
+    required this.breakfast,
+    required this.lunch,
+    required this.dinner,
+    required this.lateOther,
+  });
+
+  final String breakfast;
+  final String lunch;
+  final String dinner;
+  final String lateOther;
+}
+
+const DayBoardStrings enDayBoardStrings = DayBoardStrings(
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  lateOther: 'Late / other',
 );

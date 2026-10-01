@@ -9,15 +9,18 @@
 // question, the color is the affordance only.
 //
 // Story 2.3 wires the answer / dismiss / depth interaction:
-//   * `[sure]` opens an inline `CoachDepthPanel` via the
-//     `depthFollowUpProvider` family. The provider resolves to the
-//     bounded follow-up note (or `null` on the calm-degrade path)
-//     and the panel renders the follow-up copy + `[close]` pill.
+//   * `[sure]` opens an inline `CoachDepthPanel` and asks the
+//     `depthFollowUpProvider` notifier to `request()` the follow-up (the
+//     write happens in that method, not in building a provider — F6). The
+//     state resolves to the bounded follow-up note (or `null` on the
+//     calm-degrade path) and the panel renders the follow-up copy +
+//     `[close]` pill.
 //   * `[ask later]` records the `askLater` interaction through the
-//     use-case AND self-clears — the widget removes itself from the
-//     tree (`_dismissed` flag) so the whisper disappears with no
-//     nag. The widget no longer depends on the parent wiring
-//     `onAskLater` for the AC #2 contract.
+//     use-case (which also persists the durable dismissal marker, so the
+//     whisper stays gone after a restart) AND self-clears — the widget
+//     removes itself from the tree (`_dismissed` flag) so the whisper
+//     disappears with no nag. The widget no longer depends on the parent
+//     wiring `onAskLater` for the AC #2 contract.
 //   * `[close]` on the depth panel records the `depthAnswer`
 //     interaction through the use-case and removes the depth panel.
 //     The underlying whisper returns to its `[sure]` / `[ask later]`
@@ -81,6 +84,15 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
 
   void _openDepthPanel() {
     setState(() => _depthPanelVisible = true);
+    // The one place the follow-up is requested (idempotent in the notifier).
+    // After the frame that mounts the panel: the (autoDispose) provider is
+    // watched by then, so the notifier we ask is the one the panel reads —
+    // requesting before the first watch would create it, find no listener
+    // and dispose it again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(depthFollowUpProvider(widget.note).notifier).request();
+    });
   }
 
   Future<void> _closeDepthPanel() async {
@@ -134,31 +146,29 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
       return const SizedBox.shrink();
     }
 
-    // Watch the depth follow-up provider so the depth panel renders
-    // when the use-case resolves. The family is keyed on the
-    // post-resolve `note`; tapping `[sure]` once fires the
-    // use-case, the provider resolves, and the depth panel renders
-    // with the follow-up copy. Tapping `[sure]` again is a no-op
-    // (the use-case's idempotency guard sees an existing follow-up
-    // for the plate and returns `null`).
-    final depthAsync = _depthPanelVisible
+    // Watch the depth follow-up state so the depth panel renders when the
+    // use-case resolves. The family is keyed on the post-resolve `note`;
+    // tapping `[sure]` once requests the follow-up, the state resolves, and
+    // the depth panel renders with the follow-up copy. Tapping `[sure]`
+    // again is a no-op (the notifier only acts from idle).
+    final depth = _depthPanelVisible
         ? ref.watch(depthFollowUpProvider(widget.note))
-        : const AsyncValue<CoachNote?>.data(null);
+        : const DepthFollowUpIdle();
 
     return Semantics(
       container: true,
       label: 'Coach question: ${widget.question}',
       child: motion
-          ? _buildBody(palette, depthAsync)
+          ? _buildBody(palette, depth)
           : AnimatedOpacity(
               opacity: 1.0,
               duration: const Duration(milliseconds: 220),
-              child: _buildBody(palette, depthAsync),
+              child: _buildBody(palette, depth),
             ),
     );
   }
 
-  Widget _buildBody(AppPalette palette, AsyncValue<CoachNote?> depthAsync) {
+  Widget _buildBody(AppPalette palette, DepthFollowUpState depth) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: AppSpacing.xs,
@@ -185,16 +195,14 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
           ),
           if (_depthPanelVisible) ...[
             const SizedBox(height: AppSpacing.xs),
-            depthAsync.when(
-              data: (followUp) => CoachDepthPanel(
-                question: followUp?.text,
+            switch (depth) {
+              DepthFollowUpReady(:final note) => CoachDepthPanel(
+                question: note?.text,
                 onClose: _closeDepthPanel,
               ),
-              loading: () =>
-                  const CoachDepthPanel(question: null, onClose: null),
-              error: (_, _) =>
-                  const CoachDepthPanel(question: null, onClose: null),
-            ),
+              DepthFollowUpIdle() || DepthFollowUpLoading() =>
+                const CoachDepthPanel(question: null, onClose: null),
+            },
           ],
         ],
       ),

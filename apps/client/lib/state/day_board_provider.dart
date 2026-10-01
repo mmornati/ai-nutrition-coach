@@ -1,188 +1,151 @@
 // Day Board derived view (AD-3).
 //
-// Reads the existing `recentPlatesProvider` stream and projects it into the
-// three-slot shape the screen renders: one bucket per meal slot
-// (Breakfast / Lunch / Dinner) plus an "open dents" view for any slot with
-// no plate on the selected local day. Filters to the local day boundary
-// so plates from other days never leak into the surface.
+// Projects the plates of ONE local calendar day (a date-ranged watch of the
+// store — `platesInRangeProvider`, never the whole history) into the shape
+// the screen renders: one bucket per meal slot (Breakfast / Lunch / Dinner)
+// plus a "Late / other" bucket for the night hours, each holding ALL the
+// plates logged in it, in time order. A slot with no plate is an open dent.
 //
-// The provider does not mutate anything; it is a `Provider` over the
-// `AsyncValue<List<PlateLog>>` so the screen still sees loading / error
-// states the same way it does today. The pre-classification is what the
-// screen consumes — no slot arithmetic on the render path.
+// What changed in the security review (F3):
+//   * a slot holds a LIST of plates — logging a second lunch no longer hides
+//     the first;
+//   * 23:00–04:59 is the `late` slot — those plates used to be dropped
+//     from the board entirely;
+//   * day boundaries are calendar arithmetic (`DateTime(y, m, d + 1)`), not
+//     `+ 24h`, so DST days are right;
+//   * "today" comes from `todayProvider`, which ticks at local midnight, so
+//     a board left open overnight moves on to the new day.
 //
-// Story 1.4 split the bucket logic into a `_classifyForDate(plates,
-// date)` helper so the same view serves both `dayBoardProvider` (today)
-// and `dayBoardForDateProvider(date)` (the selected local day from the
-// week strip). The no-arg `dayBoardProvider` is preserved for
-// backward compatibility with Story 1.3's call sites.
+// The provider does not mutate anything; the screen still sees loading /
+// error states (the calm "History can't load right now." line).
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart' show enDayBoardStrings;
 
-import '../state/clock_provider.dart';
-import '../state/record_plate_provider.dart';
+import 'clock_provider.dart';
+import 'record_plate_provider.dart';
 
-/// The three meal slots the day is divided into. Anything outside the
-/// hours that define these slots belongs to an open dent.
+/// The slots the day is divided into. Hours are local and cover all 24:
+/// breakfast 05–10, lunch 11–15, dinner 16–22, late 23–04. `late` is a single
+/// slot whose plates are listed in time order (so 00:00–04:59 before 23:xx).
 enum MealSlot {
   breakfast,
   lunch,
-  dinner;
+  dinner,
+  late;
 
   String get label => switch (this) {
-    MealSlot.breakfast => 'Breakfast',
-    MealSlot.lunch => 'Lunch',
-    MealSlot.dinner => 'Dinner',
+    MealSlot.breakfast => enDayBoardStrings.breakfast,
+    MealSlot.lunch => enDayBoardStrings.lunch,
+    MealSlot.dinner => enDayBoardStrings.dinner,
+    MealSlot.late => enDayBoardStrings.lateOther,
   };
 
-  /// Inclusive hour range for this slot in local time.
-  ({int startHour, int endHour}) get hours => switch (this) {
-    MealSlot.breakfast => (startHour: 5, endHour: 10),
-    MealSlot.lunch => (startHour: 11, endHour: 15),
-    MealSlot.dinner => (startHour: 16, endHour: 22),
-  };
+  /// `true` for the slots that always render (an open dent when empty). The
+  /// `late` slot only renders when it holds a plate — an empty "late" row
+  /// would invite logging at night, which is the opposite of calm.
+  bool get alwaysShown => this != MealSlot.late;
+
+  /// The slot a local [hour] (0–23) belongs to. Total: every hour has one.
+  static MealSlot forHour(int hour) {
+    if (hour >= 5 && hour <= 10) return MealSlot.breakfast;
+    if (hour >= 11 && hour <= 15) return MealSlot.lunch;
+    if (hour >= 16 && hour <= 22) return MealSlot.dinner;
+    return MealSlot.late;
+  }
 }
 
-/// A single bucket on the Day Board — either a logged plate or an open
-/// quiet dent. The screen renders one of these per slot.
+/// One bucket on the Day Board — the plates logged in a slot, oldest first.
+/// Empty means an open quiet dent.
 @immutable
 class DayBoardSlot {
-  const DayBoardSlot.plate({required this.slot, required this.plate})
-    : isOpen = false;
-
-  const DayBoardSlot.open({required this.slot}) : isOpen = true, plate = null;
+  DayBoardSlot({required this.slot, required List<PlateLog> plates})
+    : plates = List<PlateLog>.unmodifiable(plates);
 
   final MealSlot slot;
-  final bool isOpen;
 
-  /// The plate that landed in this slot. `null` when the slot is open.
-  final PlateLog? plate;
+  /// Every plate that landed in this slot on the day, oldest first.
+  final List<PlateLog> plates;
+
+  bool get isOpen => plates.isEmpty;
 }
 
-/// The day the screen is rendering. Local-day bounds (00:00 local, exclusive
-/// end at next 00:00 local) so the filter stays user-local.
+/// The day the screen is rendering.
 @immutable
 class DayBoardDay {
-  const DayBoardDay({required this.slots, required this.date});
+  DayBoardDay({required List<DayBoardSlot> slots, required this.date})
+    : slots = List<DayBoardSlot>.unmodifiable(slots);
 
+  /// One entry per [MealSlot], in declaration order.
   final List<DayBoardSlot> slots;
+
+  /// 00:00 local of the rendered day.
   final DateTime date;
 
-  /// Convenience for callers that only need the slots in declaration order.
+  /// The slot entry for [s].
   DayBoardSlot slot(MealSlot s) => slots[s.index];
+
+  /// The slots to draw: the three meals always, `late` only when used.
+  List<DayBoardSlot> get visibleSlots => [
+    for (final s in slots)
+      if (s.slot.alwaysShown || !s.isOpen) s,
+  ];
+
+  /// Every plate of the day, oldest first.
+  List<PlateLog> get allPlates {
+    final all = [for (final s in slots) ...s.plates];
+    all.sort((a, b) => a.loggedAtUtc.compareTo(b.loggedAtUtc));
+    return all;
+  }
 }
 
-/// View-model the screen consumes. Carries the same loading / error state
-/// as the upstream stream so the UI renders the calm "History can't load
-/// right now." line on failure.
-class DayBoardState {
-  const DayBoardState._({required this.async});
-
-  factory DayBoardState.loading() =>
-      const DayBoardState._(async: AsyncValue.loading());
-
-  factory DayBoardState.data(DayBoardDay day) =>
-      DayBoardState._(async: AsyncValue.data(day));
-
-  factory DayBoardState.error(Object error, StackTrace stack) =>
-      DayBoardState._(async: AsyncValue.error(error, stack));
-
-  final AsyncValue<DayBoardDay> async;
-
-  bool get isLoading => async.isLoading;
-  bool get hasError => async.hasError;
-  DayBoardDay? get data => async.value;
-}
-
-/// Derived provider — local-day filter + slot bucketing, scoped to
-/// "today" (local). Hour buckets are evaluated in local time
-/// (`loggedAtUtc.toLocal().hour`) so a plate logged at 08:00 UTC on a
-/// device in UTC-7 lands in Breakfast (1am local), and the same plate
-/// in UTC+9 lands in Dinner (5pm local).
-///
-/// Backward compat: this provider remains the no-arg "today" view that
-/// Story 1.3 wired into `DayBoardScreen`; the day-strip navigation
-/// surface added in Story 1.4 reads `selectedDateProvider` and
-/// switches to `dayBoardForDateProvider` for non-today selections.
-final dayBoardProvider = Provider<AsyncValue<DayBoardDay>>((ref) {
-  final plates = ref.watch(recentPlatesProvider);
-  final now = ref.watch(clockProvider)();
-  return plates.when(
-    loading: () => const AsyncValue.loading(),
-    error: (e, st) => AsyncValue.error(e, st),
-    data: (list) => AsyncValue.data(_classifyForDate(list, date: now)),
-  );
-});
-
-/// Date-aware variant of [dayBoardProvider] — used by `DayBoardScreen`
-/// after the user taps a week-strip dot. The argument is a local-midnight
-/// `DateTime` for the day to render; passing `DateTime.now()` is
-/// equivalent to the no-arg [dayBoardProvider] above.
-///
-/// The family key is normalized via `DateUtils.dateOnly` so two
-/// `DateTime`s that point at the same local midnight collapse to one
-/// cache entry — otherwise `DateTime(2026, 8, 15)` (midnight) and
-/// `DateTime(2026, 8, 15, 0, 0, 0, 1)` (1ms past midnight) would each
-/// allocate their own slot in the family cache.
+/// Date-aware derived view: the plates of [date]'s local day. The family key
+/// is normalised to local midnight so two `DateTime`s on the same day share
+/// one cache entry.
 final dayBoardForDateProvider =
     Provider.family<AsyncValue<DayBoardDay>, DateTime>((ref, date) {
-      final localDay = DateUtils.dateOnly(date);
-      final plates = ref.watch(recentPlatesProvider);
+      final day = startOfLocalDay(date);
+      final plates = ref.watch(platesInRangeProvider(localDayRange(day)));
       return plates.when(
         loading: () => const AsyncValue.loading(),
         error: (e, st) => AsyncValue.error(e, st),
-        data: (list) => AsyncValue.data(_classifyForDate(list, date: localDay)),
+        data: (list) => AsyncValue.data(classifyForDate(list, date: day)),
       );
     });
 
+/// The "today" view the Day Board shows when no day is selected. Follows
+/// `todayProvider`, so it rolls over at local midnight by itself.
+final dayBoardProvider = Provider<AsyncValue<DayBoardDay>>(
+  (ref) => ref.watch(dayBoardForDateProvider(ref.watch(todayProvider))),
+);
+
+/// Bucket [plates] into the slots of [date]'s local day. Plates outside the
+/// day are ignored (the store already ranges the query; this keeps the
+/// function correct for any list).
 @visibleForTesting
 DayBoardDay classifyForDate(List<PlateLog> plates, {required DateTime date}) {
-  return _classifyForDate(plates, date: date);
-}
+  final start = startOfLocalDay(date);
+  final end = startOfNextLocalDay(date);
 
-DayBoardDay _classifyForDate(List<PlateLog> plates, {required DateTime date}) {
-  final start = DateTime(date.year, date.month, date.day);
-  final end = start.add(const Duration(days: 1));
-
-  final perSlot = <MealSlot, PlateLog?>{
-    for (final s in MealSlot.values) s: null,
+  final perSlot = <MealSlot, List<PlateLog>>{
+    for (final s in MealSlot.values) s: <PlateLog>[],
   };
-
   for (final plate in plates) {
     final local = plate.loggedAtUtc.toLocal();
-    if (local.isBefore(start) || !local.isBefore(end)) {
-      continue;
-    }
-    final slot = _slotFor(local.hour);
-    if (slot == null) continue;
-    // Multiple plates in the same slot — keep the most recent one. The
-    // slot row would otherwise have to disambiguate, and the spec's
-    // I/O matrix only covers at most one plate per slot.
-    final existing = perSlot[slot];
-    if (existing == null || plate.loggedAtUtc.isAfter(existing.loggedAtUtc)) {
-      perSlot[slot] = plate;
-    }
+    if (local.isBefore(start) || !local.isBefore(end)) continue;
+    perSlot[MealSlot.forHour(local.hour)]!.add(plate);
   }
-
-  final slots = <DayBoardSlot>[
-    for (final s in MealSlot.values)
-      if (perSlot[s] != null)
-        DayBoardSlot.plate(slot: s, plate: perSlot[s]!)
-      else
-        DayBoardSlot.open(slot: s),
-  ];
-
-  return DayBoardDay(slots: slots, date: start);
-}
-
-MealSlot? _slotFor(int localHour) {
-  for (final s in MealSlot.values) {
-    final h = s.hours;
-    if (localHour >= h.startHour && localHour <= h.endHour) {
-      return s;
-    }
-  }
-  return null;
+  return DayBoardDay(
+    slots: [
+      for (final s in MealSlot.values)
+        DayBoardSlot(
+          slot: s,
+          plates: perSlot[s]!
+            ..sort((a, b) => a.loggedAtUtc.compareTo(b.loggedAtUtc)),
+        ),
+    ],
+    date: start,
+  );
 }

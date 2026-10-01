@@ -19,8 +19,6 @@
 // AD-3 invariant: the controller's open database is the single source of
 // truth for plate logs AND coach notes (`WasmCoachNoteStore`).
 
-import 'package:domain_core/domain_core.dart';
-
 import '../config/build_config.dart';
 import 'create_encrypted_store.dart';
 import 'in_memory_encrypted_store.dart';
@@ -46,7 +44,7 @@ final WebStoreController _controller = WebStoreController(
 
 /// Singleton dev stores so successive calls share the same in-memory list.
 final InMemoryEncryptedStore _devStore = InMemoryEncryptedStore();
-final _DevInMemoryCoachNoteStore _devCoachNotes = _DevInMemoryCoachNoteStore();
+final InMemoryCoachNoteStore _devCoachNotes = InMemoryCoachNoteStore();
 
 Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
   if (const BuildConfig().devInMemoryStore) {
@@ -64,38 +62,4 @@ Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
     closeDatabase: _controller.prepareForErase,
     eraseStoreData: _controller.eraseStore,
   );
-}
-
-/// Dev-only in-memory coach-note store — same surface shape as
-/// `LocalCoachNoteStore`, lives in-memory so the web dev loop can
-/// exercise the post-resolve whisper. Production web builds never
-/// reach this code path (the `--dart-define` is dev-only).
-class _DevInMemoryCoachNoteStore implements CoachNoteStore {
-  _DevInMemoryCoachNoteStore();
-  final Map<int, List<CoachNote>> _byPlate = {};
-  final List<CoachInteractionLog> _interactions = [];
-  int _nextNoteId = 1;
-  int _nextInteractionId = 1;
-
-  @override
-  Future<CoachNoteAppendResult> append(CoachNote note) async {
-    final assigned = note.copyWith(id: _nextNoteId++);
-    _byPlate.putIfAbsent(assigned.plateLogId, () => []).add(assigned);
-    return CoachNoteAppended(assigned);
-  }
-
-  @override
-  Future<List<CoachNote>> forPlate(int plateLogId) async {
-    return List<CoachNote>.unmodifiable(
-      _byPlate[plateLogId] ?? const <CoachNote>[],
-    );
-  }
-
-  @override
-  Future<CoachInteractionResult> recordInteraction(
-    CoachInteractionLog log,
-  ) async {
-    _interactions.add(log);
-    return CoachInteractionRecorded(_nextInteractionId++);
-  }
 }

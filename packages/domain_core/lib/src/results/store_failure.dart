@@ -18,21 +18,85 @@ sealed class RecordPlateResult {
 /// Successful commit — `plateLog` carries the assigned `id` and the
 /// resolved entries with their `plateLogId`s. The UI sees this before
 /// any provider reflects it (AD-3).
+///
+/// The plate IS committed whenever this is returned. `warnings` lists the
+/// best-effort steps that ran after the commit and did not complete (coach
+/// note, sync enqueue — security review F7); it is empty on a clean run. A
+/// warning is information, never a reason to treat the log as failed.
 class RecordPlateSuccess extends RecordPlateResult {
-  const RecordPlateSuccess(this.plateLog);
+  const RecordPlateSuccess(
+    this.plateLog, {
+    this.warnings = const <PostCommitWarning>[],
+  });
 
   final PlateLog plateLog;
+
+  /// Post-commit steps that did not complete. Empty when all went well.
+  final List<PostCommitWarning> warnings;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is RecordPlateSuccess && other.plateLog == plateLog);
+      (other is RecordPlateSuccess &&
+          other.plateLog == plateLog &&
+          _sameWarnings(other.warnings, warnings));
 
   @override
-  int get hashCode => Object.hash(RecordPlateSuccess, plateLog);
+  int get hashCode =>
+      Object.hash(RecordPlateSuccess, plateLog, Object.hashAll(warnings));
 
   @override
-  String toString() => 'RecordPlateSuccess(plateLog: $plateLog)';
+  String toString() =>
+      'RecordPlateSuccess(plateLog: $plateLog, warnings: $warnings)';
+}
+
+bool _sameWarnings(List<PostCommitWarning> a, List<PostCommitWarning> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// A best-effort step that follows the plate commit in `RecordPlate`.
+enum PostCommitStep { coachNote, syncEnqueue }
+
+/// One post-commit step that failed or threw. Carries no cause text.
+class PostCommitWarning {
+  const PostCommitWarning(this.step);
+
+  final PostCommitStep step;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PostCommitWarning && other.step == step);
+
+  @override
+  int get hashCode => Object.hash(PostCommitWarning, step);
+
+  @override
+  String toString() => 'PostCommitWarning($step)';
+}
+
+/// What a range read of the plates returns (`EncryptedStore.readRange`).
+sealed class ReadPlatesResult {
+  const ReadPlatesResult();
+}
+
+/// The plates in the range, newest first.
+class PlatesRead extends ReadPlatesResult {
+  const PlatesRead(this.plates);
+
+  final List<PlateLog> plates;
+}
+
+/// The read failed with a typed [failure] (web session locked, storage
+/// error, ...). Never carries cause text.
+class PlatesReadFailed extends ReadPlatesResult {
+  const PlatesReadFailed(this.failure);
+
+  final StoreFailure failure;
 }
 
 /// Typed failure across the store port. Exactly one of the three fields
@@ -55,9 +119,9 @@ class StoreFailure extends RecordPlateResult {
   /// Story 4.1 lands. Story 4.1 ships a real wasm-backed store.
   final UnsupportedPlatformFailure? platformError;
 
-  /// Use-case-level validation refusal — currently only the empty-plate
-  /// guard from `RecordPlate`.
-  final EmptyPlateFailure? validationError;
+  /// Use-case-level validation refusal — the empty-plate guard and the
+  /// invalid-quantity guard from `RecordPlate`.
+  final PlateValidationFailure? validationError;
 
   /// Adapter-level key handling failure — read or write to
   /// `flutter_secure_storage` under `ai_nutrition_coach_db_key_v1` failed
@@ -103,7 +167,12 @@ class UnsupportedPlatformFailure {
   String toString() => 'UnsupportedPlatformFailure()';
 }
 
-class EmptyPlateFailure {
+/// Why `RecordPlate` refused a plate before touching the store.
+sealed class PlateValidationFailure {
+  const PlateValidationFailure();
+}
+
+class EmptyPlateFailure implements PlateValidationFailure {
   const EmptyPlateFailure();
 
   @override
@@ -115,6 +184,21 @@ class EmptyPlateFailure {
 
   @override
   String toString() => 'EmptyPlateFailure()';
+}
+
+/// An entry's quantity is not a finite, non-negative `low <= high` range.
+class InvalidQuantityFailure implements PlateValidationFailure {
+  const InvalidQuantityFailure();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is InvalidQuantityFailure;
+
+  @override
+  int get hashCode => (InvalidQuantityFailure).hashCode;
+
+  @override
+  String toString() => 'InvalidQuantityFailure()';
 }
 
 class SecureKeyFailure implements EncryptedStoreFailure {
@@ -189,7 +273,7 @@ class StoreOperationFailure implements EncryptedStoreFailure {
   String toString() => 'StoreOperationFailure()';
 }
 
-/// The typed error a store's `watchRecent` stream (or a coach-note watch
+/// The typed error a store's `watchRange` stream (or a coach-note watch
 /// stream) emits instead of a raw adapter exception (D10). Streams have
 /// no result channel, so the typed [failure] rides the error channel;
 /// consumers (`AsyncValue.error` in the client) never see SQLite, drift

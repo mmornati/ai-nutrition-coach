@@ -17,9 +17,9 @@
 //
 // Equality is by `key` only — the same question renders the same
 // copy across the app, and the UI can rely on `==` to dedupe without
-// inspecting `text`. `text`, `anchor`, and `pattern` participate in
-// `hashCode` so identical entries hash to the same bucket without
-// forcing the comparison to fall through every field.
+// inspecting `text`. `hashCode` is `key.hashCode`: it must be derived from
+// exactly the fields `==` compares (a hash that also mixed in `text` would
+// violate the `==`/`hashCode` contract for two questions with the same key).
 //
 // The file is pure-Dart: no Flutter / drift / dio / mobile_scanner /
 // image_picker / dart:io imports. The AD-1 grep test in

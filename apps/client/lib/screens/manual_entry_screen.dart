@@ -27,8 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/last_log_provider.dart';
+import '../state/log_plate.dart';
 import '../state/manual_entry_provider.dart';
-import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
 
 class ManualEntryScreen extends ConsumerStatefulWidget {
@@ -83,6 +83,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
   }
 
   Future<void> _onLogSelected() async {
+    if (_submitting) return;
     final entry = ref.read(manualEntryProvider);
     final selected = entry.selected;
     final preset = entry.chosenPreset;
@@ -92,22 +93,29 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     }
 
     setState(() => _submitting = true);
-    final result = await _commit([
-      FoodEntryDraft(databaseFood: selected.food, quantity: preset),
-    ]);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
+        FoodEntryDraft(databaseFood: selected.food, quantity: preset),
+      ]);
+    } finally {
+      // Reset even if the commit throws: the button must never stay stuck
+      // on "Logging…" (F7).
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();
     } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      _showSnack(logFailureMessage(result));
     }
   }
 
   Future<void> _onLogManual() async {
+    if (_submitting) return;
     final name = _manualController.text.trim();
     if (name.isEmpty) {
       _showSnack('Type a name first');
@@ -115,24 +123,15 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     }
 
     setState(() => _submitting = true);
-    final result = await _commit([
-      FoodEntryDraft(
-        databaseFood: DatabaseFood(
-          sourceRef: 'manual:${name.toLowerCase()}',
-          displayName: name,
-          source: SourceCatalog.manual,
-          foodGroup: FoodGroup.other,
-        ),
-        quantity: const QuantityRange(
-          low: 1,
-          high: 1,
-          unit: 'serving',
-          displayLabel: '~1 serving',
-        ),
-      ),
-    ]);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
+        FoodEntryDraft(databaseFood: manualFood(name), quantity: kOneServing),
+      ]);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
@@ -140,24 +139,8 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();
     } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      _showSnack(logFailureMessage(result));
     }
-  }
-
-  Future<RecordPlateResult> _commit(List<FoodEntryDraft> entries) async {
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    return recordPlate(entries: entries, store: store);
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
   }
 
   void _showSnack(String message) {

@@ -35,10 +35,15 @@ NETWORK_HOSTS=(world.openfoodfacts.org)
 #   openrouter.ai  BYOK endpoint placeholder text; contacted only if the user
 #                  configures it.
 #   localhost      BYOK hint "http://localhost".
+#   drift.simonbinder.eu  documentation link inside drift's join-API error
+#                  message (`.../queries/joins#aliases`, thrown on a misuse of
+#                  `readTable` and never fetched); compiled in since the Day
+#                  Board reads plates + entries with one join query (F8).
 INERT_HOSTS=(
   docs.flutter.dev api.flutter.dev flutter.dev pub.dev
   developer.mozilla.org github.com
   openrouter.ai localhost
+  drift.simonbinder.eu
 )
 # Engine / scanner default CDN URLs that exist as dead literals in the shipped
 # JS but are neutralised by build/runtime config (see verify_overrides). They

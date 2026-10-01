@@ -28,7 +28,14 @@ class _StubEncryptedStore implements EncryptedStore {
   }) async => results.removeAt(0);
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) => _watchCtl.stream;
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) => _watchCtl.stream;
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      const PlatesRead(<PlateLog>[]);
 
   @override
   Future<void> close() async => _watchCtl.close();
@@ -48,6 +55,17 @@ class _NoopCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
+
+  @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) =>
+      const Stream<List<CoachNote>>.empty();
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async =>
+      const CoachInteractionRecorded(1);
+
+  @override
+  Stream<Set<String>> watchDismissals() => const Stream<Set<String>>.empty();
 
   @override
   Future<CoachInteractionResult> recordInteraction(
@@ -80,7 +98,7 @@ void main() {
         ],
       );
       final store = _StubEncryptedStore([RecordPlateSuccess(plate)]);
-      final queue = DriftSyncQueue();
+      final queue = InMemorySyncQueue();
       final useCase = RecordSyncOp(queue: queue);
       final recordPlate = RecordPlate(
         generator: _generator(),
@@ -113,7 +131,7 @@ void main() {
       final store = _StubEncryptedStore([
         const StoreFailure(validationError: EmptyPlateFailure()),
       ]);
-      final queue = DriftSyncQueue();
+      final queue = InMemorySyncQueue();
       final useCase = RecordSyncOp(queue: queue);
       final recordPlate = RecordPlate(
         generator: _generator(),

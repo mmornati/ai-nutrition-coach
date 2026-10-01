@@ -1,8 +1,8 @@
 // `OfflineFirstFoodCatalog` — the Story 1.5 `FoodCatalog` adapter,
 // extended in Story 1.7 with a `lookupByBarcode` path.
 //
-// Searches an in-memory seeded list of common foods (OFF + USDA-ish
-// entries) with a small LRU cache for offline replay (NFR5). The
+// Searches an in-memory seeded list of common foods (curated, shipped
+// with the app: `SourceCatalog.seed`) with a small LRU cache for offline replay (NFR5). The
 // ranking is simple Dart string matching — exact-prefix > prefix >
 // substring > token-overlap — and the cache key is the case-folded,
 // trimmed query so a previously-seen search resolves identically
@@ -34,6 +34,7 @@
 
 import 'package:domain_core/domain_core.dart';
 
+import 'food_group_classifier.dart';
 import 'lru_cache.dart';
 import 'off_barcode_source.dart';
 import 'seed_foods.dart';
@@ -70,7 +71,8 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   /// and break the ranking contract.
   final List<SeedFood> _seeds;
 
-  /// Per-query ranked-match cache. Survives only the current process;
+  /// Per-query ranked-match cache, keyed on the normalised query AND the
+  /// limit. Survives only the current process;
   /// the offline-first guarantee is "we don't need the network to
   /// serve the same answer we served last time", not "we remember
   /// across restarts".
@@ -108,12 +110,14 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       return const RankedMatches(<FoodMatch>[]);
     }
 
-    final cached = _lru.get(normalized);
+    // The key includes `limit`: the cached list is bounded by the limit it
+    // was written with, so a later call with a larger limit must not be
+    // served the shorter list (security review F10).
+    final cacheKey = '$normalized\u0000$limit';
+    final cached = _lru.get(cacheKey);
     if (cached != null) {
-      // Replay path (NFR5 / UJ-5). The cached list is already ranked
-      // and bounded by `limit` at write time — slice defensively in
-      // case `limit` grew between writes.
-      return RankedMatches(_takeLimit(cached, limit));
+      // Replay path (NFR5 / UJ-5): already ranked and bounded.
+      return RankedMatches(cached);
     }
 
     final ranked = _rank(normalized);
@@ -121,7 +125,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     if (trimmed.isEmpty) {
       return NotFoundFailure(normalized);
     }
-    _lru.put(normalized, trimmed);
+    _lru.put(cacheKey, trimmed);
     return RankedMatches(trimmed);
   }
 
@@ -249,7 +253,8 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     return DatabaseFood(
       sourceRef: 'seed:${seed.displayName.toLowerCase()}',
       displayName: seed.displayName,
-      source: SourceCatalog.off,
+      // A curated entry shipped in the app — not an Open Food Facts product.
+      source: SourceCatalog.seed,
       foodGroup: seed.foodGroup,
     );
   }
@@ -266,7 +271,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     String displayName,
     List<String> categoryTags,
   ) {
-    final foodGroup = _classifyGroup(categoryTags);
+    final foodGroup = classifyFoodGroup(categoryTags);
     final food = DatabaseFood(
       sourceRef: barcode,
       displayName: displayName,
@@ -283,56 +288,6 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       // list as long as the food commits.
       presets: const <QuantityRange>[],
     );
-  }
-
-  /// Map OFF's `categories_tags` to a `FoodGroup` bucket. The
-  /// lookup is best-effort: when no tag matches, the food falls
-  /// into `FoodGroup.other` so the balance arc remains honest
-  /// (FR12 / UX-DR4). The match is case-insensitive and matches
-  /// the *substring* of any tag — OFF's taxonomy is rich enough
-  /// that a strict equality check would miss "sweet-spreads" →
-  /// "spreads" → "sweet".
-  static FoodGroup _classifyGroup(List<String> tags) {
-    for (final tag in tags) {
-      final lower = tag.toLowerCase();
-      if (lower.contains('vegetable') ||
-          lower.contains('fruit') ||
-          lower.contains('vegetables') ||
-          lower.contains('fruits') ||
-          lower.contains('salad') ||
-          lower.contains('berry')) {
-        return FoodGroup.vegFruit;
-      }
-      if (lower.contains('meat') ||
-          lower.contains('fish') ||
-          lower.contains('seafood') ||
-          lower.contains('poultry') ||
-          lower.contains('legume') ||
-          lower.contains('pulse') ||
-          lower.contains('nuts') ||
-          lower.contains('egg')) {
-        return FoodGroup.protein;
-      }
-      if (lower.contains('cereal') ||
-          lower.contains('pasta') ||
-          lower.contains('rice') ||
-          lower.contains('bread') ||
-          lower.contains('potato') ||
-          lower.contains('starch') ||
-          lower.contains('grain') ||
-          lower.contains('flour')) {
-        return FoodGroup.starch;
-      }
-      if (lower.contains('milk') ||
-          lower.contains('cheese') ||
-          lower.contains('yogurt') ||
-          lower.contains('yoghurt') ||
-          lower.contains('dairy') ||
-          lower.contains('butter')) {
-        return FoodGroup.dairy;
-      }
-    }
-    return FoodGroup.other;
   }
 }
 

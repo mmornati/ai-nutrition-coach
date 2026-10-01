@@ -56,6 +56,11 @@ melos:
       run: |
         melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter test --no-pub; else dart test; fi"
 
+    test:dst:
+      description: Re-run the calendar-day / Day Board tests under a daylight-saving zone (TZ=Europe/Paris) - 2026-03-29 has 23 hours and 2026-10-25 has 25 - so the DST assertions run instead of skipping (F3). OPENPLATE_REQUIRE_DST=1 makes a zone without DST a hard failure, never a silent skip.
+      run: |
+        export OPENPLATE_REQUIRE_DST=1 TZ=Europe/Paris && (cd packages/domain_core && dart test test/calendar_day_test.dart) && (cd apps/client && flutter test --no-pub test/day_board_f3_test.dart)
+
     format:check:
       description: Verify every package is `dart format`-clean (read-only; run `dart format .` to fix).
       run: |

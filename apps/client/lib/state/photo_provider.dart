@@ -4,8 +4,7 @@
 // `FakePhotoCapture` so the suite stays hermetic and never touches
 // the camera. The provider is the single Riverpod seam — the screen
 // reads `photoCaptureProvider` and dispatches the result through
-// `recognitionProvider` (a `FutureProvider.family` keyed on the
-// latest photo bytes).
+// the active rung (`aiRungProvider`).
 //
 // AD-1: `image_picker` lives ONLY in `apps/client/`; the domain
 // core never imports it (the grep test in
@@ -32,8 +31,6 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-
-import 'ai_rung_provider.dart';
 
 /// Photo-capture port. The production adapter wraps `image_picker`'s
 /// `ImagePicker().pickImage(source: ImageSource.camera)`; tests
@@ -62,18 +59,6 @@ final photoCaptureProvider = Provider<PhotoCapture>(
     'apps/client/lib/main.dart.',
   ),
 );
-
-/// Family-keyed recognition call. The screen reads
-/// `ref.read(recognitionProvider(bytes).future)` after a capture
-/// lands; the family auto-disposes so a second capture triggers a
-/// fresh `AiRung.recognize` call even if the previous one has not
-/// landed yet (the multi-shot I/O matrix — only the latest
-/// recognition lands on screen).
-final recognitionProvider = FutureProvider.autoDispose
-    .family<RecognitionResult, Uint8List>((ref, bytes) async {
-      final rung = ref.watch(aiRungProvider);
-      return rung.recognize(bytes);
-    });
 
 /// Production `PhotoCapture` adapter — wraps `image_picker`. The
 /// adapter uses `ImageSource.camera` so the user lands on the OS

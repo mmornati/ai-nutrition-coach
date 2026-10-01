@@ -16,9 +16,15 @@
 import '../results/sync_failure.dart';
 
 abstract interface class SyncAdapter {
-  /// Attempt to drain the op durably. Returns `Drained` on success,
-  /// `DrainFailedRetryable` on a retryable failure (network blip,
-  /// 5xx), or `DrainFailedPermanent` on a permanent failure
-  /// (schema mismatch, etc.).
+  /// `true` when ops handed to [drain] can actually leave the device.
+  /// While `false` the UI says nothing about syncing (data is "saved on
+  /// this device") and the drain loop does not touch the queue.
+  bool get hasTransport;
+
+  /// Attempt to drain the op durably. Returns `Drained` only after a
+  /// durable remote acknowledgement, `DrainFailedRetryable` on a
+  /// retryable failure (network blip, 5xx), `DrainFailedPermanent` on a
+  /// permanent failure (schema mismatch, etc.), or
+  /// `DrainSkippedNoTransport` when there is no transport at all.
   Future<DrainResult> drain(SyncOp op);
 }

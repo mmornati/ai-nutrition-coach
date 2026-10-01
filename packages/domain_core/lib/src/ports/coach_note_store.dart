@@ -53,6 +53,24 @@ abstract interface class CoachNoteStore {
   /// (pre-2.2 plates have no note, render without the whisper).
   Future<List<CoachNote>> forPlate(int plateLogId);
 
+  /// Watch the notes anchored to [plateLogId], oldest first. Emits the
+  /// current list, then a fresh one whenever a note is appended — so a
+  /// whisper that is written a moment AFTER the plate commit (the
+  /// post-resolve generator) still appears (security review F6: the old
+  /// one-shot read cached an empty list). Never throws: a read failure
+  /// emits an empty list.
+  Stream<List<CoachNote>> watchForPlate(int plateLogId);
+
+  /// Persist a "quiet" marker for [key] (see `coachNoteDismissalKey` / `openPlateDismissalKey`): the
+  /// whisper / hint it names stays hidden across restarts. Idempotent.
+  /// A failure is a typed `CoachInteractionFailed`; the UI still hides the
+  /// whisper for the session.
+  Future<CoachInteractionResult> recordDismissal(String key);
+
+  /// Watch the set of dismissed keys. Emits the current set, then a fresh
+  /// one on every change. A read failure emits an empty set.
+  Stream<Set<String>> watchDismissals();
+
   /// Append a single `CoachInteractionLog` entry — the local record
   /// of one user action against a coach whisper (FR5 / FR9 / Story
   /// 2.3). The adapter assigns the autoincrement `interactionId` on

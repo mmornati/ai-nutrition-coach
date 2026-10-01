@@ -26,6 +26,7 @@ import 'package:integrations/src/store/store_error_mapper.dart';
 import 'package:integrations/integrations.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 import 'package:test/test.dart';
+import '_support/all_plates.dart';
 
 const List<int> _plaintextSqliteMagic = [
   0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, // "SQLite f"
@@ -121,7 +122,7 @@ void main() {
     final second = await open(keys);
     addTearDown(() => second.closeDatabase?.call());
     expect(second.startupFailure, isNull);
-    final plates = await second.encryptedStore.watchRecent().first;
+    final plates = await second.encryptedStore.watchAll().first;
     expect(plates, hasLength(1));
     expect(
       plates.single.entries.single.databaseFood.displayName,
@@ -143,7 +144,7 @@ void main() {
     final result = await wrong.encryptedStore.recordPlate(entries: [_apple()]);
     expect(result, isA<StoreFailure>());
     await expectLater(
-      wrong.encryptedStore.watchRecent(),
+      wrong.encryptedStore.watchAll(),
       emitsError(isA<StoreStreamException>()),
     );
     final note = await wrong.coachNoteStore.forPlate(1);
@@ -225,7 +226,7 @@ void main() {
     final bundle = await open(keys);
     addTearDown(() => bundle.closeDatabase?.call());
     expect(bundle.startupFailure, isNull);
-    final plates = await bundle.encryptedStore.watchRecent().first;
+    final plates = await bundle.encryptedStore.watchAll().first;
     expect(plates, hasLength(1));
     expect(
       plates.single.entries.single.databaseFood.displayName,

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 
 import '_support/file_web_backend.dart';
+import '_support/all_plates.dart';
 
 const _good = 'correct horse battery staple';
 const _wrong = 'wrong passphrase 12';
@@ -201,7 +202,7 @@ void main() {
       expect(c.status, WebStoreStatus.locked);
       expect(storage.values.containsKey(kWebStoreMetaKey), isTrue);
       expect(await c.unlock(_good), isA<WebUnlocked>());
-      final plates = await WasmEncryptedStore(source: c).watchRecent().first;
+      final plates = await WasmEncryptedStore(source: c).watchAll().first;
       expect(plates.single.entries.single.databaseFood.displayName, 'Kept');
     });
 
@@ -244,7 +245,7 @@ void main() {
       expect(c2.status, WebStoreStatus.locked);
       expect(c2.database, isNull);
       expect(await c2.unlock(_good), isA<WebUnlocked>());
-      final plates = await WasmEncryptedStore(source: c2).watchRecent().first;
+      final plates = await WasmEncryptedStore(source: c2).watchAll().first;
       expect(plates, hasLength(1));
       expect(plates.single.entries.single.databaseFood.displayName, 'Apple');
     });
@@ -348,7 +349,7 @@ void main() {
           (r as StoreFailure).encryptedStoreError,
           isA<WebSessionKeyFailure>(),
         );
-        expect(await store.watchRecent().toList(), isEmpty);
+        expect(await store.watchAll().toList(), isEmpty);
         // Idempotent.
         await c.lock();
         expect(statuses, [WebStoreStatus.locked]);
@@ -536,9 +537,7 @@ void main() {
       final fresh = await reloaded();
       expect(fresh.status, WebStoreStatus.needsPassphraseCreation);
       expect(await fresh.createStore('a new passphrase 1'), isA<WebUnlocked>());
-      final plates = await WasmEncryptedStore(
-        source: fresh,
-      ).watchRecent().first;
+      final plates = await WasmEncryptedStore(source: fresh).watchAll().first;
       expect(plates, isEmpty);
     });
 
@@ -643,7 +642,7 @@ void main() {
 
       // And A's data is intact for B with the right passphrase.
       expect(await tabB.unlock(_good), isA<WebUnlocked>());
-      final plates = await WasmEncryptedStore(source: tabB).watchRecent().first;
+      final plates = await WasmEncryptedStore(source: tabB).watchAll().first;
       expect(plates.single.entries.single.databaseFood.displayName, 'InTabA');
     });
 

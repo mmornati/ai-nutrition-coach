@@ -54,6 +54,24 @@ class _FakeCoach implements Coach {
 class _FakeCoachNoteStore implements CoachNoteStore {
   _FakeCoachNoteStore();
 
+  final Set<String> dismissed = <String>{};
+
+  @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) async* {
+    yield await forPlate(plateLogId);
+  }
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async {
+    dismissed.add(key);
+    return const CoachInteractionRecorded(1);
+  }
+
+  @override
+  Stream<Set<String>> watchDismissals() async* {
+    yield Set<String>.of(dismissed);
+  }
+
   final List<CoachNote> appended = [];
   final Map<int, List<CoachNote>> byPlate = {};
   CoachNoteAppendResult? _nextAppendResult;

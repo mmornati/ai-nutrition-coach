@@ -23,8 +23,14 @@ class FailedEncryptedStore implements EncryptedStore {
   }) async => failure;
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
-      Stream<List<PlateLog>>.error(StoreStreamException(failure));
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) => Stream<List<PlateLog>>.error(StoreStreamException(failure));
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      PlatesReadFailed(failure);
 
   @override
   Future<void> close() async {}
@@ -42,6 +48,18 @@ class FailedCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
+
+  @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) =>
+      Stream<List<CoachNote>>.value(const []);
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async =>
+      CoachInteractionFailed(failure);
+
+  @override
+  Stream<Set<String>> watchDismissals() =>
+      Stream<Set<String>>.value(const <String>{});
 
   @override
   Future<CoachInteractionResult> recordInteraction(

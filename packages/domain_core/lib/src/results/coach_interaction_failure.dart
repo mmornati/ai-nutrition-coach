@@ -82,10 +82,3 @@ class CoachInteractionFailed extends CoachInteractionResult {
   @override
   String toString() => 'CoachInteractionFailed($cause)';
 }
-
-/// Convenience helper — pattern-match the sealed result shape into
-/// the recorded / failed outcome the `RecordCoachInteraction`
-/// use-case cares about. Kept here (not in the use-case) so the
-/// result shape and the helper stay together.
-bool isRecorded(CoachInteractionResult result) =>
-    result is CoachInteractionRecorded;

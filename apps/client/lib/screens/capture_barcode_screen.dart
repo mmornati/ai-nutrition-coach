@@ -63,7 +63,8 @@ class CaptureBarcodeScreen extends ConsumerStatefulWidget {
       _CaptureBarcodeScreenState();
 }
 
-class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
+class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
+    with WidgetsBindingObserver {
   /// Local permission state — initialised on first build via
   /// `WidgetsBinding.addPostFrameCallback` so we never call the
   /// permission API during build.
@@ -100,17 +101,52 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
     _previewController ??= ref.read(barcodeScannerProvider).previewController;
   }
 
+  /// `true` while the camera is running (started after the permission grant,
+  /// not stopped by the lifecycle). Gates resume so a screen that never
+  /// started the camera does not start it on foregrounding.
+  bool _cameraActive = false;
+
+  /// The adapter, cached like [_previewController]: `ref` is unsafe in
+  /// `dispose`.
+  BarcodeScanner? _scanner;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _ensurePermission();
     });
   }
 
+  /// Pause the camera when the app leaves the foreground, resume it when it
+  /// returns (F10): a backgrounded app must not hold the camera.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final scanner = _scanner;
+    if (scanner == null) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (_cameraActive || !_wasStarted) return;
+        _cameraActive = true;
+        unawaited(scanner.resumeCamera());
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        if (!_cameraActive) return;
+        _cameraActive = false;
+        unawaited(scanner.pauseCamera());
+    }
+  }
+
+  /// `true` once the camera has been started in this session.
+  bool _wasStarted = false;
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scanSub?.cancel();
     // Stop the adapter-owned controller; the adapter owns the
     // instance lifetime and will dispose it (Patch H1 — the screen
@@ -145,6 +181,9 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
     // start/stop lifecycle and feeds the same instance to the
     // `MobileScanner` widget + the adapter's `scan()` stream.
     _ensurePreviewController();
+    _scanner = ref.read(barcodeScannerProvider);
+    _cameraActive = true;
+    _wasStarted = true;
     final controller = _previewController;
     if (controller != null) {
       // Production path — the controller is real; start it once

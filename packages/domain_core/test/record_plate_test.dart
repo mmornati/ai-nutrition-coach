@@ -38,9 +38,16 @@ class _FakeEncryptedStore implements EncryptedStore {
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) {
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) {
     return _watchStream ?? const Stream<List<PlateLog>>.empty();
   }
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      const PlatesRead(<PlateLog>[]);
 
   @override
   Future<void> close() async {}

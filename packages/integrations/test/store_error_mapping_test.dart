@@ -10,6 +10,7 @@ import 'package:integrations/src/store/encrypted_store_adapter.dart';
 import 'package:integrations/src/store/store_error_mapper.dart';
 import 'package:sqlite3/common.dart' as sqlite3;
 import 'package:test/test.dart';
+import '_support/all_plates.dart';
 
 sqlite3.SqliteException _sqlite(int code) => sqlite3.SqliteException(
   extendedResultCode: code,
@@ -100,7 +101,10 @@ void main() {
         );
         await insertEntry(good, '1', '2');
 
-        final plates = await store.watchRecent().first;
+        // An unbounded read: the corrupt row cannot be selected by a
+        // date range (its text is not a date), so it is the one case that
+        // needs the full read to be reported.
+        final plates = await store.readAll();
         expect(plates.map((p) => p.id), [good]);
         expect(reports, hasLength(1));
         expect(reports.single, contains('timestamp'));
@@ -115,17 +119,17 @@ void main() {
       await insertEntry(plate, '1', 'Infinity');
       await insertEntry(plate, '0.5', '1.5');
 
-      final plates = await store.watchRecent().first;
+      final plates = await store.watchAll().first;
       expect(plates.single.entries, hasLength(1));
       expect(plates.single.entries.single.quantity.low, 0.5);
       expect(reports, hasLength(2));
-      expect(reports.every((r) => r.contains('non-finite')), isTrue);
+      expect(reports.every((r) => r.contains('invalid quantity')), isTrue);
     });
 
     test('an error in the stream surfaces as StoreStreamException', () async {
       await db.customStatement('DROP TABLE plate_log_table');
       await expectLater(
-        store.watchRecent(),
+        store.watchAll(),
         emitsError(
           isA<StoreStreamException>().having(
             (e) => e.failure.encryptedStoreError,

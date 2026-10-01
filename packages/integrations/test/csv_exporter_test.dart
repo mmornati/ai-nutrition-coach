@@ -23,12 +23,49 @@ class _FakeStore implements EncryptedStore {
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
-    yield List.unmodifiable(_plates);
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) async* {
+    yield platesInRange(_plates, from: from, to: to);
   }
 
   @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      PlatesRead(platesInRange(_plates, from: from, to: to));
+
+  @override
   Future<void> close() async {}
+}
+
+class _FailingStore extends _FakeStore {
+  _FailingStore(this._cause) : super(const <PlateLog>[]);
+  final EncryptedStoreFailure _cause;
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async {
+    return switch (_cause) {
+      WebSessionKeyFailure() => const PlatesReadFailed(
+        StoreFailure(encryptedStoreError: WebSessionKeyFailure()),
+      ),
+      _ => const PlatesReadFailed(
+        StoreFailure(encryptedStoreError: StoreOperationFailure()),
+      ),
+    };
+  }
+}
+
+class _SpyStore extends _FakeStore {
+  _SpyStore() : super(const <PlateLog>[]);
+  DateTime? from;
+  DateTime? to;
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async {
+    this.from = from;
+    this.to = to;
+    return const PlatesRead(<PlateLog>[]);
+  }
 }
 
 PlateLog _plate(int id, DateTime loggedAt, List<FoodEntry> entries) {
@@ -52,6 +89,9 @@ FoodEntry _entry(int id, int plateId, String name) {
     ),
   );
 }
+
+Future<List<PlateLog>> _plates(Future<ExportResult> pending) async =>
+    ((await pending) as ExportReady).plates;
 
 void main() {
   group('CsvExporter', () {
@@ -158,12 +198,14 @@ void main() {
         expect(cells[9], "'+label");
       });
 
-      test('numeric quantity columns stay NUMBERS (negative, decimal)', () {
-        final r = row(entryWith(name: 'ok', low: -2, high: 0.5));
+      test('numeric quantity columns stay NUMBERS (zero, decimal)', () {
+        // (Negative quantities are no longer representable — F10 — so the
+        // formula-guard for numbers is checked with 0 and a decimal.)
+        final r = row(entryWith(name: 'ok', low: 0, high: 0.5));
         final cells = _splitCsvRow(r.trimRight());
-        expect(cells[6], '-2');
+        expect(cells[6], '0');
         expect(cells[7], '0.5');
-        expect(r, isNot(contains("'-2")));
+        expect(r, isNot(contains("'0")));
       });
 
       test('ordinary text and hyphens inside the text are untouched', () {
@@ -210,8 +252,8 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = CsvExporter(store: store);
-      final got = await exp.readPlates(
-        scope: ExportScope.visibleDay(DateTime(2026, 8, 16)),
+      final got = await _plates(
+        exp.readPlates(scope: ExportScope.visibleDay(DateTime(2026, 8, 16))),
       );
       expect(got.length, 1);
       expect(got.first.id, 1);
@@ -225,10 +267,10 @@ void main() {
         _plate(4, DateTime(2026, 8, 18, 9), [_entry(4, 4, 'After')]),
       ]);
       final exp = CsvExporter(store: store);
-      final got = await exp.readPlates(
-        scope: ExportScope.week(DateTime(2026, 8, 11)),
+      final got = await _plates(
+        exp.readPlates(scope: ExportScope.week(DateTime(2026, 8, 11))),
       );
-      expect(got.map((p) => p.id), [2, 3]);
+      expect(got.map((p) => p.id), [3, 2]); // newest first
     });
 
     test('readPlates allHistory returns the full list', () async {
@@ -237,9 +279,66 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = CsvExporter(store: store);
-      final got = await exp.readPlates(scope: const ExportScope.allHistory());
+      final got = await _plates(
+        exp.readPlates(scope: const ExportScope.allHistory()),
+      );
       expect(got.length, 2);
     });
+
+    test('F2: food_group is the LAST column and round-trips the group', () {
+      expect(kCsvHeader, endsWith(',food_group'));
+      final plate = _plate(1, DateTime(2026, 8, 16, 9), [
+        FoodEntry(
+          id: 1,
+          plateLogId: 1,
+          databaseFood: const DatabaseFood(
+            sourceRef: 'seed:egg',
+            displayName: 'Egg',
+            source: SourceCatalog.seed,
+            foodGroup: FoodGroup.protein,
+          ),
+          quantity: const QuantityRange(
+            low: 1,
+            high: 2,
+            unit: 'piece',
+            displayLabel: '~1-2',
+          ),
+        ),
+      ]);
+      final cells = _splitCsvRow(serializePlatesToCsv([plate]).split('\n')[1]);
+      expect(cells, hasLength(kCsvHeader.split(',').length));
+      expect(cells.last, 'protein');
+      expect(cells[3], 'seed');
+    });
+
+    test('a locked / failing store is a typed export failure', () async {
+      final locked = CsvExporter(
+        store: _FailingStore(const WebSessionKeyFailure()),
+      );
+      expect(
+        await locked.readPlates(scope: const ExportScope.allHistory()),
+        isA<StoreClosed>(),
+      );
+      final broken = CsvExporter(
+        store: _FailingStore(const StoreOperationFailure()),
+      );
+      expect(
+        await broken.readPlates(scope: const ExportScope.allHistory()),
+        isA<ExportReadFailed>(),
+      );
+    });
+
+    test(
+      'the range read is bounded in the store, not filtered after',
+      () async {
+        final store = _SpyStore();
+        await CsvExporter(
+          store: store,
+        ).readPlates(scope: ExportScope.visibleDay(DateTime(2026, 3, 29, 15)));
+        expect(store.from, DateTime(2026, 3, 29));
+        expect(store.to, DateTime(2026, 3, 30));
+      },
+    );
 
     test('streamPlates emits ExportReady on success', () async {
       final store = _FakeStore([

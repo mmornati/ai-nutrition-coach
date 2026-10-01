@@ -1,5 +1,5 @@
 // Test-only `EncryptedStore` fake — owns a deterministic in-memory list
-// of plates and exposes them through `watchRecent`. Reused by later
+// of plates and exposes them through `watchRange` / `readRange`. Reused by later
 // Epic 1 stories (1.4 / 1.6 / 1.8) so the helper lives in
 // `test/_fakes/` rather than being repeated per test.
 //
@@ -42,12 +42,12 @@ class FakeEncryptedStore implements EncryptedStore {
   int _nextPlateId = 1;
   int _nextEntryId = 1;
 
-  /// Snapshots the test has seen via `watchRecent` (initial seed +
+  /// Snapshots the test has seen via `watchRange` (initial seed +
   /// every push via `seed()` / `recordPlate()`). Most-recent last.
   final List<List<PlateLog>> emittedSnapshots = [];
 
   /// Replaces the current snapshot and pushes the new list to all
-  /// active `watchRecent()` subscribers. Tests that hold a reference to
+  /// active `watchRange()` subscribers. Tests that hold a reference to
   /// the fake can swap data mid-test (e.g. the week-strip suite
   /// `seed()`s a multi-day history after the widget tree is built).
   void seed(List<PlateLog> plates) {
@@ -69,7 +69,12 @@ class FakeEncryptedStore implements EncryptedStore {
       return recordResult!;
     }
 
-    final loggedAt = loggedAtUtc ?? DateTime.now().toUtc();
+    // Millisecond precision, like the real stores.
+    final raw = loggedAtUtc ?? DateTime.now();
+    final loggedAt = DateTime.fromMillisecondsSinceEpoch(
+      raw.millisecondsSinceEpoch,
+      isUtc: true,
+    );
     final plateId = _nextPlateId++;
     final committedEntries = <FoodEntry>[];
     for (final draft in entries) {
@@ -94,16 +99,31 @@ class FakeEncryptedStore implements EncryptedStore {
     return RecordPlateSuccess(plate);
   }
 
+  /// Every `[from, to)` a subscriber asked `watchRange` for — lets tests
+  /// assert that the Day Board / week strip read a bounded window, not the
+  /// whole history (F8).
+  final List<({DateTime from, DateTime to})> watchedRanges = [];
+
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
-    // Yield the current snapshot synchronously (mimics drift's
-    // `query.watch()` behavior — every subscriber sees the initial
-    // state immediately) then forward every subsequent push to active
-    // listeners. Broadcast streams don't replay, so we must yield the
-    // initial state here rather than queueing it on the controller.
-    yield List<PlateLog>.unmodifiable(_plates);
-    yield* _controller.stream;
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) async* {
+    watchedRanges.add((from: from, to: to));
+    // Yield the current snapshot first (mimics drift's `query.watch()`
+    // behavior — every subscriber sees the initial state immediately), then
+    // one per push, each filtered to the range like the real join query.
+    // Broadcast streams don't replay, so the initial state is yielded here
+    // rather than queued on the controller.
+    yield platesInRange(_plates, from: from, to: to);
+    await for (final all in _controller.stream) {
+      yield platesInRange(all, from: from, to: to);
+    }
   }
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      PlatesRead(platesInRange(_plates, from: from, to: to));
 
   @override
   Future<void> close() async {
@@ -160,6 +180,8 @@ class FakeCoachNoteStore implements CoachNoteStore {
 
   final Map<int, List<CoachNote>> byPlate = {};
   final List<CoachInteractionLog> interactions = [];
+  final Set<String> dismissed = <String>{};
+  final StreamController<void> _changes = StreamController<void>.broadcast();
   int _nextId = 1;
   int _nextInteractionId = 1;
 
@@ -172,13 +194,38 @@ class FakeCoachNoteStore implements CoachNoteStore {
       plateLogId: plateLogId,
     );
     byPlate.putIfAbsent(plateLogId, () => []).add(assigned);
+    _changes.add(null);
   }
 
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
     final assigned = note.copyWith(id: _nextId++);
     byPlate.putIfAbsent(assigned.plateLogId, () => []).add(assigned);
+    _changes.add(null);
     return CoachNoteAppended(assigned);
+  }
+
+  @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) async* {
+    yield await forPlate(plateLogId);
+    await for (final _ in _changes.stream) {
+      yield await forPlate(plateLogId);
+    }
+  }
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async {
+    dismissed.add(key);
+    _changes.add(null);
+    return CoachInteractionRecorded(_nextInteractionId++);
+  }
+
+  @override
+  Stream<Set<String>> watchDismissals() async* {
+    yield Set<String>.of(dismissed);
+    await for (final _ in _changes.stream) {
+      yield Set<String>.of(dismissed);
+    }
   }
 
   @override

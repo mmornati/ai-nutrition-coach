@@ -3,7 +3,8 @@
 //
 // Seven days ending today (today rightmost). Each dot:
 //   * fills sage (`palette.sage`) when the day has at least one plate
-//     in `recentPlatesProvider`;
+//     in the strip's 7-day `platesInRangeProvider` window (one ranged
+//     watch of the store — not the whole history);
 //   * shows a hairline outline (`palette.hairline`) when it does not;
 //   * exposes a ≥48px hit target;
 //   * emits a Semantics label like "Tuesday, balanced" so the screen
@@ -50,9 +51,11 @@ class WeekStrip extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final plates = ref.watch(recentPlatesProvider);
-    final today = _localMidnight(ref.watch(clockProvider)());
+    final today = ref.watch(todayProvider);
     final days = _sevenDaysEnding(today);
+    final plates = ref.watch(
+      platesInRangeProvider((from: days.first, to: startOfNextLocalDay(today))),
+    );
 
     return Semantics(
       container: true,
@@ -89,14 +92,7 @@ class WeekStrip extends ConsumerWidget {
   /// The 7 local-midnight dates ending in [today], ordered oldest →
   /// today (so today sits rightmost in the Row).
   static List<DateTime> _sevenDaysEnding(DateTime today) {
-    return [
-      for (var i = dayCount - 1; i >= 0; i--)
-        DateTime(today.year, today.month, today.day - i),
-    ];
-  }
-
-  static DateTime _localMidnight(DateTime moment) {
-    return DateTime(moment.year, moment.month, moment.day);
+    return [for (var i = dayCount - 1; i >= 0; i--) addCalendarDays(today, -i)];
   }
 
   /// "Balanced" = at least one plate landed on the local day. Loose
@@ -105,10 +101,7 @@ class WeekStrip extends ConsumerWidget {
     return plates.maybeWhen(
       data: (list) {
         for (final plate in list) {
-          final local = plate.loggedAtUtc.toLocal();
-          if (local.year == localDay.year &&
-              local.month == localDay.month &&
-              local.day == localDay.day) {
+          if (isSameLocalDay(plate.loggedAtUtc.toLocal(), localDay)) {
             return true;
           }
         }

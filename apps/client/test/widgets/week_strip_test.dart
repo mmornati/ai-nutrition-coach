@@ -1,6 +1,6 @@
 // `WeekStrip` widget tests (Story 1.4 / UX-DR8 / NFR7 / NFR8).
 //
-// The strip is a derived view over `recentPlatesProvider`; tests cover
+// The strip is a derived view over a 7-day `platesInRangeProvider` window; tests cover
 // the I/O matrix the spec calls out:
 //
 //   * empty week           → 7 outlined dots, whisper visible

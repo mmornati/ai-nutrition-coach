@@ -22,9 +22,16 @@ class _FakeStore implements EncryptedStore {
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
-    yield List.unmodifiable(_plates);
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) async* {
+    yield platesInRange(_plates, from: from, to: to);
   }
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      PlatesRead(platesInRange(_plates, from: from, to: to));
 
   @override
   Future<void> close() async {}
@@ -51,6 +58,9 @@ FoodEntry _entry(int id, int plateId, String name) {
     ),
   );
 }
+
+Future<List<PlateLog>> _plates(Future<ExportResult> pending) async =>
+    ((await pending) as ExportReady).plates;
 
 void main() {
   group('JsonExporter', () {
@@ -83,6 +93,8 @@ void main() {
       final e = entries.first as Map<String, Object?>;
       final food = e['databaseFood'] as Map<String, Object?>;
       expect(food['displayName'], 'Oatmeal');
+      // F2: the group is exported (default `other` for this fixture).
+      expect(food['foodGroup'], 'other');
     });
 
     test('readPlates visibleDay filters to the local day', () async {
@@ -91,8 +103,8 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = JsonExporter(store: store);
-      final got = await exp.readPlates(
-        scope: ExportScope.visibleDay(DateTime(2026, 8, 16)),
+      final got = await _plates(
+        exp.readPlates(scope: ExportScope.visibleDay(DateTime(2026, 8, 16))),
       );
       expect(got.length, 1);
       expect(got.first.id, 1);
@@ -106,10 +118,10 @@ void main() {
         _plate(4, DateTime(2026, 8, 18, 9), [_entry(4, 4, 'After')]),
       ]);
       final exp = JsonExporter(store: store);
-      final got = await exp.readPlates(
-        scope: ExportScope.week(DateTime(2026, 8, 11)),
+      final got = await _plates(
+        exp.readPlates(scope: ExportScope.week(DateTime(2026, 8, 11))),
       );
-      expect(got.map((p) => p.id), [2, 3]);
+      expect(got.map((p) => p.id), [3, 2]); // newest first
     });
 
     test('readPlates allHistory returns the full list', () async {
@@ -118,7 +130,9 @@ void main() {
         _plate(2, DateTime(2026, 8, 17, 9), [_entry(2, 2, 'B')]),
       ]);
       final exp = JsonExporter(store: store);
-      final got = await exp.readPlates(scope: const ExportScope.allHistory());
+      final got = await _plates(
+        exp.readPlates(scope: const ExportScope.allHistory()),
+      );
       expect(got.length, 2);
     });
 

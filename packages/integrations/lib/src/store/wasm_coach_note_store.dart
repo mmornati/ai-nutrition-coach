@@ -40,6 +40,27 @@ class WasmCoachNoteStore implements CoachNoteStore {
   }
 
   @override
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) {
+    final delegate = _delegate();
+    if (delegate == null) return Stream<List<CoachNote>>.value(const []);
+    return delegate.watchForPlate(plateLogId);
+  }
+
+  @override
+  Future<CoachInteractionResult> recordDismissal(String key) async {
+    final delegate = _delegate();
+    if (delegate == null) return const CoachInteractionFailed(_locked);
+    return delegate.recordDismissal(key);
+  }
+
+  @override
+  Stream<Set<String>> watchDismissals() {
+    final delegate = _delegate();
+    if (delegate == null) return Stream<Set<String>>.value(const <String>{});
+    return delegate.watchDismissals();
+  }
+
+  @override
   Future<CoachInteractionResult> recordInteraction(
     CoachInteractionLog log,
   ) async {

@@ -9,8 +9,15 @@
 // passed in local time so the visible-day classifier the Day
 // Board uses is the one the exporter uses.
 //
+// `range` resolves the scope to the half-open instant range the store reads
+// (`EncryptedStore.readRange`): the boundaries are LOCAL calendar days, built
+// with `DateTime(y, m, d + n)` — never `add(Duration(days: n))`, which is
+// wrong across a daylight-saving change (security review F3).
+//
 // The `when` method lets the exporter branch on the variant
 // without exposing the private subtypes.
+
+import 'calendar_day.dart';
 
 sealed class ExportScope {
   const ExportScope();
@@ -25,6 +32,16 @@ sealed class ExportScope {
 
   /// Every plate in the store.
   const factory ExportScope.allHistory() = _AllHistory;
+
+  /// The half-open range `[from, to)` this scope covers; both `null` for
+  /// all history.
+  ({DateTime? from, DateTime? to}) get range => when(
+    visibleDay: (day) =>
+        (from: startOfLocalDay(day), to: startOfNextLocalDay(day)),
+    week: (start) =>
+        (from: startOfLocalDay(start), to: addCalendarDays(start, 7)),
+    allHistory: () => (from: null, to: null),
+  );
 
   /// Pattern-match the variant. The consumer provides a handler
   /// for each; the analyzer enforces exhaustiveness.

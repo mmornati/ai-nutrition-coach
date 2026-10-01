@@ -79,6 +79,9 @@ jobs:
       - name: Tests (domain_core, integrations, client)
         run: melos run test
 
+      - name: Tests under a DST zone (TZ=Europe/Paris)
+        run: melos run test:dst
+
       - name: Build web (release)
         run: |
           bash scripts/fetch_web_sqlite.sh

@@ -96,6 +96,7 @@ Three gates run on every PR and every tag:
 | ----------------------------- | -------------------------------------------------------- |
 | `melos run analyze`           | No analyzer regressions.                                 |
 | `melos run test`              | All unit tests + the AD-1 purity test + the no-telemetry test. |
+| `melos run test:dst`          | The calendar-day / Day Board tests re-run under `TZ=Europe/Paris`, where the DST assertions do not skip. |
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
 | `melos run check:telemetry`   | Import-based: only allow-listed adapters import a network transport; no telemetry SDKs; doc claims are anchored. |
 | `melos run check:hosts`       | The built web bundle references no third-party host.     |

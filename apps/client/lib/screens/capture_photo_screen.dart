@@ -20,7 +20,8 @@
 //      `RecognitionResult`:
 //        * `RecognizedPlate(foods: [one or more])` → render the
 //          `RecognizedMatchSheet` with the recognized foods +
-//          closest-matches from `FoodCatalog.search('')`. The
+//          closest matches (catalog matches for each recognised name,
+//          then the foods logged in the last week). The
 //          sheet's `Log` button commits via `RecordPlate` and
 //          writes `lastLogProvider` before popping back to the
 //          Day Board.
@@ -36,11 +37,9 @@
 //      calm "Camera denied — type it instead" copy + a tap-to-type
 //      affordance that pushes `ManualEntryScreen`.
 //
-// Multi-shot: the screen dispatches through
-// `recognitionProvider(bytes)` which is autoDispose — a second
-// capture produces a fresh future; the previous future is
-// auto-disposed before its resolution lands. Only the latest
-// capture's result renders on screen (FR13 I/O matrix).
+// Multi-shot: every capture starts a fresh recognition; a retake resets the
+// surface, and only the latest capture's result renders on screen (FR13 I/O
+// matrix).
 //
 // FR13: photo is processed with no identity linkage. The rung
 // receives raw bytes, drops them after recognition, and never
@@ -56,8 +55,10 @@ import 'package:integrations/integrations.dart';
 
 import '../state/ai_rung_provider.dart';
 import '../state/ai_settings_provider.dart';
+import '../state/clock_provider.dart';
 import '../state/manual_entry_provider.dart';
 import '../state/photo_provider.dart';
+import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/photo_consent_dialog.dart';
 import '../widgets/recognized_match_sheet.dart';
@@ -96,11 +97,6 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
   /// Empty list while a call is in flight, before the first
   /// capture, or when the catalog returned `NotFoundFailure`.
   List<FoodMatch> _closestMatches = const [];
-
-  /// In-flight catalog lookup so we can cancel it on dispose / new
-  /// capture (the multi-shot I/O matrix — only the latest photo is
-  /// dispatched; the previous one is discarded).
-  Future<List<FoodMatch>>? _closestMatchesFuture;
 
   /// In-flight recognition call. Riverpod's `autoDispose` family
   /// disposes the provider when this widget unmounts; we keep a
@@ -181,21 +177,11 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
 
     setState(() => _state = _PhotoSurfaceState.resolving);
 
-    // Kick off the rung call + the closest-matches lookup in
-    // parallel. The rung's empty plate list is the v1 default; the
-    // closest-matches fill the same role the manual-entry screen's
-    // ranked list does. We hold both futures so a retake cancels
-    // them — only the latest capture's result renders on screen.
-    _closestMatchesFuture = _fetchClosestMatches(bytes);
-
-    List<FoodMatch> closest = const <FoodMatch>[];
+    // Recognise first; the closest matches are then derived from what the
+    // rung saw (catalog matches for each recognised name) plus the foods
+    // the user logged recently. A failed or empty recognition still offers
+    // the recent foods, and manual-add always works.
     RecognitionResult recognition = const RecognitionFailure('unreachable');
-    try {
-      closest = await _closestMatchesFuture!;
-    } on Object catch (_) {
-      // Catalog error — degrade to an empty list (closest-matches
-      // row stays empty; manual-add still works).
-    }
     try {
       // Read the rung INSIDE the try (F1): a missing override or a
       // throwing adapter lands on the calm failure line, never on an
@@ -214,6 +200,8 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       recognition = const RecognitionFailure('recognize threw');
     }
     if (!mounted) return;
+    final closest = await _fetchClosestMatches(recognition);
+    if (!mounted) return;
     setState(() {
       _closestMatches = closest;
       _result = recognition;
@@ -222,26 +210,65 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
     _openMatchSheetIfReady();
   }
 
-  /// Fetch the closest-matches for the captured photo. The screen
-  /// does not have direct access to the food name from the rung's
-  /// empty plate, so we use the photo's bytes as a stable
-  /// discriminator — the catalog's `search` returns the seeded
-  /// ranked list (the closest-matches surface 1.5 ships). The
-  /// catalog call is offline-first (NFR5); with the v1 `NoopAiRung`
-  /// the result is the full seeded list (the user can scroll and
-  /// pick).
-  Future<List<FoodMatch>> _fetchClosestMatches(Uint8List bytes) async {
-    try {
-      final catalog = ref.read(foodCatalogProvider);
-      final result = await catalog.search('closest', limit: 10);
-      return switch (result) {
-        RankedMatches(:final matches) => matches,
-        NotFoundFailure() => const [],
-        CatalogFailure() => const [],
-      };
-    } on Object catch (_) {
-      return const [];
+  /// How many closest matches the sheet offers at most.
+  static const int _maxClosestMatches = 8;
+
+  /// The "closest matches" row (F9: it used to search the literal
+  /// `'closest'`, which matches nothing, so the row was always empty):
+  ///   1. catalog matches for each food the rung recognised (a few each);
+  ///   2. then the foods the user logged in the last week, newest first.
+  /// Duplicates (same `DatabaseFood`) are dropped. Never throws; an error in
+  /// either source just leaves that part out.
+  Future<List<FoodMatch>> _fetchClosestMatches(
+    RecognitionResult recognition,
+  ) async {
+    final out = <FoodMatch>[];
+    final seen = <String>{};
+    void add(FoodMatch m) {
+      if (out.length >= _maxClosestMatches) return;
+      if (seen.add(m.food.sourceRef)) out.add(m);
     }
+
+    if (recognition is RecognizedPlate) {
+      final catalog = ref.read(foodCatalogProvider);
+      for (final rec in recognition.foods.take(3)) {
+        try {
+          final result = await catalog.search(
+            rec.databaseFood.displayName,
+            limit: 4,
+          );
+          if (result is RankedMatches) result.matches.forEach(add);
+        } on Object catch (_) {
+          // This source is unavailable; the others still count.
+        }
+      }
+    }
+
+    try {
+      final today = ref.read(todayProvider);
+      final recent = await ref
+          .read(encryptedStoreProvider)
+          .readRange(
+            from: addCalendarDays(today, -7),
+            to: startOfNextLocalDay(today),
+          );
+      if (recent is PlatesRead) {
+        for (final plate in recent.plates) {
+          for (final entry in plate.entries) {
+            add(
+              FoodMatch(
+                food: entry.databaseFood,
+                confidence: 0.3,
+                presets: [entry.quantity],
+              ),
+            );
+          }
+        }
+      }
+    } on Object catch (_) {
+      // No history to offer.
+    }
+    return out;
   }
 
   /// Open the match sheet when both the rung result and the

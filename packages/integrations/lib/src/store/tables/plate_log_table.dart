@@ -8,6 +8,9 @@
 
 import 'package:drift/drift.dart';
 
+// `idx_plate_logged_at`: every Day Board / week / export read is a range on
+// `logged_at_utc`; without the index each one scans the whole table (v4).
+@TableIndex(name: 'idx_plate_logged_at', columns: {#loggedAtUtc})
 @DataClassName('PlateLogTableData')
 class PlateLogTable extends Table {
   IntColumn get id => integer().autoIncrement()();

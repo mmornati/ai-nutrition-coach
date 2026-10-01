@@ -123,6 +123,76 @@ void main() {
     },
   );
 
+  group('camera lifecycle (F10)', () {
+    Future<FakeBarcodeScanner> pumpScanning(
+      WidgetTester tester, {
+      CameraPermissionStatus permission = CameraPermissionStatus.granted,
+    }) async {
+      final scanner = FakeBarcodeScanner();
+      await tester.pumpWidget(
+        _wrap(
+          const CaptureBarcodeScreen(),
+          store: FakeEncryptedStore(),
+          scanner: scanner,
+          permission: FakeCameraPermission(permission),
+          catalog: _FakeFoodCatalog(const {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return scanner;
+    }
+
+    testWidgets('backgrounding the app pauses the camera; returning resumes '
+        'it', (tester) async {
+      final scanner = await pumpScanning(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(scanner.pauseCalls, 1);
+      expect(scanner.resumeCalls, 0);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(scanner.resumeCalls, 1);
+    });
+
+    testWidgets('repeated background events pause once; resume without a '
+        'pause does nothing', (tester) async {
+      final scanner = await pumpScanning(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(scanner.pauseCalls, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(scanner.resumeCalls, 1);
+    });
+
+    testWidgets('a screen that never started the camera never resumes it', (
+      tester,
+    ) async {
+      final scanner = await pumpScanning(
+        tester,
+        permission: CameraPermissionStatus.denied,
+      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(scanner.pauseCalls, 0);
+      expect(scanner.resumeCalls, 0);
+    });
+
+    testWidgets('after the screen is gone, lifecycle events are ignored', (
+      tester,
+    ) async {
+      final scanner = await pumpScanning(tester);
+      await tester.pumpWidget(const SizedBox());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(scanner.pauseCalls, 0);
+    });
+  });
+
   group('CaptureBarcodeScreen', () {
     testWidgets(
       'HAPPY_PATH_KNOWN: scan + RankedMatches opens BarcodeMatchSheet',

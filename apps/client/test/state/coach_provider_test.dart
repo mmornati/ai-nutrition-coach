@@ -17,13 +17,15 @@ import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/coach_provider.dart';
 import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
+import '../_fakes/fake_encrypted_store.dart';
+
 ProviderContainer _container({Coach? coach}) {
   // Minimal EncryptedStore stub — the coach provider test does
   // not exercise the store path; the seam just needs to exist so
   // the widget tree / provider graph resolves.
   final container = ProviderContainer(
     overrides: [
-      encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+      encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
       if (coach != null) coachProvider.overrideWithValue(coach),
     ],
   );
@@ -43,7 +45,7 @@ void main() {
       // provider's factory.
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
         ],
       );
       addTearDown(container.dispose);
@@ -66,7 +68,7 @@ void main() {
         'expected key for a known pattern', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -133,7 +135,7 @@ void main() {
         'under the production override', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -176,7 +178,7 @@ void main() {
       });
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(coach),
         ],
       );
@@ -198,29 +200,6 @@ void main() {
       expect(unknown, isA<NoCoachQuestion>());
     });
   });
-}
-
-class _StubEncryptedStore implements EncryptedStore {
-  const _StubEncryptedStore();
-
-  @override
-  Future<RecordPlateResult> recordPlate({
-    required List<FoodEntryDraft> entries,
-    DateTime? loggedAtUtc,
-  }) async => RecordPlateSuccess(
-    PlateLog(
-      id: 0,
-      loggedAtUtc: DateTime.utc(2026, 8, 15),
-      entries: const <FoodEntry>[],
-    ),
-  );
-
-  @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
-      const Stream<List<PlateLog>>.empty();
-
-  @override
-  Future<void> close() async {}
 }
 
 /// Hand-rolled `Coach` adapter that reads from a caller-supplied map.
