@@ -28,6 +28,7 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart';
 
 import '../state/last_log_provider.dart';
 import '../state/record_plate_provider.dart';
@@ -437,8 +438,8 @@ class _Header extends StatelessWidget {
         title = 'Nothing on this plate';
         subtitle = 'Pick a closest match or type the food manually.';
       case QuotaExhausted():
-        title = 'The free quota is done for today';
-        subtitle = 'Pick a closest match, type it manually, or wait for the reset.';
+        title = enAiRungStrings.noticeShort;
+        subtitle = enAiRungStrings.manualFallbackHint;
       case RecognitionFailure():
         title = "Search isn't available right now.";
         subtitle = 'You can still pick a closest match or type it manually.';

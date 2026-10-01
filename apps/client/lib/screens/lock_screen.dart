@@ -9,11 +9,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:integrations/integrations.dart';
 
 import '../state/web_session_key_provider.dart';
 import '../state/web_unlock_probe_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/lock_screen_body.dart';
 
 class LockScreen extends ConsumerWidget {
   const LockScreen({super.key});

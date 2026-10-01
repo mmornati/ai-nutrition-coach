@@ -37,7 +37,7 @@ passphrase to unlock your store. See [`docs/self-host.md`](./docs/self-host.md).
 ### Build from source
 
 ```sh
-melos bootstrap
+melos bootstrap   # or: scripts/flutter_docker.sh melos bootstrap (pinned Flutter 3.44.0)
 cd apps/client
 flutter build web --release --pwa-strategy=none --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 ```
@@ -61,7 +61,8 @@ docs/                    user-facing docs (your-data, self-host, ai-tiers,
 _bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
 tools/                   repo-level scripts (check_telemetry_claims,
                          check_release_posture)
-melos.yaml               workspace orchestration + the four scripts
+pubspec.yaml             workspace + the `melos:` scripts block (single source)
+scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```
 
 ## License

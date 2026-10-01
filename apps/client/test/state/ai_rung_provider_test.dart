@@ -19,9 +19,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
 
+/// Builds a container with the config plus every rung seam the
+/// production `main.dart` overrides, so any `AiRungKind` resolves.
 ProviderContainer _container({required AiRungConfig config}) {
   return ProviderContainer(
-    overrides: [aiRungConfigProvider.overrideWithValue(config)],
+    overrides: [
+      aiRungConfigProvider.overrideWithValue(config),
+      quotaCounterProvider.overrideWithValue(InMemoryQuotaCounter(ceiling: 5)),
+      hostedQuotaProviderProvider.overrideWithValue(
+        const CloudflareWorkersAiProvider(),
+      ),
+      byokKeyStoreProvider.overrideWithValue(InMemoryByokKeyStore()),
+      byokOpenAiCompatibleProviderProvider.overrideWithValue(
+        const OpenAiCompatibleByokProvider(),
+      ),
+    ],
   );
 }
 
@@ -104,16 +116,19 @@ void main() {
       expect(abstractRung, isA<AiRung>());
     });
 
-    test('byok config → ByokAiRung stub (Story 3.3 fills the body)', () {
-      final container = _container(
-        config: const AiRungConfig(kind: AiRungKind.byok),
-      );
-      addTearDown(container.dispose);
+    test(
+      'byok config → ByokAiRung wired with key store + provider (Story 3.3)',
+      () {
+        final container = _container(
+          config: const AiRungConfig(kind: AiRungKind.byok),
+        );
+        addTearDown(container.dispose);
 
-      final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
-      expect(rung, isA<ByokAiRung>());
-    });
+        final rung = container.read(aiRungProvider);
+        expect(rung, isA<AiRung>());
+        expect(rung, isA<ByokAiRung>());
+      },
+    );
 
     test('local config → LocalAiRung v2 seam (FR8 throws-on-use)', () async {
       final container = _container(

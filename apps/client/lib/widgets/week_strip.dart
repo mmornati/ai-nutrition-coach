@@ -25,6 +25,7 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/clock_provider.dart';
 import '../state/record_plate_provider.dart';
 import '../state/selected_date_provider.dart';
 import '../theme/app_tokens.dart';
@@ -50,7 +51,7 @@ class WeekStrip extends ConsumerWidget {
         ? AppPalette.dark
         : AppPalette.light;
     final plates = ref.watch(recentPlatesProvider);
-    final today = _localMidnight(DateTime.now());
+    final today = _localMidnight(ref.watch(clockProvider)());
     final days = _sevenDaysEnding(today);
 
     return Semantics(

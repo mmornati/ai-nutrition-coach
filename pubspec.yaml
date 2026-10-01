@@ -1,5 +1,5 @@
-name: _ai_nutrition_coach_workspace
-description: "AI Nutrition Coach monorepo root — Dart pub workspace. See melos.yaml for orchestration."
+name: _openplate_workspace
+description: "OpenPlate monorepo root — Dart pub workspace. Melos scripts live in the `melos:` block below."
 publish_to: 'none'
 version: 0.0.0
 
@@ -7,8 +7,8 @@ environment:
   sdk: ^3.12.0
   flutter: ">=3.44.0"
 
-# Dart pub workspaces: lists every member package. `melos bootstrap` walks
-# the same set via `packages:` in melos.yaml and links path dependencies.
+# Dart pub workspaces: lists every member package. Melos 8 derives its
+# package set from this list (there is no melos.yaml).
 workspace:
   - apps/client
   - packages/domain_core
@@ -17,24 +17,32 @@ workspace:
 dev_dependencies:
   melos: 8.2.2
 
-# Melos 8.x reads scripts from this block (see melos.yaml for the
-# scaffold-era location; the migration is documented in story 1.2's
-# deviation log).
+# Melos 8.x reads its scripts from this block — the single source of truth
+# (there is intentionally no melos.yaml; see CONTRIBUTING.md).
+#
+# A package is a *Flutter* package when its pubspec depends on the Flutter
+# SDK (`sdk: flutter`): that is what decides `flutter analyze`/`flutter test`
+# vs `dart analyze`/`dart test`. A pure-Dart package (domain_core) cannot run
+# under `flutter test`, and a Flutter package (integrations links
+# flutter_secure_storage / path_provider; apps/client is the app) cannot run
+# under `dart test`.
 melos:
   scripts:
     analyze:
-      description: Run static analysis across every package in the workspace.
-      run: melos exec -c 1 --order-dependents -- "if grep -q '^flutter:' pubspec.yaml; then flutter analyze; else dart analyze; fi"
+      description: Run static analysis across every package in the workspace (errors, warnings and infos all fail).
+      run: |
+        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter analyze --no-pub; else dart analyze --fatal-infos; fi"
 
     test:
       description: Run unit tests across every package in the workspace.
-      # Mirror the analyze split: apps/client uses `testWidgets` so it needs
-      # `flutter test`; pure-Dart packages run `dart test`.
-      run: melos exec -c 4 --order-dependents -- "if grep -q '^flutter:' pubspec.yaml; then flutter test; else dart test; fi"
+      run: |
+        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter test --no-pub; else dart test; fi"
 
     format:check:
-      description: Verify every package is `dart format`-clean.
-      run: melos exec -c 1 --order-dependents -- "dart format --set-exit-if-changed ."
+      description: Verify every package is `dart format`-clean (read-only; run `dart format .` to fix).
+      run: |
+        melos exec -c 1 --order-dependents -- "dart format --output=none --set-exit-if-changed ."
+        dart format --output=none --set-exit-if-changed tools
 
     build:web:
       description: Build the responsive client as a release web bundle (self-host).
@@ -43,3 +51,19 @@ melos:
     build:runner:
       description: Run drift codegen across the integrations package.
       run: melos exec -c 1 --order-dependents --dir-exists=lib/src/store -- "dart run build_runner build --delete-conflicting-outputs"
+
+    smoke:self-host:
+      description: Run the self-host smoke test (Story 4.4 / FR-11).
+      run: bash scripts/smoke_self_host.sh
+
+    check:telemetry:
+      description: Pin the FR-12 / FR-9 / NFR4 no-telemetry invariant (Story 4.5).
+      run: dart run tools/check_telemetry_claims.dart
+
+    check:release-posture:
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist (Story 4.6) and the adults-only gates hold.
+      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart
+
+    check:a11y:
+      description: Accessibility floor — every interactive widget has a Semantics wrapper (Story 5.4 / NFR-7). Known failing; not chained into check:release-posture.
+      run: dart run tools/check_accessibility_floor.dart

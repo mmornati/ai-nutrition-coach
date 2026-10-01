@@ -17,17 +17,18 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
-import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
-import 'package:ai_nutrition_coach/state/coach_provider.dart';
-import 'package:ai_nutrition_coach/state/day_board_provider.dart';
-import 'package:ai_nutrition_coach/state/last_log_provider.dart';
-import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
-import 'package:ai_nutrition_coach/state/selected_date_provider.dart';
-import 'package:ai_nutrition_coach/theme/app_tokens.dart';
-import 'package:ai_nutrition_coach/widgets/balance_arc.dart';
-import 'package:ai_nutrition_coach/widgets/open_dent.dart';
-import 'package:ai_nutrition_coach/widgets/plate_row.dart';
+import 'package:openplate_client/screens/day_board_screen.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/clock_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
+import 'package:openplate_client/state/day_board_provider.dart';
+import 'package:openplate_client/state/last_log_provider.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:openplate_client/state/selected_date_provider.dart';
+import 'package:openplate_client/theme/app_tokens.dart';
+import 'package:openplate_client/widgets/balance_arc.dart';
+import 'package:openplate_client/widgets/open_dent.dart';
+import 'package:openplate_client/widgets/plate_row.dart';
 
 import '_fakes/fake_encrypted_store.dart';
 
@@ -43,6 +44,8 @@ Widget _wrap(
       // whisper path can be exercised end-to-end.
       coachProvider.overrideWithValue(FakeCoach()),
       coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
+      // The fixtures are seeded on 2026-08-15; pin "now" to that day.
+      clockProvider.overrideWithValue(() => DateTime(2026, 8, 15, 12)),
     ],
     child: MaterialApp(
       themeMode: mode,
@@ -217,6 +220,7 @@ void main() {
             // Story 2.3: OpenDent reads `coachProvider` — override
             // the seam so the test does not hit `UnimplementedError`.
             coachProvider.overrideWithValue(FakeCoach()),
+            clockProvider.overrideWithValue(() => DateTime(2026, 8, 15, 12)),
           ],
           child: MaterialApp(
             home: MediaQuery(

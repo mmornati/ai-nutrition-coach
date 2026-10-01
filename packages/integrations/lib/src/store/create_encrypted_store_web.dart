@@ -29,7 +29,7 @@
 
 import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart' hide WebSessionKey;
+import 'package:domain_core/domain_core.dart';
 
 import 'app_database.dart';
 import 'create_encrypted_store.dart';
@@ -56,43 +56,31 @@ final WasmEncryptedStore _wasmStore = WasmEncryptedStore(
   databaseOpener: _openWasmDatabase,
 );
 
-/// Open the wasm database with the derived key. The v1.1 build
-/// plumbing follow-up wires the `sqlite3.wasm` binary + the drift
-/// `WebSqlCipher` from `drift_flutter`. The architecture is in
-/// place so the binding drops in without touching the port.
-Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) {
-  // TODO(Story 4.1 wasm binding): replace this placeholder with
-  //   return WasmDatabase.open(
-  //     databaseName: 'ai_nutrition_coach_v1',
-  //     sqlite3Uri: Uri.parse('sqlite3.wasm'),
-  //     driftWorkerUri: Uri.parse('drift_worker.js'),
-  //   ).then((e) => AppDatabase(e));
-  // once the `drift_flutter` web package + the wasm binary are
-  // added. Until then the production web store cannot open a
-  // durable database — this placeholder throws the honest
-  // `WebSessionKeyFailure` so the lock screen + Day Board degrade
-  // exactly as they do for a locked session (Story 4.1 / AD-8)
-  // instead of crashing. The dev-in-memory path
-  // (`AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`) never reaches this.
-  throw UnimplementedError(
-    'AI Nutrition Coach web storage: the drift sqlite3.wasm binding is a '
-    'v1.1 follow-up. Run the local dev build with '
-    '--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true instead.',
+/// Open the wasm database with the derived key.
+///
+/// PLACEHOLDER (Phase 1 / W5): the real `sqlite3.wasm` + drift
+/// `WasmDatabase` binding is not wired yet, and `package:drift/native.dart`
+/// (FFI) must never be imported on the web branch. Until the web store is
+/// implemented this opener refuses honestly — `WasmEncryptedStore.tryOpen`
+/// catches the error and reports "could not open", so no data is ever
+/// written to an unencrypted store on production web builds. For the local
+/// preview loop use `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`.
+Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) async {
+  throw UnsupportedError(
+    'The web wasm store is not implemented yet; see the remediation plan '
+    '(Phase 2B).',
   );
 }
 
 Future<StoreBundle> createStores() async {
   if (_devInMemory) {
-    // The dev-in-memory path doesn't need a lock screen. Force-
-    // unlock the session key so the UnlockGate renders the Day
-    // Board directly, and provide a no-op unlock probe so the
-    // default provider doesn't throw.
-    _sessionKey.forceUnlock();
+    // The in-memory placeholder has no cipher, so any passphrase "opens"
+    // it; the lock screen is still wired so the web gate flow is exercised.
     return StoreBundle(
       encryptedStore: _devStore,
       coachNoteStore: _devCoachNotes,
       webSessionKey: _sessionKey,
-      webUnlockProbe: (_) async => true,
+      webUnlockProbe: (derived) async => true,
     );
   }
   return StoreBundle(

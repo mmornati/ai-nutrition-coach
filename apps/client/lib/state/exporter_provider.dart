@@ -36,28 +36,30 @@ final Provider<Exporter> jsonExporterProvider = Provider<Exporter>((ref) {
 /// or a `MobileExportDestination` on io (path_provider file).
 final Provider<ExportDestination> exportDestinationProvider =
     Provider<ExportDestination>((ref) {
-  return createExportDestination();
-});
+      return createExportDestination();
+    });
 
 /// Resolve a one-shot `ExportResult` for the user-pinned (format,
 /// scope) pair. The provider is autoDispose so a second export
 /// starts a fresh stream.
-final FutureProvider.autoDispose
-    .family<ExportResult, ({ExportFormat format, ExportScope scope})>
-    exportTaskProvider = FutureProvider.autoDispose.family((ref, args) async {
-  final Exporter exporter = args.format == ExportFormat.csv
-      ? ref.watch(csvExporterProvider)
-      : ref.watch(jsonExporterProvider);
-  final stream = exporter.streamPlates(
-    format: args.format,
-    scope: args.scope,
-  );
-  return stream.first;
-});
+final exportTaskProvider = FutureProvider.autoDispose
+    .family<ExportResult, ({ExportFormat format, ExportScope scope})>((
+      ref,
+      args,
+    ) async {
+      final Exporter exporter = args.format == ExportFormat.csv
+          ? ref.watch(csvExporterProvider)
+          : ref.watch(jsonExporterProvider);
+      final stream = exporter.streamPlates(
+        format: args.format,
+        scope: args.scope,
+      );
+      return stream.first;
+    });
 
 /// Build the export filename from the local date + format
 /// extension. The filename is the user-facing artefact the
-/// "exported: <file>" line references. AD-9: the file is a copy;
+/// "exported: `file`" line references. AD-9: the file is a copy;
 /// the source is untouched.
 String exportFilename({
   required DateTime localDay,

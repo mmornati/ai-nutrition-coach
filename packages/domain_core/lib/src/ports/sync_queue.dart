@@ -15,8 +15,6 @@
 // first; the enqueue is a separate write against the same drift
 // store. The UI never reflects a log before the local commit.
 
-import '../entities/sync_op.dart';
-import '../entities/sync_queue_state.dart';
 import '../results/sync_failure.dart';
 
 abstract interface class SyncQueue {

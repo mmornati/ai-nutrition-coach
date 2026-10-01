@@ -1,15 +1,18 @@
 # AI Nutrition Coach CI — reproducible build gate (NFR9).
 #
-# Runs on every pull request and push to main. Three responsibilities:
-#   1. Static analysis across the whole workspace via `melos run analyze`,
-#      which delegates to `flutter analyze` (apps/client) and `dart analyze`
-#      (pure-Dart packages) — see melos.yaml.
-#   2. Format check via `melos run format:check` so whitespace drift is
-#      caught before review.
-#   3. A smoke test (the canonical `domain_core` AD-1 invariant + the
-#      `ai_nutrition_coach` widget smoke test). The AD-1 test is the
-#      architectural gate that catches a forbidden import landing in
-#      `packages/domain_core` before it reaches main.
+# Runs on every pull request and push to main. Jobs:
+#   verify  — format check, static analysis (`melos run analyze`), the full
+#             test suite (`melos run test`), then the two compile gates:
+#             `flutter build web --release` and `flutter build apk --debug`
+#             (debug: the release APK needs a signing key — Phase 6).
+#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
+#             actually builds (it is built from the committed pubspec.lock).
+#
+# Analyze + test are what the autonomous loop must pass before a story may be
+# marked committed (see _bmad-output/implementation-artifacts/loop-status.yaml).
+#
+# Toolchain: Flutter 3.44.0 pinned by version AND digest. Keep in sync with
+# scripts/flutter_docker.sh, infra/Dockerfile and CONTRIBUTING.md.
 
 name: ci
 
@@ -26,17 +29,15 @@ concurrency:
 
 jobs:
   verify:
-    name: Analyze + smoke test
+    name: Analyze, test, build web + apk
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     # Read-only token is enough for checkout + the container's tooling.
     permissions:
       contents: read
 
     container:
-      # Pin the same image the production self-host build uses. Full
-      # registry path so the job resolves on every GitHub-hosted runner.
-      image: ghcr.io/cirruslabs/flutter:stable
+      image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
       options: --user root
 
     steps:
@@ -57,11 +58,44 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
+      - name: Enforce the committed lockfile
+        # A drifting pubspec.lock must fail CI, not be silently rewritten.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git diff --exit-code -- pubspec.lock
+
       - name: Format check
         run: melos run format:check
 
       - name: Static analysis (AD-1 + per-package lints)
         run: melos run analyze
 
-      - name: Smoke test (domain_core AD-1 + client widget smoke)
+      - name: Tests (domain_core, integrations, client)
         run: melos run test
+
+      - name: Build web (release)
+        run: |
+          cd apps/client
+          flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+
+      - name: Build Android APK (debug)
+        # flutter_secure_storage 11 compiles against android-37, which the
+        # pinned image does not ship — install it (Phase 6 revisits the pin).
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-37.0"
+          cd apps/client
+          flutter build apk --debug
+
+  docker:
+    name: Self-host image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build infra/Dockerfile
+        run: docker build -f infra/Dockerfile -t openplate:ci .

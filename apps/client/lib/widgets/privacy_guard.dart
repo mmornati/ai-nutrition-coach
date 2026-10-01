@@ -10,10 +10,8 @@
 // telemetry, no logging, no user-visible affordance — the guard is
 // a developer-only invariant, not a UX surface.
 
-import 'package:flutter/foundation.dart';
-
 class PrivacyGuard {
-  const PrivacyGuard._();
+  const PrivacyGuard();
 
   /// Asserts the v1 surface is strictly adults-only (FR-13 / NFR-4).
   /// Returns silently when the surface is clean. Throws

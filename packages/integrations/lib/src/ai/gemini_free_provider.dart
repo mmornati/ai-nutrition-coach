@@ -20,8 +20,6 @@
 
 import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart';
-
 import 'hosted_quota_provider.dart';
 
 /// The OQ-2 alternative `HostedQuotaProvider` adapter (Gemini free

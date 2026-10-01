@@ -9,14 +9,12 @@
 // a fresh stream (UX-DR10).
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
-import 'package:ai_nutrition_coach/state/exporter_provider.dart';
-import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:openplate_client/state/exporter_provider.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
 
 class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
@@ -36,19 +34,6 @@ class _FakeStore implements EncryptedStore {
 
   @override
   Future<void> close() async {}
-}
-
-class _RecordingDestination implements ExportDestination {
-  _RecordingDestination();
-  final List<String> filenames = [];
-  @override
-  Future<void> write({
-    required String filename,
-    required String mimeType,
-    required Uint8List bytes,
-  }) async {
-    filenames.add(filename);
-  }
 }
 
 PlateLog _plate(int id) => PlateLog(

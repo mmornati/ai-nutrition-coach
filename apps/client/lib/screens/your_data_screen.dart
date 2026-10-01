@@ -30,12 +30,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import '../state/exporter_provider.dart';
+import '../state/platform_provider.dart';
 import '../state/web_session_key_provider.dart';
 import '../theme/app_tokens.dart';
 
@@ -60,7 +61,8 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final locked = kIsWeb && !ref.watch(webSessionKeyProvider).isOpen;
+    final locked =
+        ref.watch(isWebProvider) && !ref.watch(webSessionKeyProvider).isOpen;
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
@@ -121,7 +123,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
           ],
           labels: const {ExportFormat.csv: 'CSV', ExportFormat.json: 'JSON'},
           selected: _format,
-          onSelect: (v) => setState(() => _format = v as ExportFormat),
+          onSelect: (v) => setState(() => _format = v),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(

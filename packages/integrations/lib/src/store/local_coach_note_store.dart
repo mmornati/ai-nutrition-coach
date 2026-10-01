@@ -31,6 +31,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:domain_core/domain_core.dart';
+import 'package:sqlite3/common.dart' as sqlite3;
 
 import 'app_database.dart';
 

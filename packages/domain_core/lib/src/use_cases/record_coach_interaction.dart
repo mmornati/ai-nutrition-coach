@@ -51,7 +51,6 @@ import '../results/coach_interaction_failure.dart';
 import '../results/coach_note_failure.dart';
 import '../results/coach_question_result.dart';
 import '../results/store_failure.dart';
-import '../value_types/coach_interaction.dart';
 import '../value_types/composition_pattern.dart';
 
 /// The convergent result of one `RecordCoachInteraction.call(...)`
@@ -84,7 +83,10 @@ sealed class RecordCoachInteractionResult {
   final CoachInteractionResult recordInteractionOutcome;
 
   /// The bounded depth follow-up `CoachNote` the use-case appended
-  /// on the `sure` path. `null` on every other path.
+  /// on the `sure` path. `null` on every other path, when the active
+  /// coach returned `NoCoachQuestion` for `depthFollowUp`, when the
+  /// coach port threw, when a follow-up already exists (idempotent
+  /// second tap, FR5), or when the store write failed.
   final CoachNote? followedUpNote;
 }
 
@@ -92,20 +94,11 @@ class RecordCoachInteractionSure extends RecordCoachInteractionResult {
   const RecordCoachInteractionSure({
     required super.noteId,
     required super.recordInteractionOutcome,
-    this.followedUpNote,
-  }) : super(followedUpNote: followedUpNote);
+    super.followedUpNote,
+  });
 
   @override
   CoachInteraction get kind => CoachInteraction.sure;
-
-  /// The bounded depth follow-up `CoachNote` the use-case appended
-  /// on the `sure` path. `null` when the active coach returned
-  /// `NoCoachQuestion` for `depthFollowUp`, when the coach port
-  /// threw (defensive), when a follow-up already exists for the
-  /// plate (idempotent second tap, FR5), or when the store write
-  /// failed. The UI still reflects the `sure` intent — the depth
-  /// panel just doesn't render.
-  final CoachNote? followedUpNote;
 }
 
 class RecordCoachInteractionAskLater extends RecordCoachInteractionResult {

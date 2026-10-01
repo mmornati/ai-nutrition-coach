@@ -55,11 +55,8 @@ class CsvExporter implements Exporter {
   /// is the only mutation-source-agnostic surface the store
   /// exposes (AD-3); we take the first emission as the snapshot.
   Future<List<PlateLog>> _readAll() async {
-    final stream = _store.watchRecent();
-    final subscription = stream.listen((_) {});
-    final first = await stream.first;
-    await subscription.cancel();
-    return first;
+    // `.first` cancels the subscription itself once the snapshot lands.
+    return _store.watchRecent().first;
   }
 
   /// Filter the plate list to the requested scope. Visible day

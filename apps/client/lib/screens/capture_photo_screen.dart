@@ -50,6 +50,7 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart';
 
 import '../state/manual_entry_provider.dart';
 import '../state/photo_provider.dart';
@@ -428,8 +429,7 @@ class _ReadyBody extends StatelessWidget {
             ? 'No foods matched — pick one below.'
             : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
       NoMatch() => 'Nothing on this plate — pick one below.',
-      QuotaExhausted() =>
-        "The free quota is done for today — pick a closest match below.",
+      QuotaExhausted() => enAiRungStrings.noticeShort,
       RecognitionFailure() =>
         "Search isn't available right now. Pick a closest match below.",
     };

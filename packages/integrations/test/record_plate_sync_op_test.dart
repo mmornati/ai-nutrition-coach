@@ -7,10 +7,11 @@
 //   2. The enqueue is best-effort: a failure on the queue path
 //      never blocks the log.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:integrations/integrations.dart';
 
 class _StubEncryptedStore implements EncryptedStore {
@@ -31,6 +32,27 @@ class _StubEncryptedStore implements EncryptedStore {
 
   @override
   Future<void> close() async => _watchCtl.close();
+}
+
+/// A real `CoachNoteGenerator` over the v1 `TemplateCoach` and a no-op
+/// note store — the sync-op tests only care about the enqueue seam.
+CoachNoteGenerator _generator() => CoachNoteGenerator(
+  coach: const TemplateCoach(),
+  store: _NoopCoachNoteStore(),
+);
+
+class _NoopCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<CoachNoteAppendResult> append(CoachNote note) async =>
+      CoachNoteAppended(note);
+
+  @override
+  Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
+
+  @override
+  Future<CoachInteractionResult> recordInteraction(
+    CoachInteractionLog log,
+  ) async => const CoachInteractionRecorded(1);
 }
 
 void main() {
@@ -61,7 +83,7 @@ void main() {
       final queue = DriftSyncQueue();
       final useCase = RecordSyncOp(queue: queue);
       final recordPlate = RecordPlate(
-        generator: const TemplateCoach().generator,
+        generator: _generator(),
         syncOpEnqueue: useCase,
       );
       await recordPlate(
@@ -94,7 +116,7 @@ void main() {
       final queue = DriftSyncQueue();
       final useCase = RecordSyncOp(queue: queue);
       final recordPlate = RecordPlate(
-        generator: const TemplateCoach().generator,
+        generator: _generator(),
         syncOpEnqueue: useCase,
       );
       await recordPlate(

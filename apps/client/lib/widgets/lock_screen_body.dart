@@ -15,11 +15,8 @@
 // announces the field by name; reduce-motion collapses the gate
 // transition to a fade; dynamic type honored without truncation.
 
-import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 import 'package:flutter/material.dart';
-
-import '../l10n/coach_strings.dart';
-import 'web_session_key.dart';
+import 'package:integrations/integrations.dart';
 
 /// The body of the `UnlockGate`. Renders the passphrase field + the
 /// unlock pill + the calm error line. The parent (`UnlockGate`)
@@ -84,6 +81,13 @@ class _LockScreenBodyState extends State<LockScreenBody> {
       }
       // Parent observes the session-key `isOpen` and flips the
       // gate. We don't need to navigate here.
+    } on UnsupportedError {
+      // The build has no web store — not the user's passphrase.
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = widget.copy.unavailable;
+      });
     } on Object {
       if (!mounted) return;
       setState(() {

@@ -1,8 +1,11 @@
 # ───────────────────────────────────────────────────────────────────────────
 # AI Nutrition Coach self-host web build — multi-stage.
 #
-#   stage 1 (build):   ghcr.io/cirruslabs/flutter:stable
-#                      → melos bootstrap
+#   Build from the repository root (the build context must be the repo root):
+#       docker build -f infra/Dockerfile -t openplate:dev .
+#
+#   stage 1 (build):   ghcr.io/cirruslabs/flutter:3.44.0 (pinned by digest)
+#                      → flutter pub get --enforce-lockfile (pubspec.lock)
 #                      → melos run build:web
 #
 #   stage 2 (serve):  nginx:alpine (pinned by digest)
@@ -10,38 +13,35 @@
 #                      → SPA fallback via try_files (FR11 seam)
 #                      → non-root user (Story 4.4 / AD-2 hardening)
 #
-# The full image is `ghcr.io/cirruslabs/flutter:stable` (the bare short name
-# `cirruslabs/flutter:stable` does not resolve on every Docker host — pin
-# the registry explicitly so CI builds are reproducible everywhere).
+# Reproducibility (I7): the Flutter image is pinned by version AND digest
+# (keep in sync with scripts/flutter_docker.sh, .github/workflows/*,
+# CONTRIBUTING.md), and dependencies are resolved strictly from the
+# committed pubspec.lock — a drifting lockfile fails the build.
 # ───────────────────────────────────────────────────────────────────────────
 
 # ── stage 1: build ────────────────────────────────────────────────────────
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+FROM ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8 AS build
 
 WORKDIR /work
 
-# Resolve the workspace once. `melos bootstrap` walks every package under
-# apps/* and packages/* and runs `pub get` per the melos.yaml config.
-# Both the workspace pubspec (Dart pub workspaces) and melos.yaml are needed
-# in melos 8.x — melos reads the workspace declaration from pubspec.yaml.
-COPY melos.yaml pubspec.yaml ./
+# Resolve the workspace first, from the manifests + lockfile only, so the
+# dependency layer is cached until a pubspec changes. `--enforce-lockfile`
+# refuses to build if pubspec.lock is missing or out of date. Melos itself
+# is a locked dev_dependency of the root pubspec, so `dart run melos` needs
+# no global activation.
+COPY pubspec.yaml pubspec.lock ./
+COPY apps/client/pubspec.yaml apps/client/pubspec.yaml
+COPY packages/domain_core/pubspec.yaml packages/domain_core/pubspec.yaml
+COPY packages/integrations/pubspec.yaml packages/integrations/pubspec.yaml
+RUN flutter pub get --enforce-lockfile
+
 COPY apps ./apps
 COPY packages ./packages
 
-# `flutter create` is not needed at build time — apps/client already exists.
-# `dart pub global activate` writes the `melos` shim into ~/.pub-cache/bin
-# which is not on PATH by default. Pin it explicitly because $HOME is not
-# expanded by `ENV PATH=...` in this context.
-ENV PATH="${PATH}:/root/.pub-cache/bin"
-RUN flutter pub global activate melos 8.2.2 \
- && melos bootstrap
-
-WORKDIR /work
-
-# Build the web release bundle via the `build:web` script in melos.yaml.
-# `--release` + `--pwa-strategy=none` keeps the bundle small and avoids
-# the service worker the self-host build never needs.
-RUN melos run build:web
+# Build the web release bundle via the `build:web` script in the root
+# pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` keeps the
+# bundle small and avoids the service worker the self-host build never needs.
+RUN dart run melos run build:web
 
 # ── stage 2: serve ────────────────────────────────────────────────────────
 # nginx:alpine pinned by digest so the production image is byte-stable

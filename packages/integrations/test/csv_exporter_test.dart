@@ -6,7 +6,6 @@
 // all-history scope returning the full list.
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:integrations/integrations.dart';
@@ -150,11 +149,4 @@ void main() {
       expect(r, isA<ExportFormatFailure>());
     });
   });
-}
-
-// Touch `Uint8List` so the analyzer is happy when this file is
-// imported in isolation.
-void _touch() {
-  final _ = Uint8List(0);
-  _;
 }

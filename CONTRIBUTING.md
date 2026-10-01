@@ -24,10 +24,33 @@ path-dependencies between them. Requires:
 
 | Tool         | Version       |
 | ------------ | ------------- |
-| Flutter      | 3.47.0 stable |
-| Dart SDK     | ^3.13.0       |
+| Flutter      | 3.44.0 stable (image `ghcr.io/cirruslabs/flutter:3.44.0`, digest-pinned) |
+| Dart SDK     | ^3.12.0 (bundled with Flutter 3.44.0) |
 | melos        | 8.2.2         |
 | Docker       | 24+ (self-host) |
+
+No Flutter SDK on your machine? Run any command inside the pinned toolchain
+image with the helper (it mounts the repo and keeps a persistent pub-cache):
+
+```sh
+scripts/flutter_docker.sh melos bootstrap
+scripts/flutter_docker.sh melos run analyze
+scripts/flutter_docker.sh bash -lc 'melos run test'
+```
+
+The toolchain version/digest is pinned in one logical place and mirrored in
+`scripts/flutter_docker.sh`, `infra/Dockerfile`, `.github/workflows/*`, and
+this page — bump them together. Melos 8 reads its scripts from the `melos:`
+block of the root `pubspec.yaml` (there is no `melos.yaml`).
+
+## Verify (the one gate)
+
+```sh
+scripts/verify.sh            # format:check + analyze (infos fatal) + test + web build
+scripts/verify.sh --with-apk # also the debug APK
+```
+
+Optional pre-commit guard: `ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit`
 
 ## Test
 
@@ -36,7 +59,9 @@ melos run test
 ```
 
 The standard suite walks every package under `apps/*` and
-`packages/*`. The `packages/domain_core` AD-1 grep test pins the
+`packages/*`, using the right runner for each: `dart test` for the pure-Dart
+`domain_core`, `flutter test` for `integrations` (a Flutter package — it links
+`flutter_secure_storage` / `path_provider`) and `apps/client`. The `packages/domain_core` AD-1 grep test pins the
 pure-Dart invariant — `packages/domain_core/lib/**.dart` is free
 of `package:flutter*`, `package:drift*`, `package:dio`,
 `package:mobile_scanner*`, and `package:flutter_secure_storage*`.
@@ -115,7 +140,8 @@ docs/                    user-facing docs (your-data, self-host, ai-tiers,
 _bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
 tools/                   repo-level scripts (check_telemetry_claims,
                          check_release_posture)
-melos.yaml               workspace orchestration + the four scripts
+pubspec.yaml             workspace + the `melos:` scripts block (single source)
+scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```
 
 ## Community

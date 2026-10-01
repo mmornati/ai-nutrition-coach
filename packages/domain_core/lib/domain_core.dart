@@ -58,6 +58,5 @@ export 'src/value_types/export_scope.dart';
 export 'src/value_types/food_entry_draft.dart';
 export 'src/value_types/quantity_range.dart';
 export 'src/value_types/recognized_food.dart';
-export 'src/value_types/web_session_key.dart';
 
 const String domainCoreVersion = '0.1.0';

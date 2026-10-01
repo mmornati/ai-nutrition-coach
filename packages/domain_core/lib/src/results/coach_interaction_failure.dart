@@ -23,7 +23,6 @@
 // imports. The AD-1 grep test in
 // `packages/domain_core/test/domain_core_test.dart` pins the rule.
 
-import '../value_types/coach_interaction.dart';
 import 'store_failure.dart';
 
 export '../value_types/coach_interaction.dart'

@@ -137,7 +137,6 @@ class CoachNoteGenerator {
     var protein = 0;
     var starch = 0;
     var dairy = 0;
-    var other = 0;
     for (final entry in plate.entries) {
       switch (entry.databaseFood.foodGroup) {
         case FoodGroup.vegFruit:
@@ -149,7 +148,7 @@ class CoachNoteGenerator {
         case FoodGroup.dairy:
           dairy++;
         case FoodGroup.other:
-          other++;
+          break;
       }
     }
 

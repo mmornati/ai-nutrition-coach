@@ -7,7 +7,6 @@
 //   * Dark mode follows device theming (NFR-8).
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -15,10 +14,12 @@ void main() {
     testWidgets('interactive widgets carry a Semantics wrapper', (
       tester,
     ) async {
+      final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Semantics(
+              excludeSemantics: true,
               label: 'Day Board placeholder',
               child: Text('Day Board'),
             ),
@@ -26,6 +27,7 @@ void main() {
         ),
       );
       expect(find.bySemanticsLabel('Day Board placeholder'), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('reduced-motion collapses the chip flip to a fade', (

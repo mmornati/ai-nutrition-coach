@@ -3,12 +3,12 @@
 # AI Nutrition Coach — run the app locally in Chrome (web target).
 #
 # The repo has no Flutter SDK, Android SDK, or Xcode on the host; all Flutter
-# toolchain work happens inside the pinned Docker image
-# `ghcr.io/cirruslabs/flutter:stable`. This script:
+# toolchain work happens inside the pinned Docker image (Flutter 3.44.0, by
+# digest — see scripts/flutter_docker.sh, the single pin). This script:
 #
 #   1. builds the web bundle in that container,
-#   2. starts the static web-server via `flutter run -d web-server`
-#      (port 8080 by default),
+#   2. serves the bundle with a static web server bound to 127.0.0.1 only
+#      (port 8080 by default) — it is never exposed on the LAN,
 #   3. opens Chrome at `http://localhost:8080`.
 #
 # The bundle is compiled with `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`
@@ -22,7 +22,10 @@
 #   --tunnel   also expose the app to your phone via an ephemeral ngrok
 #              https URL (printed with a scannable QR when `qrencode` is
 #              installed). HTTPS is required for camera features (barcode,
-#              plate photo). Disabled by default.
+#              plate photo). Disabled by default. REFUSED when
+#              OPENPLATE_BYOK_API_KEY is set: that key is compiled into the
+#              JavaScript bundle, and a tunnel would publish it to the
+#              internet.
 # ───────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -41,9 +44,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="ghcr.io/cirruslabs/flutter:stable"
-# Persistent pub-cache volume so repeated runs don't re-download packages.
-PUB_VOLUME="ai_nutrition_coach_pubcache"
+# The pinned toolchain image (version + digest) lives in one place.
+IMAGE="$("$ROOT/scripts/flutter_docker.sh" --print-image)"
 
 # Load the developer's local runtime configuration (gitignored). Any
 # `AI_NUTRITION_COACH_*` value present in .env is forwarded as a `--dart-define`
@@ -54,6 +56,16 @@ if [[ -f "$ROOT/.env" ]]; then
   # shellcheck disable=SC1091
   source "$ROOT/.env"
   set +a
+fi
+
+# A build-time BYOK key is baked into the served JS bundle. Never publish that
+# bundle through a tunnel (full removal of the build-time key: Phase 3).
+if [[ "$TUNNEL" -eq 1 && -n "${OPENPLATE_BYOK_API_KEY:-}" ]]; then
+  echo "✗ refusing --tunnel: OPENPLATE_BYOK_API_KEY is set, and it would be" >&2
+  echo "  compiled into the JavaScript bundle served to the public internet." >&2
+  echo "  Unset it (or remove it from .env) and re-run; enter the key in" >&2
+  echo "  Settings → Your AI at run time instead." >&2
+  exit 3
 fi
 
 BYOK_DEFINES=""
@@ -70,11 +82,8 @@ if [[ -n "${AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE:-}" ]]; then
   BYOK_DEFINES="$BYOK_DEFINES --dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=$AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE"
 fi
 
-echo "▶ Building web bundle — HTML renderer (BYOK defines: ${AI_NUTRITION_COACH_BYOK_MODEL:-<none>})…"
-docker run --rm \
-  -v "$ROOT":/work -w /work \
-  -v "$PUB_VOLUME":/root/.pub-cache \
-  "$IMAGE" \
+echo "▶ Building web bundle (BYOK defines: ${OPENPLATE_BYOK_MODEL:-<none>})…"
+"$ROOT/scripts/flutter_docker.sh" \
   sh -c "cd apps/client && flutter build web --release $BYOK_DEFINES" \
   >/tmp/ai_nutrition_coach_web_build.log 2>&1 || {
     echo "✗ web build failed — tail of log:" >&2
@@ -94,9 +103,9 @@ fi
 echo "▶ Serving build/web on http://localhost:$PORT …"
 docker run --rm \
   -v "$ROOT":/work -w /work \
-  -p "$PORT":8080 \
+  -p "127.0.0.1:$PORT:8080" \
   "$IMAGE" \
-  sh -c "cd apps/client/build/web && python3 -m http.server 8080" &
+  sh -c "cd apps/client/build/web && python3 -m http.server 8080 --bind 0.0.0.0" &
 SERVER_PID=$!
 NGROK_PID=""
 

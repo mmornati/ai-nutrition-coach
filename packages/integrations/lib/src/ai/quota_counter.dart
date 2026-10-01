@@ -55,7 +55,7 @@ class InMemoryQuotaCounter implements QuotaCounter {
 
   final DateTime Function() _now;
   int _calls = 0;
-  late DateTime _dayKey;
+  late DateTime _dayKey = _dayKeyOf(_now());
 
   static DateTime _dayKeyOf(DateTime t) {
     final local = t.toLocal();
@@ -165,13 +165,6 @@ class SecureStorageQuotaCounter implements QuotaCounter {
       key: _alias(providerKind),
       value: _encode(dayKey, calls),
     );
-  }
-
-  Future<({DateTime day, int calls})> _freshDay(String providerKind) async {
-    final today = _today();
-    final fresh = (day: today, calls: 0);
-    await _write(providerKind, today, 0);
-    return fresh;
   }
 
   @override

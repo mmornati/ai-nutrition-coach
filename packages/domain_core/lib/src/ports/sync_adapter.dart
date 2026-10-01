@@ -13,7 +13,6 @@
 // never opens a third-party hostname — the only allowed endpoint
 // is the user's self-host relay (configured at build time).
 
-import '../entities/sync_op.dart';
 import '../results/sync_failure.dart';
 
 abstract interface class SyncAdapter {

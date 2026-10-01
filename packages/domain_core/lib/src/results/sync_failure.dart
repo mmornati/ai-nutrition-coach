@@ -15,7 +15,8 @@
 //
 // No raw exceptions cross either port (conventions).
 
-import '../entities/sync_op.dart';
+export '../entities/sync_op.dart' show SyncOp, SyncOpKind;
+export '../entities/sync_queue_state.dart';
 
 /// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
 /// Re-exported here for ergonomic import paths.

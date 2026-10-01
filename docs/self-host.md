@@ -59,7 +59,7 @@ bash scripts/smoke_self_host.sh
 ## Where things live
 
 ```
-infra/Dockerfile          multi-stage: cirruslabs/flutter:stable → nginx:alpine
+infra/Dockerfile          multi-stage: cirruslabs/flutter:3.44.0 (digest-pinned) → nginx:alpine
 infra/nginx.conf          SPA-friendly config (try_files + security headers)
 infra/docker-compose.yml  opt-in persistent-data stack (Story 4.4)
 bin/ai-nutrition-coach             the one-command affordance
@@ -82,6 +82,14 @@ docs/self-host.md         this file
 - **A relay transport.** Story 4.3 ships the durable outbox +
   the no-op `LocalOnlySyncAdapter`. A real self-host relay (OQ-1)
   drops in behind the same `SyncAdapter` port in v1.1.
+
+## Telemetry
+
+The self-host image ships with no telemetry by default (FR-12): the
+served bundle makes no analytics or tracking calls, and the only
+network paths are the ones the user enables (catalog lookups, an AI
+rung they configure). `melos run check:telemetry` pins this claim;
+see [`docs/telemetry-posture.md`](./telemetry-posture.md).
 
 ## Cross-references
 

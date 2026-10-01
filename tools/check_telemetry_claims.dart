@@ -102,6 +102,8 @@ bool _isSanctioned(String path) {
   if (path.contains('/test/')) return true;
   if (path.contains('/integration_test/')) return true;
   if (path.endsWith('.g.dart')) return true;
+  // The check scripts under tools/ carry the socket patterns they scan for.
+  if (path.startsWith('./tools/') || path.startsWith('tools/')) return true;
   for (final sanctioned in _sanctionedSockets) {
     if (path.startsWith(sanctioned) || path.contains('/$sanctioned')) {
       return true;

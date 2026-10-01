@@ -29,7 +29,6 @@
 import '../entities/coach_note.dart';
 import '../results/coach_interaction_failure.dart';
 import '../results/coach_note_failure.dart';
-import '../value_types/coach_interaction.dart';
 
 /// The single sanctioned coach-note write/read port (AD-1 / AD-3).
 abstract interface class CoachNoteStore {

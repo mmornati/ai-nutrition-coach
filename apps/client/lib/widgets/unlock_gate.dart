@@ -76,15 +76,10 @@ class _UnlockGateState extends ConsumerState<UnlockGate> {
 /// state. Avoids the cost of a full `ChangeNotifier` for what is
 /// effectively a boolean flip.
 class _SessionKeyListener extends ChangeNotifier {
-  _SessionKeyListener(this._key) {
-    final k = _key;
-    _isOpen = k != null && k.isOpen;
-  }
-  _SessionKeyListener.noop() : _key = null {
-    _isOpen = true;
-  }
+  _SessionKeyListener(WebSessionKey key) : _key = key, _isOpen = key.isOpen;
+  _SessionKeyListener.noop() : _key = null, _isOpen = true;
   final WebSessionKey? _key;
-  late bool _isOpen;
+  bool _isOpen;
   bool get isOpen => _isOpen;
 
   @override

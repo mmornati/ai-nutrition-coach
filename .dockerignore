@@ -26,11 +26,23 @@
 **/_bmad-output/
 **/_bmad/
 
-# Test surface (the production image is `flutter build web --release`)
+# Secrets and local tooling must never enter the build context.
+**/.env
+**/.env.*
+!**/.env.example
+.claude/
+
+# Test surface (the production image is `flutter build web --release`).
+# NB: generated `*.g.dart` files (drift's app_database.g.dart) are committed
+# and REQUIRED by the build — never exclude them.
 **/test/
 **/integration_test/
-# NB: generated `*.g.dart` sources (drift) are committed and needed by
-# the web build — do not exclude them here.
 
 # Self-host smoke test (Story 4.4)
 scripts/smoke_self_host.sh
+
+# Signing material / machine-local config (Android).
+**/key.properties
+**/*.jks
+**/*.keystore
+**/local.properties

@@ -21,6 +21,7 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/clock_provider.dart';
 import '../state/record_plate_provider.dart';
 
 /// The three meal slots the day is divided into. Anything outside the
@@ -107,7 +108,7 @@ class DayBoardState {
 /// switches to `dayBoardForDateProvider` for non-today selections.
 final dayBoardProvider = Provider<AsyncValue<DayBoardDay>>((ref) {
   final plates = ref.watch(recentPlatesProvider);
-  final now = DateTime.now();
+  final now = ref.watch(clockProvider)();
   return plates.when(
     loading: () => const AsyncValue.loading(),
     error: (e, st) => AsyncValue.error(e, st),

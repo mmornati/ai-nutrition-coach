@@ -45,6 +45,7 @@ class StatusChip extends ConsumerWidget {
     final status = _statusFor(plateLogId, perPlate);
 
     final label = switch (status) {
+      null => '· ${copy.localChip}',
       SyncOpStatusValue.pending => '· ${copy.pendingChip}',
       SyncOpStatusValue.synced => '· ${copy.syncedChip}',
       SyncOpStatusValue.failed => '· ${copy.failedChip}',
@@ -70,12 +71,14 @@ class StatusChip extends ConsumerWidget {
     );
   }
 
-  SyncOpStatusValue _statusFor(int plateLogId, List<SyncOpStatus>? perPlate) {
-    if (perPlate == null) return SyncOpStatusValue.synced;
+  /// `null` means "no queue op for this plate (yet)" — the plate is
+  /// local-only, rendered as `· local`.
+  SyncOpStatusValue? _statusFor(int plateLogId, List<SyncOpStatus>? perPlate) {
+    if (perPlate == null) return null;
     for (final entry in perPlate) {
       if (entry.plateLogId == plateLogId) return entry.status;
     }
-    return SyncOpStatusValue.synced;
+    return null;
   }
 }
 

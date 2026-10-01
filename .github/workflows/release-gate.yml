@@ -31,7 +31,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.0'
+          flutter-version: '3.44.0'
+          channel: stable
 
       - name: Install melos
         run: dart pub global activate melos 8.2.2
@@ -50,6 +51,12 @@ jobs:
 
       - name: Gate C — check release posture
         run: melos run check:release-posture
+
+      # TODO(Phase 7): make this a required gate once the three screens that
+      # lack Semantics (capture_photo, capture_barcode, your_data) are fixed.
+      - name: Accessibility floor (non-required until Phase 7)
+        continue-on-error: true
+        run: melos run check:a11y
 
       - name: Gate summary
         if: success()

@@ -50,7 +50,12 @@ dependencies:
   # and the on-disk schema. Pure-Dart, no JS interop.
   crypto: ^3.0.6
 
+  # `package:web` — the Blob-download export destination (web only).
+  web: ^1.1.1
+
 dev_dependencies:
+  flutter_test:
+    sdk: flutter
   drift_dev: ^2.34.3
   lints: ^5.0.0
   test: ^1.25.6

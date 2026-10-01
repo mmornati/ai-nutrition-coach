@@ -23,9 +23,13 @@
 
 set -eu
 
-IMAGE_TAG="${AI_NUTRITION_COACH_IMAGE_TAG:-ai-nutrition-coach:dev}"
-CONTAINER_NAME="${AI_NUTRITION_COACH_CONTAINER_NAME:-ai-nutrition-coach}"
-HOST_PORT="${AI_NUTRITION_COACH_HOST_PORT:-80}"
+# Always run from the repository root so `infra/Dockerfile` and the build
+# context resolve no matter where the script is invoked from.
+cd "$(dirname "$0")/.."
+
+IMAGE_TAG="${OPENPLATE_IMAGE_TAG:-openplate:dev}"
+CONTAINER_NAME="${OPENPLATE_CONTAINER_NAME:-openplate}"
+HOST_PORT="${OPENPLATE_HOST_PORT:-80}"
 
 up() {
   persist=0
@@ -42,9 +46,9 @@ up() {
     exit 10
   fi
 
-  printf 'ai-nutrition-coach: building %s ...\n' "$IMAGE_TAG"
+  printf 'openplate: building %s ...\n' "$IMAGE_TAG"
   if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
-    printf 'ai-nutrition-coach: image build failed — see the log tail above.\n' >&2
+    printf 'openplate: image build failed — see the log tail above.\n' >&2
     exit 20
   fi
 

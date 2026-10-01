@@ -21,9 +21,12 @@
 
 set -eu
 
-CONTAINER_NAME="ai-nutrition-coach-smoke"
-HOST_PORT="${AI_NUTRITION_COACH_SMOKE_PORT:-8088}"
-IMAGE_TAG="ai-nutrition-coach:smoke"
+# Run from the repository root (build context for infra/Dockerfile).
+cd "$(dirname "$0")/.."
+
+CONTAINER_NAME="openplate-smoke"
+HOST_PORT="${OPENPLATE_SMOKE_PORT:-8088}"
+IMAGE_TAG="openplate:smoke"
 START_TS=$(date +%s)
 BUDGET_SECONDS="${AI_NUTRITION_COACH_SMOKE_BUDGET:-300}"
 

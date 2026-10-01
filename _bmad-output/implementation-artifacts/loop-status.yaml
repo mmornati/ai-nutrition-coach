@@ -1,14 +1,30 @@
 # Loop Status
-# Epic 5 — commit-only mode (no remote, no push, no PR, no CI).
+# Epic 5 — commit-only mode (no remote, no push, no PR).
 # Each story is implemented, reviewed via self-check, committed on main, then
 # the next story begins. Status transitions are tracked inline below.
+#
+# VERIFICATION GATE (security review B2 / Phase 1): a story may be marked
+# `committed` ONLY after, from the repo root, this exits 0 — unconditionally:
+#
+#     scripts/verify.sh            # format:check, analyze (infos fatal), test,
+#                                  # and the release web build
+#
+# Add `--with-apk` (slow) for stories touching android/, plugins or native
+# deps; the APK build is optional per story but CI always runs it. Stories
+# touching infra/ must also pass `docker build -f infra/Dockerfile .`.
+# A red gate means the story stays `dev-in-progress`; "done" never means
+# "uncompiled". CI (.github/workflows/ci.yml) enforces the same gates once a
+# remote exists, so `skip_ci` must stay false. Optional local guard:
+# scripts/git-hooks/pre-commit (see CONTRIBUTING.md).
 started: "2026-08-16"
 total_stories: 4
 current_index: 0
 workflow_overrides:
   skip_push: true
   skip_pr: true
-  skip_ci: true
+  skip_ci: false                   # CI gates are mandatory — see VERIFICATION GATE above
+  require_green_before_commit:
+    - "scripts/verify.sh"
   branch_strategy: "main"          # commit straight to main; no per-story branches
   review_strategy: "self"          # implementer self-reviews; no bmad-code-review subagent
 stories:

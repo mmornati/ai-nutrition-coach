@@ -22,8 +22,6 @@
 
 import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart';
-
 import 'hosted_quota_provider.dart';
 
 /// The v1 default `HostedQuotaProvider` adapter. Calls Cloudflare

@@ -14,7 +14,7 @@
 // throws across the `AiRung` port boundary — transport failures
 // are wrapped in `RecognitionFailure` so the UI renders a single
 // calm message regardless of cause. The v1 quota ceiling is
-/// `kHostedQuotaPerDay = 50` (FR6 disclosed in-app and in docs).
+// `kHostedQuotaPerDay = 50` (FR6 disclosed in-app and in docs).
 //
 // AD-5: the core never branches on whether the rung is
 // `hostedQuota` vs `noOp`. The active rung is selected by config

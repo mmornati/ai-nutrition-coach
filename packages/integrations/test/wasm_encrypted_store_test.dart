@@ -1,14 +1,21 @@
 // `WebSessionKey` (in-memory PBKDF2 holder) round-trip + wrong-passphrase
 // + lock-resets-state pins. Story 4.1 / AD-8.
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
+import 'package:integrations/src/store/app_database.dart';
 
 void main() {
+  // `WebSessionKey()` is a process-wide singleton; reset it between tests so
+  // none of them observe another test's unlocked state.
+  tearDown(() => WebSessionKey().lock());
+
   group('WebSessionKey', () {
     test('starts locked, derives a key on unlock, opens on probe', () async {
       final key = WebSessionKey();
@@ -121,6 +128,20 @@ void main() {
       expect(store.isOpen, isFalse);
     });
 
+    test(
+      'tryOpen() surfaces UnsupportedError instead of reporting false',
+      () async {
+        final key = WebSessionKey();
+        final store = WasmEncryptedStore(
+          sessionKey: key,
+          databaseOpener: (_) async => throw UnsupportedError('no web store'),
+        );
+        await key.unlock(passphrase: 'whatever', probe: (_) async => true);
+        expect(store.tryOpen(), throwsUnsupportedError);
+        expect(store.isOpen, isFalse);
+      },
+    );
+
     test('tryOpen() after a successful unlock opens the database', () async {
       final key = WebSessionKey();
       var opened = 0;
@@ -148,7 +169,7 @@ Uint8List _deriveForTest({
   required Uint8List salt,
   required int iterations,
 }) {
-  final hmac = Hmac(sha256, utf8Encode(passphrase));
+  final hmac = Hmac(sha256, utf8.encode(passphrase));
   final block = Uint8List(salt.length + 4)
     ..setRange(0, salt.length, salt)
     ..buffer.asByteData().setUint32(salt.length, 1, Endian.big);

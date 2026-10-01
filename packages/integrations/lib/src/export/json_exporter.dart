@@ -39,10 +39,8 @@ class JsonExporter implements Exporter {
 
   @override
   Future<List<PlateLog>> readPlates({required ExportScope scope}) async {
-    final stream = _store.watchRecent();
-    final subscription = stream.listen((_) {});
-    final first = await stream.first;
-    await subscription.cancel();
+    // `.first` cancels the subscription itself once the snapshot lands.
+    final first = await _store.watchRecent().first;
     return filterPlates(first, scope);
   }
 }

@@ -13,7 +13,6 @@ import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
 import 'state/web_session_key_provider.dart';
 import 'state/web_unlock_probe_provider.dart';
-import 'state/your_ai_provider.dart';
 import 'theme/app_tokens.dart';
 import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';
@@ -173,7 +172,42 @@ class AiNutritionCoachApp extends StatelessWidget {
           labelSmall: AppTypography.mono,
         ),
       ),
+      builder: (context, child) {
+        if (!const BuildConfig().devInMemoryStore) {
+          return child ?? const SizedBox.shrink();
+        }
+        return Column(
+          children: [
+            const _DevStoreBanner(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        );
+      },
       home: const UnlockGate(),
+    );
+  }
+}
+
+/// Always-visible warning while the dev in-memory web store is active.
+class _DevStoreBanner extends StatelessWidget {
+  const _DevStoreBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Material(
+      color: Color(0xFFB3261E),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+          child: Center(
+            child: Text(
+              'DEV — not encrypted. Data lives in memory only.',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

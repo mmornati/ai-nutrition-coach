@@ -13,7 +13,7 @@
 // without exposing the private subtypes.
 
 sealed class ExportScope {
-  const ExportScope._();
+  const ExportScope();
 
   /// The visible day: every plate whose `loggedAtUtc` falls on
   /// the same local calendar day as `day`.
@@ -34,23 +34,24 @@ sealed class ExportScope {
     required T Function() allHistory,
   }) {
     final self = this;
-    if (self is _VisibleDay) return visibleDay(self.day);
-    if (self is _Week) return week(self.start);
-    if (self is _AllHistory) return allHistory();
-    throw StateError('unreachable: sealed ExportScope variant');
+    return switch (self) {
+      _VisibleDay() => visibleDay(self.day),
+      _Week() => week(self.start),
+      _AllHistory() => allHistory(),
+    };
   }
 }
 
-class _VisibleDay extends ExportScope {
-  const _VisibleDay(this.day) : super._();
+final class _VisibleDay extends ExportScope {
+  const _VisibleDay(this.day);
   final DateTime day;
 }
 
-class _Week extends ExportScope {
-  const _Week(this.start) : super._();
+final class _Week extends ExportScope {
+  const _Week(this.start);
   final DateTime start;
 }
 
-class _AllHistory extends ExportScope {
-  const _AllHistory() : super._();
+final class _AllHistory extends ExportScope {
+  const _AllHistory();
 }

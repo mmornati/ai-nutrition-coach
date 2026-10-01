@@ -34,6 +34,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/clock_provider.dart';
 import '../state/day_board_provider.dart';
 import '../state/last_log_provider.dart';
 import '../state/selected_date_provider.dart';
@@ -186,7 +187,7 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _titleFor(selected),
+                _titleFor(selected, ref.watch(clockProvider)()),
                 style: AppTypography.ui.copyWith(color: palette.ink),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -224,9 +225,8 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
   /// weekday depending on how far back it sits. The strip below
   /// already tells the user which day is selected; the title's job is
   /// to keep that consistent with what the screen is showing.
-  String _titleFor(DateTime? selected) {
+  String _titleFor(DateTime? selected, DateTime now) {
     if (selected == null) return 'Today';
-    final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     if (selected.year == today.year &&

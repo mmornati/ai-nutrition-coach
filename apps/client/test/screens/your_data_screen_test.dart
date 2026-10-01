@@ -11,9 +11,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:ai_nutrition_coach/screens/your_data_screen.dart';
-import 'package:ai_nutrition_coach/state/web_session_key_provider.dart';
-import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:openplate_client/screens/your_data_screen.dart';
+import 'package:openplate_client/state/platform_provider.dart';
+import 'package:openplate_client/state/web_session_key_provider.dart';
+import 'package:openplate_client/theme/app_tokens.dart';
 
 void main() {
   group('YourDataScreen', () {
@@ -23,6 +24,7 @@ void main() {
         ProviderScope(
           overrides: [
             // A fresh `WebSessionKey` is locked by default.
+            isWebProvider.overrideWithValue(true),
             webSessionKeyProvider.overrideWithValue(WebSessionKey()),
           ],
           child: const MaterialApp(home: YourDataScreen()),

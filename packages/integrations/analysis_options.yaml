@@ -6,5 +6,8 @@ include: package:lints/recommended.yaml
 
 linter:
   rules:
+    # Private named parameters (`this._x`) are the only way to satisfy this
+    # for the `required Foo foo` + `_foo = foo` constructor style used here.
+    prefer_initializing_formals: false
     library_private_types_in_public_api: true
     avoid_classes_with_only_static_members: true

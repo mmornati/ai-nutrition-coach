@@ -21,13 +21,33 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// The repository root, found by walking up from the package directory
+/// `flutter test` runs in until the `tools/` check scripts appear. The
+/// invariant spans every package + the app, so it cannot assume a cwd.
+final Directory _root = () {
+  var dir = Directory.current.absolute;
+  while (!File('${dir.path}/tools/check_telemetry_claims.dart').existsSync()) {
+    final parent = dir.parent;
+    if (parent.path == dir.path) {
+      throw StateError('repository root not found from ${Directory.current}');
+    }
+    dir = parent;
+  }
+  return dir;
+}();
+
+String _rel(String absolute) =>
+    absolute.substring(_root.path.length + 1).replaceAll(r'\', '/');
+
+File _file(String relative) => File('${_root.path}/$relative');
+
 void main() {
   group('no-telemetry invariant (Story 4.5 / FR-12 / FR-9 / NFR4)', () {
     test('only sanctioned paths open sockets (static check)', () {
       // Read every .dart file under apps/, packages/, and the
       // tool/. Allow `dio.get`, `http.get`, or `WebSocket` only in
       // the documented user-enabled paths.
-      final sanctionedPaths = <Pattern>[
+      final sanctionedPaths = <RegExp>[
         RegExp(r'packages/integrations/lib/src/catalog/'),
         RegExp(
           r'packages/integrations/lib/src/ai/cloudflare_workers_ai_provider\.dart',
@@ -40,15 +60,18 @@ void main() {
           r'packages/integrations/lib/src/ai/openai_compatible_byok_provider\.dart',
         ),
         RegExp(r'packages/integrations/lib/src/sync/'),
+        RegExp(r'^tools/'),
         RegExp(r'test/'),
         RegExp(r'integration_test/'),
         RegExp(r'.+\.g\.dart$'),
       ];
       final violations = <String>[];
-      for (final entity in Directory('.').listSync(recursive: true)) {
+      for (final entity in _root.listSync(recursive: true)) {
         if (entity is! File) continue;
-        if (!entity.path.endsWith('.dart')) continue;
-        if (sanctionedPaths.any((p) => p.hasMatch(entity.path))) continue;
+        final path = _rel(entity.path);
+        if (!path.endsWith('.dart')) continue;
+        if (path.contains('/.dart_tool/') || path.contains('/build/')) continue;
+        if (sanctionedPaths.any((p) => p.hasMatch(path))) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           final line = lines[i];
@@ -57,7 +80,7 @@ void main() {
               line.contains('http.get') ||
               line.contains('http.post') ||
               line.contains('WebSocket')) {
-            violations.add('${entity.path}:${i + 1}: $line');
+            violations.add('$path:${i + 1}: $line');
           }
         }
       }
@@ -69,7 +92,7 @@ void main() {
     });
 
     test('production main.dart does not invoke a network path at startup', () {
-      final main = File('apps/client/lib/main.dart').readAsStringSync();
+      final main = _file('apps/client/lib/main.dart').readAsStringSync();
       // Strip comments / strings before scanning.
       final stripped = main
           .replaceAll(RegExp(r'//.*'), '')
@@ -85,8 +108,8 @@ void main() {
     test(
       'docs/ai-tiers.md + docs/self-host.md no-telemetry copy is anchored',
       () {
-        final aiTiers = File('docs/ai-tiers.md').readAsStringSync();
-        final selfHost = File('docs/self-host.md').readAsStringSync();
+        final aiTiers = _file('docs/ai-tiers.md').readAsStringSync();
+        final selfHost = _file('docs/self-host.md').readAsStringSync();
         // Both files must assert "no telemetry by default" — Story 4.5
         // ships this anchor copy and the test pins it.
         expect(
@@ -118,7 +141,11 @@ void main() {
         'apps/client/lib/widgets/capture_fab.dart',
       ];
       for (final path in surfaces) {
-        final content = File(path).readAsStringSync();
+        // Comments may legitimately say "no Tip Jar" — only code counts.
+        final content = _file(path)
+            .readAsLinesSync()
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .join('\n');
         expect(
           content.toLowerCase().contains('tip jar'),
           isFalse,

@@ -24,9 +24,8 @@
 // by an at-rest cipher.
 
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart' hide WebSessionKey;
+import 'package:domain_core/domain_core.dart';
 import 'package:drift/drift.dart';
 
 import 'app_database.dart';
@@ -64,6 +63,11 @@ class WasmEncryptedStore implements EncryptedStore {
     try {
       _db = await _openDatabase(key);
       return _db != null;
+    } on UnsupportedError {
+      // This build has no web store: surface it so the lock screen can say
+      // so honestly instead of blaming the passphrase.
+      _db = null;
+      rethrow;
     } on Object {
       _db = null;
       return false;
@@ -196,8 +200,6 @@ class WasmEncryptedStore implements EncryptedStore {
         .toList(growable: false);
   }
 }
-
-String _formatNum(num n) => n.toString();
 
 num _parseNum(String raw) {
   if (raw.contains('.') || raw.contains('e') || raw.contains('E')) {

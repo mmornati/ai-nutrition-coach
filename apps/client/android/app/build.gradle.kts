@@ -5,8 +5,10 @@ plugins {
 }
 
 android {
-    namespace = "org.mmornati.ai_nutrition_coach"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "org.openplate.openplate_client"
+    // flutter_secure_storage 11 requires compileSdk 37 (its AAR metadata check
+    // fails the build otherwise); Flutter 3.44's default is 36.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

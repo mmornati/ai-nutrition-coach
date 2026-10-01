@@ -17,6 +17,12 @@
 class BuildConfig {
   const BuildConfig();
 
+  /// `true` when built with `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`:
+  /// the web store is an UNENCRYPTED in-memory placeholder. The app shows a
+  /// visible banner whenever this is on.
+  bool get devInMemoryStore =>
+      const bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
+
   /// The OpenAI-compatible chat completions endpoint URL (e.g.
   /// `https://openrouter.ai/api/v1`). Empty in default v1 builds
   /// — the BYOK rung refuses to call when this is empty.
