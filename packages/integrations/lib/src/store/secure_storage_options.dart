@@ -19,6 +19,7 @@
 // `SecureStorageByokKeyStore`, `SecureStorageQuotaCounter`, the eraser)
 // defaults to this instance so the posture cannot drift between them.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const FlutterSecureStorage openPlateSecureStorage = FlutterSecureStorage(
@@ -43,9 +44,10 @@ abstract final class SecureStorageAliases {
   /// Hosted-quota daily counter (`SecureStorageQuotaCounter`).
   static const String quotaHostedQuota = 'openplate_quota_hostedQuota_v1';
 
-  /// AI rung configuration. Not persisted today (the rung is held in the
-  /// Riverpod provider); reserved so a future persisted config is wiped
-  /// by the eraser from day one.
+  /// AI settings JSON (`SecureStorageAiSettingsStore`): active rung,
+  /// BYOK endpoint + model, per-host photo consents. Not secret, but
+  /// personal; wiped by the eraser. Mobile / desktop only (web keeps it
+  /// in memory).
   static const String rungConfig = 'openplate_ai_rung_config_v1';
 
   static const List<String> all = <String>[
@@ -115,4 +117,30 @@ Future<void> secureDeleteAllEverywhere(FlutterSecureStorage storage) async {
     iOptions: IOSOptions.defaultOptions,
     mOptions: MacOsOptions.defaultOptions,
   );
+}
+
+/// Web only, best effort, idempotent: delete the secure-storage aliases an
+/// older build may have left in this browser's `localStorage` (the BYOK key,
+/// the AI settings, the quota counter — on web `flutter_secure_storage` is
+/// `localStorage`). Current builds never write them on web (memory only), so
+/// anything found is a leftover. A no-op off web; failures are swallowed.
+///
+/// If a key was ever compiled into a build or sat in `localStorage`, treat
+/// it as exposed and ROTATE it at the provider (see `docs/ai-tiers.md`).
+Future<void> purgeLegacyWebSecureStorage({
+  FlutterSecureStorage? storage,
+}) async {
+  if (!kIsWeb && storage == null) return;
+  final s = storage ?? openPlateSecureStorage;
+  for (final alias in const [
+    SecureStorageAliases.byokKey,
+    SecureStorageAliases.rungConfig,
+    SecureStorageAliases.quotaHostedQuota,
+  ]) {
+    try {
+      await secureDeleteEverywhere(s, alias);
+    } on Object {
+      // Best effort.
+    }
+  }
 }

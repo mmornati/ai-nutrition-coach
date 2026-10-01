@@ -94,9 +94,10 @@ What this means in practice:
   WebAssembly memory while unlocked, so we do not claim the key is
   erased from RAM.)
 - **Forgot the passphrase?** The unlock screen offers *Erase and start
-  over*, behind a confirmation. It deletes the encrypted database, the
-  header and the saved AI key from this browser, and returns to first
-  run. *Erase all local data* in *Your data* does the same.
+  over*, behind a confirmation. It deletes the encrypted database and the
+  header from this browser, and returns to first run. (An AI key is never
+  stored in the browser at all — it lives in memory for the unlocked
+  session only; see [`ai-tiers.md`](./ai-tiers.md).) *Erase all local data* in *Your data* does the same.
 - If the browser's site data was partly cleared (header without data,
   or data without any header) the app does not guess and never creates
   a new store over what is left: it says the store can't be found and

@@ -59,8 +59,12 @@ melos:
         dart format --output=none --set-exit-if-changed tools
 
     build:web:
-      description: Fetch + verify the pinned sqlite3mc.wasm, then build the responsive client as a release web bundle (self-host).
-      run: bash scripts/fetch_web_sqlite.sh && cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+      description: Fetch + verify the pinned sqlite3mc.wasm, build the responsive client as a release web bundle (self-host), then scan it for secret-shaped strings (S1).
+      run: bash scripts/fetch_web_sqlite.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost) && bash tools/check_no_secrets_in_build.sh --web-only
+
+    check:secrets:
+      description: Scan the built web bundle (and any APK) for key-shaped strings — sk-, sk-or-v1-, AIza, Bearer <token> (S1). Run after a build.
+      run: bash tools/check_no_secrets_in_build.sh
 
     build:runner:
       description: Run drift codegen across the integrations package.

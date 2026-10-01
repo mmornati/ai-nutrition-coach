@@ -5,12 +5,14 @@
 // threw `UnimplementedCaptureTarget(photo)`.
 //
 // Flow:
-//   1. On mount, the screen reads the latest `lastPhotoBytesProvider`
-//      state and dispatches a fresh `AiRung.recognize` call through
-//      the `recognitionProvider` family. The screen also triggers a
-//      `PhotoCapture.capture()` so the OS camera UI appears on
-//      first build (mirrors the barcode screen's "open the scanner
-//      on mount" pattern).
+//   1. On mount, the screen triggers a `PhotoCapture.capture()` so the OS
+//      camera UI appears on first build (mirrors the barcode screen's
+//      "open the scanner on mount" pattern), then dispatches a fresh
+//      `AiRung.recognize` call. If the active rung would upload the photo
+//      to a third-party host (BYOK), the user is asked ONCE per host
+//      first (N1); "not now" skips the call and the photo is dropped.
+//      The photo bytes are held in a local only — never in a provider
+//      (N10).
 //   2. While the rung is running, the screen renders a quiet
 //      `ResolvingShimmer` — no spinner, no countdown, no urgency
 //      (UX-DR10 / FR15).
@@ -52,9 +54,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
+import '../state/ai_rung_provider.dart';
+import '../state/ai_settings_provider.dart';
 import '../state/manual_entry_provider.dart';
 import '../state/photo_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/photo_consent_dialog.dart';
 import '../widgets/recognized_match_sheet.dart';
 import '../widgets/resolving_shimmer.dart';
 import 'manual_entry_screen.dart';
@@ -146,8 +151,35 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       return;
     }
 
+    // N1: before the photo goes to a third-party host, ask — once per
+    // host. No host (no-AI rung, or nothing would be sent) means no ask.
+    String? host;
+    var consented = true;
+    try {
+      host = ref.read(photoUploadHostProvider);
+    } on Object catch (_) {
+      // Could not tell where this photo would go: fail closed — it goes
+      // nowhere (the no-AI core takes over).
+      consented = false;
+    }
+    if (host != null && !ref.read(photoConsentGrantedProvider(host))) {
+      consented = await confirmPhotoUpload(context, host: host);
+      if (!mounted) return;
+      if (consented) {
+        try {
+          await ref.read(aiSettingsProvider.notifier).grantPhotoConsent(host);
+        } on Object catch (_) {
+          // Could not remember it. Fail closed: the rung's consent guard
+          // reads the persisted setting, so this photo is NOT sent (the
+          // no-AI path takes over) and they are asked again next
+          // time.
+          consented = false;
+        }
+      }
+    }
+    if (!mounted) return;
+
     setState(() => _state = _PhotoSurfaceState.resolving);
-    ref.read(lastPhotoBytesProvider.notifier).state = bytes;
 
     // Kick off the rung call + the closest-matches lookup in
     // parallel. The rung's empty plate list is the v1 default; the
@@ -155,7 +187,6 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
     // ranked list does. We hold both futures so a retake cancels
     // them — only the latest capture's result renders on screen.
     _closestMatchesFuture = _fetchClosestMatches(bytes);
-    _recognitionFuture = ref.read(aiRungProvider).recognize(bytes);
 
     List<FoodMatch> closest = const <FoodMatch>[];
     RecognitionResult recognition = const RecognitionFailure('unreachable');
@@ -166,6 +197,15 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       // row stays empty; manual-add still works).
     }
     try {
+      // Read the rung INSIDE the try (F1): a missing override or a
+      // throwing adapter lands on the calm failure line, never on an
+      // endless shimmer. A "not now" never reaches the rung: the photo is
+      // dropped and the no-AI core (closest matches + manual) takes over.
+      _recognitionFuture = consented
+          ? ref.read(aiRungProvider).recognize(bytes)
+          : Future<RecognitionResult>.value(
+              const RecognizedPlate(foods: <RecognizedFood>[]),
+            );
       recognition = await _recognitionFuture!;
     } on Object catch (_) {
       // Defensive — adapters must wrap in `RecognitionFailure`,

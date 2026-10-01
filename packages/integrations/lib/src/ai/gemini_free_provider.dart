@@ -15,8 +15,7 @@
 // bytes and returns foods (or a transport failure); no device
 // fingerprint, no user identity.
 //
-// FR12 / NFR4: the adapter never emits telemetry; the API key is
-// never logged or reflected in `toString`.
+// FR12 / NFR4: the adapter never emits telemetry.
 
 import 'dart:typed_data';
 
@@ -32,13 +31,11 @@ import 'hosted_quota_provider.dart';
 /// adapter degrades honestly. The Gemini integration is a v1.1
 /// effort (see `docs/ai-tiers.md`).
 class GeminiFreeProvider implements HostedQuotaProvider {
-  const GeminiFreeProvider({this.apiKey = ''});
+  const GeminiFreeProvider({this.relayUrl = ''});
 
-  /// The Gemini API key. A build-time configuration value (read
-  /// from `--dart-define=GEMINI_API_KEY=...` or equivalent).
-  /// Empty in tests. The key is never logged or reflected in
-  /// `toString` (FR7 / NFR4).
-  final String apiKey;
+  /// The URL of the OpenPlate relay that fronts Gemini (S5). Not a secret;
+  /// empty until the relay exists.
+  final String relayUrl;
 
   @override
   Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async {

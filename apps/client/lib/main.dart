@@ -1,10 +1,10 @@
-import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:integrations/integrations.dart';
 
 import 'state/ai_rung_provider.dart';
+import 'state/ai_settings_provider.dart';
 import 'state/coach_note_provider.dart';
 import 'state/coach_provider.dart';
 import 'state/erase_provider.dart';
@@ -79,37 +79,24 @@ class _OpenPlateBootstrapState extends State<OpenPlateBootstrap> {
 Future<List<Override>> _bootOverrides(VoidCallback restart) async {
   final bundle = await createStores();
 
-  // Build-time BYOK affordance (Story 3.3 / FR-7 + the mobile-test
-  // wiring). When `--dart-define=AI_NUTRITION_COACH_BYOK_API_KEY=...` is
-  // passed at run time alongside the matching endpoint + model,
-  // the production app:
-  //   1. Seeds the secure-storage key store with the build-time
-  //      key so Settings → Your AI reports `hasKey = true` and the
-  //      Settings key entry is optional.
-  //   2. Wires the BYOK provider with the build-time endpoint +
-  //      model so `byokOpenAiCompatibleProviderProvider` resolves
-  //      to a working OpenAI-compatible HTTP adapter.
-  //   3. Flips the rung config to `AiRungKind.byok` so the photo
-  //      path resolves through the BYOK rung rather than the no-op
-  //      v1 default.
-  // The user can still override the key in Settings → Your AI; the
-  // secure-storage write is a one-time seed (the user-supplied key
-  // wins if present).
-  const buildConfig = BuildConfig();
-  final byokKeyStore = SecureStorageByokKeyStore();
-  if (buildConfig.hasByokDefaults && !await byokKeyStore.hasKey()) {
-    await byokKeyStore.write(buildConfig.byokApiKey);
-  }
-  final byokProvider =
-      buildConfig.byokEndpointUrl.isNotEmpty && buildConfig.byokModel.isNotEmpty
-      ? OpenAiCompatibleByokProvider(
-          endpointUrl: buildConfig.byokEndpointUrl,
-          model: buildConfig.byokModel,
-        )
-      : const OpenAiCompatibleByokProvider();
-  final initialRung = buildConfig.hasByokDefaults
-      ? const AiRungConfig(kind: AiRungKind.byok)
-      : const AiRungConfig(kind: AiRungKind.noOp);
+  // Phase 3 — AI settings (rung, BYOK endpoint + model, per-host photo
+  // consents) are runtime state, persisted by `createAiSettingsStore()`
+  // (secure storage on mobile; memory on web, where they live for the
+  // unlocked session like the key — S4). Hydrate once here; after that
+  // `aiSettingsProvider` is the single mutable source, so a change in
+  // Settings → Your AI takes effect on the next photo.
+  //
+  // There is NO build-time API key (S1): only the non-secret endpoint /
+  // model defaults may pre-fill the Your AI form. The key is typed at run
+  // time and lives in `createByokKeyStore()` — the OS keystore on mobile,
+  // memory only on web (cleared when the web store locks: the lock restarts
+  // this ProviderScope, which rebuilds these stores empty).
+  // Web: drop anything an older build left in localStorage-backed secure
+  // storage (best effort; no-op on mobile).
+  await purgeLegacyWebSecureStorage();
+  final aiSettingsStore = createAiSettingsStore();
+  final aiSettings = await aiSettingsStore.read();
+  final byokKeyStore = createByokKeyStore();
 
   return [
     encryptedStoreProvider.overrideWithValue(bundle.encryptedStore),
@@ -146,23 +133,24 @@ Future<List<Override>> _bootOverrides(VoidCallback restart) async {
     cameraPermissionProvider.overrideWithValue(
       const PermissionHandlerCameraPermission(),
     ),
-    // Story 3.1 + 3.3 — wire the AI rung config. The v1 default
-    // is `AiRungKind.noOp`; when a build-time BYOK key is
-    // supplied (see the `BuildConfig` block above) the rung
-    // flips to `AiRungKind.byok` so the photo path resolves
-    // through the user's key. The provider graph compiles
-    // against all four kinds (`noOp | hostedQuota | byok |
-    // local`) so a runtime flip without a rebuild is a
-    // Settings → Your AI tap.
-    aiRungConfigProvider.overrideWithValue(initialRung),
-    // Story 3.3 — wire the BYOK key store + the
-    // OpenAI-compatible provider. The build-time defaults
-    // resolve to a working HTTP adapter when the three
-    // `--dart-define`s are supplied; the default-construct
-    // provider returns `ByokFailure` for the unconfigured case
-    // so the rung never crashes the photo path.
+    // Phase 3 — the AI rung is derived from the persisted, runtime-
+    // mutable settings (`aiRungConfigProvider` / `aiRungProvider` /
+    // the BYOK transport all watch `aiSettingsProvider`).
+    initialAiSettingsProvider.overrideWithValue(aiSettings),
+    aiSettingsStoreProvider.overrideWithValue(aiSettingsStore),
+    // Story 3.3 — the BYOK key store: OS keystore on mobile, memory-only
+    // on web (S4).
     byokKeyStoreProvider.overrideWithValue(byokKeyStore),
-    byokOpenAiCompatibleProviderProvider.overrideWithValue(byokProvider),
+    // Story 3.2 — the hosted rung's collaborators. The hosted tier is a
+    // stub that makes no request and is not selectable (it needs a
+    // server-side relay: S5, docs/ai-tiers.md), but the providers are
+    // wired so nothing reachable throws when unoverridden.
+    quotaCounterProvider.overrideWithValue(
+      createQuotaCounter(ceiling: kHostedQuotaPerDay),
+    ),
+    hostedQuotaProviderProvider.overrideWithValue(
+      const CloudflareWorkersAiProvider(),
+    ),
     photoCaptureProvider.overrideWithValue(const ImagePickerPhotoCapture()),
     // Story 2.1 — wire the coach seam. `TemplateCoach` is the
     // v1 active rung; it resolves the `en` key store at

@@ -8,6 +8,12 @@
 #   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
 #             actually builds (it is built from the committed pubspec.lock).
 #
+# Secret scanning of the git history lives in gitleaks.yml (push, PR, weekly
+# schedule and manual dispatch).
+#
+# Build output is scanned for key-shaped strings after the web and APK builds
+# (tools/check_no_secrets_in_build.sh): anything compiled in is public (S1).
+#
 # Analyze + test are what the autonomous loop must pass before a story may be
 # marked committed (see _bmad-output/implementation-artifacts/loop-status.yaml).
 #
@@ -79,6 +85,11 @@ jobs:
           cd apps/client
           flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
 
+      - name: Secrets scan — web bundle (S1)
+        run: |
+          bash tools/check_no_secrets_in_build.sh --self-test
+          bash tools/check_no_secrets_in_build.sh --web-only
+
       - name: Build Android APK (debug)
         # flutter_secure_storage 11 compiles against android-37, which the
         # pinned image does not ship — install it (Phase 6 revisits the pin).
@@ -87,6 +98,9 @@ jobs:
           sdkmanager "platforms;android-37.0"
           cd apps/client
           flutter build apk --debug
+
+      - name: Secrets scan — web bundle + APK (S1)
+        run: bash tools/check_no_secrets_in_build.sh
 
   docker:
     name: Self-host image builds

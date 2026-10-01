@@ -1,11 +1,20 @@
 // Cloudflare Workers AI — the v1 default free provider (Story 3.2 /
 // FR6 / OQ-2).
 //
-// This adapter calls Cloudflare Workers AI's free vision model.
-// The Cloudflare account id + the model id are build-time
-// configuration values; the runtime never reads them from user
-// input or a remote config (FR7 — no user-supplied material in
-// the rung path).
+// STUB. Hosted tiers MUST be served through a server-side relay (S5).
+//
+// A Cloudflare API token is a credential for the project's account. It must
+// never be compiled into, or shipped with, the client: anything in a web
+// bundle or an APK can be extracted and used by anyone, with no quota. The
+// only acceptable shape is:
+//
+//     app  ──(photo, no credential)──►  OpenPlate relay  ──(token)──►  Cloudflare
+//
+// where the relay holds the token and enforces the per-day quota
+// server-side (the on-device `QuotaCounter` is a courtesy, not a control).
+// That relay does not exist yet, so this adapter deliberately has no token
+// parameter and makes no request. See `docs/ai-tiers.md` ("Hosted tiers
+// need a relay").
 //
 // PRD OQ-2: the concrete free provider (Cloudflare Workers AI vs
 // Gemini free tier) is a build-time adapter choice behind
@@ -31,27 +40,20 @@ import 'hosted_quota_provider.dart';
 /// adapter) without touching the rung or the core.
 class CloudflareWorkersAiProvider implements HostedQuotaProvider {
   const CloudflareWorkersAiProvider({
-    this.accountId = '',
+    this.relayUrl = '',
     this.model = '@cf/llava-1.5-7b-hf',
-    this.apiToken = '',
   });
 
-  /// The Cloudflare account id. A build-time configuration value
-  /// (read from `--dart-define=CLOUDFLARE_ACCOUNT_ID=...` or
-  /// equivalent). Empty in tests.
-  final String accountId;
+  /// The URL of the OpenPlate relay that fronts Cloudflare (S5). Not a
+  /// secret, and NOT a Cloudflare URL: the app never talks to Cloudflare
+  /// directly and never holds its token. Empty until the relay exists.
+  final String relayUrl;
 
   /// The Cloudflare Workers AI model id. Defaults to the LLaVA
   /// vision model (Cloudflare's free tier ships LLaVA + a small
   /// Whisper variant at zero cost; the LLaVA model is the food-
   /// recognition-friendly choice).
   final String model;
-
-  /// The Cloudflare API token. A build-time configuration value
-  /// (read from `--dart-define=CLOUDFLARE_API_TOKEN=...` or
-  /// equivalent). Empty in tests. The token is never logged or
-  /// reflected in `toString`.
-  final String apiToken;
 
   @override
   Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async {
@@ -64,10 +66,9 @@ class CloudflareWorkersAiProvider implements HostedQuotaProvider {
     // right now" line and the user can still log the plate via
     // closest-matches + manual fallback.
     //
-    // The actual HTTP call (Cloudflare's
-    // `https://api.cloudflare.com/client/v4/accounts/$accountId/ai/run/$model`
-    // POST with a multipart body carrying the photo bytes) is the
-    // OQ-2 follow-up. The Story 3.2 ladder carries the quota
+    // The actual call goes to the relay (`relayUrl`), which holds the
+    // Cloudflare token and POSTs to Cloudflare's `ai/run/$model`. It is the
+    // OQ-2 follow-up and needs the relay first (S5). The Story 3.2 ladder carries the quota
     // counter + the 3-way notice surface so the
     // OQ-2 transport swap is a one-file change.
     return const HostedQuotaFailure(

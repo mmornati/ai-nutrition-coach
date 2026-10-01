@@ -43,6 +43,9 @@ RUN bash scripts/fetch_web_sqlite.sh
 
 COPY apps ./apps
 COPY packages ./packages
+# The `build:web` script ends with the secrets scan of the bundle (S1): the
+# image build fails if a key-shaped string was compiled in.
+COPY tools/check_no_secrets_in_build.sh tools/check_no_secrets_in_build.sh
 
 # Build the web release bundle via the `build:web` script in the root
 # pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` keeps the

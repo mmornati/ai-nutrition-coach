@@ -28,13 +28,16 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ai_nutrition_coach/screens/capture_photo_screen.dart';
-import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
-import 'package:ai_nutrition_coach/state/coach_provider.dart';
-import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
-import 'package:ai_nutrition_coach/state/photo_provider.dart';
-import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
-import 'package:ai_nutrition_coach/widgets/recognized_match_sheet.dart';
+import 'package:integrations/integrations.dart';
+import 'package:openplate_client/screens/capture_photo_screen.dart';
+import 'package:openplate_client/state/ai_rung_provider.dart';
+import 'package:openplate_client/state/ai_settings_provider.dart';
+import 'package:openplate_client/state/coach_note_provider.dart';
+import 'package:openplate_client/state/coach_provider.dart';
+import 'package:openplate_client/state/manual_entry_provider.dart';
+import 'package:openplate_client/state/photo_provider.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:openplate_client/widgets/recognized_match_sheet.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 
@@ -65,9 +68,17 @@ Widget _wrap(
   required FakeAiRung rung,
   required FoodCatalog catalog,
   ThemeMode mode = ThemeMode.light,
+  AiSettings settings = AiSettings.defaults,
+  InMemoryAiSettingsStore? settingsStore,
 }) {
   return ProviderScope(
     overrides: [
+      // Phase 3: the upload host (and so the consent ask) derives from the
+      // settings; the default is no-AI, i.e. nothing is uploaded.
+      initialAiSettingsProvider.overrideWithValue(settings),
+      aiSettingsStoreProvider.overrideWithValue(
+        settingsStore ?? InMemoryAiSettingsStore(initial: settings),
+      ),
       encryptedStoreProvider.overrideWithValue(store),
       foodCatalogProvider.overrideWithValue(catalog),
       aiRungProvider.overrideWithValue(rung),
@@ -317,5 +328,109 @@ void main() {
         expect(store.capturedDrafts.single.databaseFood.displayName, 'Apple');
       },
     );
+  });
+
+  group('CapturePhotoScreen photo consent (N1 / N10)', () {
+    const byok = AiSettings(
+      rung: AiRungConfig(
+        kind: AiRungKind.byok,
+        previousRung: ByokPreviousRung(previousKind: AiRungKind.noOp),
+      ),
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'm',
+    );
+
+    Future<void> pumpScreen(
+      WidgetTester tester, {
+      required FakeAiRung rung,
+      required AiSettings settings,
+      InMemoryAiSettingsStore? settingsStore,
+    }) async {
+      final store = FakeEncryptedStore();
+      addTearDown(store.close);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: rung,
+          catalog: _FakeFoodCatalog(const [_appleMatch]),
+          settings: settings,
+          settingsStore: settingsStore,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('first photo to a host asks, naming the host; Allow sends '
+        'the photo and remembers the host', (tester) async {
+      final rung = FakeAiRung();
+      final settingsStore = InMemoryAiSettingsStore(initial: byok);
+      await pumpScreen(
+        tester,
+        rung: rung,
+        settings: byok,
+        settingsStore: settingsStore,
+      );
+
+      expect(find.text('Send this photo to api.example.com?'), findsOneWidget);
+      expect(rung.calls, isEmpty, reason: 'nothing is sent before the answer');
+
+      await tester.tap(find.text('Allow api.example.com'));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(rung.calls, hasLength(1));
+      expect(
+        (await settingsStore.read()).hasConsentFor('api.example.com'),
+        isTrue,
+      );
+    });
+
+    testWidgets('Not now drops the photo: the rung is never called and no '
+        'consent is stored; the no-AI core still renders', (tester) async {
+      final rung = FakeAiRung();
+      final settingsStore = InMemoryAiSettingsStore(initial: byok);
+      await pumpScreen(
+        tester,
+        rung: rung,
+        settings: byok,
+        settingsStore: settingsStore,
+      );
+
+      await tester.tap(find.text('Not now'));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(rung.calls, isEmpty);
+      expect((await settingsStore.read()).photoConsentHosts, isEmpty);
+      expect(find.byType(RecognizedMatchSheet), findsOneWidget);
+      expect(find.text('Closest matches'), findsOneWidget);
+    });
+
+    testWidgets('an already-consented host is not asked again', (tester) async {
+      final rung = FakeAiRung();
+      final consented = byok.copyWith(photoConsentHosts: {'api.example.com'});
+      await pumpScreen(tester, rung: rung, settings: consented);
+
+      expect(find.textContaining('Send this photo to'), findsNothing);
+      expect(rung.calls, hasLength(1));
+    });
+
+    testWidgets('no-AI rung never asks (nothing leaves the device)', (
+      tester,
+    ) async {
+      final rung = FakeAiRung();
+      await pumpScreen(tester, rung: rung, settings: AiSettings.defaults);
+
+      expect(find.textContaining('Send this photo to'), findsNothing);
+      expect(rung.calls, hasLength(1));
+    });
   });
 }

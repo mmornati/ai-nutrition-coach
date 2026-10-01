@@ -33,6 +33,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart' show enSettingsStrings;
 
 import '../state/clock_provider.dart';
 import '../state/day_board_provider.dart';
@@ -48,6 +49,7 @@ import '../widgets/week_strip.dart';
 import 'capture_barcode_screen.dart';
 import 'capture_photo_screen.dart';
 import 'manual_entry_screen.dart';
+import 'settings_screen.dart';
 
 class DayBoardScreen extends ConsumerStatefulWidget {
   const DayBoardScreen({super.key});
@@ -110,6 +112,12 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
   void _hideQuickRepeat() {
     if (!mounted) return;
     setState(() => _quickRepeatVisible = false);
+  }
+
+  void _openSettings() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
   }
 
   /// Open the capture sheet with the canonical routing wiring. Used
@@ -198,6 +206,20 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
                   // Web only (Phase 2B / W4): manual lock. Renders nothing
                   // on mobile and the dev in-memory store.
                   const WebLockButton(),
+                  // Phase 3 / F5: the way into Settings → Your AI /
+                  // Your data / About.
+                  IconButton(
+                    tooltip: enSettingsStrings.openSettings,
+                    constraints: const BoxConstraints(
+                      minWidth: AppTouchTargets.min,
+                      minHeight: AppTouchTargets.min,
+                    ),
+                    icon: Icon(
+                      Icons.settings_outlined,
+                      color: palette.inkMuted,
+                    ),
+                    onPressed: _openSettings,
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),

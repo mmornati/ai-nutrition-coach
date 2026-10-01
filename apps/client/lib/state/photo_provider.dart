@@ -15,25 +15,25 @@
 // the screen renders the calm copy in either case without
 // inspecting platform strings.
 //
-// `aiRungProvider` is the production seam for the active rung.
-// `main.dart` overrides it with `NoopAiRung()`; tests inject a
-// `FakeAiRung` that records calls and returns a configured result.
+// The active rung is `aiRungProvider` in `ai_rung_provider.dart` — the
+// config-driven one. (This file used to define a second, throwing
+// `aiRungProvider` that the photo screen imported, so photo recognition
+// could never run: security review F1. It is gone; tests override the real
+// one.)
 //
-// `recognitionProvider` is the future-driven side of the dispatch:
-// the screen triggers a fresh `recognize` call on every successful
-// capture and cancels the previous future if a new capture arrives
-// before the previous one lands (the multi-shot I/O matrix).
-//
-// Riverpod 3.x puts `StateProvider` in `legacy.dart`; the ephemeral
-// capture state lives here for parity with the manual-entry
-// notifier shape.
+// Privacy (N1 / N10): the captured bytes are NOT retained anywhere after
+// the recognition call — there is no "last photo" provider. The capture
+// adapter asks the picker to downscale (max 1024 px, quality 80); the
+// metadata strip and MIME detection happen at the upload point
+// (`sanitizePhotoForUpload`), which is where the guarantee is enforced.
 
 import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'ai_rung_provider.dart';
 
 /// Photo-capture port. The production adapter wraps `image_picker`'s
 /// `ImagePicker().pickImage(source: ImageSource.camera)`; tests
@@ -52,17 +52,6 @@ abstract interface class PhotoCapture {
   Future<Uint8List?> capture();
 }
 
-/// `AiRung` seam — overridden in `main.dart` with `NoopAiRung()`
-/// (Story 1.8 v1 active rung). Tests inject a `FakeAiRung` that
-/// records `recognize` calls and returns a configured
-/// `RecognitionResult`.
-final aiRungProvider = Provider<AiRung>(
-  (ref) => throw UnimplementedError(
-    'aiRungProvider must be overridden at the ProviderScope root '
-    'with the result of `NoopAiRung()` — see apps/client/lib/main.dart.',
-  ),
-);
-
 /// `PhotoCapture` seam — overridden in `main.dart` with the
 /// production `ImagePickerPhotoCapture`. Tests inject a
 /// `FakePhotoCapture`.
@@ -73,11 +62,6 @@ final photoCaptureProvider = Provider<PhotoCapture>(
     'apps/client/lib/main.dart.',
   ),
 );
-
-/// Holds the latest captured photo bytes. `null` until the user
-/// captures a photo. The screen reads this to drive the
-/// `recognitionProvider` family lookup.
-final lastPhotoBytesProvider = StateProvider<Uint8List?>((_) => null);
 
 /// Family-keyed recognition call. The screen reads
 /// `ref.read(recognitionProvider(bytes).future)` after a capture
@@ -109,7 +93,18 @@ class ImagePickerPhotoCapture implements PhotoCapture {
   @override
   Future<Uint8List?> capture() async {
     final picker = _picker ?? ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera);
+    // N1: ask the platform to downscale and re-encode. This reduces what is
+    // uploaded, but is NOT relied on to drop EXIF (the Android plugin copies
+    // EXIF back onto the resized file): `sanitizePhotoForUpload` strips
+    // metadata at the point of upload. `requestFullMetadata: false` avoids
+    // asking iOS for photo-library (location) access just to read a photo.
+    final file = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+      requestFullMetadata: false,
+    );
     if (file == null) return null;
     final bytes = await file.readAsBytes();
     return bytes;

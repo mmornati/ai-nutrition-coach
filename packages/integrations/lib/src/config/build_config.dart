@@ -6,9 +6,12 @@
 // resolved at compile time; the class is `const`-constructable so
 // callers can `const BuildConfig()`.
 //
-// **Do not commit API keys to source.** `--dart-define` values live
-// in the build cache and the running process; they are not in the
-// repo. The CI workflows do not pass any BYOK secrets.
+// **There is deliberately NO API-key define (S1).** Every `--dart-define`
+// is compiled into the bundle / APK as a plain string: anyone who can
+// download the app can read it. Only NON-secret defaults (the endpoint and
+// model) are build-time; the user's key is typed into Settings → Your AI at
+// run time. `tools/check_no_secrets_in_build.sh` scans the build output for
+// key-shaped strings and fails CI if one appears.
 //
 // Convention: every `AI_NUTRITION_COACH_*` env var is read by exactly one
 // property here so the rest of the codebase doesn't reach for
@@ -34,9 +37,9 @@ class BuildConfig {
       buildFlavor == 'dev' &&
       const bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
 
-  /// The OpenAI-compatible chat completions endpoint URL (e.g.
-  /// `https://openrouter.ai/api/v1`). Empty in default v1 builds
-  /// — the BYOK rung refuses to call when this is empty.
+  /// A default OpenAI-compatible base URL (e.g.
+  /// `https://openrouter.ai/api/v1`) used to pre-fill the Your AI form.
+  /// Empty in default builds. Not a secret.
   String get byokEndpointUrl =>
       const String.fromEnvironment('AI_NUTRITION_COACH_BYOK_ENDPOINT_URL');
 
@@ -45,20 +48,9 @@ class BuildConfig {
   /// builds.
   String get byokModel => const String.fromEnvironment('OPENPLATE_BYOK_MODEL');
 
-  /// The user-supplied API key. Empty in default v1 builds; the
-  /// BYOK rung reads from the secure-storage key store at runtime
-  /// and falls back to this value when the store is empty.
-  ///
-  /// **Never committed.** Pass at run time:
-  /// `--dart-define=AI_NUTRITION_COACH_BYOK_API_KEY=<key>`.
-  String get byokApiKey =>
-      const String.fromEnvironment('AI_NUTRITION_COACH_BYOK_API_KEY');
-
-  /// True when all three BYOK values are present and non-empty so
-  /// the production `main.dart` can seed the secure-storage key
-  /// store + flip the rung to `AiRungKind.byok`.
+  /// True when a default endpoint AND model are baked in. They are NOT
+  /// secrets, so they may pre-fill the Your AI form; they never switch the
+  /// rung on by themselves (the user must still enter a key and choose it).
   bool get hasByokDefaults =>
-      byokEndpointUrl.isNotEmpty &&
-      byokModel.isNotEmpty &&
-      byokApiKey.isNotEmpty;
+      byokEndpointUrl.isNotEmpty && byokModel.isNotEmpty;
 }

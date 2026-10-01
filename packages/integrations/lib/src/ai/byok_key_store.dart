@@ -3,9 +3,16 @@
 //
 // Wraps `flutter_secure_storage` so the BYOK key persists encrypted
 // at rest (Keychain on iOS / macOS, EncryptedSharedPreferences on
-// Android). On web the key is session-only — `flutter_secure_storage`
-// falls back to session storage (no OS keystore); the AD-8 honest-
-// difference story is documented in `docs/ai-tiers.md`.
+// Android).
+//
+// Web (S4): the key is held in MEMORY ONLY, for the unlocked session —
+// `createByokKeyStore()` hands back an `InMemoryByokKeyStore` there, and
+// `SecureStorageByokKeyStore` refuses to be built on web, because
+// `flutter_secure_storage`'s web backend is `localStorage` (readable by any
+// script on the origin, survives the lock screen). Locking the web store
+// restarts the provider scope, which drops the in-memory store and with it
+// the key; re-entering it after unlock is the price of that guarantee.
+// See `docs/ai-tiers.md`.
 //
 // FR7 / NFR4: the key never appears in any string the store
 // produces. `toString()` returns `ByokKeyStore(hasKey: <bool>)` —
@@ -18,6 +25,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../store/secure_storage_options.dart';
@@ -42,14 +50,37 @@ abstract interface class ByokKeyStore {
   Future<bool> hasKey();
 }
 
+/// The platform-appropriate key store: the OS keystore on mobile / desktop,
+/// memory only on web (S4 — never `localStorage`).
+ByokKeyStore createByokKeyStore() =>
+    kIsWeb ? InMemoryByokKeyStore() : SecureStorageByokKeyStore();
+
+/// The only part of a saved key the UI may ever show: its last four
+/// characters, and only when the key is long enough (12+) that four
+/// characters are a small fraction of it. `null` otherwise. Never the
+/// start of the key (that identifies the provider and key family).
+String? byokKeyEndingHint(String? key) {
+  if (key == null || key.length < 12) return null;
+  return key.substring(key.length - 4);
+}
+
 /// Production implementation backed by `flutter_secure_storage`
 /// (Keychain on iOS / macOS, EncryptedSharedPreferences on Android).
-/// On web, `flutter_secure_storage` falls back to session-only
-/// storage (AD-8 honest-difference story — the key is per-session
-/// on web, documented in `docs/ai-tiers.md`).
+/// NOT available on web — see the library comment; use
+/// [createByokKeyStore].
 class SecureStorageByokKeyStore implements ByokKeyStore {
   SecureStorageByokKeyStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? openPlateSecureStorage;
+    : _storage = storage ?? _requireNativeStorage();
+
+  static FlutterSecureStorage _requireNativeStorage() {
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'The BYOK key must never be stored via flutter_secure_storage on web '
+        '(it is localStorage). Use InMemoryByokKeyStore / createByokKeyStore().',
+      );
+    }
+    return openPlateSecureStorage;
+  }
 
   /// The secure-storage alias. Versioned (`_v1`) so a future
   /// storage-format change can ship without colliding with
@@ -117,4 +148,43 @@ class InMemoryByokKeyStore implements ByokKeyStore {
   /// Redacted `toString` (FR7 / NFR4).
   @override
   String toString() => 'ByokKeyStore(hasKey: ${_key != null})';
+}
+
+/// A view of [inner] that only yields the key while it is being used for the
+/// host it was entered for. [boundHost] is the host recorded when the key was
+/// saved (empty = unknown, e.g. a key saved by an older build);
+/// [endpointHost] is the host of the endpoint the request would go to. On any
+/// mismatch the key reads as ABSENT, so the rung reports "key missing" and
+/// nothing is sent — editing the endpoint can never redirect a key to a new
+/// server. Writes and clears pass through.
+class HostBoundByokKeyStore implements ByokKeyStore {
+  const HostBoundByokKeyStore({
+    required this.inner,
+    required this.boundHost,
+    required this.endpointHost,
+  });
+
+  final ByokKeyStore inner;
+  final String boundHost;
+  final String endpointHost;
+
+  bool get _matches =>
+      boundHost.isNotEmpty &&
+      endpointHost.isNotEmpty &&
+      boundHost.toLowerCase() == endpointHost.toLowerCase();
+
+  @override
+  Future<String?> read() async => _matches ? inner.read() : null;
+
+  @override
+  Future<bool> hasKey() async => _matches && await inner.hasKey();
+
+  @override
+  Future<void> write(String key) => inner.write(key);
+
+  @override
+  Future<void> clear() => inner.clear();
+
+  @override
+  String toString() => 'HostBoundByokKeyStore()';
 }

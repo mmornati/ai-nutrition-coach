@@ -890,3 +890,309 @@ const ManagedOversightStrings enManagedOversightStrings =
           'Family oversight is a v2 seam — not in v1. Read-only, '
           'support-not-surveillance, pending COPPA review.',
     );
+
+// =====================================================================
+// Phase 3 — Settings navigation, Your AI screen, photo consent.
+//
+// AD-7: keyed, never built from fragments in widgets (the only
+// interpolation is the documented `{host}` / `{last4}` / `{status}`
+// placeholders, replaced verbatim). Calm and non-judgmental (FR-15): no
+// warnings in red, no "you must", no pressure to turn AI on.
+// =====================================================================
+
+/// The Settings list (reachable from the Day Board's app-bar action).
+class SettingsStrings {
+  const SettingsStrings({
+    required this.title,
+    required this.openSettings,
+    required this.yourAi,
+    required this.yourData,
+    required this.about,
+    required this.yourAiNone,
+    required this.yourAiByok,
+    required this.yourDataSubtitle,
+    required this.aboutSubtitle,
+  });
+
+  final String title;
+
+  /// Accessible label of the Day Board's Settings action.
+  final String openSettings;
+  final String yourAi;
+  final String yourData;
+  final String about;
+
+  /// Subtitle of the Your AI row when no AI is on.
+  final String yourAiNone;
+
+  /// Subtitle of the Your AI row when the user's own key is on.
+  final String yourAiByok;
+  final String yourDataSubtitle;
+  final String aboutSubtitle;
+}
+
+const SettingsStrings enSettingsStrings = SettingsStrings(
+  title: 'Settings',
+  openSettings: 'Settings',
+  yourAi: 'Your AI',
+  yourData: 'Your data',
+  about: 'About',
+  yourAiNone: 'offline (no AI)',
+  yourAiByok: 'your key',
+  yourDataSubtitle: 'export · lock · erase',
+  aboutSubtitle: 'yours to run · open source',
+);
+
+/// The Your AI screen (Settings → Your AI).
+class YourAiStrings {
+  const YourAiStrings({
+    required this.title,
+    required this.intro,
+    required this.rungHeading,
+    required this.rungNoneLabel,
+    required this.rungNoneHelp,
+    required this.rungByokLabel,
+    required this.rungByokHelp,
+    required this.rungHostedLabel,
+    required this.rungLocalLabel,
+    required this.rungUnavailable,
+    required this.byokHeading,
+    required this.endpointLabel,
+    required this.endpointHint,
+    required this.endpointHelp,
+    required this.endpointEmpty,
+    required this.endpointNotAUrl,
+    required this.endpointNotHttps,
+    required this.endpointHasCredentials,
+    required this.endpointHasQuery,
+    required this.modelLabel,
+    required this.modelHint,
+    required this.modelEmpty,
+    required this.keyLabel,
+    required this.keyHint,
+    required this.keyHelp,
+    required this.keyHelpWeb,
+    required this.keySavedTemplate,
+    required this.keySavedPlain,
+    required this.keyNone,
+    required this.keyReplaceHint,
+    required this.save,
+    required this.removeKey,
+    required this.saved,
+    required this.keyRemoved,
+    required this.keyInvalid,
+    required this.testConnection,
+    required this.testing,
+    required this.testOk,
+    required this.testKeyRejected,
+    required this.testRateLimited,
+    required this.testTimeout,
+    required this.testNetwork,
+    required this.testUnexpected,
+    required this.testNotConfigured,
+    required this.testTooLarge,
+    required this.testKeyOtherHost,
+    required this.keyOtherHost,
+    required this.privacyHeading,
+    required this.consentNone,
+    required this.consentExplainer,
+    required this.consentRevoke,
+    required this.docsHint,
+    required this.docsCopied,
+  });
+
+  final String title;
+  final String intro;
+  final String rungHeading;
+  final String rungNoneLabel;
+  final String rungNoneHelp;
+  final String rungByokLabel;
+  final String rungByokHelp;
+  final String rungHostedLabel;
+  final String rungLocalLabel;
+
+  /// Shown under rungs that exist in the design but not in this build.
+  final String rungUnavailable;
+  final String byokHeading;
+  final String endpointLabel;
+  final String endpointHint;
+  final String endpointHelp;
+  final String endpointEmpty;
+  final String endpointNotAUrl;
+  final String endpointNotHttps;
+  final String endpointHasCredentials;
+  final String endpointHasQuery;
+  final String modelLabel;
+  final String modelHint;
+  final String modelEmpty;
+  final String keyLabel;
+  final String keyHint;
+
+  /// Mobile: where the key is kept.
+  final String keyHelp;
+
+  /// Web: the key is memory-only (S4).
+  final String keyHelpWeb;
+
+  /// `key saved • ends with ••••{last4}` — never more than the last four.
+  final String keySavedTemplate;
+
+  /// Used when the key is too short for a safe hint.
+  final String keySavedPlain;
+  final String keyNone;
+  final String keyReplaceHint;
+  final String save;
+  final String removeKey;
+  final String saved;
+  final String keyRemoved;
+  final String keyInvalid;
+  final String testConnection;
+  final String testing;
+  final String testOk;
+  final String testKeyRejected;
+  final String testRateLimited;
+  final String testTimeout;
+  final String testNetwork;
+
+  /// `{status}` is the HTTP status code.
+  final String testUnexpected;
+  final String testNotConfigured;
+  final String testTooLarge;
+
+  /// The saved key belongs to another endpoint than the one being tested.
+  final String testKeyOtherHost;
+
+  /// Saving a new endpoint without re-entering the key; `{host}` is the
+  /// host the saved key was entered for.
+  final String keyOtherHost;
+  final String privacyHeading;
+  final String consentNone;
+  final String consentExplainer;
+  final String consentRevoke;
+  final String docsHint;
+  final String docsCopied;
+}
+
+const YourAiStrings enYourAiStrings = YourAiStrings(
+  title: 'Your AI',
+  intro:
+      'OpenPlate works fully without AI. If you like, you can let a service '
+      'you choose suggest foods from a photo — with your own key, your call.',
+  rungHeading: 'Recognising a photo',
+  rungNoneLabel: 'No AI',
+  rungNoneHelp: 'Photos stay on this device. You pick a match or type it.',
+  rungByokLabel: 'My own key',
+  rungByokHelp: 'Photos go to the service you set below, using your key.',
+  rungHostedLabel: 'Free hosted model',
+  rungLocalLabel: 'Model on this device',
+  rungUnavailable: 'Not available yet',
+  byokHeading: 'Your service',
+  endpointLabel: 'Endpoint',
+  endpointHint: 'https://openrouter.ai/api/v1',
+  endpointHelp:
+      'Starts with https://. A model running on this device may use '
+      'http://localhost.',
+  endpointEmpty: 'Add the address of your service.',
+  endpointNotAUrl: "That doesn't look like a web address.",
+  endpointNotHttps: 'Use https:// — plain http:// works only for localhost.',
+  endpointHasCredentials: 'Leave the username and password out of the address.',
+  endpointHasQuery: 'Leave anything after "?" or "#" out of the address.',
+  modelLabel: 'Model',
+  modelHint: 'e.g. google/gemini-2.0-flash-exp:free',
+  modelEmpty: 'Add the model name your service offers.',
+  keyLabel: 'API key',
+  keyHint: 'Paste your key',
+  keyHelp:
+      'Kept encrypted on this device. It is sent only to the endpoint above '
+      'and is never shown again.',
+  keyHelpWeb:
+      'Kept in memory for this unlocked session only — locking or closing '
+      'the tab removes it. It is sent only to the endpoint above and is '
+      'never shown again.',
+  keySavedTemplate: 'key saved • ends with ••••{last4}',
+  keySavedPlain: 'key saved',
+  keyNone: 'no key saved',
+  keyReplaceHint: 'Paste a new key to replace it.',
+  save: 'Save',
+  removeKey: 'Remove key',
+  saved: 'Saved.',
+  keyRemoved: 'Key removed.',
+  keyInvalid: 'That key has spaces or line breaks in it — paste it again.',
+  testConnection: 'Test connection',
+  testing: 'Checking…',
+  testOk: 'Connected — the endpoint, model and key work.',
+  testKeyRejected: "The service didn't accept this key.",
+  testRateLimited: 'The service asks to slow down. Try again a little later.',
+  testTimeout: "The service didn't answer in time.",
+  testNetwork: "Couldn't reach the service.",
+  testUnexpected: 'The service answered with an unexpected status ({status}).',
+  testNotConfigured: 'Add an endpoint, a model and a key first.',
+  testTooLarge:
+      'The service sent back far more than expected, so it was stopped.',
+  testKeyOtherHost:
+      'The saved key was entered for a different service. Paste the key for '
+      'this one to test it.',
+  keyOtherHost:
+      'The saved key was entered for {host}, so it is not sent anywhere '
+      'else. Paste the key for this endpoint to save it.',
+  privacyHeading: 'Photos and consent',
+  consentNone: "You haven't allowed any service to receive photos.",
+  consentExplainer:
+      "You're asked once per service before the first photo is sent. "
+      'Photos are shrunk and stripped of location and camera details first.',
+  consentRevoke: 'Revoke',
+  docsHint: 'Copy a link to how this works',
+  docsCopied: 'Link copied.',
+);
+
+/// The one-time "send photos to this host?" dialog (N1).
+class PhotoConsentStrings {
+  const PhotoConsentStrings({
+    required this.title,
+    required this.whatIsSent,
+    required this.whereItGoes,
+    required this.notSent,
+    required this.revokeHint,
+    required this.allow,
+    required this.decline,
+    required this.learnMore,
+    required this.linkCopied,
+    required this.docsPath,
+  });
+
+  /// `{host}` is the endpoint host, named verbatim.
+  final String title;
+  final String whatIsSent;
+
+  /// `{host}` is the endpoint host.
+  final String whereItGoes;
+  final String notSent;
+  final String revokeHint;
+
+  /// `{host}` is the endpoint host.
+  final String allow;
+  final String decline;
+  final String learnMore;
+  final String linkCopied;
+
+  /// Path of the doc, relative to the project URL (`kOpenPlateProjectUrl`).
+  final String docsPath;
+}
+
+const PhotoConsentStrings enPhotoConsentStrings = PhotoConsentStrings(
+  title: 'Send this photo to {host}?',
+  whatIsSent:
+      'What is sent: the photo, shrunk, with its location and camera details '
+      'removed, and a short instruction asking which foods are on the plate.',
+  whereItGoes:
+      'Where it goes: {host}, using your own key. OpenPlate does not run '
+      'that service and never sees the photo; {host} has its own privacy '
+      'terms.',
+  notSent: 'Not sent: your name, your history, or anything else.',
+  revokeHint: 'You can change this any time in Settings → Your AI.',
+  allow: 'Allow {host}',
+  decline: 'Not now',
+  learnMore: 'Copy a link to how this works',
+  linkCopied: 'Link copied.',
+  docsPath: 'docs/ai-tiers.md',
+);

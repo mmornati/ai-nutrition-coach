@@ -21,9 +21,8 @@
 // Keychain/Keystore — Story 1.2 / AD-8, cipher pinned in Phase 2A).
 //
 // Phase 2A / D8: the screen also carries the "Erase all local data"
-// action, behind a confirmation dialog. (This screen is not reachable
-// from navigation yet — Phase 5 wires Settings; the action lives here
-// so it is ready when the route lands.)
+// action, behind a confirmation dialog. (Reached from Settings → Your data,
+// which the Day Board's app-bar action opens — Phase 3.)
 //
 // The export affordance is a quiet two-segment row: format (CSV
 // / JSON) + scope (today / this week / all history) + a single

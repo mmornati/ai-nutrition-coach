@@ -12,6 +12,10 @@
 // destination writes verbatim; the header is the documented
 // column order; each row is one `FoodEntry` (one plate can emit
 // multiple rows).
+//
+// Safety (N2): every TEXT cell is neutralised against spreadsheet formula
+// injection and length-capped; numeric quantity columns are written
+// as plain numbers. See `_csvText`.
 
 import 'dart:async';
 
@@ -75,7 +79,7 @@ List<PlateLog> filterPlates(List<PlateLog> plates, ExportScope scope) {
   return scope.when(
     visibleDay: (day) {
       final start = DateTime(day.year, day.month, day.day);
-      final end = start.add(const Duration(days: 1));
+      final end = DateTime(day.year, day.month, day.day + 1);
       return plates
           .where((p) {
             final local = p.loggedAtUtc.toLocal();
@@ -85,7 +89,7 @@ List<PlateLog> filterPlates(List<PlateLog> plates, ExportScope scope) {
     },
     week: (start) {
       final startLocal = DateTime(start.year, start.month, start.day);
-      final endLocal = startLocal.add(const Duration(days: 7));
+      final endLocal = DateTime(start.year, start.month, start.day + 7);
       return plates
           .where((p) {
             final local = p.loggedAtUtc.toLocal();
@@ -111,27 +115,76 @@ String serializePlatesToCsv(List<PlateLog> plates) {
         ..write(',')
         ..write(entry.id)
         ..write(',')
-        ..write(_csvField(entry.databaseFood.source.name))
+        ..write(_csvText(entry.databaseFood.source.name))
         ..write(',')
-        ..write(_csvField(entry.databaseFood.sourceRef))
+        ..write(_csvText(entry.databaseFood.sourceRef))
         ..write(',')
-        ..write(_csvField(entry.databaseFood.displayName))
+        ..write(_csvText(entry.databaseFood.displayName))
         ..write(',')
-        ..write(_csvField(entry.quantity.low.toString()))
+        ..write(_csvNumber(entry.quantity.low))
         ..write(',')
-        ..write(_csvField(entry.quantity.high.toString()))
+        ..write(_csvNumber(entry.quantity.high))
         ..write(',')
-        ..write(_csvField(entry.quantity.unit))
+        ..write(_csvText(entry.quantity.unit))
         ..write(',')
-        ..write(_csvField(entry.quantity.displayLabel))
+        ..write(_csvText(entry.quantity.displayLabel))
         ..write('\n');
     }
   }
   return buffer.toString();
 }
 
-String _csvField(String raw) {
-  if (raw.contains(',') || raw.contains('"') || raw.contains('\n')) {
+/// Longest text cell written (characters). Names come from OFF and from a
+/// language model; nothing legitimate is longer.
+const int kMaxCsvFieldLength = 1000;
+
+/// A TEXT cell. Spreadsheets (Excel, Sheets, LibreOffice, Numbers) treat a
+/// cell as a formula when it starts with `=`, `+`, `-` or `@` — also after
+/// leading whitespace, and also in their full-width forms (`＝ ＋ － ＠`,
+/// U+FF1D / FF0B / FF0D / FF20, which some locales fold to the ASCII
+/// operator) — or with TAB / CR. OFF product names / LLM output are
+/// attacker-influenced (N2). Such cells are prefixed with `'` — the
+/// spreadsheet convention for "this is text" — before quoting. Length is
+/// capped, and a field containing `,` `;` `"` TAB LF or CR is quoted
+/// (`;` is the delimiter in many locales).
+///
+/// Numbers must NOT go through here (a legitimate `-2` would become
+/// `'-2`); use [_csvNumber].
+String _csvText(String raw) {
+  var text = raw;
+  final runes = text.runes;
+  if (runes.length > kMaxCsvFieldLength) {
+    text = String.fromCharCodes(runes.take(kMaxCsvFieldLength));
+  }
+  if (_looksLikeFormula(text)) text = "'$text";
+  return _quoteIfNeeded(text);
+}
+
+const String _formulaLeaders = '=+-@\t\r\uFF1D\uFF0B\uFF0D\uFF20';
+
+bool _looksLikeFormula(String text) {
+  if (text.isEmpty) return false;
+  if ('\t\r'.contains(text[0])) return true;
+  // First character that is not whitespace (space, NBSP, LF, ...).
+  for (final unit in text.runes) {
+    final ch = String.fromCharCode(unit);
+    if (ch.trim().isEmpty || ch == '\u00A0') continue;
+    return _formulaLeaders.contains(ch);
+  }
+  return false;
+}
+
+/// A numeric cell: written as-is (the value is a `double` we formatted, not
+/// text from outside), so negatives and decimals stay numbers.
+String _csvNumber(num value) => value.toString();
+
+String _quoteIfNeeded(String raw) {
+  if (raw.contains(',') ||
+      raw.contains(';') ||
+      raw.contains('"') ||
+      raw.contains('\t') ||
+      raw.contains('\n') ||
+      raw.contains('\r')) {
     final escaped = raw.replaceAll('"', '""');
     return '"$escaped"';
   }

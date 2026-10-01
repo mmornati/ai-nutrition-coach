@@ -3,10 +3,13 @@
 # The single "is this change verified?" gate (security review B2).
 #
 #   scripts/verify.sh              format:check, analyze (infos fatal), test,
-#                                  and the release web build
+#                                  the release web build, and the secrets scan
+#                                  of that build (S1: no key-shaped string may
+#                                  be compiled into a bundle)
 #   scripts/verify.sh --with-apk   additionally `flutter build apk --debug`
 #                                  (slow; needs the Android SDK platform 37 —
 #                                  CI installs it, see .github/workflows/ci.yml)
+#                                  and scans the APK too
 #
 # Everything runs inside the pinned toolchain image via flutter_docker.sh.
 # The autonomous loop must see this exit 0 before marking a story committed.
@@ -33,10 +36,13 @@ run melos bootstrap
 run melos run format:check
 run melos run analyze
 run melos run test
+run bash tools/check_no_secrets_in_build.sh --self-test
+# build:web builds the bundle and scans it (--web-only) as its last step.
 run melos run build:web
 
 if [[ "$WITH_APK" -eq 1 ]]; then
   run bash -c 'yes | sdkmanager --licenses >/dev/null || true; sdkmanager "platforms;android-37.0" >/dev/null; cd apps/client && flutter build apk --debug'
+  run bash tools/check_no_secrets_in_build.sh
 fi
 
 echo "✓ verify: all gates passed"

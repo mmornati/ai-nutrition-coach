@@ -17,7 +17,8 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:openplate_client/state/ai_rung_provider.dart';
+import 'package:openplate_client/state/ai_settings_provider.dart';
 
 /// Builds a container with the config plus every rung seam the
 /// production `main.dart` overrides, so any `AiRungKind` resolves.
@@ -25,6 +26,9 @@ ProviderContainer _container({required AiRungConfig config}) {
   return ProviderContainer(
     overrides: [
       aiRungConfigProvider.overrideWithValue(config),
+      // The byok branch asks which host photos would go to (consent).
+      photoUploadHostProvider.overrideWithValue(null),
+      initialAiSettingsProvider.overrideWithValue(AiSettings.defaults),
       quotaCounterProvider.overrideWithValue(InMemoryQuotaCounter(ceiling: 5)),
       hostedQuotaProviderProvider.overrideWithValue(
         const CloudflareWorkersAiProvider(),
@@ -39,14 +43,8 @@ ProviderContainer _container({required AiRungConfig config}) {
 
 void main() {
   group('aiRungConfigProvider (Story 3.1 / AD-5)', () {
-    test('throws UnimplementedError when not overridden (defensive seam)', () {
-      // The seam has no default — production code must override it
-      // at the ProviderScope root. This pins the error path so a
-      // regression that silently defaults to a no-op is loud.
-      // Riverpod 3.x wraps the provider's thrown error in a
-      // `ProviderException`; the underlying `UnimplementedError`
-      // carries the message we deliberately throw inside the
-      // provider's factory.
+    test('is derived from the settings: unoverridden settings fail loudly, '
+        'with the settings provider named', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -59,9 +57,8 @@ void main() {
       expect(thrown, isNotNull);
       expect(
         thrown.toString(),
-        contains('aiRungConfigProvider must be overridden'),
+        contains('initialAiSettingsProvider must be overridden'),
       );
-      expect(thrown.toString(), contains('UnimplementedError'));
     });
 
     test('production override resolves to the v1 default (noOp)', () {
@@ -96,6 +93,7 @@ void main() {
           aiRungConfigProvider.overrideWithValue(
             const AiRungConfig(kind: AiRungKind.hostedQuota),
           ),
+          photoUploadHostProvider.overrideWithValue(null),
           quotaCounterProvider.overrideWithValue(
             InMemoryQuotaCounter(ceiling: 5),
           ),

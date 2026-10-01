@@ -56,14 +56,19 @@ class HostedQuotaAiRung implements AiRung {
 
   @override
   Future<RecognitionResult> recognize(Uint8List photoBytes) async {
-    // Quota check first — if exhausted, return `QuotaExhausted`
-    // before any transport call (FR6 — "zero pressure, no
-    // countdown"; the user sees the calm 3-way choice instead of
-    // a network round-trip that would fail anyway).
-    final exhausted = await _quotaCounter.isExhausted();
-    if (exhausted) {
-      final resetAt = await _quotaCounter.resetAt();
-      return QuotaExhausted(resetAt: resetAt);
+    // N9: ONE atomic step checks the ceiling and takes the slot — so an
+    // exhausted quota never reaches the transport (FR6: the user sees the
+    // calm 3-way choice instead of a round-trip that would fail anyway), two
+    // overlapping calls cannot both take the last slot, and every attempt
+    // counts, successful or not. The slot is taken BEFORE the call, so a
+    // provider that errors or times out cannot be hammered without bound.
+    // A failing counter is reported, not thrown across the port.
+    try {
+      if (!await _quotaCounter.tryConsume()) {
+        return QuotaExhausted(resetAt: await _quotaCounter.resetAt());
+      }
+    } on Object {
+      return const RecognitionFailure('the usage counter is unavailable');
     }
 
     // Make the transport call — wrap outcomes in the sealed
@@ -75,23 +80,12 @@ class HostedQuotaAiRung implements AiRung {
 
     switch (outcome) {
       case HostedQuotaRecognized(:final foods):
-        // Count the successful recognition (not the no-match —
-        // no recognition happened on no-match; NFR5 honesty).
-        if (foods.isNotEmpty) {
-          await _quotaCounter.recordCall();
-        }
         return RecognizedPlate(foods: foods);
 
       case HostedQuotaNoMatch():
-        // No recognition happened — no quota call to record
-        // (NFR5 honesty; the user didn't burn a quota slot on a
-        // non-match).
         return const NoMatch();
 
       case HostedQuotaFailure(:final cause):
-        // Transport failure — the counter does not increment
-        // (NFR5 honesty; the user didn't burn a quota slot on a
-        // transport failure).
         return RecognitionFailure(cause);
     }
   }

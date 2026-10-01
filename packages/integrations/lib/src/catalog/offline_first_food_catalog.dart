@@ -151,8 +151,8 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   ///           categories tags.
   ///         * `OffBarcodeNotFound` → `NotFoundFailure(code)`.
   ///         * `OffBarcodeFailure`  → `CatalogFailure(cause)`.
-  ///   4. Cache the result before returning so a repeat scan stays
-  ///      offline (NFR5).
+  ///   4. Cache a match or a not-found before returning so a repeat scan
+  ///      stays offline (NFR5). A `CatalogFailure` is never cached (N4).
   ///
   /// Empty / whitespace-only codes short-circuit to
   /// `NotFoundFailure('')` — the UI never sends an empty string to
@@ -178,7 +178,12 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       OffBarcodeFailure(:final cause) => CatalogFailure(cause),
     };
 
-    _barcodeLru.put(trimmed, _BarcodeLookup(resolved));
+    // N4: only a definitive answer (a match, or "OFF has no such product")
+    // is remembered. A transient failure — timeout, 5xx, offline — must not
+    // poison the barcode for the rest of the process: the next scan retries.
+    if (resolved is! CatalogFailure) {
+      _barcodeLru.put(trimmed, _BarcodeLookup(resolved));
+    }
     return resolved;
   }
 
