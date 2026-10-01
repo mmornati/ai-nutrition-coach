@@ -54,6 +54,9 @@ EncryptedStoreFailure _classify(Object cause) {
   return const StoreOperationFailure();
 }
 
+/// The underlying cause of [error] (unwraps `DriftRemoteException`).
+Object unwrapStoreCause(Object error) => _unwrap(error);
+
 Object _unwrap(Object error) {
   var current = error;
   // A remote exception can in principle wrap another; bound the walk.

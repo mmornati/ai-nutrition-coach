@@ -35,6 +35,12 @@ COPY packages/domain_core/pubspec.yaml packages/domain_core/pubspec.yaml
 COPY packages/integrations/pubspec.yaml packages/integrations/pubspec.yaml
 RUN flutter pub get --enforce-lockfile
 
+# Phase 2B: the web store's sqlite3mc.wasm, fetched and SHA-256-verified by the
+# pinned script (it also checks the sqlite3 version against pubspec.lock). Done
+# before the sources are copied so the ~800 KB download is a cached layer.
+COPY scripts/fetch_web_sqlite.sh scripts/fetch_web_sqlite.sh
+RUN bash scripts/fetch_web_sqlite.sh
+
 COPY apps ./apps
 COPY packages ./packages
 

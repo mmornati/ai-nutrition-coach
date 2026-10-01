@@ -1,93 +1,68 @@
-// Web implementation of the `createStores` factory (Story 4.1 / AD-8).
+// Web implementation of the `createStores` factory (Phase 2B / AD-8,
+// ADR-0002).
 //
 // Compiled ONLY on web targets via the conditional import in
-// `create_encrypted_store.dart`. Returns the `WasmEncryptedStore`
-// (sqlite3.wasm + PBKDF2 session key) by default so a production
-// web build is honest: the schema is sealed by the in-memory
-// session key, the user re-enters the passphrase on every page
-// reload, and the AD-8 honest copy ("session-sealed, not at-rest
-// encrypted") is anchored.
+// `create_encrypted_store.dart`. The production path persists the drift
+// database in IndexedDB as sqlite3mc ChaCha20-Poly1305 pages, keyed from the
+// user's passphrase (WebCrypto PBKDF2-HMAC-SHA256, 600k iterations, random
+// per-store salt), and every create / unlock / lock decision is made by the
+// platform-neutral `WebStoreController`. This file only chooses the three
+// browser adapters (`WebCryptoPbkdf2Kdf`, `WebLocalStorage`,
+// `IndexedDbSqlite3mcBackend`) and wires the two stores to the controller.
 //
-// The store starts in a "locked" state — the lock screen is the
-// first paint. The user enters a passphrase; the `WebSessionKey`
-// derives a session key via PBKDF2; `WasmEncryptedStore.tryOpen`
-// probes the schema. On success the store flips to the "open"
-// state; the Day Board receives the same `StoreBundle` shape the
-// mobile story returns. On failure a typed `LockOutcome` surfaces
-// in the UI.
+// For LOCAL DEVELOPMENT ONLY, `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`
+// selects an UNENCRYPTED in-memory store (no passphrase, data lives and dies
+// with the tab; the app paints a red DEV banner). `BuildConfig` ignores the
+// flag in a production build (`OPENPLATE_BUILD=selfhost`, W8), so the
+// unprotected path cannot reach a released bundle by accident.
 //
-// For LOCAL DEVELOPMENT ONLY, `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`
-// selects the dev in-memory path so the capture → log → Day Board
-// loop can be exercised in a browser without a wasm store. Data
-// lives and dies with the tab. Production web builds must never
-// pass this define.
-//
-// AD-3 invariant: on web, the wasm store is the single source of
-// truth for both plate logs and coach notes. The
-// `_WebCoachNoteStore` is a no-op while the session is locked and
-// reads from the same `AppDatabase` once it's open.
-
-import 'dart:typed_data';
+// AD-3 invariant: the controller's open database is the single source of
+// truth for plate logs AND coach notes (`WasmCoachNoteStore`).
 
 import 'package:domain_core/domain_core.dart';
 
-import 'app_database.dart';
+import '../config/build_config.dart';
 import 'create_encrypted_store.dart';
 import 'in_memory_encrypted_store.dart';
+import 'indexeddb_sqlite3mc_backend.dart';
+import 'wasm_coach_note_store.dart';
 import 'wasm_encrypted_store.dart';
-import 'web_session_key.dart';
+import 'web_crypto_kdf.dart';
+import 'web_local_storage.dart';
+import 'web_locks.dart';
+import 'web_store_controller.dart';
 
-const bool _devInMemory = bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
+/// Process-wide controller: it must survive `appRestartProvider` restarts
+/// (the restart re-runs `createStores`, which re-initialises it from
+/// storage) so a locked store stays locked and the key never lives in two
+/// places.
+final WebStoreController _controller = WebStoreController(
+  storage: const WebLocalStorage(),
+  backend: IndexedDbSqlite3mcBackend(),
+  kdf: const WebCryptoPbkdf2Kdf(),
+  lock: const WebLocksStoreLock(),
+  normalizePassphrase: webNormalizeNfc,
+);
 
-/// Singleton stores for the dev-in-memory path so successive
-/// `recordPlate` / `forPlate` calls share the same in-memory list.
+/// Singleton dev stores so successive calls share the same in-memory list.
 final InMemoryEncryptedStore _devStore = InMemoryEncryptedStore();
 final _DevInMemoryCoachNoteStore _devCoachNotes = _DevInMemoryCoachNoteStore();
 
-/// Process-wide web session-key holder. Same instance the
-/// `WasmEncryptedStore` reads.
-final WebSessionKey _sessionKey = WebSessionKey();
-
-/// Process-wide wasm store. The Day Board reads it through the
-/// `ProviderScope` (apps/client) so a manual `lock()` re-locks the
-/// gate.
-final WasmEncryptedStore _wasmStore = WasmEncryptedStore(
-  sessionKey: _sessionKey,
-  databaseOpener: _openWasmDatabase,
-);
-
-/// Open the wasm database with the derived key.
-///
-/// PLACEHOLDER (Phase 1 / W5): the real `sqlite3.wasm` + drift
-/// `WasmDatabase` binding is not wired yet, and `package:drift/native.dart`
-/// (FFI) must never be imported on the web branch. Until the web store is
-/// implemented this opener refuses honestly — `WasmEncryptedStore.tryOpen`
-/// catches the error and reports "could not open", so no data is ever
-/// written to an unencrypted store on production web builds. For the local
-/// preview loop use `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`.
-Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) async {
-  throw UnsupportedError(
-    'The web wasm store is not implemented yet; see the remediation plan '
-    '(Phase 2B).',
-  );
-}
-
 Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
-  if (_devInMemory) {
-    // The in-memory placeholder has no cipher, so any passphrase "opens"
-    // it; the lock screen is still wired so the web gate flow is exercised.
+  if (const BuildConfig().devInMemoryStore) {
+    // No controller: the gate goes straight to the Day Board.
     return StoreBundle(
       encryptedStore: _devStore,
       coachNoteStore: _devCoachNotes,
-      webSessionKey: _sessionKey,
-      webUnlockProbe: (derived) async => true,
     );
   }
+  await _controller.initialize();
   return StoreBundle(
-    encryptedStore: _wasmStore,
-    coachNoteStore: const _WasmCoachNoteStore(),
-    webSessionKey: _sessionKey,
-    webUnlockProbe: (derived) => _wasmStore.tryOpen(),
+    encryptedStore: WasmEncryptedStore(source: _controller),
+    coachNoteStore: WasmCoachNoteStore(source: _controller),
+    webStoreController: _controller,
+    closeDatabase: _controller.prepareForErase,
+    eraseStoreData: _controller.eraseStore,
   );
 }
 
@@ -122,35 +97,5 @@ class _DevInMemoryCoachNoteStore implements CoachNoteStore {
   ) async {
     _interactions.add(log);
     return CoachInteractionRecorded(_nextInteractionId++);
-  }
-}
-
-/// Production wasm coach-note store — every method reads / writes
-/// the same `AppDatabase` the `WasmEncryptedStore` opens. The
-/// pair stays in sync (AD-3 invariant). While the session is
-/// locked, `forPlate` returns an empty list (the UI hides the
-/// whisper) and the append / record methods return typed
-/// `CoachNoteAppendFailure` / `CoachInteractionFailed` with a
-/// `WebSessionKeyFailure` payload.
-class _WasmCoachNoteStore implements CoachNoteStore {
-  const _WasmCoachNoteStore();
-
-  @override
-  Future<CoachNoteAppendResult> append(CoachNote note) async {
-    return const CoachNoteAppendFailure(
-      StoreFailure(encryptedStoreError: WebSessionKeyFailure()),
-    );
-  }
-
-  @override
-  Future<List<CoachNote>> forPlate(int plateLogId) async => const [];
-
-  @override
-  Future<CoachInteractionResult> recordInteraction(
-    CoachInteractionLog log,
-  ) async {
-    return const CoachInteractionFailed(
-      StoreFailure(encryptedStoreError: WebSessionKeyFailure()),
-    );
   }
 }

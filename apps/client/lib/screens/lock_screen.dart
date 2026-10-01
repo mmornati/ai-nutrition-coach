@@ -1,18 +1,20 @@
-// Web-rung lock screen wrapper (Story 4.1 / AD-8).
+// Web unlock screen (Story 4.1 / AD-8, Phase 2B).
 //
-// Renders the `LockScreenBody` against the `WebSessionKey` provider
-// graph. The body is the production copy; the wrapper wires the
-// unlock probe to the public `webUnlockProbeProvider` so the gate
-// actually opens the schema with the derived key. The production
-// `main.dart` overrides that provider with the bundle's
-// `WasmEncryptedStore.tryOpen`.
+// Wires `LockScreenBody` to the `WebStoreController`: submitting derives the
+// key, opens the encrypted database with it (a wrong passphrase is rejected
+// by sqlite3mc itself) and flips the gate to the Day Board. The forgotten-
+// passphrase path runs the same confirmed erase as "Your data" and then
+// restarts the app into the first-run state.
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart';
 
-import '../state/web_session_key_provider.dart';
-import '../state/web_unlock_probe_provider.dart';
+import '../state/erase_provider.dart';
+import '../state/web_store_controller_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/erase_local_data_dialog.dart';
 import '../widgets/lock_screen_body.dart';
 
 class LockScreen extends ConsumerWidget {
@@ -23,20 +25,32 @@ class LockScreen extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final sessionKey = ref.watch(webSessionKeyProvider);
-    final probe = ref.read(webUnlockProbeProvider);
+    final controller = ref.watch(webStoreControllerProvider)!;
     return Scaffold(
       backgroundColor: palette.background,
       body: SafeArea(
         child: LockScreenBody(
-          sessionKey: sessionKey,
           palette: LockScreenPalette(ink: palette.ink, muted: palette.inkMuted),
-          onTryUnlock: (key, passphrase) async {
-            final ok = await key.unlock(
-              passphrase: passphrase,
-              probe: (derived) => probe(derived),
+          onUnlock: controller.unlock,
+          onForgot: () async {
+            // Resolve everything BEFORE the erase starts: the erase flips the
+            // store to `erasing`, the gate replaces this screen, and a
+            // disposed widget's `ref` can no longer be read.
+            final eraser = ref.read(eraseLocalDataProvider);
+            final restart = ref.read(appRestartProvider);
+            final result = await confirmAndEraseLocalData(
+              context: context,
+              erase: () => eraser(),
             );
-            return ok;
+            switch (result) {
+              case null:
+                return null;
+              case EraseLocalDataSuccess():
+                restart();
+                return null;
+              case EraseLocalDataFailure():
+                return enYourDataStrings.eraseFailed;
+            }
           },
         ),
       ),

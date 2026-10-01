@@ -15,7 +15,7 @@ optional sync to your own infrastructure, zero telemetry by default.
 | Promise                                    | Where it lives                                            |
 | ------------------------------------------ | --------------------------------------------------------- |
 | Local encrypted store (ChaCha20-Poly1305, mobile) | Story 1.2 / AD-8                                          |
-| Web session-sealed store (PBKDF2 + WASM)   | Story 4.1 / AD-8 — [`docs/your-data.md`](./docs/your-data.md) |
+| Web encrypted store (sqlite3mc-wasm in IndexedDB, passphrase-derived key) | Phase 2B / AD-8, ADR-0002 — [`docs/your-data.md`](./docs/your-data.md) |
 | Exporter: CSV/JSON offline, no account     | Story 4.2 / AD-9                                          |
 | Durable outbox sync to user-controlled infra | Story 4.3 / AD-6 (in-memory v1; drift-table is 4.3.1)   |
 | One-command self-host install              | Story 4.4 / FR-11 — [`docs/self-host.md`](./docs/self-host.md) |
@@ -38,9 +38,12 @@ passphrase to unlock your store. See [`docs/self-host.md`](./docs/self-host.md).
 
 ```sh
 melos bootstrap   # or: scripts/flutter_docker.sh melos bootstrap (pinned Flutter 3.44.0)
+bash scripts/fetch_web_sqlite.sh   # the web store's sqlite3mc-3.5.1.wasm, SHA-256 verified (not committed)
 cd apps/client
 flutter build web --release --pwa-strategy=none --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 ```
+
+(`melos run build:web` does both steps.)
 
 ## Contributing
 

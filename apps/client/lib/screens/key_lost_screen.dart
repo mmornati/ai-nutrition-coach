@@ -41,26 +41,32 @@ class _KeyLostScreenState extends ConsumerState<KeyLostScreen> {
 
   Future<void> _erase() async {
     if (_busy) return;
+    // Resolve before the erase starts: on web the erase parks the store at
+    // `erasing`, the gate replaces this screen, and a disposed widget's
+    // `ref` can no longer be read -- the restart must not depend on it.
+    final eraser = ref.read(eraseLocalDataProvider);
+    final restart = ref.read(appRestartProvider);
     final result = await confirmAndEraseLocalData(
       context: context,
       copy: widget.dataCopy,
       erase: () {
         setState(() => _busy = true);
-        return ref.read(eraseLocalDataProvider)();
+        return eraser();
       },
     );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _message = switch (result) {
-        null => null,
-        EraseLocalDataSuccess() => widget.dataCopy.eraseDone,
-        EraseLocalDataFailure() => widget.dataCopy.eraseFailed,
-      };
-    });
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _message = switch (result) {
+          null => null,
+          EraseLocalDataSuccess() => widget.dataCopy.eraseDone,
+          EraseLocalDataFailure() => widget.dataCopy.eraseFailed,
+        };
+      });
+    }
     if (result is EraseLocalDataSuccess) {
       // First-run state: rebuild the app on a fresh store (review 8).
-      ref.read(appRestartProvider)();
+      restart();
     }
   }
 

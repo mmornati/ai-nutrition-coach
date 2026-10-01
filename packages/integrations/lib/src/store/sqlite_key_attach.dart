@@ -62,6 +62,11 @@ enum StoreOpenFailureReason {
   /// The key was applied but the database could not be read with it
   /// (wrong key, corrupt header, or a plaintext file).
   keyRejected,
+
+  /// Web only (Phase 2B): the store header says a database exists but the
+  /// storage holds none (browser data partly cleared). Refused rather than
+  /// quietly creating a fresh empty store that the passphrase "opens".
+  dataMissing,
 }
 
 /// Thrown synchronously from the `setup` callback; maps to a typed

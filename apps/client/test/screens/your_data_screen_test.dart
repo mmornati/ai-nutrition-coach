@@ -1,10 +1,9 @@
-// Settings → Your data sub-screen pin (Story 4.1 / AD-8).
+// Settings → Your data sub-screen pin (Story 4.1 / AD-8, Phase 2B).
 //
-// The screen's only static content in Story 4.1 is the AD-8
-// honest-copy anchor — the protection posture line. The
-// "session-sealed, not at-rest encrypted" claim must land on the
-// locked-web path; the unlocked line must land on mobile / open
-// web. Stories 4.2 / 4.3 will append the export + sync surfaces
+// The screen's static content is the AD-8 honest-copy anchor — the
+// protection posture line. The web-locked line must land when the web
+// store is locked; the unlocked line (cipher named truthfully, key
+// handling per platform) on mobile / open web. Stories 4.2 / 4.3 will append the export + sync surfaces
 // below this line.
 
 import 'package:domain_core/domain_core.dart';
@@ -14,9 +13,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:openplate_client/screens/your_data_screen.dart';
 import 'package:openplate_client/state/erase_provider.dart';
-import 'package:openplate_client/state/platform_provider.dart';
-import 'package:openplate_client/state/web_session_key_provider.dart';
+import 'package:openplate_client/state/web_store_controller_provider.dart';
 import 'package:openplate_client/theme/app_tokens.dart';
+
+import '../_fakes/fake_web_store_controller.dart';
 
 class _RecordingEraser implements LocalDataEraser {
   _RecordingEraser(this.result);
@@ -32,43 +32,48 @@ class _RecordingEraser implements LocalDataEraser {
 
 void main() {
   group('YourDataScreen', () {
-    testWidgets('renders the AD-8 locked-protection line when the web session '
+    testWidgets('renders the AD-8 locked-protection line when the web store '
         'is locked', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            // A fresh `WebSessionKey` is locked by default.
-            isWebProvider.overrideWithValue(true),
-            webSessionKeyProvider.overrideWithValue(WebSessionKey()),
+            webStoreControllerProvider.overrideWithValue(
+              FakeWebStoreController(),
+            ),
           ],
           child: const MaterialApp(home: YourDataScreen()),
         ),
       );
       expect(
-        find.textContaining('Session-sealed', findRichText: true),
+        find.textContaining(
+          'Encrypted at rest in this browser',
+          findRichText: true,
+        ),
         findsOneWidget,
+      );
+      expect(
+        find.textContaining('Session-sealed', findRichText: true),
+        findsNothing,
       );
     });
 
     testWidgets('renders the unlocked protection line on mobile / open web', (
       tester,
     ) async {
-      final key = WebSessionKey();
-      // Manually flip to open by running the unlock probe path
-      // with a no-op probe; the simplest path is to call
-      // `unlock` with a probe that returns true. The salt is
-      // generated internally, so the first call's derive is
-      // not asserted — we just need `isOpen` to flip.
-      await key.unlock(passphrase: 'test', probe: (derived) async => true);
-      expect(key.isOpen, isTrue);
+      final c = FakeWebStoreController(status: WebStoreStatus.unlocked);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [webSessionKeyProvider.overrideWithValue(key)],
+          overrides: [webStoreControllerProvider.overrideWithValue(c)],
           child: const MaterialApp(home: YourDataScreen()),
         ),
       );
       expect(
-        find.textContaining('Encrypted at rest on mobile', findRichText: true),
+        find.textContaining('Encrypted at rest (', findRichText: true),
+        findsOneWidget,
+      );
+      // The unrecoverable-passphrase fact is stated plainly.
+      expect(
+        find.textContaining('cannot be recovered', findRichText: true),
         findsOneWidget,
       );
     });
@@ -80,22 +85,47 @@ void main() {
       expect(find.text('Your data'), findsOneWidget);
     });
 
-    testWidgets('mobile copy names the real cipher, not AES-256', (
-      tester,
-    ) async {
-      final key = WebSessionKey();
-      await key.unlock(passphrase: 'test', probe: (derived) async => true);
+    testWidgets('copy names the real cipher, not AES-256', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [webSessionKeyProvider.overrideWithValue(key)],
-          child: const MaterialApp(home: YourDataScreen()),
-        ),
+        const ProviderScope(child: MaterialApp(home: YourDataScreen())),
       );
       expect(
         find.textContaining('ChaCha20-Poly1305', findRichText: true),
         findsOneWidget,
       );
       expect(find.textContaining('AES', findRichText: true), findsNothing);
+    });
+
+    testWidgets('web unlocked: lock control and idle delay choice; the delay '
+        'is applied to the controller', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = FakeWebStoreController(status: WebStoreStatus.unlocked);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [webStoreControllerProvider.overrideWithValue(c)],
+          child: const MaterialApp(home: YourDataScreen()),
+        ),
+      );
+      expect(find.text(enWebSessionStrings.lockAfterLabel), findsOneWidget);
+      await tester.tap(find.text('30 minutes'));
+      await tester.pump();
+      expect(c.idleTimeout, const Duration(minutes: 30));
+      await tester.tap(find.text(enWebSessionStrings.lockAction));
+      await tester.pump();
+      expect(c.lockCalls, 1);
+    });
+
+    testWidgets('mobile / no controller: no lock controls', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        const ProviderScope(child: MaterialApp(home: YourDataScreen())),
+      );
+      expect(find.text(enWebSessionStrings.lockAfterLabel), findsNothing);
+      expect(find.text(enWebSessionStrings.lockAction), findsNothing);
     });
 
     group('Erase all local data (Phase 2A / D8)', () {

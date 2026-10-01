@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (Phase 2A, security review 2026-10-01, finding D4)
 - **Supersedes:** the "AES-256" wording of NFR4 / FR9 / AD-8 in the PRD, epics and spec.
-- **Scope:** mobile (iOS / Android) local store. The web store is unchanged (session-sealed, AD-8).
+- **Scope:** mobile (iOS / Android) local store. The web store is ADR-0002 (sqlite3mc-wasm on IndexedDB, same cipher).
 
 ## Context
 AD-8 promised "AES-256 via the sqlite3mc build hook". The cipher was never pinned in code:

@@ -6,10 +6,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
 import 'package:openplate_client/screens/lock_screen.dart';
-import 'package:openplate_client/state/web_session_key_provider.dart';
-import 'package:openplate_client/state/web_unlock_probe_provider.dart';
+import 'package:openplate_client/state/web_store_controller_provider.dart';
+
+import '../_fakes/fake_web_store_controller.dart';
 
 void main() {
   group('LockScreen a11y floor (Story 5.4 / NFR-7)', () {
@@ -18,8 +18,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            webSessionKeyProvider.overrideWithValue(WebSessionKey()),
-            webUnlockProbeProvider.overrideWithValue((_) async => false),
+            webStoreControllerProvider.overrideWithValue(
+              FakeWebStoreController(),
+            ),
           ],
           child: const MaterialApp(home: LockScreen()),
         ),

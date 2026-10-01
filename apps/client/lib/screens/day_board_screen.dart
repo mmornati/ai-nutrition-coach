@@ -43,6 +43,7 @@ import '../widgets/capture_fab.dart';
 import '../widgets/capture_sheet.dart';
 import '../widgets/open_dent.dart';
 import '../widgets/plate_row.dart';
+import '../widgets/web_lock_button.dart';
 import '../widgets/week_strip.dart';
 import 'capture_barcode_screen.dart';
 import 'capture_photo_screen.dart';
@@ -186,9 +187,18 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _titleFor(selected, ref.watch(clockProvider)()),
-                style: AppTypography.ui.copyWith(color: palette.ink),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _titleFor(selected, ref.watch(clockProvider)()),
+                      style: AppTypography.ui.copyWith(color: palette.ink),
+                    ),
+                  ),
+                  // Web only (Phase 2B / W4): manual lock. Renders nothing
+                  // on mobile and the dev in-memory store.
+                  const WebLockButton(),
+                ],
               ),
               const SizedBox(height: AppSpacing.xs),
               if (state.hasError)

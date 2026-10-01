@@ -457,14 +457,15 @@ const ByokStrings enByokStrings = ByokStrings(
   previousRungHint: 'removing this key returns to {previousRungLabel}',
 );
 
-/// The web session strings (Story 4.1 / AD-8). The lock screen
-/// body in `packages/integrations/lib/src/store/lock_screen.dart`
-/// reads these for the heading, the placeholder, the unlock
-/// affordance, and the calm wrong-passphrase line.
+/// The web store strings (Story 4.1 / AD-8, extended in Phase 2B): the
+/// unlock screen, the first-run create-passphrase screen, the lock
+/// affordances and the forgotten-passphrase path.
 ///
 /// AD-7: keyed, never interpolated, named NDP reviewer signs off.
-/// FR-15: calm non-judgmental copy; no countdown, no
-/// "Don't show again" easter egg, no "wrong" judgement framing.
+/// FR-15: calm non-judgmental copy; no countdown (the throttle line gives
+/// no number), no pressure, no "wrong" judgement framing. The one hard fact
+/// -- a forgotten passphrase cannot be recovered -- is stated plainly, once
+/// before the passphrase is set and once on the forgot path.
 class WebSessionStrings {
   const WebSessionStrings({
     required this.label,
@@ -472,37 +473,144 @@ class WebSessionStrings {
     required this.unlock,
     required this.wrongPassphrase,
     required this.unavailable,
+    required this.throttled,
+    required this.inOtherTab,
+    required this.forgot,
+    required this.forgotBody,
+    required this.forgotAction,
+    required this.createTitle,
+    required this.createExplain,
+    required this.createWarning,
+    required this.createPassphraseLabel,
+    required this.createConfirmLabel,
+    required this.createAction,
+    required this.tooShort,
+    required this.tooRepetitive,
+    required this.mismatch,
+    required this.lockAction,
+    required this.lockAfterLabel,
+    required this.lockAfterOptions,
   });
 
   /// The lock-screen heading. Calm copy; the gate is the first
   /// paint on the web rung, and the heading names the action.
   final String label;
 
-  /// The passphrase field placeholder. Calm non-judgmental copy;
-  /// explains on-device sealing.
+  /// The passphrase field placeholder.
   final String placeholder;
 
   /// The unlock pill label. Calm copy; no celebration.
   final String unlock;
 
-  /// The calm wrong-passphrase line. Renders below the pill when
-  /// `tryOpen` returns `false`. No exception crosses the port.
+  /// The calm wrong-passphrase line. Renders below the pill when the
+  /// passphrase does not open the store. No exception crosses the port.
   final String wrongPassphrase;
 
-  /// Honest line when this build has no web store at all (the unlock probe
-  /// reports the store as unsupported) — distinct from a wrong passphrase.
+  /// Honest line when the browser cannot open the store at all (storage
+  /// blocked, no secure context, wasm missing) — distinct from a wrong
+  /// passphrase.
   final String unavailable;
+
+  /// Shown instead of an attempt after repeated wrong passphrases. UX
+  /// friction only; deliberately carries no number.
+  final String throttled;
+
+  /// Another tab holds the store open; the user can try again after closing
+  /// or locking it there.
+  final String inOtherTab;
+
+  /// The "forgot passphrase" disclosure label.
+  final String forgot;
+
+  /// What a forgotten passphrase means (unrecoverable) and the one option.
+  final String forgotBody;
+
+  /// The erase-and-start-over action label.
+  final String forgotAction;
+
+  /// First-run heading.
+  final String createTitle;
+
+  /// What the passphrase protects and when it is asked for.
+  final String createExplain;
+
+  /// The unrecoverability warning shown before the passphrase is set.
+  final String createWarning;
+
+  final String createPassphraseLabel;
+  final String createConfirmLabel;
+  final String createAction;
+
+  /// New passphrase shorter than the minimum.
+  final String tooShort;
+
+  /// New passphrase with too few distinct characters.
+  final String tooRepetitive;
+
+  /// Confirmation does not match.
+  final String mismatch;
+
+  /// The manual lock action label.
+  final String lockAction;
+
+  /// Label of the auto-lock delay choice.
+  final String lockAfterLabel;
+
+  /// Labels of the auto-lock delay choices (5 / 15 / 30 / 60 minutes, in
+  /// that order).
+  final List<String> lockAfterOptions;
 }
 
-/// The v1 `en` web session strings (Story 4.1). The named NDP
-/// reviewer signs off on this single value; the keys are the
-/// identity the `LockScreenBody` binds to.
+/// The v1 `en` web store strings. The named NDP reviewer signs off on this
+/// single value; the keys are the identity the lock / create widgets bind
+/// to.
 const WebSessionStrings enWebSessionStrings = WebSessionStrings(
   label: 'Unlock your store',
-  placeholder: 'Passphrase — kept in memory for this session only',
+  placeholder: 'Passphrase',
   unlock: 'Unlock',
   wrongPassphrase: 'That passphrase does not open this store.',
-  unavailable: "Web storage isn't available in this build yet.",
+  unavailable:
+      "This browser can't open the protected store. It needs a secure "
+      '(https or localhost) page with site storage allowed. Reload to try '
+      'again.',
+  throttled: 'Please wait a moment before trying again.',
+  inOtherTab:
+      'OpenPlate is open in another tab. Lock or close it there, then try '
+      'again here.',
+  forgot: 'Forgot your passphrase?',
+  forgotBody:
+      'It cannot be recovered: your history is encrypted with a key made '
+      'from your passphrase, and nobody else has a copy. You can erase '
+      'it and start over.',
+  forgotAction: 'Erase and start over',
+  createTitle: 'Protect your history',
+  createExplain:
+      'Choose a passphrase. It encrypts everything OpenPlate saves in this '
+      'browser, and you enter it each time you open the app.',
+  createWarning:
+      'If you forget it, your data cannot be recovered — not by us, not by '
+      'anyone. There is no reset link.',
+  createPassphraseLabel: 'Passphrase',
+  createConfirmLabel: 'Confirm passphrase',
+  createAction: 'Create and unlock',
+  tooShort: 'Use at least 10 characters.',
+  tooRepetitive: 'Use a few different characters.',
+  mismatch: "The two passphrases don't match.",
+  lockAction: 'Lock',
+  lockAfterLabel: 'Lock automatically after',
+  lockAfterOptions: ['5 minutes', '15 minutes', '30 minutes', '1 hour'],
+);
+
+/// Copy for a web store whose header cannot be read or whose data is gone
+/// (Phase 2B). Same single action as the lost-key surface: erase and start
+/// over.
+const KeyLostStrings enWebStoreUnreadableStrings = KeyLostStrings(
+  title: "Your saved history can't be found",
+  body:
+      'The protected store in this browser is incomplete or unreadable — '
+      'for example after clearing site data. Reloading sometimes fixes it. '
+      'If it does not, you can erase what is left and start over.',
+  action: 'Erase local data and start over',
 );
 
 /// The v1 `en` strings for the Settings → Your data sub-screen
@@ -510,9 +618,9 @@ const WebSessionStrings enWebSessionStrings = WebSessionStrings(
 /// this single value; the keys are the identity the `YourDataScreen`
 /// binds to.
 ///
-/// The `lockedProtection` line is the AD-8 honest-copy anchor: web
-/// protection is described as \"session-sealed, not at-rest
-/// encrypted\" — weaker than mobile, never overclaimed.
+/// The protection lines are the AD-8 honest-copy anchor: the cipher is
+/// named truthfully, and the web key-handling difference (passphrase, not
+/// keystore; unrecoverable) is stated plainly, never overclaimed.
 class YourDataStrings {
   const YourDataStrings({
     required this.title,
@@ -533,16 +641,14 @@ class YourDataStrings {
   /// list under Settings.
   final String title;
 
-  /// Rendered when the web session is locked. AD-8 honest copy:
-  /// \"session-sealed, not at-rest encrypted\". Tells the user the
-  /// posture plainly — never asserts \"at-rest\" on web.
+  /// Rendered when the web store is locked. AD-8 honest copy: encrypted
+  /// at rest in the browser, key derived from the passphrase.
   final String lockedProtection;
 
-  /// Rendered when the web session is unlocked or on mobile. The
-  /// mobile posture is ChaCha20-Poly1305 at rest with a key held in
-  /// the Keychain/Keystore (AD-8 / D4 — the cipher is named
-  /// truthfully, never "AES-256"); the web posture is session-sealed.
-  /// Both are stated plainly.
+  /// Rendered when the web store is unlocked or on mobile. Both are
+  /// ChaCha20-Poly1305 at rest (AD-8 / D4 — the cipher is named
+  /// truthfully, never "AES-256"); the key source differs (Keychain/
+  /// Keystore vs passphrase) and is stated plainly.
   final String unlockedProtection;
 
   /// Section label for the erase affordance (Phase 2A / D8).
@@ -577,14 +683,15 @@ class YourDataStrings {
 const YourDataStrings enYourDataStrings = YourDataStrings(
   title: 'Your data',
   lockedProtection:
-      'Session-sealed, not at-rest encrypted — this record is '
-      'protected by the passphrase you entered on this device. '
-      'Reload the page and it stays sealed.',
+      'Encrypted at rest in this browser (ChaCha20-Poly1305). The key is '
+      'made from your passphrase and is never stored, so nothing here can '
+      'be read until you unlock it.',
   unlockedProtection:
-      'Encrypted at rest on mobile (ChaCha20-Poly1305; the key is held in '
+      'Encrypted at rest (ChaCha20-Poly1305). On mobile the key is held in '
       'the Keychain/Keystore, stays on this device and is not included in '
-      'backups); session-sealed on the web (the key is held in memory for '
-      'this session only — never written to disk).',
+      'backups. On the web the key is made from your passphrase, held in '
+      'memory only while unlocked and never stored — if you forget the '
+      'passphrase, the data cannot be recovered.',
   eraseLabel: 'Erase local data',
   eraseExplain:
       'Removes your history, coach notes, saved AI key and any export '

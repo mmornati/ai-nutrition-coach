@@ -1,44 +1,35 @@
-// The `LockScreen` widget body (Story 4.1 / AD-8).
+// The unlock surface of the web store (Story 4.1 / AD-8, Phase 2B).
 //
-// Renders the calm passphrase-entry surface. The widget is the body
-// of the `UnlockGate` (apps/client) — the first paint on the web
-// rung. The user enters a passphrase; the `WebSessionKey` derives a
-// session key via PBKDF2; the `WasmEncryptedStore` opens the schema
-// with the derived key. On success the gate flips to the Day Board;
-// on failure a single calm line says "that passphrase does not open
-// this store" (no exception crosses the port).
+// A passphrase field, an unlock pill, one calm line for each failure, and a
+// quiet "Forgot your passphrase?" disclosure that states the hard fact
+// (unrecoverable) and offers the one way forward: erase and start over.
 //
-// AD-7: copy is keyed, never interpolated, named NDP reviewer signs
-// off. The copy lives in `WebSessionStrings`.
+// W4: `_busy` is reset on EVERY outcome (the previous version left the
+// spinner stuck after a successful unlock). W7: the passphrase field is
+// cleared after every attempt, so the text does not linger in the widget
+// tree; the Dart `String` itself cannot be wiped (see `WebSessionKey`).
 //
-// NFR7: 48px touch target on the unlock pill; screen reader
-// announces the field by name; reduce-motion collapses the gate
-// transition to a fade; dynamic type honored without truncation.
+// AD-7: copy is keyed, never interpolated (`WebSessionStrings`).
+// NFR7: 48px touch targets, screen-reader labels, no motion.
 
 import 'package:flutter/material.dart';
 import 'package:integrations/integrations.dart';
 
-/// The body of the `UnlockGate`. Renders the passphrase field + the
-/// unlock pill + the calm error line. The parent (`UnlockGate`)
-/// decides whether to mount this widget; the body is pure UI.
 class LockScreenBody extends StatefulWidget {
   const LockScreenBody({
     super.key,
-    required this.sessionKey,
-    required this.onTryUnlock,
+    required this.onUnlock,
     required this.palette,
+    this.onForgot,
     this.copy = enWebSessionStrings,
   });
 
-  /// The session-key holder the body probes. The probe is async; the
-  /// body awaits it and surfaces the typed `LockOutcome`.
-  final WebSessionKey sessionKey;
+  /// Try the passphrase; the parent wires `WebStoreController.unlock`.
+  final Future<WebUnlockOutcome> Function(String passphrase) onUnlock;
 
-  /// The async probe. Returns `true` if the derived key opens the
-  /// wasm store; `false` on a wrong passphrase. The parent injects
-  /// the probe so the body stays free of the drift/wasm details.
-  final Future<bool> Function(WebSessionKey sessionKey, String passphrase)
-  onTryUnlock;
+  /// Run the erase-and-start-over flow. Returns a message to show when it
+  /// failed, `null` otherwise. `null` callback hides the disclosure.
+  final Future<String?> Function()? onForgot;
 
   final WebSessionStrings copy;
   final LockScreenPalette palette;
@@ -50,121 +41,159 @@ class LockScreenBody extends StatefulWidget {
 class _LockScreenBodyState extends State<LockScreenBody> {
   final TextEditingController _controller = TextEditingController();
   bool _busy = false;
-  String? _error;
+  bool _forgotOpen = false;
+  String? _message;
 
   @override
   void dispose() {
+    _controller.clear();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _onUnlock() async {
+  Future<void> _submit() async {
     if (_busy) return;
     final passphrase = _controller.text;
     if (passphrase.isEmpty) {
-      setState(() => _error = widget.copy.wrongPassphrase);
+      setState(() => _message = widget.copy.wrongPassphrase);
       return;
     }
     setState(() {
       _busy = true;
-      _error = null;
+      _message = null;
     });
+    String? message;
     try {
-      final ok = await widget.onTryUnlock(widget.sessionKey, passphrase);
-      if (!mounted) return;
-      if (!ok) {
-        setState(() {
-          _busy = false;
-          _error = widget.copy.wrongPassphrase;
-        });
-        return;
-      }
-      // Parent observes the session-key `isOpen` and flips the
-      // gate. We don't need to navigate here.
-    } on UnsupportedError {
-      // The build has no web store — not the user's passphrase.
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = widget.copy.unavailable;
-      });
+      final outcome = await widget.onUnlock(passphrase);
+      message = switch (outcome) {
+        WebUnlocked() || WebStoreDataMissing() => null,
+        WebWrongPassphrase() ||
+        WebPassphraseRejected() => widget.copy.wrongPassphrase,
+        WebThrottled() => widget.copy.throttled,
+        WebStoreUnavailable() => widget.copy.unavailable,
+        WebStoreInUseElsewhere() => widget.copy.inOtherTab,
+      };
     } on Object {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = widget.copy.wrongPassphrase;
-      });
+      message = widget.copy.unavailable;
+    } finally {
+      // W7: never leave the attempt in the field. W4: always un-busy.
+      _controller.clear();
     }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = message;
+    });
+  }
+
+  Future<void> _forgot() async {
+    final run = widget.onForgot;
+    if (run == null || _busy) return;
+    setState(() => _busy = true);
+    String? message;
+    try {
+      message = await run();
+    } on Object {
+      message = widget.copy.unavailable;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = message;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final copy = widget.copy;
+    final muted = TextStyle(color: widget.palette.muted, fontSize: 14);
     return Semantics(
-      label: widget.copy.label,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.copy.label,
-              style: TextStyle(
-                fontSize: 22,
-                color: widget.palette.ink,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _controller,
-              obscureText: true,
-              autofocus: true,
-              textInputAction: TextInputAction.go,
-              onSubmitted: (_) => _onUnlock(),
-              decoration: InputDecoration(
-                hintText: widget.copy.placeholder,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 48,
-              child: OutlinedButton(
-                onPressed: _busy ? null : _onUnlock,
-                child: _busy
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(widget.copy.unlock),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
+      label: copy.label,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
-                _error!,
-                style: TextStyle(color: widget.palette.muted, fontSize: 14),
+                copy.label,
+                style: TextStyle(
+                  fontSize: 22,
+                  color: widget.palette.ink,
+                  fontWeight: FontWeight.w400,
+                ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _controller,
+                obscureText: true,
+                autofocus: true,
+                enableSuggestions: false,
+                autocorrect: false,
+                textInputAction: TextInputAction.go,
+                onSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  hintText: copy.placeholder,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: _busy ? null : _submit,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(copy.unlock),
+                ),
+              ),
+              if (_message != null) ...[
+                const SizedBox(height: 16),
+                Text(_message!, style: muted, textAlign: TextAlign.center),
+              ],
+              if (widget.onForgot != null) ...[
+                const SizedBox(height: 24),
+                Align(
+                  child: TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _forgotOpen = !_forgotOpen),
+                    child: Text(copy.forgot),
+                  ),
+                ),
+                if (_forgotOpen) ...[
+                  Text(copy.forgotBody, style: muted),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: _busy ? null : _forgot,
+                      child: Text(copy.forgotAction),
+                    ),
+                  ),
+                ],
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// The minimum palette the body needs to render — kept here so the
-/// `apps/client` `UnlockGate` can pass its own `AppPalette`-shaped
-/// values without dragging the apps/client theme tokens into
-/// `integrations`.
+/// The minimum palette the bodies need to render — kept here so the
+/// `apps/client` screens can pass their own `AppPalette`-shaped values
+/// without dragging the apps/client theme tokens into `integrations`.
 class LockScreenPalette {
   const LockScreenPalette({required this.ink, required this.muted});
 

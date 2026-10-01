@@ -78,9 +78,12 @@ fi
 if [[ -n "${AI_NUTRITION_COACH_BYOK_API_KEY:-}" ]]; then
   BYOK_DEFINES="$BYOK_DEFINES --dart-define=AI_NUTRITION_COACH_BYOK_API_KEY=$AI_NUTRITION_COACH_BYOK_API_KEY"
 fi
-if [[ -n "${AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE:-}" ]]; then
-  BYOK_DEFINES="$BYOK_DEFINES --dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=$AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE"
+if [[ -n "${OPENPLATE_DEV_IN_MEMORY_STORE:-}" ]]; then
+  BYOK_DEFINES="$BYOK_DEFINES --dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=$OPENPLATE_DEV_IN_MEMORY_STORE --dart-define=OPENPLATE_BUILD=dev"
 fi
+
+# The web store's pinned, SHA-256-verified sqlite3mc.wasm (Phase 2B).
+"$ROOT/scripts/flutter_docker.sh" bash scripts/fetch_web_sqlite.sh
 
 echo "▶ Building web bundle (BYOK defines: ${OPENPLATE_BYOK_MODEL:-<none>})…"
 "$ROOT/scripts/flutter_docker.sh" \

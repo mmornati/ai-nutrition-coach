@@ -1,34 +1,42 @@
-// The `UnlockGate` — the scaffold-replacing widget that decides
-// whether to mount the `LockScreen` or the `DayBoardScreen`
-// (Story 4.1 / AD-8).
+// The `UnlockGate` — decides what the app shows first (Story 4.1 / AD-8,
+// Phase 2B / W4, W6).
 //
-// The gate reads the `WebSessionKey` singleton; while the session
-// is locked the lock screen is the first paint. On unlock the
-// session key's `isOpen` flips to true and the Day Board takes
-// over. The gate is reactive: a `Listenable` notifies on every
-// `unlock` / `lock`, and the gate rebuilds.
+// Mobile and the dev in-memory store (no `WebStoreController`): the store is
+// open at startup, so the Day Board is the first paint, or the calm
+// "history can't be opened" surface when startup failed (D7).
 //
-// The Day Board is rendered behind the gate; on web the
-// `WasmEncryptedStore` returns the typed `WebSessionKeyFailure`
-// while locked, so even a fast-finger unlock followed by a network
-// hiccup is recoverable.
+// Web (controller present), by `WebStoreStatus`:
+//   needsPassphraseCreation -> CreatePassphraseScreen   (first run)
+//   locked                  -> LockScreen               (returning user)
+//   unlocked                -> DayBoardScreen
+//   needsReset              -> KeyLostScreen (erase and start over)
+//   checking / erasing      -> blank
 //
-// `kIsWeb` keeps the lock screen off the io target: the mobile
-// `EncryptedStoreAdapter` opens with the secure-storage key at
-// startup (AD-8 mobile), so the gate is a no-op on io and the Day
-// Board is the first paint as in Epic 1/2/3.
+// The gate listens to the controller, so unlocking switches to the Day
+// Board and locking switches back (the old gate never rebuilt). On every
+// unlocked -> locked transition (manual, idle, page hidden) it asks the
+// app to restart: that discards the whole `ProviderScope`, so no decrypted
+// plate/coach data cached in providers survives a lock, and the next
+// unlock builds fresh providers against the reopened database.
+//
+// It also feeds the auto-lock: pointer activity resets the idle timer, and
+// the app lifecycle (Flutter web maps `visibilitychange` to `hidden` /
+// `resumed`) tells the controller when the page was away.
 
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:domain_core/domain_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
+import '../screens/create_passphrase_screen.dart';
 import '../screens/day_board_screen.dart';
 import '../screens/key_lost_screen.dart';
 import '../screens/lock_screen.dart';
 import '../state/erase_provider.dart';
-import '../state/web_session_key_provider.dart';
+import '../state/web_store_controller_provider.dart';
 
 class UnlockGate extends ConsumerStatefulWidget {
   const UnlockGate({super.key});
@@ -37,34 +45,72 @@ class UnlockGate extends ConsumerStatefulWidget {
   ConsumerState<UnlockGate> createState() => _UnlockGateState();
 }
 
-class _UnlockGateState extends ConsumerState<UnlockGate> {
-  late final _SessionKeyListener _listener;
+class _UnlockGateState extends ConsumerState<UnlockGate>
+    with WidgetsBindingObserver {
+  WebStoreController? _controller;
+  WebStoreStatus? _previous;
 
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) {
-      _listener = _SessionKeyListener(ref.read(webSessionKeyProvider));
-      _listener.addListener(_onChange);
-    } else {
-      _listener = _SessionKeyListener.noop();
-    }
+    _controller = ref.read(webStoreControllerProvider);
+    _previous = _controller?.status;
+    _controller?.addListener(_onChange);
+    WidgetsBinding.instance.addObserver(this);
+    if (_controller != null) HardwareKeyboard.instance.addHandler(_onKey);
   }
 
   @override
   void dispose() {
-    _listener.removeListener(_onChange);
-    _listener.dispose();
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    WidgetsBinding.instance.removeObserver(this);
+    _controller?.removeListener(_onChange);
     super.dispose();
   }
 
+  /// Typing counts as activity (L2); never consumes the event.
+  bool _onKey(KeyEvent event) {
+    _controller?.touch();
+    return false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (controller == null) return;
+    switch (state) {
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        controller.onHidden();
+      case AppLifecycleState.resumed:
+        controller.onVisible();
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
+
   void _onChange() {
-    if (mounted) setState(() {});
+    final controller = _controller;
+    if (controller == null || !mounted) return;
+    final before = _previous;
+    final now = controller.status;
+    _previous = now;
+    final wasOpenOrErasing =
+        before == WebStoreStatus.unlocked || before == WebStoreStatus.erasing;
+    if (wasOpenOrErasing && now == WebStoreStatus.locked) {
+      // Fresh providers: nothing decrypted outlives the lock.
+      final restart = ref.read(appRestartProvider);
+      scheduleMicrotask(restart);
+      return;
+    }
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!kIsWeb) {
+    final controller = _controller;
+    if (controller == null) {
       // D7 / review 2: the store did not open (lost key, bad key, failed
       // migration, ...) — the Day Board could never read it, so offer the
       // explicit erase instead.
@@ -78,31 +124,24 @@ class _UnlockGateState extends ConsumerState<UnlockGate> {
       }
       return const DayBoardScreen();
     }
-    final sessionKey = ref.watch(webSessionKeyProvider);
-    if (!sessionKey.isOpen) {
-      return const LockScreen();
-    }
-    return const DayBoardScreen();
-  }
-}
-
-/// Lightweight listener that re-broadcasts the session-key open
-/// state. Avoids the cost of a full `ChangeNotifier` for what is
-/// effectively a boolean flip.
-class _SessionKeyListener extends ChangeNotifier {
-  _SessionKeyListener(WebSessionKey key) : _key = key, _isOpen = key.isOpen;
-  _SessionKeyListener.noop() : _key = null, _isOpen = true;
-  final WebSessionKey? _key;
-  bool _isOpen;
-  bool get isOpen => _isOpen;
-
-  @override
-  void notifyListeners() {
-    final k = _key;
-    if (k == null) return;
-    if (k.isOpen != _isOpen) {
-      _isOpen = k.isOpen;
-      super.notifyListeners();
+    switch (controller.status) {
+      case WebStoreStatus.checking:
+      case WebStoreStatus.erasing:
+        return const Scaffold(body: SizedBox.shrink());
+      case WebStoreStatus.needsPassphraseCreation:
+        return const CreatePassphraseScreen();
+      case WebStoreStatus.locked:
+        return const LockScreen();
+      case WebStoreStatus.needsReset:
+        return const KeyLostScreen(copy: enWebStoreUnreadableStrings);
+      case WebStoreStatus.unlocked:
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => controller.touch(),
+          onPointerMove: (_) => controller.touch(),
+          onPointerSignal: (_) => controller.touch(),
+          child: const DayBoardScreen(),
+        );
     }
   }
 }

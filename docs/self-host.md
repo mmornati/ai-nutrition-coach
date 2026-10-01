@@ -44,7 +44,13 @@ PR) asserts:
 
 - The image builds in under 5 minutes on a standard CI runner
   (NFR9 / FR-11 acceptance).
-- `curl http://localhost/` returns `200` and the lock-screen HTML.
+- `curl http://localhost/` returns `200` and the app HTML (the first screen is the
+  create-passphrase / unlock screen).
+- The web store encrypts with WebCrypto, which browsers only expose on **secure
+  contexts**: serve the app over **https** (or open it on `localhost`). Over plain
+  `http://<lan-address>/` the store reports itself unavailable instead of running
+  unprotected. `/sqlite3mc-3.5.1.wasm` must be served with `application/wasm` (the shipped
+  nginx config does) and the CSP must allow `'wasm-unsafe-eval'` (it does).
 - The `nginx:alpine` base is digest-pinned (`sha256:4a73073bd…`),
   so the build is byte-stable across rebuilds (NFR9).
 - The container's network namespace is quiet — no outbound calls

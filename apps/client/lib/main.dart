@@ -13,8 +13,7 @@ import 'state/photo_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
-import 'state/web_session_key_provider.dart';
-import 'state/web_unlock_probe_provider.dart';
+import 'state/web_store_controller_provider.dart';
 import 'theme/app_tokens.dart';
 import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';
@@ -127,7 +126,10 @@ Future<List<Override>> _bootOverrides(VoidCallback restart) async {
     // database is released before its files are deleted.
     storeStartupFailureProvider.overrideWithValue(bundle.startupFailure),
     localDataEraserProvider.overrideWithValue(
-      LocalDataEraserImpl(closeDatabase: bundle.closeDatabase),
+      LocalDataEraserImpl(
+        closeDatabase: bundle.closeDatabase,
+        eraseStoreData: bundle.eraseStoreData,
+      ),
     ),
     // Story 1.5 — wire the manual-entry + voice seams. The catalog
     // is offline-first; the voice transcriber is a no-op (FR3 /
@@ -169,17 +171,11 @@ Future<List<Override>> _bootOverrides(VoidCallback restart) async {
     // behind the same `Coach` port without touching Stories
     // 2.2 / 2.3 (AD-5).
     coachProvider.overrideWithValue(const TemplateCoach()),
-    // Story 4.1 — wire the web session key + the unlock probe.
-    // Both are only populated on the web bundle (Story 4.1
-    // added the optional fields to `StoreBundle` for exactly
-    // this wiring). On io the lock screen never renders (the
-    // `UnlockGate` is `kIsWeb`-aware), so the providers fall
-    // back to the throw-on-unoverridden defaults — which are
-    // unreachable.
-    if (bundle.webSessionKey != null)
-      webSessionKeyProvider.overrideWithValue(bundle.webSessionKey!),
-    if (bundle.webUnlockProbe != null)
-      webUnlockProbeProvider.overrideWithValue(bundle.webUnlockProbe!),
+    // Phase 2B — the web store controller (create / unlock / lock / erase
+    // and the in-memory key). Only the web factory populates it; on io
+    // and for the dev in-memory store it is null and the gate goes
+    // straight to the Day Board.
+    webStoreControllerProvider.overrideWithValue(bundle.webStoreController),
     appRestartProvider.overrideWithValue(restart),
   ];
 }

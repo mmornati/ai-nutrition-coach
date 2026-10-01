@@ -1,14 +1,14 @@
 /// AI Nutrition Coach adapter package.
 ///
 /// Houses concrete implementations of the ports declared in `domain_core`:
-/// the drift encrypted store (AD-8 — mobile sqlite3mc ChaCha20-Poly1305 + web
-/// `WasmEncryptedStore` with PBKDF2 session key, Story 4.1), the
+/// the drift encrypted store (AD-8 — mobile sqlite3mc ChaCha20-Poly1305; web sqlite3mc-wasm on
+/// IndexedDB behind a passphrase-derived key, Phase 2B / ADR-0002), the
 /// OFF/USDA `FoodCatalog` adapters (AD-4), the four `AiRung` adapters
 /// (no-op / hosted-quota / byok / local seam; AD-5), and the v1
 /// `TemplateCoach` rung behind the `Coach` port (AD-7 / NFR3).
 ///
-/// Stories 1.2+ populate this surface. Story 4.1 swaps the v0
-/// `WebEncryptedStoreStub` for the real `WasmEncryptedStore`.
+/// Stories 1.2+ populate this surface. Phase 2B ships the real
+/// web store (`WasmEncryptedStore` + `WebStoreController`).
 library;
 
 export 'src/ai/byok_ai_rung.dart';
@@ -36,8 +36,15 @@ export 'src/store/local_data_eraser_stub.dart'
 export 'src/store/secure_key_source.dart';
 export 'src/store/secure_storage_options.dart';
 export 'src/store/sqlite_key_attach.dart';
+export 'src/store/wasm_coach_note_store.dart';
 export 'src/store/wasm_encrypted_store.dart';
+export 'src/store/web_database_backend.dart';
+export 'src/store/web_kdf.dart';
 export 'src/store/web_session_key.dart';
+export 'src/store/web_store_controller.dart';
+export 'src/store/web_store_lock.dart';
+export 'src/store/web_store_meta.dart';
+export 'src/store/web_store_storage.dart';
 export 'src/sync/drift_sync_queue.dart';
 export 'src/sync/local_only_sync_adapter.dart';
 export 'src/config/build_config.dart';

@@ -4,7 +4,7 @@
 //
 // Story 4.1 — the previous `WebEncryptedStoreStub` group is removed; the
 // web rung now ships behind `WasmEncryptedStore` (see
-// `wasm_encrypted_store_test.dart`).
+// `web_store_controller_test.dart`).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';

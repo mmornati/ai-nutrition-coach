@@ -1,27 +1,16 @@
-// Web-side `EncryptedStore` implementation (AD-8 / Story 4.1).
+// Web-side `EncryptedStore` implementation (AD-8 / Phase 2B).
 //
-// The web build runs the same drift schema on `sqlite3.wasm` with a
-// PBKDF2-derived session key held in memory for the session lifetime
-// only. A page reload or session restart requires the user to
-// re-enter the passphrase. The key material never crosses the
-// `domain_core` boundary: only the boolean "is set" assertion does.
+// The web build runs the same drift schema on sqlite3mc compiled to
+// WebAssembly (ChaCha20-Poly1305, the cipher mobile uses), persisted in
+// IndexedDB and unreadable without the passphrase-derived key. This adapter
+// is a thin view over the controller's open database: while the store is
+// locked, `recordPlate` returns a typed
+// `StoreFailure(encryptedStoreError: WebSessionKeyFailure())` and
+// `watchRecent` is empty -- no exception crosses the port. Opening, keying,
+// verification, locking and erasing live in `WebStoreController`.
 //
-// This adapter's job is to read the `WebSessionKey` holder, hold the
-// `AppDatabase` open against the derived key, and surface typed
-// `WebSessionKeyFailure` results while the session is locked. The
-// actual `sqlite3.wasm` open + the drift `WebSqlCipher` binding
-// (from `drift_flutter`) is the v1.1 build-plumbing follow-up; the
-// architecture is in place so the cipher binding drops in behind
-// the same `EncryptedStore` port.
-//
-// The `AppDatabase` schema is identical to mobile (AD-3 / NFR2) —
-// the wasm store reuses the same `AppDatabase` class the mobile
-// `EncryptedStoreAdapter` opens. The `setup` callback on the wasm
-// side will pass the derived key to the wasm SQLCipher; v1.1 wires
-// that. Until then the store opens against the unencrypted wasm
-// database and the AD-8 honest copy ("session-sealed, not at-rest
-// encrypted") holds: the schema is sealed by the in-memory key, not
-// by an at-rest cipher.
+// The `AppDatabase` schema is identical to mobile (AD-3 / NFR2); the
+// coach-note store (`WasmCoachNoteStore`) reads the same database.
 
 import 'dart:async';
 
@@ -29,69 +18,24 @@ import 'package:domain_core/domain_core.dart';
 import 'package:drift/drift.dart';
 
 import 'app_database.dart';
-import 'web_session_key.dart';
+import 'store_error_mapper.dart';
+import 'web_store_controller.dart';
 
-/// The web-side `EncryptedStore`. The constructor takes the
-/// `WebSessionKey` holder and a `databaseOpener` that, given the
-/// derived key bytes, returns the open `AppDatabase`. The opener
-/// isolates the wasm binding so the test surface can substitute a
-/// pure-Dart in-memory database.
+/// The web-side `EncryptedStore`.
 class WasmEncryptedStore implements EncryptedStore {
-  WasmEncryptedStore({
-    required WebSessionKey sessionKey,
-    required Future<AppDatabase> Function(Uint8List derivedKey) databaseOpener,
-  }) : _sessionKey = sessionKey,
-       _openDatabase = databaseOpener;
+  WasmEncryptedStore({required WebDatabaseSource source}) : _source = source;
 
-  final WebSessionKey _sessionKey;
-  final Future<AppDatabase> Function(Uint8List) _openDatabase;
-  AppDatabase? _db;
+  final WebDatabaseSource _source;
 
-  /// True when the session is unlocked AND the database is open.
-  /// The lock screen and the Day Board both read this.
-  bool get isOpen => _db != null;
-
-  /// Try to open the wasm database with the derived key. Returns
-  /// `true` on success, `false` if the key is wrong (in v1 the only
-  /// store is the same drift schema; a wrong passphrase produces a
-  /// non-matching key and the store refuses). The lock screen
-  /// renders the calm "that passphrase does not open this store"
-  /// line on `false`.
-  Future<bool> tryOpen() async {
-    if (!_sessionKey.isOpen) return false;
-    final key = _sessionKey.derivedKey!;
-    try {
-      _db = await _openDatabase(key);
-      return _db != null;
-    } on UnsupportedError {
-      // This build has no web store: surface it so the lock screen can say
-      // so honestly instead of blaming the passphrase.
-      _db = null;
-      rethrow;
-    } on Object {
-      _db = null;
-      return false;
-    }
-  }
-
-  /// Lock the session. The database is closed; the next call to
-  /// `recordPlate` or `watchRecent` returns
-  /// `StoreFailure(encryptedStoreError: WebSessionKeyFailure())`.
-  Future<void> lock() async {
-    final db = _db;
-    _db = null;
-    _sessionKey.lock();
-    if (db != null) {
-      await db.close();
-    }
-  }
+  /// True when the store is unlocked and the database is open.
+  bool get isOpen => _source.database != null;
 
   @override
   Future<RecordPlateResult> recordPlate({
     required List<FoodEntryDraft> entries,
     DateTime? loggedAtUtc,
   }) async {
-    final db = _db;
+    final db = _source.database;
     if (db == null) {
       return const StoreFailure(encryptedStoreError: WebSessionKeyFailure());
     }
@@ -122,14 +66,14 @@ class WasmEncryptedStore implements EncryptedStore {
       });
       final plate = await _readPlateLog(db, plateLogId, loggedAt);
       return RecordPlateSuccess(plate);
-    } on Object {
-      return const StoreFailure(encryptedStoreError: WebSessionKeyFailure());
+    } on Exception catch (e) {
+      return mapStoreError(e);
     }
   }
 
   @override
   Stream<List<PlateLog>> watchRecent({DateTime? since}) {
-    final db = _db;
+    final db = _source.database;
     if (db == null) {
       // Locked session — emit a single typed failure as a synthetic
       // plate list of length zero, then close. The Day Board
@@ -157,13 +101,7 @@ class WasmEncryptedStore implements EncryptedStore {
   }
 
   @override
-  Future<void> close() async {
-    final db = _db;
-    _db = null;
-    if (db != null) {
-      await db.close();
-    }
-  }
+  Future<void> close() => _source.lock();
 
   Future<PlateLog> _readPlateLog(
     AppDatabase db,

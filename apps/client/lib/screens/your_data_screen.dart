@@ -3,8 +3,9 @@
 //
 // The sub-screen is one calm list under Settings; the static
 // content Story 4.1 ships is the AD-8 honest-copy anchor — the
-// protection posture line that says "session-sealed, not at-rest
-// encrypted" on web. Story 4.2 adds the export affordance
+// protection posture line (cipher named truthfully; on web the key
+// comes from your passphrase and a forgotten passphrase cannot be
+// recovered). Story 4.2 adds the export affordance
 // (format + scope + export pill); Story 4.3 will add the sync
 // status surface below the export section.
 //
@@ -13,9 +14,9 @@
 // signs off. The single value (`enYourDataStrings`) is the
 // canonical, calm, non-judgmental copy.
 //
-// The screen is web-aware: on `kIsWeb` it reads the
-// `webSessionKeyProvider`'s `isOpen` to render the locked /
-// unlocked posture. On io the line is the unlocked posture (the
+// The screen is web-aware: when the web store controller is present it
+// renders the locked / unlocked posture and the lock controls (manual
+// lock + idle auto-lock delay, Phase 2B). On io the line is the unlocked posture (the
 // mobile store is ChaCha20-Poly1305 at rest with its key in the
 // Keychain/Keystore — Story 1.2 / AD-8, cipher pinned in Phase 2A).
 //
@@ -42,10 +43,10 @@ import 'package:integrations/integrations.dart';
 
 import '../state/erase_provider.dart';
 import '../state/exporter_provider.dart';
-import '../state/platform_provider.dart';
-import '../state/web_session_key_provider.dart';
+import '../state/web_store_controller_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/erase_local_data_dialog.dart';
+import '../widgets/web_lock_button.dart';
 
 class YourDataScreen extends ConsumerStatefulWidget {
   const YourDataScreen({super.key, this.copy = enYourDataStrings});
@@ -70,8 +71,8 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final locked =
-        ref.watch(isWebProvider) && !ref.watch(webSessionKeyProvider).isOpen;
+    final webController = ref.watch(webStoreControllerProvider);
+    final locked = webController != null && !webController.isUnlocked;
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
@@ -100,6 +101,12 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
               const Divider(height: AppSpacing.hairline),
               const SizedBox(height: AppSpacing.lg),
               if (!locked) _exportSection(palette, widget.copy),
+              if (webController != null && !locked) ...[
+                const SizedBox(height: AppSpacing.lg),
+                const Divider(height: AppSpacing.hairline),
+                const SizedBox(height: AppSpacing.lg),
+                _lockSection(palette, webController),
+              ],
               // Story 4.3 — sync status surface lands here.
               const SizedBox(height: AppSpacing.lg),
               const Divider(height: AppSpacing.hairline),
@@ -109,6 +116,40 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Web only (Phase 2B / W4): the manual lock and the idle auto-lock
+  /// delay (persisted by the controller; 15 minutes by default).
+  Widget _lockSection(AppPalette palette, WebStoreController controller) {
+    const web = enWebSessionStrings;
+    const minutes = [5, 15, 30, 60];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          web.lockAfterLabel,
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          spacing: AppSpacing.xs,
+          children: [
+            for (var i = 0; i < minutes.length; i++)
+              _pill(
+                palette: palette,
+                label: web.lockAfterOptions[i],
+                selected: controller.idleTimeout.inMinutes == minutes[i],
+                onTap: () => setState(
+                  () =>
+                      controller.setIdleTimeout(Duration(minutes: minutes[i])),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        const WebLockButton(),
+      ],
     );
   }
 
@@ -149,26 +190,31 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
 
   Future<void> _runErase() async {
     if (_erasing) return;
+    // Resolved up front: on web the erase re-routes the gate, and the
+    // restart must not depend on this widget still being mounted.
+    final eraser = ref.read(eraseLocalDataProvider);
+    final restart = ref.read(appRestartProvider);
     final result = await confirmAndEraseLocalData(
       context: context,
       copy: widget.copy,
       erase: () {
         setState(() => _erasing = true);
-        return ref.read(eraseLocalDataProvider)();
+        return eraser();
       },
     );
-    if (!mounted) return;
-    setState(() {
-      _erasing = false;
-      _eraseMessage = switch (result) {
-        null => null,
-        EraseLocalDataSuccess() => widget.copy.eraseDone,
-        EraseLocalDataFailure() => widget.copy.eraseFailed,
-      };
-    });
+    if (mounted) {
+      setState(() {
+        _erasing = false;
+        _eraseMessage = switch (result) {
+          null => null,
+          EraseLocalDataSuccess() => widget.copy.eraseDone,
+          EraseLocalDataFailure() => widget.copy.eraseFailed,
+        };
+      });
+    }
     if (result is EraseLocalDataSuccess) {
       // First-run state: rebuild the app on a fresh store (review 8).
-      ref.read(appRestartProvider)();
+      restart();
     }
   }
 

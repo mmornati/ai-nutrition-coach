@@ -8,10 +8,10 @@
 // Implementations live in `packages/integrations`:
 //   * `EncryptedStoreAdapter` — mobile (drift on sqlite3mc, ChaCha20-Poly1305,
 //     AD-8: at-rest via Keychain/Keystore).
-//   * `WasmEncryptedStore` — web (Story 4.1 / AD-8: same drift schema
-//     on `sqlite3.wasm` with a PBKDF2-derived session key held in
-//     memory for the session lifetime only — session-sealed, not
-//     at-rest encrypted).
+//   * `WasmEncryptedStore` — web (Phase 2B / AD-8, ADR-0002: same drift
+//     schema on sqlite3mc compiled to WebAssembly, ChaCha20-Poly1305
+//     pages persisted in IndexedDB, key derived from a user passphrase
+//     and held in memory only while unlocked).
 //
 // No domain mutation crosses this port as a raw exception — drift
 // errors and web-side key-derivation failures are caught at the

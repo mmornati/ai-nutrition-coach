@@ -59,60 +59,103 @@ What this means in practice:
 
 ## Web (self-host, Flutter web build)
 
-Your history lives in the same SQLite schema, opened against
-`sqlite3.wasm` in your browser. The 32-byte key is derived from the
-passphrase you enter on the lock screen via **PBKDF2-HMAC-SHA256**
-(100,000 iterations, per-app salt) and held **in memory for the
-session lifetime only** — never written to `localStorage`,
-`IndexedDB`, or any web-side storage. A page reload or session
-restart requires you to re-enter the passphrase.
+Your history lives in the same SQLite schema, in your browser's
+**IndexedDB**, encrypted at rest with the same **ChaCha20-Poly1305**
+as mobile (SQLite3MultipleCiphers compiled to WebAssembly,
+`sqlite3mc.wasm`). The 32-byte key is derived from a **passphrase you
+choose** with **PBKDF2-HMAC-SHA256, 600,000 iterations, and a random
+per-store salt**, computed by the browser's WebCrypto. The key is held
+in memory only while the store is unlocked and is **never written to
+disk**. What is written next to the data is not secret: the salt, the
+KDF name and cost, and a format version, kept in `localStorage` with a
+copy inside IndexedDB so clearing `localStorage` alone does not orphan
+your data. Your passphrase is Unicode-normalised (NFC) before use, so
+the same visible passphrase works whatever keyboard typed it. (Phase 2B /
+AD-8; design and threat model: ADR-0002.)
 
-This is described as **"session-sealed, not at-rest encrypted"**.
-The browser's WASM sandbox + the OS process isolation give the key
-real protection while the tab is open, but the key is not
-persisted; a stolen unlocked device with the tab open is the same
-threat model as a stolen unlocked mobile device, but a stolen
-device with the tab closed is **not** the same threat model as a
-stolen mobile device. We say so plainly. (Story 4.1 / AD-8.)
+What this means in practice:
+
+- **First run** asks you to create a passphrase (typed twice, at
+  least 10 characters). It says plainly, before you set it, that a
+  forgotten passphrase **cannot be recovered**: there is no copy, no
+  reset link, no escrow.
+- **Every later visit** starts at an unlock screen. A wrong passphrase
+  can never open the store: the database pages simply do not decrypt.
+  After a few wrong attempts the screen adds a short wait. That wait is
+  friction for fat fingers, **not** a security control: someone who
+  copies your IndexedDB can guess offline at the cost of 600,000 hashes
+  per guess. Pick a long passphrase.
+- **Locking** zeroes the key buffer and closes the database. It
+  happens when you press *Lock*, after an idle delay (15 minutes by
+  default; 5 / 15 / 30 / 60 in *Your data*), and when the page has been
+  hidden for 5 minutes. Locking restarts the app view, so nothing
+  decrypted is kept around in memory by the UI. (We wipe the buffers we
+  own; the key was also used once as text and lives inside the
+  WebAssembly memory while unlocked, so we do not claim the key is
+  erased from RAM.)
+- **Forgot the passphrase?** The unlock screen offers *Erase and start
+  over*, behind a confirmation. It deletes the encrypted database, the
+  header and the saved AI key from this browser, and returns to first
+  run. *Erase all local data* in *Your data* does the same.
+- If the browser's site data was partly cleared (header without data,
+  or data without any header) the app does not guess and never creates
+  a new store over what is left: it says the store can't be found and
+  offers the same erase. (A header lost from `localStorage` only is
+  restored from the IndexedDB copy automatically.)
+- **Only one tab at a time.** The store is held by one tab; a second
+  tab says OpenPlate is open in another tab and lets you retry once the
+  first has locked or closed. A tab hidden for 5 minutes locks itself.
+- Exports (CSV/JSON) are plaintext downloads the browser saves wherever
+  you choose; the app does not keep them.
+
+Limits, stated plainly: this protects the data on a locked/closed
+browser profile. It does not protect against malware or a malicious
+extension in your browser, against someone using your unlocked tab, or
+against a weak passphrase. The web build needs a **secure context**
+(https or `localhost`) because that is where browsers expose WebCrypto.
 
 ## What this means for self-hosters
 
-- The first paint on the web build is a lock screen. There is no
-  "auto-unlock" affordance and there will never be one.
-- The lock screen's passphrase field masks the input. The key is
-  derived in the same Dart runtime as the rest of the app — no
-  JavaScript bridge, no browser `window.crypto` call, no telemetry
-  on the unlock event (pinned by `melos run check:telemetry`).
+- The first paint on the web build is the create-passphrase screen
+  (first run) or the unlock screen. There is no "auto-unlock"
+  affordance and there will never be one.
+- Serve the app over https (see `docs/self-host.md`); the bundle also
+  ships `sqlite3mc-3.5.1.wasm` (versioned file name), fetched at build time by
+  `scripts/fetch_web_sqlite.sh` and verified against a pinned SHA-256.
+- The passphrase fields mask input; the key never leaves the browser;
+  no telemetry on the unlock event (pinned by `melos run
+  check:telemetry`).
 - A wrong passphrase renders a single calm line: *"That passphrase
-  does not open this store."* No exception is ever thrown across
-  the storage port.
+  does not open this store."* No exception is ever thrown across the
+  storage port.
 
 ## What this means for contributors
 
-- The `WebSessionKey` holder lives in
-  `packages/integrations/lib/src/store/web_session_key.dart`. The
-  key is in memory; never log it, never serialize it, never
-  `toString()` it (the holder's `toString` is redacted to
-  `WebSessionKey(isOpen: <bool>)`).
-- The `WasmEncryptedStore` lives in
-  `packages/integrations/lib/src/store/wasm_encrypted_store.dart`.
-  While the session is locked, every `recordPlate` returns
-  `StoreFailure(encryptedStoreError: WebSessionKeyFailure())` and
-  every `watchRecent` stream is empty. The UI surfaces the calm
-  "unlock the store first" line; no exception crosses the port.
-- The web build's binary (`sqlite3.wasm` + the drift web worker) is
-  the v1.1 follow-up. The architecture is in place so the binding
-  drops in behind the same `EncryptedStore` port without a core
-  change. The factory's `_openWasmDatabase` placeholder stands in
-  for now.
-- The AD-1 invariant holds: `packages/domain_core` is free of
-  Flutter / SQLite / HTTP / web imports. The web adapter lives in
-  `packages/integrations`; the lock screen widget body lives in
-  `packages/integrations`; the apps/client `UnlockGate` + provider
-  graph wire the two together.
+- `WebStoreController`
+  (`packages/integrations/lib/src/store/web_store_controller.dart`) owns
+  create / unlock / lock / erase, throttling and auto-lock, against three
+  injected seams: `PassphraseKdf` (WebCrypto in the browser, a pure-Dart
+  reference in tests), `WebStoreStorage` (`localStorage`) and
+  `WebDatabaseBackend` (IndexedDB + sqlite3mc-wasm; a temp-file sqlite3mc
+  database in tests), plus a `WebStoreLock` (Web Locks; an in-memory lock
+  shared by two controllers plays two tabs). Everything but those three web adapters runs in
+  `flutter test`.
+- `WebSessionKey` is a `ChangeNotifier` holding the verified key; it zeroes
+  on lock; never log it, never serialize it (its `toString` is redacted).
+- `WasmEncryptedStore` / `WasmCoachNoteStore` are views over the
+  controller's open database. While locked every `recordPlate` returns
+  `StoreFailure(encryptedStoreError: WebSessionKeyFailure())`; no exception
+  crosses the port.
+- `OPENPLATE_DEV_IN_MEMORY_STORE=true` is the only unencrypted web path
+  (red DEV banner) and is honoured only with `OPENPLATE_BUILD=dev`; every
+  other build ignores it.
+- The AD-1 invariant holds: `packages/domain_core` is free of Flutter /
+  SQLite / HTTP / web imports.
 
 ## Cross-references
 
+- `_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0002-web-encrypted-store.md`
+  — the web store design, threat model and what is not verified in automation.
 - `docs/ai-tiers.md` — the AI rung surface; same privacy posture.
 - `docs/self-host.md` — the one-command self-host install (Story 4.4).
 - `docs/no-dark-patterns-standard.md` — the named-reviewer gate

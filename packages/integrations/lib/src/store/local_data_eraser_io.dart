@@ -35,6 +35,7 @@ import 'secure_storage_options.dart';
 class LocalDataEraserImpl implements LocalDataEraser {
   LocalDataEraserImpl({
     this.closeDatabase,
+    this.eraseStoreData,
     FlutterSecureStorage? storage,
     Future<String> Function()? databaseFilePath,
     Future<String> Function()? temporaryDirectoryPath,
@@ -49,6 +50,11 @@ class LocalDataEraserImpl implements LocalDataEraser {
   /// Closes the open database (`StoreBundle.closeDatabase`). `null` when
   /// the store never opened (e.g. the lost-key state): nothing to close.
   final Future<void> Function()? closeDatabase;
+
+  /// Extra store-specific erase hook (`StoreBundle.eraseStoreData`). Only
+  /// the web store has one (IndexedDB); `null` on io, where the database
+  /// file is deleted here.
+  final Future<void> Function()? eraseStoreData;
 
   final FlutterSecureStorage _storage;
   final Future<String> Function() _databaseFilePath;
@@ -71,7 +77,10 @@ class LocalDataEraserImpl implements LocalDataEraser {
     if (!await _attempt(() async => await closeDatabase?.call())) {
       failed.add(EraseStep.closeStore);
     }
-    if (!await _attempt(_deleteDatabaseFiles)) {
+    if (!await _attempt(() async {
+      await _deleteDatabaseFiles();
+      await eraseStoreData?.call();
+    })) {
       failed.add(EraseStep.databaseFiles);
     }
     if (!await _attempt(_deleteSecureStorage)) {
