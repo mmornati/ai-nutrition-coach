@@ -1,0 +1,14 @@
+# Overlay for docker-compose.traefik.yml: use a named ACME certificate resolver.
+#
+#   OPENPLATE_TRAEFIK_CERTRESOLVER=letsencrypt OPENPLATE_DOMAIN=plate.example.com \
+#     docker compose -f infra/docker-compose.traefik.yml \
+#                    -f infra/docker-compose.traefik-certresolver.yml up -d
+#
+# A separate file so that, when you do NOT use a resolver, no empty
+# `tls.certresolver` label exists at all. `bin/openplate up --traefik` adds
+# this file automatically when OPENPLATE_TRAEFIK_CERTRESOLVER is set.
+
+services:
+  openplate:
+    labels:
+      traefik.http.routers.openplate.tls.certresolver: ${OPENPLATE_TRAEFIK_CERTRESOLVER:?set OPENPLATE_TRAEFIK_CERTRESOLVER to your resolver name}

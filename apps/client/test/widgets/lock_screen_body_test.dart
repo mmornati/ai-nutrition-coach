@@ -90,6 +90,15 @@ void main() {
     expect(calls, 2);
   });
 
+  testWidgets('data written by a newer version: its own calm line (reload to '
+      'update), not "wrong passphrase"', (tester) async {
+    await _pump(tester, (_) async => const WebStoreNewerVersion());
+    await _submit(tester, 'x');
+    expect(find.text(copy.newerVersion), findsOneWidget);
+    expect(find.textContaining('reload'), findsOneWidget);
+    expect(find.text(copy.wrongPassphrase), findsNothing);
+  });
+
   testWidgets('a thrown error is reported as unavailable, not as a wrong '
       'passphrase, and releases busy', (tester) async {
     await _pump(tester, (_) async => throw StateError('boom'));

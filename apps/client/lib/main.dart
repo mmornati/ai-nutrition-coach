@@ -9,6 +9,7 @@ import 'state/font_licenses.dart';
 import 'state/scanner_adapters.dart';
 import 'theme/app_theme.dart';
 import 'widgets/unlock_gate.dart';
+import 'widgets/update_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,6 +80,21 @@ class _OpenPlateBootstrapState extends State<OpenPlateBootstrap> {
   }
 }
 
+/// Any device locale resolves to a supported one, English when nothing
+/// matches (or the platform reports nothing usable): an odd locale must never
+/// stop the app from starting. Only `en` ships today.
+Locale resolveAppLocale(Locale? locale, Iterable<Locale> supported) {
+  if (locale != null) {
+    for (final candidate in supported) {
+      if (candidate.languageCode == locale.languageCode) return candidate;
+    }
+  }
+  return supported.firstWhere(
+    (l) => l.languageCode == 'en',
+    orElse: () => supported.first,
+  );
+}
+
 class OpenPlateApp extends StatelessWidget {
   const OpenPlateApp({super.key, this.themeMode = ThemeMode.system});
 
@@ -93,19 +109,26 @@ class OpenPlateApp extends StatelessWidget {
       onGenerateTitle: (context) => context.l10n.appName,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: resolveAppLocale,
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: buildAppTheme(Brightness.light),
       darkTheme: buildAppTheme(Brightness.dark),
       builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        // The calm "new version is ready" line (service worker update,
+        // ADR-0003) sits above everything, on every screen, and only while
+        // an update is waiting and not dismissed.
         if (!const BuildConfig().devInMemoryStore) {
-          return child ?? const SizedBox.shrink();
+          return UpdateBanner(child: content);
         }
-        return Column(
-          children: [
-            const _DevStoreBanner(),
-            Expanded(child: child ?? const SizedBox.shrink()),
-          ],
+        return UpdateBanner(
+          child: Column(
+            children: [
+              const _DevStoreBanner(),
+              Expanded(child: content),
+            ],
+          ),
         );
       },
       home: const UnlockGate(),

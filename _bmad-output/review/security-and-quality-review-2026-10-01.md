@@ -29,6 +29,31 @@ table says what has since been done, and the list after it what has not.
 
 Commit hashes are from `git log` on `claude/project-security-review-b3675a`.
 
+**PWA (2026-10-02, uncommitted work in the tree, ADR-0003, [`docs/pwa.md`](../../docs/pwa.md)).**
+The web build is now an installable, offline-capable PWA and the primary distribution for the family
+test: own service worker (checksummed precache manifest, calm "new version is ready" flow, never
+touches cross-origin or non-GET requests), manifest + maskable icons + iOS tags, durable-storage
+request and a quiet last-export reminder, the web BYOK key and AI settings moved **into the encrypted
+store** (schema v5, never `localStorage`; this supersedes S4's "memory only"), a self-hosted
+SHA-256-verified zxing-wasm decoder so Safari/iOS can scan, `bin/openplate up --traefik`
+(no published port, HSTS-only middleware, optional cert-resolver / IP allow-list overlays, host-Traefik
+file-provider example), and `scripts/webkit_smoke.sh` (production image under Playwright, WebKit +
+Chromium). Remaining PWA items:
+
+- **Firefox, real iOS Safari and real Android Chrome devices are untested**; WebKit/Chromium run under
+  Playwright on Linux only (see `docs/pwa.md` for what the WebKit run found). The smoke is opt-in and
+  has never run in CI (no remote); the CI job is defined but unrun.
+- The Traefik compose was validated by `docker compose config` and by the smoke's assertions, **not**
+  against a live Traefik; label names follow Traefik v3 (`ipAllowList`), unverified on v2.
+- The service worker has not seen a real production deploy-over-deploy upgrade on a phone.
+- iOS keeps an installed web app's data separate from Safari's, and has no import: only exports bridge
+  them. Android/iOS native launcher icons are still the Flutter placeholders.
+- A passphrase guess against a copied IndexedDB now also yields the stored BYOK key (documented in
+  `docs/ai-tiers.md`).
+- The unencrypted DEV banner (`OPENPLATE_DEV_IN_MEMORY_STORE`) still sits before the Navigator in
+  semantic order, so a Navigator route hides it from screen readers (dev-only; the update banner was
+  fixed).
+
 ### Known remaining items
 
 Verified by nobody yet (not claimed anywhere as done):
@@ -46,8 +71,8 @@ Decisions / follow-ups for the maintainer:
 - **iOS database file is still in iCloud/iTunes backups** (ciphertext only; the
   key is not). Excluding it needs a small native `AppDelegate` hook
   (`NSURLIsExcludedFromBackupKey`).
-- **Safari and Firefox are untested** for the web store (IndexedDB, WebCrypto,
-  eviction). Browser support is claimed for none.
+- **Firefox is untested** for the web store; Safari's engine (WebKit) and Chromium are exercised by the
+  opt-in `scripts/webkit_smoke.sh` (see the PWA paragraph above). Real-device Safari is untested.
 - **Web Locks unavailable** => tab exclusion silently not enforced (documented
   in ADR-0002 and `docs/your-data.md`).
 - **Caddy runs as root** inside its container (binds 80/443); mitigated with

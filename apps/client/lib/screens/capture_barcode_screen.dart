@@ -45,6 +45,7 @@
 import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -71,8 +72,9 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
   /// permission API during build.
   CameraPermissionStatus? _permission;
 
-  /// `true` when the platform has no local barcode decoder (web browsers
-  /// without `BarcodeDetector`). The camera is never requested then.
+  /// `true` when the platform has no local barcode decoder (a web browser
+  /// without `BarcodeDetector` AND without WebAssembly for the self-hosted
+  /// zxing reader). The camera is never requested then.
   bool _noDetector = false;
 
   /// The current lookup result for the most recently scanned
@@ -459,7 +461,16 @@ class _ScannerBody extends StatelessWidget {
                   MobileScanner(
                     controller: controller!,
                     errorBuilder: (context, error) {
-                      return _UnavailableCalm(palette: palette);
+                      // On the web a `genericError` is the decoder failing
+                      // to load or start (the self-hosted zxing reader):
+                      // say "scanning isn't available in this browser".
+                      return _UnavailableCalm(
+                        palette: palette,
+                        detectorMissing:
+                            kIsWeb &&
+                            error.errorCode ==
+                                MobileScannerErrorCode.genericError,
+                      );
                     },
                   )
                 else

@@ -33,6 +33,32 @@ named reviewer records the human sign-off.
 - [ ] `docs/self-host.md` still states that plain HTTP over a network is
   unsupported and that data lives in the browser (export = backup).
 
+## Gate B2 — PWA (ADR-0003, [`docs/pwa.md`](./pwa.md))
+
+- [ ] `melos run build:web` (inside `scripts/verify.sh`) generated `sw.js` and
+  `precache-manifest.json`; the bundle contains the self-hosted zxing decoder
+  and the host scan still passes.
+- [ ] **Service-worker update test.** Against the release image: install, then change the build id
+  (`OPENPLATE_BUILD_ID=...` + `melos run pwa:manifest`, or a rebuild); the old version keeps running,
+  the calm "A new version is ready" line appears, *Reload* reloads exactly once, old caches are gone,
+  the data is still there after unlocking. `scripts/webkit_smoke.sh` automates this in Chromium and WebKit.
+- [ ] **WebKit smoke.** `scripts/webkit_smoke.sh` is green (WebKit and Chromium): create → log → reload →
+  unlock → offline reload → update. Record any browser-specific finding in `docs/pwa.md`.
+- [ ] **Traefik config.** `docker compose -f infra/docker-compose.traefik.yml config` (with `OPENPLATE_DOMAIN`
+  set) renders with **no published port** and the expected labels; the overlays render;
+  `bin/openplate up --traefik` refuses hostile values (exit 42). `melos run smoke:self-host` asserts all of it.
+- [ ] `sw.js`, `precache-manifest.json` and `manifest.json` are `Cache-Control: no-cache`
+  (asserted by the self-host smoke).
+- [ ] **Real iPhone with VoiceOver ON (blocker if it fails).** Create a passphrase, then log a plate through
+  *Type or talk* and type in the food search. Automated WebKit shows that text typed while Flutter's accessibility
+  semantics are on never reaches the app; whether VoiceOver on iOS Safari is affected is unverified. A failure is an
+  **accessibility release blocker**: file it upstream (flutter/flutter) with the repro and do not ship the web app to
+  screen-reader users until fixed.
+- [ ] **Kill switch rehearsal.** Start the container with `OPENPLATE_SW_KILL=1` and confirm an installed app reloads
+  once and then loads from the network (docs/pwa.md "If an update goes wrong").
+- [ ] On a real iPhone and a real Android phone: install from HTTPS, open offline, log a plate, export.
+  (Not automated; the maintainer records the result.)
+
 ## Gate C — Release posture (Story 4.6 / FR-12)
 
 - [ ] `melos run check:release-posture` is green. It also asserts that every

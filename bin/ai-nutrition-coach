@@ -8,6 +8,10 @@
 #   bin/openplate up --tls        compose + Caddy automatic HTTPS for
 #                                 $OPENPLATE_DOMAIN (the supported way to
 #                                 reach OpenPlate from other devices)
+#   bin/openplate up --traefik    compose behind YOUR Traefik: no published
+#                                 port, joins the Docker network Traefik is on
+#                                 and is routed for $OPENPLATE_DOMAIN over
+#                                 HTTPS (docs/pwa.md)
 #   bin/openplate down            stop and remove whatever `up` started
 #
 # The container is a static web server with NO server-side data: your data is
@@ -18,8 +22,9 @@
 #   0   success                         10  docker not installed
 #   20  image build failed              30  docker run failed
 #   31  container name already in use   40  compose stack failed to start
-#   41  --tls without OPENPLATE_DOMAIN
-#   42  invalid OPENPLATE_DOMAIN / OPENPLATE_CONNECT_SRC_EXTRA
+#   41  --tls / --traefik without OPENPLATE_DOMAIN
+#   42  invalid OPENPLATE_DOMAIN / OPENPLATE_CONNECT_SRC_EXTRA / Traefik setting
+#   43  --traefik: the Docker network OPENPLATE_TRAEFIK_NETWORK does not exist
 #
 # POSIX sh. Works from any current directory.
 # ────────────────────────────────────────────────────────────────────────────
@@ -37,11 +42,20 @@ BIND="${OPENPLATE_BIND:-127.0.0.1}"
 PORT="${OPENPLATE_PORT:-${OPENPLATE_HOST_PORT:-8080}}"
 CSP_EXTRA="${OPENPLATE_CONNECT_SRC_EXTRA:-}"
 COMPOSE_FILE="infra/docker-compose.yml"
+TRAEFIK_COMPOSE_FILE="infra/docker-compose.traefik.yml"
+TRAEFIK_NETWORK="${OPENPLATE_TRAEFIK_NETWORK:-traefik}"
+TRAEFIK_ENTRYPOINT="${OPENPLATE_TRAEFIK_ENTRYPOINT:-websecure}"
+TRAEFIK_CERTRESOLVER="${OPENPLATE_TRAEFIK_CERTRESOLVER:-}"
+TRAEFIK_ALLOWLIST="${OPENPLATE_TRAEFIK_ALLOWLIST:-}"
+TRAEFIK_HSTS_SUBDOMAINS="${OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS:-false}"
 
 # Exported so compose (and its ${VAR:-default} substitutions) sees the same
 # values as the plain `docker run` path.
 export OPENPLATE_IMAGE_TAG="$IMAGE_TAG" OPENPLATE_BIND="$BIND" \
-  OPENPLATE_PORT="$PORT" OPENPLATE_CONNECT_SRC_EXTRA="$CSP_EXTRA"
+  OPENPLATE_PORT="$PORT" OPENPLATE_CONNECT_SRC_EXTRA="$CSP_EXTRA" \
+  OPENPLATE_TRAEFIK_NETWORK="$TRAEFIK_NETWORK" \
+  OPENPLATE_TRAEFIK_ENTRYPOINT="$TRAEFIK_ENTRYPOINT" \
+  OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS"
 
 # True if $1 contains only characters from the plain-origin set (no newline,
 # quote, semicolon, wildcard, ...). Mirrors infra/nginx/docker-entrypoint.d/05-validate-csp.sh.
@@ -80,6 +94,55 @@ validate_domain() {
   exit 42
 }
 
+# The Traefik settings land in compose labels (router rule, entrypoint, ...):
+# strict patterns, so a value can never add a label or alter the rule.
+bad_traefik() {
+  printf 'openplate: %s\n' "$1" >&2
+  exit 42
+}
+
+# `case` patterns, not `grep`: grep matches line by line, so a value with an
+# embedded newline ("ok\nrouters.x.rule=...") would pass on its first line.
+validate_traefik() {
+  v="$TRAEFIK_NETWORK"
+  case "$v" in
+    ''|*[!A-Za-z0-9_.-]*|[._-]*) bad_traefik 'OPENPLATE_TRAEFIK_NETWORK must be a Docker network name (letters, digits, _ . -).' ;;
+  esac
+  [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_NETWORK is too long.'
+  v="$TRAEFIK_ENTRYPOINT"
+  case "$v" in
+    ''|*[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'OPENPLATE_TRAEFIK_ENTRYPOINT must be a Traefik entrypoint name (letters, digits, _ -).' ;;
+  esac
+  [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_ENTRYPOINT is too long.'
+  if [ -n "$TRAEFIK_CERTRESOLVER" ]; then
+    v="$TRAEFIK_CERTRESOLVER"
+    case "$v" in
+      *[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'OPENPLATE_TRAEFIK_CERTRESOLVER must be a Traefik certificate resolver name (letters, digits, _ -).' ;;
+    esac
+    [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_CERTRESOLVER is too long.'
+  fi
+  case "$TRAEFIK_HSTS_SUBDOMAINS" in
+    true|false) ;;
+    *) bad_traefik 'OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS must be true or false.' ;;
+  esac
+  if [ -n "$TRAEFIK_ALLOWLIST" ]; then
+    # Comma-separated IPv4 / IPv6 CIDRs, nothing else.
+    case "$TRAEFIK_ALLOWLIST" in
+      *[!0-9A-Fa-f:./,]*) bad_traefik 'OPENPLATE_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.' ;;
+    esac
+    printf '%s' "$TRAEFIK_ALLOWLIST" | grep -Eq '^[0-9A-Fa-f:.]+/[0-9]{1,3}(,[0-9A-Fa-f:.]+/[0-9]{1,3})*$' \
+      || bad_traefik 'OPENPLATE_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.'
+  fi
+}
+
+# The compose files for --traefik: the base, plus an overlay for each optional
+# feature that was asked for (so no empty label is ever emitted).
+traefik_compose_args() {
+  printf -- '-f %s' "$TRAEFIK_COMPOSE_FILE"
+  [ -z "$TRAEFIK_CERTRESOLVER" ] || printf -- ' -f infra/docker-compose.traefik-certresolver.yml'
+  [ -z "$TRAEFIK_ALLOWLIST" ] || printf -- ' -f infra/docker-compose.traefik-allowlist.yml'
+}
+
 need_docker() {
   if ! command -v docker >/dev/null 2>&1; then
     printf 'openplate: docker is required — install it from https://docs.docker.com/get-docker/\n' >&2
@@ -109,8 +172,9 @@ up() {
   mode=run
   for arg in "$@"; do
     case "$arg" in
-      --compose) [ "$mode" = tls ] || mode=compose ;;
+      --compose) [ "$mode" = tls ] || [ "$mode" = traefik ] || mode=compose ;;
       --tls) mode=tls ;;
+      --traefik) mode=traefik ;;
       --with-persist)
         printf 'openplate: --with-persist was removed: the container stores no data. Your data is\n' >&2
         printf '           encrypted in your browser (IndexedDB); use the in-app export to back it up.\n' >&2
@@ -120,8 +184,8 @@ up() {
     esac
   done
 
-  need_docker
-
+  # Validate everything that needs no Docker first: bad input fails fast and
+  # the same way with or without Docker on the machine.
   validate_csp_extra
   if [ "$mode" = tls ]; then
     if [ -z "${OPENPLATE_DOMAIN:-}" ]; then
@@ -129,6 +193,23 @@ up() {
       exit 41
     fi
     validate_domain
+  fi
+  if [ "$mode" = traefik ]; then
+    if [ -z "${OPENPLATE_DOMAIN:-}" ]; then
+      printf 'openplate: --traefik needs OPENPLATE_DOMAIN (e.g. OPENPLATE_DOMAIN=plate.example.com bin/openplate up --traefik)\n' >&2
+      exit 41
+    fi
+    validate_domain
+    validate_traefik
+  fi
+
+  need_docker
+
+  if [ "$mode" = traefik ] && ! docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1; then
+    printf 'openplate: the Docker network "%s" does not exist. Create it and attach Traefik to it\n' "$TRAEFIK_NETWORK" >&2
+    printf '           (docker network create %s), or set OPENPLATE_TRAEFIK_NETWORK to the network\n' "$TRAEFIK_NETWORK" >&2
+    printf '           your Traefik container is on.\n' >&2
+    exit 43
   fi
 
   # Fail early and clearly on a name collision (instead of docker's terse error).
@@ -142,6 +223,17 @@ up() {
   if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
     printf 'openplate: image build failed — see the log tail above.\n' >&2
     exit 20
+  fi
+
+  if [ "$mode" = traefik ]; then
+    printf 'openplate: starting compose stack behind Traefik (no published port) ...\n'
+    # shellcheck disable=SC2046
+    if ! docker compose $(traefik_compose_args) up -d ; then
+      printf 'openplate: compose stack failed to start.\n' >&2
+      exit 40
+    fi
+    printf 'openplate is up behind Traefik: https://%s/ (once Traefik has picked up the labels)\n' "$OPENPLATE_DOMAIN"
+    exit 0
   fi
 
   if [ "$mode" != run ]; then
@@ -170,6 +262,7 @@ up() {
         --cap-drop ALL \
         --security-opt no-new-privileges:true \
         -e "OPENPLATE_CONNECT_SRC_EXTRA=$CSP_EXTRA" \
+        -e "OPENPLATE_SW_KILL=${OPENPLATE_SW_KILL:-}" \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
     printf 'openplate: docker run failed (is port %s already in use? try OPENPLATE_PORT=...).\n' "$PORT" >&2
@@ -192,7 +285,13 @@ down() {
     OPENPLATE_DOMAIN="${OPENPLATE_DOMAIN:-unused}" \
       docker compose -f "$COMPOSE_FILE" --profile tls down >/dev/null 2>&1 || true
   fi
-  printf 'ai-nutrition-coach: stopped.\n'
+  if [ -f "$TRAEFIK_COMPOSE_FILE" ]; then
+    # Down needs the file to parse: any non-empty domain does. The network is
+    # external, so it is never removed.
+    OPENPLATE_DOMAIN="${OPENPLATE_DOMAIN:-unused}" \
+      docker compose -f "$TRAEFIK_COMPOSE_FILE" down >/dev/null 2>&1 || true
+  fi
+  printf 'openplate: stopped.\n'
 }
 
 usage() {
@@ -200,13 +299,20 @@ usage() {
 ai-nutrition-coach — self-host affordance (Story 4.4 / FR-11)
 
 Usage:
-  bin/openplate up [--compose | --tls]
+  bin/openplate up [--compose | --tls | --traefik]
   bin/openplate down
 
 Environment:
   OPENPLATE_BIND               host interface (default: 127.0.0.1)
   OPENPLATE_PORT               host port (default: 8080)
-  OPENPLATE_DOMAIN             DNS name for --tls (required with --tls)
+  OPENPLATE_DOMAIN             DNS name for --tls / --traefik (required with them)
+  OPENPLATE_TRAEFIK_NETWORK    --traefik: existing Docker network shared with
+                               Traefik (default: traefik)
+  OPENPLATE_TRAEFIK_ENTRYPOINT --traefik: HTTPS entrypoint (default: websecure)
+  OPENPLATE_TRAEFIK_CERTRESOLVER  --traefik: ACME resolver name (optional)
+  OPENPLATE_TRAEFIK_ALLOWLIST  --traefik: comma-separated CIDRs allowed to
+                               connect (optional; Traefik v3 ipAllowList)
+  OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS  --traefik: true|false (default: false)
   OPENPLATE_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK
                                AI endpoint ("https://api.openai.com"); origins
                                only, validated

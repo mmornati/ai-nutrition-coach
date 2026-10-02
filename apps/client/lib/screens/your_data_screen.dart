@@ -40,8 +40,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
+import '../l10n/l10n.dart';
 import '../state/erase_provider.dart';
 import '../state/exporter_provider.dart';
+import '../state/pwa_provider.dart';
 import '../state/web_store_controller_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/erase_local_data_dialog.dart';
@@ -99,6 +101,10 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
               const SizedBox(height: AppSpacing.lg),
               const Divider(height: AppSpacing.hairline),
               const SizedBox(height: AppSpacing.lg),
+              if (webController != null && !locked) ...[
+                _storageLine(palette),
+                const SizedBox(height: AppSpacing.lg),
+              ],
               if (!locked) _exportSection(palette, widget.copy),
               if (webController != null && !locked) ...[
                 const SizedBox(height: AppSpacing.lg),
@@ -115,6 +121,72 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Web only (ADR-0003): has the browser promised not to clear this data on
+  /// its own? Plain status, no icon, no colour: not an alarm.
+  Widget _storageLine(AppPalette palette) {
+    final status = ref.watch(storagePersistenceStatusProvider).value;
+    final text = switch (status) {
+      StoragePersistence.protected => context.l10n.yourDataStorageProtected,
+      StoragePersistence.notProtected =>
+        context.l10n.yourDataStorageNotProtected,
+      _ => null,
+    };
+    if (text == null) return const SizedBox.shrink();
+    return Text(
+      text,
+      style: AppTypography.coach.copyWith(color: palette.inkMuted),
+    );
+  }
+
+  /// "Last export" and, when it has been a while and there is data, ONE quiet
+  /// dismissible line (no badge, no modal; docs/no-dark-patterns-standard.md).
+  Widget _exportHistory(AppPalette palette) {
+    final state = ref.watch(exportReminderProvider).value;
+    if (state == null) return const SizedBox.shrink();
+    final last = state.lastExportAt;
+    final style = AppTypography.coach.copyWith(color: palette.inkMuted);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          last == null
+              ? context.l10n.yourDataNeverExported
+              : context.l10n.yourDataLastExport(last.toLocal()),
+          style: style,
+        ),
+        if (state.due) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            last == null
+                ? context.l10n.exportReminderNever
+                : context.l10n.exportReminderStale,
+            style: style,
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () async {
+                await ref
+                    .read(exportHistoryProvider)
+                    .recordReminderDismissed(DateTime.now());
+                ref.invalidate(exportReminderProvider);
+              },
+              style: TextButton.styleFrom(
+                minimumSize: const Size(
+                  AppTouchTargets.min,
+                  AppTouchTargets.min,
+                ),
+                foregroundColor: palette.inkMuted,
+              ),
+              child: Text(context.l10n.exportReminderDismiss),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -271,6 +343,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             style: AppTypography.coach.copyWith(color: palette.inkMuted),
           ),
         ],
+        _exportHistory(palette),
       ],
     );
   }
@@ -422,7 +495,11 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
                 : 'application/json',
             bytes: bytes,
           );
+          // Remember the date (encrypted, best effort) for the quiet
+          // "last export" line; then refresh it.
+          await ref.read(exportHistoryProvider).record(DateTime.now());
           if (!mounted) return;
+          ref.invalidate(exportReminderProvider);
           setState(() => _lastFile = filename);
         case ExportFailure():
           if (!mounted) return;

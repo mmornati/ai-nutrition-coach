@@ -46,7 +46,7 @@ START_TS=$(date +%s)
 TMP="$(mktemp -d)"
 
 cleanup() {
-  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" >/dev/null 2>&1 || true
+  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
@@ -81,6 +81,36 @@ OPENPLATE_DOMAIN=plate.example.test docker compose -f infra/docker-compose.yml -
 ! grep -q 'openplate-data' infra/docker-compose.yml || fail 40 "compose still references the removed /data volume"
 ok "compose: loopback by default, tls profile present, no /data volume"
 
+# ── Traefik compose (docs/pwa.md): renders, no published port, right labels ──
+! OPENPLATE_DOMAIN='' docker compose -f infra/docker-compose.traefik.yml config >/dev/null 2>&1 \
+  || fail 40 "the Traefik compose renders without OPENPLATE_DOMAIN"
+tcfg="$(OPENPLATE_DOMAIN=plate.example.test docker compose -f infra/docker-compose.traefik.yml config 2>&1)" \
+  || fail 40 "docker-compose.traefik.yml is invalid: $tcfg"
+! grep -Eq '^[[:space:]]+(ports|published|host_ip):' <<<"$tcfg" || fail 40 "the Traefik compose publishes a port"
+for want in 'traefik.enable: "true"' 'Host(`plate.example.test`)' 'traefik.http.routers.openplate.entrypoints: websecure' \
+            'traefik.http.routers.openplate.tls: "true"' 'loadbalancer.server.port: "8080"' \
+            'headers.stsSeconds: "31536000"' 'headers.stsPreload: "false"' 'traefik.docker.network: traefik' \
+            'external: true' 'read_only: true'; do
+  grep -qF "$want" <<<"$tcfg" || fail 40 "Traefik compose lacks: $want"
+done
+! grep -q 'certresolver' <<<"$tcfg" || fail 40 "the Traefik compose emits a certresolver label without the overlay"
+tfull="$(OPENPLATE_DOMAIN=plate.example.test OPENPLATE_TRAEFIK_CERTRESOLVER=le OPENPLATE_TRAEFIK_NETWORK=proxy \
+  OPENPLATE_TRAEFIK_ENTRYPOINT=https OPENPLATE_TRAEFIK_ALLOWLIST=192.168.1.0/24 \
+  docker compose -f infra/docker-compose.traefik.yml -f infra/docker-compose.traefik-certresolver.yml \
+  -f infra/docker-compose.traefik-allowlist.yml config 2>&1)" || fail 40 "Traefik overlays do not render: $tfull"
+for want in 'tls.certresolver: le' 'name: proxy' 'entrypoints: https' 'ipallowlist.sourcerange: 192.168.1.0/24' \
+            'middlewares: openplate-hsts,openplate-allow'; do
+  grep -qF "$want" <<<"$tfull" || fail 40 "Traefik overlays lack: $want"
+done
+! grep -Eq '^[[:space:]]+(ports|published|host_ip):' <<<"$tfull" || fail 40 "the Traefik overlays publish a port"
+rc=0
+OPENPLATE_DOMAIN=ok.example.test OPENPLATE_TRAEFIK_ENTRYPOINT='web;x' bin/openplate up --traefik >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 40 "bin/openplate accepted a hostile OPENPLATE_TRAEFIK_ENTRYPOINT (exit $rc)"
+rc=0
+OPENPLATE_DOMAIN=ok.example.test OPENPLATE_TRAEFIK_NETWORK=openplate-smoke-no-such-net bin/openplate up --traefik >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 43 ]] || fail 40 "bin/openplate --traefik did not report the missing network (exit $rc)"
+ok "Traefik compose: no published port, HSTS-only middleware, optional overlays render, hostile input refused"
+
 # ── build + run through the real entry point ────────────────────────────────
 printf 'smoke: building and starting via bin/openplate up (port %s) ...\n' "$PORT"
 export OPENPLATE_IMAGE_TAG="$IMAGE" OPENPLATE_CONTAINER_NAME="$NAME" OPENPLATE_PORT="$PORT"
@@ -111,7 +141,8 @@ ok "container name collision is reported clearly"
 # ── HTTP behaviour ──────────────────────────────────────────────────────────
 body="$(curl -fsS "$BASE/")"
 grep -q 'flutter' <<<"$body" || fail 30 "index.html lacks the flutter bootstrap"
-if grep -qiE 'analytics|telemetry|tracking|googletagmanager|sentry' <<<"$body"; then
+# Only tags that load something count: the human description legitimately says "no tracking".
+if grep -qiE '<(script|link|img|iframe)[^>]*(analytics|telemetry|tracking|googletagmanager|sentry)' <<<"$body"; then
   fail 50 "telemetry-style reference in index.html"
 fi
 [[ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/board/2026-08-13")" == 200 ]] \
@@ -154,6 +185,23 @@ for p in / /main.dart.js /flutter_bootstrap.js; do
 done
 hdr "/assets/FontManifest.json" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "asset manifests are not no-cache"
 ok "wasm: application/wasm + immutable; index/bootstrap/app code/manifests: no-cache"
+
+# PWA (ADR-0003): the service worker + both manifests are always revalidated,
+# are served as JavaScript / JSON, and agree on the build id; the versioned
+# zxing decoder is immutable and served as wasm.
+for p in /sw.js /precache-manifest.json /manifest.json; do
+  hdr "$p" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
+done
+hdr /sw.js | tr -d '\r' | grep -qi '^content-type: application/javascript' || fail 50 "sw.js is not served as JavaScript"
+hdr /precache-manifest.json | tr -d '\r' | grep -qi '^content-type: application/json' || fail 50 "precache-manifest.json is not served as JSON"
+sw_id="$(curl -fsS "$BASE/sw.js" | sed -n "s/^const BUILD_ID = '\([^']*\)';.*/\1/p")"
+man_id="$(curl -fsS "$BASE/precache-manifest.json" | sed -n 's/.*"buildId": "\([^"]*\)".*/\1/p' | head -1)"
+[[ -n "$sw_id" && "$sw_id" == "$man_id" ]] || fail 50 "sw.js build id '$sw_id' differs from the precache manifest's '$man_id'"
+ZX="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/zxing' | head -1)"
+[[ -n "$ZX" ]] || fail 30 "no self-hosted zxing decoder in the image"
+hdr "/zxing/$ZX/zxing_reader.wasm" | tr -d '\r' | grep -qi '^content-type: application/wasm' || fail 50 "the zxing wasm is not application/wasm"
+hdr "/zxing/$ZX/reader.js" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "the zxing reader is not immutable"
+ok "PWA: sw.js + manifests no-cache and consistent (build $sw_id); zxing decoder served, immutable"
 
 csp="$(hdr / | tr -d '\r' | grep -i '^content-security-policy:')"
 script_src="$(tr ';' '\n' <<<"$csp" | grep -i "script-src")"
@@ -209,6 +257,31 @@ docker exec "$NAME_ISO" wget -q -S -O /dev/null http://127.0.0.1:8080/ 2>&1 \
   | grep -i 'content-security-policy' | grep -qF 'connect-src '"'self'"' https://world.openfoodfacts.org https://api.byok.example.test' \
   || fail 50 "OPENPLATE_CONNECT_SRC_EXTRA did not reach the CSP"
 ok "OPENPLATE_CONNECT_SRC_EXTRA reaches the CSP"
+
+# A CSP-only redeploy must reach installed apps: the service-worker build id
+# covers the headers applied at container start (30-render-sw.sh).
+iso_sw_id="$(docker exec "$NAME_ISO" wget -q -O - http://127.0.0.1:8080/sw.js | sed -n "s/^const BUILD_ID = '\([^']*\)';.*/\1/p")"
+[[ "$iso_sw_id" =~ ^[A-Za-z0-9]+-[0-9a-f]{12}$ && "$sw_id" =~ ^[A-Za-z0-9]+-[0-9a-f]{12}$ ]] \
+  || fail 50 "service-worker build ids are not <bundle>-<header hash>: '$sw_id' / '$iso_sw_id'"
+[[ "${iso_sw_id%-*}" == "${sw_id%-*}" ]] || fail 50 "the bundle part of the build id differs between containers of one image"
+[[ "$iso_sw_id" != "$sw_id" ]] || fail 50 "a different OPENPLATE_CONNECT_SRC_EXTRA did not change the service-worker build id"
+iso_man_id="$(docker exec "$NAME_ISO" wget -q -O - http://127.0.0.1:8080/precache-manifest.json | sed -n 's/.*"buildId": "\([^"]*\)".*/\1/p' | head -1)"
+[[ "$iso_man_id" == "$iso_sw_id" ]] || fail 50 "sw.js and the precache manifest disagree after rendering ($iso_sw_id vs $iso_man_id)"
+ok "a different OPENPLATE_CONNECT_SRC_EXTRA is a different service-worker version ($sw_id vs $iso_sw_id)"
+
+docker rm -f "$NAME_ISO-kill" >/dev/null 2>&1 || true
+docker run -d --name "$NAME_ISO-kill" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_SW_KILL=1 "$IMAGE" >/dev/null
+for _ in $(seq 1 40); do
+  docker exec "$NAME_ISO-kill" wget -q -O /dev/null http://127.0.0.1:8080/sw.js 2>/dev/null && break
+  sleep 0.5
+done
+kill_sw="$(docker exec "$NAME_ISO-kill" wget -q -O - http://127.0.0.1:8080/sw.js)"
+grep -q 'client.navigate(client.url)' <<<"$kill_sw" && grep -q 'caches.delete' <<<"$kill_sw" \
+  || fail 50 "OPENPLATE_SW_KILL=1 does not serve the kill-switch worker"
+! grep -q 'precache-manifest' <<<"$kill_sw" || fail 50 "the kill-switch worker precaches"
+docker rm -f "$NAME_ISO-kill" >/dev/null 2>&1 || true
+ok "OPENPLATE_SW_KILL=1 serves the kill-switch service worker"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
 cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/openplate.conf /tmp/openplate-headers.inc /etc/nginx/nginx.conf')"

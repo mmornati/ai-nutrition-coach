@@ -11,6 +11,8 @@
 // wiring on top of them — including the real `EncryptedStoreAdapter` on
 // native SQLite.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:integrations/integrations.dart';
@@ -23,6 +25,7 @@ import 'state/coach_provider.dart';
 import 'state/erase_provider.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/photo_provider.dart';
+import 'state/pwa_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
@@ -37,6 +40,10 @@ class BootDependencies {
     this.createByokKeyStore = _defaultByokKeyStore,
     this.createQuotaCounter = _defaultQuotaCounter,
     this.purgeLegacyWebStorage = true,
+    this.createAppUpdateSignal = _defaultAppUpdateSignal,
+    this.createStoragePersistence = _defaultStoragePersistence,
+    this.createInstallPrompt = _defaultInstallPrompt,
+    this.readInstallContext = _defaultInstallContext,
     this.photoCapture = const ImagePickerPhotoCapture(),
     this.cameraPermission = const PermissionHandlerCameraPermission(),
     this.overrides = const <Override>[],
@@ -45,17 +52,34 @@ class BootDependencies {
   /// Opens the encrypted stores (native SQLite or the web store).
   final Future<StoreBundle> Function() createStores;
 
-  /// Where AI settings are persisted.
-  final AiSettingsStore Function() createAiSettingsStore;
+  /// Where AI settings are persisted. Receives the encrypted store's
+  /// key/value table (web: the settings live in it; mobile ignores it and
+  /// uses the OS keystore).
+  final AiSettingsStore Function(LocalKeyValueStore? encryptedKv)
+  createAiSettingsStore;
 
-  /// Where the BYOK key lives (OS keystore / memory on web).
-  final ByokKeyStore Function() createByokKeyStore;
+  /// Where the BYOK key lives (OS keystore on mobile; the encrypted store on
+  /// web).
+  final ByokKeyStore Function(LocalKeyValueStore? encryptedKv)
+  createByokKeyStore;
 
   /// The hosted-tier quota counter.
   final QuotaCounter Function() createQuotaCounter;
 
   /// Drop localStorage-backed secrets an older web build left behind.
   final bool purgeLegacyWebStorage;
+
+  /// The service-worker update signal (web release builds only).
+  final AppUpdateSignal Function() createAppUpdateSignal;
+
+  /// Durable-storage status / request (`navigator.storage`).
+  final StoragePersistenceSource Function() createStoragePersistence;
+
+  /// The captured Chromium install prompt.
+  final InstallPrompt Function() createInstallPrompt;
+
+  /// Platform + installed-or-not, for the Install screen.
+  final InstallContext Function() readInstallContext;
 
   final PhotoCapture photoCapture;
   final CameraPermission cameraPermission;
@@ -66,8 +90,15 @@ class BootDependencies {
 }
 
 Future<StoreBundle> _defaultCreateStores() => createStores();
-AiSettingsStore _defaultAiSettingsStore() => createAiSettingsStore();
-ByokKeyStore _defaultByokKeyStore() => createByokKeyStore();
+AiSettingsStore _defaultAiSettingsStore(LocalKeyValueStore? kv) =>
+    createAiSettingsStore(encryptedKv: kv);
+ByokKeyStore _defaultByokKeyStore(LocalKeyValueStore? kv) =>
+    createByokKeyStore(encryptedKv: kv);
+AppUpdateSignal _defaultAppUpdateSignal() => createAppUpdateSignal();
+StoragePersistenceSource _defaultStoragePersistence() =>
+    createStoragePersistence();
+InstallPrompt _defaultInstallPrompt() => createInstallPrompt();
+InstallContext _defaultInstallContext() => readInstallContext();
 QuotaCounter _defaultQuotaCounter() =>
     createQuotaCounter(ceiling: kHostedQuotaPerDay);
 
@@ -82,24 +113,37 @@ Future<List<Override>> buildAppOverrides(
 
   // Phase 3 — AI settings (rung, BYOK endpoint + model, per-host photo
   // consents) are runtime state, persisted by `createAiSettingsStore()`
-  // (secure storage on mobile; memory on web, where they live for the
-  // unlocked session like the key — S4). Hydrate once here; after that
-  // `aiSettingsProvider` is the single mutable source, so a change in
-  // Settings → Your AI takes effect on the next photo.
+  // (secure storage on mobile; on web a row of the ENCRYPTED store, so they
+  // are readable only after the passphrase unlock — ADR-0003). Hydrate once
+  // here; after that `aiSettingsProvider` is the single mutable source, so a
+  // change in Settings → Your AI takes effect on the next photo.
   //
   // There is NO build-time API key (S1): only the non-secret endpoint /
   // model defaults may pre-fill the Your AI form. The key is typed at run
   // time and lives in `createByokKeyStore()` — the OS keystore on mobile,
-  // memory only on web (cleared when the web store locks: the lock restarts
-  // this ProviderScope, which rebuilds these stores empty).
+  // the encrypted store on web. On web this function runs again after every
+  // unlock (the gate restarts the scope), which is what reads them from the
+  // freshly opened database; while the store is locked they read as the
+  // no-AI default / no key.
   // Web: drop anything an older build left in localStorage-backed secure
   // storage (best effort; no-op on mobile).
   if (dependencies.purgeLegacyWebStorage) {
     await purgeLegacyWebSecureStorage();
   }
-  final aiSettingsStore = dependencies.createAiSettingsStore();
+  final aiSettingsStore = dependencies.createAiSettingsStore(
+    bundle.keyValueStore,
+  );
   final aiSettings = await aiSettingsStore.read();
-  final byokKeyStore = dependencies.createByokKeyStore();
+  final byokKeyStore = dependencies.createByokKeyStore(bundle.keyValueStore);
+
+  // PWA seams (ADR-0003). The web store is open only when the user has just
+  // unlocked it: that is the moment to ask the browser to protect the data
+  // from automatic clean-up (once, and only when it is not already
+  // protected — never a repeated prompt).
+  final storagePersistence = dependencies.createStoragePersistence();
+  if (bundle.webStoreController?.isUnlocked ?? false) {
+    unawaited(_requestDurableStorage(storagePersistence));
+  }
 
   return [
     encryptedStoreProvider.overrideWithValue(bundle.encryptedStore),
@@ -148,8 +192,8 @@ Future<List<Override>> buildAppOverrides(
     // the BYOK transport all watch `aiSettingsProvider`).
     initialAiSettingsProvider.overrideWithValue(aiSettings),
     aiSettingsStoreProvider.overrideWithValue(aiSettingsStore),
-    // Story 3.3 — the BYOK key store: OS keystore on mobile, memory-only
-    // on web (S4).
+    // Story 3.3 — the BYOK key store: OS keystore on mobile, the encrypted
+    // store on web (S4, ADR-0003).
     byokKeyStoreProvider.overrideWithValue(byokKeyStore),
     // Story 3.2 — the hosted rung's collaborators. The hosted tier is a
     // stub that makes no request and is not selectable (it needs a
@@ -173,6 +217,23 @@ Future<List<Override>> buildAppOverrides(
     // straight to the Day Board.
     webStoreControllerProvider.overrideWithValue(bundle.webStoreController),
     appRestartProvider.overrideWithValue(restart),
+    appUpdateProvider.overrideWithValue(dependencies.createAppUpdateSignal()),
+    storagePersistenceProvider.overrideWithValue(storagePersistence),
+    installPromptProvider.overrideWithValue(dependencies.createInstallPrompt()),
+    installContextProvider.overrideWithValue(dependencies.readInstallContext()),
+    exportHistoryProvider.overrideWithValue(
+      ExportHistory(bundle.keyValueStore ?? InMemoryKeyValueStore()),
+    ),
     ...dependencies.overrides,
   ];
+}
+
+Future<void> _requestDurableStorage(StoragePersistenceSource source) async {
+  try {
+    if (await source.status() == StoragePersistence.notProtected) {
+      await source.request();
+    }
+  } on Object {
+    // Best effort: the Your data screen reports the real state.
+  }
 }

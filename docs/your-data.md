@@ -95,9 +95,9 @@ What this means in practice:
   erased from RAM.)
 - **Forgot the passphrase?** The unlock screen offers *Erase and start
   over*, behind a confirmation. It deletes the encrypted database and the
-  header from this browser, and returns to first run. (An AI key is never
-  stored in the browser at all — it lives in memory for the unlocked
-  session only; see [`ai-tiers.md`](./ai-tiers.md).) *Erase all local data* in *Your data* does the same.
+  header from this browser, and returns to first run. (An AI key and your AI
+  settings are stored *inside* the encrypted store and go with it; see
+  [`ai-tiers.md`](./ai-tiers.md).) *Erase all local data* in *Your data* does the same.
 - If the browser's site data was partly cleared (header without data,
   or data without any header) the app does not guess and never creates
   a new store over what is left: it says the store can't be found and
@@ -109,11 +109,27 @@ What this means in practice:
 - Exports (CSV/JSON) are plaintext downloads the browser saves wherever
   you choose; the app does not keep them.
 
-Not yet verified (so not promised): the web store is untested in Safari
-and Firefox (including how their storage-eviction rules treat IndexedDB — keep
-exports regardless of browser). Exclusion between tabs uses the Web Locks API; a
-browser without it gets no exclusion rather than a lock-out, so two tabs could
-write at once there.
+- **Protected from clean-up?** Browsers may clear a site's storage when space runs
+  low unless the site is *persistent*. After every create/unlock the app asks the
+  browser to protect the data (`navigator.storage.persist()`) and *Your data* says
+  what the browser answered: "protected from automatic clean-up" or "the browser may
+  clear this data if space runs low — export regularly". The answer is the browser's
+  to give; export regardless.
+- **Last export.** *Your data* shows when you last exported (the date is stored inside the
+  encrypted store). If there is data and the last export is older than 14 days, or there
+  never was one, one quiet line suggests an export; "Not now" quiets it for another 14
+  days. No badge, no modal, no counter.
+- **Your AI key and settings** (web) are kept in a small key/value table *inside* the
+  encrypted store (schema v5) — readable only after you unlock, protected by the same
+  passphrase-derived key, deleted by *Erase all local data*, never in `localStorage`.
+
+Browser coverage: the web store and the installable app are exercised in Chromium and
+WebKit (Safari's engine) by the opt-in `scripts/webkit_smoke.sh`
+([`pwa.md`](./pwa.md#browser-smoke-webkit-and-chromium)); Firefox is untested. Safari may
+clear a *tab's* site data after a period without a visit — an app added to the Home Screen
+is exempt, and keeps its own data separate from Safari's (install first, then log). Keep
+exports regardless of browser. Exclusion between tabs uses the Web Locks API; a browser
+without it gets no exclusion rather than a lock-out, so two tabs could write at once there.
 
 Limits, stated plainly: this protects the data on a locked/closed
 browser profile. It does not protect against malware or a malicious
@@ -126,9 +142,10 @@ against a weak passphrase. The web build needs a **secure context**
 - The first paint on the web build is the create-passphrase screen
   (first run) or the unlock screen. There is no "auto-unlock"
   affordance and there will never be one.
-- Serve the app over https (see `docs/self-host.md`); the bundle also
+- Serve the app over https (see `docs/self-host.md`, `docs/pwa.md`); the bundle also
   ships `sqlite3mc-3.5.1.wasm` (versioned file name), fetched at build time by
-  `scripts/fetch_web_sqlite.sh` and verified against a pinned SHA-256.
+  `scripts/fetch_web_sqlite.sh` and verified against a pinned SHA-256, and a
+  self-hosted zxing-wasm barcode decoder (`scripts/fetch_web_zxing.sh`).
 - The passphrase fields mask input; the key never leaves the browser;
   no telemetry on the unlock event (pinned by `melos run
   check:telemetry`).
@@ -163,6 +180,7 @@ against a weak passphrase. The web build needs a **secure context**
 
 - `_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0002-web-encrypted-store.md`
   — the web store design, threat model and what is not verified in automation.
+- `docs/pwa.md` — the installable, offline-capable web app (service worker, persistence, install, updates).
 - `docs/ai-tiers.md` — the AI rung surface; same privacy posture.
 - `docs/self-host.md` — the one-command self-host install (Story 4.4).
 - `docs/no-dark-patterns-standard.md` — the named-reviewer gate

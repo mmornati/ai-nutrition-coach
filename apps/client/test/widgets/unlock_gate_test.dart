@@ -65,6 +65,40 @@ void main() {
     expect(find.byType(CreatePassphraseScreen), findsNothing);
   });
 
+  testWidgets('every unlock restarts the scope so the AI settings and BYOK '
+      'key are read from the now-open encrypted store (ADR-0003)', (
+    tester,
+  ) async {
+    final c = FakeWebStoreController(
+      status: WebStoreStatus.needsPassphraseCreation,
+    );
+    final restarts = await _pump(tester, c);
+    expect(restarts(), 0);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'a long enough passphrase');
+    await tester.enterText(fields.at(1), 'a long enough passphrase');
+    await tester.tap(find.text(enWebSessionStrings.createAction));
+    await tester.pumpAndSettle();
+    expect(restarts(), 1, reason: 'creating = first unlock');
+
+    // A lock restarts too (the pre-existing behaviour)...
+    c.setStatus(WebStoreStatus.locked);
+    await tester.pumpAndSettle();
+    expect(restarts(), 2, reason: 'the lock restart');
+  });
+
+  testWidgets('a returning unlock restarts the scope as well', (tester) async {
+    final c = FakeWebStoreController(); // locked
+    final restarts = await _pump(tester, c);
+    expect(restarts(), 0);
+    await tester.enterText(find.byType(TextField), 'a long enough passphrase');
+    await tester.tap(find.text(enWebSessionStrings.unlock));
+    await tester.pumpAndSettle();
+    expect(restarts(), 1);
+    expect(find.byType(DayBoardScreen), findsOneWidget);
+  });
+
   testWidgets('returning user: locked -> unlock -> board; wrong passphrase '
       'stays on the lock screen', (tester) async {
     final c = FakeWebStoreController();

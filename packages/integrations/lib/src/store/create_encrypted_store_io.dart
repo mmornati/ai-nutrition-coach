@@ -23,6 +23,7 @@ import 'corrupt_row_log.dart';
 import 'create_encrypted_store.dart';
 import 'encrypted_store_adapter.dart';
 import 'failed_store.dart';
+import 'key_value_store.dart';
 import 'local_coach_note_store.dart';
 import 'native_database_opener.dart';
 import 'secure_key_source.dart';
@@ -50,6 +51,7 @@ Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
           onCorruptRow: reportCorruptRow,
         ),
         coachNoteStore: LocalCoachNoteStore(database: database),
+        keyValueStore: DatabaseKeyValueStore.of(database),
         closeDatabase: database.close,
       );
     case StoreOpenFailed(:final failure):

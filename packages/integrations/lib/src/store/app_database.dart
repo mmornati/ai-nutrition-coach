@@ -16,6 +16,7 @@
 //     (same convention as the rest of the schema).
 //   * `coach_dismissal_table`       — durable "quiet" markers for
 //     dismissed whispers / open-plate hints (v4, F6).
+//   * `kv_table`                    — small encrypted key/value facts (v5).
 //
 // There is deliberately NO sync-queue table: v1 has no sync transport, so a
 // persisted outbox would only accumulate rows nothing consumes. The queue is
@@ -30,6 +31,8 @@
 //     `coach_dismissal_table` (F6), the three plate-lookup indexes
 //     (`idx_plate_logged_at`, `idx_entry_plate`, `idx_note_plate`) and the
 //     millisecond normalisation of legacy `logged_at_utc` values. Re-runnable.
+//   * v5 — `kv_table` (small encrypted key/value facts: web AI settings and
+//     BYOK key, last-export time). Re-runnable (`CREATE TABLE IF NOT EXISTS`).
 //
 // Encryption (AD-8): the underlying `NativeDatabase` is opened with a
 // `setup` callback that runs the sqlite3mc key pragma. The key bytes come
@@ -47,9 +50,26 @@ import 'tables/coach_dismissal_table.dart';
 import 'tables/coach_interaction_table.dart';
 import 'tables/coach_note_table.dart';
 import 'tables/food_entry_table.dart';
+import 'tables/kv_table.dart';
 import 'tables/plate_log_table.dart';
 
 part 'app_database.g.dart';
+
+/// The database on disk was written by a NEWER schema than this build knows
+/// (a restored backup, or a browser tab still running an older cached build
+/// next to a newer one). Opening it would run the old code over a newer layout,
+/// so the open is refused instead; the app says so calmly and asks the user to
+/// reload to update. Never carries data.
+class SchemaTooNewException implements Exception {
+  const SchemaTooNewException({required this.found, required this.supported});
+
+  final int found;
+  final int supported;
+
+  @override
+  String toString() =>
+      'SchemaTooNewException(found: $found, supported: $supported)';
+}
 
 @DriftDatabase(
   tables: [
@@ -58,18 +78,23 @@ part 'app_database.g.dart';
     CoachNoteTable,
     CoachInteractionTable,
     CoachDismissalTable,
+    KvTable,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
+      // Drift runs this for downgrades too (from > to).
+      if (from > to) {
+        throw SchemaTooNewException(found: from, supported: to);
+      }
       if (from < 2) {
         await m.createTable(coachNoteTable);
       }
@@ -78,6 +103,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await _upgradeToV4(m);
+      }
+      if (from < 5) {
+        await _upgradeToV5(m);
       }
     },
   );
@@ -126,5 +154,11 @@ class AppDatabase extends _$AppDatabase {
         'WHERE length(logged_at_utc) > 24',
       );
     });
+  }
+
+  /// The v4 -> v5 step: the key/value table. Re-runnable for the same reason
+  /// as [_upgradeToV4] (drift's `createTable` is `CREATE TABLE IF NOT EXISTS`).
+  Future<void> _upgradeToV5(Migrator m) async {
+    await m.createTable(kvTable);
   }
 }

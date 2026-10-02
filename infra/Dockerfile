@@ -44,15 +44,27 @@ RUN flutter pub get --enforce-lockfile
 COPY scripts/fetch_web_sqlite.sh scripts/fetch_web_sqlite.sh
 RUN bash scripts/fetch_web_sqlite.sh
 
+# ADR-0003: the zxing-wasm barcode decoder (Safari / iOS have no native
+# BarcodeDetector), self-hosted instead of loaded from a CDN; SHA-256-verified
+# by the pinned script (it also checks the mobile_scanner version it was
+# reviewed against). Cached layer, like the sqlite wasm.
+COPY scripts/fetch_web_zxing.sh scripts/fetch_web_zxing.sh
+RUN bash scripts/fetch_web_zxing.sh
+
 COPY apps ./apps
 COPY packages ./packages
 # The `build:web` script ends with the secrets scan of the bundle (S1): the
 # image build fails if a key-shaped string was compiled in.
 COPY tools/check_no_secrets_in_build.sh tools/check_no_external_hosts.sh tools/
+COPY tools/generate_precache_manifest.dart tools/generate_precache_manifest.dart
+COPY tools/pwa/ tools/pwa/
 
 # Build the web release bundle via the `build:web` script in the root
-# pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` keeps the
-# bundle small and avoids the service worker the self-host build never needs.
+# pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` drops
+# Flutter's own (deprecated) service worker; OpenPlate's own `sw.js` and the
+# precache manifest are then generated into the bundle by
+# tools/generate_precache_manifest.dart (offline use + the "new version is
+# ready" flow, ADR-0003, docs/pwa.md).
 # The script also builds with --no-web-resources-cdn (CanvasKit is served from
 # this origin), then runs the secrets scan and the third-party-host scan: the
 # image build fails if the bundle would call out to a CDN.
@@ -82,6 +94,11 @@ COPY infra/nginx/templates/ /etc/nginx/templates/
 # Fails the start-up (before envsubst) if OPENPLATE_CONNECT_SRC_EXTRA could
 # alter the CSP beyond adding origins.
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/05-validate-csp.sh /docker-entrypoint.d/05-validate-csp.sh
+# Renders sw.js + the precache manifest for this start (build id = bundle +
+# header hash, so a CSP-only redeploy reaches installed apps) or, with
+# OPENPLATE_SW_KILL=1, the kill-switch worker (docs/pwa.md).
+COPY --chmod=0755 infra/nginx/docker-entrypoint.d/30-render-sw.sh /docker-entrypoint.d/30-render-sw.sh
+COPY tools/pwa/sw.kill.js /etc/openplate/sw.kill.js
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
     NGINX_ENVSUBST_FILTER=OPENPLATE_ \
     NGINX_ENTRYPOINT_QUIET_LOGS=1 \

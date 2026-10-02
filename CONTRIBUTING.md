@@ -75,6 +75,28 @@ melos run analyze
 Runs `flutter analyze` on Flutter packages and `dart analyze` on
 the pure-Dart packages. CI runs the same.
 
+## Web app (PWA): build, run, browser smoke
+
+The web build is an installable, offline-capable PWA (ADR-0003,
+[`docs/pwa.md`](./docs/pwa.md)). The commands, all through the pinned toolchain
+image:
+
+```sh
+scripts/verify.sh                                   # the full gate, incl. the release web build
+scripts/flutter_docker.sh dart run melos run build:web   # release bundle -> apps/client/build/web
+                                                    # (fetches sqlite3mc + zxing-wasm, builds, generates sw.js
+                                                    #  and precache-manifest.json, scans for secrets/hosts)
+docker build -f infra/Dockerfile -t openplate:dev . # the production image
+bin/openplate up                                    # http://localhost:8080 (a secure context)
+bin/openplate up --traefik                          # behind your Traefik, no published port (docs/pwa.md)
+scripts/run_local_web.sh                            # build + serve build/web, open Chrome
+scripts/webkit_smoke.sh                             # opt-in: WebKit + Chromium smoke of the image (needs Docker + network)
+```
+
+Fetch scripts (`scripts/fetch_web_sqlite.sh`, `scripts/fetch_web_zxing.sh`) pin versions and SHA-256s and
+fail closed; the fetched files are git-ignored. `tools/generate_icons.dart` regenerates the app icon
+deterministically.
+
 ## Self-host smoke
 
 ```sh

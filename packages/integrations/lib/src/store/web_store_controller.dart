@@ -136,6 +136,13 @@ final class WebStoreInUseElsewhere extends WebUnlockOutcome {
   const WebStoreInUseElsewhere();
 }
 
+/// The stored data was written by a newer version of the app than the one
+/// running (an older cached build in this tab). The store stays locked; the
+/// user is asked to reload to update.
+final class WebStoreNewerVersion extends WebUnlockOutcome {
+  const WebStoreNewerVersion();
+}
+
 /// The header promised data that is gone. The status becomes `needsReset`.
 final class WebStoreDataMissing extends WebUnlockOutcome {
   const WebStoreDataMissing();
@@ -394,6 +401,8 @@ class WebStoreController extends ChangeNotifier implements WebDatabaseSource {
             return const WebStoreDataMissing();
           case WebOpenFailure.unavailable:
             return const WebStoreUnavailable();
+          case WebOpenFailure.newerVersion:
+            return const WebStoreNewerVersion();
         }
       }
       return _completeUnlock(key);

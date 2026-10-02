@@ -5,14 +5,16 @@
 // at rest (Keychain on iOS / macOS, EncryptedSharedPreferences on
 // Android).
 //
-// Web (S4): the key is held in MEMORY ONLY, for the unlocked session —
-// `createByokKeyStore()` hands back an `InMemoryByokKeyStore` there, and
-// `SecureStorageByokKeyStore` refuses to be built on web, because
+// Web (S4, revised for the PWA, ADR-0003): the key is stored in a row of the
+// ENCRYPTED web store (`kv_table`, schema v5): `KvByokKeyStore`. It is
+// readable only after the passphrase unlock, protected by the same
+// passphrase-derived key as the plates, and deleted with the store.
+// `SecureStorageByokKeyStore` still refuses to be built on web, because
 // `flutter_secure_storage`'s web backend is `localStorage` (readable by any
-// script on the origin, survives the lock screen). Locking the web store
-// restarts the provider scope, which drops the in-memory store and with it
-// the key; re-entering it after unlock is the price of that guarantee.
-// See `docs/ai-tiers.md`.
+// script on the origin, survives the lock screen); `purgeLegacyWebSecure
+// Storage` removes anything an older build left there. Locking the web store
+// restarts the provider scope and the key is not read again until the next
+// unlock. See `docs/ai-tiers.md`.
 //
 // FR7 / NFR4: the key never appears in any string the store
 // produces. `toString()` returns `ByokKeyStore(hasKey: <bool>)` —
@@ -28,6 +30,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../store/key_value_store.dart';
 import '../store/secure_storage_options.dart';
 
 /// The encrypted on-device key store for the BYOK rung (FR7).
@@ -50,10 +53,15 @@ abstract interface class ByokKeyStore {
   Future<bool> hasKey();
 }
 
-/// The platform-appropriate key store: the OS keystore on mobile / desktop,
-/// memory only on web (S4 — never `localStorage`).
-ByokKeyStore createByokKeyStore() =>
-    kIsWeb ? InMemoryByokKeyStore() : SecureStorageByokKeyStore();
+/// The platform-appropriate key store: the OS keystore on mobile / desktop;
+/// the encrypted store's `kv_table` on web ([encryptedKv]; memory only for
+/// the unencrypted dev store, which has none). Never `localStorage` (S4).
+ByokKeyStore createByokKeyStore({LocalKeyValueStore? encryptedKv}) {
+  if (!kIsWeb) return SecureStorageByokKeyStore();
+  return encryptedKv == null
+      ? InMemoryByokKeyStore()
+      : KvByokKeyStore(encryptedKv);
+}
 
 /// The only part of a saved key the UI may ever show: its last four
 /// characters, and only when the key is long enough (12+) that four
@@ -76,7 +84,7 @@ class SecureStorageByokKeyStore implements ByokKeyStore {
     if (kIsWeb) {
       throw UnsupportedError(
         'The BYOK key must never be stored via flutter_secure_storage on web '
-        '(it is localStorage). Use InMemoryByokKeyStore / createByokKeyStore().',
+        '(it is localStorage). Use KvByokKeyStore / createByokKeyStore().',
       );
     }
     return openPlateSecureStorage;
@@ -119,6 +127,35 @@ class SecureStorageByokKeyStore implements ByokKeyStore {
     // `null` — UI surfaces `hasKey()` via the async API instead.
     return 'ByokKeyStore(hasKey: null)';
   }
+}
+
+/// The web implementation: the key is one row of the encrypted store. It is
+/// only readable while the store is unlocked (a locked store reads as "no
+/// key"; a write while locked throws, and the caller reports a storage
+/// failure rather than pretending it saved).
+class KvByokKeyStore implements ByokKeyStore {
+  KvByokKeyStore(this._kv);
+
+  final LocalKeyValueStore _kv;
+
+  @override
+  Future<String?> read() => _kv.read(KvKeys.aiByokKey);
+
+  @override
+  Future<void> write(String key) => _kv.write(KvKeys.aiByokKey, key);
+
+  @override
+  Future<void> clear() => _kv.delete(KvKeys.aiByokKey);
+
+  @override
+  Future<bool> hasKey() async {
+    final existing = await _kv.read(KvKeys.aiByokKey);
+    return existing != null && existing.isNotEmpty;
+  }
+
+  /// Redacted like every key store (FR7 / NFR4).
+  @override
+  String toString() => 'KvByokKeyStore()';
 }
 
 /// In-memory implementation for tests — deterministic key, no I/O.

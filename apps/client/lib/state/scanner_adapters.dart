@@ -29,19 +29,34 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../state/scanner_provider.dart';
 
-/// Phase 4 / N5 — keep barcode decoding fully local on the web.
+/// Where the self-hosted zxing-wasm reader script is served from, relative to
+/// the document base (`<base href>`). The fetch script
+/// (`scripts/fetch_web_zxing.sh`) pins the version and writes
+/// `apps/client/web/zxing/<version>/{reader.js,zxing_reader.wasm}`; a unit
+/// test keeps this constant and the script's version in step.
+const String kWebZxingVersion = '3.1.1';
+const String kWebZxingReaderScriptPath = 'zxing/$kWebZxingVersion/reader.js';
+
+/// Phase 4 / N5, revised for the PWA (ADR-0003) — barcode decoding stays
+/// fully local on the web, without leaving Safari/iOS (which has no native
+/// `BarcodeDetector`) without a scanner.
 ///
-/// `mobile_scanner`'s default web reader falls back, on browsers without the
-/// native `BarcodeDetector` API (e.g. Firefox), to `zxing-wasm`, which it
-/// downloads from cdn.jsdelivr.net at first use. That is a third-party script
-/// load (blocked by the CSP, and contrary to the zero-third-party posture), so
-/// the web build is pinned to the native detector. Where that API is missing
-/// the scanner reports an error and the user types the barcode / uses manual
-/// entry instead. No-op on Android/iOS (they use the platform ML kits).
+/// `mobile_scanner`'s web reader (`WebBarcodeReader.auto`) uses the browser's
+/// native `BarcodeDetector` when it exists (Chrome, Edge) and otherwise
+/// `zxing-wasm`, which it loads as a script. By default it loads that script
+/// from cdn.jsdelivr.net (and zxing-wasm in turn fetches its `.wasm` from the
+/// same CDN) — a third-party load the CSP blocks and the zero-third-party
+/// posture forbids. So the script URL is redirected to OUR origin:
+/// [kWebZxingReaderScriptPath], a SHA-256-verified copy whose wasm path is
+/// rewritten to the sibling `zxing_reader.wasm` at build time
+/// (`scripts/fetch_web_zxing.sh`). The CDN URLs remain only as dead literals
+/// in the compiled code; `tools/check_no_external_hosts.sh` verifies that
+/// this override is present before tolerating them. No-op on Android/iOS
+/// (they use the platform ML kits).
 void configureWebBarcodeReader() {
-  MobileScannerPlatform.instance.setWebBarcodeReader(
-    WebBarcodeReader.barcodeDetector,
-  );
+  final platform = MobileScannerPlatform.instance;
+  platform.setWebBarcodeReader(WebBarcodeReader.auto);
+  platform.setBarcodeLibraryScriptUrl(kWebZxingReaderScriptPath);
 }
 
 /// `BarcodeScanner` adapter — wraps `MobileScannerController` and

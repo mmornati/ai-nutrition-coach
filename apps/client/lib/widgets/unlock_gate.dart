@@ -19,6 +19,13 @@
 // plate/coach data cached in providers survives a lock, and the next
 // unlock builds fresh providers against the reopened database.
 //
+// It restarts on every transition INTO `unlocked` too (first creation or
+// returning unlock): the AI settings and the BYOK key live in the encrypted
+// store (schema v5, ADR-0003), so they can only be read once it is open.
+// Booting after the unlock hydrates them from the database; booting while
+// locked sees the no-AI default and no key, which is all the lock screens
+// need.
+//
 // It also feeds the auto-lock: pointer activity resets the idle timer, and
 // the app lifecycle (Flutter web maps `visibilitychange` to `hidden` /
 // `resumed`) tells the controller when the page was away.
@@ -103,6 +110,13 @@ class _UnlockGateState extends ConsumerState<UnlockGate>
       final restart = ref.read(appRestartProvider);
       scheduleMicrotask(restart);
       return;
+    }
+    if (before != WebStoreStatus.unlocked && now == WebStoreStatus.unlocked) {
+      // Fresh providers hydrated from the now-open encrypted store (AI
+      // settings, BYOK key). The setState below keeps the gate correct when
+      // no restart callback is wired (widget tests).
+      final restart = ref.read(appRestartProvider);
+      scheduleMicrotask(restart);
     }
     setState(() {});
   }

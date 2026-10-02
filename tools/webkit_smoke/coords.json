@@ -1,0 +1,50 @@
+{
+  "viewport": {
+    "width": 420,
+    "height": 1200
+  },
+  "create.passphrase": [
+    214,
+    624
+  ],
+  "create.confirm": [
+    214,
+    684
+  ],
+  "create.button": [
+    210,
+    745
+  ],
+  "board.capture": [
+    376,
+    1156
+  ],
+  "sheet.typeOrTalk": [
+    210,
+    1156
+  ],
+  "manual.search": [
+    186,
+    99
+  ],
+  "manual.apple": [
+    210,
+    168
+  ],
+  "manual.piece": [
+    67,
+    1108
+  ],
+  "manual.log": [
+    210,
+    1164
+  ],
+  "lock.passphrase": [
+    214,
+    566
+  ],
+  "lock.button": [
+    210,
+    627
+  ]
+}

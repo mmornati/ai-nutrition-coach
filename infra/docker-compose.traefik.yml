@@ -1,0 +1,100 @@
+# OpenPlate behind YOUR Traefik (HTTPS terminated by Traefik).
+#
+#   OPENPLATE_DOMAIN=plate.example.com \
+#     docker compose -f infra/docker-compose.traefik.yml up -d
+#
+# (`bin/openplate up --traefik` validates the settings, builds the image and
+# runs exactly this; `bin/openplate down` stops it.)
+#
+# This is a STANDALONE compose file, not an override of docker-compose.yml, on
+# purpose: the base file publishes the app on 127.0.0.1:8080, and compose
+# cannot remove an inherited published port without `!reset` (compose >= 2.24).
+# Standalone, the guarantee is structural: THIS FILE HAS NO `ports:`. The
+# container is reachable only on the Docker network Traefik shares with it
+# (the self-host smoke test and `self_host_config_test.dart` assert it).
+#
+# Assumed: Traefik v3 runs in Docker on this host with the Docker provider
+# (`providers.docker`, `exposedByDefault=false`), on an existing network. Create
+# the network once if you do not have one, and attach Traefik to it:
+#     docker network create traefik
+# Traefik on the HOST (not in Docker)? Use infra/traefik/openplate-dynamic.yml
+# with the loopback-published base compose instead (docs/pwa.md).
+#
+# What the labels do
+#   router `openplate`   Host(`$OPENPLATE_DOMAIN`) on the HTTPS entrypoint, tls on
+#   service `openplate`  -> this container, port 8080 (nginx, plain HTTP inside)
+#   middleware `openplate-hsts`  Strict-Transport-Security max-age=31536000 only.
+#       Traefik's headers middleware sets ONLY what it is configured with, so the
+#       app's own CSP / COOP / Permissions-Policy / ... pass through untouched.
+#       No `preload` (it is hard to undo; opt in deliberately), and
+#       includeSubdomains is off unless OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS=true.
+#
+# Certificates: `tls=true` makes the router HTTPS. If your Traefik issues
+# certificates through an ACME resolver, ALSO add the overlay
+#     -f infra/docker-compose.traefik-certresolver.yml
+# with OPENPLATE_TRAEFIK_CERTRESOLVER=<your resolver name> (bin/openplate does
+# this when that variable is set). If instead a wildcard / default certificate
+# is configured in Traefik, set nothing. An empty resolver label is never
+# emitted.
+#
+# Family-only access: add the allow-list overlay
+#     -f infra/docker-compose.traefik-allowlist.yml
+# with OPENPLATE_TRAEFIK_ALLOWLIST=192.168.1.0/24,100.64.0.0/10 (Traefik v3
+# ipAllowList). Prefer a VPN / IP allow-list to Traefik basic auth: the browser
+# fetches the web manifest without credentials, so installability checks can
+# fail behind basic auth (not tested here). The app's passphrase protects the
+# data either way.
+#
+# Environment
+#   OPENPLATE_DOMAIN                  REQUIRED. Public DNS name.
+#   OPENPLATE_TRAEFIK_NETWORK         external network shared with Traefik (default traefik)
+#   OPENPLATE_TRAEFIK_ENTRYPOINT      HTTPS entrypoint name (default websecure)
+#   OPENPLATE_TRAEFIK_CERTRESOLVER    see above (overlay only)
+#   OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS true|false (default false)
+#   OPENPLATE_IMAGE_TAG               image to run (default openplate:dev)
+#   OPENPLATE_CONNECT_SRC_EXTRA       extra CSP connect-src origins -- THE place to
+#                                     allow the BYOK AI endpoint, e.g.
+#                                     "https://api.openai.com" (origins only,
+#                                     validated by the container at start-up)
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  openplate:
+    <<: *hardening
+    image: ${OPENPLATE_IMAGE_TAG:-openplate:dev}
+    environment:
+      OPENPLATE_CONNECT_SRC_EXTRA: ${OPENPLATE_CONNECT_SRC_EXTRA:-}
+      # 1 = serve the service-worker kill switch (docs/pwa.md); normally unset.
+      OPENPLATE_SW_KILL: ${OPENPLATE_SW_KILL:-}
+    # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    networks:
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${OPENPLATE_TRAEFIK_NETWORK:-traefik}
+      traefik.http.routers.openplate.rule: Host(`${OPENPLATE_DOMAIN:?set OPENPLATE_DOMAIN to the public host name}`)
+      traefik.http.routers.openplate.entrypoints: ${OPENPLATE_TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.openplate.tls: "true"
+      traefik.http.routers.openplate.service: openplate
+      traefik.http.routers.openplate.middlewares: openplate-hsts
+      traefik.http.services.openplate.loadbalancer.server.port: "8080"
+      traefik.http.middlewares.openplate-hsts.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.openplate-hsts.headers.stsIncludeSubdomains: ${OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS:-false}
+      traefik.http.middlewares.openplate-hsts.headers.stsPreload: "false"
+
+networks:
+  traefik:
+    # The pre-existing network Traefik is attached to (never created or
+    # removed by this file).
+    name: ${OPENPLATE_TRAEFIK_NETWORK:-traefik}
+    external: true

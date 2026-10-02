@@ -667,6 +667,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open-source licences'**
   String get aboutLicences;
+
+  /// Calm, dismissible line shown when a new version of the web app has been installed in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version is ready. Reloading locks your data, so you will enter your passphrase again.'**
+  String get updateReadyMessage;
+
+  /// Button that activates the new version and reloads the page.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get updateReloadAction;
+
+  /// Dismisses the new-version line until the next visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLaterAction;
+
+  /// Your data screen, web only: the browser promised to keep this data.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage: protected from automatic clean-up.'**
+  String get yourDataStorageProtected;
+
+  /// Your data screen, web only: the browser has not promised to keep this data.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage: the browser may clear this data if space runs low — export regularly.'**
+  String get yourDataStorageNotProtected;
+
+  /// Your data screen: when the user last exported.
+  ///
+  /// In en, this message translates to:
+  /// **'Last export: {date}'**
+  String yourDataLastExport(DateTime date);
+
+  /// Your data screen: nothing has been exported yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Last export: never'**
+  String get yourDataNeverExported;
+
+  /// One quiet line on Your data; dismissible; never a badge or a modal.
+  ///
+  /// In en, this message translates to:
+  /// **'It has been a while since your last export. A copy keeps your history safe if this device or browser ever loses it.'**
+  String get exportReminderStale;
+
+  /// One quiet line on Your data when there is data but no export yet.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not exported yet. A copy keeps your history safe if this device or browser ever loses it.'**
+  String get exportReminderNever;
+
+  /// Dismisses the export suggestion for a while.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get exportReminderDismiss;
+
+  /// Title of the install help screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Install on your phone'**
+  String get installTitle;
+
+  /// Install help intro.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenPlate runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.'**
+  String get installIntro;
+
+  /// Shown instead of instructions when running as an installed app.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenPlate is already installed on this device.'**
+  String get installAlready;
+
+  /// Chromium only: opens the browser install dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get installButton;
+
+  /// Install help heading.
+  ///
+  /// In en, this message translates to:
+  /// **'iPhone or iPad'**
+  String get installIosTitle;
+
+  /// Install help steps for iOS.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this page in Safari. Tap the Share button, choose “Add to Home Screen”, then tap “Add”.'**
+  String get installIosSteps;
+
+  /// Install help heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get installAndroidTitle;
+
+  /// Install help steps for Android.
+  ///
+  /// In en, this message translates to:
+  /// **'In Chrome, open the menu (⋮) and choose “Install app” (or “Add to Home screen”). Your browser may also offer an Install button below.'**
+  String get installAndroidSteps;
+
+  /// Install help heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Computer'**
+  String get installDesktopTitle;
+
+  /// Install help steps for desktop browsers.
+  ///
+  /// In en, this message translates to:
+  /// **'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install OpenPlate”. Other browsers can simply keep using it in a tab.'**
+  String get installDesktopSteps;
+
+  /// Install help heading.
+  ///
+  /// In en, this message translates to:
+  /// **'What installing changes'**
+  String get installChangesTitle;
+
+  /// Install help bullet.
+  ///
+  /// In en, this message translates to:
+  /// **'It opens without a connection once it has loaded once, and shows a calm line when a new version is ready.'**
+  String get installChangesOffline;
+
+  /// Install help bullet.
+  ///
+  /// In en, this message translates to:
+  /// **'It gets its own icon and opens without the browser bars.'**
+  String get installChangesIcon;
+
+  /// Install help bullet about Safari storage.
+  ///
+  /// In en, this message translates to:
+  /// **'On iPhone, Safari may clear a website’s data if you have not visited it for a while; an app added to the Home Screen is not subject to that. The installed app keeps its own separate data, so install it before you start logging.'**
+  String get installChangesStorage;
+
+  /// Install help closing line.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data lives only on this device, so export a copy from Your data now and then.'**
+  String get installBackupNote;
+
+  /// Settings row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Install on your phone'**
+  String get settingsInstallRow;
+
+  /// Settings row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'offline · own icon'**
+  String get settingsInstallRowSubtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -118,7 +118,7 @@ code_lines() { grep -Ev '^[[:space:]]*//' "$1" 2>/dev/null || true; }
 # The OVERRIDDEN literals are acceptable only if the neutralising config is
 # really in the bundle / source.
 verify_overrides() {
-  local dir="$1" bs src main
+  local dir="$1" bs src main reader
   [[ "$OVERRIDDEN_SEEN" -eq 1 ]] || return 0
   bs="$dir/flutter_bootstrap.js"
   if ! grep -q '"useLocalCanvasKit":true' "$bs" 2>/dev/null; then
@@ -132,14 +132,30 @@ verify_overrides() {
   src="$ROOT/apps/client/lib/state/scanner_adapters.dart"
   main="$ROOT/apps/client/lib/main.dart"
   if [[ -f "$src" ]]; then
-    if ! code_lines "$src" | grep -q 'WebBarcodeReader.barcodeDetector' ||
-      ! code_lines "$src" | grep -q 'setWebBarcodeReader('; then
-      echo "  ✗ the web barcode reader is not pinned to the native detector (zxing CDN fallback)" >&2
+    # The zxing-wasm reader (the jsdelivr literal) and its wasm are served from
+    # THIS origin: the script URL must be redirected and the reader never
+    # forced to the legacy unpkg-hosted zxing-js (the other dead literal).
+    if ! code_lines "$src" | grep -q 'setBarcodeLibraryScriptUrl(kWebZxingReaderScriptPath)' ||
+      ! code_lines "$src" | grep -q 'setWebBarcodeReader(WebBarcodeReader.auto)'; then
+      echo "  ✗ the web barcode reader script is not redirected to the self-hosted copy (scanner_adapters.dart)" >&2
       HITS=$((HITS + 1))
     fi
-    # ...and the pin must actually run at start-up (not just exist / be in a comment).
+    if code_lines "$src" | grep -q 'WebBarcodeReader.zxingJs'; then
+      echo "  ✗ the unpkg-hosted zxing-js reader is selected (scanner_adapters.dart)" >&2
+      HITS=$((HITS + 1))
+    fi
+    # ...and the redirect must actually run at start-up (not just exist / be in a comment).
     if ! code_lines "$main" | grep -Eq '^[[:space:]]*configureWebBarcodeReader\(\);'; then
       echo "  ✗ main.dart does not call configureWebBarcodeReader()" >&2
+      HITS=$((HITS + 1))
+    fi
+    # The self-hosted decoder is in the bundle and the compiled app points at it.
+    reader="$(ls "$dir"/zxing/*/reader.js 2>/dev/null | head -1 || true)"
+    if [[ -z "$reader" || ! -f "$(dirname "$reader")/zxing_reader.wasm" ]]; then
+      echo "  ✗ the self-hosted zxing decoder is missing from the bundle (run scripts/fetch_web_zxing.sh)" >&2
+      HITS=$((HITS + 1))
+    elif ! grep -qF "${reader#"$dir"/}" "$dir/main.dart.js" 2>/dev/null; then
+      echo "  ✗ main.dart.js does not reference ${reader#"$dir"/}" >&2
       HITS=$((HITS + 1))
     fi
   fi

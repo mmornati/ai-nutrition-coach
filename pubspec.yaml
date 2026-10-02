@@ -20,6 +20,11 @@ dev_dependencies:
   # lockfile (drift_dev needs it); declared here so `dart run tools/...` from the
   # workspace root resolves it.
   analyzer: ^13.0.0
+  # tools/generate_precache_manifest.dart hashes the release bundle (SHA-256)
+  # for the service worker's precache manifest (ADR-0003). Already in the
+  # lockfile (a direct dependency of packages/integrations); declared here so
+  # `dart run tools/...` from the workspace root resolves it.
+  crypto: ^3.0.6
 
 # AD-8 / D3: opt into SQLite3MultipleCiphers (sqlite3mc) at the build-hook
 # level so the sqlite3 binary the app links against supports the cipher
@@ -69,8 +74,12 @@ melos:
         dart format --output=none --set-exit-if-changed tools
 
     build:web:
-      description: Fetch + verify the pinned sqlite3mc.wasm, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn), then scan it for secret-shaped strings (S1) and third-party hosts (N5).
-      run: bash scripts/fetch_web_sqlite.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost) && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+      description: Fetch + verify the pinned sqlite3mc.wasm and zxing-wasm decoder, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn, no Flutter service worker), generate the precache manifest + OpenPlate's own sw.js (ADR-0003), then scan the bundle for secret-shaped strings (S1) and third-party hosts (N5).
+      run: bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+
+    pwa:manifest:
+      description: Re-generate precache-manifest.json + sw.js for an existing apps/client/build/web (set OPENPLATE_BUILD_ID to force a new build id, e.g. to test the update banner).
+      run: dart run tools/generate_precache_manifest.dart apps/client/build/web
 
     check:hosts:
       description: Fail if the built web bundle references a third-party host outside the allow-list (N5). Run after a build.

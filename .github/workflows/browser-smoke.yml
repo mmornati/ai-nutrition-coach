@@ -1,0 +1,34 @@
+# Browser smoke of the release web bundle in WebKit (Safari's engine) and
+# Chromium (ADR-0003, docs/pwa.md "Browser smoke").
+#
+# Builds the production image and runs scripts/webkit_smoke.sh: manifest +
+# service worker + precache, create / log / reload / unlock, OFFLINE reload,
+# the "new version is ready" update flow, no request leaving the origin.
+# The Playwright image is pinned by digest in the script. Separate from the
+# main CI job on purpose: it needs the network (npm ci) and ~10 minutes.
+
+name: browser-smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: WebKit + Chromium smoke of the release image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the browser smoke
+        run: bash scripts/webkit_smoke.sh
+
+      - name: Smoke summary
+        if: success()
+        run: 'echo "browser smoke: PASS"'

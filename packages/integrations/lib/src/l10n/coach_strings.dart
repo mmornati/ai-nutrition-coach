@@ -475,6 +475,7 @@ class WebSessionStrings {
     required this.unavailable,
     required this.throttled,
     required this.inOtherTab,
+    required this.newerVersion,
     required this.forgot,
     required this.forgotBody,
     required this.forgotAction,
@@ -518,6 +519,10 @@ class WebSessionStrings {
   /// Another tab holds the store open; the user can try again after closing
   /// or locking it there.
   final String inOtherTab;
+
+  /// The stored data was written by a newer version than this tab runs (an
+  /// older cached build); reloading updates it. Calm, no blame, nothing lost.
+  final String newerVersion;
 
   /// The "forgot passphrase" disclosure label.
   final String forgot;
@@ -577,6 +582,9 @@ const WebSessionStrings enWebSessionStrings = WebSessionStrings(
   inOtherTab:
       'OpenPlate is open in another tab. Lock or close it there, then try '
       'again here.',
+  newerVersion:
+      'This data was opened by a newer version of OpenPlate. Nothing is '
+      'lost: reload the page to update, then unlock again.',
   forgot: 'Forgot your passphrase?',
   forgotBody:
       'It cannot be recovered: your history is encrypted with a key made '
@@ -691,7 +699,8 @@ const YourDataStrings enYourDataStrings = YourDataStrings(
       'the Keychain/Keystore, stays on this device and is not included in '
       'backups. On the web the key is made from your passphrase, held in '
       'memory only while unlocked and never stored — if you forget the '
-      'passphrase, the data cannot be recovered.',
+      'passphrase, the data cannot be recovered. Your AI key and settings '
+      'are kept inside the same encrypted store.',
   eraseLabel: 'Erase local data',
   eraseExplain:
       'Removes your history, coach notes, saved AI key and any export '
@@ -1020,7 +1029,7 @@ class YourAiStrings {
   /// Mobile: where the key is kept.
   final String keyHelp;
 
-  /// Web: the key is memory-only (S4).
+  /// Web: the key is kept in the encrypted store (S4, ADR-0003).
   final String keyHelpWeb;
 
   /// `key saved • ends with ••••{last4}` — never more than the last four.
@@ -1095,9 +1104,9 @@ const YourAiStrings enYourAiStrings = YourAiStrings(
       'Kept encrypted on this device. It is sent only to the endpoint above '
       'and is never shown again.',
   keyHelpWeb:
-      'Kept in memory for this unlocked session only — locking or closing '
-      'the tab removes it. It is sent only to the endpoint above and is '
-      'never shown again.',
+      'Kept encrypted in this browser, with your data — it can be read only '
+      'after you unlock. It is sent only to the endpoint above and is never '
+      'shown again.',
   keySavedTemplate: 'key saved • ends with ••••{last4}',
   keySavedPlain: 'key saved',
   keyNone: 'no key saved',

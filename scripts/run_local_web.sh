@@ -19,7 +19,8 @@
 #
 # There is NO API key anywhere in this script, in .env, or in the build (S1):
 # anything compiled into a bundle is public. Enter your key at run time in
-# Settings → Your AI; on web it is kept in memory for the unlocked session only.
+# Settings → Your AI; on web it is stored inside the encrypted web store
+# (readable only after you unlock it; ADR-0003).
 #
 # .env (gitignored; see .env.example) is read as DATA, never executed. Only the
 # allow-listed, non-secret OPENPLATE_* names below are used; anything else —
@@ -149,12 +150,14 @@ fi
 
 # The web store's pinned, SHA-256-verified sqlite3mc.wasm (Phase 2B).
 "$ROOT/scripts/flutter_docker.sh" bash scripts/fetch_web_sqlite.sh
+# ...and the self-hosted barcode decoder (Safari/iOS have no BarcodeDetector).
+"$ROOT/scripts/flutter_docker.sh" bash scripts/fetch_web_zxing.sh
 
 echo "▶ Building web bundle (${#DEFINES[@]} define(s))…"
 # `bash -c '…' _ "$@"`: the defines reach flutter as separate argv entries;
 # flutter_docker.sh %q-quotes every argument on the way into the container.
 if ! "$ROOT/scripts/flutter_docker.sh" \
-  bash -c 'cd apps/client && exec flutter build web --release --no-web-resources-cdn "$@"' _ \
+  bash -c 'cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn "$@" && cd ../.. && dart run tools/generate_precache_manifest.dart apps/client/build/web' _ \
   "${DEFINES[@]+"${DEFINES[@]}"}" >"$BUILD_LOG" 2>&1; then
   echo "✗ web build failed — tail of log:" >&2
   tail -30 "$BUILD_LOG" >&2

@@ -93,10 +93,15 @@ enum WebOpenFailure {
 
   /// The storage or cipher is unusable in this browser/build.
   unavailable,
+
+  /// The data was written by a NEWER schema than this build knows: reload to
+  /// get the newer build (never a wrong-passphrase, never counted as one).
+  newerVersion,
 }
 
 WebOpenFailure classifyWebOpenError(Object error) {
   final cause = unwrapStoreCause(error);
+  if (cause is SchemaTooNewException) return WebOpenFailure.newerVersion;
   if (cause is StoreOpenException) {
     return switch (cause.reason) {
       StoreOpenFailureReason.keyRejected => WebOpenFailure.wrongKey,

@@ -17,6 +17,7 @@ import 'package:openplate_client/screens/capture_barcode_screen.dart';
 import 'package:openplate_client/screens/capture_photo_screen.dart';
 import 'package:openplate_client/screens/create_passphrase_screen.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
+import 'package:openplate_client/screens/install_screen.dart';
 import 'package:openplate_client/screens/key_lost_screen.dart';
 import 'package:openplate_client/screens/lock_screen.dart';
 import 'package:openplate_client/screens/manual_entry_screen.dart';
@@ -31,12 +32,14 @@ import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/erase_provider.dart';
 import 'package:openplate_client/state/manual_entry_provider.dart';
 import 'package:openplate_client/state/photo_provider.dart';
+import 'package:openplate_client/state/pwa_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/scanner_provider.dart';
 import 'package:openplate_client/state/web_store_controller_provider.dart';
 import 'package:openplate_client/l10n/l10n.dart';
 import 'package:openplate_client/widgets/coach_depth_panel.dart';
 import 'package:openplate_client/widgets/recognized_match_sheet.dart';
+import 'package:openplate_client/widgets/update_banner.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 import '../_fakes/fake_web_store_controller.dart';
@@ -378,6 +381,87 @@ void main() {
       await pump((br) => _scoped(const YourDataScreen(), br));
       await _settle(tester);
       await expectMeetsAllGuidelines(tester, 'YourDataScreen (mobile)');
+    });
+
+    // The PWA additions: the storage line and the quiet, dismissible export
+    // suggestion are on screen and measured.
+    a11yTest('web: storage line + export suggestion', (tester, pump, b) async {
+      await pump(
+        (br) => _scoped(
+          const YourDataScreen(),
+          br,
+          store: FakeEncryptedStore(initial: [_plate()]),
+          extra: [
+            webStoreControllerProvider.overrideWithValue(
+              FakeWebStoreController(status: WebStoreStatus.unlocked),
+            ),
+            storagePersistenceProvider.overrideWithValue(
+              FixedStoragePersistence(StoragePersistence.notProtected),
+            ),
+          ],
+        ),
+      );
+      await _settle(tester);
+      expect(find.textContaining('export regularly'), findsOneWidget);
+      expect(find.text('Not now'), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'YourDataScreen (pwa lines)');
+    });
+  });
+
+  group('Install on your phone', () {
+    a11yTest('instructions', (tester, pump, b) async {
+      await pump((br) => _scoped(const InstallScreen(), br));
+      await _settle(tester);
+      await expectMeetsAllGuidelines(tester, 'InstallScreen');
+    });
+
+    a11yTest('with the browser install button', (tester, pump, b) async {
+      final prompt = ManualInstallPrompt()..offer();
+      await pump(
+        (br) => _scoped(
+          const InstallScreen(),
+          br,
+          extra: [installPromptProvider.overrideWithValue(prompt)],
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('Install'), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'InstallScreen (prompt)');
+    });
+
+    a11yTest('already installed', (tester, pump, b) async {
+      await pump(
+        (br) => _scoped(
+          const InstallScreen(),
+          br,
+          extra: [
+            installContextProvider.overrideWithValue(
+              const InstallContext(
+                platform: InstallPlatform.ios,
+                standalone: true,
+              ),
+            ),
+          ],
+        ),
+      );
+      await _settle(tester);
+      await expectMeetsAllGuidelines(tester, 'InstallScreen (installed)');
+    });
+  });
+
+  group('Update banner', () {
+    a11yTest('a new version is ready', (tester, pump, b) async {
+      final signal = ManualAppUpdateSignal()..markReady();
+      await pump(
+        (br) => _scoped(
+          const UpdateBanner(child: Scaffold(body: Text('app'))),
+          br,
+          extra: [appUpdateProvider.overrideWithValue(signal)],
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('Reload'), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'UpdateBanner');
     });
   });
 

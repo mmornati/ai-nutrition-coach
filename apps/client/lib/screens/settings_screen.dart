@@ -3,6 +3,7 @@
 //
 //   Your AI    -> `YourAiScreen`   (rung, key, endpoint, consent)
 //   Your data  -> `YourDataScreen` (export, lock, erase)
+//   Install on your phone -> `InstallScreen` (web only; ADR-0003)
 //   About      -> `AboutScreen`
 //
 // The Your AI row's subtitle is the live rung label, so changing the rung
@@ -10,13 +11,16 @@
 // `SettingsStrings` (AD-7).
 
 import 'package:domain_core/domain_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
+import '../l10n/l10n.dart';
 import '../state/ai_rung_provider.dart';
 import '../theme/app_tokens.dart';
 import 'about_screen.dart';
+import 'install_screen.dart';
 import 'your_ai_screen.dart';
 import 'your_data_screen.dart';
 
@@ -65,6 +69,14 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: copy.yourDataSubtitle,
               onTap: () => open(const YourDataScreen()),
             ),
+            // The PWA install help only makes sense in a browser.
+            if (kIsWeb)
+              _row(
+                palette,
+                title: context.l10n.settingsInstallRow,
+                subtitle: context.l10n.settingsInstallRowSubtitle,
+                onTap: () => open(const InstallScreen()),
+              ),
             _row(
               palette,
               title: copy.about,

@@ -35,9 +35,12 @@ export 'src/catalog/seed_foods.dart';
 export 'src/coach/template_coach.dart';
 export 'src/l10n/coach_strings.dart';
 export 'src/net/capped_response.dart';
+export 'src/pwa/pwa_platform.dart';
 export 'src/store/corrupt_row_log.dart' show corruptRowsSkipped;
 export 'src/store/create_encrypted_store.dart';
+export 'src/store/export_history.dart';
 export 'src/store/failed_store.dart';
+export 'src/store/key_value_store.dart';
 export 'src/store/local_coach_note_store.dart';
 export 'src/store/local_data_eraser_stub.dart'
     if (dart.library.io) 'src/store/local_data_eraser_io.dart';

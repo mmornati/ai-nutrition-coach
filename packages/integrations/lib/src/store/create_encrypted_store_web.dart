@@ -23,6 +23,7 @@ import '../config/build_config.dart';
 import 'create_encrypted_store.dart';
 import 'in_memory_encrypted_store.dart';
 import 'indexeddb_sqlite3mc_backend.dart';
+import 'key_value_store.dart';
 import 'wasm_coach_note_store.dart';
 import 'wasm_encrypted_store.dart';
 import 'web_crypto_kdf.dart';
@@ -31,9 +32,9 @@ import 'web_locks.dart';
 import 'web_store_controller.dart';
 
 /// Process-wide controller: it must survive `appRestartProvider` restarts
-/// (the restart re-runs `createStores`, which re-initialises it from
-/// storage) so a locked store stays locked and the key never lives in two
-/// places.
+/// (the restart re-runs `createStores`; see the status check there) so a
+/// locked store stays locked, an unlocked one stays unlocked across the
+/// restart that follows an unlock, and the key never lives in two places.
 final WebStoreController _controller = WebStoreController(
   storage: const WebLocalStorage(),
   backend: IndexedDbSqlite3mcBackend(),
@@ -45,6 +46,7 @@ final WebStoreController _controller = WebStoreController(
 /// Singleton dev stores so successive calls share the same in-memory list.
 final InMemoryEncryptedStore _devStore = InMemoryEncryptedStore();
 final InMemoryCoachNoteStore _devCoachNotes = InMemoryCoachNoteStore();
+final InMemoryKeyValueStore _devKeyValues = InMemoryKeyValueStore();
 
 Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
   if (const BuildConfig().devInMemoryStore) {
@@ -52,12 +54,22 @@ Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) async {
     return StoreBundle(
       encryptedStore: _devStore,
       coachNoteStore: _devCoachNotes,
+      keyValueStore: _devKeyValues,
     );
   }
-  await _controller.initialize();
+  // Read the header once per page load, and again after an erase. A re-run of
+  // this factory for any other reason (the app restarts its provider scope on
+  // every lock AND unlock, so settings and the BYOK key are re-read from the
+  // freshly opened database) must not touch the controller: `initialize()`
+  // tears the session down, which would lock a store that was just unlocked.
+  if (_controller.status == WebStoreStatus.checking ||
+      _controller.status == WebStoreStatus.erasing) {
+    await _controller.initialize();
+  }
   return StoreBundle(
     encryptedStore: WasmEncryptedStore(source: _controller),
     coachNoteStore: WasmCoachNoteStore(source: _controller),
+    keyValueStore: DatabaseKeyValueStore(() => _controller.database),
     webStoreController: _controller,
     closeDatabase: _controller.prepareForErase,
     eraseStoreData: _controller.eraseStore,

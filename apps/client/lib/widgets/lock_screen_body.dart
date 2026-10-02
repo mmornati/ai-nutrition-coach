@@ -72,6 +72,7 @@ class _LockScreenBodyState extends State<LockScreenBody> {
         WebThrottled() => widget.copy.throttled,
         WebStoreUnavailable() => widget.copy.unavailable,
         WebStoreInUseElsewhere() => widget.copy.inOtherTab,
+        WebStoreNewerVersion() => widget.copy.newerVersion,
       };
     } on Object {
       message = widget.copy.unavailable;

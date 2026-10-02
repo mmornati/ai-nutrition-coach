@@ -367,4 +367,103 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutLicences => 'Open-source licences';
+
+  @override
+  String get updateReadyMessage =>
+      'A new version is ready. Reloading locks your data, so you will enter your passphrase again.';
+
+  @override
+  String get updateReloadAction => 'Reload';
+
+  @override
+  String get updateLaterAction => 'Later';
+
+  @override
+  String get yourDataStorageProtected =>
+      'Storage: protected from automatic clean-up.';
+
+  @override
+  String get yourDataStorageNotProtected =>
+      'Storage: the browser may clear this data if space runs low — export regularly.';
+
+  @override
+  String yourDataLastExport(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Last export: $dateString';
+  }
+
+  @override
+  String get yourDataNeverExported => 'Last export: never';
+
+  @override
+  String get exportReminderStale =>
+      'It has been a while since your last export. A copy keeps your history safe if this device or browser ever loses it.';
+
+  @override
+  String get exportReminderNever =>
+      'You have not exported yet. A copy keeps your history safe if this device or browser ever loses it.';
+
+  @override
+  String get exportReminderDismiss => 'Not now';
+
+  @override
+  String get installTitle => 'Install on your phone';
+
+  @override
+  String get installIntro =>
+      'OpenPlate runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.';
+
+  @override
+  String get installAlready => 'OpenPlate is already installed on this device.';
+
+  @override
+  String get installButton => 'Install';
+
+  @override
+  String get installIosTitle => 'iPhone or iPad';
+
+  @override
+  String get installIosSteps =>
+      'Open this page in Safari. Tap the Share button, choose “Add to Home Screen”, then tap “Add”.';
+
+  @override
+  String get installAndroidTitle => 'Android';
+
+  @override
+  String get installAndroidSteps =>
+      'In Chrome, open the menu (⋮) and choose “Install app” (or “Add to Home screen”). Your browser may also offer an Install button below.';
+
+  @override
+  String get installDesktopTitle => 'Computer';
+
+  @override
+  String get installDesktopSteps =>
+      'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install OpenPlate”. Other browsers can simply keep using it in a tab.';
+
+  @override
+  String get installChangesTitle => 'What installing changes';
+
+  @override
+  String get installChangesOffline =>
+      'It opens without a connection once it has loaded once, and shows a calm line when a new version is ready.';
+
+  @override
+  String get installChangesIcon =>
+      'It gets its own icon and opens without the browser bars.';
+
+  @override
+  String get installChangesStorage =>
+      'On iPhone, Safari may clear a website’s data if you have not visited it for a while; an app added to the Home Screen is not subject to that. The installed app keeps its own separate data, so install it before you start logging.';
+
+  @override
+  String get installBackupNote =>
+      'Your data lives only on this device, so export a copy from Your data now and then.';
+
+  @override
+  String get settingsInstallRow => 'Install on your phone';
+
+  @override
+  String get settingsInstallRowSubtitle => 'offline · own icon';
 }

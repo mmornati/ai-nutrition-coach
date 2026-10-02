@@ -61,6 +61,7 @@ export 'src/value_types/coach_interaction.dart';
 export 'src/value_types/managed_oversight_seam.dart';
 export 'src/value_types/composition_pattern.dart';
 export 'src/value_types/export_format.dart';
+export 'src/value_types/export_reminder.dart';
 export 'src/value_types/export_scope.dart';
 export 'src/value_types/food_entry_draft.dart';
 export 'src/value_types/food_group_coverage.dart';

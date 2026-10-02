@@ -74,6 +74,7 @@ class _CreatePassphraseBodyState extends State<CreatePassphraseBody> {
         WebUnlocked() => null,
         WebPassphraseRejected(:final issue) => _issueText(issue),
         WebStoreInUseElsewhere() => widget.copy.inOtherTab,
+        WebStoreNewerVersion() => widget.copy.newerVersion,
         WebWrongPassphrase() ||
         WebThrottled() ||
         WebStoreUnavailable() ||

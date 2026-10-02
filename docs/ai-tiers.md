@@ -46,9 +46,10 @@ so they are stored like one:
   `openplate_ai_rung_config_v1`). Chosen over a table in the encrypted
   database because it needs no schema migration and is already wiped by
   *Erase all local data*.
-- **Web:** memory only, for the unlocked session. `flutter_secure_storage`
-  on web is `localStorage`, readable by any script on the origin, so it is
-  never used (the app refuses to construct it there).
+- **Web:** a row of `kv_table` inside the **encrypted web store** (schema v5,
+  ADR-0003), readable only after the passphrase unlock and erased with the store.
+  `flutter_secure_storage` on web is `localStorage`, readable by any script on the
+  origin, so it is never used (the app refuses to construct it there).
 
 ## Free model — quota honesty (FR6)
 
@@ -134,15 +135,21 @@ pre-fill the form — they never switch the AI on. CI scans the build output
 |------------------|-------------------------------------------------------------------------|--------------------------------|
 | iOS / macOS      | Keychain, `first_unlock_this_device` (not in backups / iCloud Keychain) | Until you remove it            |
 | Android          | Keystore-wrapped `EncryptedSharedPreferences` (backup disabled)         | Until you remove it            |
-| **Web**          | **Memory only**                                                         | **This unlocked session only** |
+| **Web**          | **Inside the encrypted web store** (a row of `kv_table`, schema v5)     | Until you remove it or erase the store |
 
-On web the key is held in memory, never in `localStorage`, `sessionStorage`
-or IndexedDB (S4). It is gone when you lock the app (locking restarts the
-app's state), reload, or close the tab; you paste it again next session. That
-is the price of not leaving a credential in a store any script on the origin
-could read. The web store's own data stays encrypted and persistent — only
-the AI key (and the AI settings) are session-bound. The app refuses to build
-the secure-storage key store on web.
+On web the key is stored **inside the encrypted web store** (the same
+passphrase-derived ChaCha20-Poly1305 database as your plates, ADR-0002 /
+ADR-0003), together with your AI settings and per-host photo consents. It is
+readable only after you unlock the app, it survives locking and reloads (you do
+not paste it again), and *Erase all local data* deletes it with everything else.
+It is **never** in `localStorage` or `sessionStorage` — `flutter_secure_storage`
+on web *is* `localStorage`, readable by any script on the origin, so the app
+refuses to build that key store on web and still purges anything an older build
+left there. Honest limits: someone who copies your IndexedDB and guesses your
+passphrase offline gets the key along with the rest of your data (pick a long
+passphrase), and a malicious script running in your unlocked page could read it
+(the strict CSP is the control). Because settings are read from the open store,
+the app re-reads them after every unlock.
 
 ### The key and the screen
 
@@ -157,7 +164,7 @@ your own request. It is:
   is `key saved • ends with ••••abcd` — the last four characters, and only for
   keys of 12+ characters (shorter keys show just "key saved"; the start of the
   key, which identifies the provider, is never shown).
-- **Never** serialized outside the platform keystore (or memory on web).
+- **Never** serialized outside the platform keystore (or the encrypted store on web).
 
 ### The key is bound to its host
 

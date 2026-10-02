@@ -40,6 +40,7 @@ import 'package:domain_core/domain_core.dart';
 import 'create_encrypted_store_web.dart'
     if (dart.library.io) 'create_encrypted_store_io.dart'
     as impl;
+import 'key_value_store.dart';
 import 'secure_key_source.dart';
 import 'web_store_controller.dart';
 
@@ -54,6 +55,7 @@ class StoreBundle {
     required this.encryptedStore,
     required this.coachNoteStore,
     this.webStoreController,
+    this.keyValueStore,
     this.startupFailure,
     this.closeDatabase,
     this.eraseStoreData,
@@ -61,6 +63,12 @@ class StoreBundle {
 
   final EncryptedStore encryptedStore;
   final CoachNoteStore coachNoteStore;
+
+  /// The small encrypted key/value facts of the same database (schema v5:
+  /// web AI settings + BYOK key, last-export time). Web: a view over the
+  /// controller's database (reads `null` / writes throw while locked).
+  /// `null` when the store failed to open at startup.
+  final LocalKeyValueStore? keyValueStore;
 
   /// Non-null when the store could not be opened at startup; the stores
   /// above are then the failing stand-ins. `KeyLostFailure` is the case

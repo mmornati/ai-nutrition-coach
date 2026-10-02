@@ -47,10 +47,24 @@ OPENPLATE_DOMAIN=plate.example.com \
   docker compose -f infra/docker-compose.yml --profile tls up -d
 ```
 
-Already have a reverse proxy (Traefik, nginx, a tunnel)? Point it at the app,
-terminate TLS there and add HSTS yourself. If that proxy runs **in a container**,
-`127.0.0.1:8080` is its own loopback, not the app: put both on a shared docker
-network and proxy to `http://openplate:8080` (the compose service name).
+### Behind your own Traefik
+
+Already run Traefik for HTTPS? Keep the app container local-only and let Traefik route to it:
+
+```sh
+OPENPLATE_DOMAIN=plate.example.com OPENPLATE_TRAEFIK_CERTRESOLVER=letsencrypt bin/openplate up --traefik
+```
+
+`infra/docker-compose.traefik.yml` publishes **no port**, joins the Docker network Traefik is on
+(`OPENPLATE_TRAEFIK_NETWORK`, default `traefik`), and adds the router, service and an HSTS-only middleware
+as labels; optional overlays add a cert resolver and an `ipAllowList`. Traefik on the host instead? Use
+`infra/traefik/openplate-dynamic.yml` with the loopback-published container. Everything — variables,
+step-by-step, DNS/certificates, family-only access (and why not basic auth), the CSP knob for the BYOK
+endpoint — is in [`docs/pwa.md`](./pwa.md#deploy-behind-traefik).
+
+Another reverse proxy (nginx, a tunnel)? Point it at the app, terminate TLS there and add HSTS yourself. If
+that proxy runs **in a container**, `127.0.0.1:8080` is its own loopback, not the app: put both on a shared
+docker network and proxy to `http://openplate:8080` (the compose service name).
 
 ## Where your data lives
 
@@ -75,8 +89,14 @@ site's origin, keyed from your passphrase (see
 | --- | --- | --- |
 | `OPENPLATE_BIND` | `127.0.0.1` | Host interface for the app port. |
 | `OPENPLATE_PORT` | `8080` | Host port (`OPENPLATE_HOST_PORT` is a deprecated alias). |
-| `OPENPLATE_DOMAIN` | – | DNS name for `--tls` (required there). |
+| `OPENPLATE_DOMAIN` | – | DNS name for `--tls` and `--traefik` (required there). |
+| `OPENPLATE_TRAEFIK_NETWORK` | `traefik` | `--traefik`: existing Docker network shared with Traefik. |
+| `OPENPLATE_TRAEFIK_ENTRYPOINT` | `websecure` | `--traefik`: Traefik's HTTPS entrypoint. |
+| `OPENPLATE_TRAEFIK_CERTRESOLVER` | – | `--traefik`: ACME resolver name (optional overlay). |
+| `OPENPLATE_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
+| `OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
 | `OPENPLATE_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
+| `OPENPLATE_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
 | `OPENPLATE_IMAGE_TAG` | `openplate:dev` | Image tag to build/run. |
 | `OPENPLATE_CONTAINER_NAME` | `openplate` | Container name for plain `up`. |
 
@@ -96,7 +116,9 @@ connect-src 'self' https://world.openfoodfacts.org <OPENPLATE_CONNECT_SRC_EXTRA>
 ```
 
 Browser requests the app itself makes are limited to this list: barcode lookups
-at Open Food Facts, and whatever AI endpoint **you** configure. **If you use
+at Open Food Facts, and whatever AI endpoint **you** configure. This variable is
+**the place to allow your BYOK endpoint** (it works the same behind Caddy, Traefik or
+plain `up`). **If you use
 "bring your own key" AI (Settings → Your AI), add that endpoint's origin**,
 otherwise the browser blocks the call:
 
@@ -133,21 +155,21 @@ nginx writes), `--cap-drop ALL` and `no-new-privileges`. Every response carries
 `Permissions-Policy` that allows only the camera for the app's own origin,
 COOP/CORP `same-origin` and the CSP; the server version is hidden. Caching:
 `index.html`, the loader, `main.dart.js`, CanvasKit and the manifest are
-revalidated (`no-cache`) so upgrades take effect immediately; only the
-versioned `sqlite3mc-<ver>.wasm` is `immutable`.
+revalidated (`no-cache`) so upgrades take effect immediately — that includes
+`sw.js` and `precache-manifest.json`, the installed app's way of learning that a new
+version exists ([`docs/pwa.md`](./pwa.md)); only the versioned `sqlite3mc-<ver>.wasm`
+and `zxing/<ver>/` decoder are `immutable`.
 
 ### Camera and barcode scanning
 
-Scanning uses the browser's native `BarcodeDetector`, decoded entirely on the
-device. That API is only available in **Chrome on Android, macOS and ChromeOS**
-and **Edge/Opera on macOS**. It is **not** available in Firefox, in Chrome/Edge
-on Windows or Linux desktop, or in Safari (Safari 17+ has it only behind a
-default-off "Shape Detection API" preference). On those browsers the scanner
-screen detects this *before* asking for the camera and goes straight to manual
-entry ("Scanning isn't available in this browser"). The library's default
-fallback (zxing from a CDN) is deliberately off: it would download code from a
-third party. The Android and iOS apps use the platform scanners and are not
-affected.
+Scanning is decoded entirely on the device. The browser's native `BarcodeDetector` is
+used where it exists (Chrome on Android, macOS and ChromeOS; Edge/Opera on macOS). Everywhere
+else — **Safari/iOS, Firefox, Chrome/Edge on Windows and Linux** — the app uses a
+**zxing-wasm decoder served from your own origin** (`zxing/<version>/`, fetched at build time by
+`scripts/fetch_web_zxing.sh`, SHA-256 verified): nothing is downloaded from a third party and
+the camera never leaves the device. Only if the decoder cannot start does the scanner say
+"Scanning isn't available in this browser" and offer manual entry. The Android and iOS apps use the
+platform scanners and are not affected.
 
 ### Fonts
 
@@ -177,6 +199,9 @@ bash scripts/smoke_self_host.sh      # builds via bin/openplate and asserts:
   no `proxy_pass` / `resolver` (this is a self-containedness check, not a
   packet capture);
 - hostile `OPENPLATE_CONNECT_SRC_EXTRA` / `OPENPLATE_DOMAIN` values are rejected;
+- the Traefik compose renders with **no published port**, the expected labels (HSTS-only middleware),
+  optional overlays and refusals of hostile Traefik settings; `sw.js`, `precache-manifest.json` and
+  `manifest.json` are `no-cache` and agree on the build id; the zxing decoder is served and `immutable`;
 - a name collision is reported clearly; compose binds loopback by default;
 - the shipped bundle references no third-party host
   (`tools/check_no_external_hosts.sh`: no `gstatic.com`, `googleapis.com`,
@@ -189,6 +214,8 @@ infra/Dockerfile               multi-stage: Flutter 3.44.0 (digest) → nginx-un
 infra/nginx/nginx.conf         main config (everything writable lives in /tmp)
 infra/nginx/templates/         vhost + shared security-header include (envsubst at start)
 infra/docker-compose.yml       hardened app service + opt-in `tls` profile (Caddy)
+infra/docker-compose.traefik*.yml  behind your Traefik: no published port (+ cert-resolver / allow-list overlays)
+infra/traefik/                 file-provider example for a Traefik running on the host
 infra/Caddyfile                automatic HTTPS + HSTS for $OPENPLATE_DOMAIN
 bin/openplate                  the one-command affordance
 scripts/smoke_self_host.sh     CI / local smoke test
@@ -212,6 +239,7 @@ you configure). `melos run check:telemetry` pins this claim; see
 
 ## Cross-references
 
+- [`docs/pwa.md`](./pwa.md) — the installable web app: build, run, Traefik, install, update, troubleshooting.
 - [`docs/your-data.md`](./your-data.md) — the protection posture on web vs mobile.
 - [`docs/ai-tiers.md`](./ai-tiers.md) — the AI rung surface.
 - [`docs/telemetry-posture.md`](./telemetry-posture.md) — the network surface.

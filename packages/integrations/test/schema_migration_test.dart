@@ -19,6 +19,8 @@ import 'package:drift/native.dart';
 import 'package:integrations/integrations.dart';
 import 'package:integrations/src/store/app_database.dart';
 import 'package:integrations/src/store/encrypted_store_adapter.dart';
+import 'package:integrations/src/store/store_error_mapper.dart';
+import 'package:integrations/src/store/web_database_backend.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 import 'package:test/test.dart';
 
@@ -97,7 +99,7 @@ void main() {
     () async {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(db.schemaVersion, 4);
+      expect(db.schemaVersion, 5);
 
       final store = EncryptedStoreAdapter(database: db);
       final plates = await store.readAll();
@@ -117,7 +119,7 @@ void main() {
       expect(interactions.single.kind, 'askLater');
 
       final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.data.values.first, 4);
+      expect(version.data.values.first, 5);
     },
   );
 
@@ -159,7 +161,7 @@ void main() {
     expect(await notes.watchDismissals().first, {'note:1'});
   });
 
-  test('a database created fresh at v4 matches the upgraded one', () async {
+  test('a database created fresh matches the upgraded one', () async {
     final fresh = AppDatabase(NativeDatabase.memory());
     addTearDown(fresh.close);
     final upgraded = AppDatabase(NativeDatabase(file));
@@ -284,7 +286,81 @@ void main() {
       'note:7',
     });
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.data.values.first, 4);
+    expect(version.data.values.first, 5);
+  });
+
+  group('newer data than this build (user_version above the schema)', () {
+    test('the open is refused with a typed, classifiable error', () async {
+      final raw = sqlite3.sqlite3.open(file.path);
+      raw.execute('PRAGMA user_version = 99');
+      raw.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      Object? error;
+      try {
+        await db.customSelect('SELECT 1').get();
+      } on Object catch (e) {
+        error = e;
+      }
+      expect(error, isNotNull);
+      expect(unwrapStoreCause(error!), isA<SchemaTooNewException>());
+      expect(classifyWebOpenError(error), WebOpenFailure.newerVersion);
+      // Nothing was changed: the version is still the newer one.
+      final check = sqlite3.sqlite3.open(file.path);
+      addTearDown(check.close);
+      expect(check.select('PRAGMA user_version').first.values.first, 99);
+    });
+  });
+
+  group('v4 -> v5 (the key/value table, ADR-0003)', () {
+    /// A genuine v4 database: made by the current code, then user_version
+    /// rolled back to 4 and the v5 table dropped.
+    Future<void> makeV4() async {
+      final db = AppDatabase(NativeDatabase(file));
+      await EncryptedStoreAdapter(database: db).readAll(); // force the upgrade
+      await db.close();
+      final raw = sqlite3.sqlite3.open(file.path);
+      raw.execute('DROP TABLE kv_table');
+      raw.execute('PRAGMA user_version = 4');
+      raw.close();
+    }
+
+    test('adds kv_table and keeps every row', () async {
+      await makeV4();
+      final raw = sqlite3.sqlite3.open(file.path);
+      expect(
+        raw
+            .select("SELECT name FROM sqlite_master WHERE name = 'kv_table'")
+            .isEmpty,
+        isTrue,
+      );
+      raw.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await EncryptedStoreAdapter(database: db).readAll(), hasLength(3));
+      final kv = DatabaseKeyValueStore.of(db);
+      await kv.write('ai.settings', '{}');
+      expect(await kv.read('ai.settings'), '{}');
+      final version = await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.data.values.first, 5);
+    });
+
+    test('is re-runnable: a rolled-back user_version with the table present '
+        'reopens cleanly with its rows', () async {
+      var db = AppDatabase(NativeDatabase(file));
+      await DatabaseKeyValueStore.of(db).write('export.lastAtUtc', 'x');
+      await db.close();
+      final raw = sqlite3.sqlite3.open(file.path);
+      raw.execute('PRAGMA user_version = 4');
+      raw.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await DatabaseKeyValueStore.of(db).read('export.lastAtUtc'), 'x');
+      final version = await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.data.values.first, 5);
+    });
   });
 
   group('indexes (EXPLAIN QUERY PLAN)', () {
