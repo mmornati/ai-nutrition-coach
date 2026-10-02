@@ -12,15 +12,25 @@ optional sync to your own infrastructure, zero telemetry by default.
 
 ## Trust posture
 
-| Promise                                    | Where it lives                                            |
-| ------------------------------------------ | --------------------------------------------------------- |
-| Local encrypted store (ChaCha20-Poly1305, mobile) | Story 1.2 / AD-8                                          |
-| Web encrypted store (sqlite3mc-wasm in IndexedDB, passphrase-derived key) | Phase 2B / AD-8, ADR-0002 — [`docs/your-data.md`](./docs/your-data.md) |
-| Exporter: CSV/JSON offline, no account     | Story 4.2 / AD-9                                          |
-| Sync seam for user-controlled infra        | Story 4.3 / AD-6 — seam only: in-memory outbox, no transport yet; the UI says "on this device", never "synced" |
-| One-command self-host install              | Story 4.4 / FR-11 — [`docs/self-host.md`](./docs/self-host.md) |
-| Zero telemetry by default                  | Story 4.5 / FR-12 — [`docs/telemetry-posture.md`](./docs/telemetry-posture.md) |
-| No-Dark-Patterns Standard                  | Story 4.6 / FR-15 — [`docs/no-dark-patterns-standard.md`](./docs/no-dark-patterns-standard.md) |
+Every promise below names the test that proves it (`Proof`).
+`melos run check:release-posture` fails if a row has no proof, if the named
+file does not exist, or if it contains no test.
+
+| Promise | Where it lives | Proof |
+| ------- | -------------- | ----- |
+| Local encrypted store (ChaCha20-Poly1305, mobile): the file is not plaintext SQLite and a wrong key cannot open it | AD-8 — [`docs/your-data.md`](./docs/your-data.md) | `packages/integrations/test/encrypted_store_integration_test.dart` |
+| Web encrypted store: the create / unlock / lock / erase logic is tested in the Dart VM over real sqlite3mc encryption (wrong passphrase cannot open it, key zeroed on lock). The browser adapters (IndexedDB backend, WebCrypto KDF, `localStorage`) are verified **manually only**, per ADR-0002; Safari / Firefox are untested | AD-8, ADR-0002 — [`docs/your-data.md`](./docs/your-data.md) | `packages/integrations/test/web_store_controller_test.dart` |
+| Exporter: CSV/JSON offline, no account | AD-9 | `packages/integrations/test/csv_exporter_test.dart`, `packages/integrations/test/json_exporter_test.dart` |
+| Sync is a seam only: in-memory outbox, no transport yet; the UI says "on this device", never "synced" | AD-6 | `packages/integrations/test/in_memory_sync_queue_test.dart`, `apps/client/test/widgets/status_chip_test.dart` |
+| Photos sent to your AI endpoint are metadata-stripped, consent is per host, the key is bound to its host | N1 — [`docs/ai-tiers.md`](./docs/ai-tiers.md) | `packages/integrations/test/photo_sanitizer_test.dart`, `packages/integrations/test/byok_ai_rung_test.dart` |
+| One-command self-host: hardened static container, strict CSP, no outbound need | FR-11 — [`docs/self-host.md`](./docs/self-host.md) | `packages/integrations/test/self_host_config_test.dart` |
+| Zero telemetry by default; only user-enabled network paths | FR-12 — [`docs/telemetry-posture.md`](./docs/telemetry-posture.md) | `packages/integrations/test/no_telemetry_test.dart` |
+| No-Dark-Patterns Standard (no streaks, badges, countdowns, spinners, red) | FR-15 — [`docs/no-dark-patterns-standard.md`](./docs/no-dark-patterns-standard.md) | `packages/integrations/test/no_dark_patterns_test.dart` |
+| Every screen meets tap-target, label and contrast guidelines | NFR-7 — [`docs/accessibility.md`](./docs/accessibility.md) | `apps/client/test/a11y/screen_guidelines_test.dart` |
+
+What is *not* proven yet (the browser adapters, CI has never run without a remote, iOS has not been
+built, and Safari / Firefox are untested for the web store) is listed in
+`_bmad-output/review/security-and-quality-review-2026-10-01.md`.
 
 ## Quickstart
 
@@ -65,9 +75,11 @@ packages/integrations/   adapters (drift store, OFF/USDA, AI rungs, sync, export
 infra/                   Docker + nginx (+ Caddy TLS profile) self-host definition
 docs/                    user-facing docs (your-data, self-host, ai-tiers,
                          telemetry-posture, no-dark-patterns-standard)
-_bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
-tools/                   repo-level scripts (check_telemetry_claims,
-                         check_release_posture)
+_bmad-output/            planning / implementation artifacts, NOT product docs
+                         (see _bmad-output/README.md)
+tools/                   repo-level gates (check_telemetry_claims,
+                         check_release_posture, check_accessibility_floor,
+                         check_i18n_literals, ...)
 pubspec.yaml             workspace + the `melos:` scripts block (single source)
 scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```

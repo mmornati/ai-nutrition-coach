@@ -86,9 +86,9 @@ class ManualEntryState {
   /// re-picked from the preset row.
   final QuantityRange? chosenPreset;
 
-  /// Calm copy shown above the no-match form when the adapter could
-  /// not produce a result. `null` when the adapter is healthy.
-  final String? lastError;
+  /// Why the adapter could not produce a result (the screen maps it to
+  /// localized calm copy). `null` when the adapter is healthy.
+  final ManualEntryError? lastError;
 
   /// Coarse-grained status — used by the screen to decide whether to
   /// render the ranked list, the manual-add form, or the calm failure
@@ -102,7 +102,7 @@ class ManualEntryState {
     bool clearSelected = false,
     QuantityRange? chosenPreset,
     bool clearChosenPreset = false,
-    String? lastError,
+    ManualEntryError? lastError,
     bool clearLastError = false,
     ManualEntryCatalogStatus? catalogStatus,
   }) {
@@ -118,6 +118,10 @@ class ManualEntryState {
     );
   }
 }
+
+/// A calm, typed reason shown above the manual-add form. The copy itself is
+/// localized by the screen (AD-7), never held in state.
+enum ManualEntryError { searchUnavailable }
 
 /// Coarse-grained status of the catalog call. The screen renders
 /// different affordances per status.
@@ -170,7 +174,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
       state = state.copyWith(
         matches: const <FoodMatch>[],
         catalogStatus: ManualEntryCatalogStatus.catalogFailure,
-        lastError: "Search isn't available right now.",
+        lastError: ManualEntryError.searchUnavailable,
         clearSelected: true,
         clearChosenPreset: true,
       );
@@ -198,7 +202,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
         state = state.copyWith(
           matches: const <FoodMatch>[],
           catalogStatus: ManualEntryCatalogStatus.catalogFailure,
-          lastError: "Search isn't available right now.",
+          lastError: ManualEntryError.searchUnavailable,
           clearSelected: true,
           clearChosenPreset: true,
         );

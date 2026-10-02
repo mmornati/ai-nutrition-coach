@@ -64,6 +64,7 @@ import '../widgets/photo_consent_dialog.dart';
 import '../widgets/recognized_match_sheet.dart';
 import '../widgets/resolving_shimmer.dart';
 import 'manual_entry_screen.dart';
+import '../l10n/l10n.dart';
 
 /// The local surface state of the photo screen.
 ///
@@ -314,12 +315,12 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Snap a plate',
+          context.l10n.snapPlateTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         actions: [
           IconButton(
-            tooltip: 'Type it manually',
+            tooltip: context.l10n.typeItManually,
             onPressed: _typeInstead,
             icon: Icon(Icons.keyboard_alt_outlined, color: palette.ink),
           ),
@@ -373,7 +374,7 @@ class _OpeningCamera extends StatelessWidget {
         const ResolvingShimmer(),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Aim at your plate, then tap the shutter.',
+          context.l10n.photoAimHint,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
       ],
@@ -408,7 +409,7 @@ class _ResolvingBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Retake',
+              context.l10n.retake,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -442,7 +443,7 @@ class _ReadyBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _summaryFor(result),
+          _summaryFor(context.l10n, result),
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -456,7 +457,7 @@ class _ReadyBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Retake',
+              context.l10n.retake,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -472,7 +473,7 @@ class _ReadyBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -481,17 +482,16 @@ class _ReadyBody extends StatelessWidget {
     );
   }
 
-  String _summaryFor(RecognitionResult? result) {
-    if (result == null) return 'Reading your plate…';
+  String _summaryFor(AppLocalizations l10n, RecognitionResult? result) {
+    if (result == null) return l10n.photoReading;
     return switch (result) {
       RecognizedPlate(:final foods) =>
         foods.isEmpty
-            ? 'No foods matched — pick one below.'
-            : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
-      NoMatch() => 'Nothing on this plate — pick one below.',
+            ? l10n.photoNoFoodsMatched
+            : l10n.photoFoundFoods(foods.length),
+      NoMatch() => l10n.photoNothingOnPlate,
       QuotaExhausted() => enAiRungStrings.noticeShort,
-      RecognitionFailure() =>
-        "Search isn't available right now. Pick a closest match below.",
+      RecognitionFailure() => l10n.photoSearchUnavailablePick,
     };
   }
 }
@@ -510,12 +510,12 @@ class _DeniedCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera denied — type it instead',
+          context.l10n.cameraDeniedTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'You can still log a plate from the manual entry screen.',
+          context.l10n.cameraDeniedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -528,7 +528,7 @@ class _DeniedCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),

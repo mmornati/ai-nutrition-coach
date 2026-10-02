@@ -22,7 +22,6 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:integrations/integrations.dart' show enDayBoardStrings;
 
 import 'clock_provider.dart';
 import 'record_plate_provider.dart';
@@ -35,13 +34,6 @@ enum MealSlot {
   lunch,
   dinner,
   late;
-
-  String get label => switch (this) {
-    MealSlot.breakfast => enDayBoardStrings.breakfast,
-    MealSlot.lunch => enDayBoardStrings.lunch,
-    MealSlot.dinner => enDayBoardStrings.dinner,
-    MealSlot.late => enDayBoardStrings.lateOther,
-  };
 
   /// `true` for the slots that always render (an open dent when empty). The
   /// `late` slot only renders when it holds a plate — an empty "late" row

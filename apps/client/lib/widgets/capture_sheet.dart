@@ -23,6 +23,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the capture sheet. Returns when the sheet is closed by any
 /// path: a tile tap, scrim tap, swipe-down, or back gesture.
@@ -91,13 +92,13 @@ class CaptureSheet extends StatelessWidget {
               _SnapshotTile(onTap: onSnapshot, palette: palette),
               const SizedBox(height: AppSpacing.sm),
               _Subtile(
-                label: 'Scan a barcode',
+                label: context.l10n.scanBarcode,
                 onTap: onScan,
                 palette: palette,
               ),
               const SizedBox(height: AppSpacing.sm),
               _Subtile(
-                label: 'Type or talk',
+                label: context.l10n.typeOrTalk,
                 onTap: onTypeOrTalk,
                 palette: palette,
               ),
@@ -135,7 +136,7 @@ class _SnapshotTile extends StatelessWidget {
           onTap: onTap,
           child: Semantics(
             button: true,
-            label: 'Snapshot — photograph a plate',
+            label: context.l10n.snapshotSemantics,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
@@ -156,14 +157,14 @@ class _SnapshotTile extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Snapshot',
+                          context.l10n.snapshot,
                           style: AppTypography.ui.copyWith(
                             color: palette.background,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
-                          'photo of your plate',
+                          context.l10n.snapshotSubtitle,
                           style: AppTypography.monoWhisper.copyWith(
                             color: palette.background.withValues(alpha: 0.85),
                           ),

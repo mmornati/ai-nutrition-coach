@@ -29,6 +29,29 @@ class QuantityRange {
          'QuantityRange needs 0 <= low <= high, both finite',
        );
 
+  /// Validating constructor for values that are NOT compile-time constants
+  /// (parsed from storage, a model reply, user input). The `const` constructor
+  /// can only `assert` (debug builds); this one throws [ArgumentError] in every
+  /// build mode, so an invalid range can never be constructed silently.
+  factory QuantityRange.checked({
+    required num low,
+    required num high,
+    required String unit,
+    required String displayLabel,
+  }) {
+    if (!isValidRange(low, high)) {
+      throw ArgumentError(
+        'QuantityRange needs 0 <= low <= high, both finite (got $low..$high)',
+      );
+    }
+    return QuantityRange(
+      low: low,
+      high: high,
+      unit: unit,
+      displayLabel: displayLabel,
+    );
+  }
+
   static const double _inf = double.infinity;
 
   final num low;
@@ -50,7 +73,7 @@ class QuantityRange {
     String? unit,
     String? displayLabel,
   }) {
-    return QuantityRange(
+    return QuantityRange.checked(
       low: low ?? this.low,
       high: high ?? this.high,
       unit: unit ?? this.unit,

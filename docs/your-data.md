@@ -109,6 +109,12 @@ What this means in practice:
 - Exports (CSV/JSON) are plaintext downloads the browser saves wherever
   you choose; the app does not keep them.
 
+Not yet verified (so not promised): the web store is untested in Safari
+and Firefox (including how their storage-eviction rules treat IndexedDB — keep
+exports regardless of browser). Exclusion between tabs uses the Web Locks API; a
+browser without it gets no exclusion rather than a lock-out, so two tabs could
+write at once there.
+
 Limits, stated plainly: this protects the data on a locked/closed
 browser profile. It does not protect against malware or a malicious
 extension in your browser, against someone using your unlocked tab, or

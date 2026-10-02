@@ -60,11 +60,10 @@ so they are stored like one:
 The hosted-quota rung calls the configured free provider
 (Cloudflare Workers AI by default — OQ-2) within a per-day
 quota. The v1 quota is **`kHostedQuotaPerDay = 50`** calls per
-local day. The quota resets at UTC midnight in the local
-timezone.
+local day. The quota resets at the next **local** midnight.
 
 When the quota is exhausted, the rung returns
-`QuotaExhausted(resetAt: <next UTC midnight local>)`. The UI
+`QuotaExhausted(resetAt: <next local midnight>)`. The UI
 renders a quiet plain-language 3-way choice with **zero
 pressure, no countdown, no "Don't show again" easter egg**:
 
@@ -243,7 +242,10 @@ name and quantity hint is cleaned of control characters and capped at 100
 characters — the reply is untrusted text that ends up in the UI and in
 exports. Open Food Facts lookups ask only for the fields the parser reads
 (`fields=`) and carry a descriptive `User-Agent` (app, version, project URL;
-no personal contact; omitted on web, where browsers forbid setting it). A
+no personal contact; omitted on web, where browsers forbid setting it). The
+project URL in it is currently a **placeholder** — there is no public
+repository yet — so Open Food Facts cannot reach the maintainers through it
+until it is replaced. A
 transient OFF failure is **not** cached for the rest of the session — only a
 match or a definitive "not found" is.
 

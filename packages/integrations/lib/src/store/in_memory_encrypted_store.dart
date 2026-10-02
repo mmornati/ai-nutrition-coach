@@ -17,6 +17,30 @@ import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
 
+/// A single-subscription stream that emits `snapshot()` when listened to and
+/// again on every event of [changes]. The `changes` subscription is made
+/// synchronously with the listen (never after the first `yield`), so a write
+/// that lands right after the first emission is not lost - the same
+/// guarantee drift's `query.watch()` gives the real adapters.
+Stream<T> _watchSnapshots<T>(
+  StreamController<void> changes,
+  T Function() snapshot,
+) {
+  late final StreamController<T> out;
+  StreamSubscription<void>? sub;
+  out = StreamController<T>(
+    onListen: () {
+      out.add(snapshot());
+      sub = changes.stream.listen(
+        (_) => out.add(snapshot()),
+        onDone: out.close,
+      );
+    },
+    onCancel: () => sub?.cancel(),
+  );
+  return out.stream;
+}
+
 class InMemoryEncryptedStore implements EncryptedStore {
   InMemoryEncryptedStore();
 
@@ -61,14 +85,10 @@ class InMemoryEncryptedStore implements EncryptedStore {
   Stream<List<PlateLog>> watchRange({
     required DateTime from,
     required DateTime to,
-  }) async* {
-    // Yield the current snapshot first, then one per change — same
-    // observable behavior as drift's `query.watch()`.
-    yield platesInRange(_plates, from: from, to: to);
-    await for (final _ in _changes.stream) {
-      yield platesInRange(_plates, from: from, to: to);
-    }
-  }
+  }) => _watchSnapshots(
+    _changes,
+    () => platesInRange(_plates, from: from, to: to),
+  );
 
   @override
   Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
@@ -112,12 +132,12 @@ class InMemoryCoachNoteStore implements CoachNoteStore {
       List<CoachNote>.unmodifiable(_byPlate[plateLogId] ?? const <CoachNote>[]);
 
   @override
-  Stream<List<CoachNote>> watchForPlate(int plateLogId) async* {
-    yield await forPlate(plateLogId);
-    await for (final _ in _changes.stream) {
-      yield await forPlate(plateLogId);
-    }
-  }
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) => _watchSnapshots(
+    _changes,
+    () => List<CoachNote>.unmodifiable(
+      _byPlate[plateLogId] ?? const <CoachNote>[],
+    ),
+  );
 
   @override
   Future<CoachInteractionResult> recordInteraction(
@@ -135,10 +155,6 @@ class InMemoryCoachNoteStore implements CoachNoteStore {
   }
 
   @override
-  Stream<Set<String>> watchDismissals() async* {
-    yield Set<String>.of(_dismissed);
-    await for (final _ in _changes.stream) {
-      yield Set<String>.of(_dismissed);
-    }
-  }
+  Stream<Set<String>> watchDismissals() =>
+      _watchSnapshots(_changes, () => Set<String>.of(_dismissed));
 }

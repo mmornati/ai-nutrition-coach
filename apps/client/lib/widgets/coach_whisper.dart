@@ -39,6 +39,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/coach_note_provider.dart';
 import '../theme/app_tokens.dart';
 import 'coach_depth_panel.dart';
+import '../l10n/l10n.dart';
 
 class CoachWhisper extends ConsumerStatefulWidget {
   const CoachWhisper({
@@ -157,7 +158,7 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
 
     return Semantics(
       container: true,
-      label: 'Coach question: ${widget.question}',
+      label: context.l10n.coachQuestionSemantics(widget.question),
       child: motion
           ? _buildBody(palette, depth)
           : AnimatedOpacity(
@@ -186,10 +187,13 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
+          // A Wrap, not a Row: in the narrow text column of a plate row the
+          // two 48dp pills would overflow on a phone.
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
               _SurePill(palette: palette, onTap: _openDepthPanel),
-              const SizedBox(width: AppSpacing.sm),
               _AskLaterPill(palette: palette, onTap: _onAskLater),
             ],
           ),
@@ -221,9 +225,9 @@ class _SurePill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: 'sure',
+      label: context.l10n.sure,
       child: Material(
-        color: palette.sage,
+        color: palette.sageDeep,
         shape: const StadiumBorder(),
         child: InkWell(
           customBorder: const StadiumBorder(),
@@ -238,7 +242,7 @@ class _SurePill extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              'sure',
+              context.l10n.sure,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
@@ -259,7 +263,7 @@ class _AskLaterPill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: 'ask later',
+      label: context.l10n.askLater,
       child: Material(
         color: Colors.transparent,
         shape: StadiumBorder(
@@ -278,7 +282,7 @@ class _AskLaterPill extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              'ask later',
+              context.l10n.askLater,
               style: AppTypography.ui.copyWith(color: palette.coach),
             ),
           ),

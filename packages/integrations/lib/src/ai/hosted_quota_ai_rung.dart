@@ -9,7 +9,7 @@
 //   * `HostedQuotaFailure(cause)`     → `RecognitionFailure(cause)`
 //
 // On quota exhaustion (counter reaches `ceiling`), the rung
-// returns `QuotaExhausted(resetAt: <next UTC midnight local>)` so
+// returns `QuotaExhausted(resetAt: <next local midnight>)` so
 // the UI can render the calm 3-way choice (FR6). The rung never
 // throws across the `AiRung` port boundary — transport failures
 // are wrapped in `RecognitionFailure` so the UI renders a single

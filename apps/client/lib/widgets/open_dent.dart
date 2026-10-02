@@ -20,6 +20,7 @@ import '../state/coach_provider.dart';
 import '../state/day_board_provider.dart';
 import '../theme/app_tokens.dart';
 import 'open_plate_hint.dart';
+import '../l10n/l10n.dart';
 
 class OpenDent extends ConsumerStatefulWidget {
   const OpenDent({super.key, required this.slot, required this.day});
@@ -80,7 +81,9 @@ class _OpenDentState extends ConsumerState<OpenDent> {
 
     return Semantics(
       container: true,
-      label: '${widget.slot.label} is open. An open, quiet place.',
+      label: context.l10n.openDentSemantics(
+        context.l10n.slotLabel(widget.slot),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: AppSpacing.sm,
@@ -103,14 +106,14 @@ class _OpenDentState extends ConsumerState<OpenDent> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.slot.label,
+                    context.l10n.slotLabel(widget.slot),
                     style: AppTypography.ui.copyWith(color: palette.inkMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'An open, quiet place.',
+                    context.l10n.openDentWhisper,
                     style: AppTypography.monoWhisper.copyWith(
                       color: palette.inkMuted,
                     ),

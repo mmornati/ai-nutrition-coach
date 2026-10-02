@@ -82,7 +82,6 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<NoopAiRung>());
     });
 
@@ -105,13 +104,7 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<HostedQuotaAiRung>());
-
-      // The seam hands out `AiRung` (the interface) — not the
-      // concrete adapter type — at the call site.
-      final AiRung abstractRung = rung;
-      expect(abstractRung, isA<AiRung>());
     });
 
     test(
@@ -123,7 +116,6 @@ void main() {
         addTearDown(container.dispose);
 
         final rung = container.read(aiRungProvider);
-        expect(rung, isA<AiRung>());
         expect(rung, isA<ByokAiRung>());
       },
     );
@@ -135,7 +127,6 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<LocalAiRung>());
 
       // The seam is honest — `recognize` throws `UnsupportedError`
@@ -150,14 +141,23 @@ void main() {
       expect(thrown.toString(), contains('v2 seam'));
     });
 
-    test('the seam hands out AiRung (the interface), never the '
-        'concrete adapter type — except for the test-internal '
-        'isA<X>() assertions, the providers return AiRung', () {
+    test('every kind resolves to its own adapter', () {
       for (final kind in AiRungKind.values) {
+        // An exhaustive switch: adding an AiRungKind breaks this test until
+        // its adapter is pinned here.
+        final Type expected = switch (kind) {
+          AiRungKind.noOp => NoopAiRung,
+          AiRungKind.hostedQuota => HostedQuotaAiRung,
+          AiRungKind.byok => ByokAiRung,
+          AiRungKind.local => LocalAiRung,
+        };
         final container = _container(config: AiRungConfig(kind: kind));
         addTearDown(container.dispose);
-        final AiRung rung = container.read(aiRungProvider);
-        expect(rung, isA<AiRung>());
+        expect(
+          container.read(aiRungProvider).runtimeType,
+          expected,
+          reason: '$kind',
+        );
       }
     });
   });

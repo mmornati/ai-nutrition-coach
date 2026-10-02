@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:integrations/integrations.dart';
 
 import 'boot.dart';
+import 'l10n/l10n.dart';
 import 'state/font_licenses.dart';
 import 'state/scanner_adapters.dart';
-import 'theme/app_tokens.dart';
+import 'theme/app_theme.dart';
 import 'widgets/unlock_gate.dart';
 
 void main() async {
@@ -88,38 +89,14 @@ class OpenPlateApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final light = AppPalette.light;
-    final dark = AppPalette.dark;
     return MaterialApp(
-      title: 'AI Nutrition Coach',
+      onGenerateTitle: (context) => context.l10n.appName,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: light.background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: light.sage,
-          brightness: Brightness.light,
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: AppTypography.ui,
-          bodySmall: AppTypography.uiMuted,
-          labelSmall: AppTypography.mono,
-        ),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: dark.background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: dark.sage,
-          brightness: Brightness.dark,
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: AppTypography.ui,
-          bodySmall: AppTypography.uiMuted,
-          labelSmall: AppTypography.mono,
-        ),
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       builder: (context, child) {
         if (!const BuildConfig().devInMemoryStore) {
           return child ?? const SizedBox.shrink();
@@ -142,16 +119,16 @@ class _DevStoreBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Material(
-      color: Color(0xFFB3261E),
+    return Material(
+      color: const Color(0xFFB3261E),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
           child: Center(
             child: Text(
-              'DEV — not encrypted. Data lives in memory only.',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+              context.l10n.devStoreBanner,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
         ),

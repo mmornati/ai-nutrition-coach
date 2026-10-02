@@ -12,6 +12,12 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # AD-7: UI strings live in ARB files (lib/l10n/app_en.arb) compiled by
+  # gen-l10n; dates and times are formatted per locale through intl.
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   # State management — AD-3: Riverpod state is derived, never a second source.
   flutter_riverpod: 3.4.2
 
@@ -49,6 +55,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   # Font licence texts, registered with LicenseRegistry (state/font_licenses.dart).
   assets:

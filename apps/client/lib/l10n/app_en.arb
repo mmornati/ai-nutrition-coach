@@ -1,0 +1,272 @@
+{
+  "@@locale": "en",
+  "appName": "OpenPlate",
+  "@appName": {
+    "description": "The app name, shown in the OS task switcher."
+  },
+  "devStoreBanner": "DEV — not encrypted. Data lives in memory only.",
+  "@devStoreBanner": {
+    "description": "Warning banner shown only in the dev in-memory web build."
+  },
+  "typeItManually": "Type it manually",
+  "retake": "Retake",
+  "logAction": "Log",
+  "logging": "Logging…",
+  "logCustomFood": "Log custom food",
+  "cameraDeniedTitle": "Camera denied — type it instead",
+  "cameraDeniedBody": "You can still log a plate from the manual entry screen.",
+  "searchUnavailable": "Search isn't available right now.",
+  "closestMatches": "Closest matches",
+  "customFoodName": "Custom food name",
+  "typeNameFirst": "Type a name first",
+  "pickQuantity": "Pick a quantity",
+  "pickFoodFirst": "Pick a food first",
+  "close": "close",
+  "sure": "sure",
+  "askLater": "ask later",
+  "logFailureMobileOnly": "Mobile-only in v1.",
+  "logFailureHistoryCannotOpen": "History can't open on this device.",
+  "logFailureGeneric": "Could not log plate.",
+  "historyCannotLoad": "History can't load right now.",
+  "dayToday": "Today",
+  "dayYesterday": "Yesterday",
+  "logAnotherPlate": "Log another plate",
+  "@logAnotherPlate": {
+    "description": "Screen-reader label of the quick-repeat link."
+  },
+  "logAnotherPlateLink": "+ log another plate",
+  "slotBreakfast": "Breakfast",
+  "slotLunch": "Lunch",
+  "slotDinner": "Dinner",
+  "slotLate": "Late / other",
+  "plateRowSemantics": "{slot}, {dish}{more}, {quantity}",
+  "@plateRowSemantics": {
+    "description": "Screen-reader label of one plate row.",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      },
+      "dish": {
+        "type": "String"
+      },
+      "more": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "openDentSemantics": "{slot} is open. An open, quiet place.",
+  "@openDentSemantics": {
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "openDentWhisper": "An open, quiet place.",
+  "openCaptureSheet": "Open capture sheet",
+  "lastDays": "{count, plural, =1{Last day} other{Last {count} days}}",
+  "@lastDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "weekStripFootnote": "no streaks · no countdowns · no guilt",
+  "dayBalanced": "{weekday}, balanced",
+  "@dayBalanced": {
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "dayQuiet": "{weekday}, quiet",
+  "@dayQuiet": {
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "statusSemantics": "Status: {status}",
+  "@statusSemantics": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "foodGroupVegFruit": "Veg & Fruit",
+  "foodGroupProtein": "Protein",
+  "foodGroupStarch": "Starch",
+  "foodGroupDairy": "Dairy",
+  "foodGroupOther": "Other",
+  "balanceArcSemantics": "Balance arc — {summary}",
+  "@balanceArcSemantics": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "balanceArcSummary": "{filled} of {total} filled: {groups}",
+  "@balanceArcSummary": {
+    "placeholders": {
+      "filled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "groups": {
+        "type": "String"
+      }
+    }
+  },
+  "balanceArcCount": "{filled} of {total}",
+  "@balanceArcCount": {
+    "placeholders": {
+      "filled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "coachQuestionSemantics": "Coach question: {question}",
+  "@coachQuestionSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "openPlateHintSemantics": "Open plate hint: {question}",
+  "@openPlateHintSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "coachDepthSemantics": "Coach depth follow-up: {question}",
+  "@coachDepthSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "coachDepthNothingToAdd": "Nothing to add.",
+  "scanBarcode": "Scan a barcode",
+  "typeOrTalk": "Type or talk",
+  "snapshotSemantics": "Snapshot — photograph a plate",
+  "snapshot": "Snapshot",
+  "snapshotSubtitle": "photo of your plate",
+  "resolvingReading": "reading…",
+  "barcodeNotFoundTitle": "Not found",
+  "barcodeNotFoundBody": "This barcode isn't in the catalog yet. Type it manually?",
+  "scanAgain": "Scan again",
+  "barcodeCheckingCamera": "Checking camera permission…",
+  "barcodeMoveCloser": "Move closer or steady",
+  "barcodeLookingUp": "Looking up {code}…",
+  "@barcodeLookingUp": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "barcodeAimHint": "Aim at a packaged barcode to log it.",
+  "barcodeUnsupportedBrowserTitle": "Scanning isn't available in this browser — type it instead",
+  "cameraUnavailableTitle": "Camera unavailable — type it instead",
+  "barcodeUnsupportedBrowserBody": "This browser can't read barcodes on your device, and OpenPlate never sends camera images elsewhere. Manual entry still works.",
+  "cameraStartFailedBody": "We couldn't start the camera. Manual entry still works.",
+  "barcodeNotFoundTypeIt": "Not found — type it manually",
+  "snapPlateTitle": "Snap a plate",
+  "photoAimHint": "Aim at your plate, then tap the shutter.",
+  "photoReading": "Reading your plate…",
+  "photoNoFoodsMatched": "No foods matched — pick one below.",
+  "photoFoundFoods": "{count, plural, =1{Found 1 food on this plate.} other{Found {count} foods on this plate.}}",
+  "@photoFoundFoods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photoNothingOnPlate": "Nothing on this plate — pick one below.",
+  "photoSearchUnavailablePick": "Search isn't available right now. Pick a closest match below.",
+  "addFoodTitle": "Add a food",
+  "foodSearch": "Food search",
+  "voiceUnavailableSnack": "Voice not available in v1 — type instead",
+  "voiceUnavailableSemantics": "Voice not available in v1 — tap to see quiet copy",
+  "manualTypeHint": "Type a food name. We will rank the matches for you.",
+  "manualCustomHint": "Type the food name to add it manually.",
+  "matchSemantics": "{name}, {group}, {presets} presets",
+  "@matchSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      },
+      "presets": {
+        "type": "int"
+      }
+    }
+  },
+  "recognizedNothingMatched": "Nothing matched",
+  "recognizedPickOrType": "Pick a closest match or type the food manually.",
+  "recognizedLooksLike": "{count, plural, =1{Looks like 1 food} other{Looks like {count} foods}}",
+  "@recognizedLooksLike": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recognizedTapToConfirm": "Tap one to confirm, or pick another match.",
+  "recognizedNothingOnPlate": "Nothing on this plate",
+  "recognizedPickOrTypeFallback": "You can still pick a closest match or type it manually.",
+  "recognizedSemantics": "{name}, {group}, {quantity}, confidence {confidence}",
+  "@recognizedSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      },
+      "confidence": {
+        "type": "String"
+      }
+    }
+  },
+  "recognizedDetail": "{group}  · {quantity}  · {percent}%",
+  "@recognizedDetail": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutTitle": "About",
+  "aboutOpenSource": "yours to run · open source",
+  "aboutLicences": "Open-source licences"
+}

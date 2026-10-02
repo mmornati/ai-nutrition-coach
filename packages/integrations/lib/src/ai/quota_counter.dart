@@ -2,8 +2,8 @@
 //
 // `QuotaCounter` is a day-keyed counter that tracks how many calls
 // the hosted-quota rung has made against the configured free
-// provider today. The counter resets at UTC midnight in the local
-// timezone. The counter persists via `flutter_secure_storage` on
+// provider today. The counter resets at the next local
+// midnight. The counter persists via `flutter_secure_storage` on
 // mobile (Keychain/Keystore); on web it is memory-only (the web app uses
 // `InMemoryQuotaCounter`; `SecureStorageQuotaCounter` refuses to be built
 // there — S4 — documented in `docs/ai-tiers.md`).
@@ -60,8 +60,8 @@ abstract interface class QuotaCounter {
   /// remain for display and tests. May throw if the backing store fails.
   Future<bool> tryConsume();
 
-  /// The next reset timestamp (UTC midnight in the local
-  /// timezone) — the moment the counter rolls over to zero.
+  /// The next reset timestamp (the next local midnight) — the moment the
+  /// counter rolls over to zero.
   /// `null` if the counter doesn't track a reset window.
   Future<DateTime?> resetAt();
 

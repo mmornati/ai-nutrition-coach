@@ -27,6 +27,7 @@ import 'package:integrations/integrations.dart';
 
 import '../state/sync_queue_provider.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class StatusChip extends ConsumerWidget {
   const StatusChip({
@@ -66,7 +67,7 @@ class StatusChip extends ConsumerWidget {
     };
 
     return Semantics(
-      label: 'Status: ${label.replaceFirst('· ', '')}',
+      label: context.l10n.statusSemantics(label.replaceFirst('· ', '')),
       readOnly: true,
       child: AnimatedOpacity(
         opacity: 1,

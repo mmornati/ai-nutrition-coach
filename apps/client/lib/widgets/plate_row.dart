@@ -29,6 +29,7 @@ import '../theme/app_tokens.dart';
 import 'balance_arc.dart';
 import 'coach_whisper.dart';
 import 'status_chip.dart';
+import '../l10n/l10n.dart';
 
 class PlateRow extends ConsumerWidget {
   const PlateRow({super.key, required this.slot, required this.plate});
@@ -46,7 +47,7 @@ class PlateRow extends ConsumerWidget {
     final more = plate.entries.length > 1
         ? ' +${plate.entries.length - 1}'
         : '';
-    final time = _localTime(plate.loggedAtUtc);
+    final time = context.clockTime(plate.loggedAtUtc.toLocal());
     final range = _rangeLabel(first?.quantity);
     final filled = balanceCoverage([
       for (final e in plate.entries) e.databaseFood.foodGroup,
@@ -76,7 +77,12 @@ class PlateRow extends ConsumerWidget {
 
     return Semantics(
       container: true,
-      label: '${slot.label}, $dish$more, $range',
+      label: context.l10n.plateRowSemantics(
+        context.l10n.slotLabel(slot),
+        dish,
+        more,
+        range,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
         child: Padding(
@@ -103,7 +109,7 @@ class PlateRow extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      slot.label,
+                      context.l10n.slotLabel(slot),
                       style: AppTypography.ui.copyWith(color: palette.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -117,6 +123,22 @@ class PlateRow extends ConsumerWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
+                    // Quantity + sync status sit under the dish, wrapping, so
+                    // a long status never overflows a phone-width row.
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          range,
+                          style: AppTypography.mono.copyWith(
+                            color: palette.inkMuted,
+                          ),
+                        ),
+                        StatusChip(plateLogId: plate.id),
+                      ],
+                    ),
                     if (whisperNote != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       CoachWhisper(
@@ -128,13 +150,6 @@ class PlateRow extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                range,
-                style: AppTypography.mono.copyWith(color: palette.inkMuted),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              StatusChip(plateLogId: plate.id),
             ],
           ),
         ),
@@ -146,11 +161,4 @@ class PlateRow extends ConsumerWidget {
     if (q == null) return '';
     return q.displayLabel;
   }
-}
-
-String _localTime(DateTime utc) {
-  final local = utc.toLocal();
-  final hh = local.hour.toString().padLeft(2, '0');
-  final mm = local.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
 }

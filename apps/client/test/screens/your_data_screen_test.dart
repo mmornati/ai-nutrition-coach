@@ -14,7 +14,6 @@ import 'package:integrations/integrations.dart';
 import 'package:openplate_client/screens/your_data_screen.dart';
 import 'package:openplate_client/state/erase_provider.dart';
 import 'package:openplate_client/state/web_store_controller_provider.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
 
 import '../_fakes/fake_web_store_controller.dart';
 
@@ -181,13 +180,6 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.textContaining('could not be erased'), findsOneWidget);
       });
-    });
-
-    // Re-export `AppPalette` from the test so the analyzer is
-    // happy when the test runner imports this file in isolation.
-    test('app palette token surface is reachable', () {
-      expect(AppPalette.light.background, isA<Color>());
-      expect(AppPalette.dark.background, isA<Color>());
     });
   });
 }

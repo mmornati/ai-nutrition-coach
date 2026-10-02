@@ -64,6 +64,7 @@ class _Queue implements SyncQueue {
 }
 
 void main() {
+  quantityRangeCheckedTests();
   test('generateUuidV4: shape, version, variant, uniqueness', () {
     final ids = {for (var i = 0; i < 200; i++) generateUuidV4()};
     expect(ids, hasLength(200));
@@ -191,4 +192,42 @@ class _ThrowingAdapter implements SyncAdapter {
 
   @override
   Future<DrainResult> drain(SyncOp op) async => throw StateError('x');
+}
+
+void quantityRangeCheckedTests() {
+  group('QuantityRange.checked (validates in every build mode)', () {
+    test('accepts a valid range', () {
+      final q = QuantityRange.checked(
+        low: 1,
+        high: 2,
+        unit: 'cup',
+        displayLabel: '~1-2 cups',
+      );
+      expect(q.high, 2);
+    });
+
+    for (final bad in <(num, num)>[
+      (-1, 1),
+      (2, 1),
+      (double.nan, 1),
+      (0, double.infinity),
+    ]) {
+      test('rejects ${bad.$1}..${bad.$2} with ArgumentError', () {
+        expect(
+          () => QuantityRange.checked(
+            low: bad.$1,
+            high: bad.$2,
+            unit: 'x',
+            displayLabel: 'x',
+          ),
+          throwsArgumentError,
+        );
+      });
+    }
+
+    test('copyWith cannot produce an invalid range', () {
+      const q = QuantityRange(low: 1, high: 2, unit: 'x', displayLabel: 'x');
+      expect(() => q.copyWith(low: 5), throwsArgumentError);
+    });
+  });
 }

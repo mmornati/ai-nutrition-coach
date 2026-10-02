@@ -5,7 +5,7 @@
 // with open dents where no plate was logged. The full day is always
 // visible; hairline rules separate rows; no cards, no fills, no
 // dashboard grid (UX-DR3). On `StoreFailure` the screen renders a
-// single calm line "History can't load right now." under the title —
+// single calm line context.l10n.historyCannotLoad under the title —
 // no retry button, no spinner, no countdown.
 //
 // Story 1.4 split the data source:
@@ -53,6 +53,7 @@ import 'capture_barcode_screen.dart';
 import 'capture_photo_screen.dart';
 import 'manual_entry_screen.dart';
 import 'settings_screen.dart';
+import '../l10n/l10n.dart';
 
 class DayBoardScreen extends ConsumerStatefulWidget {
   const DayBoardScreen({super.key});
@@ -235,7 +236,7 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen>
                 children: [
                   Expanded(
                     child: Text(
-                      _titleFor(selected, today),
+                      _titleFor(context, selected, today),
                       style: AppTypography.ui.copyWith(color: palette.ink),
                     ),
                   ),
@@ -261,7 +262,7 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen>
               const SizedBox(height: AppSpacing.xs),
               if (state.hasError)
                 Text(
-                  "History can't load right now.",
+                  context.l10n.historyCannotLoad,
                   style: AppTypography.coach.copyWith(color: palette.inkMuted),
                 ),
               const SizedBox(height: AppSpacing.lg),
@@ -294,26 +295,14 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen>
   /// weekday depending on how far back it sits. The strip below
   /// already tells the user which day is selected; the title's job is
   /// to keep that consistent with what the screen is showing.
-  String _titleFor(DateTime? selected, DateTime today) {
-    if (selected == null) return 'Today';
-    if (isSameLocalDay(selected, today)) return 'Today';
+  String _titleFor(BuildContext context, DateTime? selected, DateTime today) {
+    if (selected == null) return context.l10n.dayToday;
+    if (isSameLocalDay(selected, today)) return context.l10n.dayToday;
     if (isSameLocalDay(selected, addCalendarDays(today, -1))) {
-      return 'Yesterday';
+      return context.l10n.dayYesterday;
     }
-    return _weekdayName(selected.weekday);
+    return context.weekdayName(selected);
   }
-
-  static const List<String> _weekdayNames = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-
-  String _weekdayName(int weekday) => _weekdayNames[weekday - 1];
 
   // Reduced-motion / NFR7: no spinner ever on this surface (UX-DR10).
   // While the store is opening, the screen renders the three open
@@ -336,7 +325,7 @@ class _QuickRepeatLink extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Log another plate',
+      label: context.l10n.logAnotherPlate,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -351,8 +340,8 @@ class _QuickRepeatLink extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '+ log another plate',
-                  style: AppTypography.coach.copyWith(color: palette.sage),
+                  context.l10n.logAnotherPlateLink,
+                  style: AppTypography.coach.copyWith(color: palette.sageDeep),
                 ),
               ],
             ),

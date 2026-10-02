@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/coach_note_provider.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class OpenPlateHint extends ConsumerWidget {
   const OpenPlateHint({
@@ -63,7 +64,7 @@ class OpenPlateHint extends ConsumerWidget {
     return Semantics(
       button: true,
       enabled: onDismissed != null,
-      label: 'Open plate hint: $question',
+      label: context.l10n.openPlateHintSemantics(question),
       child: motion
           ? _buildBody(context, ref, palette)
           : AnimatedOpacity(
@@ -95,7 +96,7 @@ class OpenPlateHint extends ConsumerWidget {
           ),
           child: Text(
             question,
-            style: AppTypography.coach.copyWith(color: palette.sage),
+            style: AppTypography.coach.copyWith(color: palette.sageDeep),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

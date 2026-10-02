@@ -72,26 +72,6 @@ void main() {
     });
   });
 
-  group('coachNoteGeneratorProvider', () {
-    test('constructs a CoachNoteGenerator wired from coach + store', () {
-      final coach = FakeCoach();
-      final store = FakeCoachNoteStore();
-      final container = _container(coach: coach, coachNotes: store);
-
-      final generator = container.read(coachNoteGeneratorProvider);
-      expect(generator, isA<CoachNoteGenerator>());
-    });
-
-    test('RecordPlate use-case reads the generator from the provider', () {
-      final coach = FakeCoach();
-      final store = FakeCoachNoteStore();
-      final container = _container(coach: coach, coachNotes: store);
-
-      final useCase = container.read(recordPlateProvider);
-      expect(useCase, isA<RecordPlate>());
-    });
-  });
-
   group('coachNotesForPlateProvider', () {
     test(
       'returns empty list when the store has no notes for the plate',

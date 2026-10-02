@@ -76,7 +76,6 @@ void main() {
 
       // Verify the seam resolves to the v1 active rung.
       final coach = container.read(coachProvider);
-      expect(coach, isA<Coach>());
       expect(coach, isA<TemplateCoach>());
 
       // Verify the canonical key resolves to the expected text.

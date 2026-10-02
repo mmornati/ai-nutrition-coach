@@ -7,6 +7,7 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_localizations.dart';
 import 'clock_provider.dart';
 import 'record_plate_provider.dart';
 
@@ -32,13 +33,13 @@ Future<RecordPlateResult> commitPlate(
 }
 
 /// The calm one-line copy for a failed log.
-String logFailureMessage(StoreFailure failure) {
+String logFailureMessage(AppLocalizations l10n, StoreFailure failure) {
   return switch (failure) {
     StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-      'Mobile-only in v1.',
+      l10n.logFailureMobileOnly,
     StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-      "History can't open on this device.",
-    StoreFailure() => 'Could not log plate.',
+      l10n.logFailureHistoryCannotOpen,
+    StoreFailure() => l10n.logFailureGeneric,
   };
 }
 

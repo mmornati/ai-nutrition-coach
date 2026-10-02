@@ -46,7 +46,7 @@ block of the root `pubspec.yaml` (there is no `melos.yaml`).
 ## Verify (the one gate)
 
 ```sh
-scripts/verify.sh            # format:check + analyze (infos fatal) + test + web build
+scripts/verify.sh            # format:check + analyze (infos fatal) + test + DST + release-posture + web build
 scripts/verify.sh --with-apk # also the debug APK
 ```
 
@@ -100,11 +100,33 @@ Three gates run on every PR and every tag:
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
 | `melos run check:telemetry`   | Import-based: only allow-listed adapters import a network transport; no telemetry SDKs; doc claims are anchored. |
 | `melos run check:hosts`       | The built web bundle references no third-party host.     |
-| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD. |
+| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD; every row of the README trust table names a proof test that exists and contains a test; the adults-only gates hold; every screen has an a11y guideline test (`check:a11y`); no user-facing string literal bypasses the ARB files (`check:i18n`). |
 | CI: `self-host-smoke`         | Same as `melos run smoke:self-host` on every PR.         |
 | CI: `release-gate`            | Same posture checks at tag time.                         |
 
 A regression on any gate fails the build.
+
+## Making and proving a trust claim
+
+The README "Trust posture" table is the project's list of promises. Each row has
+a `Proof` column naming the test file(s) that fail if the promise breaks.
+**If you add or reword a promise (in the README, `docs/`, or in-app copy), add or
+point it at a test**; `check:release-posture` rejects a row with no proof, a
+missing file, or a file with no `test(` in it. A promise you cannot test belongs
+in the review document's "remaining items", not in the table.
+
+## Accessibility and translations
+
+- **Accessibility.** Every file under `apps/client/lib/screens/` must be pumped
+  by a test in `apps/client/test/a11y/` that calls `expectMeetsAllGuidelines`
+  (Flutter's Android + iOS tap-target, labelled-tap-target and text-contrast
+  guidelines, light and dark). `melos run check:a11y` fails on a screen without one.
+- **Strings.** User-facing copy lives in `apps/client/lib/l10n/app_en.arb`
+  (gen-l10n; run `flutter gen-l10n` in `apps/client` after editing it and commit
+  the generated files). Read it with `context.l10n`; format dates and times with
+  `context.weekdayName(...)` / `context.clockTime(...)`. `melos run check:i18n`
+  fails on a string literal handed straight to `Text(`, `tooltip:`, `label:`,
+  `semanticLabel:`, ... Coach copy stays keyed in `coach_strings.dart`.
 
 ## Contribution expectations
 
@@ -140,9 +162,11 @@ packages/integrations/   adapters (drift store, OFF/USDA, AI rungs, sync, export
 infra/                   Docker + nginx self-host definition
 docs/                    user-facing docs (your-data, self-host, ai-tiers,
                          telemetry-posture, no-dark-patterns-standard)
-_bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
-tools/                   repo-level scripts (check_telemetry_claims,
-                         check_release_posture)
+_bmad-output/            planning / implementation artifacts, NOT product docs
+                         (see _bmad-output/README.md)
+tools/                   repo-level gates (check_telemetry_claims,
+                         check_release_posture, check_accessibility_floor,
+                         check_i18n_literals, ...)
 pubspec.yaml             workspace + the `melos:` scripts block (single source)
 scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```

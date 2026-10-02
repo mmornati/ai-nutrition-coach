@@ -61,12 +61,6 @@ jobs:
       - name: Gate C — check release posture
         run: melos run check:release-posture
 
-      # TODO(Phase 7): make this a required gate once the three screens that
-      # lack Semantics (capture_photo, capture_barcode, your_data) are fixed.
-      - name: Accessibility floor (non-required until Phase 7)
-        continue-on-error: true
-        run: melos run check:a11y
-
       - name: Gate summary
         if: success()
         run: 'echo "release-gate: PASS"'

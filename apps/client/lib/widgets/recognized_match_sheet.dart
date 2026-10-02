@@ -33,6 +33,7 @@ import 'package:integrations/integrations.dart';
 import '../state/last_log_provider.dart';
 import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the recognized match sheet. The future completes when the
 /// sheet is dismissed (back gesture, tap outside, scrim swipe-down).
@@ -203,7 +204,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     if (_submitting) return;
     final selection = _selected;
     if (selection == null) {
-      _showSnack('Pick a food first');
+      _showSnack(context.l10n.pickFoodFirst);
       return;
     }
     await _commit(
@@ -218,7 +219,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     if (_submitting) return;
     final name = _manualController.text.trim();
     if (name.isEmpty) {
-      _showSnack('Type a name first');
+      _showSnack(context.l10n.typeNameFirst);
       return;
     }
     final committed = await _commit(
@@ -245,7 +246,9 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
       Navigator.of(context).pop();
       return true;
     }
-    if (result is StoreFailure) _showSnack(logFailureMessage(result));
+    if (result is StoreFailure) {
+      _showSnack(logFailureMessage(context.l10n, result));
+    }
     return false;
   }
 
@@ -325,7 +328,9 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                       foregroundColor: palette.ink,
                     ),
                     child: Text(
-                      _submitting ? 'Logging…' : 'Log custom food',
+                      _submitting
+                          ? context.l10n.logging
+                          : context.l10n.logCustomFood,
                       style: AppTypography.ui.copyWith(color: palette.ink),
                     ),
                   ),
@@ -342,7 +347,9 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                       backgroundColor: palette.sageDeep,
                     ),
                     child: Text(
-                      _submitting ? 'Logging…' : 'Log',
+                      _submitting
+                          ? context.l10n.logging
+                          : context.l10n.logAction,
                       style: AppTypography.ui.copyWith(
                         color: palette.background,
                       ),
@@ -369,27 +376,27 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final String title;
     final String subtitle;
     switch (result) {
       case RecognizedPlate(:final foods):
         if (foods.isEmpty) {
-          title = 'Nothing matched';
-          subtitle = 'Pick a closest match or type the food manually.';
+          title = l10n.recognizedNothingMatched;
+          subtitle = l10n.recognizedPickOrType;
         } else {
-          title =
-              'Looks like ${foods.length} food${foods.length == 1 ? '' : 's'}';
-          subtitle = 'Tap one to confirm, or pick another match.';
+          title = l10n.recognizedLooksLike(foods.length);
+          subtitle = l10n.recognizedTapToConfirm;
         }
       case NoMatch():
-        title = 'Nothing on this plate';
-        subtitle = 'Pick a closest match or type the food manually.';
+        title = l10n.recognizedNothingOnPlate;
+        subtitle = l10n.recognizedPickOrType;
       case QuotaExhausted():
         title = enAiRungStrings.noticeShort;
         subtitle = enAiRungStrings.manualFallbackHint;
       case RecognitionFailure():
-        title = "Search isn't available right now.";
-        subtitle = 'You can still pick a closest match or type it manually.';
+        title = l10n.searchUnavailable;
+        subtitle = l10n.recognizedPickOrTypeFallback;
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,9 +465,12 @@ class _RecognizedRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label:
-          '${food.databaseFood.displayName}, ${food.databaseFood.foodGroup.label}, '
-          '${food.quantity.displayLabel}, confidence ${food.confidence.toStringAsFixed(2)}',
+      label: context.l10n.recognizedSemantics(
+        food.databaseFood.displayName,
+        context.l10n.foodGroupLabel(food.databaseFood.foodGroup),
+        food.quantity.displayLabel,
+        food.confidence.toStringAsFixed(2),
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -488,9 +498,13 @@ class _RecognizedRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${food.databaseFood.foodGroup.label}  '
-                        '· ${food.quantity.displayLabel}  '
-                        '· ${(food.confidence * 100).toStringAsFixed(0)}%',
+                        context.l10n.recognizedDetail(
+                          context.l10n.foodGroupLabel(
+                            food.databaseFood.foodGroup,
+                          ),
+                          food.quantity.displayLabel,
+                          (food.confidence * 100).toStringAsFixed(0),
+                        ),
                         style: AppTypography.monoWhisper.copyWith(
                           color: palette.inkMuted,
                         ),
@@ -532,7 +546,7 @@ class _ClosestMatchesRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Closest matches',
+          context.l10n.closestMatches,
           style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -567,9 +581,11 @@ class _ClosestMatchRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label:
-          '${match.food.displayName}, ${match.food.foodGroup.label}, '
-          '${match.presets.length} presets',
+      label: context.l10n.matchSemantics(
+        match.food.displayName,
+        context.l10n.foodGroupLabel(match.food.foodGroup),
+        match.presets.length,
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -597,7 +613,7 @@ class _ClosestMatchRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        match.food.foodGroup.label,
+                        context.l10n.foodGroupLabel(match.food.foodGroup),
                         style: AppTypography.monoWhisper.copyWith(
                           color: palette.inkMuted,
                         ),
@@ -675,7 +691,7 @@ class _ManualAddField extends StatelessWidget {
       controller: controller,
       style: AppTypography.ui.copyWith(color: palette.ink),
       decoration: InputDecoration(
-        labelText: 'Custom food name',
+        labelText: context.l10n.customFoodName,
         labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: palette.hairline),

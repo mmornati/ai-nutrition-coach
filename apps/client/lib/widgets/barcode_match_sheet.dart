@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/last_log_provider.dart';
 import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the match sheet. Returns the future the caller awaits; the
 /// future completes when the sheet is dismissed (back gesture, tap
@@ -97,7 +98,9 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     } else if (result is StoreFailure) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(logFailureMessage(result))));
+        ..showSnackBar(
+          SnackBar(content: Text(logFailureMessage(context.l10n, result))),
+        );
     }
   }
 
@@ -145,7 +148,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
                     backgroundColor: palette.sageDeep,
                   ),
                   child: Text(
-                    _submitting ? 'Logging…' : 'Log',
+                    _submitting ? context.l10n.logging : context.l10n.logAction,
                     style: AppTypography.ui.copyWith(color: palette.background),
                   ),
                 ),
@@ -178,7 +181,7 @@ class _FoodHeader extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          match.food.foodGroup.label,
+          context.l10n.foodGroupLabel(match.food.foodGroup),
           style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
       ],

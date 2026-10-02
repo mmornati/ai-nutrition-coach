@@ -24,10 +24,34 @@ import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
 
+/// A single-subscription stream that emits `snapshot()` when listened to and
+/// again on every event of [changes]. The `changes` subscription is made
+/// synchronously with the listen (never after the first `yield`), so a write
+/// that lands right after the first emission is not lost - the same
+/// guarantee drift's `query.watch()` gives the real adapters.
+Stream<T> _watchSnapshots<T>(
+  StreamController<void> changes,
+  T Function() snapshot,
+) {
+  late final StreamController<T> out;
+  StreamSubscription<void>? sub;
+  out = StreamController<T>(
+    onListen: () {
+      out.add(snapshot());
+      sub = changes.stream.listen(
+        (_) => out.add(snapshot()),
+        onDone: out.close,
+      );
+    },
+    onCancel: () => sub?.cancel(),
+  );
+  return out.stream;
+}
+
 class FakeEncryptedStore implements EncryptedStore {
   FakeEncryptedStore({List<PlateLog>? initial, this.recordResult})
     : _plates = [...?initial],
-      _controller = StreamController<List<PlateLog>>.broadcast();
+      _changes = StreamController<void>.broadcast();
 
   final RecordPlateResult? recordResult;
   final List<FoodEntryDraft> _seenDrafts = [];
@@ -38,7 +62,7 @@ class FakeEncryptedStore implements EncryptedStore {
   /// what the screen actually committed. Most-recent last.
   List<FoodEntryDraft> get capturedDrafts => List.unmodifiable(_seenDrafts);
   List<PlateLog> _plates;
-  final StreamController<List<PlateLog>> _controller;
+  final StreamController<void> _changes;
   int _nextPlateId = 1;
   int _nextEntryId = 1;
 
@@ -52,9 +76,8 @@ class FakeEncryptedStore implements EncryptedStore {
   /// `seed()`s a multi-day history after the widget tree is built).
   void seed(List<PlateLog> plates) {
     _plates = [...plates];
-    final snapshot = List<PlateLog>.unmodifiable(_plates);
-    emittedSnapshots.add(snapshot);
-    _controller.add(snapshot);
+    emittedSnapshots.add(List<PlateLog>.unmodifiable(_plates));
+    _changes.add(null);
   }
 
   @override
@@ -93,9 +116,8 @@ class FakeEncryptedStore implements EncryptedStore {
       entries: committedEntries,
     );
     _plates = [plate, ..._plates];
-    final snapshot = List<PlateLog>.unmodifiable(_plates);
-    emittedSnapshots.add(snapshot);
-    _controller.add(snapshot);
+    emittedSnapshots.add(List<PlateLog>.unmodifiable(_plates));
+    _changes.add(null);
     return RecordPlateSuccess(plate);
   }
 
@@ -108,17 +130,16 @@ class FakeEncryptedStore implements EncryptedStore {
   Stream<List<PlateLog>> watchRange({
     required DateTime from,
     required DateTime to,
-  }) async* {
+  }) {
     watchedRanges.add((from: from, to: to));
-    // Yield the current snapshot first (mimics drift's `query.watch()`
-    // behavior — every subscriber sees the initial state immediately), then
-    // one per push, each filtered to the range like the real join query.
-    // Broadcast streams don't replay, so the initial state is yielded here
-    // rather than queued on the controller.
-    yield platesInRange(_plates, from: from, to: to);
-    await for (final all in _controller.stream) {
-      yield platesInRange(all, from: from, to: to);
-    }
+    // Same observable behaviour as drift's `query.watch()`: the current
+    // snapshot on listen, then one per change, each filtered to the range
+    // like the real join query. The change subscription is made together
+    // with the listen so a write right after the first emission is seen.
+    return _watchSnapshots(
+      _changes,
+      () => platesInRange(_plates, from: from, to: to),
+    );
   }
 
   @override
@@ -127,8 +148,8 @@ class FakeEncryptedStore implements EncryptedStore {
 
   @override
   Future<void> close() async {
-    if (!_controller.isClosed) {
-      await _controller.close();
+    if (!_changes.isClosed) {
+      await _changes.close();
     }
   }
 }
@@ -206,12 +227,12 @@ class FakeCoachNoteStore implements CoachNoteStore {
   }
 
   @override
-  Stream<List<CoachNote>> watchForPlate(int plateLogId) async* {
-    yield await forPlate(plateLogId);
-    await for (final _ in _changes.stream) {
-      yield await forPlate(plateLogId);
-    }
-  }
+  Stream<List<CoachNote>> watchForPlate(int plateLogId) => _watchSnapshots(
+    _changes,
+    () => List<CoachNote>.unmodifiable(
+      byPlate[plateLogId] ?? const <CoachNote>[],
+    ),
+  );
 
   @override
   Future<CoachInteractionResult> recordDismissal(String key) async {
@@ -221,12 +242,8 @@ class FakeCoachNoteStore implements CoachNoteStore {
   }
 
   @override
-  Stream<Set<String>> watchDismissals() async* {
-    yield Set<String>.of(dismissed);
-    await for (final _ in _changes.stream) {
-      yield Set<String>.of(dismissed);
-    }
-  }
+  Stream<Set<String>> watchDismissals() =>
+      _watchSnapshots(_changes, () => Set<String>.of(dismissed));
 
   @override
   Future<List<CoachNote>> forPlate(int plateLogId) async {

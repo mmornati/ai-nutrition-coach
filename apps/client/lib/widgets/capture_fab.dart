@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
 import 'capture_sheet.dart';
+import '../l10n/l10n.dart';
 
 class CaptureFab extends StatelessWidget {
   const CaptureFab({
@@ -43,7 +44,7 @@ class CaptureFab extends StatelessWidget {
         : AppPalette.light;
     return Semantics(
       button: true,
-      label: 'Open capture sheet',
+      label: context.l10n.openCaptureSheet,
       child: Material(
         color: palette.sageDeep,
         shape: const CircleBorder(),

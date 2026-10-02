@@ -47,9 +47,10 @@ hooks:
 melos:
   scripts:
     analyze:
-      description: Run static analysis across every package in the workspace (errors, warnings and infos all fail).
+      description: Run static analysis across every package in the workspace and the repo-level tools/ (errors, warnings and infos all fail).
       run: |
         melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter analyze --no-pub; else dart analyze --fatal-infos; fi"
+        dart analyze --fatal-infos tools
 
     test:
       description: Run unit tests across every package in the workspace.
@@ -92,9 +93,13 @@ melos:
       run: dart run tools/check_telemetry_claims.dart
 
     check:release-posture:
-      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist (Story 4.6) and the adults-only gates hold.
-      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
+      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart && dart run tools/check_i18n_literals.dart
+
+    check:i18n:
+      description: Fail if apps/client/lib passes a hard-coded string literal to Text(, tooltip:, label:, semanticLabel:, ... - copy belongs in lib/l10n/app_en.arb (AD-7). Chained into check:release-posture.
+      run: dart run tools/check_i18n_literals.dart
 
     check:a11y:
-      description: Accessibility floor — every interactive widget has a Semantics wrapper (Story 5.4 / NFR-7). Known failing; not chained into check:release-posture.
+      description: Accessibility floor - every screen under apps/client/lib/screens has a widget test asserting Flutter's tap-target, labeled-tap-target and text-contrast guidelines (NFR-7). Chained into check:release-posture.
       run: dart run tools/check_accessibility_floor.dart

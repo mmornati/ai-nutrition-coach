@@ -35,6 +35,11 @@ named reviewer records the human sign-off.
 
 ## Gate C — Release posture (Story 4.6 / FR-12)
 
+- [ ] `melos run check:release-posture` is green. It also asserts that every
+  row of the README trust table names a proof test that exists and contains a
+  test, that every screen has an accessibility guideline test
+  (`check:a11y`), and that no user-facing string literal bypasses the ARB
+  files (`check:i18n`).
 - [ ] `LICENSE` (MIT) is at HEAD.
 - [ ] `CONTRIBUTING.md` is at HEAD and documents the build / test /
   smoke commands.

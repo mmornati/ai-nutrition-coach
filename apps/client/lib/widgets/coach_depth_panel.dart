@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class CoachDepthPanel extends StatelessWidget {
   const CoachDepthPanel({super.key, required this.question, this.onClose});
@@ -43,7 +44,9 @@ class CoachDepthPanel extends StatelessWidget {
         MediaQuery.of(context).disableAnimations;
     return Semantics(
       container: true,
-      label: 'Coach depth follow-up: ${question ?? "Nothing to add."}',
+      label: context.l10n.coachDepthSemantics(
+        question ?? context.l10n.coachDepthNothingToAdd,
+      ),
       child: motion
           ? _buildBody(palette)
           : AnimatedOpacity(
@@ -95,7 +98,7 @@ class _ClosePill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: 'close',
+      label: context.l10n.close,
       child: Material(
         color: Colors.transparent,
         shape: StadiumBorder(
@@ -114,7 +117,7 @@ class _ClosePill extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              'close',
+              context.l10n.close,
               style: AppTypography.ui.copyWith(color: palette.coach),
             ),
           ),

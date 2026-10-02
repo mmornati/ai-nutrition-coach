@@ -54,6 +54,7 @@ import '../state/scanner_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/barcode_match_sheet.dart';
 import 'manual_entry_screen.dart';
+import '../l10n/l10n.dart';
 
 class CaptureBarcodeScreen extends ConsumerStatefulWidget {
   const CaptureBarcodeScreen({super.key});
@@ -294,11 +295,11 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
           title: Text(
-            'Not found',
+            dialogCtx.l10n.barcodeNotFoundTitle,
             style: AppTypography.ui.copyWith(color: palette.ink),
           ),
           content: Text(
-            'This barcode isn\'t in the catalog yet. Type it manually?',
+            dialogCtx.l10n.barcodeNotFoundBody,
             style: AppTypography.ui.copyWith(color: palette.ink),
           ),
           actions: [
@@ -312,7 +313,7 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
               ),
               onPressed: () => Navigator.of(dialogCtx).pop(false),
               child: Text(
-                'Scan again',
+                dialogCtx.l10n.scanAgain,
                 style: AppTypography.ui.copyWith(color: palette.inkMuted),
               ),
             ),
@@ -323,7 +324,7 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
                 minimumSize: const Size.fromHeight(AppTouchTargets.min),
               ),
               child: Text(
-                'Type it manually',
+                context.l10n.typeItManually,
                 style: AppTypography.ui.copyWith(color: palette.background),
               ),
             ),
@@ -353,12 +354,12 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Scan a barcode',
+          context.l10n.scanBarcode,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         actions: [
           IconButton(
-            tooltip: 'Type it manually',
+            tooltip: context.l10n.typeItManually,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -388,7 +389,7 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
     }
     final permission = _permission;
     if (permission == null) {
-      return const _Hint(text: 'Checking camera permission…');
+      return _Hint(text: context.l10n.barcodeCheckingCamera);
     }
     switch (permission) {
       case CameraPermissionStatus.granted:
@@ -482,7 +483,7 @@ class _ScannerBody extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
                       child: Text(
-                        'Move closer or steady',
+                        context.l10n.barcodeMoveCloser,
                         style: AppTypography.coach.copyWith(
                           color: palette.inkMuted,
                         ),
@@ -525,7 +526,10 @@ class _ResultLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (inFlight) {
-      return _Hint(text: 'Looking up ${barcode ?? ''}…', palette: palette);
+      return _Hint(
+        text: context.l10n.barcodeLookingUp(barcode ?? ''),
+        palette: palette,
+      );
     }
     final result = this.result;
     if (result is CatalogFailure) {
@@ -534,10 +538,7 @@ class _ResultLine extends StatelessWidget {
     if (result is NotFoundFailure) {
       return _NotFoundBlock(palette: palette, onTypeInstead: onTypeInstead);
     }
-    return _Hint(
-      text: 'Aim at a packaged barcode to log it.',
-      palette: palette,
-    );
+    return _Hint(text: context.l10n.barcodeAimHint, palette: palette);
   }
 }
 
@@ -551,12 +552,12 @@ class _DeniedCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera denied — type it instead',
+          context.l10n.cameraDeniedTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'You can still log a plate from the manual entry screen.',
+          context.l10n.cameraDeniedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -575,7 +576,7 @@ class _DeniedCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
@@ -599,17 +600,15 @@ class _UnavailableCalm extends StatelessWidget {
       children: [
         Text(
           detectorMissing
-              ? 'Scanning isn\'t available in this browser — type it instead'
-              : 'Camera unavailable — type it instead',
+              ? context.l10n.barcodeUnsupportedBrowserTitle
+              : context.l10n.cameraUnavailableTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           detectorMissing
-              ? 'This browser can\'t read barcodes on your device, and '
-                    'OpenPlate never sends camera images elsewhere. Manual '
-                    'entry still works.'
-              : 'We couldn\'t start the camera. Manual entry still works.',
+              ? context.l10n.barcodeUnsupportedBrowserBody
+              : context.l10n.cameraStartFailedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -628,7 +627,7 @@ class _UnavailableCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
@@ -649,7 +648,7 @@ class _NotFoundBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Not found — type it manually',
+          context.l10n.barcodeNotFoundTypeIt,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -663,7 +662,7 @@ class _NotFoundBlock extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -684,7 +683,7 @@ class _FailureBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Search isn't available right now.",
+          context.l10n.searchUnavailable,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -698,7 +697,7 @@ class _FailureBlock extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
