@@ -43,7 +43,7 @@ up() {
   fi
 
   printf 'ai-nutrition-coach: building %s ...\n' "$IMAGE_TAG"
-  if ! docker build -t "$IMAGE_TAG" . ; then
+  if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
     printf 'ai-nutrition-coach: image build failed — see the log tail above.\n' >&2
     exit 20
   fi

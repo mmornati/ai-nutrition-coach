@@ -46,7 +46,7 @@ if ! grep -q 'nginx:alpine@sha256:4a73073bd' infra/Dockerfile; then
 fi
 
 printf 'smoke: building %s ...\n' "$IMAGE_TAG"
-if ! docker build -t "$IMAGE_TAG" . ; then
+if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
   printf 'smoke: image build failed.\n' >&2
   exit 20
 fi

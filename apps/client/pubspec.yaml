@@ -49,3 +49,36 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled, openly licensed faces (Roboto: Apache-2.0, DejaVu: Bitstream
+  # Vera / public domain — licenses alongside the files). Registered
+  # under the generic family names `AppTypography` already uses so the
+  # web build never fetches fonts from a CDN (zero-telemetry posture,
+  # CSP `connect-src 'self'`). Story 1.3 can swap in the final faces.
+  fonts:
+    - family: Roboto
+      fonts: &roboto
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+    - family: sans-serif
+      fonts: *roboto
+    - family: serif
+      fonts:
+        - asset: assets/fonts/DejaVuSerif.ttf
+        - asset: assets/fonts/DejaVuSerif-Italic.ttf
+          style: italic
+        - asset: assets/fonts/DejaVuSerif-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/DejaVuSerif-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: monospace
+      fonts:
+        - asset: assets/fonts/DejaVuSansMono.ttf
+        - asset: assets/fonts/DejaVuSansMono-Bold.ttf
+          weight: 700

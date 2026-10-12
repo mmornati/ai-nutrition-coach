@@ -29,7 +29,8 @@
 # Test surface (the production image is `flutter build web --release`)
 **/test/
 **/integration_test/
-**/*.g.dart
+# NB: generated `*.g.dart` sources (drift) are committed and needed by
+# the web build — do not exclude them here.
 
 # Self-host smoke test (Story 4.4)
 scripts/smoke_self_host.sh
