@@ -29,10 +29,10 @@
 
 import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart';
-import 'package:drift/native.dart';
+import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 
 import 'app_database.dart';
+import 'create_encrypted_store.dart';
 import 'in_memory_encrypted_store.dart';
 import 'wasm_encrypted_store.dart';
 import 'web_session_key.dart';
@@ -62,24 +62,39 @@ final WasmEncryptedStore _wasmStore = WasmEncryptedStore(
 /// plumbing follow-up wires the `sqlite3.wasm` binary + the drift
 /// `WebSqlCipher` from `drift_flutter`. The architecture is in
 /// place so the binding drops in without touching the port.
-Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) async {
+Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) {
   // TODO(Story 4.1 wasm binding): replace this placeholder with
-  //   await WasmDatabase.open(
+  //   return WasmDatabase.open(
   //     databaseName: 'ai_nutrition_coach_v1',
   //     sqlite3Uri: Uri.parse('sqlite3.wasm'),
   //     driftWorkerUri: Uri.parse('drift_worker.js'),
   //   ).then((e) => AppDatabase(e));
   // once the `drift_flutter` web package + the wasm binary are
-  // added. For now the in-memory drift database stands in so the
-  // factory compiles; the cipher is the v1.1 follow-up.
-  return AppDatabase(NativeDatabase.memory());
+  // added. Until then the production web store cannot open a
+  // durable database — this placeholder throws the honest
+  // `WebSessionKeyFailure` so the lock screen + Day Board degrade
+  // exactly as they do for a locked session (Story 4.1 / AD-8)
+  // instead of crashing. The dev-in-memory path
+  // (`AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`) never reaches this.
+  throw UnimplementedError(
+    'AI Nutrition Coach web storage: the drift sqlite3.wasm binding is a '
+    'v1.1 follow-up. Run the local dev build with '
+    '--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true instead.',
+  );
 }
 
 Future<StoreBundle> createStores() async {
   if (_devInMemory) {
+    // The dev-in-memory path doesn't need a lock screen. Force-
+    // unlock the session key so the UnlockGate renders the Day
+    // Board directly, and provide a no-op unlock probe so the
+    // default provider doesn't throw.
+    _sessionKey.forceUnlock();
     return StoreBundle(
       encryptedStore: _devStore,
       coachNoteStore: _devCoachNotes,
+      webSessionKey: _sessionKey,
+      webUnlockProbe: (_) async => true,
     );
   }
   return StoreBundle(

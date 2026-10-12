@@ -17,6 +17,13 @@
 
 import '../entities/sync_op.dart';
 
+/// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
+/// Re-exported here for ergonomic import paths.
+export '../entities/sync_queue_state.dart';
+
+/// The `SyncOp` is re-exported here for ergonomic import paths.
+export '../entities/sync_op.dart' show SyncOp, SyncOpKind;
+
 /// The outcome of `SyncQueue.enqueue(SyncOp)`.
 sealed class EnqueueResult {
   const EnqueueResult();
@@ -85,10 +92,3 @@ final class MarkFailed extends MarkResult {
   const MarkFailed(this.reason);
   final String reason;
 }
-
-/// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
-/// Re-exported here for ergonomic import paths.
-export '../entities/sync_queue_state.dart';
-
-/// The `SyncOp` is re-exported here for ergonomic import paths.
-export '../entities/sync_op.dart' show SyncOp, SyncOpKind;

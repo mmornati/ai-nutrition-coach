@@ -56,8 +56,9 @@ class CsvExporter implements Exporter {
   /// exposes (AD-3); we take the first emission as the snapshot.
   Future<List<PlateLog>> _readAll() async {
     final stream = _store.watchRecent();
+    final subscription = stream.listen((_) {});
     final first = await stream.first;
-    await stream.cancel();
+    await subscription.cancel();
     return first;
   }
 

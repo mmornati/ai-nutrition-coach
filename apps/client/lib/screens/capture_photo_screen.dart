@@ -430,6 +430,8 @@ class _ReadyBody extends StatelessWidget {
           ? 'No foods matched — pick one below.'
           : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
       NoMatch() => 'Nothing on this plate — pick one below.',
+      QuotaExhausted() =>
+        "The free quota is done for today — pick a closest match below.",
       RecognitionFailure() =>
         "Search isn't available right now. Pick a closest match below.",
     };

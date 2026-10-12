@@ -39,7 +39,6 @@ export 'src/config/build_config.dart';
 export 'src/export/csv_exporter.dart';
 export 'src/export/json_exporter.dart';
 export 'src/export/export_destination.dart';
-export 'src/export/export_destination_stub.dart';
 export 'src/voice/noop_voice_transcriber.dart';
 
 const String integrationsVersion = '0.1.0';

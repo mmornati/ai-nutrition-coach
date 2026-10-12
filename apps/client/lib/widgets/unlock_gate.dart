@@ -77,7 +77,8 @@ class _UnlockGateState extends ConsumerState<UnlockGate> {
 /// effectively a boolean flip.
 class _SessionKeyListener extends ChangeNotifier {
   _SessionKeyListener(this._key) {
-    _isOpen = _key.isOpen;
+    final k = _key;
+    _isOpen = k != null && k.isOpen;
   }
   _SessionKeyListener.noop() : _key = null {
     _isOpen = true;

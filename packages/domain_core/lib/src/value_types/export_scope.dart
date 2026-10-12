@@ -41,16 +41,16 @@ sealed class ExportScope {
   }
 }
 
-class _VisibleDay implements ExportScope {
-  const _VisibleDay(this.day);
+class _VisibleDay extends ExportScope {
+  const _VisibleDay(this.day) : super._();
   final DateTime day;
 }
 
-class _Week implements ExportScope {
-  const _Week(this.start);
+class _Week extends ExportScope {
+  const _Week(this.start) : super._();
   final DateTime start;
 }
 
-class _AllHistory implements ExportScope {
-  const _AllHistory();
+class _AllHistory extends ExportScope {
+  const _AllHistory() : super._();
 }

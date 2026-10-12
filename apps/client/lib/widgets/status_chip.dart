@@ -16,6 +16,7 @@
 // the row itself owns the 48px hit target. The chip itself is
 // never a separate button.
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
@@ -40,7 +41,7 @@ class StatusChip extends ConsumerWidget {
         : AppPalette.light;
     // Default to `local` so the chip never reads stale data while
     // the per-plate stream is still resolving on first paint.
-    final perPlate = ref.watch(syncQueuePerPlateProvider).valueOrNull;
+    final perPlate = ref.watch(syncQueuePerPlateProvider).value;
     final status = _statusFor(plateLogId, perPlate);
 
     final label = switch (status) {
@@ -97,7 +98,7 @@ class SyncRetryLaterHint extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final state = ref.watch(syncQueueStateProvider).valueOrNull;
+    final state = ref.watch(syncQueueStateProvider).value;
     if (state == null || state.failed == 0) {
       return const SizedBox.shrink();
     }

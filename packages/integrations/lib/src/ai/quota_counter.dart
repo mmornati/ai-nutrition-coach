@@ -49,7 +49,9 @@ class InMemoryQuotaCounter implements QuotaCounter {
   InMemoryQuotaCounter({
     required this.ceiling,
     DateTime Function()? now,
-  }) : _now = now ?? DateTime.now;
+  })  : _now = now ?? DateTime.now {
+    _dayKey = _dayKeyOf(_now());
+  }
 
   /// The per-day ceiling (FR6). The Story 3.2 v1 default ships
   /// `kHostedQuotaPerDay = 50` from `hosted_quota_ai_rung.dart`.
@@ -57,7 +59,7 @@ class InMemoryQuotaCounter implements QuotaCounter {
 
   final DateTime Function() _now;
   int _calls = 0;
-  DateTime _dayKey = _dayKeyOf(_now());
+  late DateTime _dayKey;
 
   static DateTime _dayKeyOf(DateTime t) {
     final local = t.toLocal();

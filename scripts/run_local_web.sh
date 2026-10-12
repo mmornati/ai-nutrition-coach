@@ -70,7 +70,7 @@ if [[ -n "${AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE:-}" ]]; then
   BYOK_DEFINES="$BYOK_DEFINES --dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=$AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE"
 fi
 
-echo "▶ Building web bundle (BYOK defines: ${AI_NUTRITION_COACH_BYOK_MODEL:-<none>})…"
+echo "▶ Building web bundle — HTML renderer (BYOK defines: ${AI_NUTRITION_COACH_BYOK_MODEL:-<none>})…"
 docker run --rm \
   -v "$ROOT":/work -w /work \
   -v "$PUB_VOLUME":/root/.pub-cache \
@@ -81,6 +81,15 @@ docker run --rm \
     tail -30 /tmp/ai_nutrition_coach_web_build.log >&2
     exit 1
   }
+
+# Force HTML renderer (Flutter 3.44 still defaults to canvaskit).
+# The post-build fixup replaces the first build entry's renderer
+# from canvaskit to html so mobile browsers render correctly.
+if [[ -f "$ROOT/apps/client/build/web/flutter_bootstrap.js" ]]; then
+  sed -i '' 's/"renderer":"canvaskit"/"renderer":"html"/' \
+    "$ROOT/apps/client/build/web/flutter_bootstrap.js"
+  echo "  ✓ flutter_bootstrap.js patched to html renderer"
+fi
 
 echo "▶ Serving build/web on http://localhost:$PORT …"
 docker run --rm \

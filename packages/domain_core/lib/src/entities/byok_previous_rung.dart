@@ -11,7 +11,7 @@
 // / flutter_secure_storage imports. The AD-1 grep test in
 // `packages/domain_core/test/domain_core_test.dart` pins the rule.
 
-import 'ai_rung_kind.dart';
+import '../value_types/ai_rung_kind.dart';
 
 /// The previous-rung value type for the BYOK rung (FR7). The
 /// value hangs off `AiRungConfig.previousRung` so a key removal
