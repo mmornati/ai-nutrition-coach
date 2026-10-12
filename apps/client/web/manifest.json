@@ -1,6 +1,6 @@
 {
-    "name": "OpenPlate",
-    "short_name": "OpenPlate",
+    "name": "AI Nutrition Coach",
+    "short_name": "Nutrition Coach",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

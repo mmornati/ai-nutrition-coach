@@ -16,9 +16,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/screens/capture_barcode_screen.dart';
-import 'package:openplate_client/screens/capture_photo_screen.dart';
-import 'package:openplate_client/screens/capture_targets.dart';
+import 'package:ai_nutrition_coach/screens/capture_barcode_screen.dart';
+import 'package:ai_nutrition_coach/screens/capture_photo_screen.dart';
+import 'package:ai_nutrition_coach/screens/capture_targets.dart';
 
 void main() {
   group('UnimplementedCaptureTarget', () {

@@ -1,4 +1,4 @@
-// Drift database for the OpenPlate local encrypted store.
+// Drift database for the AI Nutrition Coach local encrypted store.
 //
 // Schema:
 //   * `plate_log_table`             — one row per logged meal
@@ -30,7 +30,7 @@
 // Encryption (AD-8): the underlying `NativeDatabase` is opened with a
 // `setup` callback that runs the sqlite3mc key pragma. The key bytes come
 // from `SecureKeySource` (Keychain/Keystore under
-// `openplate_db_key_v1`); this class is deliberately key-agnostic so the
+// `ai_nutrition_coach_db_key_v1`); this class is deliberately key-agnostic so the
 // adapter wiring stays testable with an in-memory `NativeDatabase`.
 //
 // Codegen: the `part` directive points at `app_database.g.dart`, which

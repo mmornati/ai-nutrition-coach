@@ -1,9 +1,9 @@
-# OpenPlate melos configuration — kept for compatibility with melos 7.x.
+# AI Nutrition Coach melos configuration — kept for compatibility with melos 7.x.
 # Melos 8.x reads scripts from the root pubspec.yaml's `melos:` block
 # instead; the canonical scripts live there. This file is retained as
 # reference documentation and as a fallback for any tool that still
 # expects melos.yaml.
-name: openplate
+name: ai_nutrition_coach
 
 packages:
   - apps/*
@@ -28,7 +28,7 @@ scripts:
 
   build:web:
     description: Build the responsive client as a release web bundle (self-host).
-    run: cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+    run: cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 
   build:runner:
     description: Run drift codegen across the integrations package.

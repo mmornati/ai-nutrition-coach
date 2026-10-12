@@ -1,5 +1,5 @@
 name: domain_core
-description: "Pure-Dart domain core for OpenPlate — entities, use-cases, and ports. Zero Flutter / drift / dio / mobile_scanner imports (AD-1)."
+description: "Pure-Dart domain core for AI Nutrition Coach — entities, use-cases, and ports. Zero Flutter / drift / dio / mobile_scanner imports (AD-1)."
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace

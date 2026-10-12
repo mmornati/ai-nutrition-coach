@@ -29,7 +29,7 @@ void main() async {
   final bundle = await createStores();
 
   // Build-time BYOK affordance (Story 3.3 / FR-7 + the mobile-test
-  // wiring). When `--dart-define=OPENPLATE_BYOK_API_KEY=...` is
+  // wiring). When `--dart-define=AI_NUTRITION_COACH_BYOK_API_KEY=...` is
   // passed at run time alongside the matching endpoint + model,
   // the production app:
   //   1. Seeds the secure-storage key store with the build-time
@@ -132,13 +132,13 @@ void main() async {
           webUnlockProbeProvider
               .overrideWithValue(bundle.webUnlockProbe!),
       ],
-      child: const OpenPlateApp(),
+      child: const AiNutritionCoachApp(),
     ),
   );
 }
 
-class OpenPlateApp extends StatelessWidget {
-  const OpenPlateApp({super.key, this.themeMode = ThemeMode.system});
+class AiNutritionCoachApp extends StatelessWidget {
+  const AiNutritionCoachApp({super.key, this.themeMode = ThemeMode.system});
 
   /// `themeMode` is exposed so widget tests can pin light or dark
   /// independently of the platform brightness. Production callers leave it
@@ -150,7 +150,7 @@ class OpenPlateApp extends StatelessWidget {
     final light = AppPalette.light;
     final dark = AppPalette.dark;
     return MaterialApp(
-      title: 'OpenPlate',
+      title: 'AI Nutrition Coach',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: ThemeData(

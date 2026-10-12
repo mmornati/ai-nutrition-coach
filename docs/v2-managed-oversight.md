@@ -1,4 +1,4 @@
-# OpenPlate — v2 managed-oversight seam (Story 5.2 / FR-14 / OQ-4)
+# AI Nutrition Coach — v2 managed-oversight seam (Story 5.2 / FR-14 / OQ-4)
 
 The parent/guardian managed-oversight concept is a **declared v2
 seam**. It is not in v1. The architecture documents the future

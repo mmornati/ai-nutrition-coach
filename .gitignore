@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────
-# OpenPlate — root .gitignore
+# AI Nutrition Coach — root .gitignore
 # Stack: Flutter (iOS / Android / web) + Dart pub workspaces +
 #        melos orchestration + drift/sqlite3 + Docker self-host.
 # ─────────────────────────────────────────────────────────────

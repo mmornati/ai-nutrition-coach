@@ -68,5 +68,5 @@ String exportFilename({
       '${localDay.month.toString().padLeft(2, '0')}-'
       '${localDay.day.toString().padLeft(2, '0')}';
   final ext = format == ExportFormat.csv ? 'csv' : 'json';
-  return '$datePart-openplate.$ext';
+  return '$datePart-ai-nutrition-coach.$ext';
 }

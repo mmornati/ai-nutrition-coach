@@ -1,5 +1,5 @@
 # ───────────────────────────────────────────────────────────────────────────
-# OpenPlate self-host web build — multi-stage.
+# AI Nutrition Coach self-host web build — multi-stage.
 #
 #   stage 1 (build):   ghcr.io/cirruslabs/flutter:stable
 #                      → melos bootstrap
@@ -49,17 +49,17 @@ RUN melos run build:web
 FROM nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS serve
 
 # Story 4.4 — non-root user hardening (AD-2). The container runs
-# as `openplate:openplate` so the bind-mounted volume at /data (the
+# as `ai-nutrition-coach:ai-nutrition-coach` so the bind-mounted volume at /data (the
 # compose persistent-data path) is writable by the same uid the
 # process uses. Alpine ships nginx with the `nginx` user pre-
 # declared; we reuse it.
-RUN addgroup -g 10001 openplate 2>/dev/null || true \
- && adduser -D -G openplate -u 10001 -h /var/cache/nginx -s /sbin/nologin openplate 2>/dev/null || true \
+RUN addgroup -g 10001 ai-nutrition-coach 2>/dev/null || true \
+ && adduser -D -G ai-nutrition-coach -u 10001 -h /var/cache/nginx -s /sbin/nologin ai-nutrition-coach 2>/dev/null || true \
  && mkdir -p /data \
- && chown -R openplate:openplate /data /var/cache/nginx /var/log/nginx
+ && chown -R ai-nutrition-coach:ai-nutrition-coach /data /var/cache/nginx /var/log/nginx
 
 # Story 4.4 — declare the persistent-data volume. The compose file
-# bind-mounts `openplate-data` at /data so the sqlite3mc database
+# bind-mounts `ai-nutrition-coach-data` at /data so the sqlite3mc database
 # survives container restarts.
 VOLUME ["/data"]
 

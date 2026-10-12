@@ -1,6 +1,6 @@
 // 32-byte DB key handling for the encrypted drift store (AD-8).
 //
-// On a fresh device the alias `openplate_db_key_v1` is absent from the
+// On a fresh device the alias `ai_nutrition_coach_db_key_v1` is absent from the
 // secure storage; we generate 32 randbytes via `Random.secure().nextInt(256)`
 // (the API locally available on Dart 3.12.0 — the spec's `nextBytes` was
 // bumped in Dart 3.4+ but the `_SecureRandom` returned by
@@ -35,7 +35,7 @@ class SecureKeySourceImpl implements SecureKeySource {
   SecureKeySourceImpl({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String alias = 'openplate_db_key_v1';
+  static const String alias = 'ai_nutrition_coach_db_key_v1';
 
   final FlutterSecureStorage _storage;
 

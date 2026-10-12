@@ -1,4 +1,4 @@
-# OpenPlate — AI Tiers
+# AI Nutrition Coach — AI Tiers
 
 This document describes the v1 AI tier ladder: the four rungs the
 `AiRung` port exposes, how they are configured, and how the
@@ -70,7 +70,7 @@ via `Authorization: Bearer <key>`.
 The key **never leaves the device** except as the
 `Authorization` header on the user's own request. The key is:
 
-- **Never** transmitted to any OpenPlate-owned server.
+- **Never** transmitted to any server run by the AI Nutrition Coach project.
 - **Never** logged in any form (plaintext, masked, base64, hash).
 - **Never** reflected in UI plaintext (the masked text field
   uses `obscureText: true`; no character count; no key-shape

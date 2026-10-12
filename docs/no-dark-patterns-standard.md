@@ -1,4 +1,4 @@
-# No-Dark-Patterns Standard — OpenPlate v1
+# No-Dark-Patterns Standard — AI Nutrition Coach v1
 
 The no-pressure UX promise is enforceable, not aspirational. This
 page is the named-reviewer QA gate (FR-15 / NFR3 / AD-7). Every PR

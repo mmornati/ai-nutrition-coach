@@ -8,7 +8,7 @@
 // exercised in a browser without the wasm binary.
 //
 // This store is selected ONLY when the web build is compiled with
-// `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true` (see
+// `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true` (see
 // `create_encrypted_store_web.dart`). It mirrors the exact shape that
 // `FakeEncryptedStore` proves in widget tests: a broadcast controller that
 // re-emits a full snapshot per commit (same contract as drift's

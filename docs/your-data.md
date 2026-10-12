@@ -1,6 +1,6 @@
 # Your data — protection posture
 
-OpenPlate is yours to run. This page is the honest answer to *"how is
+AI Nutrition Coach is yours to run. This page is the honest answer to *"how is
 my history protected?"* The answer differs by platform — and the
 difference is documented plainly because overclaiming "encrypted at
 rest" on a platform that can't honour it would be a trust break.

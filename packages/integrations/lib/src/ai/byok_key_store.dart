@@ -52,7 +52,7 @@ class SecureStorageByokKeyStore implements ByokKeyStore {
   /// The secure-storage alias. Versioned (`_v1`) so a future
   /// storage-format change can ship without colliding with
   /// existing installs.
-  static const String alias = 'openplate_byok_key_v1';
+  static const String alias = 'ai_nutrition_coach_byok_key_v1';
 
   final FlutterSecureStorage _storage;
 

@@ -1,4 +1,4 @@
-/// Pure-Dart domain core for OpenPlate.
+/// Pure-Dart domain core for AI Nutrition Coach.
 ///
 /// This package owns entities, use-cases, and ports (the hexagonal core).
 /// It must remain free of any I/O, persistence, or UI dependency:

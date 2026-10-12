@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 
-import 'package:openplate/state/web_session_key_provider.dart';
+import 'package:ai_nutrition_coach/state/web_session_key_provider.dart';
 
 void main() {
   test('webSessionKeyProvider returns the process-wide singleton', () {

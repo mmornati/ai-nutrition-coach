@@ -1,11 +1,11 @@
 # Story 4.4 — opt-in persistent-data compose file (FR-11).
 #
-# `bin/openplate up` uses `docker run` so the zero-config path has
-# zero dependencies. `bin/openplate up --with-persist` starts this
+# `bin/ai-nutrition-coach up` uses `docker run` so the zero-config path has
+# zero dependencies. `bin/ai-nutrition-coach up --with-persist` starts this
 # stack instead: the sqlite3mc database is bind-mounted at `/data`
 # inside the container so it survives container restarts.
 #
-# The container runs as the non-root `openplate` user the
+# The container runs as the non-root `ai-nutrition-coach` user the
 # Dockerfile declares (see `infra/Dockerfile`). The bind mount is
 # owned by the same uid so the database file is writable.
 #
@@ -14,14 +14,14 @@
 # self-signed TLS option.
 
 services:
-  openplate:
-    image: openplate:dev
-    container_name: openplate
+  ai-nutrition-coach:
+    image: ai-nutrition-coach:dev
+    container_name: ai-nutrition-coach
     ports:
       - "80:80"
     volumes:
-      - openplate-data:/data
+      - ai-nutrition-coach-data:/data
     restart: unless-stopped
 
 volumes:
-  openplate-data:
+  ai-nutrition-coach-data:

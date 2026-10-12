@@ -32,8 +32,8 @@ jobs:
         run: |
           test -f REVIEWERS.md || (echo 'ndp-review: REVIEWERS.md missing — see Story 5.3 / FR-15.' && exit 1)
           test -f .github/CODEOWNERS || (echo 'ndp-review: .github/CODEOWNERS missing — see Story 5.3 / FR-15.' && exit 1)
-          grep -q '@openplate-maintainer' REVIEWERS.md || (echo 'ndp-review: REVIEWERS.md missing the named-reviewer handle.' && exit 1)
-          grep -q '@openplate-maintainer' .github/CODEOWNERS || (echo 'ndp-review: CODEOWNERS missing the named-reviewer handle.' && exit 1)
+          grep -q '@mmornati' REVIEWERS.md || (echo 'ndp-review: REVIEWERS.md missing the named-reviewer handle.' && exit 1)
+          grep -q '@mmornati' .github/CODEOWNERS || (echo 'ndp-review: CODEOWNERS missing the named-reviewer handle.' && exit 1)
           echo 'ndp-review: REVIEWERS.md + CODEOWNERS at HEAD.'
 
       - name: Set up Flutter

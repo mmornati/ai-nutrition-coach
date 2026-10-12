@@ -1,6 +1,6 @@
-# OpenPlate — adults only (Story 5.1 / FR-13 / NFR-4)
+# AI Nutrition Coach — adults only (Story 5.1 / FR-13 / NFR-4)
 
-OpenPlate v1 is strictly adults-only. No under-13 accounts. No
+AI Nutrition Coach v1 is strictly adults-only. No under-13 accounts. No
 biometric identification anywhere. The promise is architecture, not
 policy — every shipped surface is pinned by a static check + a
 developer-facing guard + the named-reviewer QA gate (Story 5.3).
@@ -60,7 +60,7 @@ third-party disclosure. The Kurbo $1.5M FTC settlement
 (including algorithmic disgorgement) shows the trap in the
 age-gate that "encourages lying." The safe lane is plain plate
 photos (no face), adult-account observed profiles, local-only
-inference (the "internal operations" COPPA carve-out). OpenPlate
+inference (the "internal operations" COPPA carve-out). AI Nutrition Coach
 v1 stays in that lane by construction.
 
 ## Cross-references

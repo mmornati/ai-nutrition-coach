@@ -8,9 +8,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/capture_fab.dart';
-import 'package:openplate_client/widgets/capture_sheet.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/capture_fab.dart';
+import 'package:ai_nutrition_coach/widgets/capture_sheet.dart';
 
 /// The `Material` widget is the FAB's tap target — `InkWell` reports
 /// a hit-tested size but the rendered circle sits inside the Material,

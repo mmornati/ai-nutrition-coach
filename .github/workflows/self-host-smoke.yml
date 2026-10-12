@@ -1,6 +1,6 @@
 # Story 4.4 — self-host CI smoke test (FR-11 / NFR9).
 #
-# Runs the `bin/openplate up` flow end-to-end on every PR. The smoke
+# Runs the `bin/ai-nutrition-coach up` flow end-to-end on every PR. The smoke
 # test asserts:
 #   * The image builds in under 5 minutes (NFR9 / FR-11).
 #   * `curl http://localhost/` returns 200 + the lock-screen HTML.
@@ -20,7 +20,7 @@ on:
 
 jobs:
   smoke:
-    name: bin/openplate up + curl healthcheck
+    name: bin/ai-nutrition-coach up + curl healthcheck
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

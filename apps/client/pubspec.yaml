@@ -1,5 +1,5 @@
-name: openplate_client
-description: "OpenPlate responsive client (iOS / Android / web)."
+name: ai_nutrition_coach
+description: "AI Nutrition Coach responsive client (iOS / Android / web)."
 publish_to: 'none'
 version: 0.1.0+1
 resolution: workspace

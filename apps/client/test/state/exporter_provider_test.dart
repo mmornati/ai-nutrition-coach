@@ -15,8 +15,8 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/exporter_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/exporter_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
 class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
@@ -62,12 +62,12 @@ void main() {
         localDay: DateTime(2026, 8, 16),
         format: ExportFormat.csv,
       );
-      expect(f, '2026-08-16-openplate.csv');
+      expect(f, '2026-08-16-ai-nutrition-coach.csv');
       final j = exportFilename(
         localDay: DateTime(2026, 8, 16),
         format: ExportFormat.json,
       );
-      expect(j, '2026-08-16-openplate.json');
+      expect(j, '2026-08-16-ai-nutrition-coach.json');
     });
   });
 

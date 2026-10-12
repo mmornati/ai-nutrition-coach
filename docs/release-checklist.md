@@ -1,4 +1,4 @@
-# Release checklist — OpenPlate v1
+# Release checklist — AI Nutrition Coach v1
 
 The release pipeline is intentionally lightweight. Every tagged
 release runs this checklist end-to-end; a tag cannot ship until

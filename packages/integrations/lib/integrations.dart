@@ -1,4 +1,4 @@
-/// OpenPlate adapter package.
+/// AI Nutrition Coach adapter package.
 ///
 /// Houses concrete implementations of the ports declared in `domain_core`:
 /// the drift encrypted store (AD-8 — mobile sqlite3mc + web

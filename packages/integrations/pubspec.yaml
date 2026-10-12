@@ -1,5 +1,5 @@
 name: integrations
-description: "OpenPlate adapter package — drift store, OFF/USDA catalog clients, secure-storage wiring. Path-depends on domain_core."
+description: "AI Nutrition Coach adapter package — drift store, OFF/USDA catalog clients, secure-storage wiring. Path-depends on domain_core."
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace
@@ -25,7 +25,7 @@ dependencies:
   # sqlite3 binary the runtime links against understands `PRAGMA key`.
   sqlite3: ^3.5.0
 
-  # Keychain/Keystore for the 32-byte DB key alias `openplate_db_key_v1`.
+  # Keychain/Keystore for the 32-byte DB key alias `ai_nutrition_coach_db_key_v1`.
   flutter_secure_storage: ^11.0.0
 
   # AD-8 path resolution — drift's `NativeDatabase` needs a file path

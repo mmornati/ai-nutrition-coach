@@ -16,7 +16,7 @@
 // mobile story returns. On failure a typed `LockOutcome` surfaces
 // in the UI.
 //
-// For LOCAL DEVELOPMENT ONLY, `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`
+// For LOCAL DEVELOPMENT ONLY, `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`
 // selects the dev in-memory path so the capture → log → Day Board
 // loop can be exercised in a browser without a wasm store. Data
 // lives and dies with the tab. Production web builds must never
@@ -38,7 +38,7 @@ import 'wasm_encrypted_store.dart';
 import 'web_session_key.dart';
 
 const bool _devInMemory =
-    bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
+    bool.fromEnvironment('AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE');
 
 /// Singleton stores for the dev-in-memory path so successive
 /// `recordPlate` / `forPlate` calls share the same in-memory list.
@@ -65,7 +65,7 @@ final WasmEncryptedStore _wasmStore = WasmEncryptedStore(
 Future<AppDatabase> _openWasmDatabase(Uint8List derivedKey) async {
   // TODO(Story 4.1 wasm binding): replace this placeholder with
   //   await WasmDatabase.open(
-  //     databaseName: 'openplate_v1',
+  //     databaseName: 'ai_nutrition_coach_v1',
   //     sqlite3Uri: Uri.parse('sqlite3.wasm'),
   //     driftWorkerUri: Uri.parse('drift_worker.js'),
   //   ).then((e) => AppDatabase(e));

@@ -60,7 +60,7 @@ class StoreFailure extends RecordPlateResult {
   final EmptyPlateFailure? validationError;
 
   /// Adapter-level key handling failure — read or write to
-  /// `flutter_secure_storage` under `openplate_db_key_v1` failed
+  /// `flutter_secure_storage` under `ai_nutrition_coach_db_key_v1` failed
   /// (mobile), or the web session is locked and the user has not
   /// entered a passphrase yet (Story 4.1 / AD-8). The field is
   /// sealed: only `SecureKeyFailure` (mobile) or `WebSessionKeyFailure`
@@ -150,7 +150,7 @@ class WebSessionKeyFailure implements EncryptedStoreFailure {
 
 /// Sealed marker for any failure that originates in the encrypted
 /// store's key handling. Mobile returns `SecureKeyFailure` (Keychain
-/// read/write under `openplate_db_key_v1` failed); web returns
+/// read/write under `ai_nutrition_coach_db_key_v1` failed); web returns
 /// `WebSessionKeyFailure` (the session is locked, AD-8). Both shapes
 /// ride the same `StoreFailure.encryptedStoreError` field so the UI
 /// can pattern-match with a single check.

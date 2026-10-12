@@ -14,8 +14,8 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
 ProviderContainer _container({Coach? coach}) {
   // Minimal EncryptedStore stub — the coach provider test does

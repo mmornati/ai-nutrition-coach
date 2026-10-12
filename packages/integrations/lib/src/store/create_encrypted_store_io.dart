@@ -30,7 +30,7 @@ import 'secure_key_source.dart';
 Future<StoreBundle> createStores() async {
   try {
     final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/openplate_v1.sqlite';
+    final filePath = '${dir.path}/ai_nutrition_coach_v1.sqlite';
     final key = await SecureKeySourceImpl().getOrCreateDbKey();
     // One `AppDatabase` is opened against the same file path + key
     // so the `coach_notes` table shares the cipher pragma.

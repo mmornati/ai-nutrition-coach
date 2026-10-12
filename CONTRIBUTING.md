@@ -1,6 +1,6 @@
-# Contributing to OpenPlate
+# Contributing to AI Nutrition Coach
 
-OpenPlate is a quiet, offline-first plate-logging app: log what you
+AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you
 ate via photo, barcode, or voice/typing, and it lands on your Day
 Board as one honest row per meal. No streaks, no scores, no
 false-exact calories. The project is open-source (MIT — see
@@ -56,7 +56,7 @@ the pure-Dart packages. CI runs the same.
 melos run smoke:self-host
 ```
 
-End-to-end test of the `bin/openplate up` flow — builds the
+End-to-end test of the `bin/ai-nutrition-coach up` flow — builds the
 multi-stage `infra/Dockerfile`, starts the container, curls the
 lock-screen HTML, asserts the `nginx:alpine` digest pin is in
 place, and asserts no outbound network calls from the running
@@ -120,7 +120,7 @@ melos.yaml               workspace orchestration + the four scripts
 
 ## Community
 
-OpenPlate is yours to run and yours to shape. The release pipeline
+AI Nutrition Coach is yours to run and yours to shape. The release pipeline
 is intentionally lightweight — one PR per change, one named
 reviewer sign-off, three CI gates — so a single contributor can
 ship a meaningful change in a single sitting.

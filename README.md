@@ -1,6 +1,6 @@
-# OpenPlate
+# AI Nutrition Coach
 
-OpenPlate is a quiet, offline-first plate-logging app: log what you
+AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you
 ate via photo, barcode, or voice/typing, and it lands on your Day
 Board as one honest row per meal. No streaks, no scores, no
 false-exact calories.
@@ -27,8 +27,8 @@ optional sync to your own infrastructure, zero telemetry by default.
 ### Self-host
 
 ```sh
-bin/openplate up                 # zero-config; data lives and dies with the container
-bin/openplate up --with-persist  # docker compose with a bind-mounted volume
+bin/ai-nutrition-coach up                 # zero-config; data lives and dies with the container
+bin/ai-nutrition-coach up --with-persist  # docker compose with a bind-mounted volume
 ```
 
 Open `http://localhost/`. The lock screen is the first paint; enter a
@@ -39,7 +39,7 @@ passphrase to unlock your store. See [`docs/self-host.md`](./docs/self-host.md).
 ```sh
 melos bootstrap
 cd apps/client
-flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+flutter build web --release --pwa-strategy=none --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 ```
 
 ## Contributing

@@ -1,4 +1,4 @@
-# OpenPlate CI — reproducible build gate (NFR9).
+# AI Nutrition Coach CI — reproducible build gate (NFR9).
 #
 # Runs on every pull request and push to main. Three responsibilities:
 #   1. Static analysis across the whole workspace via `melos run analyze`,
@@ -7,7 +7,7 @@
 #   2. Format check via `melos run format:check` so whitespace drift is
 #      caught before review.
 #   3. A smoke test (the canonical `domain_core` AD-1 invariant + the
-#      `openplate_client` widget smoke test). The AD-1 test is the
+#      `ai_nutrition_coach` widget smoke test). The AD-1 test is the
 #      architectural gate that catches a forbidden import landing in
 #      `packages/domain_core` before it reaches main.
 

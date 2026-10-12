@@ -1,4 +1,4 @@
-package org.openplate.openplate_client
+package org.mmornati.ai_nutrition_coach
 
 import io.flutter.embedding.android.FlutterActivity
 

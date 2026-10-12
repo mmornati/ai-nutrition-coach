@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// OpenPlate design tokens — Sage & Cream, light + dark.
+// AI Nutrition Coach design tokens — Sage & Cream, light + dark.
 //
 // This is the shared token source for the UI layer. Tokens live here (and
 // only here) so that no widget hard-codes a color, spacing step, radius, or
@@ -39,7 +39,7 @@ class AppSpacing {
   static const double hairline = 1;
 }
 
-/// Corner radii. OpenPlate avoids pillowy fills; corners stay quiet.
+/// Corner radii. AI Nutrition Coach avoids pillowy fills; corners stay quiet.
 class AppRadii {
   AppRadii._();
 

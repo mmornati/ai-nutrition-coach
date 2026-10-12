@@ -15,7 +15,7 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/manual_entry_provider.dart';
+import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
 
 /// Hand-rolled `FoodCatalog` fake — deterministic, no LRU. Lets each
 /// test pin exactly which results the notifier should observe without

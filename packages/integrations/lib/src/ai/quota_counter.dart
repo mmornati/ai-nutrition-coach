@@ -122,7 +122,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
   /// alias so a future v2 multi-provider world can ship a
   /// separate counter per provider without collision.
   static String _alias(String providerKind) =>
-      'openplate_quota_${providerKind}_v1';
+      'ai_nutrition_coach_quota_${providerKind}_v1';
 
   /// Counter value encoded as a JSON envelope: `{"day":"YYYY-MM-DD","calls":N}`.
   static String _encode(DateTime dayKey, int calls) =>

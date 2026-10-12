@@ -131,12 +131,12 @@ class WebSessionKey {
 /// the wasm binary's hash so different installations get different
 /// salts.
 Uint8List _defaultSalt() {
-  // ASCII "openplate-web-v1" — 17 bytes, encoded as a 16-byte salt
-  // by dropping the trailing char. The salt is a per-app constant;
+  // ASCII "ai-nutrition-coach-web-v1" — 25 bytes, truncated to the
+  // first 16 bytes to form the salt. The salt is a per-app constant;
   // it does not need to be cryptographically random (it is a
   // per-app label, not a per-secret nonce). PBKDF2's security
   // comes from the user-supplied passphrase.
-  final raw = utf8.encode('openplate-web-v1');
+  final raw = utf8.encode('ai-nutrition-coach-web-v1');
   return Uint8List.fromList(raw.sublist(0, kWebSessionSaltBytes));
 }
 

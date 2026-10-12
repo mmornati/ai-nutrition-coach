@@ -1,6 +1,6 @@
-# OpenPlate — apps/client
+# AI Nutrition Coach — apps/client
 
-OpenPlate is a quiet, offline-first plate-logging app: log what you ate via
+AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you ate via
 photo, barcode, or voice/typing, and it lands on your Day Board as one
 honest row per meal. No streaks, no scores, no false-exact calories. See
 the full intent in
@@ -35,7 +35,7 @@ exercises:
 * `melos run test` — the AD-1 purity test for `domain_core` plus the
   client widget smoke test.
 * `melos run smoke:self-host` — the Story 4.4 / FR-11 self-host
-  smoke test (builds the `bin/openplate` image end-to-end and
+  smoke test (builds the `bin/ai-nutrition-coach` image end-to-end and
   curls the lock-screen HTML). See
   [`docs/self-host.md`](../../docs/self-host.md).
 

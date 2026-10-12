@@ -1,5 +1,5 @@
-name: _openplate_workspace
-description: "OpenPlate monorepo root — Dart pub workspace. See melos.yaml for orchestration."
+name: _ai_nutrition_coach_workspace
+description: "AI Nutrition Coach monorepo root — Dart pub workspace. See melos.yaml for orchestration."
 publish_to: 'none'
 version: 0.0.0
 
@@ -38,7 +38,7 @@ melos:
 
     build:web:
       description: Build the responsive client as a release web bundle (self-host).
-      run: cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=OPENPLATE_BUILD=selfhost
+      run: cd apps/client && flutter build web --release --pwa-strategy=none --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 
     build:runner:
       description: Run drift codegen across the integrations package.

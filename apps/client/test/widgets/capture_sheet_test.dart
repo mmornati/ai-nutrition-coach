@@ -16,8 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/capture_sheet.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/capture_sheet.dart';
 
 /// Drives the test widget tree with `disableAnimations` so the modal
 /// bottom sheet opens in a single pump tick (no slide-up to wait on).

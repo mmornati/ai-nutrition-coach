@@ -5,7 +5,7 @@
 // enforcement is the static check + the named-reviewer gate.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/widgets/privacy_guard.dart';
+import 'package:ai_nutrition_coach/widgets/privacy_guard.dart';
 
 void main() {
   group('PrivacyGuard (Story 5.1 / FR-13)', () {

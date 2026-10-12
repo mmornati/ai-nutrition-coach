@@ -77,8 +77,8 @@ class OpenAiCompatibleByokProvider implements ByokOpenAiCompatibleProvider {
     if (endpointUrl.isEmpty || model.isEmpty) {
       return const ByokFailure(
         'OpenAI-compatible BYOK provider is not configured. '
-        'Pass --dart-define=OPENPLATE_BYOK_ENDPOINT_URL=... '
-        '--dart-define=OPENPLATE_BYOK_MODEL=... at run time.',
+        'Pass --dart-define=AI_NUTRITION_COACH_BYOK_ENDPOINT_URL=... '
+        '--dart-define=AI_NUTRITION_COACH_BYOK_MODEL=... at run time.',
       );
     }
 

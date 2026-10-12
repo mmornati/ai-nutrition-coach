@@ -1,12 +1,12 @@
 // Story 4.5 — the user-facing privacy posture.
 //
-// OpenPlate ships with zero telemetry by default. The privacy
+// AI Nutrition Coach ships with zero telemetry by default. The privacy
 // posture is architecture, not policy: the only paths that open a
 // socket are user-enabled (the catalog, the AI rung transport, the
 // optional sync transport). The `melos run check:telemetry` gate
 // pins this invariant end-to-end.
 //
-// This page is the honest answer to *"what does OpenPlate know
+// This page is the honest answer to *"what does AI Nutrition Coach know
 // about me?"* — the same answer a self-hoster can verify on their
 // own hardware.
 
@@ -53,7 +53,7 @@ strongest version of the posture. The container's network namespace
 is quiet by default — the smoke test
 (`scripts/smoke_self_host.sh`) inspects the running image and
 asserts no outbound network calls are opened. Put nginx / caddy /
-traefik in front of the container for TLS; OpenPlate itself does
+traefik in front of the container for TLS; AI Nutrition Coach itself does
 not phone home.
 
 ## How to verify

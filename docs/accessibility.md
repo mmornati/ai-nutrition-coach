@@ -1,4 +1,4 @@
-# OpenPlate — accessibility floor (Story 5.4 / NFR-7 / NFR-8 / UX-DR-12 / UX-DR-13)
+# AI Nutrition Coach — accessibility floor (Story 5.4 / NFR-7 / NFR-8 / UX-DR-12 / UX-DR-13)
 
 The accessibility floor is verified across every shipped surface.
 The floor is part of the named-reviewer QA gate (Story 5.3 / FR-15)

@@ -9,7 +9,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/selected_date_provider.dart';
+import 'package:ai_nutrition_coach/state/selected_date_provider.dart';
 
 void main() {
   group('selectedDateProvider', () {

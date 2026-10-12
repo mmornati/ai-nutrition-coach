@@ -4,7 +4,7 @@
 #   bash scripts/smoke_self_host.sh
 #
 # Asserts:
-#   * `bin/openplate up` builds the image in under 5 minutes
+#   * `bin/ai-nutrition-coach up` builds the image in under 5 minutes
 #     (FR-11 / NFR9).
 #   * `curl http://localhost/` returns 200 + the lock-screen HTML.
 #   * The `nginx:alpine` base in `infra/Dockerfile` is digest-pinned.
@@ -21,11 +21,11 @@
 
 set -eu
 
-CONTAINER_NAME="openplate-smoke"
-HOST_PORT="${OPENPLATE_SMOKE_PORT:-8088}"
-IMAGE_TAG="openplate:smoke"
+CONTAINER_NAME="ai-nutrition-coach-smoke"
+HOST_PORT="${AI_NUTRITION_COACH_SMOKE_PORT:-8088}"
+IMAGE_TAG="ai-nutrition-coach:smoke"
 START_TS=$(date +%s)
-BUDGET_SECONDS="${OPENPLATE_SMOKE_BUDGET:-300}"
+BUDGET_SECONDS="${AI_NUTRITION_COACH_SMOKE_BUDGET:-300}"
 
 cleanup() {
   if command -v docker >/dev/null 2>&1; then

@@ -1,4 +1,4 @@
-// Smoke test for the OpenPlate client scaffold.
+// Smoke test for the AI Nutrition Coach client scaffold.
 //
 // At story 1.1 this is intentionally small but it actually exercises the
 // token wiring: we pump the app twice (ThemeMode.light and ThemeMode.dark)
@@ -21,11 +21,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:openplate_client/main.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/main.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
 
 import '_fakes/fake_encrypted_store.dart';
 
@@ -66,14 +66,14 @@ Future<void> _pumpWithMode(
         // `UnimplementedError`.
         coachProvider.overrideWithValue(FakeCoach()),
       ],
-      child: OpenPlateApp(themeMode: mode),
+      child: AiNutritionCoachApp(themeMode: mode),
     ),
   );
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('OpenPlate scaffold renders and wires light tokens',
+  testWidgets('AI Nutrition Coach scaffold renders and wires light tokens',
       (tester) async {
     await _pumpWithMode(tester, ThemeMode.light);
 
@@ -88,7 +88,7 @@ void main() {
     expect(theme.scaffoldBackgroundColor, AppPalette.light.background);
   });
 
-  testWidgets('OpenPlate scaffold resolves dark tokens from Theme.of',
+  testWidgets('AI Nutrition Coach scaffold resolves dark tokens from Theme.of',
       (tester) async {
     await _pumpWithMode(tester, ThemeMode.dark);
 
