@@ -44,8 +44,9 @@ void main() {
   }
 
   group('StatusChip', () {
-    testWidgets('renders mono `· pending` for an enqueued plate',
-        (tester) async {
+    testWidgets('renders mono `· pending` for an enqueued plate', (
+      tester,
+    ) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 1),
@@ -74,8 +75,9 @@ void main() {
       expect(text.style!.color, AppPalette.light.statusSynced);
     });
 
-    testWidgets('failed renders calm `· retry later` in muted ink',
-        (tester) async {
+    testWidgets('failed renders calm `· retry later` in muted ink', (
+      tester,
+    ) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 1),
@@ -88,8 +90,9 @@ void main() {
       expect(text.style!.color, AppPalette.light.inkMuted);
     });
 
-    testWidgets('reads only its own plate from the per-plate snapshot',
-        (tester) async {
+    testWidgets('reads only its own plate from the per-plate snapshot', (
+      tester,
+    ) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 2),
@@ -122,8 +125,9 @@ void main() {
       expect(find.text('· pending'), findsNothing);
     });
 
-    testWidgets('exposes a Semantics label announcing the status',
-        (tester) async {
+    testWidgets('exposes a Semantics label announcing the status', (
+      tester,
+    ) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 1),

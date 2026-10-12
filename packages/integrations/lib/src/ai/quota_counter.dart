@@ -46,10 +46,8 @@ abstract interface class QuotaCounter {
 /// In-memory implementation for tests — no `flutter_secure_storage`
 /// I/O, deterministic counter.
 class InMemoryQuotaCounter implements QuotaCounter {
-  InMemoryQuotaCounter({
-    required this.ceiling,
-    DateTime Function()? now,
-  })  : _now = now ?? DateTime.now {
+  InMemoryQuotaCounter({required this.ceiling, DateTime Function()? now})
+    : _now = now ?? DateTime.now {
     _dayKey = _dayKeyOf(_now());
   }
 
@@ -111,8 +109,8 @@ class SecureStorageQuotaCounter implements QuotaCounter {
     required this.ceiling,
     FlutterSecureStorage? storage,
     DateTime Function()? now,
-  })  : _storage = storage ?? const FlutterSecureStorage(),
-        _now = now ?? DateTime.now;
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _now = now ?? DateTime.now;
 
   /// The per-day ceiling (FR6).
   final int ceiling;
@@ -127,15 +125,17 @@ class SecureStorageQuotaCounter implements QuotaCounter {
       'ai_nutrition_coach_quota_${providerKind}_v1';
 
   /// Counter value encoded as a JSON envelope: `{"day":"YYYY-MM-DD","calls":N}`.
-  static String _encode(DateTime dayKey, int calls) =>
-      jsonEncode(<String, Object?>{
-        'day': _dayKeyString(dayKey),
-        'calls': calls,
-      });
+  static String _encode(DateTime dayKey, int calls) => jsonEncode(
+    <String, Object?>{'day': _dayKeyString(dayKey), 'calls': calls},
+  );
 
   static DateTime _decodeDayKey(String s) {
     final parts = s.split('-');
-    return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
   }
 
   static String _dayKeyString(DateTime t) {
@@ -162,11 +162,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
     );
   }
 
-  Future<void> _write(
-    String providerKind,
-    DateTime dayKey,
-    int calls,
-  ) async {
+  Future<void> _write(String providerKind, DateTime dayKey, int calls) async {
     await _storage.write(
       key: _alias(providerKind),
       value: _encode(dayKey, calls),

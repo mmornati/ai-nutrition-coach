@@ -70,10 +70,7 @@ class StatusChip extends ConsumerWidget {
     );
   }
 
-  SyncOpStatusValue _statusFor(
-    int plateLogId,
-    List<SyncOpStatus>? perPlate,
-  ) {
+  SyncOpStatusValue _statusFor(int plateLogId, List<SyncOpStatus>? perPlate) {
     if (perPlate == null) return SyncOpStatusValue.synced;
     for (final entry in perPlate) {
       if (entry.plateLogId == plateLogId) return entry.status;
@@ -86,10 +83,7 @@ class StatusChip extends ConsumerWidget {
 /// stack when the queue has any `failed` ops. Single quiet line;
 /// never a banner, never a modal (FR-15 / UX-DR13).
 class SyncRetryLaterHint extends ConsumerWidget {
-  const SyncRetryLaterHint({
-    super.key,
-    this.copy = enSyncQueueStrings,
-  });
+  const SyncRetryLaterHint({super.key, this.copy = enSyncQueueStrings});
 
   final SyncQueueStrings copy;
 

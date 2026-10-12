@@ -44,14 +44,16 @@ void main() {
       expect(observed.last, wednesday);
     });
 
-    test('clearing the state back to null returns to the today fallback',
-        () {
+    test('clearing the state back to null returns to the today fallback', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       // Seed a value first.
-      container.read(selectedDateProvider.notifier).state =
-          DateTime(2026, 8, 10);
+      container.read(selectedDateProvider.notifier).state = DateTime(
+        2026,
+        8,
+        10,
+      );
       expect(container.read(selectedDateProvider), isNotNull);
 
       // Clear it.

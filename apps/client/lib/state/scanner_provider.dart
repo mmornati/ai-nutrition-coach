@@ -56,11 +56,7 @@ class BarcodeScan {
 /// UI only needs three calm paths: show the camera, show the
 /// "Camera denied — type it instead" copy, or show the
 /// "Camera unavailable — type it instead" copy.
-enum CameraPermissionStatus {
-  granted,
-  denied,
-  unavailable,
-}
+enum CameraPermissionStatus { granted, denied, unavailable }
 
 /// Barcode scanner port. Adapters wrap the underlying SDK and emit
 /// a single `BarcodeScan` per successful decode. Tests inject a
@@ -103,7 +99,7 @@ abstract interface class CameraPermission {
 /// H1 — no real camera in the test environment).
 class FakeBarcodeScanner implements BarcodeScanner {
   FakeBarcodeScanner({StreamController<BarcodeScan>? controller})
-      : _controller = controller ?? StreamController<BarcodeScan>.broadcast();
+    : _controller = controller ?? StreamController<BarcodeScan>.broadcast();
 
   final StreamController<BarcodeScan> _controller;
   bool _stopped = false;
@@ -188,13 +184,12 @@ final cameraPermissionProvider = Provider<CameraPermission>(
 /// `CatalogResult` is in scope — the underlying
 /// `OfflineFirstFoodCatalog` already memoises on the catalog side,
 /// but the family key keeps the surface clean.
-final barcodeLookupProvider =
-    FutureProvider.autoDispose.family<CatalogResult, String>((ref, code) async {
-  final catalog = ref.watch(foodCatalogProvider);
-  return catalog.lookupByBarcode(code);
-});
+final barcodeLookupProvider = FutureProvider.autoDispose
+    .family<CatalogResult, String>((ref, code) async {
+      final catalog = ref.watch(foodCatalogProvider);
+      return catalog.lookupByBarcode(code);
+    });
 
 /// Holds the most recent scanned barcode. Drives the `lookupByBarcode`
 /// invocation on the screen. Empty string means "no scan yet".
-final lastScannedBarcodeProvider =
-    StateProvider<String>((_) => '');
+final lastScannedBarcodeProvider = StateProvider<String>((_) => '');

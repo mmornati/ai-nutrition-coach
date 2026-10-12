@@ -50,10 +50,7 @@ abstract interface class SyncQueue {
 /// per-plate stream. `status` is the same string the drift column
 /// stores (`pending` | `synced` | `failed`).
 class SyncOpStatus {
-  const SyncOpStatus({
-    required this.plateLogId,
-    required this.status,
-  });
+  const SyncOpStatus({required this.plateLogId, required this.status});
 
   final int plateLogId;
   final SyncOpStatusValue status;

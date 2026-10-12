@@ -56,14 +56,8 @@ void main() {
         text: 'first',
         generatedAt: DateTime.utc(2026, 8, 16, 12),
       );
-      final second = first.copyWith(
-        questionKey: 'k2',
-        text: 'second',
-      );
-      final third = first.copyWith(
-        questionKey: 'k3',
-        text: 'third',
-      );
+      final second = first.copyWith(questionKey: 'k2', text: 'second');
+      final third = first.copyWith(questionKey: 'k3', text: 'third');
 
       final a = await store.append(first);
       final b = await store.append(second);
@@ -85,11 +79,13 @@ void main() {
       expect(notes[2].questionKey, 'k3');
     });
 
-    test('forPlate returns empty list when no notes exist for the plate',
-        () async {
-      final notes = await store.forPlate(404);
-      expect(notes, isEmpty);
-    });
+    test(
+      'forPlate returns empty list when no notes exist for the plate',
+      () async {
+        final notes = await store.forPlate(404);
+        expect(notes, isEmpty);
+      },
+    );
 
     test('notes for different plates do not bleed across reads', () async {
       final plate1 = CoachNote(
@@ -100,7 +96,11 @@ void main() {
         text: 'plate 1',
         generatedAt: DateTime.utc(2026, 8, 16),
       );
-      final plate2 = plate1.copyWith(plateLogId: 2, questionKey: 'b', text: 'plate 2');
+      final plate2 = plate1.copyWith(
+        plateLogId: 2,
+        questionKey: 'b',
+        text: 'plate 2',
+      );
 
       await store.append(plate1);
       await store.append(plate2);
@@ -171,8 +171,7 @@ void main() {
       expect((result as CoachInteractionRecorded).interactionId, isPositive);
     });
 
-    test(
-        'recordInteraction is append-only: no DB-level FK constraint to '
+    test('recordInteraction is append-only: no DB-level FK constraint to '
         'coach_note_table.id (FK lives at the use-case layer, same '
         'convention as the rest of the schema)', () async {
       // The v1 schema does not enforce a DB-level FK on
@@ -191,8 +190,11 @@ void main() {
         ),
       );
 
-      expect(result, isA<CoachInteractionRecorded>(),
-          reason: 'FK lives at the use-case layer, not at the DB layer');
+      expect(
+        result,
+        isA<CoachInteractionRecorded>(),
+        reason: 'FK lives at the use-case layer, not at the DB layer',
+      );
     });
 
     test('every interaction kind persists verbatim', () async {
@@ -216,8 +218,11 @@ void main() {
             at: DateTime.utc(2026, 8, 16),
           ),
         );
-        expect(result, isA<CoachInteractionRecorded>(),
-            reason: 'kind=$kind must record');
+        expect(
+          result,
+          isA<CoachInteractionRecorded>(),
+          reason: 'kind=$kind must record',
+        );
       }
     });
   });

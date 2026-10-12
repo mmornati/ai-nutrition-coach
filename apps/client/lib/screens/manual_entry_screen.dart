@@ -203,9 +203,8 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
               _QueryField(
                 controller: _queryController,
                 palette: palette,
-                onChanged: (q) => ref
-                    .read(manualEntryProvider.notifier)
-                    .updateQuery(q),
+                onChanged: (q) =>
+                    ref.read(manualEntryProvider.notifier).updateQuery(q),
                 onMicTap: _onMicTap,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -221,9 +220,8 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
                   state: state,
                   palette: palette,
                   manualController: _manualController,
-                  onSelectMatch: (m) => ref
-                      .read(manualEntryProvider.notifier)
-                      .selectMatch(m),
+                  onSelectMatch: (m) =>
+                      ref.read(manualEntryProvider.notifier).selectMatch(m),
                   onLogManual: _onLogManual,
                   submitting: _submitting,
                 ),
@@ -289,8 +287,9 @@ class _QueryField extends StatelessWidget {
               style: AppTypography.ui.copyWith(color: palette.ink),
               decoration: InputDecoration(
                 labelText: 'Food search',
-                labelStyle:
-                    AppTypography.uiMuted.copyWith(color: palette.inkMuted),
+                labelStyle: AppTypography.uiMuted.copyWith(
+                  color: palette.inkMuted,
+                ),
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: palette.hairline),
                 ),
@@ -313,11 +312,7 @@ class _QueryField extends StatelessWidget {
               width: AppTouchTargets.min,
               height: AppTouchTargets.min,
               child: Center(
-                child: Icon(
-                  Icons.mic_none,
-                  size: 24,
-                  color: palette.inkMuted,
-                ),
+                child: Icon(Icons.mic_none, size: 24, color: palette.inkMuted),
               ),
             ),
           ),
@@ -387,10 +382,8 @@ class _MatchList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       itemCount: state.matches.length,
-      separatorBuilder: (_, _) => Divider(
-        color: palette.hairline,
-        height: AppSpacing.hairline,
-      ),
+      separatorBuilder: (_, _) =>
+          Divider(color: palette.hairline, height: AppSpacing.hairline),
       itemBuilder: (_, i) {
         final match = state.matches[i];
         final isSelected = state.selected == match;
@@ -462,11 +455,7 @@ class _MatchRow extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  Icon(
-                    Icons.check,
-                    color: palette.sageDeep,
-                    size: 18,
-                  ),
+                  Icon(Icons.check, color: palette.sageDeep, size: 18),
               ],
             ),
           ),
@@ -538,18 +527,14 @@ class _ManualAddForm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Hint(
-          text: 'Type the food name to add it manually.',
-          palette: palette,
-        ),
+        _Hint(text: 'Type the food name to add it manually.', palette: palette),
         const SizedBox(height: AppSpacing.md),
         TextField(
           controller: controller,
           style: AppTypography.ui.copyWith(color: palette.ink),
           decoration: InputDecoration(
             labelText: 'Custom food name',
-            labelStyle:
-                AppTypography.uiMuted.copyWith(color: palette.inkMuted),
+            labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: palette.hairline),
             ),
@@ -606,9 +591,6 @@ class _CalmLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppTypography.coach.copyWith(color: accent),
-    );
+    return Text(text, style: AppTypography.coach.copyWith(color: accent));
   }
 }

@@ -21,9 +21,7 @@ void main() {
             webSessionKeyProvider.overrideWithValue(WebSessionKey()),
             webUnlockProbeProvider.overrideWithValue((_) async => false),
           ],
-          child: const MaterialApp(
-            home: LockScreen(),
-          ),
+          child: const MaterialApp(home: LockScreen()),
         ),
       );
       // The lock screen's LockScreenBody wraps the label in

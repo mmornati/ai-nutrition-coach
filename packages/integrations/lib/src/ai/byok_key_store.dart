@@ -47,7 +47,7 @@ abstract interface class ByokKeyStore {
 /// on web, documented in `docs/ai-tiers.md`).
 class SecureStorageByokKeyStore implements ByokKeyStore {
   SecureStorageByokKeyStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   /// The secure-storage alias. Versioned (`_v1`) so a future
   /// storage-format change can ship without colliding with

@@ -38,16 +38,17 @@ void main() {
     });
 
     test('ByokAiRung implements AiRung and returns the calm key-missing '
-        'RecognitionFailure before any transport call (Story 3.3)',
-        () async {
+        'RecognitionFailure before any transport call (Story 3.3)', () async {
       final AiRung rung = ByokAiRung(
         keyStore: InMemoryByokKeyStore(),
         provider: const OpenAiCompatibleByokProvider(),
       );
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('byok key missing'));
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('byok key missing'),
+      );
     });
 
     test('LocalAiRung implements AiRung and throws UnsupportedError '

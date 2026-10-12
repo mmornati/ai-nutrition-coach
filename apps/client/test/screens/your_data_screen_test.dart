@@ -28,9 +28,7 @@ void main() {
               // A fresh `WebSessionKey` is locked by default.
               webSessionKeyProvider.overrideWithValue(WebSessionKey()),
             ],
-            child: const MaterialApp(
-              home: YourDataScreen(),
-            ),
+            child: const MaterialApp(home: YourDataScreen()),
           ),
         );
         expect(
@@ -43,51 +41,35 @@ void main() {
       skip: !kIsWeb,
     );
 
-    testWidgets(
-      'renders the unlocked protection line on mobile / open web',
-      (tester) async {
-        final key = WebSessionKey();
-        // Manually flip to open by running the unlock probe path
-        // with a no-op probe; the simplest path is to call
-        // `unlock` with a probe that returns true. The salt is
-        // generated internally, so the first call's derive is
-        // not asserted — we just need `isOpen` to flip.
-        await key.unlock(
-          passphrase: 'test',
-          probe: (derived) async => true,
-        );
-        expect(key.isOpen, isTrue);
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              webSessionKeyProvider.overrideWithValue(key),
-            ],
-            child: const MaterialApp(
-              home: YourDataScreen(),
-            ),
-          ),
-        );
-        expect(
-          find.textContaining('Encrypted at rest on mobile',
-              findRichText: true),
-          findsOneWidget,
-        );
-      },
-    );
+    testWidgets('renders the unlocked protection line on mobile / open web', (
+      tester,
+    ) async {
+      final key = WebSessionKey();
+      // Manually flip to open by running the unlock probe path
+      // with a no-op probe; the simplest path is to call
+      // `unlock` with a probe that returns true. The salt is
+      // generated internally, so the first call's derive is
+      // not asserted — we just need `isOpen` to flip.
+      await key.unlock(passphrase: 'test', probe: (derived) async => true);
+      expect(key.isOpen, isTrue);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [webSessionKeyProvider.overrideWithValue(key)],
+          child: const MaterialApp(home: YourDataScreen()),
+        ),
+      );
+      expect(
+        find.textContaining('Encrypted at rest on mobile', findRichText: true),
+        findsOneWidget,
+      );
+    });
 
-    testWidgets(
-      'renders the title keyed in YourDataStrings',
-      (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            child: const MaterialApp(
-              home: YourDataScreen(),
-            ),
-          ),
-        );
-        expect(find.text('Your data'), findsOneWidget);
-      },
-    );
+    testWidgets('renders the title keyed in YourDataStrings', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(child: const MaterialApp(home: YourDataScreen())),
+      );
+      expect(find.text('Your data'), findsOneWidget);
+    });
 
     // Re-export `AppPalette` from the test so the analyzer is
     // happy when the test runner imports this file in isolation.

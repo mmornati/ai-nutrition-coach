@@ -59,12 +59,12 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     int lruCapacity = 32,
     int barcodeLruCapacity = 64,
     OffBarcodeSource? offSource,
-  })  : _seeds = List<SeedFood>.unmodifiable(seeds ?? seedFoods),
-        _lru = LruCache<String, List<FoodMatch>>(capacity: lruCapacity),
-        _barcodeLru = LruCache<String, _BarcodeLookup>(
-          capacity: barcodeLruCapacity,
-        ),
-        _offSource = offSource ?? OffBarcodeSource();
+  }) : _seeds = List<SeedFood>.unmodifiable(seeds ?? seedFoods),
+       _lru = LruCache<String, List<FoodMatch>>(capacity: lruCapacity),
+       _barcodeLru = LruCache<String, _BarcodeLookup>(
+         capacity: barcodeLruCapacity,
+       ),
+       _offSource = offSource ?? OffBarcodeSource();
 
   /// The seeded food list — `unmodifiable` so callers can't mutate it
   /// and break the ranking contract.
@@ -171,10 +171,9 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
 
     final result = await _offSource.lookup(trimmed);
     final CatalogResult resolved = switch (result) {
-      OffBarcodeMatch(:final displayName, :final categoryTags) =>
-        RankedMatches(<FoodMatch>[
-          _toBarcodeMatch(trimmed, displayName, categoryTags),
-        ]),
+      OffBarcodeMatch(:final displayName, :final categoryTags) => RankedMatches(
+        <FoodMatch>[_toBarcodeMatch(trimmed, displayName, categoryTags)],
+      ),
       OffBarcodeNotFound() => NotFoundFailure(trimmed),
       OffBarcodeFailure(:final cause) => CatalogFailure(cause),
     };
@@ -204,9 +203,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       }
     }
     scored.sort((a, b) => b.score.compareTo(a.score));
-    return scored
-        .map((s) => s.match)
-        .toList(growable: false);
+    return scored.map((s) => s.match).toList(growable: false);
   }
 
   /// Score a single seed name against the [query]. Returns `0.0` when

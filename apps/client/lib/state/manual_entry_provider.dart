@@ -61,13 +61,13 @@ class ManualEntryState {
   /// Empty / initial state. The screen renders an empty text field and
   /// no matches.
   factory ManualEntryState.initial() => const ManualEntryState(
-        query: '',
-        matches: <FoodMatch>[],
-        selected: null,
-        chosenPreset: null,
-        lastError: null,
-        catalogStatus: ManualEntryCatalogStatus.idle,
-      );
+    query: '',
+    matches: <FoodMatch>[],
+    selected: null,
+    chosenPreset: null,
+    lastError: null,
+    catalogStatus: ManualEntryCatalogStatus.idle,
+  );
 
   /// The raw text the user has typed (or transcribed). Whitespace
   /// preserved — the catalog adapter trims for the cache key.
@@ -110,8 +110,9 @@ class ManualEntryState {
       query: query ?? this.query,
       matches: matches ?? this.matches,
       selected: clearSelected ? null : (selected ?? this.selected),
-      chosenPreset:
-          clearChosenPreset ? null : (chosenPreset ?? this.chosenPreset),
+      chosenPreset: clearChosenPreset
+          ? null
+          : (chosenPreset ?? this.chosenPreset),
       lastError: clearLastError ? null : (lastError ?? this.lastError),
       catalogStatus: catalogStatus ?? this.catalogStatus,
     );
@@ -208,8 +209,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
   /// becomes the default chosen preset; the user can swap it via
   /// [selectPreset].
   void selectMatch(FoodMatch match) {
-    final firstPreset =
-        match.presets.isNotEmpty ? match.presets.first : null;
+    final firstPreset = match.presets.isNotEmpty ? match.presets.first : null;
     state = state.copyWith(
       selected: match,
       chosenPreset: firstPreset,
@@ -236,5 +236,5 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
 /// Epic 2 will introduce `NotifierProvider` for actual domain state.
 final manualEntryProvider =
     StateNotifierProvider<ManualEntryNotifier, ManualEntryState>(
-  (ref) => ManualEntryNotifier(ref.watch(foodCatalogProvider)),
-);
+      (ref) => ManualEntryNotifier(ref.watch(foodCatalogProvider)),
+    );

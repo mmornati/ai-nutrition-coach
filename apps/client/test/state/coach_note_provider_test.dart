@@ -102,12 +102,10 @@ ProviderContainer _container({
 
 void main() {
   group('coachNoteStoreProvider', () {
-    test('throws UnimplementedError when not overridden (defensive seam)',
-        () {
+    test('throws UnimplementedError when not overridden (defensive seam)', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(_FakeEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(_FakeEncryptedStore()),
           coachProvider.overrideWithValue(FakeCoach()),
         ],
       );
@@ -137,8 +135,7 @@ void main() {
       expect(generator, isA<CoachNoteGenerator>());
     });
 
-    test('RecordPlate use-case reads the generator from the provider',
-        () {
+    test('RecordPlate use-case reads the generator from the provider', () {
       final coach = FakeCoach();
       final store = _FakeCoachNoteStore();
       final container = _container(coach: coach, coachNotes: store);
@@ -149,19 +146,18 @@ void main() {
   });
 
   group('coachNotesForPlateProvider', () {
-    test('returns empty list when the store has no notes for the plate',
-        () async {
-      final store = _FakeCoachNoteStore();
-      final container = _container(
-        coach: FakeCoach(),
-        coachNotes: store,
-      );
+    test(
+      'returns empty list when the store has no notes for the plate',
+      () async {
+        final store = _FakeCoachNoteStore();
+        final container = _container(coach: FakeCoach(), coachNotes: store);
 
-      final notes = await container.read(
-        coachNotesForPlateProvider(404).future,
-      );
-      expect(notes, isEmpty);
-    });
+        final notes = await container.read(
+          coachNotesForPlateProvider(404).future,
+        );
+        expect(notes, isEmpty);
+      },
+    );
 
     test('returns notes the store holds for the plate', () async {
       final store = _FakeCoachNoteStore();
@@ -189,20 +185,13 @@ void main() {
       );
       expect(b, isA<CoachNoteAppended>());
 
-      final container = _container(
-        coach: FakeCoach(),
-        coachNotes: store,
-      );
+      final container = _container(coach: FakeCoach(), coachNotes: store);
 
-      final notes7 = await container.read(
-        coachNotesForPlateProvider(7).future,
-      );
+      final notes7 = await container.read(coachNotesForPlateProvider(7).future);
       expect(notes7, hasLength(1));
       expect(notes7.first.questionKey, 'post.resolve.vegLight');
 
-      final notes9 = await container.read(
-        coachNotesForPlateProvider(9).future,
-      );
+      final notes9 = await container.read(coachNotesForPlateProvider(9).future);
       expect(notes9, hasLength(1));
       expect(notes9.first.questionKey, 'post.resolve.proteinHeavy');
 
@@ -212,92 +201,93 @@ void main() {
       expect(notesEmpty, isEmpty);
     });
 
-    test('different plate ids return different note lists (no cross-bleed)',
-        () async {
-      final store = _FakeCoachNoteStore();
-      await store.append(
-        CoachNote(
-          id: 0,
-          plateLogId: 1,
-          anchor: CoachAnchor.postResolve,
-          questionKey: 'a',
-          text: 'plate 1',
-          generatedAt: DateTime.utc(2026, 8, 16),
-        ),
-      );
-      await store.append(
-        CoachNote(
-          id: 0,
-          plateLogId: 2,
-          anchor: CoachAnchor.postResolve,
-          questionKey: 'b',
-          text: 'plate 2',
-          generatedAt: DateTime.utc(2026, 8, 16),
-        ),
-      );
-      final container = _container(
-        coach: FakeCoach(),
-        coachNotes: store,
-      );
+    test(
+      'different plate ids return different note lists (no cross-bleed)',
+      () async {
+        final store = _FakeCoachNoteStore();
+        await store.append(
+          CoachNote(
+            id: 0,
+            plateLogId: 1,
+            anchor: CoachAnchor.postResolve,
+            questionKey: 'a',
+            text: 'plate 1',
+            generatedAt: DateTime.utc(2026, 8, 16),
+          ),
+        );
+        await store.append(
+          CoachNote(
+            id: 0,
+            plateLogId: 2,
+            anchor: CoachAnchor.postResolve,
+            questionKey: 'b',
+            text: 'plate 2',
+            generatedAt: DateTime.utc(2026, 8, 16),
+          ),
+        );
+        final container = _container(coach: FakeCoach(), coachNotes: store);
 
-      final p1 = await container.read(coachNotesForPlateProvider(1).future);
-      final p2 = await container.read(coachNotesForPlateProvider(2).future);
-      expect(p1.single.questionKey, 'a');
-      expect(p2.single.questionKey, 'b');
-    });
+        final p1 = await container.read(coachNotesForPlateProvider(1).future);
+        final p2 = await container.read(coachNotesForPlateProvider(2).future);
+        expect(p1.single.questionKey, 'a');
+        expect(p2.single.questionKey, 'b');
+      },
+    );
   });
 
-  group('integration: recordPlateProvider commits and fires the generator',
-      () {
-    test('a successful plate commit appends one CoachNote via the store',
-        () async {
-      final coach = FakeCoach();
-      coach.emit(
-        CoachFound(
-          const CoachQuestion(
-            key: 'post.resolve.balanced',
-            text: 'Nice plate — anything you would change next time?',
-            anchor: CoachAnchor.postResolve,
-            pattern: CompositionPattern.balanced,
+  group('integration: recordPlateProvider commits and fires the generator', () {
+    test(
+      'a successful plate commit appends one CoachNote via the store',
+      () async {
+        final coach = FakeCoach();
+        coach.emit(
+          CoachFound(
+            const CoachQuestion(
+              key: 'post.resolve.balanced',
+              text: 'Nice plate — anything you would change next time?',
+              anchor: CoachAnchor.postResolve,
+              pattern: CompositionPattern.balanced,
+            ),
           ),
-        ),
-      );
-      final store = _FakeCoachNoteStore();
-      final fakeStore = _FakeEncryptedStore();
-      final container = _container(
-        coach: coach,
-        coachNotes: store,
-        store: fakeStore,
-      );
+        );
+        final store = _FakeCoachNoteStore();
+        final fakeStore = _FakeEncryptedStore();
+        final container = _container(
+          coach: coach,
+          coachNotes: store,
+          store: fakeStore,
+        );
 
-      final useCase = container.read(recordPlateProvider);
-      final draft = FoodEntryDraft(
-        databaseFood: const DatabaseFood(
-          sourceRef: 'manual:apple',
-          displayName: 'Apple',
-          source: SourceCatalog.manual,
-          foodGroup: FoodGroup.vegFruit,
-        ),
-        quantity: const QuantityRange(
-          low: 1,
-          high: 1,
-          unit: 'piece',
-          displayLabel: '~1 piece',
-        ),
-      );
-      final result = await useCase(
-        entries: [draft],
-        store: fakeStore,
-        loggedAtUtc: DateTime.utc(2026, 8, 16),
-      );
-      expect(result, isA<RecordPlateSuccess>());
-      final plate = (result as RecordPlateSuccess).plateLog;
-      // The generator fired once and persisted one note against the
-      // committed plate's id.
-      final notes =
-          await container.read(coachNotesForPlateProvider(plate.id).future);
-      expect(notes, hasLength(1));
-      expect(notes.first.questionKey, 'post.resolve.balanced');
-    });
+        final useCase = container.read(recordPlateProvider);
+        final draft = FoodEntryDraft(
+          databaseFood: const DatabaseFood(
+            sourceRef: 'manual:apple',
+            displayName: 'Apple',
+            source: SourceCatalog.manual,
+            foodGroup: FoodGroup.vegFruit,
+          ),
+          quantity: const QuantityRange(
+            low: 1,
+            high: 1,
+            unit: 'piece',
+            displayLabel: '~1 piece',
+          ),
+        );
+        final result = await useCase(
+          entries: [draft],
+          store: fakeStore,
+          loggedAtUtc: DateTime.utc(2026, 8, 16),
+        );
+        expect(result, isA<RecordPlateSuccess>());
+        final plate = (result as RecordPlateSuccess).plateLog;
+        // The generator fired once and persisted one note against the
+        // committed plate's id.
+        final notes = await container.read(
+          coachNotesForPlateProvider(plate.id).future,
+        );
+        expect(notes, hasLength(1));
+        expect(notes.first.questionKey, 'post.resolve.balanced');
+      },
+    );
   });
 }

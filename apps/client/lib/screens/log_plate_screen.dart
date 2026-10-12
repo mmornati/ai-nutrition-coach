@@ -60,7 +60,9 @@ class _LogPlateScreenState extends ConsumerState<LogPlateScreen> {
         "History can't open on this device.",
       StoreFailure() => 'Could not log plate.',
     };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -91,7 +93,9 @@ class _LogPlateScreenState extends ConsumerState<LogPlateScreen> {
               style: AppTypography.ui.copyWith(color: palette.ink),
               decoration: InputDecoration(
                 labelText: 'Dish',
-                labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
+                labelStyle: AppTypography.uiMuted.copyWith(
+                  color: palette.inkMuted,
+                ),
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: palette.hairline),
                 ),
@@ -132,7 +136,9 @@ class _LogPlateScreenState extends ConsumerState<LogPlateScreen> {
               style: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Expanded(child: _RecentList(palette: palette, plates: plates)),
+            Expanded(
+              child: _RecentList(palette: palette, plates: plates),
+            ),
           ],
         ),
       ),
@@ -166,10 +172,8 @@ class _RecentList extends StatelessWidget {
         }
         return ListView.separated(
           itemCount: list.length,
-          separatorBuilder: (_, _) => Divider(
-            color: palette.hairline,
-            height: AppSpacing.hairline,
-          ),
+          separatorBuilder: (_, _) =>
+              Divider(color: palette.hairline, height: AppSpacing.hairline),
           itemBuilder: (_, i) => _RecentRow(palette: palette, plate: list[i]),
         );
       },
@@ -188,7 +192,9 @@ class _RecentRow extends StatelessWidget {
     final first = plate.entries.isEmpty ? null : plate.entries.first;
     final dish = first?.databaseFood.displayName ?? '—';
     final range = first?.quantity.displayLabel ?? '';
-    final more = plate.entries.length > 1 ? ' +${plate.entries.length - 1}' : '';
+    final more = plate.entries.length > 1
+        ? ' +${plate.entries.length - 1}'
+        : '';
     final time = _localTime(plate.loggedAtUtc);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -212,7 +218,9 @@ class _RecentRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '· local',
-            style: AppTypography.monoWhisper.copyWith(color: palette.statusLocal),
+            style: AppTypography.monoWhisper.copyWith(
+              color: palette.statusLocal,
+            ),
           ),
         ],
       ),
@@ -238,10 +246,6 @@ enum QuantityPreset {
   final num low;
   final num high;
 
-  QuantityRange range({required String unit}) => QuantityRange(
-        low: low,
-        high: high,
-        unit: unit,
-        displayLabel: label,
-      );
+  QuantityRange range({required String unit}) =>
+      QuantityRange(low: low, high: high, unit: unit, displayLabel: label);
 }

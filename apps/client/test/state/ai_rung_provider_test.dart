@@ -26,9 +26,7 @@ ProviderContainer _container({required AiRungConfig config}) {
   return ProviderContainer(
     overrides: [
       aiRungConfigProvider.overrideWithValue(config),
-      quotaCounterProvider.overrideWithValue(
-        InMemoryQuotaCounter(ceiling: 5),
-      ),
+      quotaCounterProvider.overrideWithValue(InMemoryQuotaCounter(ceiling: 5)),
       hostedQuotaProviderProvider.overrideWithValue(
         const CloudflareWorkersAiProvider(),
       ),
@@ -42,8 +40,7 @@ ProviderContainer _container({required AiRungConfig config}) {
 
 void main() {
   group('aiRungConfigProvider (Story 3.1 / AD-5)', () {
-    test('throws UnimplementedError when not overridden (defensive seam)',
-        () {
+    test('throws UnimplementedError when not overridden (defensive seam)', () {
       // The seam has no default — production code must override it
       // at the ProviderScope root. This pins the error path so a
       // regression that silently defaults to a no-op is loud.
@@ -120,8 +117,7 @@ void main() {
       expect(abstractRung, isA<AiRung>());
     });
 
-    test('byok config → ByokAiRung stub (Story 3.3 fills the body)',
-        () {
+    test('byok config → ByokAiRung stub (Story 3.3 fills the body)', () {
       final container = _container(
         config: const AiRungConfig(kind: AiRungKind.byok),
       );
@@ -132,8 +128,7 @@ void main() {
       expect(rung, isA<ByokAiRung>());
     });
 
-    test('local config → LocalAiRung v2 seam (FR8 throws-on-use)',
-        () async {
+    test('local config → LocalAiRung v2 seam (FR8 throws-on-use)', () async {
       final container = _container(
         config: const AiRungConfig(kind: AiRungKind.local),
       );
@@ -159,9 +154,7 @@ void main() {
         'concrete adapter type — except for the test-internal '
         'isA<X>() assertions, the providers return AiRung', () {
       for (final kind in AiRungKind.values) {
-        final container = _container(
-          config: AiRungConfig(kind: kind),
-        );
+        final container = _container(config: AiRungConfig(kind: kind));
         addTearDown(container.dispose);
         final AiRung rung = container.read(aiRungProvider);
         expect(rung, isA<AiRung>());

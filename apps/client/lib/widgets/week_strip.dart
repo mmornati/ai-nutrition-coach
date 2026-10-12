@@ -78,9 +78,7 @@ class WeekStrip extends ConsumerWidget {
           Text(
             'no streaks · no countdowns · no guilt',
             textAlign: TextAlign.center,
-            style: AppTypography.monoWhisper.copyWith(
-              color: palette.inkMuted,
-            ),
+            style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
           ),
         ],
       ),
@@ -124,8 +122,11 @@ class WeekStrip extends ConsumerWidget {
   /// "An open, quiet place." copy on `OpenDent` so the empty-day
   /// language stays consistent.
   String _label(DateTime localDay, bool balanced) {
-    final weekday = DateTime(localDay.year, localDay.month, localDay.day)
-        .weekday;
+    final weekday = DateTime(
+      localDay.year,
+      localDay.month,
+      localDay.day,
+    ).weekday;
     return '${_weekdayNames[weekday - 1]}, ${balanced ? 'balanced' : 'quiet'}';
   }
 

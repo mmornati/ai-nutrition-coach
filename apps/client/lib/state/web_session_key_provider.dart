@@ -14,7 +14,8 @@ import 'package:integrations/integrations.dart';
 /// production graph resolves the singleton from `WebSessionKey()`
 /// directly. Tests can override with a fake holder if they need to
 /// (none of the current tests do).
-final Provider<WebSessionKey> webSessionKeyProvider =
-    Provider<WebSessionKey>((ref) {
+final Provider<WebSessionKey> webSessionKeyProvider = Provider<WebSessionKey>((
+  ref,
+) {
   return WebSessionKey();
 });

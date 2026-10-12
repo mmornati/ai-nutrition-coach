@@ -39,19 +39,20 @@ import '../state/scanner_provider.dart';
 /// `start()` call per scan session, exactly one controller).
 class MobileScannerBarcodeScanner implements BarcodeScanner {
   MobileScannerBarcodeScanner({MobileScannerController? controller})
-      : _controller = controller ??
-            MobileScannerController(
-              // The screen processes one scan at a time; a noop
-              // barrier keeps the controller from spamming duplicate
-              // decodes while the match sheet is up.
-              detectionSpeed: DetectionSpeed.normal,
-              formats: const [
-                BarcodeFormat.ean8,
-                BarcodeFormat.ean13,
-                BarcodeFormat.upcA,
-                BarcodeFormat.upcE,
-              ],
-            );
+    : _controller =
+          controller ??
+          MobileScannerController(
+            // The screen processes one scan at a time; a noop
+            // barrier keeps the controller from spamming duplicate
+            // decodes while the match sheet is up.
+            detectionSpeed: DetectionSpeed.normal,
+            formats: const [
+              BarcodeFormat.ean8,
+              BarcodeFormat.ean13,
+              BarcodeFormat.upcA,
+              BarcodeFormat.upcE,
+            ],
+          );
 
   final MobileScannerController _controller;
   StreamController<BarcodeScan>? _broadcast;

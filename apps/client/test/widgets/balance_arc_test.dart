@@ -20,8 +20,9 @@ void main() {
   }
 
   group('BalanceArc', () {
-    testWidgets('paints 4 segments and declares food groups via Semantics',
-        (tester) async {
+    testWidgets('paints 4 segments and declares food groups via Semantics', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(
@@ -52,8 +53,9 @@ void main() {
       expect(label, contains('Dairy'));
     });
 
-    testWidgets('filled count shows in mono arcnote when announceFilled=true',
-        (tester) async {
+    testWidgets('filled count shows in mono arcnote when announceFilled=true', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(
@@ -66,7 +68,9 @@ void main() {
       expect(find.text('3 of 4'), findsOneWidget);
     });
 
-    testWidgets('arcnote is visible even when announceFilled=false', (tester) async {
+    testWidgets('arcnote is visible even when announceFilled=false', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(

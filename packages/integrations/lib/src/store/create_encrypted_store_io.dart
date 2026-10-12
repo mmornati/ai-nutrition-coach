@@ -34,10 +34,12 @@ Future<StoreBundle> createStores() async {
     final key = await SecureKeySourceImpl().getOrCreateDbKey();
     // One `AppDatabase` is opened against the same file path + key
     // so the `coach_notes` table shares the cipher pragma.
-    final db = AppDatabase(NativeDatabase.createInBackground(
-      File(filePath),
-      setup: (sqlite3.Database raw) => _attachKey(raw, key),
-    ));
+    final db = AppDatabase(
+      NativeDatabase.createInBackground(
+        File(filePath),
+        setup: (sqlite3.Database raw) => _attachKey(raw, key),
+      ),
+    );
     return StoreBundle(
       encryptedStore: EncryptedStoreAdapter(database: db),
       coachNoteStore: LocalCoachNoteStore(database: db),
@@ -65,8 +67,7 @@ class _SecureKeyFailureStore implements EncryptedStore {
   Future<RecordPlateResult> recordPlate({
     required List<FoodEntryDraft> entries,
     DateTime? loggedAtUtc,
-  }) async =>
-      _failure;
+  }) async => _failure;
 
   @override
   Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
@@ -87,9 +88,9 @@ class _NoopCoachNoteStore implements CoachNoteStore {
 
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
-    return const CoachNoteAppendFailure(StoreFailure(
-      platformError: UnsupportedPlatformFailure(),
-    ));
+    return const CoachNoteAppendFailure(
+      StoreFailure(platformError: UnsupportedPlatformFailure()),
+    );
   }
 
   @override

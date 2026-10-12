@@ -33,8 +33,7 @@ ProviderContainer _container({Coach? coach}) {
 
 void main() {
   group('coachProvider', () {
-    test('throws UnimplementedError when not overridden (defensive seam)',
-        () {
+    test('throws UnimplementedError when not overridden (defensive seam)', () {
       // The seam has no default — production code must override it
       // at the ProviderScope root. This pins the error path so a
       // regression that silently defaults to a no-op is loud.
@@ -44,8 +43,7 @@ void main() {
       // provider's factory.
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
         ],
       );
       addTearDown(container.dispose);
@@ -68,8 +66,7 @@ void main() {
         'expected key for a known pattern', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -136,8 +133,7 @@ void main() {
         'under the production override', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -148,10 +144,12 @@ void main() {
 
       for (final anchor in CoachAnchor.values) {
         for (final pattern in CompositionPattern.values) {
-          final result =
-              coach.questionFor(anchor: anchor, pattern: pattern);
-          expect(result, isA<CoachFound>(),
-              reason: 'expected CoachFound for ($anchor, $pattern)');
+          final result = coach.questionFor(anchor: anchor, pattern: pattern);
+          expect(
+            result,
+            isA<CoachFound>(),
+            reason: 'expected CoachFound for ($anchor, $pattern)',
+          );
           final found = result as CoachFound;
           expect(found.question.text, isNotEmpty);
           expect(found.question.key, isNotEmpty);
@@ -166,9 +164,10 @@ void main() {
       // We use a hand-rolled fake coach to exercise the unknown-
       // pattern contract without mutating the shared key store.
       final Coach coach = _PartialCoach({
-        const CoachQuestionKey(CoachAnchor.postResolve,
-                CompositionPattern.vegLight):
-            CoachQuestion(
+        const CoachQuestionKey(
+          CoachAnchor.postResolve,
+          CompositionPattern.vegLight,
+        ): CoachQuestion(
           key: 'post.resolve.vegLight',
           text: 'A handful of greens would round this plate out.',
           anchor: CoachAnchor.postResolve,
@@ -177,8 +176,7 @@ void main() {
       });
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
           coachProvider.overrideWithValue(coach),
         ],
       );
@@ -209,14 +207,13 @@ class _StubEncryptedStore implements EncryptedStore {
   Future<RecordPlateResult> recordPlate({
     required List<FoodEntryDraft> entries,
     DateTime? loggedAtUtc,
-  }) async =>
-      RecordPlateSuccess(
-        PlateLog(
-          id: 0,
-          loggedAtUtc: DateTime.utc(2026, 8, 15),
-          entries: const <FoodEntry>[],
-        ),
-      );
+  }) async => RecordPlateSuccess(
+    PlateLog(
+      id: 0,
+      loggedAtUtc: DateTime.utc(2026, 8, 15),
+      entries: const <FoodEntry>[],
+    ),
+  );
 
   @override
   Stream<List<PlateLog>> watchRecent({DateTime? since}) =>

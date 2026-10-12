@@ -12,8 +12,8 @@ import 'export_destination.dart';
 class RecordingExportDestination implements ExportDestination {
   RecordingExportDestination();
 
-  final List<({String filename, String mimeType, Uint8List bytes})>
-      _writes = [];
+  final List<({String filename, String mimeType, Uint8List bytes})> _writes =
+      [];
 
   List<({String filename, String mimeType, Uint8List bytes})> get writes =>
       List.unmodifiable(_writes);
@@ -24,11 +24,7 @@ class RecordingExportDestination implements ExportDestination {
     required String mimeType,
     required Uint8List bytes,
   }) async {
-    _writes.add((
-      filename: filename,
-      mimeType: mimeType,
-      bytes: bytes,
-    ));
+    _writes.add((filename: filename, mimeType: mimeType, bytes: bytes));
   }
 }
 

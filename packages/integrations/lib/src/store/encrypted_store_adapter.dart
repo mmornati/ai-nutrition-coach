@@ -34,9 +34,7 @@ import 'app_database.dart';
 import 'secure_key_source.dart';
 
 class EncryptedStoreAdapter implements EncryptedStore {
-  EncryptedStoreAdapter({
-    required AppDatabase database,
-  }) : _db = database;
+  EncryptedStoreAdapter({required AppDatabase database}) : _db = database;
 
   /// Convenience for production: builds an `AppDatabase` against a file
   /// on disk, opens it with the sqlite3mc key pragma, and yields a
@@ -49,10 +47,12 @@ class EncryptedStoreAdapter implements EncryptedStore {
     required SecureKeySource keySource,
   }) async {
     final key = await keySource.getOrCreateDbKey();
-    final db = AppDatabase(NativeDatabase.createInBackground(
-      File(filePath),
-      setup: (sqlite3.Database raw) => _attachKey(raw, key),
-    ));
+    final db = AppDatabase(
+      NativeDatabase.createInBackground(
+        File(filePath),
+        setup: (sqlite3.Database raw) => _attachKey(raw, key),
+      ),
+    );
     return EncryptedStoreAdapter(database: db);
   }
 
@@ -67,11 +67,13 @@ class EncryptedStoreAdapter implements EncryptedStore {
     final loggedAtIso = loggedAt.toUtc().toIso8601String();
     try {
       final plateLogId = await _db.transaction(() async {
-        final plateId = await _db.into(_db.plateLogTable).insert(
-              PlateLogTableCompanion.insert(loggedAtUtc: loggedAtIso),
-            );
+        final plateId = await _db
+            .into(_db.plateLogTable)
+            .insert(PlateLogTableCompanion.insert(loggedAtUtc: loggedAtIso));
         for (final entry in entries) {
-          await _db.into(_db.foodEntryTable).insert(
+          await _db
+              .into(_db.foodEntryTable)
+              .insert(
                 FoodEntryTableCompanion.insert(
                   plateLogId: plateId,
                   databaseFoodSourceRef: entry.databaseFood.sourceRef,
@@ -99,7 +101,9 @@ class EncryptedStoreAdapter implements EncryptedStore {
     final query = _db.select(_db.plateLogTable)
       ..orderBy([(t) => OrderingTerm.desc(t.loggedAtUtc)]);
     if (since != null) {
-      query.where((t) => t.loggedAtUtc.isBiggerThanValue(since.toUtc().toIso8601String()));
+      query.where(
+        (t) => t.loggedAtUtc.isBiggerThanValue(since.toUtc().toIso8601String()),
+      );
     }
     return query.watch().asyncMap((rows) async {
       final plates = <PlateLog>[];
@@ -107,11 +111,7 @@ class EncryptedStoreAdapter implements EncryptedStore {
         final loggedAt = DateTime.parse(row.loggedAtUtc).toUtc();
         final entries = await _entriesFor(row.id);
         plates.add(
-          PlateLog(
-            id: row.id,
-            loggedAtUtc: loggedAt,
-            entries: entries,
-          ),
+          PlateLog(id: row.id, loggedAtUtc: loggedAt, entries: entries),
         );
       }
       return plates;
@@ -123,11 +123,7 @@ class EncryptedStoreAdapter implements EncryptedStore {
 
   Future<PlateLog> _readPlateLog(int plateLogId, DateTime loggedAt) async {
     final entries = await _entriesFor(plateLogId);
-    return PlateLog(
-      id: plateLogId,
-      loggedAtUtc: loggedAt,
-      entries: entries,
-    );
+    return PlateLog(id: plateLogId, loggedAtUtc: loggedAt, entries: entries);
   }
 
   Future<List<FoodEntry>> _entriesFor(int plateLogId) async {

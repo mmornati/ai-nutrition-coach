@@ -5,9 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('CaptureSheet a11y floor (Story 5.4 / NFR-7)', () {
-    testWidgets('every affordance carries a Semantics wrapper', (
-      tester,
-    ) async {
+    testWidgets('every affordance carries a Semantics wrapper', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(

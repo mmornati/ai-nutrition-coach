@@ -85,8 +85,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
                 locked
                     ? widget.copy.lockedProtection
                     : widget.copy.unlockedProtection,
-                style: AppTypography.coach
-                    .copyWith(color: palette.inkMuted),
+                style: AppTypography.coach.copyWith(color: palette.inkMuted),
               ),
               const SizedBox(height: AppSpacing.lg),
               const Divider(height: AppSpacing.hairline),
@@ -121,10 +120,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             ('csv', ExportFormat.csv),
             ('json', ExportFormat.json),
           ],
-          labels: const {
-            ExportFormat.csv: 'CSV',
-            ExportFormat.json: 'JSON',
-          },
+          labels: const {ExportFormat.csv: 'CSV', ExportFormat.json: 'JSON'},
           selected: _format,
           onSelect: (v) => setState(() => _format = v),
         ),
@@ -286,10 +282,12 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
         case ExportReady(:final plates):
           final dest = ref.read(exportDestinationProvider);
           final bytes = switch (_format) {
-            ExportFormat.csv =>
-              Uint8List.fromList(utf8.encode(serializePlatesToCsv(plates))),
-            ExportFormat.json =>
-              Uint8List.fromList(utf8.encode(serializePlatesToJson(plates))),
+            ExportFormat.csv => Uint8List.fromList(
+              utf8.encode(serializePlatesToCsv(plates)),
+            ),
+            ExportFormat.json => Uint8List.fromList(
+              utf8.encode(serializePlatesToJson(plates)),
+            ),
           };
           final filename = exportFilename(
             localDay: DateTime.now(),

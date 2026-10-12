@@ -38,10 +38,7 @@ void main() {
 
     test('day rollover resets the counter to zero', () async {
       var fakeNow = DateTime(2026, 8, 16, 10, 0);
-      final counter = InMemoryQuotaCounter(
-        ceiling: 5,
-        now: () => fakeNow,
-      );
+      final counter = InMemoryQuotaCounter(ceiling: 5, now: () => fakeNow);
       await counter.recordCall();
       await counter.recordCall();
       expect(await counter.callsToday(), 2);
@@ -54,10 +51,7 @@ void main() {
 
     test('resetAt returns the next UTC midnight in local time', () async {
       final fakeNow = DateTime(2026, 8, 16, 10, 0);
-      final counter = InMemoryQuotaCounter(
-        ceiling: 5,
-        now: () => fakeNow,
-      );
+      final counter = InMemoryQuotaCounter(ceiling: 5, now: () => fakeNow);
       final resetAt = await counter.resetAt();
       expect(resetAt, isNotNull);
       expect(resetAt!.year, 2026);

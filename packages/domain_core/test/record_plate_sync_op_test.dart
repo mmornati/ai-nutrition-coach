@@ -22,8 +22,7 @@ class _StubEncryptedStore implements EncryptedStore {
   Future<RecordPlateResult> recordPlate({
     required List<FoodEntryDraft> entries,
     DateTime? loggedAtUtc,
-  }) async =>
-      results.removeAt(0);
+  }) async => results.removeAt(0);
 
   @override
   Stream<List<PlateLog>> watchRecent({DateTime? since}) =>

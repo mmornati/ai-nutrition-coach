@@ -32,11 +32,7 @@ final _postResolveNote = CoachNote(
   generatedAt: DateTime.utc(2026, 8, 16),
 );
 
-Widget _wrap(
-  Widget child, {
-  FakeCoachNoteStore? notes,
-  FakeCoach? coach,
-}) {
+Widget _wrap(Widget child, {FakeCoachNoteStore? notes, FakeCoach? coach}) {
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
@@ -54,8 +50,9 @@ Widget _wrap(
 
 void main() {
   group('CoachWhisper', () {
-    testWidgets('renders the question text in serif italic (UX-DR5)',
-        (tester) async {
+    testWidgets('renders the question text in serif italic (UX-DR5)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(
@@ -71,8 +68,9 @@ void main() {
       );
     });
 
-    testWidgets('renders [sure] + [ask later] buttons (NFR7 / UX-DR5)',
-        (tester) async {
+    testWidgets('renders [sure] + [ask later] buttons (NFR7 / UX-DR5)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(
@@ -86,8 +84,9 @@ void main() {
       expect(find.text('ask later'), findsOneWidget);
     });
 
-    testWidgets('both pills hit ≥48px on the short axis (NFR7)',
-        (tester) async {
+    testWidgets('both pills hit ≥48px on the short axis (NFR7)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(
@@ -98,10 +97,7 @@ void main() {
       );
 
       final surePill = find
-          .ancestor(
-            of: find.text('sure'),
-            matching: find.byType(Container),
-          )
+          .ancestor(of: find.text('sure'), matching: find.byType(Container))
           .first;
       final askLaterPill = find
           .ancestor(
@@ -177,8 +173,9 @@ void main() {
       expect(notes.interactions.first.kind, CoachInteraction.askLater);
     });
 
-    testWidgets('depth [close] records depthAnswer and closes the panel',
-        (tester) async {
+    testWidgets('depth [close] records depthAnswer and closes the panel', (
+      tester,
+    ) async {
       final coach = FakeCoach()
         ..emit(
           const CoachFound(
@@ -215,8 +212,9 @@ void main() {
       expect(notes.interactions[1].kind, CoachInteraction.depthAnswer);
     });
 
-    testWidgets('a11y: question is announced + buttons are labelled by name',
-        (tester) async {
+    testWidgets('a11y: question is announced + buttons are labelled by name', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(
@@ -226,29 +224,25 @@ void main() {
         ),
       );
 
-      final whisperSemantics =
-          tester.getSemantics(find.byType(CoachWhisper));
+      final whisperSemantics = tester.getSemantics(find.byType(CoachWhisper));
       expect(whisperSemantics.label, contains('A handful of greens'));
 
-      expect(
-        tester.getSemantics(find.text('sure')).label,
-        contains('sure'),
-      );
+      expect(tester.getSemantics(find.text('sure')).label, contains('sure'));
       expect(
         tester.getSemantics(find.text('ask later')).label,
         contains('ask later'),
       );
     });
 
-    testWidgets('dark mode: pill colors come from AppPalette.dark (NFR8)',
-        (tester) async {
+    testWidgets('dark mode: pill colors come from AppPalette.dark (NFR8)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
             coachProvider.overrideWithValue(FakeCoach()),
-            coachNoteStoreProvider
-                .overrideWithValue(FakeCoachNoteStore()),
+            coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
           ],
           child: MaterialApp(
             theme: ThemeData.dark(),
@@ -269,8 +263,9 @@ void main() {
       expect(find.text('ask later'), findsOneWidget);
     });
 
-    testWidgets('reduced-motion: still renders without crashing (NFR8)',
-        (tester) async {
+    testWidgets('reduced-motion: still renders without crashing (NFR8)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(
@@ -282,8 +277,9 @@ void main() {
       expect(find.byType(CoachWhisper), findsOneWidget);
     });
 
-    testWidgets('null onAskLater: pill renders but does not crash on tap',
-        (tester) async {
+    testWidgets('null onAskLater: pill renders but does not crash on tap', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CoachWhisper(

@@ -37,8 +37,8 @@ class RecordPlate {
   const RecordPlate({
     required CoachNoteGenerator generator,
     RecordSyncOp? syncOpEnqueue,
-  })  : _generator = generator,
-        _syncOpEnqueue = syncOpEnqueue;
+  }) : _generator = generator,
+       _syncOpEnqueue = syncOpEnqueue;
 
   final CoachNoteGenerator _generator;
   final RecordSyncOp? _syncOpEnqueue;

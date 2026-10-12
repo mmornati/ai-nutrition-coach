@@ -40,7 +40,7 @@ class LockScreenBody extends StatefulWidget {
   /// wasm store; `false` on a wrong passphrase. The parent injects
   /// the probe so the body stays free of the drift/wasm details.
   final Future<bool> Function(WebSessionKey sessionKey, String passphrase)
-      onTryUnlock;
+  onTryUnlock;
 
   final WebSessionStrings copy;
   final LockScreenPalette palette;
@@ -145,10 +145,7 @@ class _LockScreenBodyState extends State<LockScreenBody> {
               const SizedBox(height: 16),
               Text(
                 _error!,
-                style: TextStyle(
-                  color: widget.palette.muted,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: widget.palette.muted, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],

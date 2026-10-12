@@ -16,11 +16,7 @@ import 'package:flutter/foundation.dart';
 ///   1. `photo`     → Snapshot  (Story 1.8, currently a placeholder)
 ///   2. `barcode`   → Scan a barcode (Story 1.7, currently a placeholder)
 ///   3. `typeOrTalk`→ Type or talk (Story 1.5, implemented)
-enum CaptureTarget {
-  photo,
-  barcode,
-  typeOrTalk,
-}
+enum CaptureTarget { photo, barcode, typeOrTalk }
 
 /// Thrown by the placeholder capture screens so a user tapping an
 /// unimplemented tile gets a typed, named failure rather than an

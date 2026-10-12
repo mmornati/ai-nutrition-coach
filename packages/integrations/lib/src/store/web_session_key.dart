@@ -39,10 +39,7 @@ const int kWebSessionKeyBytes = 32;
 const int kWebSessionSaltBytes = 16;
 
 class WebSessionKey {
-  WebSessionKey._({
-    required this.salt,
-    required this.iterations,
-  });
+  WebSessionKey._({required this.salt, required this.iterations});
 
   /// Process-wide singleton. `lock()` clears the derived key
   /// without clearing the salt (so the same passphrase still opens

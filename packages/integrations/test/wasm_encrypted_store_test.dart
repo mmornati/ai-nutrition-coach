@@ -62,10 +62,7 @@ void main() {
     test('lock() clears the derived key but keeps the salt', () async {
       final key = WebSessionKey();
       final saltBefore = Uint8List.fromList(key.salt);
-      await key.unlock(
-        passphrase: 'passphrase-123',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'passphrase-123', probe: (_) async => true);
       expect(key.isOpen, isTrue);
       key.lock();
       expect(key.isLocked, isTrue);
@@ -78,10 +75,7 @@ void main() {
       final s = key.toString();
       expect(s, contains('isOpen'));
       expect(s, isNot(contains('derivedKey')));
-      await key.unlock(
-        passphrase: 'whatever',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'whatever', probe: (_) async => true);
       expect(key.toString(), 'WebSessionKey(isOpen: true)');
     });
 
@@ -145,10 +139,7 @@ void main() {
           return AppDatabase(NativeDatabase.memory());
         },
       );
-      await key.unlock(
-        passphrase: 'whatever',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'whatever', probe: (_) async => true);
       final ok = await store.tryOpen();
       expect(ok, isTrue);
       expect(store.isOpen, isTrue);

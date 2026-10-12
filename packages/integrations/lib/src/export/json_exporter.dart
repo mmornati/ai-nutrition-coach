@@ -61,9 +61,7 @@ Map<String, Object?> _plateToJson(PlateLog plate) {
   return <String, Object?>{
     'id': plate.id,
     'loggedAtUtc': plate.loggedAtUtc.toUtc().toIso8601String(),
-    'entries': plate.entries
-        .map(_entryToJson)
-        .toList(growable: false),
+    'entries': plate.entries.map(_entryToJson).toList(growable: false),
   };
 }
 

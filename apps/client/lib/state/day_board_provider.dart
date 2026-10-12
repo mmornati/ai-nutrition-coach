@@ -31,27 +31,25 @@ enum MealSlot {
   dinner;
 
   String get label => switch (this) {
-        MealSlot.breakfast => 'Breakfast',
-        MealSlot.lunch => 'Lunch',
-        MealSlot.dinner => 'Dinner',
-      };
+    MealSlot.breakfast => 'Breakfast',
+    MealSlot.lunch => 'Lunch',
+    MealSlot.dinner => 'Dinner',
+  };
 
   /// Inclusive hour range for this slot in local time.
   ({int startHour, int endHour}) get hours => switch (this) {
-        MealSlot.breakfast => (startHour: 5, endHour: 10),
-        MealSlot.lunch => (startHour: 11, endHour: 15),
-        MealSlot.dinner => (startHour: 16, endHour: 22),
-      };
+    MealSlot.breakfast => (startHour: 5, endHour: 10),
+    MealSlot.lunch => (startHour: 11, endHour: 15),
+    MealSlot.dinner => (startHour: 16, endHour: 22),
+  };
 }
 
 /// A single bucket on the Day Board — either a logged plate or an open
 /// quiet dent. The screen renders one of these per slot.
 @immutable
 class DayBoardSlot {
-  const DayBoardSlot.plate({
-    required this.slot,
-    required this.plate,
-  }) : isOpen = false;
+  const DayBoardSlot.plate({required this.slot, required this.plate})
+    : isOpen = false;
 
   const DayBoardSlot.open({required this.slot}) : isOpen = true, plate = null;
 
@@ -66,10 +64,7 @@ class DayBoardSlot {
 /// end at next 00:00 local) so the filter stays user-local.
 @immutable
 class DayBoardDay {
-  const DayBoardDay({
-    required this.slots,
-    required this.date,
-  });
+  const DayBoardDay({required this.slots, required this.date});
 
   final List<DayBoardSlot> slots;
   final DateTime date;
@@ -82,9 +77,7 @@ class DayBoardDay {
 /// as the upstream stream so the UI renders the calm "History can't load
 /// right now." line on failure.
 class DayBoardState {
-  const DayBoardState._({
-    required this.async,
-  });
+  const DayBoardState._({required this.async});
 
   factory DayBoardState.loading() =>
       const DayBoardState._(async: AsyncValue.loading());
@@ -134,28 +127,21 @@ final dayBoardProvider = Provider<AsyncValue<DayBoardDay>>((ref) {
 /// allocate their own slot in the family cache.
 final dayBoardForDateProvider =
     Provider.family<AsyncValue<DayBoardDay>, DateTime>((ref, date) {
-  final localDay = DateUtils.dateOnly(date);
-  final plates = ref.watch(recentPlatesProvider);
-  return plates.when(
-    loading: () => const AsyncValue.loading(),
-    error: (e, st) => AsyncValue.error(e, st),
-    data: (list) =>
-        AsyncValue.data(_classifyForDate(list, date: localDay)),
-  );
-});
+      final localDay = DateUtils.dateOnly(date);
+      final plates = ref.watch(recentPlatesProvider);
+      return plates.when(
+        loading: () => const AsyncValue.loading(),
+        error: (e, st) => AsyncValue.error(e, st),
+        data: (list) => AsyncValue.data(_classifyForDate(list, date: localDay)),
+      );
+    });
 
 @visibleForTesting
-DayBoardDay classifyForDate(
-  List<PlateLog> plates, {
-  required DateTime date,
-}) {
+DayBoardDay classifyForDate(List<PlateLog> plates, {required DateTime date}) {
   return _classifyForDate(plates, date: date);
 }
 
-DayBoardDay _classifyForDate(
-  List<PlateLog> plates, {
-  required DateTime date,
-}) {
+DayBoardDay _classifyForDate(List<PlateLog> plates, {required DateTime date}) {
   final start = DateTime(date.year, date.month, date.day);
   final end = start.add(const Duration(days: 1));
 

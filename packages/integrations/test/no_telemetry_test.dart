@@ -35,8 +35,7 @@ final Directory _repoRoot = () {
   return dir;
 }();
 
-File _repoFile(String relativePath) =>
-    File('${_repoRoot.path}/$relativePath');
+File _repoFile(String relativePath) => File('${_repoRoot.path}/$relativePath');
 
 void main() {
   group('no-telemetry invariant (Story 4.5 / FR-12 / FR-9 / NFR4)', () {
@@ -46,10 +45,16 @@ void main() {
       // the documented user-enabled paths.
       final sanctionedPaths = <RegExp>[
         RegExp(r'packages/integrations/lib/src/catalog/'),
-        RegExp(r'packages/integrations/lib/src/ai/cloudflare_workers_ai_provider\.dart'),
+        RegExp(
+          r'packages/integrations/lib/src/ai/cloudflare_workers_ai_provider\.dart',
+        ),
         RegExp(r'packages/integrations/lib/src/ai/gemini_free_provider\.dart'),
-        RegExp(r'packages/integrations/lib/src/ai/byok_openai_compatible_provider\.dart'),
-        RegExp(r'packages/integrations/lib/src/ai/openai_compatible_byok_provider\.dart'),
+        RegExp(
+          r'packages/integrations/lib/src/ai/byok_openai_compatible_provider\.dart',
+        ),
+        RegExp(
+          r'packages/integrations/lib/src/ai/openai_compatible_byok_provider\.dart',
+        ),
         RegExp(r'packages/integrations/lib/src/sync/'),
         // The release-gate checker greps for the same patterns.
         RegExp(r'^tools/check_telemetry_claims\.dart$'),
@@ -88,8 +93,7 @@ void main() {
       );
     });
 
-    test('production main.dart does not invoke a network path at startup',
-        () {
+    test('production main.dart does not invoke a network path at startup', () {
       final main = _repoFile('apps/client/lib/main.dart').readAsStringSync();
       // Strip comments / strings before scanning.
       final stripped = main
@@ -129,8 +133,7 @@ void main() {
       skip: 'docs/self-host.md is missing the FR-12 "no telemetry" anchor',
     );
 
-    test('Tip Jar is Settings-only, never in a task flow (FR-15 / UX-DR9)',
-        () {
+    test('Tip Jar is Settings-only, never in a task flow (FR-15 / UX-DR9)', () {
       // The Day Board, capture sheet, and coach whisper widgets must
       // not render a Tip Jar affordance. The Settings sub-screen
       // (Story 4.1/4.2 / apps/client/lib/screens/) is the only
@@ -147,9 +150,9 @@ void main() {
       ];
       for (final path in surfaces) {
         // Strip line comments: the surfaces document "no Tip Jar".
-        final content = _repoFile(path)
-            .readAsStringSync()
-            .replaceAll(RegExp(r'//.*'), '');
+        final content = _repoFile(
+          path,
+        ).readAsStringSync().replaceAll(RegExp(r'//.*'), '');
         expect(
           content.toLowerCase().contains('tip jar'),
           isFalse,

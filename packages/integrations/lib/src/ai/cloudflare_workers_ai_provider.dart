@@ -22,7 +22,6 @@
 
 import 'dart:typed_data';
 
-
 import 'hosted_quota_provider.dart';
 
 /// The v1 default `HostedQuotaProvider` adapter. Calls Cloudflare
@@ -55,9 +54,7 @@ class CloudflareWorkersAiProvider implements HostedQuotaProvider {
   final String apiToken;
 
   @override
-  Future<HostedQuotaOutcome> recognize({
-    required Uint8List photoBytes,
-  }) async {
+  Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async {
     // OQ-2 stub body — the Cloudflare Workers AI integration is a
     // v1.1 effort (see the FR6 future-work note in
     // `docs/ai-tiers.md`). The v1 Story 3.2 build returns

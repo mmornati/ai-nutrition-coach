@@ -26,11 +26,11 @@ enum BalanceArcGroup {
   dairy;
 
   String get label => switch (this) {
-        BalanceArcGroup.vegFruit => 'Veg & Fruit',
-        BalanceArcGroup.protein => 'Protein',
-        BalanceArcGroup.starch => 'Starch',
-        BalanceArcGroup.dairy => 'Dairy',
-      };
+    BalanceArcGroup.vegFruit => 'Veg & Fruit',
+    BalanceArcGroup.protein => 'Protein',
+    BalanceArcGroup.starch => 'Starch',
+    BalanceArcGroup.dairy => 'Dairy',
+  };
 }
 
 /// The 4-segment balance arc. Sized to fit a 48px row budget (~64px
@@ -47,11 +47,11 @@ class BalanceArc extends StatelessWidget {
     required this.filled,
     this.size = 48,
     this.announceFilled = true,
-  })  : assert(size >= 24, 'size must be ≥ 24px for the arc to render'),
-        assert(
-          filled.length == BalanceArcGroup.values.length,
-          '`filled` must carry one entry per food-group bucket',
-        );
+  }) : assert(size >= 24, 'size must be ≥ 24px for the arc to render'),
+       assert(
+         filled.length == BalanceArcGroup.values.length,
+         '`filled` must carry one entry per food-group bucket',
+       );
 
   /// One entry per `BalanceArcGroup`, in the same order. `true` paints
   /// the sage fill on that quadrant; `false` leaves it on the track.
@@ -124,11 +124,7 @@ class BalanceArc extends StatelessWidget {
 }
 
 class _ArcPainter extends CustomPainter {
-  _ArcPainter({
-    required this.filled,
-    required this.track,
-    required this.fill,
-  });
+  _ArcPainter({required this.filled, required this.track, required this.fill});
 
   final List<bool> filled;
   final Color track;

@@ -16,8 +16,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// `(derived) => bundle.webUnlockProbe!(derived)` so the lock
 /// screen flips to the Day Board on the correct object.
 final Provider<Future<bool> Function(List<int> derivedKey)>
-    webUnlockProbeProvider =
-    Provider<Future<bool> Function(List<int> derivedKey)>((ref) {
+webUnlockProbeProvider = Provider<Future<bool> Function(List<int> derivedKey)>((
+  ref,
+) {
   throw UnimplementedError(
     'webUnlockProbeProvider must be overridden on the web target',
   );

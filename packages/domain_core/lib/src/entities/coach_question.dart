@@ -80,6 +80,7 @@ class CoachQuestion {
   int get hashCode => key.hashCode;
 
   @override
-  String toString() => 'CoachQuestion(key: "$key", text: "$text", '
+  String toString() =>
+      'CoachQuestion(key: "$key", text: "$text", '
       'anchor: $anchor, pattern: $pattern)';
 }

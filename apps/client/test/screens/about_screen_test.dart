@@ -7,27 +7,19 @@ import 'package:ai_nutrition_coach/screens/about_screen.dart';
 
 void main() {
   group('AboutScreen', () {
-    testWidgets('renders the v2 managed-oversight notice line', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AboutScreen(),
-        ),
-      );
+    testWidgets('renders the v2 managed-oversight notice line', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: AboutScreen()));
       expect(
-        find.textContaining('Family oversight is a v2 seam',
-            findRichText: true),
+        find.textContaining(
+          'Family oversight is a v2 seam',
+          findRichText: true,
+        ),
         findsOneWidget,
       );
     });
 
     testWidgets('renders the open-source footmark', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AboutScreen(),
-        ),
-      );
+      await tester.pumpWidget(const MaterialApp(home: AboutScreen()));
       expect(find.text('yours to run · open source'), findsOneWidget);
     });
 

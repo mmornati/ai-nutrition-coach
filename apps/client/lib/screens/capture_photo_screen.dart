@@ -71,8 +71,7 @@ class CapturePhotoScreen extends ConsumerStatefulWidget {
   const CapturePhotoScreen({super.key});
 
   @override
-  ConsumerState<CapturePhotoScreen> createState() =>
-      _CapturePhotoScreenState();
+  ConsumerState<CapturePhotoScreen> createState() => _CapturePhotoScreenState();
 }
 
 class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
@@ -235,11 +234,9 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
   }
 
   Future<void> _typeInstead() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const ManualEntryScreen(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()));
     if (!mounted) return;
     Navigator.of(context).maybePop();
   }
@@ -426,9 +423,10 @@ class _ReadyBody extends StatelessWidget {
   String _summaryFor(RecognitionResult? result) {
     if (result == null) return 'Reading your plate…';
     return switch (result) {
-      RecognizedPlate(:final foods) => foods.isEmpty
-          ? 'No foods matched — pick one below.'
-          : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
+      RecognizedPlate(:final foods) =>
+        foods.isEmpty
+            ? 'No foods matched — pick one below.'
+            : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
       NoMatch() => 'Nothing on this plate — pick one below.',
       QuotaExhausted() =>
         "The free quota is done for today — pick a closest match below.",
