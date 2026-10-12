@@ -15,7 +15,7 @@
 // announces the field by name; reduce-motion collapses the gate
 // transition to a fade; dynamic type honored without truncation.
 
-import 'package:domain_core/domain_core.dart';
+import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 import 'package:flutter/material.dart';
 
 import '../l10n/coach_strings.dart';

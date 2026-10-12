@@ -631,4 +631,3 @@ const ManagedOversightStrings enManagedOversightStrings =
       'Family oversight is a v2 seam — not in v1. Read-only, '
       'support-not-surveillance, pending COPPA review.',
 );
-);

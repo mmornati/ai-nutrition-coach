@@ -116,6 +116,13 @@ class WebSessionKey {
     _derived = null;
   }
 
+  /// Dev-only — forcibly unlock the session without a passphrase.
+  /// The dev-in-memory path calls this so the lock screen is skipped
+  /// in local development.
+  void forceUnlock() {
+    _derived = Uint8List(kWebSessionKeyBytes);
+  }
+
   /// Returns the derived key, or `null` while the session is
   /// locked. The `WasmEncryptedStore` reads this when it needs to
   /// open the underlying database; if the key is null it returns

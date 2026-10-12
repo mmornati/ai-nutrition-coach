@@ -444,6 +444,9 @@ class _Header extends StatelessWidget {
       case NoMatch():
         title = 'Nothing on this plate';
         subtitle = 'Pick a closest match or type the food manually.';
+      case QuotaExhausted():
+        title = 'The free quota is done for today';
+        subtitle = 'Pick a closest match, type it manually, or wait for the reset.';
       case RecognitionFailure():
         title = "Search isn't available right now.";
         subtitle = 'You can still pick a closest match or type it manually.';

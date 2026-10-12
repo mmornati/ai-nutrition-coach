@@ -127,7 +127,7 @@ class PlateRow extends ConsumerWidget {
                 style: AppTypography.mono.copyWith(color: palette.inkMuted),
               ),
               const SizedBox(width: AppSpacing.sm),
-              const StatusChip(),
+              StatusChip(plateLogId: plate.id),
             ],
           ),
         ),

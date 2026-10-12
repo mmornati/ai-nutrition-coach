@@ -31,7 +31,6 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:domain_core/domain_core.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 import 'app_database.dart';
 
@@ -53,7 +52,7 @@ class LocalCoachNoteStore implements CoachNoteStore {
             ),
           );
       return CoachNoteAppended(note.copyWith(id: id));
-    } on sqlite3.SqliteException catch (_) {
+    } on DriftWrappedException catch (_) {
       return const CoachNoteAppendFailure(StoreFailure(
         encryptedStoreError: SecureKeyFailure(),
       ));
@@ -93,7 +92,7 @@ class LocalCoachNoteStore implements CoachNoteStore {
             ),
           );
       return CoachInteractionRecorded(id);
-    } on sqlite3.SqliteException catch (_) {
+    } on DriftWrappedException catch (_) {
       return const CoachInteractionFailed(
         StoreFailure(encryptedStoreError: SecureKeyFailure()),
       );
