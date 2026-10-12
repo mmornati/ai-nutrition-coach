@@ -10,12 +10,13 @@
 // Callers invoke `withCoachProviders(overrides: [...])` to get a new
 // list that prepends the coach providers onto their own overrides.
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:domain_core/domain_core.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
 import 'package:ai_nutrition_coach/state/coach_provider.dart';
 
-import '_fakes/fake_encrypted_store.dart';
+import 'fake_encrypted_store.dart';
 
 /// Wrap any existing list of overrides with the coach provider
 /// overrides every widget / provider test needs. The `coachProvider`

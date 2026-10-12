@@ -14,7 +14,7 @@
 // throws across the `AiRung` port boundary — transport failures
 // are wrapped in `RecognitionFailure` so the UI renders a single
 // calm message regardless of cause. The v1 quota ceiling is
-/// `kHostedQuotaPerDay = 50` (FR6 disclosed in-app and in docs).
+// `kHostedQuotaPerDay = 50` (FR6 disclosed in-app and in docs).
 //
 // AD-5: the core never branches on whether the rung is
 // `hostedQuota` vs `noOp`. The active rung is selected by config
@@ -46,10 +46,9 @@ const int kHostedQuotaPerDay = 50;
 /// `spec-3-2-hosted-quota-rung-with-honest-3-way-quota-exhaustion.md`.
 class HostedQuotaAiRung implements AiRung {
   const HostedQuotaAiRung({
-    required QuotaCounter quotaCounter,
-    required HostedQuotaProvider provider,
-  })  : _quotaCounter = quotaCounter,
-        _provider = provider;
+    required this._quotaCounter,
+    required this._provider,
+  });
 
   final QuotaCounter _quotaCounter;
   final HostedQuotaProvider _provider;

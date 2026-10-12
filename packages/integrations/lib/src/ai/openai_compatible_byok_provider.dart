@@ -36,8 +36,8 @@ class OpenAiCompatibleByokProvider implements ByokOpenAiCompatibleProvider {
   const OpenAiCompatibleByokProvider({
     this.endpointUrl = '',
     this.model = '',
-    Dio? dio,
-  }) : _dio = dio;
+    this._dio,
+  });
 
   /// The OpenAI-compatible endpoint URL (e.g.
   /// `https://openrouter.ai/api/v1`). Build-time configuration.

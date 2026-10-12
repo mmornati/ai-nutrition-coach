@@ -173,15 +173,6 @@ class SecureStorageQuotaCounter implements QuotaCounter {
     );
   }
 
-  Future<({DateTime day, int calls})> _freshDay(
-    String providerKind,
-  ) async {
-    final today = _today();
-    final fresh = (day: today, calls: 0);
-    await _write(providerKind, today, 0);
-    return fresh;
-  }
-
   @override
   Future<int> callsToday() async {
     final providerKind = 'hostedQuota';

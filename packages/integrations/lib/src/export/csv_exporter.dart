@@ -28,7 +28,7 @@ const String kCsvHeader =
     'quantity_display_label';
 
 class CsvExporter implements Exporter {
-  CsvExporter({required EncryptedStore store}) : _store = store;
+  CsvExporter({required this._store});
 
   final EncryptedStore _store;
 

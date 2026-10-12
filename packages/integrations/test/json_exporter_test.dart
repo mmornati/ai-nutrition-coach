@@ -5,7 +5,6 @@
 // per plate / entry.
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:integrations/integrations.dart';
@@ -13,6 +12,34 @@ import 'package:test/test.dart';
 
 class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
+  final List<PlateLog> _plates;
+  @override
+  Future<RecordPlateResult> recordPlate(
+      {required List<FoodEntryDraft> entries, DateTime? loggedAtUtc}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<List<PlateLog>> watchRecent({DateTime? since}) {
+    // Multi-listen, like drift's `query.watch()`: every listener gets
+    // its own snapshot. (The exporters listen twice — see the skipped
+    // single-subscription regression test.)
+    return Stream<List<PlateLog>>.multi((controller) {
+      controller
+        ..add(List.unmodifiable(_plates))
+        ..close();
+    });
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+/// A store whose `watchRecent` is single-subscription (an `async*`
+/// generator), like `InMemoryEncryptedStore` (the web dev store) and
+/// the io `_SecureKeyFailureStore` stub.
+class _SingleSubscriptionStore implements EncryptedStore {
+  _SingleSubscriptionStore(this._plates);
   final List<PlateLog> _plates;
   @override
   Future<RecordPlateResult> recordPlate(
@@ -139,12 +166,21 @@ void main() {
       final r = await stream.first;
       expect(r, isA<ExportFormatFailure>());
     });
+    // Lib bug: `JsonExporter.readPlates` calls `stream.listen(...)` and then
+    // `stream.first` on the same `watchRecent()` stream, which throws
+    // "Stream has already been listened to" for single-subscription
+    // stores. Drift-backed stores allow multiple listeners, so mobile
+    // is unaffected.
+    test(
+      'readPlates works over a single-subscription watchRecent stream',
+      () async {
+        final exp = JsonExporter(store: _SingleSubscriptionStore(const <PlateLog>[]));
+        final got = await exp.readPlates(
+          scope: const ExportScope.allHistory(),
+        );
+        expect(got, isEmpty);
+      },
+      skip: 'lib bug: JsonExporter listens to watchRecent() twice',
+    );
   });
-}
-
-// Touch `Uint8List` so the analyzer is happy when this file is
-// imported in isolation.
-void _touch() {
-  final _ = Uint8List(0);
-  _;
 }

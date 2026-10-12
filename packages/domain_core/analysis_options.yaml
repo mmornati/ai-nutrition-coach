@@ -15,7 +15,6 @@ include: package:lints/recommended.yaml
 #     `dart:io`, `sqlite3`, `http`) and fails the build if any show up.
 analyzer:
   errors:
-    import_of_legacy_library_into_null_safe: error
     unused_import: warning
     dead_code: warning
   exclude:

@@ -390,7 +390,7 @@ class ByokStrings {
 
   /// Hint copy rendered under the BYOK entry form when the
   /// previous rung is recorded. Reads "removing this key returns
-  /// to <previous rung label>" (calm non-judgmental; FR7).
+  /// to `<previous rung label>`" (calm non-judgmental; FR7).
   final String previousRungHint;
 }
 
@@ -532,7 +532,7 @@ class ExportStrings {
   final String exportButton;
 
   /// The calm line after a successful export. Renders as
-  /// "exported: <file>" with the filename in mono. No card, no
+  /// "exported: `<file>`" with the filename in mono. No card, no
   /// celebration.
   final String exportedLine;
 

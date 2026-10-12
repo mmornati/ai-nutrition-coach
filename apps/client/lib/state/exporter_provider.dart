@@ -42,9 +42,9 @@ final Provider<ExportDestination> exportDestinationProvider =
 /// Resolve a one-shot `ExportResult` for the user-pinned (format,
 /// scope) pair. The provider is autoDispose so a second export
 /// starts a fresh stream.
-final FutureProvider.autoDispose
-    .family<ExportResult, ({ExportFormat format, ExportScope scope})>
-    exportTaskProvider = FutureProvider.autoDispose.family((ref, args) async {
+final exportTaskProvider = FutureProvider.autoDispose
+    .family<ExportResult, ({ExportFormat format, ExportScope scope})>(
+        (ref, args) async {
   final Exporter exporter = args.format == ExportFormat.csv
       ? ref.watch(csvExporterProvider)
       : ref.watch(jsonExporterProvider);
@@ -57,7 +57,7 @@ final FutureProvider.autoDispose
 
 /// Build the export filename from the local date + format
 /// extension. The filename is the user-facing artefact the
-/// "exported: <file>" line references. AD-9: the file is a copy;
+/// "exported: `<file>`" line references. AD-9: the file is a copy;
 /// the source is untouched.
 String exportFilename({
   required DateTime localDay,

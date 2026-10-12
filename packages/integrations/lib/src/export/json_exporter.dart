@@ -20,7 +20,7 @@ import 'package:domain_core/domain_core.dart';
 import 'csv_exporter.dart' show filterPlates;
 
 class JsonExporter implements Exporter {
-  JsonExporter({required EncryptedStore store}) : _store = store;
+  JsonExporter({required this._store});
 
   final EncryptedStore _store;
 

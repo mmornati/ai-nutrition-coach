@@ -30,6 +30,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,7 +126,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             ExportFormat.json: 'JSON',
           },
           selected: _format,
-          onSelect: (v) => setState(() => _format = v as ExportFormat),
+          onSelect: (v) => setState(() => _format = v),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(

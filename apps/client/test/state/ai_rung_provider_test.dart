@@ -19,10 +19,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
 
+/// Overrides every adapter seam with an in-memory double so any
+/// `AiRungKind` can resolve (the seams have no default — see
+/// `ai_rung_provider.dart`).
 ProviderContainer _container({required AiRungConfig config}) {
   return ProviderContainer(
     overrides: [
       aiRungConfigProvider.overrideWithValue(config),
+      quotaCounterProvider.overrideWithValue(
+        InMemoryQuotaCounter(ceiling: 5),
+      ),
+      hostedQuotaProviderProvider.overrideWithValue(
+        const CloudflareWorkersAiProvider(),
+      ),
+      byokKeyStoreProvider.overrideWithValue(InMemoryByokKeyStore()),
+      byokOpenAiCompatibleProviderProvider.overrideWithValue(
+        const OpenAiCompatibleByokProvider(),
+      ),
     ],
   );
 }

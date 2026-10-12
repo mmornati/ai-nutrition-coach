@@ -24,7 +24,6 @@
 // by an at-rest cipher.
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 import 'package:drift/drift.dart';
@@ -39,11 +38,10 @@ import 'web_session_key.dart';
 /// pure-Dart in-memory database.
 class WasmEncryptedStore implements EncryptedStore {
   WasmEncryptedStore({
-    required WebSessionKey sessionKey,
+    required this._sessionKey,
     required Future<AppDatabase> Function(Uint8List derivedKey)
         databaseOpener,
-  })  : _sessionKey = sessionKey,
-        _openDatabase = databaseOpener;
+  }) : _openDatabase = databaseOpener;
 
   final WebSessionKey _sessionKey;
   final Future<AppDatabase> Function(Uint8List) _openDatabase;
@@ -203,8 +201,6 @@ class WasmEncryptedStore implements EncryptedStore {
         .toList(growable: false);
   }
 }
-
-String _formatNum(num n) => n.toString();
 
 num _parseNum(String raw) {
   if (raw.contains('.') || raw.contains('e') || raw.contains('E')) {

@@ -48,10 +48,9 @@ import 'byok_openai_compatible_provider.dart';
 /// `spec-3-3-byok-bring-your-own-api-key.md`.
 class ByokAiRung implements AiRung {
   const ByokAiRung({
-    required ByokKeyStore keyStore,
-    required ByokOpenAiCompatibleProvider provider,
-  })  : _keyStore = keyStore,
-        _provider = provider;
+    required this._keyStore,
+    required this._provider,
+  });
 
   final ByokKeyStore _keyStore;
   final ByokOpenAiCompatibleProvider _provider;

@@ -14,16 +14,11 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
 import 'package:ai_nutrition_coach/state/coach_provider.dart';
 import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
 class _FakeEncryptedStore implements EncryptedStore {
-  _FakeEncryptedStore({RecordPlateResult? recordResult})
-      : _recordResult = recordResult;
-
-  final RecordPlateResult? _recordResult;
   int recordCalls = 0;
 
   @override
@@ -32,7 +27,6 @@ class _FakeEncryptedStore implements EncryptedStore {
     DateTime? loggedAtUtc,
   }) async {
     recordCalls++;
-    if (_recordResult != null) return _recordResult!;
     final id = recordCalls;
     final committed = <FoodEntry>[
       for (var i = 0; i < entries.length; i++)

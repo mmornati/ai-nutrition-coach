@@ -29,6 +29,7 @@ void main() {
       final counter = _FakeQuotaCounter(
         ceiling: 5,
         initialCalls: 5,
+        resetAt: DateTime(2026, 8, 17),
       );
       var transportCalls = 0;
       final provider = _FakeHostedQuotaProvider(
@@ -188,13 +189,12 @@ class _FakeQuotaCounter implements QuotaCounter {
   _FakeQuotaCounter({
     required this.ceiling,
     required this.initialCalls,
-    this.resetAt,
+    this._resetAt,
   }) : _calls = initialCalls;
 
-  @override
   final int ceiling;
   final int initialCalls;
-  final DateTime? resetAt;
+  final DateTime? _resetAt;
   int _calls;
   int recordCallCount = 0;
 
@@ -208,7 +208,7 @@ class _FakeQuotaCounter implements QuotaCounter {
   }
 
   @override
-  Future<DateTime?> resetAt() async => resetAt;
+  Future<DateTime?> resetAt() async => _resetAt;
 
   @override
   Future<bool> isExhausted() async => _calls >= ceiling;

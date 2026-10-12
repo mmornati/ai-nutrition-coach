@@ -13,7 +13,6 @@ import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
 import 'state/web_session_key_provider.dart';
 import 'state/web_unlock_probe_provider.dart';
-import 'state/your_ai_provider.dart';
 import 'theme/app_tokens.dart';
 import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';

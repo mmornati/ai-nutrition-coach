@@ -47,13 +47,9 @@ class _FakeCoach implements Coach {
   final List<({CoachAnchor anchor, CompositionPattern pattern})> calls =
       <({CoachAnchor anchor, CompositionPattern pattern})>[];
   final List<CoachInteractionLog> interactions = [];
-  CoachInteractionResult _nextInteraction = const CoachInteractionRecorded(1);
-  CoachNoteAppendResult? _nextAppendResult;
   CoachQuestionResult _next = const NoCoachQuestion();
   CoachQuestionResult _depthNext = const NoCoachQuestion();
   bool throwOnDepthCall = false;
-  int _nextNoteId = 100;
-  int _nextInteractionId = 1;
 
   void emit(CoachQuestionResult result) {
     _next = result;
@@ -61,20 +57,6 @@ class _FakeCoach implements Coach {
 
   void emitDepth(CoachQuestionResult result) {
     _depthNext = result;
-  }
-
-  /// Force the next `recordInteraction` to return a typed failure.
-  void forceInteractionFailure() {
-    _nextInteraction = const CoachInteractionFailed(
-      StoreFailure(encryptedStoreError: SecureKeyFailure()),
-    );
-  }
-
-  /// Force the next `append` to fail (the depth follow-up path).
-  void forceAppendFailure() {
-    _nextAppendResult = const CoachNoteAppendFailure(
-      StoreFailure(encryptedStoreError: SecureKeyFailure()),
-    );
   }
 
   @override
@@ -261,7 +243,7 @@ void main() {
 
   group('RecordCoachInteraction use-case dispatch (FR5 / AD-3 / AD-5)',
       () {
-    CoachNote _postResolveNote({
+    CoachNote postResolveNote({
       int id = 7,
       int plateLogId = 7,
       String questionKey = 'post.resolve.vegLight',
@@ -295,7 +277,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -333,7 +315,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -356,7 +338,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.askLater,
       );
 
@@ -376,7 +358,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.dismiss,
       );
 
@@ -396,7 +378,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.depthAnswer,
       );
 
@@ -418,7 +400,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -434,7 +416,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -451,7 +433,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.askLater,
       );
 
@@ -480,7 +462,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 

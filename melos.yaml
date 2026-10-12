@@ -16,11 +16,11 @@ command:
 scripts:
   analyze:
     description: Run static analysis across every package in the workspace.
-    run: melos exec -c 1 --order-dependents -- "if grep -q '^flutter:' pubspec.yaml; then flutter analyze; else dart analyze; fi"
+    run: melos exec -c 1 --order-dependents -- "if grep -qE '^flutter:|sdk:[[:space:]]+flutter' pubspec.yaml; then flutter analyze; else dart analyze; fi"
 
   test:
     description: Run unit tests across every package in the workspace.
-    run: melos exec -c 4 --order-dependents -- "if grep -q '^flutter:' pubspec.yaml; then flutter test; else dart test; fi"
+    run: melos exec -c 4 --order-dependents -- "if grep -qE '^flutter:|sdk:[[:space:]]+flutter' pubspec.yaml; then flutter test; else dart test; fi"
 
   format:check:
     description: Verify every package is `dart format`-clean.

@@ -4,10 +4,10 @@
 //   * all four rungs (`NoopAiRung`, `HostedQuotaAiRung`,
 //     `ByokAiRung`, `LocalAiRung`) implement the `AiRung` interface;
 //   * `LocalAiRung.recognize` throws `UnsupportedError` (FR8 v2 seam);
-//   * `HostedQuotaAiRung.recognize` returns the documented
-//     `RecognitionFailure` stub (Story 3.2 fills the body);
-//   * `ByokAiRung.recognize` returns the documented
-//     `RecognitionFailure` stub (Story 3.3 fills the body);
+//   * `HostedQuotaAiRung.recognize` returns `QuotaExhausted` before
+//     any transport call when the quota is spent (Story 3.2);
+//   * `ByokAiRung.recognize` returns the calm key-missing
+//     `RecognitionFailure` before any transport call (Story 3.3);
 //   * `NoopAiRung.recognize` continues to ship the empty
 //     `RecognizedPlate` shape (Story 1.8 carry-over — no regression).
 
@@ -27,26 +27,27 @@ void main() {
       expect((result as RecognizedPlate).foods, isEmpty);
     });
 
-    test('HostedQuotaAiRung implements AiRung and returns the documented '
-        'RecognitionFailure stub (Story 3.2 fills the body)', () async {
-      const AiRung rung = HostedQuotaAiRung();
+    test('HostedQuotaAiRung implements AiRung and short-circuits to '
+        'QuotaExhausted before any transport call (Story 3.2)', () async {
+      final AiRung rung = HostedQuotaAiRung(
+        quotaCounter: InMemoryQuotaCounter(ceiling: 0),
+        provider: const CloudflareWorkersAiProvider(),
+      );
       final result = await rung.recognize(Uint8List(0));
-      expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('hosted-quota not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.2'));
+      expect(result, isA<QuotaExhausted>());
     });
 
-    test('ByokAiRung implements AiRung and returns the documented '
-        'RecognitionFailure stub (Story 3.3 fills the body)', () async {
-      const AiRung rung = ByokAiRung();
+    test('ByokAiRung implements AiRung and returns the calm key-missing '
+        'RecognitionFailure before any transport call (Story 3.3)',
+        () async {
+      final AiRung rung = ByokAiRung(
+        keyStore: InMemoryByokKeyStore(),
+        provider: const OpenAiCompatibleByokProvider(),
+      );
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<RecognitionFailure>());
       expect((result as RecognitionFailure).cause.toString(),
-          contains('byok not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.3'));
+          contains('byok key missing'));
     });
 
     test('LocalAiRung implements AiRung and throws UnsupportedError '
@@ -67,8 +68,14 @@ void main() {
         'holds one of each', () {
       final rungs = <AiRung>[
         const NoopAiRung(),
-        const HostedQuotaAiRung(),
-        const ByokAiRung(),
+        HostedQuotaAiRung(
+          quotaCounter: InMemoryQuotaCounter(ceiling: 5),
+          provider: const CloudflareWorkersAiProvider(),
+        ),
+        ByokAiRung(
+          keyStore: InMemoryByokKeyStore(),
+          provider: const OpenAiCompatibleByokProvider(),
+        ),
         const LocalAiRung(),
       ];
       expect(rungs, hasLength(4));

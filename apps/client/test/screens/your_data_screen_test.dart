@@ -7,6 +7,7 @@
 // web. Stories 4.2 / 4.3 will append the export + sync surfaces
 // below this line.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,9 @@ void main() {
           findsOneWidget,
         );
       },
+      // The screen only reads the session key on `kIsWeb`; on the
+      // VM it always renders the unlocked (mobile) posture.
+      skip: !kIsWeb,
     );
 
     testWidgets(

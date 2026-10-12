@@ -15,10 +15,8 @@
 //
 // No raw exceptions cross either port (conventions).
 
-import '../entities/sync_op.dart';
-
-/// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
-/// Re-exported here for ergonomic import paths.
+// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
+// Re-exported here for ergonomic import paths.
 export '../entities/sync_queue_state.dart';
 
 /// The `SyncOp` is re-exported here for ergonomic import paths.

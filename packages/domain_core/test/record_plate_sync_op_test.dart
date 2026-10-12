@@ -6,19 +6,17 @@
 //      write after `RecordPlateSuccess` (AD-3).
 //   2. The enqueue is best-effort: a failure on the queue path
 //      never blocks the log.
-
-import 'dart:typed_data';
+//
+// domain_core cannot depend on integrations (AD-1), so the queue and
+// the coach seams are in-test fakes over the domain ports.
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
+import 'package:test/test.dart';
 
 class _StubEncryptedStore implements EncryptedStore {
-  final List<RecordPlateResult> results;
-  final StreamController<List<PlateLog>> _watchCtl =
-      StreamController<List<PlateLog>>.broadcast();
-
   _StubEncryptedStore(this.results);
+
+  final List<RecordPlateResult> results;
 
   @override
   Future<RecordPlateResult> recordPlate({
@@ -28,14 +26,65 @@ class _StubEncryptedStore implements EncryptedStore {
       results.removeAt(0);
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) => _watchCtl.stream;
+  Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
+      const Stream<List<PlateLog>>.empty();
 
   @override
-  Future<void> close() async => _watchCtl.close();
+  Future<void> close() async {}
 }
+
+/// Records every enqueued op.
+class _RecordingSyncQueue implements SyncQueue {
+  final List<SyncOp> enqueued = [];
+
+  @override
+  Future<EnqueueResult> enqueue(SyncOp op) async {
+    enqueued.add(op);
+    return const Enqueued();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('not used');
+}
+
+/// Inert coach seams — `CoachNoteGenerator` collapses their failures
+/// to `NoCoachNoteGenerated`, so the log path never sees them.
+class _StubCoach implements Coach {
+  const _StubCoach();
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('not used');
+}
+
+class _StubCoachNoteStore implements CoachNoteStore {
+  const _StubCoachNoteStore();
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('not used');
+}
+
+const _apple = FoodEntryDraft(
+  databaseFood: DatabaseFood(
+    sourceRef: 'seed-1',
+    displayName: 'apple',
+    source: SourceCatalog.manual,
+  ),
+  quantity: QuantityRange(
+    low: 1,
+    high: 1,
+    unit: 'piece',
+    displayLabel: '1 piece',
+  ),
+);
 
 void main() {
   group('RecordPlate + RecordSyncOp', () {
+    const generator = CoachNoteGenerator(
+      coach: _StubCoach(),
+      store: _StubCoachNoteStore(),
+    );
+
     test('enqueues after a successful local commit', () async {
       final plate = PlateLog(
         id: 42,
@@ -44,88 +93,43 @@ void main() {
           FoodEntry(
             id: 1,
             plateLogId: 42,
-            databaseFood: const DatabaseFood(
-              sourceRef: 'seed-1',
-              displayName: 'apple',
-              source: SourceCatalog.manual,
-            ),
-            quantity: const QuantityRange(
-              low: 1,
-              high: 1,
-              unit: 'piece',
-              displayLabel: '1 piece',
-            ),
+            databaseFood: _apple.databaseFood,
+            quantity: _apple.quantity,
           ),
         ],
       );
       final store = _StubEncryptedStore([RecordPlateSuccess(plate)]);
-      final queue = DriftSyncQueue();
-      final useCase = RecordSyncOp(queue: queue);
+      final queue = _RecordingSyncQueue();
       final recordPlate = RecordPlate(
-        generator: const TemplateCoach().generator,
-        syncOpEnqueue: useCase,
+        generator: generator,
+        syncOpEnqueue: RecordSyncOp(queue: queue),
       );
-      await recordPlate(
-        entries: const [
-          FoodEntryDraft(
-            databaseFood: DatabaseFood(
-              sourceRef: 'seed-1',
-              displayName: 'apple',
-              source: SourceCatalog.manual,
-            ),
-            quantity: QuantityRange(
-              low: 1,
-              high: 1,
-              unit: 'piece',
-              displayLabel: '1 piece',
-            ),
-          ),
-        ],
-        store: store,
-      );
-      final state = await queue.watchState().first;
-      expect(state.pending, 1);
-      queue.dispose();
+
+      final result = await recordPlate(entries: const [_apple], store: store);
+
+      expect(result, isA<RecordPlateSuccess>());
+      expect(queue.enqueued, hasLength(1));
+      final op = queue.enqueued.single;
+      expect(op.plateLogId, 42);
+      expect(op.opId, 'plate-42');
+      expect(op.kind, SyncOpKind.plateLogCreated);
+      expect(op.enqueuedAtUtc, plate.loggedAtUtc);
     });
 
     test('does not enqueue when the local commit fails', () async {
       final store = _StubEncryptedStore([
         const StoreFailure(validationError: EmptyPlateFailure()),
       ]);
-      final queue = DriftSyncQueue();
-      final useCase = RecordSyncOp(queue: queue);
+      final queue = _RecordingSyncQueue();
       final recordPlate = RecordPlate(
-        generator: const TemplateCoach().generator,
-        syncOpEnqueue: useCase,
+        generator: generator,
+        syncOpEnqueue: RecordSyncOp(queue: queue),
       );
-      await recordPlate(
-        entries: const [
-          FoodEntryDraft(
-            databaseFood: DatabaseFood(
-              sourceRef: 'seed-1',
-              displayName: 'apple',
-              source: SourceCatalog.manual,
-            ),
-            quantity: QuantityRange(
-              low: 1,
-              high: 1,
-              unit: 'piece',
-              displayLabel: '1 piece',
-            ),
-          ),
-        ],
-        store: store,
-      );
-      final state = await queue.watchState().first;
-      expect(state.pending, 0);
-      expect(state.total, 0);
-      queue.dispose();
-    });
-  });
 
-  // Pin a no-op Uint8List reference so the test imports compile
-  // even when the runtime path doesn't reach the byte buffer.
-  test('Uint8List is available', () {
-    expect(Uint8List(0), isA<Uint8List>());
+      final result = await recordPlate(entries: const [_apple], store: store);
+
+      expect(result, isA<StoreFailure>());
+      expect(queue.enqueued, isEmpty);
+    });
   });
 }

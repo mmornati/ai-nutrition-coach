@@ -9,14 +9,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/screens/lock_screen.dart';
 import 'package:ai_nutrition_coach/state/web_session_key_provider.dart';
+import 'package:ai_nutrition_coach/state/web_unlock_probe_provider.dart';
 
 void main() {
   group('LockScreen a11y floor (Story 5.4 / NFR-7)', () {
     testWidgets('passphrase field is announced by name', (tester) async {
+      final handle = tester.ensureSemantics();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             webSessionKeyProvider.overrideWithValue(WebSessionKey()),
+            webUnlockProbeProvider.overrideWithValue((_) async => false),
           ],
           child: const MaterialApp(
             home: LockScreen(),
@@ -29,6 +32,7 @@ void main() {
         find.bySemanticsLabel(RegExp(r'.*store.*', caseSensitive: false)),
         findsWidgets,
       );
+      handle.dispose();
     });
   });
 }
