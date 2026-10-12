@@ -68,4 +68,11 @@ class WasmCoachNoteStore implements CoachNoteStore {
     if (delegate == null) return const CoachInteractionFailed(_locked);
     return delegate.recordInteraction(log);
   }
+
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async {
+    final delegate = _delegate();
+    if (delegate == null) return const PlateDeleteFailed(_locked);
+    return delegate.deleteForPlate(plateLogId);
+  }
 }

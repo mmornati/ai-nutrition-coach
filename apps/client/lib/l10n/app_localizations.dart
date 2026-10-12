@@ -829,6 +829,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'offline · own icon'**
   String get settingsInstallRowSubtitle;
+
+  /// One-time first-run notice heading.
+  ///
+  /// In en, this message translates to:
+  /// **'About this app'**
+  String get aboutNoticeTitle;
+
+  /// First-run notice line 1.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenPlate is designed for adults.'**
+  String get aboutNoticeAdults;
+
+  /// First-run notice line 2.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo recognition is off by default. If you turn it on, a photo is sent to a service you choose, and only after you say yes.'**
+  String get aboutNoticeAi;
+
+  /// First-run notice line 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plates stay on this device, encrypted. There are no accounts and no analytics.'**
+  String get aboutNoticeLocal;
+
+  /// Dismiss button of the first-run notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get aboutNoticeOk;
+
+  /// Link text to the in-app privacy page (first-run notice, barcode notice, consent dialog, Your AI).
+  ///
+  /// In en, this message translates to:
+  /// **'What this app stores and sends'**
+  String get privacyLinkLabel;
+
+  /// Privacy page title.
+  ///
+  /// In en, this message translates to:
+  /// **'What this app stores and sends'**
+  String get privacyTitle;
+
+  /// Privacy page intro.
+  ///
+  /// In en, this message translates to:
+  /// **'A plain list. Nothing here is hidden, and nothing about you is collected.'**
+  String get privacyIntro;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored on this device, encrypted'**
+  String get privacyStoredHeading;
+
+  /// Privacy page: what is stored.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. On a phone the key stays in the system keystore; on the web it is made from your passphrase and kept only while the app is unlocked.'**
+  String get privacyStoredBody;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'What leaves this device, and when'**
+  String get privacyLeavesHeading;
+
+  /// Privacy page: barcode lookups.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and, on the web, the address of this site (the browser adds it as the Origin header). You can turn this off below.'**
+  String get privacyLeavesBarcode;
+
+  /// Privacy page: AI photo upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.'**
+  String get privacyLeavesPhoto;
+
+  /// Privacy page: ML Kit note (PV4, unverified).
+  ///
+  /// In en, this message translates to:
+  /// **'On Android, barcode scanning uses Google ML Kit inside the app, which may report usage statistics to Google. We have not verified this yet.'**
+  String get privacyLeavesAndroid;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'What the server you got this app from sees'**
+  String get privacyServerHeading;
+
+  /// Privacy page: server.
+  ///
+  /// In en, this message translates to:
+  /// **'If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.'**
+  String get privacyServerBody;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Never collected'**
+  String get privacyNeverHeading;
+
+  /// Privacy page: never collected.
+  ///
+  /// In en, this message translates to:
+  /// **'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.'**
+  String get privacyNeverBody;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your data'**
+  String get privacyDeleteHeading;
+
+  /// Privacy page: deleting.
+  ///
+  /// In en, this message translates to:
+  /// **'To remove one plate, press and hold it on the Day Board and choose Remove. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.'**
+  String get privacyDeleteBody;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting'**
+  String get privacyExportHeading;
+
+  /// Privacy page: exporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.'**
+  String get privacyExportBody;
+
+  /// Privacy page section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared devices'**
+  String get privacySharedHeading;
+
+  /// Privacy page: shared devices (PV6).
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.'**
+  String get privacySharedBody;
+
+  /// Privacy page switch label.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up barcodes on Open Food Facts'**
+  String get privacyOffToggle;
+
+  /// Privacy page switch state.
+  ///
+  /// In en, this message translates to:
+  /// **'On: a scanned barcode is looked up online.'**
+  String get privacyOffToggleOn;
+
+  /// Privacy page switch state.
+  ///
+  /// In en, this message translates to:
+  /// **'Off: only the offline catalog is used, and an unknown barcode opens manual entry.'**
+  String get privacyOffToggleOff;
+
+  /// Privacy page switch state before the notice was answered.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be asked the first time you scan a barcode.'**
+  String get privacyOffToggleUnasked;
+
+  /// Open Food Facts notice title.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode lookups'**
+  String get offNoticeTitle;
+
+  /// Open Food Facts notice body.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcodes you scan are looked up on Open Food Facts (public, no account). Only the barcode is sent.'**
+  String get offNoticeBody;
+
+  /// Open Food Facts notice: allow.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get offNoticeOk;
+
+  /// Open Food Facts notice: offline catalog only.
+  ///
+  /// In en, this message translates to:
+  /// **'Don’t look up online'**
+  String get offNoticeOffline;
+
+  /// Semantics action and menu label that removes a plate.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this plate'**
+  String get plateRemoveAction;
+
+  /// Semantics long-press hint of a plate row.
+  ///
+  /// In en, this message translates to:
+  /// **'Press and hold to remove this plate'**
+  String get plateRemoveHint;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this plate?'**
+  String get plateRemoveTitle;
+
+  /// Confirm dialog body; dish is the plate's food summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{dish} will be removed from your history on this device, along with its coach note. This can’t be undone.'**
+  String plateRemoveBody(String dish);
+
+  /// Confirm dialog dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get plateRemoveKeep;
+
+  /// Confirm dialog action.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get plateRemoveConfirm;
+
+  /// Snackbar after a plate was removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate removed.'**
+  String get plateRemoved;
+
+  /// Snackbar when the removal failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t remove it. Try again.'**
+  String get plateRemoveFailed;
+
+  /// Settings row title.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get settingsPrivacyRow;
+
+  /// Settings row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'what is stored · what is sent'**
+  String get settingsPrivacyRowSubtitle;
+
+  /// Privacy page: the switch change could not be stored.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save that. Unlock the app and try again.'**
+  String get privacySaveFailed;
+
+  /// Open Food Facts notice, second paragraph (mobile).
+  ///
+  /// In en, this message translates to:
+  /// **'Open Food Facts also sees your internet address and your app type, as any website does.'**
+  String get offNoticeAlso;
+
+  /// Open Food Facts notice, second paragraph (web).
+  ///
+  /// In en, this message translates to:
+  /// **'Open Food Facts also sees your internet address, your browser type and the address of this site (your browser adds it), as any website does.'**
+  String get offNoticeAlsoWeb;
 }
 
 class _AppLocalizationsDelegate

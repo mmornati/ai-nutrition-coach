@@ -258,6 +258,23 @@ no public exposure, use a DNS-01 resolver or a wildcard certificate and keep the
 VPN. Browsers need a valid certificate for the service worker and the encrypted store; a self-signed
 certificate you clicked through is *not* enough for a service worker.
 
+### Logs behind Traefik
+
+OpenPlate's own container logs nothing per request by default
+(`OPENPLATE_ACCESS_LOG=off`, [`docs/self-host.md`](./self-host.md#logs)). **Traefik is the
+one that sees the real client addresses**, and its access log is off unless you turned it on.
+Recommendations:
+
+- Leave Traefik's access log **disabled**. If you need it, keep it short-lived and
+  minimal: `--accesslog.fields.defaultmode=drop` with `--accesslog.fields.names.RequestPath=keep`,
+  `DownstreamStatus=keep`, `StartUTC=keep`, and **no `ClientAddr` / `ClientHost`**; or let
+  Traefik anonymise it with `--accesslog.fields.names.ClientAddr=drop`. Never keep the
+  `request_User-Agent` / `request_Referer` headers (`--accesslog.fields.headers.defaultmode=drop`).
+- Set a retention: rotate (or let Docker rotate: `json-file` with `max-size` / `max-file`) and
+  delete after days, not months. Address + time + path is personal data about *when the family
+  uses the app*.
+- Do not forward OpenPlate's or Traefik's logs to a third-party log service.
+
 ### Family-only access
 
 Pick one, in this order of preference:
@@ -360,7 +377,7 @@ WebKit — Safari's engine — and Chromium, over `http://localhost`:
 manifest + icons valid; service worker registers and precaches exactly the manifest; create a passphrase, log a
 plate by manual entry; reload → unlock → the plate is there; **offline reload** served by the worker and the
 data opens; **update**: the build id changes → the worker waits → the banner appears → *Reload* reloads exactly
-once and the old cache is deleted; no request left the origin. It is opt-in (needs Docker and the network, ~10
+once and the old cache is deleted; the first-run *About this app* notice precedes the passphrase screen; **export** downloads a plain CSV and says so; and, in **Chromium only** (Playwright's WebKit has no fake camera), a **barcode** step: a fake camera shows an EAN-13, the one-time Open Food Facts notice appears *before* anything is sent, and after *OK* exactly one request leaves - `GET /api/v2/product/<code>?fields=…`, no Referer / Cookie / Authorization (the request is intercepted and answered by the script) - while no other request may leave the origin, at any time. It is opt-in (needs Docker and the network, ~10
 minutes the first time) and runs as its own CI job; it is in the [release checklist](./release-checklist.md).
 
 ```sh
@@ -368,7 +385,9 @@ scripts/webkit_smoke.sh                       # both browsers (builds the image)
 BROWSERS=webkit scripts/webkit_smoke.sh --no-build
 ```
 
-**Result of the last run (2026-10-02, Playwright 1.60 on Linux, release image):** 8/8 steps passed in WebKit
+**Result of the privacy-pass run (2026-10-12):** WebKit 10/10 and Chromium 11/11 (the barcode step is skipped in WebKit). One note: reloading with the fake camera live makes the scanner plugin throw a generic `Error` in Chromium; it is logged by the step and not treated as a failure (the cause was not investigated). Also: typing right after a click can drop the first characters in Chromium, so the smoke waits 400 ms after focusing a field.
+
+**Result of the earlier run (2026-10-02, Playwright 1.60 on Linux, release image):** 8/8 steps passed in WebKit
 and 8/8 in Chromium. In particular the web store works in WebKit — sqlite3mc-wasm in IndexedDB, the WebCrypto
 key derivation and Web Locks — and the service worker precaches, serves the app offline and updates there too.
 No bug in the web store, the service worker or the encryption was found. What it did find:

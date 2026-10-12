@@ -25,6 +25,7 @@ class AiSettings {
     this.byokModel = '',
     this.byokKeyHost = '',
     this.photoConsentHosts = const <String>{},
+    this.askBeforeEveryPhoto = true,
   });
 
   static const AiSettings defaults = AiSettings();
@@ -45,18 +46,26 @@ class AiSettings {
   /// Lower-cased hosts the user has agreed to send photos to (N1).
   final Set<String> photoConsentHosts;
 
+  /// "Ask before every photo upload" (privacy audit PV1). When `true` (the
+  /// default, also for settings saved by older builds) every photo needs its
+  /// own yes and the per-host agreement alone is not enough; when `false`
+  /// the per-host agreement applies.
+  final bool askBeforeEveryPhoto;
+
   AiSettings copyWith({
     AiRungConfig? rung,
     String? byokEndpointUrl,
     String? byokModel,
     String? byokKeyHost,
     Set<String>? photoConsentHosts,
+    bool? askBeforeEveryPhoto,
   }) => AiSettings(
     rung: rung ?? this.rung,
     byokEndpointUrl: byokEndpointUrl ?? this.byokEndpointUrl,
     byokModel: byokModel ?? this.byokModel,
     byokKeyHost: byokKeyHost ?? this.byokKeyHost,
     photoConsentHosts: photoConsentHosts ?? this.photoConsentHosts,
+    askBeforeEveryPhoto: askBeforeEveryPhoto ?? this.askBeforeEveryPhoto,
   );
 
   bool hasConsentFor(String host) =>
@@ -70,6 +79,7 @@ class AiSettings {
     'model': byokModel,
     'keyHost': byokKeyHost,
     'consents': (photoConsentHosts.toList()..sort()),
+    'askEveryPhoto': askBeforeEveryPhoto,
   });
 
   /// Decodes a persisted blob. Anything unusable yields [defaults] (or the
@@ -131,6 +141,10 @@ class AiSettings {
           ? keyHost.toLowerCase()
           : '',
       photoConsentHosts: consents,
+      // Absent / unusable means the safe default: ask every time.
+      askBeforeEveryPhoto: decoded['askEveryPhoto'] is bool
+          ? decoded['askEveryPhoto'] as bool
+          : true,
     );
   }
 
@@ -141,6 +155,7 @@ class AiSettings {
       other.byokEndpointUrl == byokEndpointUrl &&
       other.byokModel == byokModel &&
       other.byokKeyHost == byokKeyHost &&
+      other.askBeforeEveryPhoto == askBeforeEveryPhoto &&
       other.photoConsentHosts.length == photoConsentHosts.length &&
       other.photoConsentHosts.containsAll(photoConsentHosts);
 
@@ -150,6 +165,7 @@ class AiSettings {
     byokEndpointUrl,
     byokModel,
     byokKeyHost,
+    askBeforeEveryPhoto,
     Object.hashAllUnordered(photoConsentHosts),
   );
 
@@ -159,5 +175,6 @@ class AiSettings {
   String toString() =>
       'AiSettings(rung: ${rung.kind.keyToken}, '
       'endpoint: ${byokEndpointUrl.isEmpty ? 'unset' : 'set'}, '
-      'consentedHosts: ${photoConsentHosts.length})';
+      'consentedHosts: ${photoConsentHosts.length}, '
+      'askEveryPhoto: $askBeforeEveryPhoto)';
 }

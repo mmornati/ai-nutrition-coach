@@ -289,6 +289,10 @@ void main() {
 
 class _CaptureNotes implements CoachNoteStore {
   @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
+  @override
   Future<CoachNoteAppendResult> append(CoachNote note) async =>
       CoachNoteAppended(note.copyWith(id: 1));
 

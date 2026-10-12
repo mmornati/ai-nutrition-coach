@@ -74,6 +74,11 @@ class AiSettingsNotifier extends Notifier<AiSettings> {
     ),
   );
 
+  /// "Ask before every photo upload" (PV1): `true` = each photo needs its own
+  /// yes; `false` = the per-host agreement applies.
+  Future<void> setAskBeforeEveryPhoto(bool value) =>
+      _commit(state.copyWith(askBeforeEveryPhoto: value));
+
   /// Forget the agreement for [host]; the next photo asks again.
   Future<void> revokePhotoConsent(String host) => _commit(
     state.copyWith(

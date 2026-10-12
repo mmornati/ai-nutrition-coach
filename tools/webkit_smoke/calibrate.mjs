@@ -29,11 +29,14 @@ const centre = async (name, locator) => {
   console.log(name, coords[name]);
   return locator;
 };
-const type = async (locator, text) => { await locator.click(); await page.keyboard.type(text); };
+const type = async (locator, text) => { await locator.click(); await page.waitForTimeout(500); await page.keyboard.type(text); };
 
 await page.goto(BASE + '/');
 await page.waitForSelector('flt-semantics-placeholder', { state: 'attached', timeout: 90000 });
 await page.evaluate(() => document.querySelector('flt-semantics-placeholder').click());
+// The one-time "About this app" notice comes first (privacy audit PV1).
+const aboutOk = await centre('about.ok', page.getByRole('button', { name: 'Got it' }));
+await aboutOk.click();
 const pass = await centre('create.passphrase', page.getByLabel('Passphrase', { exact: true }));
 const confirm = await centre('create.confirm', page.getByLabel('Confirm passphrase'));
 const create = await centre('create.button', page.getByRole('button', { name: 'Create and unlock' }));

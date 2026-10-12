@@ -85,6 +85,10 @@ class _FakeCoach implements Coach {
 /// `RecordCoachInteraction` use-case can be exercised end-to-end
 /// without a real drift database.
 class _FakeCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
   _FakeCoachNoteStore();
 
   final Set<String> dismissed = <String>{};

@@ -2,7 +2,8 @@
 // Phase 2B / W4, W6).
 //
 // Mobile and the dev in-memory store (no `WebStoreController`): the store is
-// open at startup, so the Day Board is the first paint, or the calm
+// open at startup, so the Day Board is the first paint (after the one-time
+// "About this app" notice, `AboutGate`), or the calm
 // "history can't be opened" surface when startup failed (D7).
 //
 // Web (controller present), by `WebStoreStatus`:
@@ -44,6 +45,7 @@ import '../screens/key_lost_screen.dart';
 import '../screens/lock_screen.dart';
 import '../state/erase_provider.dart';
 import '../state/web_store_controller_provider.dart';
+import 'about_gate.dart';
 
 class UnlockGate extends ConsumerStatefulWidget {
   const UnlockGate({super.key});
@@ -136,14 +138,16 @@ class _UnlockGateState extends ConsumerState<UnlockGate>
               : enStoreOpenFailedStrings,
         );
       }
-      return const DayBoardScreen();
+      return const AboutGate(child: DayBoardScreen());
     }
     switch (controller.status) {
       case WebStoreStatus.checking:
       case WebStoreStatus.erasing:
         return const Scaffold(body: SizedBox.shrink());
       case WebStoreStatus.needsPassphraseCreation:
-        return const CreatePassphraseScreen();
+        // PV1: the one-time "About this app" notice comes first, before
+        // there is any store to remember the answer in.
+        return const AboutGate.beforeStore(child: CreatePassphraseScreen());
       case WebStoreStatus.locked:
         return const LockScreen();
       case WebStoreStatus.needsReset:
@@ -154,7 +158,7 @@ class _UnlockGateState extends ConsumerState<UnlockGate>
           onPointerDown: (_) => controller.touch(),
           onPointerMove: (_) => controller.touch(),
           onPointerSignal: (_) => controller.touch(),
-          child: const DayBoardScreen(),
+          child: const AboutGate(child: DayBoardScreen()),
         );
     }
   }

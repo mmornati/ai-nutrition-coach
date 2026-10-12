@@ -48,12 +48,16 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart'
+    show OffLookupChoice, PrivacyPrefs;
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../state/manual_entry_provider.dart';
+import '../state/privacy_provider.dart';
 import '../state/scanner_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/barcode_match_sheet.dart';
+import '../widgets/off_lookup_notice.dart';
 import 'manual_entry_screen.dart';
 import '../l10n/l10n.dart';
 
@@ -219,6 +223,10 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
       _lookupInFlight = true;
     });
 
+    // PV7: the first time a barcode is about to leave the device, say so.
+    await _ensureOffNotice();
+    if (!mounted) return;
+
     CatalogResult result;
     try {
       result = await ref.read(foodCatalogProvider).lookupByBarcode(code);
@@ -259,6 +267,27 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
     setState(() {
       _processing = false;
     });
+  }
+
+  /// The one-time Open Food Facts notice (PV7). Asked only while there is no
+  /// stored answer; the answer is kept, and the catalog itself refuses to
+  /// send anything until it is "OK" (so a failed write only means we ask
+  /// again next time, never that a barcode went out unasked).
+  Future<void> _ensureOffNotice() async {
+    final PrivacyPrefs prefs;
+    try {
+      prefs = ref.read(privacyPrefsProvider);
+      if (await prefs.offLookupChoice() != OffLookupChoice.unasked) return;
+    } on Object catch (_) {
+      return; // cannot tell: the catalog gate stays closed, nothing is sent
+    }
+    if (!mounted) return;
+    final answer = await showOffLookupNotice(context);
+    try {
+      await prefs.setOffLookupChoice(answer);
+    } on Object catch (_) {
+      // Not kept (store locked): asked again next time.
+    }
   }
 
   Future<void> _routeResult(CatalogResult result, String code) async {

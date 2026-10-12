@@ -74,6 +74,9 @@ services:
       OPENPLATE_CONNECT_SRC_EXTRA: ${OPENPLATE_CONNECT_SRC_EXTRA:-}
       # 1 = serve the service-worker kill switch (docs/pwa.md); normally unset.
       OPENPLATE_SW_KILL: ${OPENPLATE_SW_KILL:-}
+      # off (default) | on (minimal, address-truncated, no User-Agent) | full
+      # (docs/self-host.md "Logs").
+      OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m

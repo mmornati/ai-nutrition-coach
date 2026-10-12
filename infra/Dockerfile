@@ -57,6 +57,7 @@ COPY packages ./packages
 # image build fails if a key-shaped string was compiled in.
 COPY tools/check_no_secrets_in_build.sh tools/check_no_external_hosts.sh tools/
 COPY tools/generate_precache_manifest.dart tools/generate_precache_manifest.dart
+COPY tools/check_release_posture.dart tools/check_release_posture.dart
 COPY tools/pwa/ tools/pwa/
 
 # Build the web release bundle via the `build:web` script in the root
@@ -69,6 +70,24 @@ COPY tools/pwa/ tools/pwa/
 # this origin), then runs the secrets scan and the third-party-host scan: the
 # image build fails if the bundle would call out to a CDN.
 # Debug symbol maps for the engine are never loaded at run time: drop them.
+# OPENPLATE_PROJECT_URL (build argument, optional) is the project page that goes
+# into the app identity / Open Food Facts User-Agent. Unset keeps the
+# unresolvable https://openplate.invalid default, which
+# `OPENPLATE_BUILD=release dart run tools/check_release_posture.dart` refuses
+# for a release (docs/release-checklist.md).
+# OPENPLATE_RELEASE=1 makes this a RELEASE build: the project-URL rule is
+# enforced here (it fails while the URL is the `.invalid` default). The release
+# workflow passes both arguments (.github/workflows/release-gate.yml). Whatever
+# the value, a URL that is set must be a plain https URL (checked by the same
+# tool, also inside `build:web`).
+ARG OPENPLATE_PROJECT_URL=""
+ARG OPENPLATE_RELEASE=0
+ENV OPENPLATE_PROJECT_URL=${OPENPLATE_PROJECT_URL}
+RUN if [ "$OPENPLATE_RELEASE" = "1" ]; then \
+      OPENPLATE_BUILD=selfhost dart run tools/check_release_posture.dart --project-url-only; \
+    else \
+      dart run tools/check_release_posture.dart --project-url-only; \
+    fi
 RUN dart run melos run build:web \
  && rm -f apps/client/build/web/canvaskit/*.js.symbols
 
@@ -97,12 +116,16 @@ COPY --chmod=0755 infra/nginx/docker-entrypoint.d/05-validate-csp.sh /docker-ent
 # Renders sw.js + the precache manifest for this start (build id = bundle +
 # header hash, so a CSP-only redeploy reaches installed apps) or, with
 # OPENPLATE_SW_KILL=1, the kill-switch worker (docs/pwa.md).
+# Renders the access-log config (PV9): off by default; OPENPLATE_ACCESS_LOG=on
+# is a minimal, address-truncated log without User-Agent.
+COPY --chmod=0755 infra/nginx/docker-entrypoint.d/10-render-access-log.sh /docker-entrypoint.d/10-render-access-log.sh
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/30-render-sw.sh /docker-entrypoint.d/30-render-sw.sh
 COPY tools/pwa/sw.kill.js /etc/openplate/sw.kill.js
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
     NGINX_ENVSUBST_FILTER=OPENPLATE_ \
     NGINX_ENTRYPOINT_QUIET_LOGS=1 \
-    OPENPLATE_CONNECT_SRC_EXTRA=""
+    OPENPLATE_CONNECT_SRC_EXTRA="" \
+    OPENPLATE_ACCESS_LOG="off"
 
 # The release build output.
 COPY --from=build /work/apps/client/build/web /usr/share/nginx/html

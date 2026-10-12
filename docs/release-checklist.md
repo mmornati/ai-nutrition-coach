@@ -74,6 +74,39 @@ named reviewer records the human sign-off.
 - [ ] The named-reviewer sign-off for the No-Dark-Patterns gate
   is recorded in the PR thread + the release artefact.
 
+## Gate P — Privacy (privacy audit 2026-10-12, [`docs/telemetry-posture.md`](./telemetry-posture.md))
+
+- [ ] `melos run check:release-posture` is green, including `tools/check_log_hygiene.dart`
+  (no `print(`; every interpolating `debugPrint` / `log` call reviewed as content-free).
+- [ ] **Project URL.** `OPENPLATE_BUILD=release OPENPLATE_PROJECT_URL=<the real project page> dart run tools/check_release_posture.dart --project-url-only`
+  is green (it fails while the URL is the unresolvable `https://openplate.invalid` default). Build mobile
+  releases with the same `--dart-define=OPENPLATE_PROJECT_URL=…`; the container with
+  `--build-arg OPENPLATE_PROJECT_URL=… --build-arg OPENPLATE_RELEASE=1` (the build then enforces the rule itself;
+  `.github/workflows/release-gate.yml` does this from the repository variable `OPENPLATE_PROJECT_URL`).
+- [ ] **Android ML Kit capture (one time, unverified until done).** Build the APK, run it on a device or
+  emulator behind a capturing proxy (or `tcpdump` on the host), scan one barcode, and record whether anything
+  other than the Open Food Facts lookup leaves the device (in particular Google / Firebase hosts such as
+  `firebaselogging-pa.googleapis.com`). Put the result in `docs/telemetry-posture.md` ("Android barcode
+  scanning"); if metrics leave, either disclose it on the privacy page or switch to the unbundled model with the
+  datatransport opt-out / a pure-Dart decoder before shipping to Android users.
+- [ ] **Consent copy.** Open Your AI with a key set, take a photo: the dialog says what is sent, what the host also
+  sees, that it may keep requests, what is not sent, and links to the in-app privacy page. **Ask before every photo
+  upload** is on for a fresh install.
+- [ ] **First-run notices.** A fresh install shows *About this app* once (web: before the passphrase screen) and the
+  Open Food Facts notice at the first scan; neither returns after being answered; *Settings → Privacy* opens the page
+  and its barcode switch works.
+- [ ] **Delete a plate.** Press and hold a plate, confirm: the plate and its coach note are gone from the Day Board;
+  with a screen reader the "Remove this plate" action is offered.
+- [ ] **No leftover photos (mobile).** After a photo recognition, the app's cache directory holds no `image_picker*` /
+  `scaled_*` file; *Erase all local data* leaves none.
+- [ ] **Self-host logs.** `bash scripts/smoke_self_host.sh` is green (it asserts `OPENPLATE_ACCESS_LOG` off by default
+  and, with `on`, no User-Agent / Referer / query string and a truncated address). If you run Traefik, its access log is
+  off or anonymised and has a retention ([`docs/pwa.md`](./pwa.md#logs-behind-traefik)).
+- [ ] **Browser smoke.** `scripts/webkit_smoke.sh` is green: the Open Food Facts request (Chromium) and the export
+  (both browsers) leave nothing else off-origin.
+- [ ] Known and accepted for v1, stated on the privacy page: shared devices see one history (PV6); exports cover
+  plates only and there is no import (PV10).
+
 ## Gate D — Telemetry (Story 4.5 / FR-12)
 
 - [ ] `melos run check:telemetry` is green (import-based).

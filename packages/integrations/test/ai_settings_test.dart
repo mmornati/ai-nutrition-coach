@@ -65,6 +65,27 @@ void main() {
       expect(s.photoConsentHosts.length, lessThanOrEqualTo(64));
     });
 
+    test('ask-before-every-photo defaults to ON and round-trips (PV1)', () {
+      expect(AiSettings.defaults.askBeforeEveryPhoto, isTrue);
+      // A blob saved by an older build has no such key: the safe default.
+      expect(
+        AiSettings.fromJsonString('{"v":1,"kind":"noOp"}').askBeforeEveryPhoto,
+        isTrue,
+      );
+      // A hand-edited, non-boolean value is not a way to switch it off.
+      expect(
+        AiSettings.fromJsonString('{"askEveryPhoto":"no"}').askBeforeEveryPhoto,
+        isTrue,
+      );
+      final off = AiSettings.defaults.copyWith(askBeforeEveryPhoto: false);
+      expect(
+        AiSettings.fromJsonString(off.toJsonString()).askBeforeEveryPhoto,
+        isFalse,
+      );
+      expect(off, isNot(AiSettings.defaults));
+      expect(off.toString(), contains('askEveryPhoto: false'));
+    });
+
     test('toString does not print the endpoint', () {
       const s = AiSettings(byokEndpointUrl: 'https://private.example.com/x');
       expect(s.toString(), isNot(contains('private')));

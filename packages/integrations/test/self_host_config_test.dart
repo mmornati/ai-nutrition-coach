@@ -124,6 +124,175 @@ void main() {
     expect(pubspec, contains('check_no_external_hosts.sh'));
   });
 
+  group('access log (privacy audit PV9)', () {
+    late String nginxConf;
+
+    setUpAll(() => nginxConf = _read('infra/nginx/nginx.conf'));
+
+    test('nginx.conf logs nothing by itself: it only includes the rendered '
+        'file', () {
+      expect(nginxConf, contains('include /tmp/openplate-access-log.inc;'));
+      expect(
+        RegExp(r'^\s*access_log\b', multiLine: true).hasMatch(nginxConf),
+        isFalse,
+        reason: 'no hard-coded access_log (the mode comes from the env)',
+      );
+    });
+
+    test('no nginx config or template ever logs the User-Agent or Referer', () {
+      for (final f in [
+        'infra/nginx/nginx.conf',
+        'infra/nginx/templates/openplate.conf.template',
+        'infra/nginx/templates/openplate-headers.inc.template',
+        'infra/nginx/docker-entrypoint.d/10-render-access-log.sh',
+      ]) {
+        final text = _read(f);
+        expect(text, isNot(contains(r'$http_user_agent')), reason: f);
+        expect(text, isNot(contains(r'$http_referer')), reason: f);
+        expect(
+          text,
+          isNot(contains(r'$request ')),
+          reason: '$f (query string)',
+        );
+      }
+    });
+
+    test('the image and both compose files default the mode to off', () {
+      expect(dockerfile, contains('OPENPLATE_ACCESS_LOG="off"'));
+      expect(dockerfile, contains('10-render-access-log.sh'));
+      expect(
+        compose,
+        contains(r'OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}'),
+      );
+      expect(
+        _read('infra/docker-compose.traefik.yml'),
+        contains(r'OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}'),
+      );
+    });
+
+    // The entrypoint script is POSIX sh and needs no Docker.
+    Future<(int, String, String)> render(String? mode) async {
+      final dir = Directory.systemTemp.createTempSync('openplate_log_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final out = '${dir.path}/log.inc';
+      final r = await Process.run(
+        'sh',
+        [
+          '${repoRoot().path}/infra/nginx/docker-entrypoint.d/10-render-access-log.sh',
+        ],
+        environment: {
+          'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
+          'OPENPLATE_ACCESS_LOG_OUT': out,
+          'OPENPLATE_ACCESS_LOG': ?mode,
+        },
+        includeParentEnvironment: false,
+      );
+      final file = File(out);
+      return (
+        r.exitCode,
+        file.existsSync() ? file.readAsStringSync() : '',
+        '${r.stderr}',
+      );
+    }
+
+    test('unset or off: access_log off, nothing else', () async {
+      for (final mode in [null, 'off', '']) {
+        final (code, conf, _) = await render(mode);
+        expect(code, 0, reason: 'mode=$mode');
+        expect(conf, contains('access_log off;'));
+        expect(conf, isNot(contains('log_format')));
+        expect(conf, isNot(contains('/dev/stdout')));
+      }
+    });
+
+    test('on: truncated address, no User-Agent, no query string, no '
+        'healthcheck lines', () async {
+      final (code, conf, _) = await render('on');
+      expect(code, 0);
+      final format = RegExp(
+        r'^log_format .*$',
+        multiLine: true,
+      ).firstMatch(conf)!.group(0)!;
+      expect(format, contains(r'$openplate_log_ip'));
+      expect(format, isNot(contains(r'$remote_addr')));
+      expect(format, contains(r'$uri'));
+      expect(format, isNot(contains(r'$request ')));
+      expect(format, isNot(contains('user_agent')));
+      expect(format, isNot(contains('referer')));
+      expect(conf, contains(r'if=$openplate_loggable'));
+      // IPv4 keeps three octets; IPv6 keeps at most two groups.
+      expect(conf, contains(r'\.[0-9]+$"'));
+      expect(conf, contains(r'$net.0;'));
+      expect(conf, contains(r'$net::;'));
+      expect(conf, contains('127.0.0.1  0;'));
+    });
+
+    test('the address map keeps /24 for IPv4, at most /32 for IPv6, `::` '
+        'for anything else (regexes taken from the rendered file)', () async {
+      final (_, conf, _) = await render('on');
+      final rules = [
+        for (final m in RegExp(
+          r'^\s*"~(.+)"\s+\$net(\.0|::);',
+          multiLine: true,
+        ).allMatches(conf))
+          (RegExp(m.group(1)!), m.group(2)!),
+      ];
+      expect(rules, hasLength(2));
+      String anon(String addr) {
+        for (final (re, suffix) in rules) {
+          final hit = re.firstMatch(addr);
+          if (hit != null) return '${hit.namedGroup('net')}$suffix';
+        }
+        return '::';
+      }
+
+      expect(anon('192.168.97.45'), '192.168.97.0');
+      expect(anon('2001:db8:85a3:8d3:1319:8a2e:370:7348'), '2001:db8::');
+      expect(anon('fe80:1:2:3:4:5:6:7'), 'fe80:1::');
+      expect(anon('2001::1'), '::', reason: 'compressed: not recognised');
+      expect(anon('::1'), '::');
+      expect(anon('::ffff:192.0.2.1'), '::');
+      expect(anon('not an address'), '::');
+      // Nothing of the third group or later survives.
+      expect(anon('2001:db8:85a3::1'), isNot(contains('85a3')));
+      expect(conf, contains('default'));
+    });
+
+    test('full: the whole address is logged, still no User-Agent', () async {
+      final (code, conf, _) = await render('full');
+      expect(code, 0);
+      final format = RegExp(
+        r'^log_format .*$',
+        multiLine: true,
+      ).firstMatch(conf)!.group(0)!;
+      expect(format, contains(r'$remote_addr'));
+      expect(format, isNot(contains('user_agent')));
+    });
+
+    test('anything else refuses to start', () async {
+      for (final bad in ['yes', 'ON', 'on; access_log /x', 'true']) {
+        final (code, conf, err) = await render(bad);
+        expect(code, 1, reason: bad);
+        expect(conf, isEmpty);
+        expect(err, contains('OPENPLATE_ACCESS_LOG'));
+      }
+    });
+
+    test('bin/openplate validates the mode before touching Docker', () async {
+      final r = await Process.run(
+        'sh',
+        ['${repoRoot().path}/bin/openplate', 'up'],
+        environment: {
+          'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
+          'OPENPLATE_ACCESS_LOG': 'verbose',
+        },
+        includeParentEnvironment: false,
+      );
+      expect(r.exitCode, 42, reason: '${r.stderr}');
+      expect(r.stderr, contains('OPENPLATE_ACCESS_LOG'));
+    });
+  });
+
   group('PWA serving (ADR-0003)', () {
     test(
       'sw.js and the precache manifest are rendered at start and always revalidated',

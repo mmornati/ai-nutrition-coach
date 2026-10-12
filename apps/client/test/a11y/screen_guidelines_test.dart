@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
+import 'package:openplate_client/screens/about_notice_screen.dart';
 import 'package:openplate_client/screens/about_screen.dart';
 import 'package:openplate_client/screens/capture_barcode_screen.dart';
 import 'package:openplate_client/screens/capture_photo_screen.dart';
@@ -21,6 +22,7 @@ import 'package:openplate_client/screens/install_screen.dart';
 import 'package:openplate_client/screens/key_lost_screen.dart';
 import 'package:openplate_client/screens/lock_screen.dart';
 import 'package:openplate_client/screens/manual_entry_screen.dart';
+import 'package:openplate_client/screens/privacy_screen.dart';
 import 'package:openplate_client/screens/settings_screen.dart';
 import 'package:openplate_client/screens/your_ai_screen.dart';
 import 'package:openplate_client/screens/your_data_screen.dart';
@@ -32,17 +34,22 @@ import 'package:openplate_client/state/coach_provider.dart';
 import 'package:openplate_client/state/erase_provider.dart';
 import 'package:openplate_client/state/manual_entry_provider.dart';
 import 'package:openplate_client/state/photo_provider.dart';
+import 'package:openplate_client/state/privacy_provider.dart';
 import 'package:openplate_client/state/pwa_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/scanner_provider.dart';
 import 'package:openplate_client/state/web_store_controller_provider.dart';
 import 'package:openplate_client/l10n/l10n.dart';
 import 'package:openplate_client/widgets/coach_depth_panel.dart';
+import 'package:openplate_client/widgets/off_lookup_notice.dart';
+import 'package:openplate_client/widgets/photo_consent_dialog.dart';
+import 'package:openplate_client/widgets/plate_row.dart';
 import 'package:openplate_client/widgets/recognized_match_sheet.dart';
 import 'package:openplate_client/widgets/update_banner.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 import '../_fakes/fake_web_store_controller.dart';
+import '../_fakes/test_overrides.dart' show privacyPrefsFor;
 import 'a11y_helpers.dart';
 
 class _Catalog implements FoodCatalog {
@@ -101,6 +108,7 @@ List<Override> _commonOverrides({
   CoachNoteStore? notes,
 }) => [
   initialAiSettingsProvider.overrideWithValue(AiSettings.defaults),
+  privacyPrefsProvider.overrideWithValue(privacyPrefsFor()),
   aiSettingsStoreProvider.overrideWithValue(InMemoryAiSettingsStore()),
   byokKeyStoreProvider.overrideWithValue(InMemoryByokKeyStore()),
   encryptedStoreProvider.overrideWithValue(store ?? FakeEncryptedStore()),
@@ -504,6 +512,84 @@ void main() {
       await tester.tap(find.text('My own key'));
       await _settle(tester);
       await expectMeetsAllGuidelines(tester, 'YourAiScreen (own key)');
+    });
+  });
+
+  group('Privacy (privacy audit PV1, PV2, PV7, §4.5)', () {
+    a11yTest('Privacy page', (tester, pump, b) async {
+      await pump((br) => _scoped(const PrivacyScreen(), br));
+      await _settle(tester);
+      expect(find.text('What this app stores and sends'), findsWidgets);
+      await expectMeetsAllGuidelines(tester, 'PrivacyScreen');
+    });
+
+    a11yTest('first-run About notice', (tester, pump, b) async {
+      await pump((br) => _scoped(AboutNoticeScreen(onDismiss: () {}), br));
+      await _settle(tester);
+      expect(find.text('Got it'), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'AboutNoticeScreen');
+    });
+
+    for (final perPhoto in [false, true]) {
+      a11yTest('photo consent dialog (perPhoto: $perPhoto)', (
+        tester,
+        pump,
+        b,
+      ) async {
+        await pump(
+          (br) => _scoped(
+            Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => confirmPhotoUpload(
+                    context,
+                    host: 'api.example.com',
+                    perPhoto: perPhoto,
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+            br,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await _settle(tester);
+        expect(find.textContaining('api.example.com'), findsWidgets);
+        await expectMeetsAllGuidelines(tester, 'PhotoConsentDialog');
+      });
+    }
+
+    a11yTest('remove-plate confirm dialog', (tester, pump, b) async {
+      final store = FakeEncryptedStore(initial: [_plate()]);
+      addTearDown(store.close);
+      await pump((br) => _scoped(const DayBoardScreen(), br, store: store));
+      await _settle(tester);
+      await tester.longPress(find.byType(PlateRow));
+      await _settle(tester);
+      expect(find.text('Remove this plate?'), findsOneWidget);
+      expect(find.byKey(plateRemoveKeepKey), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'Remove plate confirm dialog');
+    });
+
+    a11yTest('Open Food Facts notice', (tester, pump, b) async {
+      await pump(
+        (br) => _scoped(
+          Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showOffLookupNotice(context),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+          br,
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await _settle(tester);
+      expect(find.text('Barcode lookups'), findsOneWidget);
+      await expectMeetsAllGuidelines(tester, 'OffLookupNoticeDialog');
     });
   });
 

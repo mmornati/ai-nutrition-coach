@@ -20,7 +20,8 @@
 // could never run: security review F1. It is gone; tests override the real
 // one.)
 //
-// Privacy (N1 / N10): the captured bytes are NOT retained anywhere after
+// Privacy (N1 / N10 / PV3): the picker's temp file is deleted right after the
+// bytes are read; the captured bytes are NOT retained anywhere after
 // the recognition call — there is no "last photo" provider. The capture
 // adapter asks the picker to downscale (max 1024 px, quality 80); the
 // metadata strip and MIME detection happen at the upload point
@@ -31,6 +32,7 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:integrations/integrations.dart' show deletePickerFile;
 
 import 'scanner_adapters.dart' show PermissionHandlerCameraPermission;
 import 'scanner_provider.dart' show CameraPermission, CameraPermissionStatus;
@@ -76,6 +78,7 @@ class ImagePickerPhotoCapture implements PhotoCapture {
   const ImagePickerPhotoCapture({
     this._picker,
     this._permission = const PermissionHandlerCameraPermission(),
+    this._deleteFile = deletePickerFile,
   });
 
   final ImagePicker? _picker;
@@ -85,6 +88,11 @@ class ImagePickerPhotoCapture implements PhotoCapture {
   /// camera intent throws a SecurityException unless it has been granted at
   /// runtime. A refusal collapses to `null` — the same calm copy as a cancel.
   final CameraPermission _permission;
+
+  /// Removes the temp file the picker wrote (PV3). Injectable for tests;
+  /// production uses `deletePickerFile` (a no-op on web, where there is no
+  /// file).
+  final Future<void> Function(String path) _deleteFile;
 
   @override
   Future<Uint8List?> capture() async {
@@ -104,7 +112,17 @@ class ImagePickerPhotoCapture implements PhotoCapture {
       requestFullMetadata: false,
     );
     if (file == null) return null;
-    return file.readAsBytes();
+    // PV3: the picker leaves its file (an unencrypted plate photo, on Android
+    // possibly with GPS in the camera original) in the app's cache and never
+    // deletes it. The bytes are all the app needs, so the file goes as soon
+    // as they are read - whether or not the read worked, and so before any
+    // recognition (success or failure) can leave it behind. The start-up
+    // purge and "Erase all local data" are the backstops.
+    try {
+      return await file.readAsBytes();
+    } finally {
+      await _deleteFile(file.path);
+    }
   }
 }
 

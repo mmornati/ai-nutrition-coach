@@ -99,6 +99,46 @@ class PlatesReadFailed extends ReadPlatesResult {
   final StoreFailure failure;
 }
 
+/// What `EncryptedStore.deletePlate` / `CoachNoteStore.deleteForPlate`
+/// return (privacy audit PV5). Never thrown: a failure is typed.
+sealed class DeletePlateResult {
+  const DeletePlateResult();
+}
+
+/// The plate (or its coach notes) is gone. Deleting an id that does not exist
+/// is also a success: the goal state ("it is not there") holds.
+class PlateDeleted extends DeletePlateResult {
+  const PlateDeleted();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PlateDeleted;
+
+  @override
+  int get hashCode => (PlateDeleted).hashCode;
+
+  @override
+  String toString() => 'PlateDeleted()';
+}
+
+/// The delete did not happen; nothing was removed that is not also reported.
+class PlateDeleteFailed extends DeletePlateResult {
+  const PlateDeleteFailed(this.failure);
+
+  final StoreFailure failure;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlateDeleteFailed && other.failure == failure);
+
+  @override
+  int get hashCode => Object.hash(PlateDeleteFailed, failure);
+
+  @override
+  String toString() => 'PlateDeleteFailed($failure)';
+}
+
 /// Typed failure across the store port. Exactly one of the three fields
 /// is non-null for a well-formed failure; the constructor `assert`s that.
 class StoreFailure extends RecordPlateResult {

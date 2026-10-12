@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 import '../../../tools/check_accessibility_floor.dart' as a11y;
+import '../../../tools/check_log_hygiene.dart' as logs;
 import '../../../tools/check_release_posture.dart' as posture;
 import '../../../tools/i18n_literal_scan.dart';
 import '_support/repo_root.dart';
@@ -227,6 +228,238 @@ void f(c, a, b) {
     test('rejects a table with no Proof column', () {
       final d = fixture('| Promise | Where |\n| --- | --- |\n| a | b |');
       expect(posture.checkTrustTable(d), isNotEmpty);
+    });
+  });
+
+  group('log hygiene scanner (privacy audit)', () {
+    List<String> found(String code) => [
+      for (final f in logs.scanSource('apps/client/lib/x.dart', code))
+        f.message,
+    ];
+
+    test('flags every print()', () {
+      expect(found("void f() { print('hello'); }"), hasLength(1));
+      expect(found(r"void f(x) { print('$x'); }"), hasLength(1));
+      // Even with the marker: print has no allowed form in lib/.
+      expect(
+        found("void f() {\n  // log-hygiene: content-free\n  print('x');\n}"),
+        hasLength(1),
+      );
+    });
+
+    test('flags an interpolating debugPrint without the marker', () {
+      expect(found(r"void f(food) { debugPrint('ate $food'); }"), hasLength(1));
+      expect(found('void f(m) { debugPrint(m); }'), hasLength(1));
+      expect(found(r"void f(x) { debugPrint('a ${x.name}'); }"), hasLength(1));
+    });
+
+    test('flags a marked call that interpolates a non-allow-listed name', () {
+      final out = found(
+        'void f(food) {\n'
+        '  // log-hygiene: content-free\n'
+        "  debugPrint('ate \$food');\n"
+        '}',
+      );
+      expect(out, hasLength(1));
+      expect(out.single, contains('"food"'));
+      expect(
+        found(
+          'void f(m) {\n'
+          '  // log-hygiene: content-free\n'
+          '  debugPrint(m);\n'
+          '}',
+        ),
+        hasLength(1),
+        reason: 'a forwarded value is never content-free',
+      );
+    });
+
+    test('accepts a constant message and marked allow-listed ids', () {
+      expect(found("void f() { debugPrint('opened'); }"), isEmpty);
+      expect(
+        found(
+          'void f(rowId, reason) {\n'
+          '  // log-hygiene: content-free\n'
+          "  debugPrint('row #\$rowId (\$reason)');\n"
+          '}',
+        ),
+        isEmpty,
+      );
+      expect(
+        found(
+          'void f(w) {\n'
+          "  debugPrint('x \$w'); // log-hygiene: content-free\n"
+          '}',
+        ),
+        hasLength(1),
+        reason: 'the marker on the same line does not allow-list "w"',
+      );
+      expect(
+        found(
+          'void f(step) {\n'
+          "  debugPrint('x \$step'); // log-hygiene: content-free\n"
+          '}',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('log() counts only when dart:developer is imported', () {
+      expect(found(r"void f(x) { log('$x'); }"), isEmpty);
+      expect(
+        found("import 'dart:developer';\nvoid f(x) { log(x.toString()); }"),
+        hasLength(1),
+      );
+      expect(
+        found(
+          "import 'dart:developer' as developer;\n"
+          r"void f(x) { developer.log('$x'); }",
+        ),
+        hasLength(1),
+      );
+    });
+
+    test('dart:developer log is caught under any import prefix', () {
+      for (final imp in [
+        "import 'dart:developer';",
+        "import 'dart:developer' as dev;",
+        "import 'dart:developer' as d;",
+      ]) {
+        final prefix = imp.contains(' as ')
+            ? '${imp.split(' as ').last.replaceAll(';', '')}.'
+            : '';
+        expect(
+          found("$imp\nvoid f(x) { ${prefix}log('\$x'); }"),
+          hasLength(1),
+          reason: imp,
+        );
+      }
+      expect(
+        found(
+          "import 'dart:developer' as dev;\nvoid f() { dev.log('static'); }",
+        ),
+        isEmpty,
+      );
+    });
+
+    test('stdout / stderr writes are checked like debugPrint', () {
+      expect(
+        found("import 'dart:io';\nvoid f(x) { stderr.writeln(x); }"),
+        hasLength(1),
+      );
+      expect(
+        found("import 'dart:io' as io;\nvoid f(x) { io.stdout.write('\$x'); }"),
+        hasLength(1),
+      );
+      expect(
+        found("import 'dart:io';\nvoid f() { stdout.writeln('fixed'); }"),
+        isEmpty,
+      );
+    });
+
+    test('print / debugPrint used as a value are flagged', () {
+      expect(found('void f(l) { l.forEach(print); }'), hasLength(1));
+      expect(found('void f() { final p = print; p(1); }'), hasLength(1));
+      expect(found('void f(l) { l.forEach(debugPrint); }'), hasLength(1));
+      expect(
+        found(
+          "import 'package:flutter/foundation.dart' show debugPrint;\nvoid f() { debugPrint('ok'); }",
+        ),
+        isEmpty,
+        reason: 'a show clause and a plain call are fine',
+      );
+    });
+
+    test('debugPrintThrottled / debugPrintSynchronously are debugPrints', () {
+      expect(found(r"void f(x) { debugPrintThrottled('$x'); }"), hasLength(1));
+      expect(
+        found(r"void f(x) { debugPrintSynchronously('$x'); }"),
+        hasLength(1),
+      );
+      expect(found("void f() { debugPrintThrottled('fixed'); }"), isEmpty);
+    });
+
+    test('package:logging Logger methods are checked', () {
+      const imp = "import 'package:logging/logging.dart';\n";
+      expect(found("${imp}void f(l, x) { l.info('\$x'); }"), hasLength(1));
+      expect(found("${imp}void f(l, x) { l.severe(x); }"), hasLength(1));
+      expect(found("${imp}void f(l) { l.fine('fixed'); }"), isEmpty);
+      // Without the import, `.info` is just a method.
+      expect(found(r"void f(l, x) { l.info('$x'); }"), isEmpty);
+    });
+
+    test('the repository is clean', () {
+      expect(logs.scanRepo(repoRoot()), isEmpty);
+    });
+  });
+
+  group('project URL rule (PV11)', () {
+    final root = repoRoot();
+
+    test('the declared default is the unresolvable .invalid URL', () {
+      expect(
+        posture.declaredDefaultProjectUrl(root),
+        'https://openplate.invalid',
+      );
+    });
+
+    test('a release build with the default URL fails', () {
+      for (final build in ['selfhost', 'release']) {
+        final f = posture.checkProjectUrl(root, {'OPENPLATE_BUILD': build});
+        expect(f, hasLength(1), reason: build);
+        expect(f.single, contains('OPENPLATE_PROJECT_URL'));
+      }
+      expect(
+        posture.checkProjectUrl(root, {
+          'OPENPLATE_BUILD': 'release',
+          'OPENPLATE_PROJECT_URL': 'https://openplate.invalid',
+        }),
+        hasLength(1),
+      );
+    });
+
+    test('a release build with a real URL passes', () {
+      expect(
+        posture.checkProjectUrl(root, {
+          'OPENPLATE_BUILD': 'selfhost',
+          'OPENPLATE_PROJECT_URL': 'https://example.org/openplate',
+        }),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a URL that is set must be a plain https URL, whatever the flavour',
+      () {
+        for (final bad in [
+          'http://example.org/x',
+          'https://exa mple.org',
+          'https://example.org/"; rm -rf /',
+          "https://example.org/'x",
+          r'https://example.org/$(id)',
+          'ftp://example.org',
+        ]) {
+          expect(
+            posture.checkProjectUrl(root, {'OPENPLATE_PROJECT_URL': bad}),
+            hasLength(1),
+            reason: bad,
+          );
+        }
+        expect(
+          posture.checkProjectUrl(root, {
+            'OPENPLATE_PROJECT_URL': 'https://example.org:8443/openplate-x',
+          }),
+          isEmpty,
+        );
+      },
+    );
+
+    test('dev builds and unlabeled runs never fail on the URL', () {
+      expect(posture.checkProjectUrl(root, {}), isEmpty);
+      expect(
+        posture.checkProjectUrl(root, {'OPENPLATE_BUILD': 'dev'}),
+        isEmpty,
+      );
     });
   });
 }

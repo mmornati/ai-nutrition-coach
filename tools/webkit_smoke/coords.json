@@ -3,6 +3,10 @@
     "width": 420,
     "height": 1200
   },
+  "about.ok": [
+    210,
+    730
+  ],
   "create.passphrase": [
     214,
     624

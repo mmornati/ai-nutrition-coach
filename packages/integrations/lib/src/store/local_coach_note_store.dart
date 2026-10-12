@@ -192,6 +192,36 @@ class LocalCoachNoteStore implements CoachNoteStore {
       return CoachInteractionFailed(mapStoreError(e));
     }
   }
+
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async {
+    try {
+      await _db.transaction(() async {
+        final ids = [
+          for (final n in await (_db.select(
+            _db.coachNoteTable,
+          )..where((t) => t.plateLogId.equals(plateLogId))).get())
+            n.id,
+        ];
+        if (ids.isEmpty) return;
+        await (_db.delete(
+          _db.coachInteractionTable,
+        )..where((t) => t.coachNoteId.isIn(ids))).go();
+        await (_db.delete(_db.coachDismissalTable)..where(
+              (t) => t.dismissalKey.isIn([
+                for (final id in ids) coachNoteDismissalKey(id),
+              ]),
+            ))
+            .go();
+        await (_db.delete(
+          _db.coachNoteTable,
+        )..where((t) => t.plateLogId.equals(plateLogId))).go();
+      });
+      return const PlateDeleted();
+    } on Exception catch (e) {
+      return PlateDeleteFailed(mapStoreError(e));
+    }
+  }
 }
 
 CoachAnchor _parseAnchor(String raw) {

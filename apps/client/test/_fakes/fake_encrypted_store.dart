@@ -49,6 +49,21 @@ Stream<T> _watchSnapshots<T>(
 }
 
 class FakeEncryptedStore implements EncryptedStore {
+  /// Plate ids passed to [deletePlate] (most recent last).
+  final List<int> deletedPlateIds = [];
+
+  @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async {
+    deletedPlateIds.add(plateLogId);
+    _plates = [
+      for (final p in _plates)
+        if (p.id != plateLogId) p,
+    ];
+    emittedSnapshots.add(List<PlateLog>.unmodifiable(_plates));
+    _changes.add(null);
+    return const PlateDeleted();
+  }
+
   FakeEncryptedStore({List<PlateLog>? initial, this.recordResult})
     : _plates = [...?initial],
       _changes = StreamController<void>.broadcast();
@@ -197,6 +212,17 @@ PlateLog plateAt(
 /// `LocalCoachNoteStore` adapter; tests that exercise the whisper
 /// surface use this fake to avoid pulling in drift + sqlite3mc.
 class FakeCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async {
+    final notes = byPlate.remove(plateLogId) ?? const <CoachNote>[];
+    for (final n in notes) {
+      dismissed.remove(coachNoteDismissalKey(n.id));
+    }
+    interactions.removeWhere((i) => notes.any((n) => n.id == i.noteId));
+    _changes.add(null);
+    return const PlateDeleted();
+  }
+
   FakeCoachNoteStore();
 
   final Map<int, List<CoachNote>> byPlate = {};

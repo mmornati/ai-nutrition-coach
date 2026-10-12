@@ -4,6 +4,7 @@
 //   * the `RecordPlate` use-case (which validates `entries.isNotEmpty`),
 //   * the date-ranged watch stream for the UI (`watchRange`) and the
 //     one-shot range read for export (`readRange`),
+//   * the single-plate removal (`deletePlate`, PV5),
 //   * the lifetime owner (`close`).
 //
 // Implementations live in `packages/integrations`:
@@ -52,6 +53,16 @@ abstract interface class EncryptedStore {
   /// history" export). Newest first. Never throws: a failure is a typed
   /// `PlatesReadFailed`.
   Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to});
+
+  /// Remove the plate [plateLogId], all of its food entries and (in the real
+  /// stores, which share one database with the coach notes) its coach notes,
+  /// their interactions and dismissal markers, in ONE transaction
+  /// (privacy audit PV5: a wrong or another member's plate no longer needs
+  /// "erase everything"). An unknown id is a success. The coach notes
+  /// anchored to the plate are removed through `CoachNoteStore.deleteForPlate`
+  /// (see the `DeletePlate` use case). Day Board / week-strip watch streams
+  /// emit a fresh snapshot without the plate. Never throws.
+  Future<DeletePlateResult> deletePlate(int plateLogId);
 
   /// Release any underlying handles (drift `NativeDatabase`, etc.).
   /// Called when the app shuts down or the provider is disposed.

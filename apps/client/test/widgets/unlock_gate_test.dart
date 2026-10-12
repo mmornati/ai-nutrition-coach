@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
+import 'package:openplate_client/screens/about_notice_screen.dart';
 import 'package:openplate_client/screens/create_passphrase_screen.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
 import 'package:openplate_client/screens/key_lost_screen.dart';
@@ -14,6 +15,7 @@ import 'package:openplate_client/screens/lock_screen.dart';
 import 'package:openplate_client/state/erase_provider.dart';
 import 'package:openplate_client/state/record_plate_provider.dart';
 import 'package:openplate_client/state/web_store_controller_provider.dart';
+import 'package:openplate_client/widgets/about_gate.dart';
 import 'package:openplate_client/widgets/unlock_gate.dart';
 import 'package:openplate_client/widgets/web_lock_button.dart';
 
@@ -44,13 +46,24 @@ Future<int Function()> _pump(
   return () => restarts;
 }
 
+/// The web first run shows the one-time "About this app" notice before the
+/// passphrase screen (PV1).
+Future<void> _dismissAbout(WidgetTester tester) async {
+  expect(find.byType(AboutNoticeScreen), findsOneWidget);
+  await tester.tap(find.text('Got it'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  setUp(resetAboutNoticeSessionFlag);
+
   testWidgets('first run shows create-passphrase; creating switches to the '
       'Day Board', (tester) async {
     final c = FakeWebStoreController(
       status: WebStoreStatus.needsPassphraseCreation,
     );
     await _pump(tester, c);
+    await _dismissAbout(tester);
     expect(find.byType(CreatePassphraseScreen), findsOneWidget);
     expect(find.byType(DayBoardScreen), findsNothing);
 
@@ -73,6 +86,7 @@ void main() {
       status: WebStoreStatus.needsPassphraseCreation,
     );
     final restarts = await _pump(tester, c);
+    await _dismissAbout(tester);
     expect(restarts(), 0);
 
     final fields = find.byType(TextField);

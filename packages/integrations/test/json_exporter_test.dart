@@ -11,6 +11,10 @@ import 'package:integrations/integrations.dart';
 import 'package:test/test.dart';
 
 class _FakeStore implements EncryptedStore {
+  @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async =>
+      const PlateDeleted();
+
   _FakeStore(this._plates);
   final List<PlateLog> _plates;
   @override

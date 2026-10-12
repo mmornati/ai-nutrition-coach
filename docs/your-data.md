@@ -40,7 +40,10 @@ What this means in practice:
 - **Erase all local data** (Your data screen, behind a confirmation)
   closes the database and deletes the file and its `-wal` / `-shm` /
   `-journal` sidecars, every secure-storage item (database key, BYOK
-  key, quota counters, rung config) and any export files.
+  key, quota counters, rung config), any export files **still on this
+  device** and the plate photos the camera plugin left in the app's cache
+  (see "Photo files" below). Copies you shared or downloaded elsewhere
+  are outside the app and are not affected.
 - **Exports** are plaintext copies. They are written to the system
   temp directory (not the backed-up Documents directory), handed to
   the system share sheet so *you* choose where they go, and our
@@ -56,6 +59,75 @@ What this means in practice:
   header and encrypts the file in place (keeping your data); if that
   fails it refuses to open and offers *Erase local data and start over*
   rather than use the plaintext file.
+
+## Applies to both platforms
+
+### The privacy page and the first-run notice
+
+*Settings → Privacy* ("What this app stores and sends") is the in-app privacy
+notice: what is stored and where, what leaves the device and when, what the
+server you got the app from sees, what is never collected, how to delete and
+export, and a note on shared devices. It is linked from the one-time *About
+this app* notice, from the Open Food Facts notice, from the photo consent dialog
+and from *Your AI*. Every string is in the ARB file
+(`apps/client/lib/l10n/app_en.arb`).
+
+The *About this app* notice (designed for adults; photo recognition is off by
+default and only sends a photo to a service you choose, after you say yes;
+plates stay on the device, encrypted) appears **once**, before the first Day Board
+on mobile and before the passphrase screen on the web. Dismissing it is stored in
+the encrypted store (`kv_table`, key `privacy.aboutAckAtUtc`). On the web the
+store does not exist yet when it first appears, so the answer is kept for the
+session and written as soon as the store is created; if it cannot be read or
+written the notice is simply shown again (never silently skipped).
+
+### Deleting one plate
+
+Press and hold a plate on the Day Board (or use the screen reader action
+"Remove this plate") and confirm. The plate, its food entries, its coach notes,
+the interactions logged against those notes and their dismissal markers are removed
+in ONE database transaction (`EncryptedStore.deletePlate`, shared by the native and web stores; it rolls back as a whole on
+failure, and a test asserts the absence of rows table by table). The `DeletePlate` use case then also calls
+`CoachNoteStore.deleteForPlate`, an idempotent no-op on those stores, so stores that keep notes elsewhere (the in-memory dev store)
+cascade too. There is no undo, hence the confirm. Editing a plate is not
+supported; remove it and log it again.
+
+### Open Food Facts lookups
+
+The first time a scanned barcode is about to be looked up online, a one-time notice
+says so: *"Barcodes you scan are looked up on Open Food Facts (public, no account).
+Only the barcode is sent."* **OK** allows lookups; **Don't look up online** keeps the
+app on its offline catalog (an unknown barcode opens manual entry). The answer is
+stored in the encrypted store (`privacy.offLookup`) and can be changed in
+*Settings → Privacy*. Nothing is sent until you have answered: the catalog itself
+refuses to send a barcode unless the stored answer is "OK".
+
+### Photo files
+
+The camera plugin (`image_picker`) writes the photo it returns to the app's temp /
+cache directory (Android `cache/`, iOS `tmp/image_picker_*`) and never deletes it. The
+app deletes that file as soon as it has read the bytes (so before, and whatever the
+outcome of, any recognition), removes leftovers older than an hour at start, and
+*Erase all local data* removes every one. Only file names the plugin is known to
+produce are touched. The photo itself is kept in memory only for the recognition call.
+
+### Exports and erase
+
+Exports are **plain, unencrypted** CSV / JSON files, and say so under the Export
+button. *Erase all local data* removes exports still on this device; it cannot
+reach a file you shared to another app or downloaded in a browser (Chrome saves to
+Downloads without asking, and Downloads may sync to a cloud). Exports cover
+plates only: coach notes, AI settings and these notices are not exported, and there is no import (an
+installed iOS web app keeps its data separate from Safari's, so only an export
+could bridge them, by hand).
+
+### Shared devices
+
+There is one store per device (mobile) or per browser profile (web), and no
+profiles inside the app and no app lock on mobile: everyone who can unlock the phone,
+or knows the web passphrase, sees the same history. For separate histories use a
+separate device or browser profile, each with its own passphrase. This is by design for v1 and
+is stated on the privacy page.
 
 ## Web (self-host, Flutter web build)
 
@@ -106,8 +178,9 @@ What this means in practice:
 - **Only one tab at a time.** The store is held by one tab; a second
   tab says OpenPlate is open in another tab and lets you retry once the
   first has locked or closed. A tab hidden for 5 minutes locks itself.
-- Exports (CSV/JSON) are plaintext downloads the browser saves wherever
-  you choose; the app does not keep them.
+- Exports (CSV/JSON) are plaintext downloads the browser saves (often into a
+  Downloads folder, without asking); the app does not keep them and cannot delete
+  them later.
 
 - **Protected from clean-up?** Browsers may clear a site's storage when space runs
   low unless the site is *persistent*. After every create/unlock the app asks the

@@ -182,4 +182,39 @@ void main() {
       });
     });
   });
+
+  group('PV8 copy', () {
+    testWidgets('the export area says exports are plain, unencrypted files', (
+      tester,
+    ) async {
+      final c = FakeWebStoreController(status: WebStoreStatus.unlocked);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [webStoreControllerProvider.overrideWithValue(c)],
+          child: const MaterialApp(home: YourDataScreen()),
+        ),
+      );
+      expect(
+        find.text(
+          'Exports are plain, unencrypted files: keep them somewhere you '
+          'trust.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    test('the erase copy no longer overclaims about export files', () {
+      final c = enYourDataStrings;
+      for (final text in [c.eraseExplain, c.eraseConfirmBody]) {
+        expect(text, contains('exports still on this device'));
+        expect(
+          text,
+          contains(
+            'Copies you shared or downloaded elsewhere are not affected',
+          ),
+        );
+        expect(text, isNot(contains('any export files')));
+      }
+    });
+  });
 }

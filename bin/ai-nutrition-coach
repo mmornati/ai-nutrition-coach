@@ -53,6 +53,7 @@ TRAEFIK_HSTS_SUBDOMAINS="${OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS:-false}"
 # values as the plain `docker run` path.
 export OPENPLATE_IMAGE_TAG="$IMAGE_TAG" OPENPLATE_BIND="$BIND" \
   OPENPLATE_PORT="$PORT" OPENPLATE_CONNECT_SRC_EXTRA="$CSP_EXTRA" \
+  OPENPLATE_ACCESS_LOG="${OPENPLATE_ACCESS_LOG:-off}" \
   OPENPLATE_TRAEFIK_NETWORK="$TRAEFIK_NETWORK" \
   OPENPLATE_TRAEFIK_ENTRYPOINT="$TRAEFIK_ENTRYPOINT" \
   OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS"
@@ -83,6 +84,28 @@ validate_csp_extra() {
 bad_csp() {
   printf 'openplate: OPENPLATE_CONNECT_SRC_EXTRA must be space-separated https://host[:port] origins\n' >&2
   printf '           (http://localhost[:port] is also accepted); no quotes, semicolons or wildcards.\n' >&2
+  exit 42
+}
+
+# OPENPLATE_ACCESS_LOG selects the nginx access-log mode (PV9): off (default),
+# on (minimal, address truncated, no User-Agent) or full. Anything else is
+# refused here, as the container would refuse to start.
+validate_access_log() {
+  case "${OPENPLATE_ACCESS_LOG:-off}" in
+    off|on|full) ;;
+    *)
+      printf 'openplate: OPENPLATE_ACCESS_LOG must be off, on or full.\n' >&2
+      exit 42
+      ;;
+  esac
+}
+
+# OPENPLATE_PROJECT_URL is compiled into the image (a --dart-define): a plain
+# https URL only. Empty is fine (the unresolvable .invalid default).
+validate_project_url() {
+  [ -z "${OPENPLATE_PROJECT_URL:-}" ] && return 0
+  printf '%s' "$OPENPLATE_PROJECT_URL" | grep -Eq '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?$' && return 0
+  printf 'openplate: OPENPLATE_PROJECT_URL must be a plain https:// URL (no spaces or quotes).\n' >&2
   exit 42
 }
 
@@ -187,6 +210,8 @@ up() {
   # Validate everything that needs no Docker first: bad input fails fast and
   # the same way with or without Docker on the machine.
   validate_csp_extra
+  validate_access_log
+  validate_project_url
   if [ "$mode" = tls ]; then
     if [ -z "${OPENPLATE_DOMAIN:-}" ]; then
       printf 'openplate: --tls needs OPENPLATE_DOMAIN (e.g. OPENPLATE_DOMAIN=plate.example.com bin/openplate up --tls)\n' >&2
@@ -220,7 +245,9 @@ up() {
   fi
 
   printf 'openplate: building %s ...\n' "$IMAGE_TAG"
-  if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" . ; then
+  if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" \
+        --build-arg "OPENPLATE_PROJECT_URL=${OPENPLATE_PROJECT_URL:-}" \
+        --build-arg "OPENPLATE_RELEASE=${OPENPLATE_RELEASE:-0}" . ; then
     printf 'openplate: image build failed — see the log tail above.\n' >&2
     exit 20
   fi
@@ -263,6 +290,7 @@ up() {
         --security-opt no-new-privileges:true \
         -e "OPENPLATE_CONNECT_SRC_EXTRA=$CSP_EXTRA" \
         -e "OPENPLATE_SW_KILL=${OPENPLATE_SW_KILL:-}" \
+        -e "OPENPLATE_ACCESS_LOG=${OPENPLATE_ACCESS_LOG:-off}" \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
     printf 'openplate: docker run failed (is port %s already in use? try OPENPLATE_PORT=...).\n' "$PORT" >&2
@@ -316,6 +344,11 @@ Environment:
   OPENPLATE_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK
                                AI endpoint ("https://api.openai.com"); origins
                                only, validated
+  OPENPLATE_ACCESS_LOG         nginx access log: off (default) | on (address
+                               truncated, no User-Agent) | full
+  OPENPLATE_PROJECT_URL        project page compiled into the build (plain https URL;
+                               default https://openplate.invalid)
+  OPENPLATE_RELEASE            1 = release build: refuse the .invalid project URL
   OPENPLATE_IMAGE_TAG          image tag (default: openplate:dev)
   OPENPLATE_CONTAINER_NAME     container name for plain \`up\` (default: openplate)
 

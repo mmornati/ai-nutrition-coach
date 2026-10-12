@@ -96,6 +96,7 @@ site's origin, keyed from your passphrase (see
 | `OPENPLATE_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
 | `OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
 | `OPENPLATE_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
+| `OPENPLATE_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
 | `OPENPLATE_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
 | `OPENPLATE_IMAGE_TAG` | `openplate:dev` | Image tag to build/run. |
 | `OPENPLATE_CONTAINER_NAME` | `openplate` | Container name for plain `up`. |
@@ -103,6 +104,37 @@ site's origin, keyed from your passphrase (see
 `bin/openplate up --compose` runs the same container through
 `infra/docker-compose.yml`. If the container name is taken, `up` stops with a
 clear message and exit code 31 (`bin/openplate down` first).
+
+### Logs
+
+The container logs **nothing per request by default** (`OPENPLATE_ACCESS_LOG=off`): the
+server holds no user data, and its access log would only record page addresses and
+times. Set `OPENPLATE_ACCESS_LOG=on` to debug: each line is
+`<address, last octet zeroed> [time] "GET /resolved-file" status bytes` (the resolved file: app-shell and deep-link requests log as `/index.html`). The query string, the
+User-Agent and the Referer are never logged, the container's own healthcheck is skipped,
+and IPv6 addresses keep at most their first two groups (a /32; anything unrecognised logs as `::`). nginx has no built-in
+anonymiser, so this is a `map` of the address rendered at start by
+`infra/nginx/docker-entrypoint.d/10-render-access-log.sh`. `full` keeps the whole client
+address (for a firewall or allow-list problem; turn it off again). The logs go to the
+container's stdout, rotated by Docker (`json-file`, 10 MB × 3). `scripts/smoke_self_host.sh`
+asserts all of this on a real container, and `self_host_config_test.dart` pins it in the
+config. Behind Traefik the client address nginx sees is Traefik's; Traefik's own access log
+is the one to look at: see [`docs/pwa.md`](./pwa.md#logs-behind-traefik).
+
+### The project URL
+
+The Open Food Facts `User-Agent` of mobile builds (and the app's identity) contains a
+project URL: `--dart-define=OPENPLATE_PROJECT_URL=https://…` (for the container build:
+`docker build --build-arg OPENPLATE_PROJECT_URL=https://… -f infra/Dockerfile .`). There
+is no public repository yet, so the default is the unresolvable `https://openplate.invalid`
+(a reserved TLD) instead of a real-looking URL that might belong to someone else.
+`OPENPLATE_BUILD=release OPENPLATE_PROJECT_URL=… dart run tools/check_release_posture.dart --project-url-only`
+fails while the URL is still `.invalid` for a `selfhost` / `release` build. It is **enforced** for release images:
+`docker build --build-arg OPENPLATE_RELEASE=1 --build-arg OPENPLATE_PROJECT_URL=…` runs it before the web build, and
+`.github/workflows/release-gate.yml` does so for tags, taking the URL from the repository **variable**
+`OPENPLATE_PROJECT_URL` (set it under Settings → Secrets and variables → Actions → Variables; until it is set the release
+build fails, by design). A URL that is set must be a plain `https://` URL (no spaces or quotes); `bin/openplate`, `build:web` and the
+image build all refuse anything else. Ordinary builds keep the `.invalid` default. Browsers forbid setting `User-Agent`, so the web bundle never sends it.
 
 ### Content-Security-Policy and your AI endpoint
 
@@ -198,6 +230,9 @@ bash scripts/smoke_self_host.sh      # builds via bin/openplate and asserts:
   server **needs** no outbound network, and its rendered nginx config contains
   no `proxy_pass` / `resolver` (this is a self-containedness check, not a
   packet capture);
+- the access log is off by default (the requests above left no line), and with `OPENPLATE_ACCESS_LOG=on` a request
+  with a distinctive User-Agent, Referer and query string is logged as the resolved file only, with a truncated address; an
+  invalid value refuses to start;
 - hostile `OPENPLATE_CONNECT_SRC_EXTRA` / `OPENPLATE_DOMAIN` values are rejected;
 - the Traefik compose renders with **no published port**, the expected labels (HSTS-only middleware),
   optional overlays and refusals of hostile Traefik settings; `sw.js`, `precache-manifest.json` and

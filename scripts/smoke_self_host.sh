@@ -22,6 +22,10 @@
 #     self-contained; it is not a packet capture. A deliberate outbound
 #     request from the container fails, so the test notices if the network
 #     were not actually isolated;
+#   * ACCESS LOG (privacy audit PV9): off by default - the requests above left
+#     no line (and no User-Agent) in `docker logs`; OPENPLATE_ACCESS_LOG=on
+#     logs the resolved file only, with the client address truncated, and never the
+#     User-Agent, Referer or query string; a bad value refuses to start;
 #   * OPENPLATE_CONNECT_SRC_EXTRA values that could rewrite the CSP (quote
 #     injection, `;`, `*`, newline) make the container refuse to start;
 #   * the OPENPLATE_CONNECT_SRC_EXTRA knob reaches the CSP;
@@ -46,7 +50,7 @@ START_TS=$(date +%s)
 TMP="$(mktemp -d)"
 
 cleanup() {
-  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" >/dev/null 2>&1 || true
+  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
@@ -282,6 +286,41 @@ grep -q 'client.navigate(client.url)' <<<"$kill_sw" && grep -q 'caches.delete' <
 ! grep -q 'precache-manifest' <<<"$kill_sw" || fail 50 "the kill-switch worker precaches"
 docker rm -f "$NAME_ISO-kill" >/dev/null 2>&1 || true
 ok "OPENPLATE_SW_KILL=1 serves the kill-switch service worker"
+
+# ── access log (PV9): off by default, minimal and anonymised when on ────────
+docker exec "$NAME" cat /tmp/openplate-access-log.inc | grep -q '^access_log off;' \
+  || fail 50 "the default container does not render 'access_log off;'"
+logs_default="$(docker logs "$NAME" 2>&1)"
+if grep -Eq '"(GET|POST|HEAD) |curl/|Mozilla|Wget' <<<"$logs_default"; then
+  fail 50 "the default container wrote request lines to its log (access_log should be off)"
+fi
+docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+docker run -d --name "$NAME_ISO-log" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_ACCESS_LOG=on "$IMAGE" >/dev/null
+for _ in $(seq 1 40); do
+  docker exec "$NAME_ISO-log" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break
+  sleep 0.5
+done
+# A request from ANOTHER container (the loopback healthcheck is never logged).
+docker run --rm --network "$NET" --entrypoint wget "$IMAGE" -q -O /dev/null \
+  --header 'User-Agent: smoke-secret-ua' --header 'Referer: http://secret.referer.test/' \
+  "http://$NAME_ISO-log:8080/manifest.json?q=smoke-secret-query" >/dev/null 2>&1 || true
+sleep 1
+logs_on="$(docker logs "$NAME_ISO-log" 2>&1)"
+grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.0 \[[^]]+\] "GET /manifest.json" 200 ' <<<"$logs_on" \
+  || fail 50 "OPENPLATE_ACCESS_LOG=on did not log the path with a truncated address: $(tail -3 <<<"$logs_on")"
+for secret in smoke-secret-ua secret.referer.test smoke-secret-query; do
+  ! grep -qF "$secret" <<<"$logs_on" || fail 50 "the access log contains '$secret' (User-Agent / Referer / query string)"
+done
+! grep -qE '"GET / "|"GET / HTTP' <<<"$logs_on" || fail 50 "the loopback healthcheck is being logged"
+docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+docker run -d --name "$NAME_ISO-log" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_ACCESS_LOG=verbose "$IMAGE" >/dev/null 2>&1 || true
+sleep 2
+[[ "$(docker inspect -f '{{.State.Running}}' "$NAME_ISO-log" 2>/dev/null || echo false)" == false ]] \
+  || fail 50 "container started with an invalid OPENPLATE_ACCESS_LOG"
+docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+ok "access log: off by default; =on logs the resolved file only, address truncated, no User-Agent/Referer/query; bad value refused"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
 cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/openplate.conf /tmp/openplate-headers.inc /etc/nginx/nginx.conf')"

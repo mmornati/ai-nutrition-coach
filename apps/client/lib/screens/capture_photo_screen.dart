@@ -143,6 +143,7 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
 
     // N1: before the photo goes to a third-party host, ask — once per
     // host. No host (no-AI rung, or nothing would be sent) means no ask.
+    final permit = ref.read(photoUploadPermitProvider);
     String? host;
     var consented = true;
     try {
@@ -152,18 +153,39 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       // nowhere (the no-AI core takes over).
       consented = false;
     }
-    if (host != null && !ref.read(photoConsentGrantedProvider(host))) {
-      consented = await confirmPhotoUpload(context, host: host);
-      if (!mounted) return;
-      if (consented) {
-        try {
-          await ref.read(aiSettingsProvider.notifier).grantPhotoConsent(host);
-        } on Object catch (_) {
-          // Could not remember it. Fail closed: the rung's consent guard
-          // reads the persisted setting, so this photo is NOT sent (the
-          // no-AI path takes over) and they are asked again next
-          // time.
-          consented = false;
+    if (host != null) {
+      // PV1: with "Ask before every photo upload" (the default, and the
+      // fail-closed reading if the setting cannot be read) EVERY photo asks,
+      // and a yes is a one-shot permit for this photo only - nothing is
+      // remembered. Otherwise the per-host agreement applies and is asked
+      // once.
+      var perPhoto = true;
+      try {
+        perPhoto = ref.read(aiSettingsProvider).askBeforeEveryPhoto;
+      } on Object catch (_) {
+        perPhoto = true;
+      }
+      if (perPhoto) {
+        consented = await confirmPhotoUpload(
+          context,
+          host: host,
+          perPhoto: true,
+        );
+        if (!mounted) return;
+        if (consented) permit.grant(host: host, bytes: bytes);
+      } else if (!ref.read(photoConsentGrantedProvider(host))) {
+        consented = await confirmPhotoUpload(context, host: host);
+        if (!mounted) return;
+        if (consented) {
+          try {
+            await ref.read(aiSettingsProvider.notifier).grantPhotoConsent(host);
+          } on Object catch (_) {
+            // Could not remember it. Fail closed: the rung's consent guard
+            // reads the persisted setting, so this photo is NOT sent (the
+            // no-AI path takes over) and they are asked again next
+            // time.
+            consented = false;
+          }
         }
       }
     }
@@ -192,6 +214,9 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       // but a contract violation here should not crash the camera
       // surface. Surface the calm failure line instead.
       recognition = const RecognitionFailure('recognize threw');
+    } finally {
+      // An unspent one-shot permit must not outlive this photo.
+      permit.revoke();
     }
     if (!mounted) return;
     final closest = await _fetchClosestMatches(recognition);

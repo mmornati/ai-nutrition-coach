@@ -703,14 +703,16 @@ const YourDataStrings enYourDataStrings = YourDataStrings(
       'are kept inside the same encrypted store.',
   eraseLabel: 'Erase local data',
   eraseExplain:
-      'Removes your history, coach notes, saved AI key and any export '
-      'files from this device. There is no copy anywhere else, so this '
-      'cannot be undone — export first if you want to keep a copy.',
+      'Removes your history, coach notes, saved AI key and any exports '
+      'still on this device. Copies you shared or downloaded elsewhere are '
+      'not affected. There is no other copy of your data, so this cannot '
+      'be undone — export first if you want to keep one.',
   eraseButton: 'Erase all local data',
   eraseConfirmTitle: 'Erase everything on this device?',
   eraseConfirmBody:
-      'Your plates, coach notes, saved AI key and exports on this device '
-      'will be deleted for good.',
+      'Your plates, coach notes, saved AI key and exports still on this '
+      'device will be deleted for good. Copies you shared or downloaded '
+      'elsewhere are not affected.',
   eraseConfirmAction: 'Erase',
   eraseCancel: 'Keep my data',
   eraseDone:
@@ -790,6 +792,7 @@ class ExportStrings {
     required this.exportButton,
     required this.exportedLine,
     required this.failedLine,
+    required this.plaintextNote,
   });
 
   final String formatLabel;
@@ -809,6 +812,10 @@ class ExportStrings {
   /// The calm line after a failed export. Renders below the
   /// export pill. No exception is ever thrown across the port.
   final String failedLine;
+
+  /// One calm line under the export button: exports are plain text files
+  /// (PV8).
+  final String plaintextNote;
 }
 
 const ExportStrings enExportStrings = ExportStrings(
@@ -822,6 +829,8 @@ const ExportStrings enExportStrings = ExportStrings(
   exportButton: 'Export',
   exportedLine: 'exported: ',
   failedLine: 'export failed — try again',
+  plaintextNote:
+      'Exports are plain, unencrypted files: keep them somewhere you trust.',
 );
 
 /// The v1 `en` strings for the sync-queue chip surface
@@ -996,7 +1005,8 @@ class YourAiStrings {
     required this.consentExplainer,
     required this.consentRevoke,
     required this.docsHint,
-    required this.docsCopied,
+    required this.askEveryPhotoLabel,
+    required this.askEveryPhotoHelp,
   });
 
   final String title;
@@ -1067,8 +1077,13 @@ class YourAiStrings {
   final String consentNone;
   final String consentExplainer;
   final String consentRevoke;
+
+  /// The link to the in-app privacy page.
   final String docsHint;
-  final String docsCopied;
+
+  /// The "Ask before every photo upload" switch (PV1).
+  final String askEveryPhotoLabel;
+  final String askEveryPhotoHelp;
 }
 
 const YourAiStrings enYourAiStrings = YourAiStrings(
@@ -1136,63 +1151,97 @@ const YourAiStrings enYourAiStrings = YourAiStrings(
   privacyHeading: 'Photos and consent',
   consentNone: "You haven't allowed any service to receive photos.",
   consentExplainer:
-      "You're asked once per service before the first photo is sent. "
-      'Photos are shrunk and stripped of location and camera details first.',
+      'Before a photo is sent you are asked first. Photos are shrunk and '
+      'stripped of location and camera details first.',
   consentRevoke: 'Revoke',
-  docsHint: 'Copy a link to how this works',
-  docsCopied: 'Link copied.',
+  docsHint: 'What this app stores and sends',
+  askEveryPhotoLabel: 'Ask before every photo upload',
+  askEveryPhotoHelp:
+      'On: each photo needs its own yes. Off: you say yes once per service '
+      'and photos then go without asking, until you revoke it below.',
 );
 
-/// The one-time "send photos to this host?" dialog (N1).
+/// The "send this photo to this host?" dialog (N1, PV1, PV2).
+///
+/// Shown before the FIRST photo goes to a given third-party host (the BYOK
+/// endpoint's host), and before EVERY photo while "Ask before every photo
+/// upload" is on (the default). Every sentence is literal about what leaves
+/// the device; nothing here is a promise about what the host does with it.
 class PhotoConsentStrings {
   const PhotoConsentStrings({
     required this.title,
     required this.whatIsSent,
-    required this.whereItGoes,
+    required this.alsoVisible,
+    required this.alsoVisibleWeb,
+    required this.retention,
     required this.notSent,
     required this.revokeHint,
+    required this.askEveryHint,
     required this.allow,
+    required this.allowOnce,
     required this.decline,
     required this.learnMore,
-    required this.linkCopied,
-    required this.docsPath,
   });
 
   /// `{host}` is the endpoint host, named verbatim.
   final String title;
+
+  /// The photo, the fixed instruction and the model name.
   final String whatIsSent;
 
-  /// `{host}` is the endpoint host.
-  final String whereItGoes;
+  /// What the host also sees on any request. `{host}` is the endpoint host.
+  final String alsoVisible;
+
+  /// Same, on the web build: the page's origin travels too (`Origin`).
+  final String alsoVisibleWeb;
+
+  /// The host may keep requests under its own policy. `{host}` is the host.
+  final String retention;
+
+  /// What is NOT sent.
   final String notSent;
+
+  /// Where to change the per-host agreement (the "ask once" mode).
   final String revokeHint;
 
-  /// `{host}` is the endpoint host.
-  final String allow;
-  final String decline;
-  final String learnMore;
-  final String linkCopied;
+  /// Shown instead of [revokeHint] while "ask before every photo" is on.
+  final String askEveryHint;
 
-  /// Path of the doc, relative to the project URL (`kOpenPlateProjectUrl`).
-  final String docsPath;
+  /// "Allow this host from now on" label. `{host}` is the endpoint host.
+  final String allow;
+
+  /// "Send this photo" label (one photo only).
+  final String allowOnce;
+  final String decline;
+
+  /// The link to the in-app privacy page (never an external URL).
+  final String learnMore;
 }
 
 const PhotoConsentStrings enPhotoConsentStrings = PhotoConsentStrings(
   title: 'Send this photo to {host}?',
   whatIsSent:
-      'What is sent: the photo, shrunk, with its location and camera details '
-      'removed, and a short instruction asking which foods are on the plate.',
-  whereItGoes:
-      'Where it goes: {host}, using your own key. OpenPlate does not run '
-      'that service and never sees the photo; {host} has its own privacy '
-      'terms.',
-  notSent: 'Not sent: your name, your history, or anything else.',
+      'What is sent: the photo, shrunk, with its location and camera '
+      'details removed, a fixed instruction asking which foods are on the '
+      'plate, and the model name you chose. OpenPlate does not run that '
+      'service and never sees the photo.',
+  alsoVisible:
+      'Also visible to {host}: your internet address and your device or '
+      'app type, as with any website.',
+  alsoVisibleWeb:
+      'Also visible to {host}: your internet address, your browser type '
+      'and the address of this site, as with any website.',
+  retention:
+      '{host} may keep requests under its own terms: check your '
+      "provider's data policy.",
+  notSent: 'Not sent: your name, your history, or your other plates.',
   revokeHint: 'You can change this any time in Settings → Your AI.',
+  askEveryHint:
+      'You are asked before every photo. Change this in Settings → Your AI.',
   allow: 'Allow {host}',
+  allowOnce: 'Send this photo',
   decline: 'Not now',
-  learnMore: 'Copy a link to how this works',
-  linkCopied: 'Link copied.',
-  docsPath: 'docs/ai-tiers.md',
+  learnMore: 'What this app stores and sends',
 );
 
 /// The v1 `en` strings for the Day Board's meal slots (keyed copy, AD-7).

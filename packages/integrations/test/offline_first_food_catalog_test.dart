@@ -387,6 +387,61 @@ void main() {
     });
   });
 
+  group('online lookup gate (privacy audit PV7)', () {
+    test(
+      'a denied gate sends NOTHING and reports not found (not cached)',
+      () async {
+        final off = _FakeOffSource()
+          ..setMatch('111', displayName: 'Jam', categoryTags: const []);
+        var allowed = false;
+        final catalog = OfflineFirstFoodCatalog(
+          offSource: off,
+          onlineLookupAllowed: () async => allowed,
+        );
+        final denied = await catalog.lookupByBarcode('111');
+        expect(denied, isA<NotFoundFailure>());
+        expect(off.totalCalls, 0, reason: 'no request while not allowed');
+        expect(catalog.cachedBarcodes, 0);
+
+        allowed = true;
+        expect(await catalog.lookupByBarcode('111'), isA<RankedMatches>());
+        expect(off.totalCalls, 1);
+      },
+    );
+
+    test('a gate that throws fails closed', () async {
+      final off = _FakeOffSource()
+        ..setMatch('111', displayName: 'Jam', categoryTags: const []);
+      final catalog = OfflineFirstFoodCatalog(
+        offSource: off,
+        onlineLookupAllowed: () async => throw StateError('locked'),
+      );
+      expect(await catalog.lookupByBarcode('111'), isA<NotFoundFailure>());
+      expect(off.totalCalls, 0);
+    });
+
+    test(
+      'a cached barcode needs no gate; the offline search never asks',
+      () async {
+        final off = _FakeOffSource()
+          ..setMatch('111', displayName: 'Jam', categoryTags: const []);
+        var asked = 0;
+        final catalog = OfflineFirstFoodCatalog(
+          offSource: off,
+          onlineLookupAllowed: () async {
+            asked++;
+            return true;
+          },
+        );
+        await catalog.lookupByBarcode('111');
+        await catalog.lookupByBarcode('111');
+        await catalog.search('apple');
+        expect(asked, 1);
+        expect(off.totalCalls, 1);
+      },
+    );
+  });
+
   group('OffBarcodeSource (dio wrapper)', () {
     late _HarnessDioSource harness;
     late OffBarcodeSource source;

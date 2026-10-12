@@ -24,6 +24,7 @@ export 'src/ai/hosted_quota_provider.dart';
 export 'src/ai/local_ai_rung.dart';
 export 'src/ai/noop_ai_rung.dart';
 export 'src/ai/openai_compatible_byok_provider.dart';
+export 'src/ai/photo_digest.dart';
 export 'src/ai/photo_sanitizer.dart';
 export 'src/ai/quota_counter.dart';
 export 'src/ai/rate_limit_reset.dart';
@@ -35,6 +36,9 @@ export 'src/catalog/seed_foods.dart';
 export 'src/coach/template_coach.dart';
 export 'src/l10n/coach_strings.dart';
 export 'src/net/capped_response.dart';
+export 'src/privacy/picker_files_stub.dart'
+    if (dart.library.io) 'src/privacy/picker_files_io.dart';
+export 'src/privacy/privacy_prefs.dart';
 export 'src/pwa/pwa_platform.dart';
 export 'src/store/corrupt_row_log.dart' show corruptRowsSkipped;
 export 'src/store/create_encrypted_store.dart';

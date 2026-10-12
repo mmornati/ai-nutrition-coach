@@ -47,7 +47,20 @@ final recordPlateProvider = Provider<RecordPlate>(
         : null,
     // Calm UI, loud diagnostics: a failed post-commit step is logged in
     // debug builds only (the plate itself is committed).
-    onWarning: (warning) => debugPrint('openplate: $warning after commit'),
+    onWarning: (warning) {
+      // log-hygiene: content-free (a step name only, never plate content)
+      debugPrint('openplate: $warning after commit');
+    },
+  ),
+);
+
+/// Removes ONE plate and everything attached to it (coach notes, their
+/// interactions and dismissals) - privacy audit PV5. The Day Board and week
+/// strip streams re-emit without it.
+final deletePlateProvider = Provider<DeletePlate>(
+  (ref) => DeletePlate(
+    store: ref.watch(encryptedStoreProvider),
+    coachNotes: ref.watch(coachNoteStoreProvider),
   ),
 );
 

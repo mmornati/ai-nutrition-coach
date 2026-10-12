@@ -7,10 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:openplate_client/boot.dart';
+import 'package:domain_core/domain_core.dart';
+import 'package:openplate_client/state/manual_entry_provider.dart';
+import 'package:openplate_client/state/privacy_provider.dart';
 import 'package:openplate_client/state/pwa_provider.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 import '../_fakes/fake_web_store_controller.dart';
+
+int purgeCalls = 0;
 
 class _Probe {
   LocalKeyValueStore? settingsKv;
@@ -45,6 +50,7 @@ Future<ProviderContainer> _boot({
       createQuotaCounter: () => InMemoryQuotaCounter(ceiling: 50),
       purgeLegacyWebStorage: false,
       createStoragePersistence: () => persistence,
+      purgePickerFiles: () async => purgeCalls++,
       createAppUpdateSignal: () => update ?? const NoAppUpdateSignal(),
       createInstallPrompt: () => prompt ?? NoInstallPrompt(),
       readInstallContext: () => const InstallContext(
@@ -154,5 +160,60 @@ void main() {
     expect(container.read(appUpdateProvider), same(update));
     expect(container.read(installPromptProvider), same(prompt));
     expect(container.read(installContextProvider).standalone, isTrue);
+  });
+
+  group('privacy wiring (PV1, PV3, PV7)', () {
+    setUp(() => purgeCalls = 0);
+
+    test('start-up purges the picker\'s leftover photo files', () async {
+      await _boot(
+        web: null,
+        kv: InMemoryKeyValueStore(),
+        persistence: FixedStoragePersistence(StoragePersistence.unsupported),
+        probe: _Probe(),
+      );
+      expect(purgeCalls, 1);
+    });
+
+    test('the privacy answers live in the encrypted key/value table', () async {
+      final kv = InMemoryKeyValueStore();
+      final container = await _boot(
+        web: null,
+        kv: kv,
+        persistence: FixedStoragePersistence(StoragePersistence.unsupported),
+        probe: _Probe(),
+      );
+      final prefs = container.read(privacyPrefsProvider);
+      expect(await prefs.aboutAcknowledged(), isFalse);
+      await prefs.acknowledgeAbout();
+      expect(await kv.read(KvKeys.privacyAboutAckAtUtc), isNotNull);
+    });
+
+    test(
+      'the catalog refuses to send a barcode until the person said OK',
+      () async {
+        final kv = InMemoryKeyValueStore();
+        final container = await _boot(
+          web: null,
+          kv: kv,
+          persistence: FixedStoragePersistence(StoragePersistence.unsupported),
+          probe: _Probe(),
+        );
+        final catalog = container.read(foodCatalogProvider);
+        // Never asked: offline only -> not found, and (no network in this
+        // test) nothing could have been sent.
+        expect(
+          await catalog.lookupByBarcode('3017620422003'),
+          isA<NotFoundFailure>(),
+        );
+        await container
+            .read(privacyPrefsProvider)
+            .setOffLookupChoice(OffLookupChoice.offlineOnly);
+        expect(
+          await catalog.lookupByBarcode('3017620422003'),
+          isA<NotFoundFailure>(),
+        );
+      },
+    );
   });
 }

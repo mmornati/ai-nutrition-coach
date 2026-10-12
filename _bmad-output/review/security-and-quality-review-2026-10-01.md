@@ -54,6 +54,37 @@ Chromium). Remaining PWA items:
   semantic order, so a Navigator route hides it from screen readers (dev-only; the update banner was
   fixed).
 
+**Privacy fix pass (2026-10-12, committed; review fixes applied on top).** Findings PV1-PV11 of section 4 have been
+worked through; each fix has a test. `scripts/verify.sh` is the gate.
+
+| Finding | Result |
+| ------- | ------ |
+| PV1 children / AI | A one-time "About this app" notice (adults; AI off by default; web: before the passphrase screen; answer in the encrypted `kv_table`). **Ask before every photo upload** (default ON, also for old saved settings): each photo needs its own one-shot permit (`PhotoUploadPermit`, spent by `ConsentGatedAiRung`); per-host consent applies only when the switch is off. |
+| PV2 consent copy | Rewritten: what is sent (photo, fixed prompt, model name), what the host also sees (address, device/browser type, on the web the page origin), that it may keep requests, what is not sent; "learn more" opens the in-app privacy page. |
+| PV3 photo files | The picker's temp file is deleted right after the bytes are read; leftovers older than an hour are purged at start; *Erase all local data* removes all `image_picker` cache files (names checked against image_picker_android/ios 0.8.13). |
+| PV5 delete a plate | `EncryptedStore.deletePlate` + `CoachNoteStore.deleteForPlate` (`DeletePlate` use case; shared contract suite; native, wasm, in-memory, failed and fake stores); press-and-hold with confirm, plus a screen-reader custom action. |
+| PV7 OFF disclosure | One-time notice before the first online lookup (OK / Don't look up online), stored; the catalog refuses to send until "OK". |
+| PV8 erase / export copy | Erase copy no longer claims to remove exports "from this device" unconditionally; a plaintext-export line under the Export button. |
+| PV9 server logs | nginx `access_log` is off by default (`OPENPLATE_ACCESS_LOG=off|on|full`; `on` = resolved file only, address truncated (IPv4 /24, IPv6 at most /32), no User-Agent/Referer/query); Traefik recommendation in `docs/pwa.md`. Asserted in `self_host_config_test.dart` and `smoke_self_host.sh`. |
+| PV11 placeholder URL | `OPENPLATE_PROJECT_URL` define; with no public repository the default is the unresolvable `https://openplate.invalid`; `check_release_posture --project-url-only` fails a `selfhost` / `release` build that still has it. Enforced for release images by `docker build --build-arg OPENPLATE_RELEASE=1` and by `release-gate.yml` (repository variable `OPENPLATE_PROJECT_URL`); a set URL must be plain https. |
+| §4.4 checks | Exact key-set test of the AI request; exact path/query/header test of the OFF request; `tools/check_log_hygiene.dart` in `check:release-posture`; browser smoke steps for the OFF request (Chromium only: WebKit has no fake camera) and the export, with the foreign-origin assertion extended. |
+| §4.5 privacy page | Settings → Privacy, "What this app stores and sends". |
+
+Remaining after the privacy pass:
+
+- **PV4, Android ML Kit egress is still unverified.** It is disclosed as "may report, not verified" (privacy page,
+  `docs/telemetry-posture.md`); the one-time "capture Android traffic during a scan" gate is in
+  `docs/release-checklist.md` (Gate P). The scanner was not changed.
+- **PV6, shared devices:** by design for v1 (one store per device / browser profile, no profiles, no mobile app lock);
+  documented on the privacy page and in `docs/your-data.md`.
+- **PV10, export covers plates only and there is no import:** unchanged, documented.
+- Picker-file cleanup follows the plugin source (Android: the cache directory; iOS: `image_picker_<guid>` in
+  `NSTemporaryDirectory()` = `Directory.systemTemp`, which is *not* path_provider's Caches directory, so both roots are
+  purged) and is unit-tested against fake roots only; **not exercised on a device**.
+- The About notice with the unencrypted dev web store (`OPENPLATE_DEV_IN_MEMORY_STORE`) keeps its answer in memory only, so it
+  reappears on every load; dev-only, accepted.
+- The real project URL is a maintainer decision; until then releases are blocked by the check above, by design.
+
 ### Known remaining items
 
 Verified by nobody yet (not claimed anywhere as done):
@@ -79,8 +110,9 @@ Decisions / follow-ups for the maintainer:
   dropped capabilities, read-only root and no-new-privileges, but not removed.
 - **CJK / emoji glyphs** render as missing-glyph boxes on web (no CDN fallback
   by design); bundle the fonts if needed.
-- **Open Food Facts `User-Agent` uses a placeholder project URL** until the
-  public repository exists (`app_identity.dart`, `TODO(phase-6)`).
+- **Open Food Facts `User-Agent` project URL** is now the build-time
+  `OPENPLATE_PROJECT_URL`, defaulting to the unresolvable `https://openplate.invalid`
+  until the public repository exists; releases are gated on it (privacy fix pass).
 - **The photo sheet logs one food per plate** even when several foods are
   recognised.
 - **Key rotation reminder**: any key that was ever compiled into a bundle or

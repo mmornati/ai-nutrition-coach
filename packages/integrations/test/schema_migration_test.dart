@@ -20,7 +20,6 @@ import 'package:integrations/integrations.dart';
 import 'package:integrations/src/store/app_database.dart';
 import 'package:integrations/src/store/encrypted_store_adapter.dart';
 import 'package:integrations/src/store/store_error_mapper.dart';
-import 'package:integrations/src/store/web_database_backend.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 import 'package:test/test.dart';
 

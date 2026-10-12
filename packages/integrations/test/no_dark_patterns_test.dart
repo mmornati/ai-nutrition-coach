@@ -3,6 +3,8 @@
 // appear in shipped UI code. The named-reviewer sign-off covers copy; this
 // covers what a grep can prove.
 
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';

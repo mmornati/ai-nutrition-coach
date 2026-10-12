@@ -69,6 +69,42 @@ void main() {
     binding.platformDispatcher.views.first.resetDevicePixelRatio();
   });
 
+  testWidgets('"Ask before every photo upload" is on by default and the '
+      'switch is stored (PV1)', (tester) async {
+    final h = _Harness();
+    await tester.pumpWidget(h.app());
+    await _settle(tester);
+
+    final label = find.text('Ask before every photo upload');
+    await tester.ensureVisible(label);
+    expect(label, findsOneWidget);
+    final sw = find.widgetWithText(
+      SwitchListTile,
+      'Ask before every photo upload',
+    );
+    expect(tester.widget<SwitchListTile>(sw).value, isTrue);
+
+    await tester.tap(sw);
+    await _settle(tester);
+    expect((await h.store.read()).askBeforeEveryPhoto, isFalse);
+
+    await tester.tap(sw);
+    await _settle(tester);
+    expect((await h.store.read()).askBeforeEveryPhoto, isTrue);
+  });
+
+  testWidgets('the help link opens the in-app privacy page, not a URL', (
+    tester,
+  ) async {
+    final h = _Harness();
+    await tester.pumpWidget(h.app());
+    await _settle(tester);
+    expect(find.textContaining('Copy a link'), findsNothing);
+    final link = find.text('What this app stores and sends');
+    await tester.ensureVisible(link);
+    expect(link, findsOneWidget);
+  });
+
   testWidgets('lists the rungs; hosted and on-device are shown as '
       'unavailable and cannot be selected', (tester) async {
     final h = _Harness();

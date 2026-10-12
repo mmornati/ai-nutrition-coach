@@ -51,5 +51,9 @@ class EncryptedStoreAdapter implements EncryptedStore {
       _queries.read(from: from, to: to);
 
   @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) =>
+      _queries.delete(plateLogId);
+
+  @override
   Future<void> close() => _db.close();
 }

@@ -329,6 +329,12 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             child: Text(exportCopy.exportButton),
           ),
         ),
+        // PV8: an export is a plain file once it leaves the app.
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          exportCopy.plaintextNote,
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
+        ),
         if (_lastFile != null) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(

@@ -25,6 +25,7 @@ import 'state/coach_provider.dart';
 import 'state/erase_provider.dart';
 import 'state/manual_entry_provider.dart';
 import 'state/photo_provider.dart';
+import 'state/privacy_provider.dart';
 import 'state/pwa_provider.dart';
 import 'state/record_plate_provider.dart';
 import 'state/scanner_adapters.dart';
@@ -44,6 +45,7 @@ class BootDependencies {
     this.createStoragePersistence = _defaultStoragePersistence,
     this.createInstallPrompt = _defaultInstallPrompt,
     this.readInstallContext = _defaultInstallContext,
+    this.purgePickerFiles = _defaultPurgePickerFiles,
     this.photoCapture = const ImagePickerPhotoCapture(),
     this.cameraPermission = const PermissionHandlerCameraPermission(),
     this.overrides = const <Override>[],
@@ -81,6 +83,10 @@ class BootDependencies {
   /// Platform + installed-or-not, for the Install screen.
   final InstallContext Function() readInstallContext;
 
+  /// Start-up clean-up of plate photos `image_picker` left in the cache
+  /// (PV3). Tests pass a recorder.
+  final Future<void> Function() purgePickerFiles;
+
   final PhotoCapture photoCapture;
   final CameraPermission cameraPermission;
 
@@ -90,6 +96,10 @@ class BootDependencies {
 }
 
 Future<StoreBundle> _defaultCreateStores() => createStores();
+Future<void> _defaultPurgePickerFiles() async {
+  await purgeStalePickerFiles();
+}
+
 AiSettingsStore _defaultAiSettingsStore(LocalKeyValueStore? kv) =>
     createAiSettingsStore(encryptedKv: kv);
 ByokKeyStore _defaultByokKeyStore(LocalKeyValueStore? kv) =>
@@ -136,6 +146,16 @@ Future<List<Override>> buildAppOverrides(
   final aiSettings = await aiSettingsStore.read();
   final byokKeyStore = dependencies.createByokKeyStore(bundle.keyValueStore);
 
+  // PV3: plate photos the picker left in the cache by an earlier session
+  // (older than an hour, so one being taken right now is safe). Best effort.
+  unawaited(dependencies.purgePickerFiles().catchError((Object _) {}));
+
+  // PV1 / PV7: the one-time privacy answers live in the encrypted key/value
+  // table (an in-memory stand-in for the unencrypted dev web store).
+  final privacyPrefs = PrivacyPrefs(
+    bundle.keyValueStore ?? InMemoryKeyValueStore(),
+  );
+
   // PWA seams (ADR-0003). The web store is open only when the user has just
   // unlocked it: that is the moment to ask the browser to protect the data
   // from automatic clean-up (once, and only when it is not already
@@ -169,7 +189,16 @@ Future<List<Override>> buildAppOverrides(
     // is offline-first; the voice transcriber is a no-op (FR3 /
     // FR13). Both are swapped out behind the same port shapes when
     // Epic 3+ ships real adapters.
-    foodCatalogProvider.overrideWithValue(OfflineFirstFoodCatalog()),
+    privacyPrefsProvider.overrideWithValue(privacyPrefs),
+    // PV7: a barcode leaves the device only after the person said OK to the
+    // one-time Open Food Facts notice; "Don't look up online" (or never
+    // having been asked) keeps it offline.
+    foodCatalogProvider.overrideWithValue(
+      OfflineFirstFoodCatalog(
+        onlineLookupAllowed: () async =>
+            await privacyPrefs.offLookupChoice() == OffLookupChoice.allowed,
+      ),
+    ),
     voiceTranscriberProvider.overrideWithValue(const NoopVoiceTranscriber()),
     // Story 1.7 — wire the barcode seam. `mobile_scanner` is the
     // only camera dependency; `permission_handler` is the

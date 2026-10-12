@@ -25,24 +25,19 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integrations/integrations.dart';
 
 import '../state/ai_settings_provider.dart';
 import '../state/your_ai_provider.dart';
 import '../theme/app_tokens.dart';
-import '../widgets/photo_consent_dialog.dart';
+import 'privacy_screen.dart';
 
 class YourAiScreen extends ConsumerStatefulWidget {
-  const YourAiScreen({
-    super.key,
-    this.copy = enYourAiStrings,
-    this.consentCopy = enPhotoConsentStrings,
-  });
+  const YourAiScreen({super.key, this.copy = enYourAiStrings});
 
   final YourAiStrings copy;
-  final PhotoConsentStrings consentCopy;
 
   @override
   ConsumerState<YourAiScreen> createState() => _YourAiScreenState();
@@ -366,6 +361,15 @@ class _YourAiScreenState extends ConsumerState<YourAiScreen> {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(_c.consentExplainer, style: muted),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_c.askEveryPhotoLabel, style: label),
+              subtitle: Text(_c.askEveryPhotoHelp, style: muted),
+              value: settings.askBeforeEveryPhoto,
+              onChanged: (v) => ref
+                  .read(aiSettingsProvider.notifier)
+                  .setAskBeforeEveryPhoto(v),
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (hosts.isEmpty)
               Text(_c.consentNone, style: muted)
@@ -381,7 +385,7 @@ class _YourAiScreenState extends ConsumerState<YourAiScreen> {
                     AppTouchTargets.min,
                   ),
                 ),
-                onPressed: _copyDocsLink,
+                onPressed: _openPrivacyPage,
                 child: Text(_c.docsHint),
               ),
             ),
@@ -391,12 +395,9 @@ class _YourAiScreenState extends ConsumerState<YourAiScreen> {
     );
   }
 
-  Future<void> _copyDocsLink() async {
-    await Clipboard.setData(
-      ClipboardData(text: photoConsentDocsUrl(widget.consentCopy)),
-    );
-    if (mounted) setState(() => _message = _c.docsCopied);
-  }
+  void _openPrivacyPage() => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()));
 
   Widget _button(String text, VoidCallback? onPressed) => SizedBox(
     height: AppTouchTargets.min,

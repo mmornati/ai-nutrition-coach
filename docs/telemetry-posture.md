@@ -32,7 +32,15 @@ endpoint you add via `OPENPLATE_CONNECT_SRC_EXTRA`; see
 
 - **The food catalog** (Open Food Facts barcode lookup,
   `world.openfoodfacts.org`; Stories 1.5 / 1.7). A user-initiated lookup on a
-  scanned barcode. The catalog
+  scanned barcode, **disclosed in the app** before the first one (a one-time
+  notice: *"Barcodes you scan are looked up on Open Food Facts (public, no
+  account). Only the barcode is sent."*, with *OK* / *Don't look up online*; the
+  answer is stored and changeable in Settings → Privacy, and nothing is sent until it
+  is "OK"). The request is exactly `GET /api/v2/product/<barcode>?fields=…` with
+  `Accept` and (off the web) a `User-Agent`; no `Referer`, no `Cookie`, no
+  identifier (pinned by `off_barcode_source_test.dart`; the browser smoke asserts
+  it on the wire). Open Food Facts also sees the usual internet details any website
+  sees (address, time, and on the web the page's origin). The catalog
   is offline-first; the local cache answers most calls without a
   round-trip. The remote call is a typed `CatalogResult` (never a
   raw exception crossing the port).
@@ -46,6 +54,34 @@ endpoint you add via `OPENPLATE_CONNECT_SRC_EXTRA`; see
   has configured a self-host relay. v1 ships the no-op
   `LocalOnlySyncAdapter` — it opens zero sockets; a real relay
   drops in behind the same `SyncAdapter` port in v1.1.
+
+## Android barcode scanning (ML Kit) — unverified
+
+On Android, `mobile_scanner` decodes barcodes with **Google ML Kit**, which is bundled
+in the app. ML Kit may report usage / performance metrics to Google (its Firebase
+transport). **We have not verified whether it does** in this build, so no claim either
+way is made here or in the app beyond "may … not verified yet" (the privacy page says
+so on Android). Settling it is a release gate: capture the traffic of an Android build
+during a scan and record the result in
+[`docs/release-checklist.md`](./release-checklist.md) (Gate P). If metrics do leave
+the device the options are the unbundled model with the Firebase / datatransport
+opt-outs, or a pure-Dart decoder; the scanner is deliberately not changed here.
+iOS uses Apple's Vision framework through the same plugin; the web build decodes
+locally (native `BarcodeDetector` or the self-hosted zxing-wasm).
+
+## Logs
+
+- **The app** writes nothing to any log that could carry what you logged:
+  `tools/check_log_hygiene.dart` (chained into `melos run check:release-posture`)
+  fails on any `print(` in `lib/` and on any `debugPrint` / `log` call that
+  interpolates or forwards a value, unless the line is marked
+  `// log-hygiene: content-free` and interpolates only allow-listed identifiers
+  (row / plate / note ids, steps, counts, fixed reasons).
+- **The self-host container** logs no request by default
+  (`OPENPLATE_ACCESS_LOG=off`). `on` writes time, method and resolved file (app-shell requests log as `/index.html`) only, with the
+  client address truncated and **no User-Agent, Referer or query string**; `full`
+  adds the whole address. See [`docs/self-host.md`](./self-host.md#logs). A reverse
+  proxy in front (Traefik, Caddy) has its own log: see [`docs/pwa.md`](./pwa.md#logs-behind-traefik).
 
 ## What is not in v1
 

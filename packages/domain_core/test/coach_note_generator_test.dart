@@ -52,6 +52,10 @@ class _FakeCoach implements Coach {
 }
 
 class _FakeCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
   _FakeCoachNoteStore();
 
   final Set<String> dismissed = <String>{};

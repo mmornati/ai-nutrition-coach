@@ -52,12 +52,14 @@ void main() {
   late Directory root;
   late Directory docs;
   late Directory tmp;
+  late Directory iosTmp;
   late String dbPath;
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('openplate_erase_');
     docs = Directory('${root.path}/docs')..createSync();
     tmp = Directory('${root.path}/tmp')..createSync();
+    iosTmp = Directory('${root.path}/ios_tmp')..createSync();
     dbPath = '${docs.path}/$kDatabaseFileName';
   });
   tearDown(() => root.deleteSync(recursive: true));
@@ -71,6 +73,8 @@ void main() {
     databaseFilePath: () async => dbPath,
     temporaryDirectoryPath: () async => tmp.path,
     documentsDirectoryPath: () async => docs.path,
+    // Two fake roots: the cache (Android) and the system temp (iOS).
+    pickerRootPaths: () async => [tmp.path, iosTmp.path],
   );
 
   void seedFiles() {
@@ -87,6 +91,15 @@ void main() {
       '${tmp.path}/$kSharePlusCacheSubdirectory/copy.csv',
     ).writeAsStringSync('x');
     File('${docs.path}/keep-me.txt').writeAsStringSync('unrelated');
+    // PV3: plate photos image_picker left in the temp / cache directory.
+    File('${tmp.path}/image_picker_ABC.jpg').writeAsStringSync('photo');
+    File('${tmp.path}/scaled_image_picker1.jpg').writeAsStringSync('photo');
+    File(
+      '${tmp.path}/123e4567-e89b-12d3-a456-426614174000/IMG.jpg',
+    ).createSync(recursive: true);
+    File('${tmp.path}/unrelated-cache.bin').writeAsStringSync('keep');
+    // iOS: NSTemporaryDirectory() is a different directory.
+    File('${iosTmp.path}/image_picker_GUID.jpg').writeAsStringSync('photo');
   }
 
   test('erases db + sidecars, every alias, and export files', () async {
@@ -121,6 +134,17 @@ void main() {
       isFalse,
     );
     expect(File('${docs.path}/keep-me.txt').existsSync(), isTrue);
+    // PV3: the picker's photos go too; unrelated cache files stay.
+    expect(File('${tmp.path}/image_picker_ABC.jpg').existsSync(), isFalse);
+    expect(File('${tmp.path}/scaled_image_picker1.jpg').existsSync(), isFalse);
+    expect(
+      Directory(
+        '${tmp.path}/123e4567-e89b-12d3-a456-426614174000',
+      ).existsSync(),
+      isFalse,
+    );
+    expect(File('${tmp.path}/unrelated-cache.bin').existsSync(), isTrue);
+    expect(File('${iosTmp.path}/image_picker_GUID.jpg').existsSync(), isFalse);
   });
 
   test('works on an already-empty device (nothing to delete)', () async {

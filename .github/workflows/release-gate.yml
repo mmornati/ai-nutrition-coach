@@ -61,6 +61,13 @@ jobs:
       - name: Gate C — check release posture
         run: melos run check:release-posture
 
+      - name: Gate C - project URL (release tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          OPENPLATE_BUILD: release
+          OPENPLATE_PROJECT_URL: ${{ vars.OPENPLATE_PROJECT_URL }}
+        run: dart run tools/check_release_posture.dart --project-url-only
+
       - name: Gate summary
         if: success()
         run: 'echo "release-gate: PASS"'
@@ -76,7 +83,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build infra/Dockerfile
-        run: docker build -f infra/Dockerfile -t openplate:release .
+        # A release image: the project-URL rule is enforced inside the build.
+        # Set the repository VARIABLE OPENPLATE_PROJECT_URL (Settings ->
+        # Secrets and variables -> Actions -> Variables) to the real project
+        # page; while it is unset the build FAILS by design.
+        run: >
+          docker build -f infra/Dockerfile -t openplate:release
+          --build-arg OPENPLATE_RELEASE=1
+          --build-arg "OPENPLATE_PROJECT_URL=${{ vars.OPENPLATE_PROJECT_URL }}" .
 
       - name: Generate SBOM (SPDX JSON)
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2

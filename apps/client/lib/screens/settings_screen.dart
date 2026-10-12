@@ -3,6 +3,7 @@
 //
 //   Your AI    -> `YourAiScreen`   (rung, key, endpoint, consent)
 //   Your data  -> `YourDataScreen` (export, lock, erase)
+//   Privacy    -> `PrivacyScreen`  (what is stored, what is sent)
 //   Install on your phone -> `InstallScreen` (web only; ADR-0003)
 //   About      -> `AboutScreen`
 //
@@ -21,6 +22,7 @@ import '../state/ai_rung_provider.dart';
 import '../theme/app_tokens.dart';
 import 'about_screen.dart';
 import 'install_screen.dart';
+import 'privacy_screen.dart';
 import 'your_ai_screen.dart';
 import 'your_data_screen.dart';
 
@@ -68,6 +70,12 @@ class SettingsScreen extends ConsumerWidget {
               title: copy.yourData,
               subtitle: copy.yourDataSubtitle,
               onTap: () => open(const YourDataScreen()),
+            ),
+            _row(
+              palette,
+              title: context.l10n.settingsPrivacyRow,
+              subtitle: context.l10n.settingsPrivacyRowSubtitle,
+              onTap: () => open(const PrivacyScreen()),
             ),
             // The PWA install help only makes sense in a browser.
             if (kIsWeb)

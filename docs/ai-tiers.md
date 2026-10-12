@@ -216,17 +216,38 @@ and `20ms`. Anything else is "reset unknown" and the calm copy says so.
 
 A photo is the most personal thing OpenPlate can send anywhere, so:
 
-1. **Consent, once per host.** Before the first photo goes to a host, a dialog
-   names the host verbatim, says what is sent (the photo, shrunk, with
-   location and camera details removed, plus a short instruction), what is
-   not (your name, history, anything else), and where to change your mind.
-   *Not now* drops the photo — the closest-matches / manual path is right
-   there. The answer is remembered **per host** and can be revoked per host in
-   Settings → Your AI. The BYOK rung also refuses to run without it, so the
+1. **Consent, for every photo by default.** *Settings → Your AI* has a switch,
+   **Ask before every photo upload**, **on by default** (also for settings saved by
+   an older build). While it is on, every photo asks first, and a yes is a
+   **one-shot permit for that photo only** (`PhotoUploadPermit`, spent by
+   `ConsentGatedAiRung`, revoked when the photo is done): nothing is remembered and
+   no host is added to the list. Turn it off and the older behaviour applies: you
+   agree once per host, the answer is remembered **per host** and can be revoked per
+   host in the same screen. Either way the dialog names the host verbatim and says
+   exactly what is sent and seen:
+   - *Sent:* the photo (shrunk, with its location and camera details removed), a
+     fixed instruction asking which foods are on the plate, and the model name you
+     chose.
+   - *Also visible to the host*, as on any request: your internet address and your
+     device or app type (on the web: your browser type and the address of the site
+     you are using, via the `Origin` header).
+   - *Retention:* the host may keep requests under its own terms; check your
+     provider's data policy (OpenRouter: Settings → Privacy; OpenAI: data controls).
+     OpenPlate cannot see or change that.
+   - *Not sent:* your name, your history, your other plates.
+   A link opens the in-app privacy page (never an external URL). *Not now* drops
+   the photo — the closest-matches / manual path is right there. The BYOK rung also
+   refuses to run without the permit (or, in per-host mode, the agreement), so the
    rule holds even if some other screen reaches the rung. Consent is keyed by
    **host only** (not scheme, port or path): agreeing to `api.example.com`
    covers every path on it. If the agreement cannot be saved, the photo is not
    sent (fail closed) and you are asked again next time.
+
+   **Children.** OpenPlate is designed for adults (a one-time notice says so) and
+   most AI providers' terms require users to be 13 or 18+. If a child uses a device
+   that has an AI key, leave **Ask before every photo upload** on, or better give the
+   child their own device or browser profile with *No AI*. Barcode lookups send a barcode
+   only.
 2. **Smaller.** The camera is asked for at most 1024 × 1024 at quality 80.
 3. **No metadata.** The platform's downscaling is *not* trusted to remove EXIF
    (the Android plugin copies the original's EXIF — including GPS — onto the
@@ -240,6 +261,17 @@ A photo is the most personal thing OpenPlate can send anywhere, so:
 5. **Not kept.** Photo bytes are never held in a provider after the
    recognition call (N10); there is no "last photo".
 
+### What the request contains (pinned by tests)
+
+`openai_compatible_byok_provider_test.dart` fails if the photo request ever gains a
+field: the body is exactly `{model, messages, max_tokens, temperature}` with one user
+message of two parts (the fixed prompt, the image data URL); the headers are only
+`Authorization`, `Content-Type` (and the transport's `content-length`) and, off the web, an explicit `User-Agent` that is the app
+identity string (`OpenPlate/<version> (+<project URL>)`; no device info; without it `dart:io` would send `Dart/<version>`). On the
+web the browser adds its own `User-Agent` and an `Origin` header, which the consent dialog and the privacy page say; no date, id,
+locale or name is in it. The connection test sends a one-token `ping`. Nothing is
+sent about the person: no name, no history, no other plates, no coach notes.
+
 ## Network hygiene (N3)
 
 Every HTTP client the app builds uses connect 10 s / send 30 s / receive 45 s
@@ -250,9 +282,11 @@ characters — the reply is untrusted text that ends up in the UI and in
 exports. Open Food Facts lookups ask only for the fields the parser reads
 (`fields=`) and carry a descriptive `User-Agent` (app, version, project URL;
 no personal contact; omitted on web, where browsers forbid setting it). The
-project URL in it is currently a **placeholder** — there is no public
-repository yet — so Open Food Facts cannot reach the maintainers through it
-until it is replaced. A
+project URL comes from `--dart-define=OPENPLATE_PROJECT_URL`; with no public
+repository yet the default is the unresolvable `https://openplate.invalid`, so
+Open Food Facts cannot reach the maintainers through it until a real one is set.
+`OPENPLATE_BUILD=selfhost|release dart run tools/check_release_posture.dart`
+fails while it is still `.invalid` (see the release checklist). A
 transient OFF failure is **not** cached for the rest of the session — only a
 match or a definitive "not found" is.
 

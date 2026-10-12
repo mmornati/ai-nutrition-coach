@@ -140,10 +140,80 @@ List<String> checkTrustTable(Directory root) {
   return failures;
 }
 
-void main() {
+/// Builds that ship to other people. For these the project URL (sent in the
+/// Open Food Facts User-Agent) must be a real one (privacy audit PV11).
+const Set<String> releaseBuildFlavors = {'selfhost', 'release'};
+
+/// A plain https URL: host, optional port and a conservative path.
+final RegExp projectUrlPattern = RegExp(
+  r'^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?$',
+);
+
+/// The default `OPENPLATE_PROJECT_URL` declared in `app_identity.dart`, or
+/// `null` when it cannot be found.
+String? declaredDefaultProjectUrl(Directory root) {
+  final file = File(
+    '${root.path}/packages/integrations/lib/src/config/app_identity.dart',
+  );
+  if (!file.existsSync()) return null;
+  return RegExp(
+    r"kDefaultOpenPlateProjectUrl\s*=\s*'([^']*)'",
+  ).firstMatch(file.readAsStringSync())?.group(1);
+}
+
+/// Failures of the project-URL rule for a build of flavour [build] with the
+/// environment [env] (`OPENPLATE_BUILD`, `OPENPLATE_PROJECT_URL`): a release
+/// build must not fall back to the unresolvable `.invalid` default.
+List<String> checkProjectUrl(Directory root, Map<String, String> env) {
+  final declared = declaredDefaultProjectUrl(root);
+  if (declared == null) {
+    return ['app_identity.dart does not declare kDefaultOpenPlateProjectUrl'];
+  }
+  final given = env['OPENPLATE_PROJECT_URL'] ?? '';
+  // Whatever the flavour, a URL that is set must be a plain https URL: it is
+  // compiled into a --dart-define and shell scripts, so no whitespace, quotes
+  // or other metacharacters.
+  if (given.isNotEmpty && !projectUrlPattern.hasMatch(given)) {
+    return [
+      'OPENPLATE_PROJECT_URL must be a plain https:// URL (no whitespace, '
+          'quotes or shell characters)',
+    ];
+  }
+  final build = env['OPENPLATE_BUILD'] ?? '';
+  if (!releaseBuildFlavors.contains(build)) return const [];
+  final url = given.isNotEmpty ? given : declared;
+  final host = Uri.tryParse(url)?.host ?? '';
+  if (host.isEmpty || host == 'invalid' || host.endsWith('.invalid')) {
+    return [
+      'OPENPLATE_BUILD=$build but the project URL is "$url" (unresolvable '
+          'default): set OPENPLATE_PROJECT_URL to the real project page',
+    ];
+  }
+  return const [];
+}
+
+void main(List<String> args) {
+  // `--project-url-only`: just the project-URL rule (the image build has no
+  // README / docs / tests to check the rest against).
+  if (args.contains('--project-url-only')) {
+    final urlFailures = checkProjectUrl(
+      Directory.current,
+      Platform.environment,
+    );
+    if (urlFailures.isEmpty) {
+      stdout.writeln('check:project-url: OK');
+      exit(0);
+    }
+    stderr.writeln('check:project-url: FAIL');
+    for (final f in urlFailures) {
+      stderr.writeln('  $f');
+    }
+    exit(1);
+  }
   final failures = <String>[];
 
   failures.addAll(checkTrustTable(Directory.current));
+  failures.addAll(checkProjectUrl(Directory.current, Platform.environment));
 
   // 1. Required artifacts at HEAD.
   for (final path in _requiredArtifacts) {

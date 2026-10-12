@@ -44,6 +44,7 @@ export 'src/results/export_failure.dart';
 export 'src/results/recognition_failure.dart';
 export 'src/results/store_failure.dart';
 export 'src/results/sync_failure.dart';
+export 'src/use_cases/delete_plate.dart';
 export 'src/use_cases/drain_sync_queue.dart';
 export 'src/use_cases/erase_local_data.dart';
 export 'src/use_cases/generate_coach_note.dart';

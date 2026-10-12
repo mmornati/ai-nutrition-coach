@@ -5,6 +5,10 @@ import 'package:domain_core/domain_core.dart';
 import 'package:test/test.dart';
 
 class _Store implements EncryptedStore {
+  @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async =>
+      const PlateDeleted();
+
   int calls = 0;
 
   @override
@@ -60,6 +64,10 @@ class _Coach implements Coach {
 }
 
 class _NotesStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
   _NotesStore({this.mode = 'ok'});
 
   /// `ok`, `fail` (typed append failure) or `throw`.

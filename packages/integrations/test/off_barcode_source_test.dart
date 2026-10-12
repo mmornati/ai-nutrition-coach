@@ -35,6 +35,44 @@ void main() {
     expect(a.last.uri.path, '/api/v2/product/3017620422003');
   });
 
+  test('privacy: the request is exactly GET /api/v2/product/<barcode>?fields= '
+      'with an Accept and the User-Agent, nothing else', () async {
+    final a = FakeHttpAdapter()..jsonBody = {'status': 0};
+    await _source(a).lookup(' 3017620422003 ');
+    final r = a.last;
+
+    expect(r.method, 'GET');
+    expect(r.uri.scheme, 'https');
+    expect(r.uri.host, 'world.openfoodfacts.org');
+    expect(r.uri.hasPort, isFalse);
+    expect(r.uri.path, '/api/v2/product/3017620422003');
+    expect(r.uri.queryParameters.keys.toSet(), {'fields'});
+    expect(r.uri.queryParameters['fields'], kOffFields);
+    expect(r.uri.hasFragment, isFalse);
+    expect(r.uri.userInfo, isEmpty);
+    expect(a.requestBodies.single, anyOf('null', ''), reason: 'no body');
+
+    final names = r.headers.keys.map((h) => h.toLowerCase()).toSet();
+    expect(
+      names.difference({'accept', 'user-agent'}),
+      isEmpty,
+      reason: 'only Accept and User-Agent may be sent (got $names)',
+    );
+    for (final forbidden in [
+      'referer',
+      'cookie',
+      'authorization',
+      'origin',
+      'x-forwarded-for',
+    ]) {
+      expect(names, isNot(contains(forbidden)));
+    }
+    expect(r.headers['Accept'], 'application/json');
+    expect(r.headers['User-Agent'], kOpenPlateUserAgent);
+    expect(kOffFields.split(','), isNot(contains('code')));
+    expect(r.followRedirects, isFalse);
+  });
+
   test('timeouts: 10 / 30 / 45 seconds', () async {
     final a = FakeHttpAdapter()..jsonBody = {'status': 0};
     await _source(a).lookup('1');

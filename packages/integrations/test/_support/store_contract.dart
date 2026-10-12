@@ -258,6 +258,42 @@ void encryptedStoreContract(
       },
     );
 
+    test('deletePlate removes that plate and its entries only', () async {
+      final a = await _record(store, [_draft('Apple'), _draft('Pear')], t0);
+      final b = await _record(store, [
+        _draft('Plum'),
+      ], t0.add(const Duration(minutes: 1)));
+      expect(await store.deletePlate(a.id), isA<PlateDeleted>());
+      final left = await _read(store);
+      expect(left.map((p) => p.id), [b.id]);
+      expect(left.single.entries.single.databaseFood.displayName, 'Plum');
+    });
+
+    test('deletePlate is idempotent and an unknown id succeeds', () async {
+      final a = await _record(store, [_draft('Apple')], t0);
+      expect(await store.deletePlate(a.id), isA<PlateDeleted>());
+      expect(await store.deletePlate(a.id), isA<PlateDeleted>());
+      expect(await store.deletePlate(987654), isA<PlateDeleted>());
+      expect(await _read(store), isEmpty);
+    });
+
+    test('deletePlate re-emits a snapshot without the plate', () async {
+      final a = await _record(store, [_draft('Apple')], t0);
+      final b = await _record(store, [
+        _draft('Plum'),
+      ], t0.add(const Duration(minutes: 1)));
+      final seen = <List<PlateLog>>[];
+      final sub = store
+          .watchRange(from: t0, to: t0.add(const Duration(hours: 1)))
+          .listen(seen.add);
+      addTearDown(sub.cancel);
+      await _until(() => seen.isNotEmpty);
+      expect(seen.last.map((p) => p.id), [b.id, a.id]);
+      await store.deletePlate(a.id);
+      await _until(() => seen.last.length == 1);
+      expect(seen.last.single.id, b.id);
+    });
+
     test('close is idempotent', () async {
       await store.close();
       await store.close();
@@ -350,6 +386,44 @@ void coachNoteStoreContract(
       await _until(() => seen.last.contains('k'));
       expect(seen.last, {'k'});
     });
+
+    test(
+      'deleteForPlate removes that plate\'s notes and note dismissals only',
+      () async {
+        final a = (await store.append(note(5, 'a')) as CoachNoteAppended).note;
+        final b = (await store.append(note(6, 'b')) as CoachNoteAppended).note;
+        await store.recordInteraction(
+          CoachInteractionLog(
+            noteId: a.id,
+            kind: CoachInteraction.dismiss,
+            at: DateTime.utc(2026, 8, 16),
+          ),
+        );
+        await store.recordDismissal(coachNoteDismissalKey(a.id));
+        await store.recordDismissal(coachNoteDismissalKey(b.id));
+        await store.recordDismissal('unrelated-key');
+
+        expect(await store.deleteForPlate(5), isA<PlateDeleted>());
+
+        expect(await store.forPlate(5), isEmpty);
+        expect((await store.forPlate(6)).single.id, b.id);
+        final seen = <Set<String>>[];
+        final sub = store.watchDismissals().listen(seen.add);
+        addTearDown(sub.cancel);
+        await _until(() => seen.isNotEmpty);
+        expect(seen.last, {coachNoteDismissalKey(b.id), 'unrelated-key'});
+      },
+    );
+
+    test(
+      'deleteForPlate is idempotent and an unknown plate succeeds',
+      () async {
+        await store.append(note(5, 'a'));
+        expect(await store.deleteForPlate(5), isA<PlateDeleted>());
+        expect(await store.deleteForPlate(5), isA<PlateDeleted>());
+        expect(await store.deleteForPlate(404), isA<PlateDeleted>());
+      },
+    );
 
     test('recordInteraction returns a typed Recorded result', () async {
       final appended =

@@ -68,5 +68,12 @@ class WasmEncryptedStore implements EncryptedStore {
   }
 
   @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async {
+    final queries = _queries();
+    if (queries == null) return const PlateDeleteFailed(_locked);
+    return queries.delete(plateLogId);
+  }
+
+  @override
   Future<void> close() => _source.lock();
 }

@@ -26,6 +26,7 @@ class LocalDataEraserImpl implements LocalDataEraser {
     Future<String> Function()? databaseFilePath,
     Future<String> Function()? temporaryDirectoryPath,
     Future<String> Function()? documentsDirectoryPath,
+    Future<List<String>> Function()? pickerRootPaths,
   }) : _storage = storage ?? openPlateSecureStorage;
 
   final Future<void> Function()? closeDatabase;

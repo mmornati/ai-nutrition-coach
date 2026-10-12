@@ -39,8 +39,11 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:domain_core/domain_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../catalog/food_group_classifier.dart';
+import '../config/app_identity.dart';
 import '../net/capped_response.dart';
 import 'byok_endpoint.dart';
 import 'byok_openai_compatible_provider.dart';
@@ -156,6 +159,11 @@ class OpenAiCompatibleByokProvider
       'Return an empty array `[]` if the plate is empty or the '
       'photo is unreadable. Return ONLY the JSON array — no '
       'prose, no markdown fences, no commentary.';
+
+  /// The fixed instruction every photo request carries (exposed so the
+  /// privacy test can pin that nothing else rides along with it).
+  @visibleForTesting
+  static const String prompt = _prompt;
 
   @override
   Future<ByokOutcome> recognize({
@@ -306,6 +314,10 @@ class OpenAiCompatibleByokProvider
         headers: {
           'Authorization': 'Bearer ${apiKey.trim()}',
           'Content-Type': 'application/json',
+          // The app identity string, no device info; without it dart:io
+          // would send its own `Dart/<version>`. Browsers forbid setting it
+          // (and add their own, plus `Origin`).
+          if (!kIsWeb) 'User-Agent': kOpenPlateUserAgent,
         },
         responseType: ResponseType.stream,
         // A redirect would re-send the Authorization header and the photo

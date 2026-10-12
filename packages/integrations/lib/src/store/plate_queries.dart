@@ -88,6 +88,48 @@ class PlateQueries {
     }
   }
 
+  /// Delete the plate and EVERYTHING attached to it in ONE transaction (PV5):
+  /// the coach interactions of its notes, their dismissal markers, the notes,
+  /// the food entries and the plate row. Native and web share this code (same
+  /// `AppDatabase`), so a failure rolls all of it back. An unknown id deletes
+  /// nothing and is still a success. Never throws.
+  Future<DeletePlateResult> delete(int plateLogId) async {
+    try {
+      final notes = _db.coachNoteTable;
+      // Set-based sub-selects (nothing is read into Dart): the note ids, and
+      // their dismissal keys (`coachNoteDismissalKey`: `note:<id>`).
+      final noteIds = _db.selectOnly(notes)
+        ..addColumns([notes.id])
+        ..where(notes.plateLogId.equals(plateLogId));
+      final noteKeys = _db.selectOnly(notes)
+        ..addColumns([
+          const Constant<String>('note:') + notes.id.cast<String>(),
+        ])
+        ..where(notes.plateLogId.equals(plateLogId));
+      await _db.transaction(() async {
+        await _db.batch((b) {
+          b.deleteWhere(
+            _db.coachInteractionTable,
+            (t) => t.coachNoteId.isInQuery(noteIds),
+          );
+          b.deleteWhere(
+            _db.coachDismissalTable,
+            (t) => t.dismissalKey.isInQuery(noteKeys),
+          );
+          b.deleteWhere(notes, (t) => t.plateLogId.equals(plateLogId));
+          b.deleteWhere(
+            _db.foodEntryTable,
+            (t) => t.plateLogId.equals(plateLogId),
+          );
+          b.deleteWhere(_db.plateLogTable, (t) => t.id.equals(plateLogId));
+        });
+      });
+      return const PlateDeleted();
+    } on Exception catch (e) {
+      return PlateDeleteFailed(mapStoreError(e));
+    }
+  }
+
   /// One-shot read of `[from, to)` (open-ended when a bound is `null`),
   /// newest first. Never throws.
   Future<ReadPlatesResult> read({DateTime? from, DateTime? to}) async {

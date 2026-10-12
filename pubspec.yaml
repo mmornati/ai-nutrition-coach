@@ -54,7 +54,7 @@ melos:
     analyze:
       description: Run static analysis across every package in the workspace and the repo-level tools/ (errors, warnings and infos all fail).
       run: |
-        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter analyze --no-pub; else dart analyze --fatal-infos; fi"
+        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter analyze --no-pub; else dart analyze --fatal-infos; fi" &&
         dart analyze --fatal-infos tools
 
     test:
@@ -70,12 +70,12 @@ melos:
     format:check:
       description: Verify every package is `dart format`-clean (read-only; run `dart format .` to fix).
       run: |
-        melos exec -c 1 --order-dependents -- "dart format --output=none --set-exit-if-changed ."
+        melos exec -c 1 --order-dependents -- "dart format --output=none --set-exit-if-changed ." &&
         dart format --output=none --set-exit-if-changed tools
 
     build:web:
       description: Fetch + verify the pinned sqlite3mc.wasm and zxing-wasm decoder, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn, no Flutter service worker), generate the precache manifest + OpenPlate's own sw.js (ADR-0003), then scan the bundle for secret-shaped strings (S1) and third-party hosts (N5).
-      run: bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+      run: dart run tools/check_release_posture.dart --project-url-only && bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost ${OPENPLATE_PROJECT_URL:+"--dart-define=OPENPLATE_PROJECT_URL=$OPENPLATE_PROJECT_URL"}) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
 
     pwa:manifest:
       description: Re-generate precache-manifest.json + sw.js for an existing apps/client/build/web (set OPENPLATE_BUILD_ID to force a new build id, e.g. to test the update banner).
@@ -102,8 +102,8 @@ melos:
       run: dart run tools/check_telemetry_claims.dart
 
     check:release-posture:
-      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
-      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart && dart run tools/check_i18n_literals.dart
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), a release build (OPENPLATE_BUILD=selfhost|release) has a real OPENPLATE_PROJECT_URL (PV11), no log call can carry content (log hygiene, PV-checks), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
+      run: dart run tools/check_release_posture.dart && dart run tools/check_log_hygiene.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart && dart run tools/check_i18n_literals.dart
 
     check:i18n:
       description: Fail if apps/client/lib passes a hard-coded string literal to Text(, tooltip:, label:, semanticLabel:, ... - copy belongs in lib/l10n/app_en.arb (AD-7). Chained into check:release-posture.

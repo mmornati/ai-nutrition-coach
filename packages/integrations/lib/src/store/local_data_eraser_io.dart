@@ -9,7 +9,8 @@
 //      counters, rung config — `SecureStorageAliases.all`) and then
 //      clear the whole namespace as a backstop;
 //   4. delete export files (the temp export directory, the `share_plus`
-//      cache copies, plus any legacy
+//      cache copies, the plate photos `image_picker` left in the temp
+//      directory (PV3), plus any legacy
 //      `*-openplate.csv|json` an older build left in the documents
 //      directory).
 //
@@ -29,6 +30,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../export/export_paths.dart';
+import '../privacy/picker_files_io.dart' show purgeAllPickerFiles;
 import 'create_encrypted_store.dart' show kDatabaseFileName;
 import 'secure_storage_options.dart';
 
@@ -40,12 +42,14 @@ class LocalDataEraserImpl implements LocalDataEraser {
     Future<String> Function()? databaseFilePath,
     Future<String> Function()? temporaryDirectoryPath,
     Future<String> Function()? documentsDirectoryPath,
+    Future<List<String>> Function()? pickerRootPaths,
   }) : _storage = storage ?? openPlateSecureStorage,
        _databaseFilePath = databaseFilePath ?? _defaultDatabaseFilePath,
        _temporaryDirectoryPath =
            temporaryDirectoryPath ?? _defaultTemporaryDirectoryPath,
        _documentsDirectoryPath =
-           documentsDirectoryPath ?? _defaultDocumentsDirectoryPath;
+           documentsDirectoryPath ?? _defaultDocumentsDirectoryPath,
+       _pickerRootPaths = pickerRootPaths;
 
   /// Closes the open database (`StoreBundle.closeDatabase`). `null` when
   /// the store never opened (e.g. the lost-key state): nothing to close.
@@ -59,6 +63,11 @@ class LocalDataEraserImpl implements LocalDataEraser {
   final FlutterSecureStorage _storage;
   final Future<String> Function() _databaseFilePath;
   final Future<String> Function() _temporaryDirectoryPath;
+
+  /// Where `image_picker` may have written (PV3): by default the temporary
+  /// directory above (Android cache) AND `Directory.systemTemp` (iOS
+  /// `NSTemporaryDirectory()`, which is not `getTemporaryDirectory()`).
+  final Future<List<String>> Function()? _pickerRootPaths;
   final Future<String> Function() _documentsDirectoryPath;
 
   static Future<String> _defaultDocumentsDirectoryPath() async =>
@@ -139,6 +148,14 @@ class LocalDataEraserImpl implements LocalDataEraser {
       '${await _temporaryDirectoryPath()}/$kSharePlusCacheSubdirectory',
     );
     if (shared.existsSync()) await shared.delete(recursive: true);
+
+    // PV3: the plate photos `image_picker` left in the temp / cache
+    // directory (unencrypted), whatever their age.
+    await purgeAllPickerFiles(
+      roots:
+          await _pickerRootPaths?.call() ??
+          {await _temporaryDirectoryPath(), Directory.systemTemp.path}.toList(),
+    );
 
     final docs = Directory(await _documentsDirectoryPath());
     if (docs.existsSync()) {

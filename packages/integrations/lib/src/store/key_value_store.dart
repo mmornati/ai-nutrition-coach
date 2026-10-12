@@ -29,6 +29,14 @@ abstract final class KvKeys {
   /// UTC ISO-8601 time of the last successful export (all platforms).
   static const String exportLastAtUtc = 'export.lastAtUtc';
 
+  /// UTC ISO-8601 time the user dismissed the one-time "About this app"
+  /// notice (PV1; all platforms).
+  static const String privacyAboutAckAtUtc = 'privacy.aboutAckAtUtc';
+
+  /// `allowed` | `offlineOnly`: the answer to the one-time Open Food Facts
+  /// barcode notice (PV7). Absent until the user has answered.
+  static const String privacyOffLookup = 'privacy.offLookup';
+
   /// UTC ISO-8601 time the user dismissed the quiet export suggestion.
   static const String exportReminderDismissedAtUtc =
       'export.reminderDismissedAtUtc';

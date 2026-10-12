@@ -60,6 +60,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     int lruCapacity = 32,
     int barcodeLruCapacity = 64,
     OffBarcodeSource? offSource,
+    this.onlineLookupAllowed,
   }) : _seeds = List<SeedFood>.unmodifiable(seeds ?? seedFoods),
        _lru = LruCache<String, List<FoodMatch>>(capacity: lruCapacity),
        _barcodeLru = LruCache<String, _BarcodeLookup>(
@@ -89,6 +90,15 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   /// Injected so tests can supply a `dio` with a `MockAdapter` and
   /// avoid touching the network.
   final OffBarcodeSource _offSource;
+
+  /// Asked right before a barcode would leave the device (privacy audit
+  /// PV7). `null` means "always" (tests, and builds with no notice); the app
+  /// passes a check of the person's answer to the one-time Open Food Facts
+  /// notice, which is `false` until they have said OK and stays `false` when
+  /// they chose "Don't look up online". A `false` answer sends nothing and
+  /// the barcode is reported as not found (so the manual path opens); it is
+  /// not cached, so a later OK is honoured.
+  final Future<bool> Function()? onlineLookupAllowed;
 
   /// Number of entries the search LRU holds — exposed for tests.
   int get cacheCapacity => _lru.capacity;
@@ -147,7 +157,9 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   ///   1. Look up the barcode in the per-barcode LRU. If cached,
   ///      return the cached `CatalogResult` verbatim — no network
   ///      call (NFR5 / UJ-5).
-  ///   2. Otherwise, delegate to `OffBarcodeSource.lookup`.
+  ///   2. Otherwise, if [onlineLookupAllowed] says no, answer
+  ///      `NotFoundFailure` without any request (PV7); else delegate to
+  ///      `OffBarcodeSource.lookup`.
   ///   3. Map the typed `OffBarcodeResult` to the public
   ///      `CatalogResult` shape:
   ///         * `OffBarcodeMatch`    → `RankedMatches([match])` with
@@ -171,6 +183,17 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     final cached = _barcodeLru.get(trimmed);
     if (cached != null) {
       return cached.result;
+    }
+
+    final gate = onlineLookupAllowed;
+    if (gate != null) {
+      bool allowed;
+      try {
+        allowed = await gate();
+      } on Object {
+        allowed = false; // fail closed: nothing is sent
+      }
+      if (!allowed) return NotFoundFailure(trimmed);
     }
 
     final result = await _offSource.lookup(trimmed);

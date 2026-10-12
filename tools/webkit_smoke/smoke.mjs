@@ -18,7 +18,19 @@
 //      WAITS; the calm "A new version is ready" line appears; "Reload"
 //      activates it and reloads exactly once; old caches are deleted; the
 //      data is still there after unlocking again;
-//   7. the page made no request to any other origin.
+//   7. the page made no request to any other origin, EXCEPT the one deliberate
+//      Open Food Facts lookup of step 8: nothing else, at no other time;
+//   8. (Chromium only, see below) BARCODE: a fake camera shows an EAN-13, the
+//      one-time Open Food Facts notice appears BEFORE anything is sent, and
+//      after OK exactly one request leaves: GET /api/v2/product/<code>?fields=
+//      with no Referer, Cookie or Authorization (the request is intercepted and
+//      answered by the script; nothing real is contacted). Privacy audit PV7;
+//   9. EXPORT: Your data -> Export downloads a plain CSV (the note under the
+//      button says so) and no request leaves this origin (privacy audit PV8).
+//
+// Why step 8 is Chromium-only: Playwright's WebKit has no fake camera device
+// (no --use-file-for-fake-video-capture), so a barcode cannot be scanned there.
+// Step 9 runs in both.
 //
 // Input model (important, see calibrate.mjs): text entry and the clicks before it
 // are done by COORDINATES without Flutter's accessibility semantics (in WebKit,
@@ -36,6 +48,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
+// The one third-party origin the app may talk to by design (a barcode lookup,
+// after the person said OK). Everything else off-origin is a failure.
+const OFF_HOST = 'world.openfoodfacts.org';
+// Keep in step with kOffFields (packages/integrations/lib/src/catalog/off_barcode_source.dart).
+const OFF_FIELDS = 'product_name,product_name_en,generic_name,brands,categories_tags';
+const EAN = '3017620422003';
 const SITE_DIR = process.env.SITE_DIR || '';
 // The rendered sw.js + precache manifest (nginx serves them from a mounted dir; see scripts/webkit_smoke.sh).
 const PWA_DIR = process.env.PWA_DIR || '';
@@ -65,6 +83,35 @@ async function step(browser, name, fn) {
     log(browser, `FAIL ${name}: ${String(e).split('\n').slice(0, 3).join(' | ')}`);
     return false;
   }
+}
+
+/**
+ * A tiny y4m video of one EAN-13 (white frame, black bars, 4 px modules) for
+ * Chromium's fake camera. Written at run time, nothing binary is committed.
+ */
+function writeBarcodeY4m(file, code, frames = 12) {
+  const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+  const G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
+  const R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
+  const PARITY = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+  const d = [...code].map(Number);
+  let bits = '101';
+  for (let i = 0; i < 6; i++) bits += (PARITY[d[0]][i] === 'L' ? L : G)[d[1 + i]];
+  bits += '01010';
+  for (let i = 0; i < 6; i++) bits += R[d[7 + i]];
+  bits += '101';
+  const W = 640, H = 480, MOD = 4;
+  const left = Math.floor((W - bits.length * MOD) / 2);
+  const y = Buffer.alloc(W * H, 235);
+  for (let row = 130; row < 350; row++) {
+    for (let m = 0; m < bits.length; m++) {
+      if (bits[m] === '1') y.fill(16, row * W + left + m * MOD, row * W + left + (m + 1) * MOD);
+    }
+  }
+  const chroma = Buffer.alloc((W / 2) * (H / 2), 128);
+  const parts = [Buffer.from(`YUV4MPEG2 W${W} H${H} F30:1 Ip A1:1 C420jpeg\n`)];
+  for (let f = 0; f < frames; f++) parts.push(Buffer.from('FRAME\n'), y, chroma, chroma);
+  fs.writeFileSync(file, Buffer.concat(parts));
 }
 
 const semanticsText = (page) =>
@@ -111,7 +158,8 @@ async function act(page, a) {
     const target = a.find(page);
     await target.waitFor({ timeout: 90000 });
     await target.click();
-    if (a.text !== undefined) await page.keyboard.type(a.text);
+    // Focus needs a moment to reach the field (typing at once can drop the first characters).
+    if (a.text !== undefined) { await page.waitForTimeout(400); await page.keyboard.type(a.text); }
     return;
   }
   await page.mouse.click(...coords[a.key]);
@@ -123,6 +171,7 @@ async function act(page, a) {
 }
 
 const A = {
+  aboutOk: { key: 'about.ok', find: (p) => p.getByRole('button', { name: 'Got it' }), settle: 900 },
   createPass: { key: 'create.passphrase', find: (p) => p.getByLabel('Passphrase', { exact: true }), settle: 250 },
   createConfirm: { key: 'create.confirm', find: (p) => p.getByLabel('Confirm passphrase'), settle: 250 },
   createBtn: { key: 'create.button', find: (p) => p.getByRole('button', { name: 'Create and unlock' }) },
@@ -183,24 +232,64 @@ async function waitForServiceWorker(page, expectBuild) {
 }
 
 async function runBrowser(name, type) {
-  const browser = await type.launch();
+  const chromiumCamera = name === 'chromium';
+  const fakeVideo = path.join(process.env.TMPDIR || '/tmp', `openplate-smoke-${EAN}.y4m`);
+  if (chromiumCamera) writeBarcodeY4m(fakeVideo, EAN);
+  const browser = await type.launch(
+    chromiumCamera
+      ? { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${fakeVideo}`] }
+      : {},
+  );
   const context = await browser.newContext({
     locale: 'en-US',
     timezoneId: 'Europe/Paris',
     // Must equal coords.json's viewport (see calibrate.mjs).
     viewport: coords.viewport,
+    permissions: chromiumCamera ? ['camera'] : [],
   });
   const foreign = [];
+  // Open Food Facts requests, as seen on the wire (intercepted, answered here).
+  const offRequests = [];
+  let inBarcodeStep = false;
+  await context.route(`https://${OFF_HOST}/**`, async (route) => {
+    const req = route.request();
+    offRequests.push({
+      method: req.method(),
+      url: new URL(req.url()),
+      headers: await req.allHeaders(),
+      body: req.postData(),
+      duringBarcodeStep: inBarcodeStep,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify({ status: 1, product: { product_name: 'Smoke Jam', categories_tags: ['en:jams'] } }),
+    });
+  });
   const pageErrors = [];
   let navigations = 0;
   const page = await context.newPage();
   currentPage = page;
   page.on('request', (r) => {
     const u = new URL(r.url());
-    if (!['localhost', '127.0.0.1'].includes(u.hostname) && u.protocol.startsWith('http')) foreign.push(r.url());
+    if (!['localhost', '127.0.0.1'].includes(u.hostname) && u.protocol.startsWith('http')) {
+      // The deliberate barcode lookup is allowed while step 8 runs; anything
+      // else off-origin - or that same host at any other time - is foreign.
+      if (u.hostname === OFF_HOST && inBarcodeStep) return;
+      foreign.push(r.url());
+    }
   });
   if (process.env.DEBUG_PAGE) page.on('console', (m) => { if (m.type() !== 'warning') console.log(`  [page ${name}] ${m.text().slice(0, 200)}`); });
-  page.on('pageerror', (e) => pageErrors.push(String(e).slice(0, 200)));
+  const teardownErrors = [];
+  page.on('pageerror', (e) => {
+    const text = String(e && e.stack ? e.stack : e).slice(0, 600);
+    // Reloading the page while the live (fake) camera is scanning makes the
+    // scanner plugin throw a generic Error in teardown (seen in Chromium only,
+    // after the assertions of step 8 have passed). It is recorded, not hidden,
+    // but it is not what this smoke is about; any other page error still fails.
+    (inBarcodeStep ? teardownErrors : pageErrors).push(text);
+  });
   // Real document loads only (Flutter's router also fires same-document navigations).
   page.on('load', () => { navigations++; });
   let build1 = '';
@@ -275,6 +364,8 @@ async function runBrowser(name, type) {
     // Fresh load (the previous step only read the page).
     await page.reload({ waitUntil: 'load' });
     await flutterReady(page);
+    // PV1: the one-time "About this app" notice comes before the passphrase.
+    await act(page, A.aboutOk);
     await act(page, { ...A.createPass, text: PASSPHRASE });
     await act(page, { ...A.createConfirm, text: PASSPHRASE });
     await act(page, A.createBtn);
@@ -290,6 +381,47 @@ async function runBrowser(name, type) {
     await waitForText(page, /Apple/);
   });
 
+  if (chromiumCamera) {
+    await step(name, 'barcode: the Open Food Facts notice comes first, then exactly one minimal request', async () => {
+      inBarcodeStep = true;
+      try {
+        await page.getByRole('button', { name: 'Open capture sheet' }).click();
+        await page.getByRole('button', { name: 'Scan a barcode' }).click();
+        // The fake camera shows the EAN: the first decode asks BEFORE sending.
+        await waitForText(page, /Barcodes you scan are looked up on Open Food Facts/, 90000);
+        if (offRequests.length !== 0) throw new Error('a request left before the person said OK');
+        await page.getByRole('button', { name: 'OK', exact: true }).click();
+        const deadline = Date.now() + 30000;
+        while (offRequests.length === 0 && Date.now() < deadline) await page.waitForTimeout(300);
+        if (offRequests.length !== 1) throw new Error(`expected exactly 1 Open Food Facts request, saw ${offRequests.length}`);
+        const r = offRequests[0];
+        if (r.method !== 'GET') throw new Error('method ' + r.method);
+        if (r.body) throw new Error('a request body was sent');
+        if (r.url.pathname !== `/api/v2/product/${EAN}`) throw new Error('path ' + r.url.pathname);
+        const keys = [...r.url.searchParams.keys()];
+        if (keys.length !== 1 || keys[0] !== 'fields' || r.url.searchParams.get('fields') !== OFF_FIELDS) {
+          throw new Error('query ' + r.url.search);
+        }
+        for (const forbidden of ['referer', 'cookie', 'authorization', 'x-forwarded-for']) {
+          if (forbidden in r.headers) throw new Error(`the request carried a ${forbidden} header`);
+        }
+        // CORS makes the browser add Origin: it is this app's own origin, no more.
+        if (r.headers.origin && r.headers.origin !== new URL(BASE).origin) throw new Error('origin ' + r.headers.origin);
+        await waitForText(page, /Smoke Jam/, 30000);
+        // Back to a clean locked board (a reload, then unlock) rather than
+        // driving the sheet's dismissal: this step is about the request.
+        await page.reload({ waitUntil: 'load' });
+        await unlock(page);
+        if (teardownErrors.length) log(name, `     note: ${teardownErrors.length} page error(s) while reloading with the camera live: ${teardownErrors[0].split('\n')[0]}`);
+        return `GET ${r.url.pathname}${r.url.search}, headers ${Object.keys(r.headers).sort().join(',')}`;
+      } finally {
+        inBarcodeStep = false;
+      }
+    });
+  } else {
+    log(name, 'skip barcode step: this browser has no fake camera device (Chromium only)');
+  }
+
   await step(name, 'Your data: storage status and last-export line', async () => {
     // Tall: Flutter only builds the semantics of what is (nearly) on screen.
     await page.setViewportSize({ width: 420, height: 1800 });
@@ -302,6 +434,30 @@ async function runBrowser(name, type) {
     await page.getByRole('button', { name: 'Back' }).click();
     await page.setViewportSize(coords.viewport);
     return `persisted()=${persisted}; ${storage}`;
+  });
+
+  await step(name, 'export: a plain CSV is downloaded, the note says so, nothing leaves this origin', async () => {
+    const foreignBefore = foreign.length;
+    await page.setViewportSize({ width: 420, height: 1800 });
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: /^Your data/ }).click();
+    await waitForText(page, /Exports are plain, unencrypted files/);
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30000 }),
+      page.getByRole('button', { name: 'Export', exact: true }).click(),
+    ]);
+    const file = await download.path();
+    const text = fs.readFileSync(file, 'utf8');
+    if (!/openplate/i.test(download.suggestedFilename()) || !download.suggestedFilename().endsWith('.csv')) {
+      throw new Error('unexpected file name ' + download.suggestedFilename());
+    }
+    if (!/Apple/.test(text)) throw new Error('the export does not contain the plate');
+    if (text.startsWith('SQLite') || text.includes('\u0000')) throw new Error('the export is not plain text');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await page.getByRole('button', { name: 'Back' }).click();
+    await page.setViewportSize(coords.viewport);
+    if (foreign.length !== foreignBefore) throw new Error('the export caused foreign requests: ' + foreign.slice(foreignBefore).join(', '));
+    return `${download.suggestedFilename()} (${text.length} bytes)`;
   });
 
   await step(name, 'reload -> locked -> unlock -> the plate is still there', async () => {
@@ -391,8 +547,11 @@ async function runBrowser(name, type) {
     });
   }
 
-  await step(name, 'no request left this origin, no page errors', async () => {
+  await step(name, 'no request left this origin (bar the one deliberate barcode lookup), no page errors', async () => {
     if (foreign.length) throw new Error('foreign requests: ' + foreign.join(', '));
+    const stray = offRequests.filter((r) => !r.duringBarcodeStep);
+    if (stray.length) throw new Error('Open Food Facts was contacted outside the barcode step: ' + stray.map((r) => r.url.href).join(', '));
+    if (offRequests.length > 1) throw new Error(`${offRequests.length} Open Food Facts requests; expected at most one`);
     if (pageErrors.length) throw new Error('page errors: ' + pageErrors.join(' | '));
   });
 

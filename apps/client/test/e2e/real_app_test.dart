@@ -22,6 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:openplate_client/boot.dart';
 import 'package:openplate_client/main.dart';
+import 'package:openplate_client/screens/about_notice_screen.dart';
 import 'package:openplate_client/screens/day_board_screen.dart';
 import 'package:openplate_client/state/ai_rung_provider.dart';
 import 'package:openplate_client/state/ai_settings_provider.dart';
@@ -116,12 +117,32 @@ _World _world({RecognitionResult? recognition}) {
 ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(DayBoardScreen)));
 
-Future<void> _bootToDayBoard(WidgetTester tester, _World w) async {
+/// Boots the real wiring. A fresh install shows the one-time "About this
+/// app" notice first (PV1): it is dismissed here like a person would, which
+/// also writes its acknowledgement to the real encrypted store.
+Future<void> _bootToDayBoard(
+  WidgetTester tester,
+  _World w, {
+  bool expectNotice = true,
+}) async {
   await tester.pumpWidget(OpenPlateBootstrap(dependencies: w.deps));
   await _settle(
     tester,
-    until: () => find.byType(DayBoardScreen).evaluate().isNotEmpty,
+    until: () =>
+        find.byType(DayBoardScreen).evaluate().isNotEmpty ||
+        find.byType(AboutNoticeScreen).evaluate().isNotEmpty,
   );
+  if (expectNotice) {
+    expect(find.byType(AboutNoticeScreen), findsOneWidget);
+    expect(find.byType(DayBoardScreen), findsNothing);
+    await tester.tap(find.text('Got it'));
+    await _settle(
+      tester,
+      until: () => find.byType(DayBoardScreen).evaluate().isNotEmpty,
+    );
+  } else {
+    expect(find.byType(AboutNoticeScreen), findsNothing);
+  }
   expect(find.byType(DayBoardScreen), findsOneWidget);
 }
 
@@ -201,6 +222,17 @@ void main() {
       await _settle(tester, rounds: 10);
       expect(find.text('An open, quiet place.'), findsNWidgets(3));
       expect(find.byType(PlateRow), findsNothing);
+      await _shutDown(tester);
+    });
+
+    testWidgets('the About notice is shown once: dismissing it is kept in the '
+        'encrypted store across a restart (PV1)', (tester) async {
+      final w = _world();
+      await _bootToDayBoard(tester, w);
+      await _shutDown(tester);
+
+      // A second launch over the same database and key: no notice.
+      await _bootToDayBoard(tester, w, expectNotice: false);
       await _shutDown(tester);
     });
   });
@@ -311,6 +343,51 @@ void main() {
         () => c.read(coachNoteStoreProvider).watchDismissals().first,
       );
       expect(dismissed, {coachNoteDismissalKey(notes.single.id)});
+
+      // 8. PV5: press and hold removes THIS plate - after a confirm - and its
+      //    coach note and dismissal go with it, on the real database.
+      final plateId = plates.single.id;
+      // The confirm is exercised on the real board (press and hold, "Keep
+      // it" removes nothing); the removal itself is then run through the same
+      // `DeletePlate` use case in the real zone. (Tapping "Remove" inside the
+      // widget test's fake-async zone wedges drift's isolate round trip in the
+      // harness - `plate_delete_test.dart` covers that tap on a fake store.)
+      await tester.longPress(find.byType(PlateRow));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Remove this plate?'), findsOneWidget);
+      await tester.tap(find.byKey(plateRemoveKeepKey));
+      await _settle(tester, rounds: 10);
+      expect(find.byType(PlateRow), findsOneWidget);
+      final removed = await tester.runAsync(
+        () => c.read(deletePlateProvider)(plateId),
+      );
+      expect(removed, isA<PlateDeleted>());
+      await _settle(
+        tester,
+        until: () => find.byType(PlateRow).evaluate().isEmpty,
+      );
+      expect(find.byType(PlateRow), findsNothing);
+      expect(find.text('An open, quiet place.'), findsNWidgets(3));
+      // The removed row's drift watch streams schedule zero-length cancel
+      // timers in the test zone; pump so they fire before the DB is read
+      // from outside the widget tree (else the read can wait forever).
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+      final after = await tester.runAsync(
+        () => store.readRange(
+          from: DateTime(2026, 10, 2),
+          to: DateTime(2026, 10, 3),
+        ),
+      );
+      expect((after! as PlatesRead).plates, isEmpty);
+      final goneNotes = await tester.runAsync(
+        () => c.read(coachNoteStoreProvider).forPlate(plateId),
+      );
+      expect(goneNotes, isEmpty);
+      final goneDismissals = await tester.runAsync(
+        () => c.read(coachNoteStoreProvider).watchDismissals().first,
+      );
+      expect(goneDismissals, isEmpty);
 
       await _shutDown(tester);
     });

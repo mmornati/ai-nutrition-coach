@@ -24,11 +24,12 @@
 //
 // FR9: every note + every interaction persists locally in the
 // encrypted store. The port is `append` / `recordInteraction`-only —
-// there is no `update` or `delete` method in v1.
+// the only removal is `deleteForPlate` (the single-plate delete cascade, PV5).
 
 import '../entities/coach_note.dart';
 import '../results/coach_interaction_failure.dart';
 import '../results/coach_note_failure.dart';
+import '../results/store_failure.dart' show DeletePlateResult;
 
 /// The single sanctioned coach-note write/read port (AD-1 / AD-3).
 abstract interface class CoachNoteStore {
@@ -90,4 +91,11 @@ abstract interface class CoachNoteStore {
   /// reflects the user's intent (whisper dismisses, depth panel
   /// closes) on a failed write.
   Future<CoachInteractionResult> recordInteraction(CoachInteractionLog log);
+
+  /// Remove everything this store holds about [plateLogId]: its notes, the
+  /// interactions logged against those notes, and the dismissal markers of
+  /// those notes (`coachNoteDismissalKey`). The cascade of a single-plate
+  /// delete (privacy audit PV5). Idempotent; an unknown id is a success.
+  /// Never throws.
+  Future<DeletePlateResult> deleteForPlate(int plateLogId);
 }

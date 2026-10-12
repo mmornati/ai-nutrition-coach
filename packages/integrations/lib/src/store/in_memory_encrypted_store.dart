@@ -95,6 +95,13 @@ class InMemoryEncryptedStore implements EncryptedStore {
       PlatesRead(platesInRange(_plates, from: from, to: to));
 
   @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async {
+    _plates.removeWhere((p) => p.id == plateLogId);
+    if (!_changes.isClosed) _changes.add(null);
+    return const PlateDeleted();
+  }
+
+  @override
   Future<void> close() async {
     if (!_changes.isClosed) {
       await _changes.close();
@@ -152,6 +159,17 @@ class InMemoryCoachNoteStore implements CoachNoteStore {
     _dismissed.add(key);
     _changes.add(null);
     return CoachInteractionRecorded(_nextInteractionId++);
+  }
+
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async {
+    final notes = _byPlate.remove(plateLogId) ?? const <CoachNote>[];
+    for (final n in notes) {
+      _dismissed.remove(coachNoteDismissalKey(n.id));
+    }
+    _interactions.removeWhere((i) => notes.any((n) => n.id == i.noteId));
+    _changes.add(null);
+    return const PlateDeleted();
   }
 
   @override

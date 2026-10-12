@@ -466,4 +466,160 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsInstallRowSubtitle => 'offline · own icon';
+
+  @override
+  String get aboutNoticeTitle => 'About this app';
+
+  @override
+  String get aboutNoticeAdults => 'OpenPlate is designed for adults.';
+
+  @override
+  String get aboutNoticeAi =>
+      'Photo recognition is off by default. If you turn it on, a photo is sent to a service you choose, and only after you say yes.';
+
+  @override
+  String get aboutNoticeLocal =>
+      'Your plates stay on this device, encrypted. There are no accounts and no analytics.';
+
+  @override
+  String get aboutNoticeOk => 'Got it';
+
+  @override
+  String get privacyLinkLabel => 'What this app stores and sends';
+
+  @override
+  String get privacyTitle => 'What this app stores and sends';
+
+  @override
+  String get privacyIntro =>
+      'A plain list. Nothing here is hidden, and nothing about you is collected.';
+
+  @override
+  String get privacyStoredHeading => 'Stored on this device, encrypted';
+
+  @override
+  String get privacyStoredBody =>
+      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. On a phone the key stays in the system keystore; on the web it is made from your passphrase and kept only while the app is unlocked.';
+
+  @override
+  String get privacyLeavesHeading => 'What leaves this device, and when';
+
+  @override
+  String get privacyLeavesBarcode =>
+      'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and, on the web, the address of this site (the browser adds it as the Origin header). You can turn this off below.';
+
+  @override
+  String get privacyLeavesPhoto =>
+      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.';
+
+  @override
+  String get privacyLeavesAndroid =>
+      'On Android, barcode scanning uses Google ML Kit inside the app, which may report usage statistics to Google. We have not verified this yet.';
+
+  @override
+  String get privacyServerHeading =>
+      'What the server you got this app from sees';
+
+  @override
+  String get privacyServerBody =>
+      'If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.';
+
+  @override
+  String get privacyNeverHeading => 'Never collected';
+
+  @override
+  String get privacyNeverBody =>
+      'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.';
+
+  @override
+  String get privacyDeleteHeading => 'Deleting your data';
+
+  @override
+  String get privacyDeleteBody =>
+      'To remove one plate, press and hold it on the Day Board and choose Remove. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.';
+
+  @override
+  String get privacyExportHeading => 'Exporting';
+
+  @override
+  String get privacyExportBody =>
+      'Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.';
+
+  @override
+  String get privacySharedHeading => 'Shared devices';
+
+  @override
+  String get privacySharedBody =>
+      'Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.';
+
+  @override
+  String get privacyOffToggle => 'Look up barcodes on Open Food Facts';
+
+  @override
+  String get privacyOffToggleOn => 'On: a scanned barcode is looked up online.';
+
+  @override
+  String get privacyOffToggleOff =>
+      'Off: only the offline catalog is used, and an unknown barcode opens manual entry.';
+
+  @override
+  String get privacyOffToggleUnasked =>
+      'You will be asked the first time you scan a barcode.';
+
+  @override
+  String get offNoticeTitle => 'Barcode lookups';
+
+  @override
+  String get offNoticeBody =>
+      'Barcodes you scan are looked up on Open Food Facts (public, no account). Only the barcode is sent.';
+
+  @override
+  String get offNoticeOk => 'OK';
+
+  @override
+  String get offNoticeOffline => 'Don’t look up online';
+
+  @override
+  String get plateRemoveAction => 'Remove this plate';
+
+  @override
+  String get plateRemoveHint => 'Press and hold to remove this plate';
+
+  @override
+  String get plateRemoveTitle => 'Remove this plate?';
+
+  @override
+  String plateRemoveBody(String dish) {
+    return '$dish will be removed from your history on this device, along with its coach note. This can’t be undone.';
+  }
+
+  @override
+  String get plateRemoveKeep => 'Keep it';
+
+  @override
+  String get plateRemoveConfirm => 'Remove';
+
+  @override
+  String get plateRemoved => 'Plate removed.';
+
+  @override
+  String get plateRemoveFailed => 'Couldn’t remove it. Try again.';
+
+  @override
+  String get settingsPrivacyRow => 'Privacy';
+
+  @override
+  String get settingsPrivacyRowSubtitle => 'what is stored · what is sent';
+
+  @override
+  String get privacySaveFailed =>
+      'Couldn’t save that. Unlock the app and try again.';
+
+  @override
+  String get offNoticeAlso =>
+      'Open Food Facts also sees your internet address and your app type, as any website does.';
+
+  @override
+  String get offNoticeAlsoWeb =>
+      'Open Food Facts also sees your internet address, your browser type and the address of this site (your browser adds it), as any website does.';
 }

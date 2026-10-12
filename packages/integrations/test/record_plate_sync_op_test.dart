@@ -15,6 +15,10 @@ import 'package:test/test.dart';
 import 'package:integrations/integrations.dart';
 
 class _StubEncryptedStore implements EncryptedStore {
+  @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async =>
+      const PlateDeleted();
+
   final List<RecordPlateResult> results;
   final StreamController<List<PlateLog>> _watchCtl =
       StreamController<List<PlateLog>>.broadcast();
@@ -49,6 +53,10 @@ CoachNoteGenerator _generator() => CoachNoteGenerator(
 );
 
 class _NoopCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async =>
       CoachNoteAppended(note);

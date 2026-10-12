@@ -16,6 +16,7 @@ int _skipped = 0;
 void reportCorruptRow(int rowId, String reason) {
   _skipped++;
   if (kDebugMode) {
+    // log-hygiene: content-free (a row id and a fixed reason, never values)
     debugPrint('openplate: skipped unreadable row #$rowId ($reason)');
   }
 }

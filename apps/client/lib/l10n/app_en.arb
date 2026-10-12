@@ -382,5 +382,190 @@
   "settingsInstallRowSubtitle": "offline · own icon",
   "@settingsInstallRowSubtitle": {
     "description": "Settings row subtitle."
+  },
+  "aboutNoticeTitle": "About this app",
+  "@aboutNoticeTitle": {
+    "description": "One-time first-run notice heading."
+  },
+  "aboutNoticeAdults": "OpenPlate is designed for adults.",
+  "@aboutNoticeAdults": {
+    "description": "First-run notice line 1."
+  },
+  "aboutNoticeAi": "Photo recognition is off by default. If you turn it on, a photo is sent to a service you choose, and only after you say yes.",
+  "@aboutNoticeAi": {
+    "description": "First-run notice line 2."
+  },
+  "aboutNoticeLocal": "Your plates stay on this device, encrypted. There are no accounts and no analytics.",
+  "@aboutNoticeLocal": {
+    "description": "First-run notice line 3."
+  },
+  "aboutNoticeOk": "Got it",
+  "@aboutNoticeOk": {
+    "description": "Dismiss button of the first-run notice."
+  },
+  "privacyLinkLabel": "What this app stores and sends",
+  "@privacyLinkLabel": {
+    "description": "Link text to the in-app privacy page (first-run notice, barcode notice, consent dialog, Your AI)."
+  },
+  "privacyTitle": "What this app stores and sends",
+  "@privacyTitle": {
+    "description": "Privacy page title."
+  },
+  "privacyIntro": "A plain list. Nothing here is hidden, and nothing about you is collected.",
+  "@privacyIntro": {
+    "description": "Privacy page intro."
+  },
+  "privacyStoredHeading": "Stored on this device, encrypted",
+  "@privacyStoredHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyStoredBody": "Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. On a phone the key stays in the system keystore; on the web it is made from your passphrase and kept only while the app is unlocked.",
+  "@privacyStoredBody": {
+    "description": "Privacy page: what is stored."
+  },
+  "privacyLeavesHeading": "What leaves this device, and when",
+  "@privacyLeavesHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyLeavesBarcode": "Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and, on the web, the address of this site (the browser adds it as the Origin header). You can turn this off below.",
+  "@privacyLeavesBarcode": {
+    "description": "Privacy page: barcode lookups."
+  },
+  "privacyLeavesPhoto": "Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.",
+  "@privacyLeavesPhoto": {
+    "description": "Privacy page: AI photo upload."
+  },
+  "privacyLeavesAndroid": "On Android, barcode scanning uses Google ML Kit inside the app, which may report usage statistics to Google. We have not verified this yet.",
+  "@privacyLeavesAndroid": {
+    "description": "Privacy page: ML Kit note (PV4, unverified)."
+  },
+  "privacyServerHeading": "What the server you got this app from sees",
+  "@privacyServerHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyServerBody": "If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.",
+  "@privacyServerBody": {
+    "description": "Privacy page: server."
+  },
+  "privacyNeverHeading": "Never collected",
+  "@privacyNeverHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyNeverBody": "No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.",
+  "@privacyNeverBody": {
+    "description": "Privacy page: never collected."
+  },
+  "privacyDeleteHeading": "Deleting your data",
+  "@privacyDeleteHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyDeleteBody": "To remove one plate, press and hold it on the Day Board and choose Remove. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.",
+  "@privacyDeleteBody": {
+    "description": "Privacy page: deleting."
+  },
+  "privacyExportHeading": "Exporting",
+  "@privacyExportHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyExportBody": "Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.",
+  "@privacyExportBody": {
+    "description": "Privacy page: exporting."
+  },
+  "privacySharedHeading": "Shared devices",
+  "@privacySharedHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacySharedBody": "Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.",
+  "@privacySharedBody": {
+    "description": "Privacy page: shared devices (PV6)."
+  },
+  "privacyOffToggle": "Look up barcodes on Open Food Facts",
+  "@privacyOffToggle": {
+    "description": "Privacy page switch label."
+  },
+  "privacyOffToggleOn": "On: a scanned barcode is looked up online.",
+  "@privacyOffToggleOn": {
+    "description": "Privacy page switch state."
+  },
+  "privacyOffToggleOff": "Off: only the offline catalog is used, and an unknown barcode opens manual entry.",
+  "@privacyOffToggleOff": {
+    "description": "Privacy page switch state."
+  },
+  "privacyOffToggleUnasked": "You will be asked the first time you scan a barcode.",
+  "@privacyOffToggleUnasked": {
+    "description": "Privacy page switch state before the notice was answered."
+  },
+  "offNoticeTitle": "Barcode lookups",
+  "@offNoticeTitle": {
+    "description": "Open Food Facts notice title."
+  },
+  "offNoticeBody": "Barcodes you scan are looked up on Open Food Facts (public, no account). Only the barcode is sent.",
+  "@offNoticeBody": {
+    "description": "Open Food Facts notice body."
+  },
+  "offNoticeOk": "OK",
+  "@offNoticeOk": {
+    "description": "Open Food Facts notice: allow."
+  },
+  "offNoticeOffline": "Don’t look up online",
+  "@offNoticeOffline": {
+    "description": "Open Food Facts notice: offline catalog only."
+  },
+  "plateRemoveAction": "Remove this plate",
+  "@plateRemoveAction": {
+    "description": "Semantics action and menu label that removes a plate."
+  },
+  "plateRemoveHint": "Press and hold to remove this plate",
+  "@plateRemoveHint": {
+    "description": "Semantics long-press hint of a plate row."
+  },
+  "plateRemoveTitle": "Remove this plate?",
+  "@plateRemoveTitle": {
+    "description": "Confirm dialog title."
+  },
+  "plateRemoveBody": "{dish} will be removed from your history on this device, along with its coach note. This can’t be undone.",
+  "@plateRemoveBody": {
+    "description": "Confirm dialog body; dish is the plate's food summary.",
+    "placeholders": {
+      "dish": {
+        "type": "String"
+      }
+    }
+  },
+  "plateRemoveKeep": "Keep it",
+  "@plateRemoveKeep": {
+    "description": "Confirm dialog dismiss."
+  },
+  "plateRemoveConfirm": "Remove",
+  "@plateRemoveConfirm": {
+    "description": "Confirm dialog action."
+  },
+  "plateRemoved": "Plate removed.",
+  "@plateRemoved": {
+    "description": "Snackbar after a plate was removed."
+  },
+  "plateRemoveFailed": "Couldn’t remove it. Try again.",
+  "@plateRemoveFailed": {
+    "description": "Snackbar when the removal failed."
+  },
+  "settingsPrivacyRow": "Privacy",
+  "@settingsPrivacyRow": {
+    "description": "Settings row title."
+  },
+  "settingsPrivacyRowSubtitle": "what is stored · what is sent",
+  "@settingsPrivacyRowSubtitle": {
+    "description": "Settings row subtitle."
+  },
+  "privacySaveFailed": "Couldn’t save that. Unlock the app and try again.",
+  "@privacySaveFailed": {
+    "description": "Privacy page: the switch change could not be stored."
+  },
+  "offNoticeAlso": "Open Food Facts also sees your internet address and your app type, as any website does.",
+  "@offNoticeAlso": {
+    "description": "Open Food Facts notice, second paragraph (mobile)."
+  },
+  "offNoticeAlsoWeb": "Open Food Facts also sees your internet address, your browser type and the address of this site (your browser adds it), as any website does.",
+  "@offNoticeAlsoWeb": {
+    "description": "Open Food Facts notice, second paragraph (web)."
   }
 }

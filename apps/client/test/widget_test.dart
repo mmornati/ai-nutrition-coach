@@ -21,13 +21,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ai_nutrition_coach/main.dart';
-import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
-import 'package:ai_nutrition_coach/state/coach_provider.dart';
-import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
-import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:openplate_client/main.dart';
+import 'package:openplate_client/screens/day_board_screen.dart';
+import 'package:openplate_client/state/coach_provider.dart';
+import 'package:openplate_client/state/privacy_provider.dart';
+import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:openplate_client/theme/app_tokens.dart';
 
 import '_fakes/fake_encrypted_store.dart';
+import '_fakes/test_overrides.dart' show privacyPrefsFor;
 
 Future<void> _pumpWithMode(WidgetTester tester, ThemeMode mode) async {
   await tester.pumpWidget(
@@ -38,6 +40,8 @@ Future<void> _pumpWithMode(WidgetTester tester, ThemeMode mode) async {
         // fake so the scaffold smoke tests do not hit
         // `UnimplementedError`.
         coachProvider.overrideWithValue(FakeCoach()),
+        // The first-run notice has its own tests; here it is answered.
+        privacyPrefsProvider.overrideWithValue(privacyPrefsFor()),
       ],
       child: AiNutritionCoachApp(themeMode: mode),
     ),

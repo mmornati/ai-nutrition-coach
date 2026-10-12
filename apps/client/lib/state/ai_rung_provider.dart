@@ -112,20 +112,82 @@ final byokConnectionTesterFactoryProvider =
               ),
     );
 
+/// A one-shot "yes, send THIS photo to THIS host" (privacy audit PV1). The
+/// capture screen grants it after the person said yes to the dialog for the
+/// photo in hand; `ConsentGatedAiRung` consumes it. It is bound to the host
+/// the dialog named and to the SHA-256 of the photo bytes, so it can authorise
+/// exactly that upload: a second photo (a retake while the first is still
+/// being recognised), another host or any other code path finds it unusable.
+class PhotoUploadPermit {
+  ({String host, String digest})? _grant;
+
+  /// The person agreed to send [bytes] to [host].
+  void grant({required String host, required Uint8List bytes}) =>
+      _grant = (host: host.toLowerCase(), digest: photoDigest(bytes));
+
+  /// Spend the permit: `true` once after a matching [grant], `false` for any
+  /// other photo or host (a mismatch leaves the permit unspent for the right
+  /// photo; [revoke] drops it).
+  bool consume({required String host, required Uint8List bytes}) {
+    final g = _grant;
+    if (g == null) return false;
+    if (g.host != host.toLowerCase() || g.digest != photoDigest(bytes)) {
+      return false;
+    }
+    _grant = null;
+    return true;
+  }
+
+  /// Drop an unspent permit (the photo was not sent after all).
+  void revoke() => _grant = null;
+
+  @override
+  String toString() => 'PhotoUploadPermit()';
+}
+
+/// The permit the capture screen grants and the consent-gated rung spends.
+final photoUploadPermitProvider = Provider<PhotoUploadPermit>(
+  (ref) => PhotoUploadPermit(),
+);
+
 /// Refuses to recognise (and so never uploads) unless the user has agreed to
 /// photos going to [host] (N1). The capture screen asks first; this guard
 /// makes the rule hold even if some other path reaches the rung.
+///
+/// With "Ask before every photo upload" on ([askEveryPhoto], the default) the
+/// per-host agreement is not enough: each photo needs its own one-shot
+/// [permit], granted by the capture screen after the person said yes for
+/// that photo.
 class ConsentGatedAiRung implements AiRung {
-  const ConsentGatedAiRung({required this.inner, required this.hasConsent});
+  const ConsentGatedAiRung({
+    required this.inner,
+    required this.hasConsent,
+    this.askEveryPhoto,
+    this.permit,
+    this.host = '',
+  });
 
   final AiRung inner;
 
   /// Evaluated at call time, so a revoke takes effect immediately.
   final bool Function() hasConsent;
 
+  /// Evaluated at call time. `null` means "no per-photo mode".
+  final bool Function()? askEveryPhoto;
+
+  /// The one-shot permit spent in per-photo mode.
+  final PhotoUploadPermit? permit;
+
+  /// The host the permit must have been granted for.
+  final String host;
+
   @override
   Future<RecognitionResult> recognize(Uint8List photoBytes) async {
-    if (!hasConsent()) {
+    final perPhoto = askEveryPhoto?.call() ?? false;
+    final allowed = perPhoto
+        ? (permit?.consume(host: host, bytes: photoBytes) ?? false)
+        : hasConsent();
+    if (!allowed) {
       return const RecognitionFailure(
         'photo upload has not been agreed yet — see Settings → Your AI',
       );
@@ -176,6 +238,9 @@ final aiRungProvider = Provider<AiRung>((ref) {
       return ConsentGatedAiRung(
         inner: byok,
         hasConsent: () => ref.read(aiSettingsProvider).hasConsentFor(host),
+        askEveryPhoto: () => ref.read(aiSettingsProvider).askBeforeEveryPhoto,
+        permit: ref.read(photoUploadPermitProvider),
+        host: host,
       );
     case AiRungKind.local:
       return const LocalAiRung();

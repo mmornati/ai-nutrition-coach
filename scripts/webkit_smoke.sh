@@ -83,6 +83,6 @@ echo "▶ running the smoke in: $BROWSERS"
 docker run --rm --network "container:$SERVER" \
   --ipc=host \
   -v "$ROOT/tools/webkit_smoke":/w -v "$SITE":/site -v "$PWA":/pwa -w /w \
-  -e BROWSERS="$BROWSERS" -e SITE_DIR=/site -e PWA_DIR=/pwa -e BASE_URL=http://localhost:8080 \
+  -e BROWSERS="$BROWSERS" -e DEBUG_PAGE="${DEBUG_PAGE:-}" -e SITE_DIR=/site -e PWA_DIR=/pwa -e BASE_URL=http://localhost:8080 \
   "$PLAYWRIGHT_IMAGE" \
   sh -c 'npm ci --silent --no-audit --no-fund && node smoke.mjs'

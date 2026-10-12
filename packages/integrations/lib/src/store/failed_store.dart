@@ -33,6 +33,10 @@ class FailedEncryptedStore implements EncryptedStore {
       PlatesReadFailed(failure);
 
   @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async =>
+      PlateDeleteFailed(failure);
+
+  @override
   Future<void> close() async {}
 }
 
@@ -65,4 +69,8 @@ class FailedCoachNoteStore implements CoachNoteStore {
   Future<CoachInteractionResult> recordInteraction(
     CoachInteractionLog log,
   ) async => CoachInteractionFailed(failure);
+
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      PlateDeleteFailed(failure);
 }
