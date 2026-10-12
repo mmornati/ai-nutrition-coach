@@ -380,3 +380,71 @@ Phase 6 can run in parallel any time after Phase 1.
 ```
 
 Rough total: ~3 weeks of focused work for one developer (Phase 2B option B adds ~1 week).
+
+---
+
+## 4. Privacy audit (2026-10-12)
+
+Read-only data-privacy pass (inventory, flows, consent, erasure) at `705ed7f`; nothing compiled or run. **[verify]** = depends on plugin/third-party behaviour not confirmed by a build.
+
+### 4.1 Data inventory
+
+| Data | Where | Encrypted | Retention / deletion | Who else can read |
+| --- | --- | --- | --- | --- |
+| Plates (`loggedAtUtc`, food name, source+sourceRef incl. barcode, group, quantity range) | mobile sqlite3mc file (Documents); web IDB `openplate_encrypted_v1` | yes (ChaCha20-Poly1305) | forever; **no per-plate delete/edit**, only erase-all | iOS iCloud/iTunes backup (ciphertext); anyone with the unlocked phone (no mobile app lock) or the web passphrase |
+| Coach notes (anchor, `questionKey` e.g. `proteinLight`, template text), interactions, dismissals | same DB | yes | forever; only `openPlate:` dismissals pruned >7 d (`local_coach_note_store.dart:146`) | as above |
+| BYOK key, AI rung/endpoint/model, per-host consent set (no timestamp) | mobile Keychain/Keystore (`openplate_byok_key_v1`, `openplate_ai_rung_config_v1`); web `kv_table` | yes | until removed / erase-all | not in backups (Keychain this-device-only, Android backup off) |
+| DB key (mobile) | Keychain/Keystore `openplate_db_key_v1` | OS | erase-all | - |
+| Passphrase / derived key (web) | memory only (WASM heap while unlocked) | n/a | lock / idle 15 min / hidden 5 min | malicious script on origin while unlocked |
+| `lastExportAt`, reminder snooze | `kv_table` | yes | erase-all | - |
+| Quota counter (hosted rung, unused) | secure storage | OS | erase-all | - |
+| Web header (salt, KDF cost, version), idle-lock minutes | `localStorage` `openplate.web.store.meta`, `openplate.web.lock.idleMinutes`; IDB `openplate_header_v1` | no (not secret) | erase-all deletes all three | reveals "OpenPlate used in this profile" |
+| Plate photo | memory → upload; **mobile: image_picker temp/cache file** | no | **never deleted by app; not covered by erase-all** [verify path] | app-private cache; OS clears eventually |
+| Exports CSV/JSON (plates only) | mobile tmp `openplate_exports/` + Android cache `share_plus/`; web: browser Downloads | **plaintext** | mobile: deleted after hand-off / >1 h purge / erase-all; web: never (outside app) | whatever app/folder the user picks, cloud-synced Downloads |
+| Barcode/search LRU | memory | n/a | process lifetime | - |
+| SW precache (app shell only) | Cache Storage | no | per build | no personal data |
+| nginx access log (Traefik container IP, time, path, full UA, status) | container stdout → json-file 10 MB×3 | no | rotation (~days; healthcheck every 30 s adds lines) | host admin |
+
+### 4.2 Flows leaving the device
+
+| Flow | Sent | To | Consent / disclosure |
+| --- | --- | --- | --- |
+| Barcode lookup | GET `/api/v2/product/<barcode>?fields=…`, `Accept`; mobile UA `OpenPlate/0.1.0 (+placeholder URL)` / Dart UA; web browser UA **+ `Origin: https://<family-domain>`** (CORS; `Referrer-Policy: no-referrer` suppresses Referer, not Origin); client IP; time | Open Food Facts (public, FR nonprofit) | **none in app**; only `docs/telemetry-posture.md` |
+| BYOK recognise | JSON `{model, messages:[fixed prompt, data:image/* base64 ≤1024 px q80, EXIF stripped], max_tokens 800, temperature 0.2}`; `Authorization: Bearer`; UA; web `Origin` + preflight; IP | user-chosen host (default hint openrouter.ai) | standing per-host dialog, once; revocable in Your AI |
+| BYOK test connection | `{model, "ping", max_tokens 1}` + key | same host | user action, no dialog (no photo) |
+| Android barcode decode (mobile_scanner → Google ML Kit) | ML Kit may send usage/performance metrics to Google (firelog) **[verify]** | Google | **undisclosed**; `docs/telemetry-posture.md` claims none |
+| App shell / SW / healthcheck | static GETs, no query strings; hash routing, so routes never reach the server | self-host nginx via Traefik | n/a |
+| sqlite3mc / zxing wasm, fonts | build time only, SHA-pinned; bundle scan + Playwright "no other origin" (startup/unlock only) | - | - |
+
+The prompt asks only for name / quantityHint / group (`openai_compatible_byok_provider.dart:147`): no calories, health commentary or history; nothing stored from it beyond the logged plate. Coach inferences (`proteinLight`, `vegRich`…) are fixed templates, stored locally, never sent.
+
+### 4.3 Findings
+
+**High**
+- **PV1 Children vs third-party AI.** `check_adults_only.dart` / `check_no_under_13_profiles.dart` only grep identifiers (`childProfile`, `ageGate`…); no runtime age statement, no first-run "adults only" notice. AI consent is standing per host (`ai_settings.dart:46`), so a child using a parent's device photographs plates straight to OpenRouter/OpenAI (whose terms require 13+/18+, verify). Fix: for a family test with children, either (a) children get their own device/browser profile with AI rung `noOp` (document it in the test brief), or (b) add a per-photo confirm option ("Ask every time", default on) and a one-line first-run "OpenPlate is designed for adults" notice. No AI for minors' devices; barcode lookup acceptable (barcode only).
+
+**Medium**
+- **PV2 Consent copy overclaims.** `coach_strings.dart:1189` "Not sent: your name, your history, or anything else." The host also receives IP address, User-Agent, time, and on web the family domain via `Origin`; provider retention/training is not mentioned. Fix: "Also visible to {host}: your internet address and device type, as with any website. {host} may keep requests under its own terms; check its data-retention and training settings (OpenRouter: Settings → Privacy)."
+- **PV3 Plate photos left in the image_picker cache, not erased** (`photo_provider.dart:99`; eraser `local_data_eraser_io.dart:132` only removes `openplate_exports/` and `share_plus/`). On Android the original camera file may keep EXIF/GPS **[verify]**. Fix: after `readAsBytes()` delete `file.path` (`File(file.path).delete()` on io), and have the eraser also remove `image_picker*` files in the temp dir; add a unit test with an injected temp dir.
+- **PV4 Undisclosed ML Kit egress on Android** **[verify]**: confirm with a network capture; if present, disclose in `docs/telemetry-posture.md` and Your data, or switch to the unbundled model + `firebase_*`/datatransport opt-out meta-data, or a pure-Dart/zxing decoder.
+- **PV5 No granular erasure.** The store port has `recordPlate`/`readRange`/`close` only (`ports/encrypted_store.dart:31-58`). A wrong or another member's plate can only be removed by erasing everything. Fix: `deletePlate(id)` (cascade food entries, coach notes/interactions) + a long-press "Remove" on Day Board.
+- **PV6 Shared devices.** One store per device/profile, no profiles, no mobile app lock: every member who can unlock the phone, or knows the shared web passphrase, sees the whole history. Fix for the test: one device or browser profile (and passphrase) per person; say so in the test brief and on Your data.
+
+**Low**
+- **PV7** Barcode lookups to OFF are not disclosed in-app; add one line to Your data / scan screen ("Barcodes are looked up at Open Food Facts; nothing else is sent").
+- **PV8** Erase copy (`coach_strings.dart:706-713`) says it removes "any export files from this device"; false for web Downloads and for copies shared to other apps. `docs/your-data.md:109` "wherever you choose": Chrome saves to Downloads silently by default. Fix copy; add "Exports are not encrypted" on the export button line.
+- **PV9** nginx `access_log /dev/stdout` (`infra/nginx/nginx.conf:30`) logs full UA + paths (IP is Traefik's). Low content, but set `access_log off;` (or a minimal format without UA) and `access_log off` for the healthcheck; Traefik access log is off by default; the owner's config is unverified.
+- **PV10** Export covers plates only (`json_exporter.dart:49`); coach notes/interactions, AI settings are not portable, and there is no import (iOS PWA vs Safari data cannot be bridged). Fine for v1; document it.
+- **PV11** OFF User-Agent still uses the placeholder project URL (`app_identity.dart`), also used by the consent "learn more" link.
+- Logging is clean: `corrupt_row_log.dart:17` is `kDebugMode`-guarded with id+fixed reason; `record_plate_provider.dart:50` prints `PostCommitWarning(step)` only; BYOK errors carry host/status only; no crash SDK.
+
+### 4.4 Proposed automated checks
+
+1. `packages/integrations/test/openai_compatible_byok_provider_test.dart`: assert exact key sets: body `{model, messages, max_tokens, temperature}`, one message `{role, content}`, content parts exactly `[text == _prompt, image_url]`, headers ⊆ `{Authorization, Content-Type, content-length}`; scan the body for ISO dates, the plate/entry ids and the locale.
+2. `packages/integrations/test/off_barcode_source_test.dart`: assert the URI is exactly `/api/v2/product/<code>` with only `fields`, headers ⊆ `{Accept, User-Agent}`, no `Referer`/`Cookie`/`Authorization`.
+3. New `tools/check_log_hygiene.dart` (chained into `check:release-posture`): fail on `print(` anywhere in `lib/`, and on `debugPrint(` whose interpolation is not inside a `kDebugMode` block or a `PostCommitWarning`; allow-list `corrupt_row_log.dart`.
+4. `self_host_config_test.dart` + `scripts/smoke_self_host.sh`: assert `access_log off` (or a format without `$http_user_agent`) in `nginx.conf`; in `tools/webkit_smoke/smoke.mjs` add a step that scans a stubbed barcode with `page.route('https://world.openfoodfacts.org/**')` and asserts the request has no `referer` header and only the `fields` query (the existing "no other origin" check covers startup/unlock only).
+
+### 4.5 Privacy readiness for a family test
+
+Suitable for an **adults-only** family test today: data stays on-device encrypted, no telemetry, the only third-party flows are the user-initiated OFF barcode lookup and the opt-in BYOK host, the photo is shrunk and metadata-stripped, and the prompt asks for food identification only. Before the test: give each person their own device or browser profile and passphrase (PV6), keep AI off on any device a child uses (PV1), fix the consent and erase wording (PV2, PV8), delete the picker's photo file (PV3), and capture Android traffic once to settle ML Kit (PV4). A short in-app "What this app stores and sends" page is enough as the privacy notice: it lists what is stored where, that barcodes go to Open Food Facts, photos go to your chosen AI host only after you allow it (with IP/UA, under that host's terms), that exports are plaintext, there is no server copy, and how to erase.
