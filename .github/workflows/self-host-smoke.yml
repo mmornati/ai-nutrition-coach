@@ -1,13 +1,9 @@
 # Story 4.4 — self-host CI smoke test (FR-11 / NFR9).
 #
-# MANUAL ONLY (Actions → self-host-smoke → Run workflow). It builds the
-# Flutter web bundle inside Docker (~3 min), and the Flutter client is being
-# replaced by a PWA — the smoke test comes back on PRs once it is reworked
-# for the PWA build. The smoke test asserts:
-#   * The image builds in under 5 minutes (NFR9 / FR-11).
-#   * `curl http://localhost/` returns 200 + the lock-screen HTML.
-#   * The `nginx:alpine` base is digest-pinned (NFR9).
-#   * The container's network namespace is quiet (FR-12 / NFR4).
+# Runs the `bin/ai-nutrition-coach up` flow end-to-end on every PR. The smoke test
+# (scripts/smoke_self_host.sh) asserts readiness + HTTP behaviour, security
+# headers/CSP on html/js/wasm, a digest-pinned non-root read-only container,
+# serving on a network with no egress, and a third-party-host-free bundle.
 #
 # The job runs on a standard GitHub-hosted runner so the budget is
 # comparable to a self-hoster's first-time experience on commodity
@@ -16,8 +12,11 @@
 name: self-host-smoke
 
 on:
-  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
 
+# Least privilege: jobs that need more must escalate at job level.
 permissions:
   contents: read
 
@@ -35,5 +34,4 @@ jobs:
 
       - name: Smoke summary
         if: success()
-        run: |
-          echo "self-host smoke: PASS"
+        run: 'echo "self-host smoke: PASS"'

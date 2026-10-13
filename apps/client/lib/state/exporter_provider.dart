@@ -59,7 +59,7 @@ final exportTaskProvider = FutureProvider.autoDispose
 
 /// Build the export filename from the local date + format
 /// extension. The filename is the user-facing artefact the
-/// "exported: `<file>`" line references. AD-9: the file is a copy;
+/// "exported: `file`" line references. AD-9: the file is a copy;
 /// the source is untouched.
 String exportFilename({
   required DateTime localDay,

@@ -4,8 +4,7 @@
 // `FakePhotoCapture` so the suite stays hermetic and never touches
 // the camera. The provider is the single Riverpod seam — the screen
 // reads `photoCaptureProvider` and dispatches the result through
-// `recognitionProvider` (a `FutureProvider.family` keyed on the
-// latest photo bytes).
+// the active rung (`aiRungProvider`).
 //
 // AD-1: `image_picker` lives ONLY in `apps/client/`; the domain
 // core never imports it (the grep test in
@@ -15,25 +14,28 @@
 // the screen renders the calm copy in either case without
 // inspecting platform strings.
 //
-// `aiRungProvider` is the production seam for the active rung.
-// `main.dart` overrides it with `NoopAiRung()`; tests inject a
-// `FakeAiRung` that records calls and returns a configured result.
+// The active rung is `aiRungProvider` in `ai_rung_provider.dart` — the
+// config-driven one. (This file used to define a second, throwing
+// `aiRungProvider` that the photo screen imported, so photo recognition
+// could never run: security review F1. It is gone; tests override the real
+// one.)
 //
-// `recognitionProvider` is the future-driven side of the dispatch:
-// the screen triggers a fresh `recognize` call on every successful
-// capture and cancels the previous future if a new capture arrives
-// before the previous one lands (the multi-shot I/O matrix).
-//
-// Riverpod 3.x puts `StateProvider` in `legacy.dart`; the ephemeral
-// capture state lives here for parity with the manual-entry
-// notifier shape.
+// Privacy (N1 / N10 / PV3): the picker's temp file is deleted right after the
+// bytes are read; the captured bytes are NOT retained anywhere after
+// the recognition call — there is no "last photo" provider. The capture
+// adapter asks the picker to downscale (max 1024 px, quality 80); the
+// metadata strip and MIME detection happen at the upload point
+// (`sanitizePhotoForUpload`), which is where the guarantee is enforced.
 
 import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:integrations/integrations.dart' show deletePickerFile;
+
+import 'scanner_adapters.dart' show PermissionHandlerCameraPermission;
+import 'scanner_provider.dart' show CameraPermission, CameraPermissionStatus;
 
 /// Photo-capture port. The production adapter wraps `image_picker`'s
 /// `ImagePicker().pickImage(source: ImageSource.camera)`; tests
@@ -52,17 +54,6 @@ abstract interface class PhotoCapture {
   Future<Uint8List?> capture();
 }
 
-/// `AiRung` seam — overridden in `main.dart` with `NoopAiRung()`
-/// (Story 1.8 v1 active rung). Tests inject a `FakeAiRung` that
-/// records `recognize` calls and returns a configured
-/// `RecognitionResult`.
-final aiRungProvider = Provider<AiRung>(
-  (ref) => throw UnimplementedError(
-    'aiRungProvider must be overridden at the ProviderScope root '
-    'with the result of `NoopAiRung()` — see apps/client/lib/main.dart.',
-  ),
-);
-
 /// `PhotoCapture` seam — overridden in `main.dart` with the
 /// production `ImagePickerPhotoCapture`. Tests inject a
 /// `FakePhotoCapture`.
@@ -74,23 +65,6 @@ final photoCaptureProvider = Provider<PhotoCapture>(
   ),
 );
 
-/// Holds the latest captured photo bytes. `null` until the user
-/// captures a photo. The screen reads this to drive the
-/// `recognitionProvider` family lookup.
-final lastPhotoBytesProvider = StateProvider<Uint8List?>((_) => null);
-
-/// Family-keyed recognition call. The screen reads
-/// `ref.read(recognitionProvider(bytes).future)` after a capture
-/// lands; the family auto-disposes so a second capture triggers a
-/// fresh `AiRung.recognize` call even if the previous one has not
-/// landed yet (the multi-shot I/O matrix — only the latest
-/// recognition lands on screen).
-final recognitionProvider = FutureProvider.autoDispose
-    .family<RecognitionResult, Uint8List>((ref, bytes) async {
-      final rung = ref.watch(aiRungProvider);
-      return rung.recognize(bytes);
-    });
-
 /// Production `PhotoCapture` adapter — wraps `image_picker`. The
 /// adapter uses `ImageSource.camera` so the user lands on the OS
 /// camera UI; `pickImage` returns `null` when the user cancels or
@@ -101,18 +75,54 @@ class ImagePickerPhotoCapture implements PhotoCapture {
   /// [picker] `null` and the constructor falls back to
   /// `ImagePicker()` at call time so the field stays nullable but
   /// is read fresh on every `capture()` call.
-  // ignore: prefer_initializing_formals
-  const ImagePickerPhotoCapture({ImagePicker? picker}) : _picker = picker;
+  const ImagePickerPhotoCapture({
+    this._picker,
+    this._permission = const PermissionHandlerCameraPermission(),
+    this._deleteFile = deletePickerFile,
+  });
 
   final ImagePicker? _picker;
 
+  /// Asked BEFORE the picker opens. On Android the CAMERA permission is
+  /// declared (merged from mobile_scanner's manifest), so image_picker's
+  /// camera intent throws a SecurityException unless it has been granted at
+  /// runtime. A refusal collapses to `null` — the same calm copy as a cancel.
+  final CameraPermission _permission;
+
+  /// Removes the temp file the picker wrote (PV3). Injectable for tests;
+  /// production uses `deletePickerFile` (a no-op on web, where there is no
+  /// file).
+  final Future<void> Function(String path) _deleteFile;
+
   @override
   Future<Uint8List?> capture() async {
+    final status = await _permission.request();
+    if (status != CameraPermissionStatus.granted) return null;
     final picker = _picker ?? ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera);
+    // N1: ask the platform to downscale and re-encode. This reduces what is
+    // uploaded, but is NOT relied on to drop EXIF (the Android plugin copies
+    // EXIF back onto the resized file): `sanitizePhotoForUpload` strips
+    // metadata at the point of upload. `requestFullMetadata: false` avoids
+    // asking iOS for photo-library (location) access just to read a photo.
+    final file = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+      requestFullMetadata: false,
+    );
     if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return bytes;
+    // PV3: the picker leaves its file (an unencrypted plate photo, on Android
+    // possibly with GPS in the camera original) in the app's cache and never
+    // deletes it. The bytes are all the app needs, so the file goes as soon
+    // as they are read - whether or not the read worked, and so before any
+    // recognition (success or failure) can leave it behind. The start-up
+    // purge and "Erase all local data" are the backstops.
+    try {
+      return await file.readAsBytes();
+    } finally {
+      await _deleteFile(file.path);
+    }
   }
 }
 

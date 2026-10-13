@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('CaptureSheet a11y floor (Story 5.4 / NFR-7)', () {
     testWidgets('every affordance carries a Semantics wrapper', (tester) async {
-      final handle = tester.ensureSemantics();
+      final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -38,7 +38,7 @@ void main() {
       expect(find.bySemanticsLabel('Snapshot'), findsOneWidget);
       expect(find.bySemanticsLabel('Scan'), findsOneWidget);
       expect(find.bySemanticsLabel('Type or talk'), findsOneWidget);
-      handle.dispose();
+      semantics.dispose();
     });
   });
 }

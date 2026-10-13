@@ -14,7 +14,7 @@ void main() {
     testWidgets('interactive widgets carry a Semantics wrapper', (
       tester,
     ) async {
-      final handle = tester.ensureSemantics();
+      final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -27,7 +27,7 @@ void main() {
         ),
       );
       expect(find.bySemanticsLabel('Day Board placeholder'), findsOneWidget);
-      handle.dispose();
+      semantics.dispose();
     });
 
     testWidgets('reduced-motion collapses the chip flip to a fade', (

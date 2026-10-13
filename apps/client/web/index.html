@@ -18,13 +18,22 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="A calm, private plate log. Your data stays on your device; no account, no tracking.">
+  <meta name="theme-color" content="#6B8E5A" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161A18" media="(prefers-color-scheme: dark)">
 
-  <!-- iOS meta tags & icons -->
+  <!--
+    Installable PWA (ADR-0003, docs/pwa.md). The service worker (sw.js) is
+    registered by the app itself (main.dart.js, same origin) in release builds
+    only; there is deliberately NO inline script here (strict CSP).
+  -->
+
+  <!-- iOS: "Add to Home Screen" (Safari has no install prompt) -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AI Nutrition Coach">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>

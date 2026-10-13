@@ -25,9 +25,9 @@ class SyncOp {
     this.payload = const <String, Object?>{},
   });
 
-  /// Stable id for idempotent enqueue. Generated once at commit
-  /// time (Story 4.3 uses a UUID-shaped hex string) and reused by
-  /// every retry.
+  /// Stable id for idempotent enqueue: a random UUID v4
+  /// (`generateUuidV4`, secure RNG), generated once at commit time and
+  /// reused by every retry.
   final String opId;
 
   /// Back-ref to the plate log this op is about. Validated at the
@@ -70,9 +70,8 @@ class SyncOp {
 /// convention: enum.name lives in the drift text column).
 enum SyncOpKind {
   /// A new plate log was committed locally and is awaiting remote
-  /// acknowledgment. v1 drain: the no-op `LocalOnlySyncAdapter`
-  /// marks it `synced` immediately; a real relay (OQ-1) POSTs the
-  /// plate envelope.
+  /// acknowledgment. v1 has no transport, so it stays `pending`; a real
+  /// relay (OQ-1) POSTs the plate envelope.
   plateLogCreated,
 
   /// A plate log was updated locally (Story 4.3 v1-minimal — the

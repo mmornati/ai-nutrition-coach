@@ -97,14 +97,14 @@ class AppPalette {
     : background = const Color(0xFFFBF7EE),
       surface = const Color(0xFFF3ECDD),
       ink = const Color(0xFF1F2421),
-      inkMuted = const Color(0xFF6E7066),
+      inkMuted = const Color(0xFF5C5F55),
       hairline = const Color(0xFFE2DBC6),
       sage = const Color(0xFF6B8E5A),
       sageDeep = const Color(0xFF3F5A36),
       sageTrack = const Color(0xFFD7E1C9),
-      coach = const Color(0xFFB07A2E),
-      statusLocal = const Color(0xFF8A8C82),
-      statusSynced = const Color(0xFF6B8E5A);
+      coach = const Color(0xFF8A5A14),
+      statusLocal = const Color(0xFF62645A),
+      statusSynced = const Color(0xFF4F6F3F);
 
   const AppPalette._dark()
     : background = const Color(0xFF161A18),
@@ -116,7 +116,7 @@ class AppPalette {
       sageDeep = const Color(0xFFB7CFA8),
       sageTrack = const Color(0xFF33402C),
       coach = const Color(0xFFD8A35A),
-      statusLocal = const Color(0xFF7E8579),
+      statusLocal = const Color(0xFF8E9588),
       statusSynced = const Color(0xFF9DBE8A);
 }
 

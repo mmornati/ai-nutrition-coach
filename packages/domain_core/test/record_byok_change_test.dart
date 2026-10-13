@@ -82,7 +82,7 @@ void main() {
       useCase = RecordByokChange(keyStore: keyStore, configStore: configStore);
 
       // Pretend we entered BYOK without a previous rung recorded.
-      keyStore.write('sk-test-1234');
+      await keyStore.write('sk-test-1234');
       await configStore.write(const AiRungConfig(kind: AiRungKind.byok));
 
       final newConfig = await useCase.removeByok();

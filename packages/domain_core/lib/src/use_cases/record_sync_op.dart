@@ -17,7 +17,6 @@
 // `SyncAdapter.drain` call the queue makes after the local commit.
 // The use-case only enqueues. The queue decides when to drain.
 
-import '../entities/sync_op.dart';
 import '../ports/sync_queue.dart';
 import '../results/sync_failure.dart';
 

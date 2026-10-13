@@ -28,11 +28,7 @@ void main() {
     });
 
     test('exactly one field set — assert rejects zero', () {
-      expect(
-        // Non-const: a const call would fail the assert at compile time.
-        () => StoreFailure(),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => StoreFailure(), throwsA(isA<AssertionError>()));
     });
 
     test('exactly one field set — assert rejects two', () {

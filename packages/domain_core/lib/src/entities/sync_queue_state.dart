@@ -21,8 +21,7 @@ class SyncQueueState {
   /// Number of ops awaiting a durable remote acknowledgment.
   final int pending;
 
-  /// Number of ops the durable remote (or the no-op v1 adapter) has
-  /// acknowledged.
+  /// Number of ops the remote has durably acknowledged.
   final int synced;
 
   /// Number of ops that exhausted retries with a permanent failure.
@@ -30,21 +29,7 @@ class SyncQueueState {
   /// "retry later" hint when the count is non-zero.
   final int failed;
 
-  static const SyncQueueState empty = SyncQueueState(
-    pending: 0,
-    synced: 0,
-    failed: 0,
-  );
-
-  /// The chip state for a given plate log id. The default mapping
-  /// is conservative: any pending op about the plate is `pending`;
-  /// any failed op about the plate is `failed`; otherwise `synced`.
-  /// The chip widget reads this on demand; the summary carries
-  /// only the counts.
-  ///
-  /// The mapping is implemented by the chip widget itself (which
-  /// reads the full queue stream) — this type carries only the
-  /// totals.
+  /// The total number of ops the queue holds.
   int get total => pending + synced + failed;
 
   @override

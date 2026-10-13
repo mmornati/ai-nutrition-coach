@@ -5,12 +5,14 @@
 // threw `UnimplementedCaptureTarget(photo)`.
 //
 // Flow:
-//   1. On mount, the screen reads the latest `lastPhotoBytesProvider`
-//      state and dispatches a fresh `AiRung.recognize` call through
-//      the `recognitionProvider` family. The screen also triggers a
-//      `PhotoCapture.capture()` so the OS camera UI appears on
-//      first build (mirrors the barcode screen's "open the scanner
-//      on mount" pattern).
+//   1. On mount, the screen triggers a `PhotoCapture.capture()` so the OS
+//      camera UI appears on first build (mirrors the barcode screen's
+//      "open the scanner on mount" pattern), then dispatches a fresh
+//      `AiRung.recognize` call. If the active rung would upload the photo
+//      to a third-party host (BYOK), the user is asked ONCE per host
+//      first (N1); "not now" skips the call and the photo is dropped.
+//      The photo bytes are held in a local only — never in a provider
+//      (N10).
 //   2. While the rung is running, the screen renders a quiet
 //      `ResolvingShimmer` — no spinner, no countdown, no urgency
 //      (UX-DR10 / FR15).
@@ -18,7 +20,8 @@
 //      `RecognitionResult`:
 //        * `RecognizedPlate(foods: [one or more])` → render the
 //          `RecognizedMatchSheet` with the recognized foods +
-//          closest-matches from `FoodCatalog.search('')`. The
+//          closest matches (catalog matches for each recognised name,
+//          then the foods logged in the last week). The
 //          sheet's `Log` button commits via `RecordPlate` and
 //          writes `lastLogProvider` before popping back to the
 //          Day Board.
@@ -34,11 +37,9 @@
 //      calm "Camera denied — type it instead" copy + a tap-to-type
 //      affordance that pushes `ManualEntryScreen`.
 //
-// Multi-shot: the screen dispatches through
-// `recognitionProvider(bytes)` which is autoDispose — a second
-// capture produces a fresh future; the previous future is
-// auto-disposed before its resolution lands. Only the latest
-// capture's result renders on screen (FR13 I/O matrix).
+// Multi-shot: every capture starts a fresh recognition; a retake resets the
+// surface, and only the latest capture's result renders on screen (FR13 I/O
+// matrix).
 //
 // FR13: photo is processed with no identity linkage. The rung
 // receives raw bytes, drops them after recognition, and never
@@ -50,13 +51,20 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart';
 
+import '../state/ai_rung_provider.dart';
+import '../state/ai_settings_provider.dart';
+import '../state/clock_provider.dart';
 import '../state/manual_entry_provider.dart';
 import '../state/photo_provider.dart';
+import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/photo_consent_dialog.dart';
 import '../widgets/recognized_match_sheet.dart';
 import '../widgets/resolving_shimmer.dart';
 import 'manual_entry_screen.dart';
+import '../l10n/l10n.dart';
 
 /// The local surface state of the photo screen.
 ///
@@ -90,18 +98,6 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
   /// Empty list while a call is in flight, before the first
   /// capture, or when the catalog returned `NotFoundFailure`.
   List<FoodMatch> _closestMatches = const [];
-
-  /// In-flight catalog lookup so we can cancel it on dispose / new
-  /// capture (the multi-shot I/O matrix — only the latest photo is
-  /// dispatched; the previous one is discarded).
-  Future<List<FoodMatch>>? _closestMatchesFuture;
-
-  /// In-flight recognition call. Riverpod's `autoDispose` family
-  /// disposes the provider when this widget unmounts; we keep a
-  /// local handle so a late result from a stale call does not flash
-  /// on screen while the new capture is resolving. Set / cleared
-  /// on every capture.
-  Future<RecognitionResult>? _recognitionFuture;
 
   @override
   void initState() {
@@ -145,33 +141,85 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       return;
     }
 
+    // N1: before the photo goes to a third-party host, ask — once per
+    // host. No host (no-AI rung, or nothing would be sent) means no ask.
+    final permit = ref.read(photoUploadPermitProvider);
+    String? host;
+    var consented = true;
+    try {
+      host = ref.read(photoUploadHostProvider);
+    } on Object catch (_) {
+      // Could not tell where this photo would go: fail closed — it goes
+      // nowhere (the no-AI core takes over).
+      consented = false;
+    }
+    if (host != null) {
+      // PV1: with "Ask before every photo upload" (the default, and the
+      // fail-closed reading if the setting cannot be read) EVERY photo asks,
+      // and a yes is a one-shot permit for this photo only - nothing is
+      // remembered. Otherwise the per-host agreement applies and is asked
+      // once.
+      var perPhoto = true;
+      try {
+        perPhoto = ref.read(aiSettingsProvider).askBeforeEveryPhoto;
+      } on Object catch (_) {
+        perPhoto = true;
+      }
+      if (perPhoto) {
+        consented = await confirmPhotoUpload(
+          context,
+          host: host,
+          perPhoto: true,
+        );
+        if (!mounted) return;
+        if (consented) permit.grant(host: host, bytes: bytes);
+      } else if (!ref.read(photoConsentGrantedProvider(host))) {
+        consented = await confirmPhotoUpload(context, host: host);
+        if (!mounted) return;
+        if (consented) {
+          try {
+            await ref.read(aiSettingsProvider.notifier).grantPhotoConsent(host);
+          } on Object catch (_) {
+            // Could not remember it. Fail closed: the rung's consent guard
+            // reads the persisted setting, so this photo is NOT sent (the
+            // no-AI path takes over) and they are asked again next
+            // time.
+            consented = false;
+          }
+        }
+      }
+    }
+    if (!mounted) return;
+
     setState(() => _state = _PhotoSurfaceState.resolving);
-    ref.read(lastPhotoBytesProvider.notifier).state = bytes;
 
-    // Kick off the rung call + the closest-matches lookup in
-    // parallel. The rung's empty plate list is the v1 default; the
-    // closest-matches fill the same role the manual-entry screen's
-    // ranked list does. We hold both futures so a retake cancels
-    // them — only the latest capture's result renders on screen.
-    _closestMatchesFuture = _fetchClosestMatches(bytes);
-    _recognitionFuture = ref.read(aiRungProvider).recognize(bytes);
-
-    List<FoodMatch> closest = const <FoodMatch>[];
+    // Recognise first; the closest matches are then derived from what the
+    // rung saw (catalog matches for each recognised name) plus the foods
+    // the user logged recently. A failed or empty recognition still offers
+    // the recent foods, and manual-add always works.
     RecognitionResult recognition = const RecognitionFailure('unreachable');
     try {
-      closest = await _closestMatchesFuture!;
-    } on Object catch (_) {
-      // Catalog error — degrade to an empty list (closest-matches
-      // row stays empty; manual-add still works).
-    }
-    try {
-      recognition = await _recognitionFuture!;
+      // Read the rung INSIDE the try (F1): a missing override or a
+      // throwing adapter lands on the calm failure line, never on an
+      // endless shimmer. A "not now" never reaches the rung: the photo is
+      // dropped and the no-AI core (closest matches + manual) takes over.
+      final future = consented
+          ? ref.read(aiRungProvider).recognize(bytes)
+          : Future<RecognitionResult>.value(
+              const RecognizedPlate(foods: <RecognizedFood>[]),
+            );
+      recognition = await future;
     } on Object catch (_) {
       // Defensive — adapters must wrap in `RecognitionFailure`,
       // but a contract violation here should not crash the camera
       // surface. Surface the calm failure line instead.
       recognition = const RecognitionFailure('recognize threw');
+    } finally {
+      // An unspent one-shot permit must not outlive this photo.
+      permit.revoke();
     }
+    if (!mounted) return;
+    final closest = await _fetchClosestMatches(recognition);
     if (!mounted) return;
     setState(() {
       _closestMatches = closest;
@@ -181,26 +229,65 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
     _openMatchSheetIfReady();
   }
 
-  /// Fetch the closest-matches for the captured photo. The screen
-  /// does not have direct access to the food name from the rung's
-  /// empty plate, so we use the photo's bytes as a stable
-  /// discriminator — the catalog's `search` returns the seeded
-  /// ranked list (the closest-matches surface 1.5 ships). The
-  /// catalog call is offline-first (NFR5); with the v1 `NoopAiRung`
-  /// the result is the full seeded list (the user can scroll and
-  /// pick).
-  Future<List<FoodMatch>> _fetchClosestMatches(Uint8List bytes) async {
-    try {
-      final catalog = ref.read(foodCatalogProvider);
-      final result = await catalog.search('closest', limit: 10);
-      return switch (result) {
-        RankedMatches(:final matches) => matches,
-        NotFoundFailure() => const [],
-        CatalogFailure() => const [],
-      };
-    } on Object catch (_) {
-      return const [];
+  /// How many closest matches the sheet offers at most.
+  static const int _maxClosestMatches = 8;
+
+  /// The "closest matches" row (F9: it used to search the literal
+  /// `'closest'`, which matches nothing, so the row was always empty):
+  ///   1. catalog matches for each food the rung recognised (a few each);
+  ///   2. then the foods the user logged in the last week, newest first.
+  /// Duplicates (same `DatabaseFood`) are dropped. Never throws; an error in
+  /// either source just leaves that part out.
+  Future<List<FoodMatch>> _fetchClosestMatches(
+    RecognitionResult recognition,
+  ) async {
+    final out = <FoodMatch>[];
+    final seen = <String>{};
+    void add(FoodMatch m) {
+      if (out.length >= _maxClosestMatches) return;
+      if (seen.add(m.food.sourceRef)) out.add(m);
     }
+
+    if (recognition is RecognizedPlate) {
+      final catalog = ref.read(foodCatalogProvider);
+      for (final rec in recognition.foods.take(3)) {
+        try {
+          final result = await catalog.search(
+            rec.databaseFood.displayName,
+            limit: 4,
+          );
+          if (result is RankedMatches) result.matches.forEach(add);
+        } on Object catch (_) {
+          // This source is unavailable; the others still count.
+        }
+      }
+    }
+
+    try {
+      final today = ref.read(todayProvider);
+      final recent = await ref
+          .read(encryptedStoreProvider)
+          .readRange(
+            from: addCalendarDays(today, -7),
+            to: startOfNextLocalDay(today),
+          );
+      if (recent is PlatesRead) {
+        for (final plate in recent.plates) {
+          for (final entry in plate.entries) {
+            add(
+              FoodMatch(
+                food: entry.databaseFood,
+                confidence: 0.3,
+                presets: [entry.quantity],
+              ),
+            );
+          }
+        }
+      }
+    } on Object catch (_) {
+      // No history to offer.
+    }
+    return out;
   }
 
   /// Open the match sheet when both the rung result and the
@@ -238,7 +325,7 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()));
     if (!mounted) return;
-    Navigator.of(context).maybePop();
+    unawaited(Navigator.of(context).maybePop());
   }
 
   @override
@@ -253,12 +340,12 @@ class _CapturePhotoScreenState extends ConsumerState<CapturePhotoScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Snap a plate',
+          context.l10n.snapPlateTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         actions: [
           IconButton(
-            tooltip: 'Type it manually',
+            tooltip: context.l10n.typeItManually,
             onPressed: _typeInstead,
             icon: Icon(Icons.keyboard_alt_outlined, color: palette.ink),
           ),
@@ -312,7 +399,7 @@ class _OpeningCamera extends StatelessWidget {
         const ResolvingShimmer(),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Aim at your plate, then tap the shutter.',
+          context.l10n.photoAimHint,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
       ],
@@ -347,7 +434,7 @@ class _ResolvingBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Retake',
+              context.l10n.retake,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -381,7 +468,7 @@ class _ReadyBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _summaryFor(result),
+          _summaryFor(context.l10n, result),
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -395,7 +482,7 @@ class _ReadyBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Retake',
+              context.l10n.retake,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -411,7 +498,7 @@ class _ReadyBody extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -420,18 +507,16 @@ class _ReadyBody extends StatelessWidget {
     );
   }
 
-  String _summaryFor(RecognitionResult? result) {
-    if (result == null) return 'Reading your plate…';
+  String _summaryFor(AppLocalizations l10n, RecognitionResult? result) {
+    if (result == null) return l10n.photoReading;
     return switch (result) {
       RecognizedPlate(:final foods) =>
         foods.isEmpty
-            ? 'No foods matched — pick one below.'
-            : 'Found ${foods.length} food${foods.length == 1 ? '' : 's'} on this plate.',
-      NoMatch() => 'Nothing on this plate — pick one below.',
-      QuotaExhausted() =>
-        "The free quota is done for today — pick a closest match below.",
-      RecognitionFailure() =>
-        "Search isn't available right now. Pick a closest match below.",
+            ? l10n.photoNoFoodsMatched
+            : l10n.photoFoundFoods(foods.length),
+      NoMatch() => l10n.photoNothingOnPlate,
+      QuotaExhausted() => enAiRungStrings.noticeShort,
+      RecognitionFailure() => l10n.photoSearchUnavailablePick,
     };
   }
 }
@@ -450,12 +535,12 @@ class _DeniedCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera denied — type it instead',
+          context.l10n.cameraDeniedTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'You can still log a plate from the manual entry screen.',
+          context.l10n.cameraDeniedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -468,7 +553,7 @@ class _DeniedCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),

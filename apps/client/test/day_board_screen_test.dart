@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
 import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/clock_provider.dart';
 import 'package:ai_nutrition_coach/state/coach_provider.dart';
 import 'package:ai_nutrition_coach/state/day_board_provider.dart';
 import 'package:ai_nutrition_coach/state/last_log_provider.dart';
@@ -28,7 +29,6 @@ import 'package:ai_nutrition_coach/theme/app_tokens.dart';
 import 'package:ai_nutrition_coach/widgets/balance_arc.dart';
 import 'package:ai_nutrition_coach/widgets/open_dent.dart';
 import 'package:ai_nutrition_coach/widgets/plate_row.dart';
-import 'package:ai_nutrition_coach/widgets/status_chip.dart';
 
 import '_fakes/fake_encrypted_store.dart';
 
@@ -44,6 +44,8 @@ Widget _wrap(
       // whisper path can be exercised end-to-end.
       coachProvider.overrideWithValue(FakeCoach()),
       coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
+      // The fixtures are seeded on 2026-08-15; pin "now" to that day.
+      clockProvider.overrideWithValue(() => DateTime(2026, 8, 15, 12)),
     ],
     child: MaterialApp(
       themeMode: mode,
@@ -52,13 +54,6 @@ Widget _wrap(
       home: child,
     ),
   );
-}
-
-/// Local wall-clock time on the current day. The board renders
-/// "today", so seeded plates must land on the real local date.
-DateTime _todayAt(int hour, int minute) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day, hour, minute);
 }
 
 void main() {
@@ -87,7 +82,7 @@ void main() {
         initial: [
           plateAt(
             1,
-            localTime: _todayAt(7, 30),
+            localTime: DateTime(2026, 8, 15, 7, 30),
             dish: 'Avocado Toast',
             displayLabel: '~1 slice',
           ),
@@ -110,19 +105,19 @@ void main() {
         initial: [
           plateAt(
             1,
-            localTime: _todayAt(7, 30),
+            localTime: DateTime(2026, 8, 15, 7, 30),
             dish: 'Oatmeal',
             displayLabel: '~1 bowl',
           ),
           plateAt(
             2,
-            localTime: _todayAt(12, 45),
+            localTime: DateTime(2026, 8, 15, 12, 45),
             dish: 'Salad Bowl',
             displayLabel: '~2 cups',
           ),
           plateAt(
             3,
-            localTime: _todayAt(19, 0),
+            localTime: DateTime(2026, 8, 15, 19, 0),
             dish: 'Pasta',
             displayLabel: '~1.5 cups',
           ),
@@ -210,7 +205,7 @@ void main() {
         initial: [
           plateAt(
             1,
-            localTime: _todayAt(7, 30),
+            localTime: DateTime(2026, 8, 15, 7, 30),
             dish: 'Oatmeal',
             displayLabel: '~1 bowl',
           ),
@@ -225,6 +220,7 @@ void main() {
             // Story 2.3: OpenDent reads `coachProvider` — override
             // the seam so the test does not hit `UnimplementedError`.
             coachProvider.overrideWithValue(FakeCoach()),
+            clockProvider.overrideWithValue(() => DateTime(2026, 8, 15, 12)),
           ],
           child: MaterialApp(
             home: MediaQuery(
@@ -253,7 +249,7 @@ void main() {
         initial: [
           plateAt(
             1,
-            localTime: _todayAt(19, 0).subtract(const Duration(days: 1)),
+            localTime: DateTime(2026, 8, 14, 19, 0),
             dish: 'Yesterday Pizza',
           ),
         ],
@@ -269,22 +265,27 @@ void main() {
       expect(find.text('Yesterday Pizza'), findsNothing);
     });
 
-    testWidgets('plate row carries a BalanceArc and a status chip', (
-      tester,
-    ) async {
-      final store = FakeEncryptedStore(
-        initial: [plateAt(1, localTime: _todayAt(7, 30), dish: 'Oatmeal')],
-      );
-      addTearDown(store.close);
+    testWidgets(
+      'plate row carries a BalanceArc and a `· on this device` status chip',
+      (tester) async {
+        final store = FakeEncryptedStore(
+          initial: [
+            plateAt(
+              1,
+              localTime: DateTime(2026, 8, 15, 7, 30),
+              dish: 'Oatmeal',
+            ),
+          ],
+        );
+        addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_wrap(const DayBoardScreen(), store));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(BalanceArc), findsOneWidget);
-      // The `· local` label itself is pinned (skipped, lib bug) in
-      // test/widgets/status_chip_test.dart.
-      expect(find.byType(StatusChip), findsOneWidget);
-    });
+        expect(find.byType(BalanceArc), findsOneWidget);
+        expect(find.text('· on this device'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'tap on a WeekStrip dot flips DayBoardScreen to that local day',

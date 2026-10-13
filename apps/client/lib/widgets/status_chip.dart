@@ -1,11 +1,15 @@
-// Mono `· local` / `· pending` / `· synced` / `· retry later` status
-// chip (UX-DR6 / Story 4.3 / AD-6 / FR-10).
+// Mono status chip (UX-DR6 / Story 4.3 / AD-6 / FR-10).
+//
+// While there is no sync transport (v1 — security review F4) the chip says
+// exactly one thing, and it is true: `· on this device`. It never says
+// `pending` or `synced`: nothing is being sent anywhere. When a transport
+// exists (`syncTransportAvailableProvider`) the chip derives
+// `· pending` / `· synced` / `· retry later` from the per-plate sync-queue
+// stream (AD-3 invariant: the chip never holds a UI counter — it's a pure
+// derivation).
 //
 // Tiny mono text on the row's trailing edge — never louder than
-// the row body (epic-1-context.md § Status chips). The chip reads
-// from the per-plate sync-queue stream so the state is always
-// derived from queue state (AD-3 invariant: the chip never holds
-// a UI counter — it's a pure derivation).
+// the row body (epic-1-context.md § Status chips).
 //
 // The flip is `Opacity`-only (no surface, no spinner, no countdown —
 // UX-DR6). The `failed` state never uses a red-guilt colour
@@ -23,6 +27,7 @@ import 'package:integrations/integrations.dart';
 
 import '../state/sync_queue_provider.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class StatusChip extends ConsumerWidget {
   const StatusChip({
@@ -40,11 +45,16 @@ class StatusChip extends ConsumerWidget {
         ? AppPalette.dark
         : AppPalette.light;
     // Default to `local` so the chip never reads stale data while
-    // the per-plate stream is still resolving on first paint.
-    final perPlate = ref.watch(syncQueuePerPlateProvider).value;
+    // the per-plate stream is still resolving on first paint — and always
+    // `local` while there is no transport to sync over.
+    final hasTransport = ref.watch(syncTransportAvailableProvider);
+    final perPlate = hasTransport
+        ? ref.watch(syncQueuePerPlateProvider).value
+        : null;
     final status = _statusFor(plateLogId, perPlate);
 
     final label = switch (status) {
+      null => '· ${copy.localChip}',
       SyncOpStatusValue.pending => '· ${copy.pendingChip}',
       SyncOpStatusValue.synced => '· ${copy.syncedChip}',
       SyncOpStatusValue.failed => '· ${copy.failedChip}',
@@ -57,7 +67,7 @@ class StatusChip extends ConsumerWidget {
     };
 
     return Semantics(
-      label: 'Status: ${label.replaceFirst('· ', '')}',
+      label: context.l10n.statusSemantics(label.replaceFirst('· ', '')),
       readOnly: true,
       child: AnimatedOpacity(
         opacity: 1,
@@ -70,38 +80,13 @@ class StatusChip extends ConsumerWidget {
     );
   }
 
-  SyncOpStatusValue _statusFor(int plateLogId, List<SyncOpStatus>? perPlate) {
-    if (perPlate == null) return SyncOpStatusValue.synced;
+  /// `null` means "no queue op for this plate (yet)" — the plate is
+  /// local-only, rendered as `· on this device`.
+  SyncOpStatusValue? _statusFor(int plateLogId, List<SyncOpStatus>? perPlate) {
+    if (perPlate == null) return null;
     for (final entry in perPlate) {
       if (entry.plateLogId == plateLogId) return entry.status;
     }
-    return SyncOpStatusValue.synced;
-  }
-}
-
-/// A non-intrusive "retry later" hint rendered below the plate
-/// stack when the queue has any `failed` ops. Single quiet line;
-/// never a banner, never a modal (FR-15 / UX-DR13).
-class SyncRetryLaterHint extends ConsumerWidget {
-  const SyncRetryLaterHint({super.key, this.copy = enSyncQueueStrings});
-
-  final SyncQueueStrings copy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = Theme.of(context).brightness == Brightness.dark
-        ? AppPalette.dark
-        : AppPalette.light;
-    final state = ref.watch(syncQueueStateProvider).value;
-    if (state == null || state.failed == 0) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Text(
-        copy.retryLaterHint,
-        style: AppTypography.coach.copyWith(color: palette.inkMuted),
-      ),
-    );
+    return null;
   }
 }

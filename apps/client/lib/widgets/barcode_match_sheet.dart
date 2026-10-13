@@ -25,8 +25,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/last_log_provider.dart';
-import '../state/record_plate_provider.dart';
+import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the match sheet. Returns the future the caller awaits; the
 /// future completes when the sheet is dismissed (back gesture, tap
@@ -71,31 +72,23 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     // Default to the first preset (or a single-serving shim when
     // OFF ships no curated presets — barcode-resolved foods always
     // fall back to `~1 serving`).
-    _chosen = widget.presets.isNotEmpty
-        ? widget.presets.first
-        : const QuantityRange(
-            low: 1,
-            high: 1,
-            unit: 'serving',
-            displayLabel: '~1 serving',
-          );
+    _chosen = widget.presets.isNotEmpty ? widget.presets.first : kOneServing;
   }
 
   Future<void> _onLog() async {
     if (_submitting) return;
     setState(() => _submitting = true);
 
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
         FoodEntryDraft(databaseFood: widget.match.food, quantity: _chosen),
-      ],
-      store: store,
-    );
-
+      ]);
+    } finally {
+      // Reset even if the commit throws (F7).
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       // Mirror the manual-entry path: stamp `lastLogProvider` so
@@ -105,18 +98,10 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     } else if (result is StoreFailure) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_messageFor(result))));
+        ..showSnackBar(
+          SnackBar(content: Text(logFailureMessage(context.l10n, result))),
+        );
     }
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
   }
 
   @override
@@ -163,7 +148,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
                     backgroundColor: palette.sageDeep,
                   ),
                   child: Text(
-                    _submitting ? 'Logging…' : 'Log',
+                    _submitting ? context.l10n.logging : context.l10n.logAction,
                     style: AppTypography.ui.copyWith(color: palette.background),
                   ),
                 ),
@@ -196,7 +181,7 @@ class _FoodHeader extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          match.food.foodGroup.label,
+          context.l10n.foodGroupLabel(match.food.foodGroup),
           style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
       ],

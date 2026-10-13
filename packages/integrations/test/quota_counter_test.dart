@@ -10,6 +10,8 @@
 import 'package:integrations/integrations.dart';
 import 'package:test/test.dart';
 
+import '_support/memory_secure_storage.dart';
+
 void main() {
   group('InMemoryQuotaCounter (Story 3.2 / FR6)', () {
     test('starts at zero', () async {
@@ -72,20 +74,90 @@ void main() {
       expect(counter.ceiling, 5);
     });
 
-    test('respects the same day-rollover semantics as the in-memory '
-        'counter via the JSON envelope', () async {
-      // The JSON envelope shape is the contract the persistent
-      // counter relies on; this test pins the shape without
-      // touching `flutter_secure_storage` directly. The shape
-      // lives in `_encode` / `_decodeDayKey` (private members)
-      // and is exercised end-to-end by the in-memory counter
-      // test above.
-      //
-      // If a future refactor changes the envelope shape, the
-      // SecureStorageQuotaCounter will silently lose history on
-      // existing installs — that's a Story 3.2 v1.1 hardening
-      // concern, deferred.
-      expect(true, isTrue);
+    test('tryConsume is atomic: 20 overlapping callers take exactly '
+        '`ceiling` slots', () async {
+      final counter = SecureStorageQuotaCounter(
+        ceiling: 5,
+        storage: MemorySecureStorage(),
+        now: () => DateTime(2026, 8, 16, 12),
+      );
+      final results = await Future.wait([
+        for (var i = 0; i < 20; i++) counter.tryConsume(),
+      ]);
+      expect(results.where((r) => r).length, 5);
+      expect(await counter.callsToday(), 5);
+      final mem = InMemoryQuotaCounter(ceiling: 3);
+      final r2 = await Future.wait([
+        for (var i = 0; i < 10; i++) mem.tryConsume(),
+      ]);
+      expect(r2.where((r) => r).length, 3);
+    });
+
+    test('counts calls and rolls over at local midnight', () async {
+      final storage = MemorySecureStorage();
+      var now = DateTime(2026, 8, 16, 23, 0);
+      final counter = SecureStorageQuotaCounter(
+        ceiling: 2,
+        storage: storage,
+        now: () => now,
+      );
+      expect(await counter.callsToday(), 0);
+      await counter.recordCall();
+      await counter.recordCall();
+      expect(await counter.isExhausted(), isTrue);
+      now = DateTime(2026, 8, 17, 0, 5);
+      expect(await counter.callsToday(), 0);
+      expect(await counter.isExhausted(), isFalse);
+    });
+
+    test('N9: overlapping recordCalls are serialised — none is lost', () async {
+      final counter = SecureStorageQuotaCounter(
+        ceiling: 100,
+        storage: MemorySecureStorage(),
+        now: () => DateTime(2026, 8, 16, 12),
+      );
+      await Future.wait([for (var i = 0; i < 10; i++) counter.recordCall()]);
+      expect(await counter.callsToday(), 10);
+    });
+
+    for (final corrupt in <String>[
+      'not json',
+      '[]',
+      '{}',
+      '{"day": 5, "calls": 3}',
+      '{"day": "2026-08-16", "calls": "many"}',
+      '{"day": "2026-13-45", "calls": 1}',
+      '{"day": "2026-08-16", "calls": -4}',
+      '{"day": "garbage", "calls": 1}',
+    ]) {
+      test('N9: corrupt storage ($corrupt) is "no calls yet", never a '
+          'crash', () async {
+        final storage = MemorySecureStorage();
+        storage.items[SecureStorageAliases.quotaHostedQuota] = corrupt;
+        final counter = SecureStorageQuotaCounter(
+          ceiling: 5,
+          storage: storage,
+          now: () => DateTime(2026, 8, 16, 12),
+        );
+        expect(await counter.callsToday(), 0);
+        await counter.recordCall();
+        expect(await counter.callsToday(), 1);
+      });
+    }
+
+    test('N9: an unreadable keystore does not crash the counter', () async {
+      final storage = MemorySecureStorage()..failReads = true;
+      final counter = SecureStorageQuotaCounter(ceiling: 5, storage: storage);
+      expect(await counter.callsToday(), 0);
+    });
+
+    test('resetAt is the next calendar midnight', () async {
+      final counter = SecureStorageQuotaCounter(
+        ceiling: 5,
+        storage: MemorySecureStorage(),
+        now: () => DateTime(2026, 3, 28, 13), // day before EU DST change
+      );
+      expect(await counter.resetAt(), DateTime(2026, 3, 29));
     });
   });
 }

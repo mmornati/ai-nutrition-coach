@@ -307,6 +307,7 @@ class AiRungStrings {
     required this.bringYourOwnKey,
     required this.waitForReset,
     required this.quotaStatusHeading,
+    required this.manualFallbackHint,
   });
 
   /// Status line: "free model — N calls left today".
@@ -347,6 +348,10 @@ class AiRungStrings {
   /// Settings → Your AI heading for the quota status block.
   /// Calm mono copy.
   final String quotaStatusHeading;
+
+  /// Calm subtitle under a quota / failure notice: logging still works
+  /// through the closest matches or manual entry.
+  final String manualFallbackHint;
 }
 
 /// The v1 `en` AI rung strings (Story 3.2). The named NDP
@@ -368,6 +373,7 @@ const AiRungStrings enAiRungStrings = AiRungStrings(
   bringYourOwnKey: 'bring your own key',
   waitForReset: 'wait for the quota to reset',
   quotaStatusHeading: 'When the free quota runs out',
+  manualFallbackHint: 'You can still pick a closest match or type it manually.',
 );
 
 /// The BYOK copy (Story 3.3 / FR7). The Your AI sub-screen reads
@@ -426,7 +432,7 @@ class ByokStrings {
 
   /// Hint copy rendered under the BYOK entry form when the
   /// previous rung is recorded. Reads "removing this key returns
-  /// to `<previous rung label>`" (calm non-judgmental; FR7).
+  /// to `previous rung label`" (calm non-judgmental; FR7).
   final String previousRungHint;
 }
 
@@ -451,46 +457,168 @@ const ByokStrings enByokStrings = ByokStrings(
   previousRungHint: 'removing this key returns to {previousRungLabel}',
 );
 
-/// The web session strings (Story 4.1 / AD-8). The lock screen
-/// body in `packages/integrations/lib/src/store/lock_screen.dart`
-/// reads these for the heading, the placeholder, the unlock
-/// affordance, and the calm wrong-passphrase line.
+/// The web store strings (Story 4.1 / AD-8, extended in Phase 2B): the
+/// unlock screen, the first-run create-passphrase screen, the lock
+/// affordances and the forgotten-passphrase path.
 ///
 /// AD-7: keyed, never interpolated, named NDP reviewer signs off.
-/// FR-15: calm non-judgmental copy; no countdown, no
-/// "Don't show again" easter egg, no "wrong" judgement framing.
+/// FR-15: calm non-judgmental copy; no countdown (the throttle line gives
+/// no number), no pressure, no "wrong" judgement framing. The one hard fact
+/// -- a forgotten passphrase cannot be recovered -- is stated plainly, once
+/// before the passphrase is set and once on the forgot path.
 class WebSessionStrings {
   const WebSessionStrings({
     required this.label,
     required this.placeholder,
     required this.unlock,
     required this.wrongPassphrase,
+    required this.unavailable,
+    required this.throttled,
+    required this.inOtherTab,
+    required this.newerVersion,
+    required this.forgot,
+    required this.forgotBody,
+    required this.forgotAction,
+    required this.createTitle,
+    required this.createExplain,
+    required this.createWarning,
+    required this.createPassphraseLabel,
+    required this.createConfirmLabel,
+    required this.createAction,
+    required this.tooShort,
+    required this.tooRepetitive,
+    required this.mismatch,
+    required this.lockAction,
+    required this.lockAfterLabel,
+    required this.lockAfterOptions,
   });
 
   /// The lock-screen heading. Calm copy; the gate is the first
   /// paint on the web rung, and the heading names the action.
   final String label;
 
-  /// The passphrase field placeholder. Calm non-judgmental copy;
-  /// explains on-device sealing.
+  /// The passphrase field placeholder.
   final String placeholder;
 
   /// The unlock pill label. Calm copy; no celebration.
   final String unlock;
 
-  /// The calm wrong-passphrase line. Renders below the pill when
-  /// `tryOpen` returns `false`. No exception crosses the port.
+  /// The calm wrong-passphrase line. Renders below the pill when the
+  /// passphrase does not open the store. No exception crosses the port.
   final String wrongPassphrase;
+
+  /// Honest line when the browser cannot open the store at all (storage
+  /// blocked, no secure context, wasm missing) — distinct from a wrong
+  /// passphrase.
+  final String unavailable;
+
+  /// Shown instead of an attempt after repeated wrong passphrases. UX
+  /// friction only; deliberately carries no number.
+  final String throttled;
+
+  /// Another tab holds the store open; the user can try again after closing
+  /// or locking it there.
+  final String inOtherTab;
+
+  /// The stored data was written by a newer version than this tab runs (an
+  /// older cached build); reloading updates it. Calm, no blame, nothing lost.
+  final String newerVersion;
+
+  /// The "forgot passphrase" disclosure label.
+  final String forgot;
+
+  /// What a forgotten passphrase means (unrecoverable) and the one option.
+  final String forgotBody;
+
+  /// The erase-and-start-over action label.
+  final String forgotAction;
+
+  /// First-run heading.
+  final String createTitle;
+
+  /// What the passphrase protects and when it is asked for.
+  final String createExplain;
+
+  /// The unrecoverability warning shown before the passphrase is set.
+  final String createWarning;
+
+  final String createPassphraseLabel;
+  final String createConfirmLabel;
+  final String createAction;
+
+  /// New passphrase shorter than the minimum.
+  final String tooShort;
+
+  /// New passphrase with too few distinct characters.
+  final String tooRepetitive;
+
+  /// Confirmation does not match.
+  final String mismatch;
+
+  /// The manual lock action label.
+  final String lockAction;
+
+  /// Label of the auto-lock delay choice.
+  final String lockAfterLabel;
+
+  /// Labels of the auto-lock delay choices (5 / 15 / 30 / 60 minutes, in
+  /// that order).
+  final List<String> lockAfterOptions;
 }
 
-/// The v1 `en` web session strings (Story 4.1). The named NDP
-/// reviewer signs off on this single value; the keys are the
-/// identity the `LockScreenBody` binds to.
+/// The v1 `en` web store strings. The named NDP reviewer signs off on this
+/// single value; the keys are the identity the lock / create widgets bind
+/// to.
 const WebSessionStrings enWebSessionStrings = WebSessionStrings(
   label: 'Unlock your store',
-  placeholder: 'Passphrase — kept in memory for this session only',
+  placeholder: 'Passphrase',
   unlock: 'Unlock',
   wrongPassphrase: 'That passphrase does not open this store.',
+  unavailable:
+      "This browser can't open the protected store. It needs a secure "
+      '(https or localhost) page with site storage allowed. Reload to try '
+      'again.',
+  throttled: 'Please wait a moment before trying again.',
+  inOtherTab:
+      'AI Nutrition Coach is open in another tab. Lock or close it there, then try '
+      'again here.',
+  newerVersion:
+      'This data was opened by a newer version of AI Nutrition Coach. Nothing is '
+      'lost: reload the page to update, then unlock again.',
+  forgot: 'Forgot your passphrase?',
+  forgotBody:
+      'It cannot be recovered: your history is encrypted with a key made '
+      'from your passphrase, and nobody else has a copy. You can erase '
+      'it and start over.',
+  forgotAction: 'Erase and start over',
+  createTitle: 'Protect your history',
+  createExplain:
+      'Choose a passphrase. It encrypts everything AI Nutrition Coach saves in this '
+      'browser, and you enter it each time you open the app.',
+  createWarning:
+      'If you forget it, your data cannot be recovered — not by us, not by '
+      'anyone. There is no reset link.',
+  createPassphraseLabel: 'Passphrase',
+  createConfirmLabel: 'Confirm passphrase',
+  createAction: 'Create and unlock',
+  tooShort: 'Use at least 10 characters.',
+  tooRepetitive: 'Use a few different characters.',
+  mismatch: "The two passphrases don't match.",
+  lockAction: 'Lock',
+  lockAfterLabel: 'Lock automatically after',
+  lockAfterOptions: ['5 minutes', '15 minutes', '30 minutes', '1 hour'],
+);
+
+/// Copy for a web store whose header cannot be read or whose data is gone
+/// (Phase 2B). Same single action as the lost-key surface: erase and start
+/// over.
+const KeyLostStrings enWebStoreUnreadableStrings = KeyLostStrings(
+  title: "Your saved history can't be found",
+  body:
+      'The protected store in this browser is incomplete or unreadable — '
+      'for example after clearing site data. Reloading sometimes fixes it. '
+      'If it does not, you can erase what is left and start over.',
+  action: 'Erase local data and start over',
 );
 
 /// The v1 `en` strings for the Settings → Your data sub-screen
@@ -498,41 +626,149 @@ const WebSessionStrings enWebSessionStrings = WebSessionStrings(
 /// this single value; the keys are the identity the `YourDataScreen`
 /// binds to.
 ///
-/// The `lockedProtection` line is the AD-8 honest-copy anchor: web
-/// protection is described as \"session-sealed, not at-rest
-/// encrypted\" — weaker than mobile, never overclaimed.
+/// The protection lines are the AD-8 honest-copy anchor: the cipher is
+/// named truthfully, and the web key-handling difference (passphrase, not
+/// keystore; unrecoverable) is stated plainly, never overclaimed.
 class YourDataStrings {
   const YourDataStrings({
     required this.title,
     required this.lockedProtection,
     required this.unlockedProtection,
+    required this.eraseLabel,
+    required this.eraseExplain,
+    required this.eraseButton,
+    required this.eraseConfirmTitle,
+    required this.eraseConfirmBody,
+    required this.eraseConfirmAction,
+    required this.eraseCancel,
+    required this.eraseDone,
+    required this.eraseFailed,
   });
 
   /// The sub-screen heading. Calm copy; the surface is one calm
   /// list under Settings.
   final String title;
 
-  /// Rendered when the web session is locked. AD-8 honest copy:
-  /// \"session-sealed, not at-rest encrypted\". Tells the user the
-  /// posture plainly — never asserts \"at-rest\" on web.
+  /// Rendered when the web store is locked. AD-8 honest copy: encrypted
+  /// at rest in the browser, key derived from the passphrase.
   final String lockedProtection;
 
-  /// Rendered when the web session is unlocked or on mobile. The
-  /// mobile posture is AES-256 at rest via Keychain/Keystore; the
-  /// web posture is session-sealed. Both are stated plainly.
+  /// Rendered when the web store is unlocked or on mobile. Both are
+  /// ChaCha20-Poly1305 at rest (AD-8 / D4 — the cipher is named
+  /// truthfully, never "AES-256"); the key source differs (Keychain/
+  /// Keystore vs passphrase) and is stated plainly.
   final String unlockedProtection;
+
+  /// Section label for the erase affordance (Phase 2A / D8).
+  final String eraseLabel;
+
+  /// One calm sentence on what erasing does and that it cannot be
+  /// undone. No scare language.
+  final String eraseExplain;
+
+  /// The erase pill label.
+  final String eraseButton;
+
+  /// Confirmation dialog title.
+  final String eraseConfirmTitle;
+
+  /// Confirmation dialog body: lists what goes, says export first.
+  final String eraseConfirmBody;
+
+  /// Confirmation dialog destructive action label.
+  final String eraseConfirmAction;
+
+  /// Confirmation dialog dismiss label — the safe choice.
+  final String eraseCancel;
+
+  /// Shown after a successful erase. The app must be reopened.
+  final String eraseDone;
+
+  /// Shown when at least one erase step failed; honest, no cause text.
+  final String eraseFailed;
 }
 
 const YourDataStrings enYourDataStrings = YourDataStrings(
   title: 'Your data',
   lockedProtection:
-      'Session-sealed, not at-rest encrypted — this record is '
-      'protected by the passphrase you entered on this device. '
-      'Reload the page and it stays sealed.',
+      'Encrypted at rest in this browser (ChaCha20-Poly1305). The key is '
+      'made from your passphrase and is never stored, so nothing here can '
+      'be read until you unlock it.',
   unlockedProtection:
-      'Encrypted at rest on mobile (AES-256, Keychain/Keystore); '
-      'session-sealed on the web (the key is held in memory for this '
-      'session only — never written to disk).',
+      'Encrypted at rest (ChaCha20-Poly1305). On mobile the key is held in '
+      'the Keychain/Keystore, stays on this device and is not included in '
+      'backups. On the web the key is made from your passphrase, held in '
+      'memory only while unlocked and never stored — if you forget the '
+      'passphrase, the data cannot be recovered. Your AI key and settings '
+      'are kept inside the same encrypted store.',
+  eraseLabel: 'Erase local data',
+  eraseExplain:
+      'Removes your history, coach notes, saved AI key and any exports '
+      'still on this device. Copies you shared or downloaded elsewhere are '
+      'not affected. There is no other copy of your data, so this cannot '
+      'be undone — export first if you want to keep one.',
+  eraseButton: 'Erase all local data',
+  eraseConfirmTitle: 'Erase everything on this device?',
+  eraseConfirmBody:
+      'Your plates, coach notes, saved AI key and exports still on this '
+      'device will be deleted for good. Copies you shared or downloaded '
+      'elsewhere are not affected.',
+  eraseConfirmAction: 'Erase',
+  eraseCancel: 'Keep my data',
+  eraseDone:
+      'All local data was erased. Close and reopen AI Nutrition Coach to start '
+      'fresh.',
+  eraseFailed:
+      'Some data could not be erased. Please try again, or clear the '
+      "app's storage in your device settings.",
+);
+
+/// The v1 `en` strings for the "history can't be opened" surface shown
+/// when the database exists but its key is gone (Phase 2A / D7 / D8).
+///
+/// Calm and factual; it never blames the user, never shows a stack, and
+/// offers exactly one way forward — the explicit erase. The named NDP
+/// reviewer signs off on this single value.
+class KeyLostStrings {
+  const KeyLostStrings({
+    required this.title,
+    required this.body,
+    required this.action,
+  });
+
+  /// Heading of the surface.
+  final String title;
+
+  /// Why the history cannot be opened and what the only option is.
+  final String body;
+
+  /// The single action: erase and start over.
+  final String action;
+}
+
+const KeyLostStrings enKeyLostStrings = KeyLostStrings(
+  title: "Your history can't be opened",
+  body:
+      'This device no longer has the key that protects your saved '
+      'history, so it cannot be read. This can happen after restoring '
+      'from a backup or resetting the device. You can erase the unreadable '
+      'data and start over.',
+  action: 'Erase local data and start over',
+);
+
+/// Copy for every OTHER startup failure (Phase 2A review 2): the protected
+/// store could not be opened for a reason other than a lost key — e.g. a
+/// keystore error or a legacy file that could not be upgraded. Same
+/// single action, but the body is honest that closing and reopening may
+/// help first, because erasing is permanent.
+const KeyLostStrings enStoreOpenFailedStrings = KeyLostStrings(
+  title: "Your history can't be opened right now",
+  body:
+      'The protected store on this device could not be opened. Closing and '
+      'reopening AI Nutrition Coach sometimes fixes this. If it keeps happening, '
+      'you can erase the unreadable data and start over — this removes '
+      'everything saved on this device.',
+  action: 'Erase local data and start over',
 );
 
 /// The v1 `en` strings for the export affordance (Story 4.2 /
@@ -556,6 +792,7 @@ class ExportStrings {
     required this.exportButton,
     required this.exportedLine,
     required this.failedLine,
+    required this.plaintextNote,
   });
 
   final String formatLabel;
@@ -568,13 +805,17 @@ class ExportStrings {
   final String exportButton;
 
   /// The calm line after a successful export. Renders as
-  /// "exported: `<file>`" with the filename in mono. No card, no
+  /// "exported: `file`" with the filename in mono. No card, no
   /// celebration.
   final String exportedLine;
 
   /// The calm line after a failed export. Renders below the
   /// export pill. No exception is ever thrown across the port.
   final String failedLine;
+
+  /// One calm line under the export button: exports are plain text files
+  /// (PV8).
+  final String plaintextNote;
 }
 
 const ExportStrings enExportStrings = ExportStrings(
@@ -588,6 +829,8 @@ const ExportStrings enExportStrings = ExportStrings(
   exportButton: 'Export',
   exportedLine: 'exported: ',
   failedLine: 'export failed — try again',
+  plaintextNote:
+      'Exports are plain, unencrypted files: keep them somewhere you trust.',
 );
 
 /// The v1 `en` strings for the sync-queue chip surface
@@ -603,43 +846,32 @@ class SyncQueueStrings {
     required this.pendingChip,
     required this.syncedChip,
     required this.failedChip,
-    required this.retryLaterHint,
   });
 
-  /// The default chip state — no op enqueued for this plate yet.
-  /// Rendered as `· local` in mono.
+  /// The default chip state, and the ONLY one while there is no sync
+  /// transport (v1): the plate is saved on this device and nowhere else.
+  /// Rendered as `· on this device` in mono.
   final String localChip;
 
   /// The op is enqueued but the durable remote ack has not landed.
   /// Rendered as `· pending` in mono.
   final String pendingChip;
 
-  /// The durable remote ack landed (or the no-op v1 transport
-  /// marked it `synced`). Rendered as `· synced` with the sage-tint
-  /// wash.
+  /// The durable remote ack landed (only possible once a transport
+  /// exists). Rendered as `· synced` with the sage-tint wash.
   final String syncedChip;
 
   /// The transport returned a permanent failure. The chip never
   /// uses a red-guilt state (FR-15 / NFR3); the failed chip is the
-  /// same mono voice as `pending` / `synced`, with a calm
-  /// `· retry later` hint rendered below the plate row when the
-  /// queue's `failed` count is non-zero.
+  /// same mono voice as `pending` / `synced`.
   final String failedChip;
-
-  /// The calm hint rendered below the plate stack when the queue
-  /// has any `failed` ops. Single quiet line; never a banner, never
-  /// a modal.
-  final String retryLaterHint;
 }
 
 const SyncQueueStrings enSyncQueueStrings = SyncQueueStrings(
-  localChip: 'local',
+  localChip: 'on this device',
   pendingChip: 'pending',
   syncedChip: 'synced',
   failedChip: 'retry later',
-  retryLaterHint:
-      'Some plates are waiting to sync — they will retry silently '
-      'when the connection returns.',
 );
 
 /// The v1 `en` strings for the managed-oversight v2 seam notice
@@ -665,3 +897,375 @@ const ManagedOversightStrings enManagedOversightStrings =
           'Family oversight is a v2 seam — not in v1. Read-only, '
           'support-not-surveillance, pending COPPA review.',
     );
+
+// =====================================================================
+// Phase 3 — Settings navigation, Your AI screen, photo consent.
+//
+// AD-7: keyed, never built from fragments in widgets (the only
+// interpolation is the documented `{host}` / `{last4}` / `{status}`
+// placeholders, replaced verbatim). Calm and non-judgmental (FR-15): no
+// warnings in red, no "you must", no pressure to turn AI on.
+// =====================================================================
+
+/// The Settings list (reachable from the Day Board's app-bar action).
+class SettingsStrings {
+  const SettingsStrings({
+    required this.title,
+    required this.openSettings,
+    required this.yourAi,
+    required this.yourData,
+    required this.about,
+    required this.yourAiNone,
+    required this.yourAiByok,
+    required this.yourDataSubtitle,
+    required this.aboutSubtitle,
+  });
+
+  final String title;
+
+  /// Accessible label of the Day Board's Settings action.
+  final String openSettings;
+  final String yourAi;
+  final String yourData;
+  final String about;
+
+  /// Subtitle of the Your AI row when no AI is on.
+  final String yourAiNone;
+
+  /// Subtitle of the Your AI row when the user's own key is on.
+  final String yourAiByok;
+  final String yourDataSubtitle;
+  final String aboutSubtitle;
+}
+
+const SettingsStrings enSettingsStrings = SettingsStrings(
+  title: 'Settings',
+  openSettings: 'Settings',
+  yourAi: 'Your AI',
+  yourData: 'Your data',
+  about: 'About',
+  yourAiNone: 'offline (no AI)',
+  yourAiByok: 'your key',
+  yourDataSubtitle: 'export · lock · erase',
+  aboutSubtitle: 'yours to run · open source',
+);
+
+/// The Your AI screen (Settings → Your AI).
+class YourAiStrings {
+  const YourAiStrings({
+    required this.title,
+    required this.intro,
+    required this.rungHeading,
+    required this.rungNoneLabel,
+    required this.rungNoneHelp,
+    required this.rungByokLabel,
+    required this.rungByokHelp,
+    required this.rungHostedLabel,
+    required this.rungLocalLabel,
+    required this.rungUnavailable,
+    required this.byokHeading,
+    required this.endpointLabel,
+    required this.endpointHint,
+    required this.endpointHelp,
+    required this.endpointEmpty,
+    required this.endpointNotAUrl,
+    required this.endpointNotHttps,
+    required this.endpointHasCredentials,
+    required this.endpointHasQuery,
+    required this.modelLabel,
+    required this.modelHint,
+    required this.modelEmpty,
+    required this.keyLabel,
+    required this.keyHint,
+    required this.keyHelp,
+    required this.keyHelpWeb,
+    required this.keySavedTemplate,
+    required this.keySavedPlain,
+    required this.keyNone,
+    required this.keyReplaceHint,
+    required this.save,
+    required this.removeKey,
+    required this.saved,
+    required this.keyRemoved,
+    required this.keyInvalid,
+    required this.testConnection,
+    required this.testing,
+    required this.testOk,
+    required this.testKeyRejected,
+    required this.testRateLimited,
+    required this.testTimeout,
+    required this.testNetwork,
+    required this.testUnexpected,
+    required this.testNotConfigured,
+    required this.testTooLarge,
+    required this.testKeyOtherHost,
+    required this.keyOtherHost,
+    required this.privacyHeading,
+    required this.consentNone,
+    required this.consentExplainer,
+    required this.consentRevoke,
+    required this.docsHint,
+    required this.askEveryPhotoLabel,
+    required this.askEveryPhotoHelp,
+  });
+
+  final String title;
+  final String intro;
+  final String rungHeading;
+  final String rungNoneLabel;
+  final String rungNoneHelp;
+  final String rungByokLabel;
+  final String rungByokHelp;
+  final String rungHostedLabel;
+  final String rungLocalLabel;
+
+  /// Shown under rungs that exist in the design but not in this build.
+  final String rungUnavailable;
+  final String byokHeading;
+  final String endpointLabel;
+  final String endpointHint;
+  final String endpointHelp;
+  final String endpointEmpty;
+  final String endpointNotAUrl;
+  final String endpointNotHttps;
+  final String endpointHasCredentials;
+  final String endpointHasQuery;
+  final String modelLabel;
+  final String modelHint;
+  final String modelEmpty;
+  final String keyLabel;
+  final String keyHint;
+
+  /// Mobile: where the key is kept.
+  final String keyHelp;
+
+  /// Web: the key is kept in the encrypted store (S4, ADR-0003).
+  final String keyHelpWeb;
+
+  /// `key saved • ends with ••••{last4}` — never more than the last four.
+  final String keySavedTemplate;
+
+  /// Used when the key is too short for a safe hint.
+  final String keySavedPlain;
+  final String keyNone;
+  final String keyReplaceHint;
+  final String save;
+  final String removeKey;
+  final String saved;
+  final String keyRemoved;
+  final String keyInvalid;
+  final String testConnection;
+  final String testing;
+  final String testOk;
+  final String testKeyRejected;
+  final String testRateLimited;
+  final String testTimeout;
+  final String testNetwork;
+
+  /// `{status}` is the HTTP status code.
+  final String testUnexpected;
+  final String testNotConfigured;
+  final String testTooLarge;
+
+  /// The saved key belongs to another endpoint than the one being tested.
+  final String testKeyOtherHost;
+
+  /// Saving a new endpoint without re-entering the key; `{host}` is the
+  /// host the saved key was entered for.
+  final String keyOtherHost;
+  final String privacyHeading;
+  final String consentNone;
+  final String consentExplainer;
+  final String consentRevoke;
+
+  /// The link to the in-app privacy page.
+  final String docsHint;
+
+  /// The "Ask before every photo upload" switch (PV1).
+  final String askEveryPhotoLabel;
+  final String askEveryPhotoHelp;
+}
+
+const YourAiStrings enYourAiStrings = YourAiStrings(
+  title: 'Your AI',
+  intro:
+      'AI Nutrition Coach works fully without AI. If you like, you can let a service '
+      'you choose suggest foods from a photo — with your own key, your call.',
+  rungHeading: 'Recognising a photo',
+  rungNoneLabel: 'No AI',
+  rungNoneHelp: 'Photos stay on this device. You pick a match or type it.',
+  rungByokLabel: 'My own key',
+  rungByokHelp: 'Photos go to the service you set below, using your key.',
+  rungHostedLabel: 'Free hosted model',
+  rungLocalLabel: 'Model on this device',
+  rungUnavailable: 'Not available yet',
+  byokHeading: 'Your service',
+  endpointLabel: 'Endpoint',
+  endpointHint: 'https://openrouter.ai/api/v1',
+  endpointHelp:
+      'Starts with https://. A model running on this device may use '
+      'http://localhost.',
+  endpointEmpty: 'Add the address of your service.',
+  endpointNotAUrl: "That doesn't look like a web address.",
+  endpointNotHttps: 'Use https:// — plain http:// works only for localhost.',
+  endpointHasCredentials: 'Leave the username and password out of the address.',
+  endpointHasQuery: 'Leave anything after "?" or "#" out of the address.',
+  modelLabel: 'Model',
+  modelHint: 'e.g. google/gemini-2.0-flash-exp:free',
+  modelEmpty: 'Add the model name your service offers.',
+  keyLabel: 'API key',
+  keyHint: 'Paste your key',
+  keyHelp:
+      'Kept encrypted on this device. It is sent only to the endpoint above '
+      'and is never shown again.',
+  keyHelpWeb:
+      'Kept encrypted in this browser, with your data — it can be read only '
+      'after you unlock. It is sent only to the endpoint above and is never '
+      'shown again.',
+  keySavedTemplate: 'key saved • ends with ••••{last4}',
+  keySavedPlain: 'key saved',
+  keyNone: 'no key saved',
+  keyReplaceHint: 'Paste a new key to replace it.',
+  save: 'Save',
+  removeKey: 'Remove key',
+  saved: 'Saved.',
+  keyRemoved: 'Key removed.',
+  keyInvalid: 'That key has spaces or line breaks in it — paste it again.',
+  testConnection: 'Test connection',
+  testing: 'Checking…',
+  testOk: 'Connected — the endpoint, model and key work.',
+  testKeyRejected: "The service didn't accept this key.",
+  testRateLimited: 'The service asks to slow down. Try again a little later.',
+  testTimeout: "The service didn't answer in time.",
+  testNetwork: "Couldn't reach the service.",
+  testUnexpected: 'The service answered with an unexpected status ({status}).',
+  testNotConfigured: 'Add an endpoint, a model and a key first.',
+  testTooLarge:
+      'The service sent back far more than expected, so it was stopped.',
+  testKeyOtherHost:
+      'The saved key was entered for a different service. Paste the key for '
+      'this one to test it.',
+  keyOtherHost:
+      'The saved key was entered for {host}, so it is not sent anywhere '
+      'else. Paste the key for this endpoint to save it.',
+  privacyHeading: 'Photos and consent',
+  consentNone: "You haven't allowed any service to receive photos.",
+  consentExplainer:
+      'Before a photo is sent you are asked first. Photos are shrunk and '
+      'stripped of location and camera details first.',
+  consentRevoke: 'Revoke',
+  docsHint: 'What this app stores and sends',
+  askEveryPhotoLabel: 'Ask before every photo upload',
+  askEveryPhotoHelp:
+      'On: each photo needs its own yes. Off: you say yes once per service '
+      'and photos then go without asking, until you revoke it below.',
+);
+
+/// The "send this photo to this host?" dialog (N1, PV1, PV2).
+///
+/// Shown before the FIRST photo goes to a given third-party host (the BYOK
+/// endpoint's host), and before EVERY photo while "Ask before every photo
+/// upload" is on (the default). Every sentence is literal about what leaves
+/// the device; nothing here is a promise about what the host does with it.
+class PhotoConsentStrings {
+  const PhotoConsentStrings({
+    required this.title,
+    required this.whatIsSent,
+    required this.alsoVisible,
+    required this.alsoVisibleWeb,
+    required this.retention,
+    required this.notSent,
+    required this.revokeHint,
+    required this.askEveryHint,
+    required this.allow,
+    required this.allowOnce,
+    required this.decline,
+    required this.learnMore,
+  });
+
+  /// `{host}` is the endpoint host, named verbatim.
+  final String title;
+
+  /// The photo, the fixed instruction and the model name.
+  final String whatIsSent;
+
+  /// What the host also sees on any request. `{host}` is the endpoint host.
+  final String alsoVisible;
+
+  /// Same, on the web build: the page's origin travels too (`Origin`).
+  final String alsoVisibleWeb;
+
+  /// The host may keep requests under its own policy. `{host}` is the host.
+  final String retention;
+
+  /// What is NOT sent.
+  final String notSent;
+
+  /// Where to change the per-host agreement (the "ask once" mode).
+  final String revokeHint;
+
+  /// Shown instead of [revokeHint] while "ask before every photo" is on.
+  final String askEveryHint;
+
+  /// "Allow this host from now on" label. `{host}` is the endpoint host.
+  final String allow;
+
+  /// "Send this photo" label (one photo only).
+  final String allowOnce;
+  final String decline;
+
+  /// The link to the in-app privacy page (never an external URL).
+  final String learnMore;
+}
+
+const PhotoConsentStrings enPhotoConsentStrings = PhotoConsentStrings(
+  title: 'Send this photo to {host}?',
+  whatIsSent:
+      'What is sent: the photo, shrunk, with its location and camera '
+      'details removed, a fixed instruction asking which foods are on the '
+      'plate, and the model name you chose. AI Nutrition Coach does not run that '
+      'service and never sees the photo.',
+  alsoVisible:
+      'Also visible to {host}: your internet address and your device or '
+      'app type, as with any website.',
+  alsoVisibleWeb:
+      'Also visible to {host}: your internet address, your browser type '
+      'and the address of this site, as with any website.',
+  retention:
+      '{host} may keep requests under its own terms: check your '
+      "provider's data policy.",
+  notSent: 'Not sent: your name, your history, or your other plates.',
+  revokeHint: 'You can change this any time in Settings → Your AI.',
+  askEveryHint:
+      'You are asked before every photo. Change this in Settings → Your AI.',
+  allow: 'Allow {host}',
+  allowOnce: 'Send this photo',
+  decline: 'Not now',
+  learnMore: 'What this app stores and sends',
+);
+
+/// The v1 `en` strings for the Day Board's meal slots (keyed copy, AD-7).
+///
+/// `lateOther` is ONE slot for 23:00-04:59, ordered by time of day inside it
+/// (00:00-04:59 plates come before the 23:xx ones, because a day runs
+/// 00:00 -> 23:59). It is shown only when it holds a plate.
+class DayBoardStrings {
+  const DayBoardStrings({
+    required this.breakfast,
+    required this.lunch,
+    required this.dinner,
+    required this.lateOther,
+  });
+
+  final String breakfast;
+  final String lunch;
+  final String dinner;
+  final String lateOther;
+}
+
+const DayBoardStrings enDayBoardStrings = DayBoardStrings(
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  lateOther: 'Late / other',
+);

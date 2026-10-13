@@ -15,12 +15,10 @@
 //
 // No raw exceptions cross either port (conventions).
 
-// The `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
-// Re-exported here for ergonomic import paths.
-export '../entities/sync_queue_state.dart';
-
-/// The `SyncOp` is re-exported here for ergonomic import paths.
+// Re-exported here for ergonomic import paths: the `SyncOp` and the
+// `SyncQueueState` snapshot a `Stream<SyncQueueState>` emits.
 export '../entities/sync_op.dart' show SyncOp, SyncOpKind;
+export '../entities/sync_queue_state.dart';
 
 /// The outcome of `SyncQueue.enqueue(SyncOp)`.
 sealed class EnqueueResult {
@@ -53,8 +51,9 @@ sealed class DrainResult {
   const DrainResult();
 }
 
-/// The transport acknowledged the op durably. The outbox moves the
-/// row to `synced`.
+/// The transport acknowledged the op durably (the data reached the
+/// remote). The outbox moves the row to `synced`. Never returned by an
+/// adapter that sent nothing.
 final class Drained extends DrainResult {
   const Drained();
 }
@@ -73,6 +72,13 @@ final class DrainFailedRetryable extends DrainResult {
 final class DrainFailedPermanent extends DrainResult {
   const DrainFailedPermanent(this.reason);
   final String reason;
+}
+
+/// There is no transport to send the op over (v1: `LocalOnlySyncAdapter`).
+/// Nothing was sent, so the row stays `pending` — it is neither synced nor
+/// failed — and the drain loop stops without touching the queue.
+final class DrainSkippedNoTransport extends DrainResult {
+  const DrainSkippedNoTransport();
 }
 
 /// The reason `SyncQueue.markFailed` / `markSynced` returns when

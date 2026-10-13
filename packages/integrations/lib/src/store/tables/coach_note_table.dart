@@ -21,6 +21,8 @@
 
 import 'package:drift/drift.dart';
 
+// `idx_note_plate`: notes are read (and watched) per plate.
+@TableIndex(name: 'idx_note_plate', columns: {#plateLogId})
 @DataClassName('CoachNoteTableData')
 class CoachNoteTable extends Table {
   IntColumn get id => integer().autoIncrement()();

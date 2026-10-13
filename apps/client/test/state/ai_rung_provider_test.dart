@@ -18,14 +18,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
 
-/// Overrides every adapter seam with an in-memory double so any
-/// `AiRungKind` can resolve (the seams have no default — see
-/// `ai_rung_provider.dart`).
+/// Builds a container with the config plus every rung seam the
+/// production `main.dart` overrides, so any `AiRungKind` resolves.
 ProviderContainer _container({required AiRungConfig config}) {
   return ProviderContainer(
     overrides: [
       aiRungConfigProvider.overrideWithValue(config),
+      // The byok branch asks which host photos would go to (consent).
+      photoUploadHostProvider.overrideWithValue(null),
+      initialAiSettingsProvider.overrideWithValue(AiSettings.defaults),
       quotaCounterProvider.overrideWithValue(InMemoryQuotaCounter(ceiling: 5)),
       hostedQuotaProviderProvider.overrideWithValue(
         const CloudflareWorkersAiProvider(),
@@ -40,14 +43,8 @@ ProviderContainer _container({required AiRungConfig config}) {
 
 void main() {
   group('aiRungConfigProvider (Story 3.1 / AD-5)', () {
-    test('throws UnimplementedError when not overridden (defensive seam)', () {
-      // The seam has no default — production code must override it
-      // at the ProviderScope root. This pins the error path so a
-      // regression that silently defaults to a no-op is loud.
-      // Riverpod 3.x wraps the provider's thrown error in a
-      // `ProviderException`; the underlying `UnimplementedError`
-      // carries the message we deliberately throw inside the
-      // provider's factory.
+    test('is derived from the settings: unoverridden settings fail loudly, '
+        'with the settings provider named', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -60,9 +57,8 @@ void main() {
       expect(thrown, isNotNull);
       expect(
         thrown.toString(),
-        contains('aiRungConfigProvider must be overridden'),
+        contains('initialAiSettingsProvider must be overridden'),
       );
-      expect(thrown.toString(), contains('UnimplementedError'));
     });
 
     test('production override resolves to the v1 default (noOp)', () {
@@ -86,7 +82,6 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<NoopAiRung>());
     });
 
@@ -97,6 +92,7 @@ void main() {
           aiRungConfigProvider.overrideWithValue(
             const AiRungConfig(kind: AiRungKind.hostedQuota),
           ),
+          photoUploadHostProvider.overrideWithValue(null),
           quotaCounterProvider.overrideWithValue(
             InMemoryQuotaCounter(ceiling: 5),
           ),
@@ -108,25 +104,21 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<HostedQuotaAiRung>());
-
-      // The seam hands out `AiRung` (the interface) — not the
-      // concrete adapter type — at the call site.
-      final AiRung abstractRung = rung;
-      expect(abstractRung, isA<AiRung>());
     });
 
-    test('byok config → ByokAiRung stub (Story 3.3 fills the body)', () {
-      final container = _container(
-        config: const AiRungConfig(kind: AiRungKind.byok),
-      );
-      addTearDown(container.dispose);
+    test(
+      'byok config → ByokAiRung wired with key store + provider (Story 3.3)',
+      () {
+        final container = _container(
+          config: const AiRungConfig(kind: AiRungKind.byok),
+        );
+        addTearDown(container.dispose);
 
-      final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
-      expect(rung, isA<ByokAiRung>());
-    });
+        final rung = container.read(aiRungProvider);
+        expect(rung, isA<ByokAiRung>());
+      },
+    );
 
     test('local config → LocalAiRung v2 seam (FR8 throws-on-use)', () async {
       final container = _container(
@@ -135,7 +127,6 @@ void main() {
       addTearDown(container.dispose);
 
       final rung = container.read(aiRungProvider);
-      expect(rung, isA<AiRung>());
       expect(rung, isA<LocalAiRung>());
 
       // The seam is honest — `recognize` throws `UnsupportedError`
@@ -150,14 +141,23 @@ void main() {
       expect(thrown.toString(), contains('v2 seam'));
     });
 
-    test('the seam hands out AiRung (the interface), never the '
-        'concrete adapter type — except for the test-internal '
-        'isA<X>() assertions, the providers return AiRung', () {
+    test('every kind resolves to its own adapter', () {
       for (final kind in AiRungKind.values) {
+        // An exhaustive switch: adding an AiRungKind breaks this test until
+        // its adapter is pinned here.
+        final Type expected = switch (kind) {
+          AiRungKind.noOp => NoopAiRung,
+          AiRungKind.hostedQuota => HostedQuotaAiRung,
+          AiRungKind.byok => ByokAiRung,
+          AiRungKind.local => LocalAiRung,
+        };
         final container = _container(config: AiRungConfig(kind: kind));
         addTearDown(container.dispose);
-        final AiRung rung = container.read(aiRungProvider);
-        expect(rung, isA<AiRung>());
+        expect(
+          container.read(aiRungProvider).runtimeType,
+          expected,
+          reason: '$kind',
+        );
       }
     });
   });

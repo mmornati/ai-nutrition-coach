@@ -6,16 +6,18 @@
 //
 // `entries` is the resolved list at commit time. The store guarantees
 // the list is non-empty (validation refusal in `RecordPlate` makes an
-// empty plate impossible), so callers may iterate without a guard.
+// empty plate impossible), so callers may iterate without a guard. The list
+// is copied into an unmodifiable one: a plate held by a provider or a stream
+// snapshot cannot be mutated by whoever reads it (security review F10).
 
 import 'food_entry.dart';
 
 class PlateLog {
-  const PlateLog({
+  PlateLog({
     required this.id,
     required this.loggedAtUtc,
-    required this.entries,
-  });
+    required List<FoodEntry> entries,
+  }) : entries = List<FoodEntry>.unmodifiable(entries);
 
   final int id;
   final DateTime loggedAtUtc;

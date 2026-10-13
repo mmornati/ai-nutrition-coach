@@ -4,7 +4,9 @@
 #
 # The named reviewer is documented in REVIEWERS.md at the repo
 # root. Replace `@mmornati` with your own GitHub
-# handle when forking the repo.
+# handle when forking the repo. The ndp-review gate reads the owner handles
+# from this file generically (it requires each to be listed in REVIEWERS.md),
+# so it needs no change when the handle is replaced.
 #
 # Format: <pattern>  <owner>
 # Trailing `/` matches directories. `*` is a wildcard.
@@ -30,6 +32,17 @@
 /docs/v2-managed-oversight.md  @mmornati
 /docs/adults-only.md  @mmornati
 
+# ── Build, release and supply-chain surface (anything that changes what
+#    ships or what runs in CI is reviewed like code) ──
+/infra/  @mmornati
+/bin/  @mmornati
+/scripts/  @mmornati
+/tools/  @mmornati
+/.github/  @mmornati
+/SECURITY.md  @mmornati
+/apps/client/android/  @mmornati
+/apps/client/ios/  @mmornati
+
 # ── Reviewers file ──
 /REVIEWERS.md  @mmornati
 
@@ -38,6 +51,5 @@
 /tools/check_adults_only.dart  @mmornati
 /tools/check_no_under_13_profiles.dart  @mmornati
 
-# ── CI workflows that run the gate ──
-/.github/workflows/ci.yml  @mmornati
-/.github/workflows/self-host-smoke.yml  @mmornati
+# ── CI workflows that run the gate (also covered by /.github/ above) ──
+/.github/workflows/  @mmornati

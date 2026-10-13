@@ -1,34 +1,49 @@
-// `StatusChip` widget tests — mono per-plate sync chip (UX-DR6 /
-// Story 4.3).
+// `StatusChip` widget tests — mono status chip (UX-DR6) and its honesty
+// (security review F4).
 //
-// The chip derives its label from `syncQueuePerPlateProvider`
-// (AD-3: pure derivation, no UI counter). The chip is a status
-// marker, not an affordance: it is never a button, but its parent
-// row owns the 48px hit target.
+// While there is no sync transport (v1) the chip says `· on this device` and
+// nothing else — it never claims `pending` or `synced`, whatever the queue
+// holds. With a transport it derives `· pending` / `· synced` /
+// `· retry later` from the per-plate sync-queue stream. The chip is a status
+// marker, not an affordance: it is never a button, but its parent row owns
+// the 48px hit target.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/sync_queue_provider.dart';
 import 'package:ai_nutrition_coach/theme/app_tokens.dart';
 import 'package:ai_nutrition_coach/widgets/status_chip.dart';
+
+class _Transport implements SyncAdapter {
+  const _Transport();
+
+  @override
+  bool get hasTransport => true;
+
+  @override
+  Future<DrainResult> drain(SyncOp op) async => const Drained();
+}
 
 void main() {
   Future<void> pump(
     WidgetTester tester,
     Widget child, {
-    List<SyncOpStatus> perPlate = const <SyncOpStatus>[],
     Brightness brightness = Brightness.light,
+    List<SyncOpStatus> perPlate = const <SyncOpStatus>[],
+    bool transport = false,
   }) async {
+    final overrides = <Override>[
+      if (transport) syncAdapterProvider.overrideWithValue(const _Transport()),
+      syncQueuePerPlateProvider.overrideWith(
+        (ref) => Stream<List<SyncOpStatus>>.value(perPlate),
+      ),
+    ];
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          syncQueuePerPlateProvider.overrideWith(
-            (ref) => Stream<List<SyncOpStatus>>.value(perPlate),
-          ),
-        ],
+        overrides: overrides,
         child: MaterialApp(
           theme: ThemeData(brightness: brightness),
           home: Scaffold(
@@ -43,129 +58,83 @@ void main() {
     await tester.pump();
   }
 
-  group('StatusChip', () {
-    testWidgets('renders mono `· pending` for an enqueued plate', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const StatusChip(plateLogId: 1),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
-        ],
-      );
+  group('StatusChip without a sync transport (v1)', () {
+    testWidgets('renders mono `· on this device`', (tester) async {
+      await pump(tester, const StatusChip(plateLogId: 1));
 
-      final text = tester.widget<Text>(find.text('· pending'));
+      final text = tester.widget<Text>(find.text('· on this device'));
       // Role-bound typography: mono (UX-DR6) — the chip is never
       // louder than the row body.
       expect(text.style!.fontFamily, 'monospace');
       expect(text.style!.color, AppPalette.light.statusLocal);
     });
 
-    testWidgets('renders `· synced` with the synced tint', (tester) async {
-      await pump(
-        tester,
-        const StatusChip(plateLogId: 1),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.synced),
-        ],
-      );
-
-      final text = tester.widget<Text>(find.text('· synced'));
-      expect(text.style!.color, AppPalette.light.statusSynced);
-    });
-
-    testWidgets('failed renders calm `· retry later` in muted ink', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const StatusChip(plateLogId: 1),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.failed),
-        ],
-      );
-
-      final text = tester.widget<Text>(find.text('· retry later'));
-      expect(text.style!.color, AppPalette.light.inkMuted);
-    });
-
-    testWidgets('reads only its own plate from the per-plate snapshot', (
+    testWidgets('NEVER says synced / pending, whatever the queue holds', (
       tester,
     ) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 2),
         perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.failed),
-          SyncOpStatus(plateLogId: 2, status: SyncOpStatusValue.pending),
+          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
+          SyncOpStatus(plateLogId: 2, status: SyncOpStatusValue.synced),
         ],
       );
-
-      expect(find.text('· pending'), findsOneWidget);
-      expect(find.text('· retry later'), findsNothing);
+      expect(find.text('· on this device'), findsOneWidget);
+      expect(find.text('· synced'), findsNothing);
+      expect(find.text('· pending'), findsNothing);
     });
 
-    testWidgets('custom copy overrides the default strings', (tester) async {
-      const copy = SyncQueueStrings(
-        localChip: 'here',
-        pendingChip: 'queued',
-        syncedChip: 'done',
-        failedChip: 'later',
-        retryLaterHint: 'hint',
-      );
-      await pump(
-        tester,
-        const StatusChip(plateLogId: 1, copy: copy),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
-        ],
-      );
-      expect(find.text('· queued'), findsOneWidget);
-      expect(find.text('· pending'), findsNothing);
+    testWidgets('the default wiring has no transport', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(syncTransportAvailableProvider), isFalse);
+      expect(container.read(syncAdapterProvider).hasTransport, isFalse);
     });
 
     testWidgets('exposes a Semantics label announcing the status', (
       tester,
     ) async {
-      await pump(
-        tester,
-        const StatusChip(plateLogId: 1),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
-        ],
-      );
+      await pump(tester, const StatusChip(plateLogId: 1));
 
       final semantics = tester.getSemantics(find.byType(StatusChip));
       expect(semantics.label, contains('Status:'));
-      expect(semantics.label, contains('pending'));
+      expect(semantics.label, contains('on this device'));
+      expect(semantics.label, isNot(contains('synced')));
     });
 
     testWidgets('reads dark-palette status color in dark mode', (tester) async {
       await pump(
         tester,
         const StatusChip(plateLogId: 1),
-        perPlate: const [
-          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
-        ],
         brightness: Brightness.dark,
       );
 
-      final text = tester.widget<Text>(find.text('· pending'));
+      final text = tester.widget<Text>(find.text('· on this device'));
       expect(text.style!.color, AppPalette.dark.statusLocal);
     });
+  });
 
-    // The widget's doc comment and `SyncQueueStrings.localChip` say a
-    // plate with no queued op renders `· local`, but
-    // `StatusChip._statusFor` falls back to `SyncOpStatusValue.synced`
-    // (the enum has no `local` value), so `localChip` is never shown.
-    testWidgets(
-      'renders mono `· local` when the plate has no queued op',
-      (tester) async {
-        await pump(tester, const StatusChip(plateLogId: 1));
-        expect(find.text('· local'), findsOneWidget);
-      },
-      skip: true, // Lib bug: StatusChip never renders `localChip`.
-    );
+  group('StatusChip with a transport', () {
+    testWidgets('reflects the queue status for its own plate only', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StatusChip(plateLogId: 2),
+        transport: true,
+        perPlate: const [
+          SyncOpStatus(plateLogId: 1, status: SyncOpStatusValue.pending),
+          SyncOpStatus(plateLogId: 2, status: SyncOpStatusValue.synced),
+        ],
+      );
+      expect(find.text('· synced'), findsOneWidget);
+      expect(find.text('· pending'), findsNothing);
+    });
+
+    testWidgets('a plate with no op is still on this device', (tester) async {
+      await pump(tester, const StatusChip(plateLogId: 9), transport: true);
+      expect(find.text('· on this device'), findsOneWidget);
+    });
   });
 }

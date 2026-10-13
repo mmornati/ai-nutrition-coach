@@ -8,40 +8,13 @@
 // pair. The autoDispose family ensures a second export starts
 // a fresh stream (UX-DR10).
 
-import 'dart:async';
-
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_nutrition_coach/state/exporter_provider.dart';
 import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
-class _FakeStore implements EncryptedStore {
-  _FakeStore(this._plates);
-  final List<PlateLog> _plates;
-  @override
-  Future<RecordPlateResult> recordPlate({
-    required List<FoodEntryDraft> entries,
-    DateTime? loggedAtUtc,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) {
-    // Multi-listen, like drift's `query.watch()`: every listener gets
-    // its own snapshot. (The exporters listen twice — see the skipped
-    // single-subscription regression test in packages/integrations.)
-    return Stream<List<PlateLog>>.multi((controller) {
-      controller
-        ..add(List.unmodifiable(_plates))
-        ..close();
-    });
-  }
-
-  @override
-  Future<void> close() async {}
-}
+import '../_fakes/fake_encrypted_store.dart';
 
 PlateLog _plate(int id) => PlateLog(
   id: id,
@@ -67,25 +40,25 @@ void main() {
 
   group('exporter providers', () {
     test('csvExporterProvider reads from the encrypted store', (() async {
-      final store = _FakeStore([_plate(1), _plate(2)]);
+      final store = FakeEncryptedStore(initial: [_plate(1), _plate(2)]);
       final container = ProviderContainer(
         overrides: [encryptedStoreProvider.overrideWithValue(store)],
       );
       addTearDown(container.dispose);
       final exp = container.read(csvExporterProvider);
       final got = await exp.readPlates(scope: const ExportScope.allHistory());
-      expect(got.length, 2);
+      expect((got as ExportReady).plates.length, 2);
     }));
 
     test('jsonExporterProvider reads from the same store', (() async {
-      final store = _FakeStore([_plate(1)]);
+      final store = FakeEncryptedStore(initial: [_plate(1)]);
       final container = ProviderContainer(
         overrides: [encryptedStoreProvider.overrideWithValue(store)],
       );
       addTearDown(container.dispose);
       final exp = container.read(jsonExporterProvider);
       final got = await exp.readPlates(scope: const ExportScope.allHistory());
-      expect(got.length, 1);
+      expect((got as ExportReady).plates.length, 1);
     }));
   });
 }

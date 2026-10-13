@@ -104,3 +104,8 @@ _bmad/custom/*.user.toml
 *.log
 *.tmp
 *.bak
+# Phase 2B: fetched + SHA-256-verified by scripts/fetch_web_sqlite.sh, never committed.
+apps/client/web/sqlite3mc*.wasm
+
+# ── Web: fetched + SHA-256-verified decoder (scripts/fetch_web_zxing.sh) ──
+apps/client/web/zxing/

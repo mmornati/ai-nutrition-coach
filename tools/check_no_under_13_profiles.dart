@@ -71,17 +71,11 @@ void main() {
 bool _isExempt(String path) {
   // The seam marker is the only allowed reference. The check tool
   // itself + test surface + generated code.
-  // The release-gate check scripts list the banned references.
-  if (path.contains('tools/check_')) return true;
-  // Tool caches / build output (`.dart_tool/`, `build/`, …).
-  if (path
-      .split('/')
-      .any((s) => (s.startsWith('.') && s != '.') || s == 'build')) {
-    return true;
-  }
+  if (path.endsWith('check_no_under_13_profiles.dart')) return true;
   if (path.endsWith('managed_oversight_seam.dart')) return true;
   if (path.endsWith('managed_oversight_seam_test.dart')) return true;
-  if (path.contains('/tools/') && path.endsWith('_check.dart')) return true;
+  // The check scripts under tools/ carry the banned-term lists themselves.
+  if (path.startsWith('./tools/') || path.startsWith('tools/')) return true;
   if (path.contains('/test/')) return true;
   if (path.contains('/integration_test/')) return true;
   if (path.endsWith('.g.dart')) return true;

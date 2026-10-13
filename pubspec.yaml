@@ -1,5 +1,5 @@
 name: _ai_nutrition_coach_workspace
-description: "AI Nutrition Coach monorepo root — Dart pub workspace. See melos.yaml for orchestration."
+description: "AI Nutrition Coach monorepo root — Dart pub workspace. Melos scripts live in the `melos:` block below."
 publish_to: 'none'
 version: 0.0.0
 
@@ -7,8 +7,8 @@ environment:
   sdk: ^3.12.0
   flutter: ">=3.44.0"
 
-# Dart pub workspaces: lists every member package. `melos bootstrap` walks
-# the same set via `packages:` in melos.yaml and links path dependencies.
+# Dart pub workspaces: lists every member package. Melos 8 derives its
+# package set from this list (there is no melos.yaml).
 workspace:
   - apps/client
   - packages/domain_core
@@ -16,31 +16,78 @@ workspace:
 
 dev_dependencies:
   melos: 8.2.2
+  # tools/telemetry_scan.dart parses Dart with the analyzer (N6). Already in the
+  # lockfile (drift_dev needs it); declared here so `dart run tools/...` from the
+  # workspace root resolves it.
+  analyzer: ^13.0.0
+  # tools/generate_precache_manifest.dart hashes the release bundle (SHA-256)
+  # for the service worker's precache manifest (ADR-0003). Already in the
+  # lockfile (a direct dependency of packages/integrations); declared here so
+  # `dart run tools/...` from the workspace root resolves it.
+  crypto: ^3.0.6
 
-# Melos 8.x reads scripts from this block (see melos.yaml for the
-# scaffold-era location; the migration is documented in story 1.2's
-# deviation log).
+# AD-8 / D3: opt into SQLite3MultipleCiphers (sqlite3mc) at the build-hook
+# level so the sqlite3 binary the app links against supports the cipher
+# pragmas. THIS MUST LIVE HERE, in the workspace root: for a pub workspace
+# the hooks runner loads `hooks.user_defines` only from the workspace root
+# pubspec (hooks_runner `UserDefines.workspacePubspec`); the same block in
+# `packages/integrations/pubspec.yaml` is ignored. Without it the plain
+# SQLite build is linked and `PRAGMA key` is a silent no-op (plaintext
+# DB) — `attachKeyAndVerify` refuses to open in that case, and
+# `encrypted_store_integration_test.dart` pins it.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc
+
+# Melos 8.x reads its scripts from this block — the single source of truth
+# (there is intentionally no melos.yaml; see CONTRIBUTING.md).
+#
+# A package is a *Flutter* package when its pubspec depends on the Flutter
+# SDK (`sdk: flutter`): that is what decides `flutter analyze`/`flutter test`
+# vs `dart analyze`/`dart test`. A pure-Dart package (domain_core) cannot run
+# under `flutter test`, and a Flutter package (integrations links
+# flutter_secure_storage / path_provider; apps/client is the app) cannot run
+# under `dart test`.
 melos:
   scripts:
     analyze:
-      description: Run static analysis across every package in the workspace.
-      run: melos exec -c 1 --order-dependents -- "if grep -qE '^flutter:|sdk:[[:space:]]+flutter' pubspec.yaml; then flutter analyze; else dart analyze; fi"
+      description: Run static analysis across every package in the workspace and the repo-level tools/ (errors, warnings and infos all fail).
+      run: |
+        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter analyze --no-pub; else dart analyze --fatal-infos; fi" &&
+        dart analyze --fatal-infos tools
 
     test:
       description: Run unit tests across every package in the workspace.
-      # Mirror the analyze split: any package that depends on the Flutter
-      # SDK (apps/client, packages/integrations) needs `flutter test` —
-      # `dart test` cannot compile `package:flutter`. Pure-Dart packages
-      # run `dart test`.
-      run: melos exec -c 4 --order-dependents -- "if grep -qE '^flutter:|sdk:[[:space:]]+flutter' pubspec.yaml; then flutter test; else dart test; fi"
+      run: |
+        melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter test --no-pub; else dart test; fi"
+
+    test:dst:
+      description: Re-run the calendar-day / Day Board tests under a daylight-saving zone (TZ=Europe/Paris) - 2026-03-29 has 23 hours and 2026-10-25 has 25 - so the DST assertions run instead of skipping (F3). AI_NUTRITION_COACH_REQUIRE_DST=1 makes a zone without DST a hard failure, never a silent skip.
+      run: |
+        export AI_NUTRITION_COACH_REQUIRE_DST=1 TZ=Europe/Paris && (cd packages/domain_core && dart test test/calendar_day_test.dart) && (cd apps/client && flutter test --no-pub test/day_board_f3_test.dart)
 
     format:check:
-      description: Verify every package is `dart format`-clean.
-      run: melos exec -c 1 --order-dependents -- "dart format --set-exit-if-changed ."
+      description: Verify every package is `dart format`-clean (read-only; run `dart format .` to fix).
+      run: |
+        melos exec -c 1 --order-dependents -- "dart format --output=none --set-exit-if-changed ." &&
+        dart format --output=none --set-exit-if-changed tools
 
     build:web:
-      description: Build the responsive client as a release web bundle (self-host).
-      run: cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
+      description: Fetch + verify the pinned sqlite3mc.wasm and zxing-wasm decoder, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn, no Flutter service worker), generate the precache manifest + AI Nutrition Coach's own sw.js (ADR-0003), then scan the bundle for secret-shaped strings (S1) and third-party hosts (N5).
+      run: dart run tools/check_release_posture.dart --project-url-only && bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost ${AI_NUTRITION_COACH_PROJECT_URL:+"--dart-define=AI_NUTRITION_COACH_PROJECT_URL=$AI_NUTRITION_COACH_PROJECT_URL"}) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+
+    pwa:manifest:
+      description: Re-generate precache-manifest.json + sw.js for an existing apps/client/build/web (set AI_NUTRITION_COACH_BUILD_ID to force a new build id, e.g. to test the update banner).
+      run: dart run tools/generate_precache_manifest.dart apps/client/build/web
+
+    check:hosts:
+      description: Fail if the built web bundle references a third-party host outside the allow-list (N5). Run after a build.
+      run: bash tools/check_no_external_hosts.sh
+
+    check:secrets:
+      description: Scan the built web bundle (and any APK) for key-shaped strings — sk-, sk-or-v1-, AIza, Bearer <token> (S1). Run after a build.
+      run: bash tools/check_no_secrets_in_build.sh
 
     build:runner:
       description: Run drift codegen across the integrations package.
@@ -55,5 +102,13 @@ melos:
       run: dart run tools/check_telemetry_claims.dart
 
     check:release-posture:
-      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist (Story 4.6).
-      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), a release build (AI_NUTRITION_COACH_BUILD=selfhost|release) has a real AI_NUTRITION_COACH_PROJECT_URL (PV11), no log call can carry content (log hygiene, PV-checks), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
+      run: dart run tools/check_release_posture.dart && dart run tools/check_log_hygiene.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart && dart run tools/check_i18n_literals.dart
+
+    check:i18n:
+      description: Fail if apps/client/lib passes a hard-coded string literal to Text(, tooltip:, label:, semanticLabel:, ... - copy belongs in lib/l10n/app_en.arb (AD-7). Chained into check:release-posture.
+      run: dart run tools/check_i18n_literals.dart
+
+    check:a11y:
+      description: Accessibility floor - every screen under apps/client/lib/screens has a widget test asserting Flutter's tap-target, labeled-tap-target and text-contrast guidelines (NFR-7). Chained into check:release-posture.
+      run: dart run tools/check_accessibility_floor.dart

@@ -54,10 +54,8 @@ abstract interface class FoodCatalog {
   ///
   /// Returns `null` when the catalog has no record with that [sourceRef]
   /// — distinct from [CatalogFailure], which means the adapter itself
-  /// could not run. The default implementation falls back to a scan of
-  /// the seeded list so the offline-first adapter honours the contract
-  /// without an extra code path.
-  Future<DatabaseFood?> lookupBySourceRef(String sourceRef) async => null;
+  /// could not run.
+  Future<DatabaseFood?> lookupBySourceRef(String sourceRef);
 
   /// Resolve a packaged-food barcode into a ranked match list (Story 1.7 / FR2).
   ///
@@ -78,14 +76,6 @@ abstract interface class FoodCatalog {
   ///     "Search isn't available right now" line and still offers
   ///     manual entry.
   ///
-  /// The default implementation throws [UnimplementedError] so
-  /// adapters without barcode support (e.g. a future USDA-only
-  /// adapter) remain valid against the port, but the production
-  /// offline-first adapter opts in with a real lookup.
-  Future<CatalogResult> lookupByBarcode(String code) =>
-      throw UnimplementedError(
-        'FoodCatalog.lookupByBarcode has no default implementation; '
-        'adapters must opt in. See OfflineFirstFoodCatalog.lookupByBarcode '
-        'for the offline-first + OFF read path.',
-      );
+  /// An adapter without barcode support returns `NotFoundFailure(code)`.
+  Future<CatalogResult> lookupByBarcode(String code);
 }

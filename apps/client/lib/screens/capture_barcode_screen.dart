@@ -45,15 +45,21 @@
 import 'dart:async';
 
 import 'package:domain_core/domain_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart'
+    show OffLookupChoice, PrivacyPrefs;
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../state/manual_entry_provider.dart';
+import '../state/privacy_provider.dart';
 import '../state/scanner_provider.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/barcode_match_sheet.dart';
+import '../widgets/off_lookup_notice.dart';
 import 'manual_entry_screen.dart';
+import '../l10n/l10n.dart';
 
 class CaptureBarcodeScreen extends ConsumerStatefulWidget {
   const CaptureBarcodeScreen({super.key});
@@ -63,11 +69,17 @@ class CaptureBarcodeScreen extends ConsumerStatefulWidget {
       _CaptureBarcodeScreenState();
 }
 
-class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
+class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen>
+    with WidgetsBindingObserver {
   /// Local permission state — initialised on first build via
   /// `WidgetsBinding.addPostFrameCallback` so we never call the
   /// permission API during build.
   CameraPermissionStatus? _permission;
+
+  /// `true` when the platform has no local barcode decoder (a web browser
+  /// without `BarcodeDetector` AND without WebAssembly for the self-hosted
+  /// zxing reader). The camera is never requested then.
+  bool _noDetector = false;
 
   /// The current lookup result for the most recently scanned
   /// barcode. `null` while a lookup is in flight or before the
@@ -96,17 +108,52 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
     _previewController ??= ref.read(barcodeScannerProvider).previewController;
   }
 
+  /// `true` while the camera is running (started after the permission grant,
+  /// not stopped by the lifecycle). Gates resume so a screen that never
+  /// started the camera does not start it on foregrounding.
+  bool _cameraActive = false;
+
+  /// The adapter, cached like [_previewController]: `ref` is unsafe in
+  /// `dispose`.
+  BarcodeScanner? _scanner;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _ensurePermission();
     });
   }
 
+  /// Pause the camera when the app leaves the foreground, resume it when it
+  /// returns (F10): a backgrounded app must not hold the camera.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final scanner = _scanner;
+    if (scanner == null) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (_cameraActive || !_wasStarted) return;
+        _cameraActive = true;
+        unawaited(scanner.resumeCamera());
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        if (!_cameraActive) return;
+        _cameraActive = false;
+        unawaited(scanner.pauseCamera());
+    }
+  }
+
+  /// `true` once the camera has been started in this session.
+  bool _wasStarted = false;
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scanSub?.cancel();
     // Stop the adapter-owned controller; the adapter owns the
     // instance lifetime and will dispose it (Patch H1 — the screen
@@ -120,6 +167,12 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   }
 
   Future<void> _ensurePermission() async {
+    if (!ref.read(barcodeDetectorAvailableProvider)) {
+      // Nothing could decode the frames: skip the permission prompt and the
+      // camera and offer manual entry (calm copy, no error tone).
+      setState(() => _noDetector = true);
+      return;
+    }
     final permission = ref.read(cameraPermissionProvider);
     final status = await permission.request();
     if (!mounted) return;
@@ -135,6 +188,9 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
     // start/stop lifecycle and feeds the same instance to the
     // `MobileScanner` widget + the adapter's `scan()` stream.
     _ensurePreviewController();
+    _scanner = ref.read(barcodeScannerProvider);
+    _cameraActive = true;
+    _wasStarted = true;
     final controller = _previewController;
     if (controller != null) {
       // Production path — the controller is real; start it once
@@ -166,6 +222,10 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
       _lookupResult = null;
       _lookupInFlight = true;
     });
+
+    // PV7: the first time a barcode is about to leave the device, say so.
+    await _ensureOffNotice();
+    if (!mounted) return;
 
     CatalogResult result;
     try {
@@ -209,6 +269,27 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
     });
   }
 
+  /// The one-time Open Food Facts notice (PV7). Asked only while there is no
+  /// stored answer; the answer is kept, and the catalog itself refuses to
+  /// send anything until it is "OK" (so a failed write only means we ask
+  /// again next time, never that a barcode went out unasked).
+  Future<void> _ensureOffNotice() async {
+    final PrivacyPrefs prefs;
+    try {
+      prefs = ref.read(privacyPrefsProvider);
+      if (await prefs.offLookupChoice() != OffLookupChoice.unasked) return;
+    } on Object catch (_) {
+      return; // cannot tell: the catalog gate stays closed, nothing is sent
+    }
+    if (!mounted) return;
+    final answer = await showOffLookupNotice(context);
+    try {
+      await prefs.setOffLookupChoice(answer);
+    } on Object catch (_) {
+      // Not kept (store locked): asked again next time.
+    }
+  }
+
   Future<void> _routeResult(CatalogResult result, String code) async {
     switch (result) {
       case RankedMatches(:final matches) when matches.isNotEmpty:
@@ -245,11 +326,11 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
           title: Text(
-            'Not found',
+            dialogCtx.l10n.barcodeNotFoundTitle,
             style: AppTypography.ui.copyWith(color: palette.ink),
           ),
           content: Text(
-            'This barcode isn\'t in the catalog yet. Type it manually?',
+            dialogCtx.l10n.barcodeNotFoundBody,
             style: AppTypography.ui.copyWith(color: palette.ink),
           ),
           actions: [
@@ -263,7 +344,7 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
               ),
               onPressed: () => Navigator.of(dialogCtx).pop(false),
               child: Text(
-                'Scan again',
+                dialogCtx.l10n.scanAgain,
                 style: AppTypography.ui.copyWith(color: palette.inkMuted),
               ),
             ),
@@ -274,7 +355,7 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
                 minimumSize: const Size.fromHeight(AppTouchTargets.min),
               ),
               child: Text(
-                'Type it manually',
+                context.l10n.typeItManually,
                 style: AppTypography.ui.copyWith(color: palette.background),
               ),
             ),
@@ -304,12 +385,12 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Scan a barcode',
+          context.l10n.scanBarcode,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         actions: [
           IconButton(
-            tooltip: 'Type it manually',
+            tooltip: context.l10n.typeItManually,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -334,9 +415,12 @@ class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   }
 
   Widget _buildBody(AppPalette palette) {
+    if (_noDetector) {
+      return _UnavailableCalm(palette: palette, detectorMissing: true);
+    }
     final permission = _permission;
     if (permission == null) {
-      return const _Hint(text: 'Checking camera permission…');
+      return _Hint(text: context.l10n.barcodeCheckingCamera);
     }
     switch (permission) {
       case CameraPermissionStatus.granted:
@@ -406,7 +490,16 @@ class _ScannerBody extends StatelessWidget {
                   MobileScanner(
                     controller: controller!,
                     errorBuilder: (context, error) {
-                      return _UnavailableCalm(palette: palette);
+                      // On the web a `genericError` is the decoder failing
+                      // to load or start (the self-hosted zxing reader):
+                      // say "scanning isn't available in this browser".
+                      return _UnavailableCalm(
+                        palette: palette,
+                        detectorMissing:
+                            kIsWeb &&
+                            error.errorCode ==
+                                MobileScannerErrorCode.genericError,
+                      );
                     },
                   )
                 else
@@ -430,7 +523,7 @@ class _ScannerBody extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
                       child: Text(
-                        'Move closer or steady',
+                        context.l10n.barcodeMoveCloser,
                         style: AppTypography.coach.copyWith(
                           color: palette.inkMuted,
                         ),
@@ -473,7 +566,10 @@ class _ResultLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (inFlight) {
-      return _Hint(text: 'Looking up ${barcode ?? ''}…', palette: palette);
+      return _Hint(
+        text: context.l10n.barcodeLookingUp(barcode ?? ''),
+        palette: palette,
+      );
     }
     final result = this.result;
     if (result is CatalogFailure) {
@@ -482,10 +578,7 @@ class _ResultLine extends StatelessWidget {
     if (result is NotFoundFailure) {
       return _NotFoundBlock(palette: palette, onTypeInstead: onTypeInstead);
     }
-    return _Hint(
-      text: 'Aim at a packaged barcode to log it.',
-      palette: palette,
-    );
+    return _Hint(text: context.l10n.barcodeAimHint, palette: palette);
   }
 }
 
@@ -499,12 +592,12 @@ class _DeniedCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera denied — type it instead',
+          context.l10n.cameraDeniedTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'You can still log a plate from the manual entry screen.',
+          context.l10n.cameraDeniedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -523,7 +616,7 @@ class _DeniedCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
@@ -534,8 +627,11 @@ class _DeniedCalm extends StatelessWidget {
 }
 
 class _UnavailableCalm extends StatelessWidget {
-  const _UnavailableCalm({required this.palette});
+  const _UnavailableCalm({required this.palette, this.detectorMissing = false});
   final AppPalette palette;
+
+  /// The browser cannot read barcodes locally (no `BarcodeDetector`).
+  final bool detectorMissing;
 
   @override
   Widget build(BuildContext context) {
@@ -543,12 +639,16 @@ class _UnavailableCalm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Camera unavailable — type it instead',
+          detectorMissing
+              ? context.l10n.barcodeUnsupportedBrowserTitle
+              : context.l10n.cameraUnavailableTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'We couldn\'t start the camera. Manual entry still works.',
+          detectorMissing
+              ? context.l10n.barcodeUnsupportedBrowserBody
+              : context.l10n.cameraStartFailedBody,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -567,7 +667,7 @@ class _UnavailableCalm extends StatelessWidget {
               backgroundColor: palette.sageDeep,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
@@ -588,7 +688,7 @@ class _NotFoundBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Not found — type it manually',
+          context.l10n.barcodeNotFoundTypeIt,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -602,7 +702,7 @@ class _NotFoundBlock extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),
@@ -623,7 +723,7 @@ class _FailureBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Search isn't available right now.",
+          context.l10n.searchUnavailable,
           style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -637,7 +737,7 @@ class _FailureBlock extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              'Type it manually',
+              context.l10n.typeItManually,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),

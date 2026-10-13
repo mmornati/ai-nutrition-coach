@@ -7,6 +7,10 @@ import 'package:domain_core/domain_core.dart';
 import 'package:test/test.dart';
 
 class _FakeEncryptedStore implements EncryptedStore {
+  @override
+  Future<DeletePlateResult> deletePlate(int plateLogId) async =>
+      const PlateDeleted();
+
   _FakeEncryptedStore({
     RecordPlateResult? recordResult,
     Stream<List<PlateLog>>? watchStream,
@@ -38,9 +42,16 @@ class _FakeEncryptedStore implements EncryptedStore {
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) {
+  Stream<List<PlateLog>> watchRange({
+    required DateTime from,
+    required DateTime to,
+  }) {
     return _watchStream ?? const Stream<List<PlateLog>>.empty();
   }
+
+  @override
+  Future<ReadPlatesResult> readRange({DateTime? from, DateTime? to}) async =>
+      const PlatesRead(<PlateLog>[]);
 
   @override
   Future<void> close() async {}
@@ -58,6 +69,10 @@ class _StubCoach implements Coach {
 
 /// Inert `CoachNoteStore` — never consulted by these tests.
 class _StubCoachNoteStore implements CoachNoteStore {
+  @override
+  Future<DeletePlateResult> deleteForPlate(int plateLogId) async =>
+      const PlateDeleted();
+
   const _StubCoachNoteStore();
   @override
   dynamic noSuchMethod(Invocation invocation) =>

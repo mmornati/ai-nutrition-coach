@@ -24,10 +24,33 @@ path-dependencies between them. Requires:
 
 | Tool         | Version       |
 | ------------ | ------------- |
-| Flutter      | 3.47.0 stable |
-| Dart SDK     | ^3.13.0       |
+| Flutter      | 3.44.0 stable (image `ghcr.io/cirruslabs/flutter:3.44.0`, digest-pinned) |
+| Dart SDK     | ^3.12.0 (bundled with Flutter 3.44.0) |
 | melos        | 8.2.2         |
 | Docker       | 24+ (self-host) |
+
+No Flutter SDK on your machine? Run any command inside the pinned toolchain
+image with the helper (it mounts the repo and keeps a persistent pub-cache):
+
+```sh
+scripts/flutter_docker.sh melos bootstrap
+scripts/flutter_docker.sh melos run analyze
+scripts/flutter_docker.sh bash -lc 'melos run test'
+```
+
+The toolchain version/digest is pinned in one logical place and mirrored in
+`scripts/flutter_docker.sh`, `infra/Dockerfile`, `.github/workflows/*`, and
+this page — bump them together. Melos 8 reads its scripts from the `melos:`
+block of the root `pubspec.yaml` (there is no `melos.yaml`).
+
+## Verify (the one gate)
+
+```sh
+scripts/verify.sh            # format:check + analyze (infos fatal) + test + DST + release-posture + web build
+scripts/verify.sh --with-apk # also the debug APK
+```
+
+Optional pre-commit guard: `ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit`
 
 ## Test
 
@@ -36,7 +59,9 @@ melos run test
 ```
 
 The standard suite walks every package under `apps/*` and
-`packages/*`. The `packages/domain_core` AD-1 grep test pins the
+`packages/*`, using the right runner for each: `dart test` for the pure-Dart
+`domain_core`, `flutter test` for `integrations` (a Flutter package — it links
+`flutter_secure_storage` / `path_provider`) and `apps/client`. The `packages/domain_core` AD-1 grep test pins the
 pure-Dart invariant — `packages/domain_core/lib/**.dart` is free
 of `package:flutter*`, `package:drift*`, `package:dio`,
 `package:mobile_scanner*`, and `package:flutter_secure_storage*`.
@@ -50,6 +75,28 @@ melos run analyze
 Runs `flutter analyze` on Flutter packages and `dart analyze` on
 the pure-Dart packages. CI runs the same.
 
+## Web app (PWA): build, run, browser smoke
+
+The web build is an installable, offline-capable PWA (ADR-0003,
+[`docs/pwa.md`](./docs/pwa.md)). The commands, all through the pinned toolchain
+image:
+
+```sh
+scripts/verify.sh                                   # the full gate, incl. the release web build
+scripts/flutter_docker.sh dart run melos run build:web   # release bundle -> apps/client/build/web
+                                                    # (fetches sqlite3mc + zxing-wasm, builds, generates sw.js
+                                                    #  and precache-manifest.json, scans for secrets/hosts)
+docker build -f infra/Dockerfile -t ai-nutrition-coach:dev . # the production image
+bin/ai-nutrition-coach up                                    # http://localhost:8080 (a secure context)
+bin/ai-nutrition-coach up --traefik                          # behind your Traefik, no published port (docs/pwa.md)
+scripts/run_local_web.sh                            # build + serve build/web, open Chrome
+scripts/webkit_smoke.sh                             # opt-in: WebKit + Chromium smoke of the image (needs Docker + network)
+```
+
+Fetch scripts (`scripts/fetch_web_sqlite.sh`, `scripts/fetch_web_zxing.sh`) pin versions and SHA-256s and
+fail closed; the fetched files are git-ignored. `tools/generate_icons.dart` regenerates the app icon
+deterministically.
+
 ## Self-host smoke
 
 ```sh
@@ -58,9 +105,10 @@ melos run smoke:self-host
 
 End-to-end test of the `bin/ai-nutrition-coach up` flow — builds the
 multi-stage `infra/Dockerfile`, starts the container, curls the
-lock-screen HTML, asserts the `nginx:alpine` digest pin is in
-place, and asserts no outbound network calls from the running
-image. Budget is `<5 min` on a standard CI runner (NFR9 / FR-11).
+app shell, asserts the base images are digest-pinned, the
+security headers/CSP on html/js/wasm, a non-root read-only container,
+that it serves on a network with no egress, and that the bundle has
+no third-party hosts. Budget is `<5 min` on a standard CI runner (NFR9 / FR-11).
 
 ## Release posture gates
 
@@ -70,13 +118,37 @@ Three gates run on every PR and every tag:
 | ----------------------------- | -------------------------------------------------------- |
 | `melos run analyze`           | No analyzer regressions.                                 |
 | `melos run test`              | All unit tests + the AD-1 purity test + the no-telemetry test. |
+| `melos run test:dst`          | The calendar-day / Day Board tests re-run under `TZ=Europe/Paris`, where the DST assertions do not skip. |
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
-| `melos run check:telemetry`   | No unsanctioned socket users; doc claims are anchored.   |
-| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD. |
-| CI: `ci`                      | Posture checks + `domain_core` format/analyze/test on every PR, `main` and tag (Dart only — run the Flutter gates above locally until the PWA migration). |
-| CI: `self-host-smoke`         | Same as `melos run smoke:self-host`, manual trigger only until the PWA migration. |
+| `melos run check:telemetry`   | Import-based: only allow-listed adapters import a network transport; no telemetry SDKs; doc claims are anchored. |
+| `melos run check:hosts`       | The built web bundle references no third-party host.     |
+| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD; every row of the README trust table names a proof test that exists and contains a test; the adults-only gates hold; every screen has an a11y guideline test (`check:a11y`); no user-facing string literal bypasses the ARB files (`check:i18n`); no `print(` in `lib/` and no `debugPrint` / `log` call that could carry content (`tools/check_log_hygiene.dart`, mark a reviewed line `// log-hygiene: content-free`); with `AI_NUTRITION_COACH_BUILD=selfhost|release` set, a real `AI_NUTRITION_COACH_PROJECT_URL`. |
+| CI: `self-host-smoke`         | Same as `melos run smoke:self-host` on every PR.         |
+| CI: `release-gate`            | Same posture checks at tag time.                         |
 
 A regression on any gate fails the build.
+
+## Making and proving a trust claim
+
+The README "Trust posture" table is the project's list of promises. Each row has
+a `Proof` column naming the test file(s) that fail if the promise breaks.
+**If you add or reword a promise (in the README, `docs/`, or in-app copy), add or
+point it at a test**; `check:release-posture` rejects a row with no proof, a
+missing file, or a file with no `test(` in it. A promise you cannot test belongs
+in the review document's "remaining items", not in the table.
+
+## Accessibility and translations
+
+- **Accessibility.** Every file under `apps/client/lib/screens/` must be pumped
+  by a test in `apps/client/test/a11y/` that calls `expectMeetsAllGuidelines`
+  (Flutter's Android + iOS tap-target, labelled-tap-target and text-contrast
+  guidelines, light and dark). `melos run check:a11y` fails on a screen without one.
+- **Strings.** User-facing copy lives in `apps/client/lib/l10n/app_en.arb`
+  (gen-l10n; run `flutter gen-l10n` in `apps/client` after editing it and commit
+  the generated files). Read it with `context.l10n`; format dates and times with
+  `context.weekdayName(...)` / `context.clockTime(...)`. `melos run check:i18n`
+  fails on a string literal handed straight to `Text(`, `tooltip:`, `label:`,
+  `semanticLabel:`, ... Coach copy stays keyed in `coach_strings.dart`.
 
 ## Contribution expectations
 
@@ -112,11 +184,36 @@ packages/integrations/   adapters (drift store, OFF/USDA, AI rungs, sync, export
 infra/                   Docker + nginx self-host definition
 docs/                    user-facing docs (your-data, self-host, ai-tiers,
                          telemetry-posture, no-dark-patterns-standard)
-_bmad-output/            implementation artifacts (specs, sprint-status, loop-status)
-tools/                   repo-level scripts (check_telemetry_claims,
-                         check_release_posture)
-melos.yaml               workspace orchestration + the four scripts
+_bmad-output/            planning / implementation artifacts, NOT product docs
+                         (see _bmad-output/README.md)
+tools/                   repo-level gates (check_telemetry_claims,
+                         check_release_posture, check_accessibility_floor,
+                         check_i18n_literals, ...)
+pubspec.yaml             workspace + the `melos:` scripts block (single source)
+scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
 ```
+
+## Android release signing
+
+Debug and CI builds need no signing material. A release build
+(`flutter build apk --release` / `appbundle --release`, run in
+`apps/client`) requires `apps/client/android/key.properties`, which is
+gitignored and must never be committed:
+
+```
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+Without it the release build fails with an explanatory message instead of
+signing with the debug key. See `docs/release-checklist.md` (Gate F).
+
+## Reporting vulnerabilities
+
+Please do not open public issues for security problems; follow
+[`SECURITY.md`](SECURITY.md).
 
 ## Community
 

@@ -69,8 +69,8 @@ class ByokQuotaExhausted extends ByokOutcome {
 }
 
 /// The transport port the `ByokAiRung` reads through. The concrete
-/// provider (OpenAI-compatible endpoint with
-/// `Authorization: Bearer <key>`) implements this interface.
+/// provider (OpenAI-compatible endpoint with an `Authorization: Bearer`
+/// header) implements this interface.
 abstract interface class ByokOpenAiCompatibleProvider {
   /// Resolve the foods on a plate from raw photo bytes via the
   /// configured OpenAI-compatible endpoint, using the user-supplied

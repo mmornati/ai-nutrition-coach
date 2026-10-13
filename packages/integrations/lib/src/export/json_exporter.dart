@@ -17,10 +17,10 @@ import 'dart:convert';
 
 import 'package:domain_core/domain_core.dart';
 
-import 'csv_exporter.dart' show filterPlates;
+import 'csv_exporter.dart' show readPlatesForScope;
 
 class JsonExporter implements Exporter {
-  JsonExporter({required this._store});
+  JsonExporter({required EncryptedStore store}) : _store = store;
 
   final EncryptedStore _store;
 
@@ -33,18 +33,12 @@ class JsonExporter implements Exporter {
       yield const ExportFormatFailure();
       return;
     }
-    final plates = await readPlates(scope: scope);
-    yield ExportReady(plates);
+    yield await readPlates(scope: scope);
   }
 
   @override
-  Future<List<PlateLog>> readPlates({required ExportScope scope}) async {
-    final stream = _store.watchRecent();
-    final subscription = stream.listen((_) {});
-    final first = await stream.first;
-    await subscription.cancel();
-    return filterPlates(first, scope);
-  }
+  Future<ExportResult> readPlates({required ExportScope scope}) =>
+      readPlatesForScope(_store, scope);
 }
 
 /// Serialize a `PlateLog` list to the JSON envelope. The envelope
@@ -73,6 +67,7 @@ Map<String, Object?> _entryToJson(FoodEntry entry) {
       'source': entry.databaseFood.source.name,
       'sourceRef': entry.databaseFood.sourceRef,
       'displayName': entry.databaseFood.displayName,
+      'foodGroup': entry.databaseFood.foodGroup.name,
     },
     'quantity': <String, Object?>{
       'low': entry.quantity.low,

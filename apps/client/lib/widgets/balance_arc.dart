@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// The four food-group buckets the arc reports on. Declaration order is
 /// the order the arc paints — top, right, bottom, left.
@@ -25,11 +26,12 @@ enum BalanceArcGroup {
   starch,
   dairy;
 
-  String get label => switch (this) {
-    BalanceArcGroup.vegFruit => 'Veg & Fruit',
-    BalanceArcGroup.protein => 'Protein',
-    BalanceArcGroup.starch => 'Starch',
-    BalanceArcGroup.dairy => 'Dairy',
+  /// The localized group name.
+  String label(AppLocalizations l10n) => switch (this) {
+    BalanceArcGroup.vegFruit => l10n.foodGroupVegFruit,
+    BalanceArcGroup.protein => l10n.foodGroupProtein,
+    BalanceArcGroup.starch => l10n.foodGroupStarch,
+    BalanceArcGroup.dairy => l10n.foodGroupDairy,
   };
 }
 
@@ -71,14 +73,18 @@ class BalanceArc extends StatelessWidget {
     final palette = _palette(context);
     final filledCount = filled.where((b) => b).length;
     final groups = BalanceArcGroup.values;
-    final groupLabels = groups.map((g) => g.label).join(', ');
+    final groupLabels = groups.map((g) => g.label(context.l10n)).join(', ');
     final filledSummary = announceFilled
-        ? '$filledCount of ${groups.length} filled: $groupLabels'
+        ? context.l10n.balanceArcSummary(
+            filledCount,
+            groups.length,
+            groupLabels,
+          )
         : groupLabels;
 
     return Semantics(
       container: true,
-      label: 'Balance arc — $filledSummary',
+      label: context.l10n.balanceArcSemantics(filledSummary),
       child: ExcludeSemantics(
         excluding: !announceFilled,
         child: SizedBox(
@@ -102,7 +108,7 @@ class BalanceArc extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Text(
-                  '$filledCount of ${groups.length}',
+                  context.l10n.balanceArcCount(filledCount, groups.length),
                   textAlign: TextAlign.center,
                   style: AppTypography.monoWhisper.copyWith(
                     color: palette.inkMuted,

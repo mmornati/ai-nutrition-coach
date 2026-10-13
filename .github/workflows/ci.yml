@@ -1,26 +1,30 @@
-# AI Nutrition Coach CI — the single PR / main / tag gate (NFR9).
+# AI Nutrition Coach CI — reproducible build gate (NFR9).
 #
-# One job, Dart SDK only (no Flutter): GitHub bills every job rounded up to
-# the minute, and this one finishes in well under a minute. It replaces the
-# former `ci`, `release-gate` and `ndp-review` workflows, which each
-# installed Flutter (~1 min) and bootstrapped the workspace, and ran the same
-# analyze + test suite twice.
+# Runs on every pull request and push to main. Jobs:
+#   verify  — format check, static analysis (`melos run analyze`), the full
+#             test suite (`melos run test`), then `flutter build web --release`
+#             plus the bundle scans, inside the pinned Flutter container.
+#   apk     — `flutter build apk --debug` on the plain runner (its preinstalled
+#             Android SDK + Gradle). Separate job on purpose: in one container
+#             job the SDK download, Gradle caches and the web build exhausted
+#             the runner's disk ("No space left on device"). Debug only: a
+#             release build needs apps/client/android/key.properties, which CI
+#             deliberately does not have (docs/release-checklist.md).
+#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
+#             actually builds (it is built from the committed pubspec.lock),
+#             then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
 #
-# What it checks:
-#   1. NDP review (Story 5.3 / FR-15): REVIEWERS.md + CODEOWNERS name the
-#      reviewer.
-#   2. Release posture gates C + D (Stories 4.5 / 4.6 / 5.1 / 5.2): the
-#      `tools/check_*.dart` scripts. They only import `dart:io`, so they run
-#      with plain `dart` — no `pub get`, no melos.
-#   3. `packages/domain_core` (AD-1): format, analyze, test. It is pure Dart,
-#      so it is resolved on its own (out of the pub workspace, whose other
-#      members need the Flutter SDK).
+# Secret scanning of the git history lives in gitleaks.yml (push, PR, weekly
+# schedule and manual dispatch).
 #
-# Deliberately NOT run: anything that needs Flutter (`apps/client`,
-# `packages/integrations`, the web bundle). The Flutter client is being
-# replaced by a PWA; its CI comes back with the migration. Until then run
-# `melos run analyze` / `melos run test` locally when touching Flutter code.
-# The self-host image smoke test is manual-only (self-host-smoke.yml).
+# Build output is scanned for key-shaped strings after the web and APK builds
+# (tools/check_no_secrets_in_build.sh): anything compiled in is public (S1).
+#
+# Analyze + test are what the autonomous loop must pass before a story may be
+# marked committed (see _bmad-output/implementation-artifacts/loop-status.yaml).
+#
+# Toolchain: Flutter 3.44.0 pinned by version AND digest. Keep in sync with
+# scripts/flutter_docker.sh, infra/Dockerfile and CONTRIBUTING.md.
 
 name: ci
 
@@ -28,62 +32,138 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*']
-  workflow_dispatch:
 
-permissions:
-  contents: read
-
-# Cancel in-progress runs on the same ref — no runner minutes on superseded
-# commits.
+# Cancel in-progress runs on the same ref — keeps PR feedback loops fast
+# without burning runner minutes on superseded commits.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: jobs that need more must escalate at job level.
+permissions:
+  contents: read
+
 jobs:
   verify:
-    name: Gates + domain_core
+    name: Analyze, test, build web
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 40
+    # Read-only token is enough for checkout + the container's tooling.
+    permissions:
+      contents: read
+
+    container:
+      image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
+      options: --user root
+
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - name: Print toolchain
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Activate melos
+        run: flutter pub global activate melos 8.2.2
+
+      - name: Add melos to PATH
+        run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Enforce the committed lockfile
+        # A drifting pubspec.lock must fail CI, not be silently rewritten.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git diff --exit-code -- pubspec.lock
+
+      - name: Format check
+        run: melos run format:check
+
+      - name: Static analysis (AD-1 + per-package lints)
+        run: melos run analyze
+
+      - name: Tests (domain_core, integrations, client)
+        run: melos run test
+
+      - name: Tests under a DST zone (TZ=Europe/Paris)
+        run: melos run test:dst
+
+      - name: Build web (release)
+        run: |
+          bash scripts/fetch_web_sqlite.sh
+          bash scripts/fetch_web_zxing.sh
+          (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost)
+          # AI Nutrition Coach's own service worker + precache manifest (ADR-0003).
+          dart run tools/generate_precache_manifest.dart apps/client/build/web
+
+      - name: Secrets scan — web bundle (S1)
+        run: |
+          bash tools/check_no_secrets_in_build.sh --self-test
+          bash tools/check_no_secrets_in_build.sh --web-only
+
+      - name: Third-party host scan — web bundle (N5)
+        run: |
+          bash tools/check_no_external_hosts.sh --self-test
+          bash tools/check_no_external_hosts.sh
+
+      - name: Telemetry gate (import-based, N6)
+        run: dart run tools/check_telemetry_claims.dart
+
+  apk:
+    name: Build Android APK (debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Flutter (same pin as the container image)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          sdk: stable
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
 
-      - name: NDP review — REVIEWERS.md + CODEOWNERS name the reviewer
+      - name: Resolve the workspace against the committed lockfile
+        run: flutter pub get --enforce-lockfile
+
+      - name: Android platform 37
+        # flutter_secure_storage 11 compiles against android-37; the runner's
+        # preinstalled SDK may lag, so install it explicitly (licences first).
         run: |
-          test -f REVIEWERS.md || { echo 'ndp-review: REVIEWERS.md missing — see Story 5.3 / FR-15.'; exit 1; }
-          test -f .github/CODEOWNERS || { echo 'ndp-review: .github/CODEOWNERS missing — see Story 5.3 / FR-15.'; exit 1; }
-          grep -q '@mmornati' REVIEWERS.md || { echo 'ndp-review: REVIEWERS.md missing the named-reviewer handle.'; exit 1; }
-          grep -q '@mmornati' .github/CODEOWNERS || { echo 'ndp-review: CODEOWNERS missing the named-reviewer handle.'; exit 1; }
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
 
-      # Same scripts as `melos run check:telemetry` / `check:release-posture`.
-      - name: Gate D — check telemetry
-        run: dart tools/check_telemetry_claims.dart
+      - name: Build APK (debug)
+        run: cd apps/client && flutter build apk --debug
 
-      - name: Gate C — check release posture
-        run: |
-          dart tools/check_release_posture.dart
-          dart tools/check_adults_only.dart
-          dart tools/check_no_under_13_profiles.dart
-          dart tools/check_accessibility_floor.dart
+      - name: Secrets scan — APK (S1)
+        run: bash tools/check_no_secrets_in_build.sh --apk-only
 
-      - name: domain_core — resolve outside the Flutter workspace
-        working-directory: packages/domain_core
-        run: |
-          sed -i '/^resolution: workspace/d' pubspec.yaml
-          dart pub get
+  docker:
+    name: Self-host image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: domain_core — format check
-        working-directory: packages/domain_core
-        run: dart format --output=none --set-exit-if-changed .
+      - name: Build infra/Dockerfile
+        run: docker build -f infra/Dockerfile -t ai-nutrition-coach:ci .
 
-      - name: domain_core — analyze
-        working-directory: packages/domain_core
-        run: dart analyze
-
-      - name: domain_core — test (includes the AD-1 import gate)
-        working-directory: packages/domain_core
-        run: dart test
+      - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ai-nutrition-coach:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table

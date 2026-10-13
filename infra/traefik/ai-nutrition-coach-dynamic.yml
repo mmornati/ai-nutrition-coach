@@ -1,0 +1,49 @@
+# Traefik FILE-provider routing for AI Nutrition Coach, for a Traefik that runs on the
+# HOST (not in Docker). Copy it into the directory your static config points
+# `providers.file.directory` at (or reference it with `providers.file.filename`),
+# and edit the three marked values.
+#
+# The app container stays loopback-only: start it with the default
+#     bin/ai-nutrition-coach up --compose        # publishes 127.0.0.1:8080 only
+# (or `docker compose -f infra/docker-compose.yml up -d`) and point the
+# service below at that address. Traefik reaches it over loopback; nothing else
+# on the network can.
+#
+# Traefik v3. Entry point and resolver names below are the common defaults;
+# match them to YOUR static configuration.
+
+http:
+  routers:
+    ai-nutrition-coach:
+      rule: "Host(`plate.example.com`)"      # EDIT: your domain
+      entryPoints: [websecure]               # EDIT: your HTTPS entrypoint
+      service: ai-nutrition-coach
+      middlewares: [ai-nutrition-coach-hsts]          # add `ai-nutrition-coach-allow` for family-only access
+      tls:
+        certResolver: letsencrypt            # EDIT, or delete this line if you use a
+                                             # wildcard / default certificate
+
+  services:
+    ai-nutrition-coach:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8080"     # EDIT only if you changed AI_NUTRITION_COACH_PORT
+
+  middlewares:
+    # Only Strict-Transport-Security: the app's own CSP and security headers
+    # pass through untouched. No preload by default (hard to undo).
+    ai-nutrition-coach-hsts:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: false
+        stsPreload: false
+
+    # Optional, recommended for family-only access. Use a VPN / IP allow-list,
+    # Prefer this to basic auth: the browser fetches the web manifest without
+    # credentials, so installing the PWA can fail behind basic auth (untested).
+    # Add the name to the router's `middlewares` list above to enable it.
+    ai-nutrition-coach-allow:
+      ipAllowList:
+        sourceRange:
+          - "192.168.1.0/24"                 # EDIT: your LAN
+          - "100.64.0.0/10"                  # EDIT: e.g. Tailscale

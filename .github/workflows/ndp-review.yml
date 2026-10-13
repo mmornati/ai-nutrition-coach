@@ -1,0 +1,69 @@
+# Story 5.3 — NDP-review CI workflow (FR-15 / NFR-3 / AD-7).
+#
+# Runs the named-reviewer gate on every PR + every tag:
+#   * Asserts REVIEWERS.md exists at HEAD and records the named
+#     reviewer.
+#   * Asserts .github/CODEOWNERS exists at HEAD and pins the
+#     right paths.
+#   * Runs `melos run check:release-posture` (chained: release
+#     posture + adults-only + under-13 profiles).
+#
+# A regression on any check fails the build. The named reviewer
+# signs off every PR that touches user-facing copy.
+
+name: ndp-review
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+# Least privilege: jobs that need more must escalate at job level.
+permissions:
+  contents: read
+
+jobs:
+  ndp-review:
+    name: ndp-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Assert REVIEWERS.md + CODEOWNERS are at HEAD
+        run: |
+          test -f REVIEWERS.md || (echo 'ndp-review: REVIEWERS.md missing — see Story 5.3 / FR-15.' && exit 1)
+          test -f .github/CODEOWNERS || (echo 'ndp-review: .github/CODEOWNERS missing — see Story 5.3 / FR-15.' && exit 1)
+          # Generic: whatever owner handles CODEOWNERS names must also be
+          # recorded in REVIEWERS.md. Forking the repo and replacing the
+          # placeholder handle needs no change to this gate.
+          # (An owner is a whitespace-delimited @handle; e-mail owners such as
+          # a@b.example are not matched.)
+          owners=$(grep -v '^[[:space:]]*#' .github/CODEOWNERS | grep -oE '(^|[[:space:]])@[A-Za-z0-9_./-]+' | sed -E 's/^[[:space:]]+//' | sort -u)
+          test -n "$owners" || (echo 'ndp-review: CODEOWNERS names no owner.' && exit 1)
+          for o in $owners; do
+            esc=$(printf '%s' "$o" | sed 's/[.[\*^$/]/\\&/g')
+            grep -qE "(^|[^A-Za-z0-9_./@-])${esc}([^A-Za-z0-9_./-]|$)" REVIEWERS.md || (echo "ndp-review: CODEOWNERS owner $o is not recorded in REVIEWERS.md." && exit 1)
+          done
+          echo 'ndp-review: REVIEWERS.md + CODEOWNERS at HEAD.'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+
+      - name: Install melos
+        run: dart pub global activate melos 8.2.2
+
+      - name: Bootstrap the workspace
+        run: melos bootstrap
+
+      - name: Run the NDP gate (Story 4.6 + 5.1 + 5.2)
+        run: melos run check:release-posture
+
+      - name: Gate summary
+        if: success()
+        run: 'echo "ndp-review: PASS"'

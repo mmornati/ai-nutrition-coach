@@ -4,13 +4,14 @@
 //
 // Story 4.1 — the previous `WebEncryptedStoreStub` group is removed; the
 // web rung now ships behind `WasmEncryptedStore` (see
-// `wasm_encrypted_store_test.dart`).
+// `web_store_controller_test.dart`).
 
 import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
 import 'package:integrations/src/store/app_database.dart';
 import 'package:integrations/src/store/encrypted_store_adapter.dart';
 import 'package:test/test.dart';
+import '_support/all_plates.dart';
 
 void main() {
   group('EncryptedStoreAdapter (in-memory)', () {
@@ -81,8 +82,8 @@ void main() {
       expect(entry.quantity.displayLabel, '~½–1½ cups');
     });
 
-    test('watchRecent emits a snapshot per commit', () async {
-      final stream = store.watchRecent();
+    test('watchRange emits a snapshot per commit', () async {
+      final stream = store.watchAll();
       final snapshots = <List<PlateLog>>[];
       final sub = stream.listen(snapshots.add);
 

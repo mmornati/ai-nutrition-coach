@@ -40,6 +40,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
@@ -54,6 +55,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
@@ -70,6 +72,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () => fired++,
           ),
         ),
@@ -86,6 +89,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
@@ -114,7 +118,10 @@ void main() {
         );
 
       await tester.pumpWidget(
-        _wrap(const OpenDent(slot: MealSlot.breakfast), coach: coach),
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+          coach: coach,
+        ),
       );
 
       expect(
@@ -127,7 +134,10 @@ void main() {
         'NoCoachQuestion', (tester) async {
       final coach = FakeCoach(); // defaults to NoCoachQuestion
       await tester.pumpWidget(
-        _wrap(const OpenDent(slot: MealSlot.breakfast), coach: coach),
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+          coach: coach,
+        ),
       );
 
       expect(find.byType(OpenPlateHint), findsNothing);
@@ -153,7 +163,7 @@ void main() {
 
         await tester.pumpWidget(
           _wrap(
-            const OpenDent(slot: MealSlot.breakfast),
+            OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
             coach: coach,
             notes: notes,
           ),
@@ -165,12 +175,65 @@ void main() {
 
         // The hint hides; the dent returns to its quiet form.
         expect(find.byType(OpenPlateHint), findsNothing);
-        // The store saw the dismiss interaction (mirrors the
-        // coach_whisper_test.dart assertions for `sure` / `askLater` /
-        // `depthAnswer`).
-        expect(notes.interactions, hasLength(1));
-        expect(notes.interactions.first.kind, CoachInteraction.dismiss);
+        // F6: the dismissal is a DURABLE marker keyed by (day, slot) — no
+        // synthetic plateLogId: 0 note, no interaction row.
+        expect(notes.dismissed, {'openPlate:2026-08-16:breakfast'});
+        expect(notes.interactions, isEmpty);
+        expect(notes.byPlate, isEmpty);
       },
     );
+
+    testWidgets('a persisted dismissal keeps the hint hidden on the next '
+        'launch (F6)', (tester) async {
+      final notes = FakeCoachNoteStore()
+        ..dismissed.add('openPlate:2026-08-16:breakfast');
+      final coach = FakeCoach()
+        ..emit(
+          const CoachFound(
+            CoachQuestion(
+              key: 'openPlate.balanced',
+              text: 'A calm, varied plate — anything you want to add?',
+              anchor: CoachAnchor.openPlate,
+              pattern: CompositionPattern.balanced,
+            ),
+          ),
+        );
+      await tester.pumpWidget(
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+          coach: coach,
+          notes: notes,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OpenPlateHint), findsNothing);
+    });
+
+    testWidgets('the dismissal is per day and slot: another day asks again', (
+      tester,
+    ) async {
+      final notes = FakeCoachNoteStore()
+        ..dismissed.add('openPlate:2026-08-16:breakfast');
+      final coach = FakeCoach()
+        ..emit(
+          const CoachFound(
+            CoachQuestion(
+              key: 'openPlate.balanced',
+              text: 'A calm, varied plate — anything you want to add?',
+              anchor: CoachAnchor.openPlate,
+              pattern: CompositionPattern.balanced,
+            ),
+          ),
+        );
+      await tester.pumpWidget(
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 17)),
+          coach: coach,
+          notes: notes,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OpenPlateHint), findsOneWidget);
+    });
   });
 }

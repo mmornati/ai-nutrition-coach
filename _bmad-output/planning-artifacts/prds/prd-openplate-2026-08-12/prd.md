@@ -182,7 +182,7 @@ Self-hosters can attach a local model as the AI rung. **Not in v1** — tagged h
 
 ### 4.4 Local-First Data & Privacy by Architecture
 
-**Description:** The trust mechanic is architecture, not promise: Plate Logs live in a local store (SQLite, encrypted at rest AES-256 `[b2]`), app is offline-capable, no cloud account required, telemetry off by default. Research: privacy protections are the #1 driver of sharing willingness (JAMA conjoint, 51.5% importance) `[32]`, and "data ownership" is the self-host crowd's core narrative `[11][13]` — but note privacy is a *retention/differentiator* asset, not a pricing lever `[31][32][34]`. Realizes UJ-1, UJ-3, UJ-5.
+**Description:** The trust mechanic is architecture, not promise: Plate Logs live in a local store (SQLite, encrypted at rest, authenticated cipher — ChaCha20-Poly1305 on mobile per ADR-0001, which supersedes the original AES-256 wording `[b2]`), app is offline-capable, no cloud account required, telemetry off by default. Research: privacy protections are the #1 driver of sharing willingness (JAMA conjoint, 51.5% importance) `[32]`, and "data ownership" is the self-host crowd's core narrative `[11][13]` — but note privacy is a *retention/differentiator* asset, not a pricing lever `[31][32][34]`. Realizes UJ-1, UJ-3, UJ-5.
 
 **Functional Requirements:**
 
@@ -192,7 +192,7 @@ The system stores all Plate Logs and Coach Note history in an encrypted local st
 
 **Consequences (testable):**
 - Full feature set works with network access revoked (offline-first, UJ-5 scenario).
-- At-rest data is encrypted (AES-256); no telemetry is transmitted without explicit user opt-in.
+- At-rest data is encrypted (ChaCha20-Poly1305 on mobile — ADR-0001 supersedes the original AES-256 wording); no telemetry is transmitted without explicit user opt-in.
 - Export is available in a portable format (CSV/JSON) — the "lost my history" failure mode is impossible by construction `[42]`.
 
 #### FR-10: Sync (v1 scope)

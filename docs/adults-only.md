@@ -37,11 +37,12 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
 - **No `FaceID` / `TouchID` / `LocalAuthentication` /
   `face_detection` / `voice_print` reference.** The check rejects
   every banned biometric reference.
-- **The `PrivacyGuard` runs at startup.** `apps/client/lib/main.dart`
-  calls `PrivacyGuard.assertAdultsOnly()` before `runApp` so a
-  future PR that introduces a banned reference fails loudly in
-  debug builds. The static check is the durable enforcement
-  surface; the runtime guard is a safety net for widget tests.
+- **Enforcement is the static check, not a runtime guard.** An earlier
+  `PrivacyGuard` class claimed to assert this at startup, but its check
+  always returned `true` (security review F9), so it was removed rather
+  than left claiming something it did not do.
+  `tools/check_adults_only.dart` (run by `melos run check:release-posture`)
+  and the named-reviewer gate are the enforcement surfaces.
 
 ## How to verify
 

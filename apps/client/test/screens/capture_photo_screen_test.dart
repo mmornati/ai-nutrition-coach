@@ -27,8 +27,12 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/screens/capture_photo_screen.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
 import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
 import 'package:ai_nutrition_coach/state/coach_provider.dart';
 import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
@@ -65,17 +69,28 @@ Widget _wrap(
   required FakeAiRung rung,
   required FoodCatalog catalog,
   ThemeMode mode = ThemeMode.light,
+  AiSettings settings = AiSettings.defaults,
+  InMemoryAiSettingsStore? settingsStore,
+  List<Override> extraOverrides = const [],
+  AiRung? rungOverride,
 }) {
   return ProviderScope(
     overrides: [
+      // Phase 3: the upload host (and so the consent ask) derives from the
+      // settings; the default is no-AI, i.e. nothing is uploaded.
+      initialAiSettingsProvider.overrideWithValue(settings),
+      aiSettingsStoreProvider.overrideWithValue(
+        settingsStore ?? InMemoryAiSettingsStore(initial: settings),
+      ),
       encryptedStoreProvider.overrideWithValue(store),
       foodCatalogProvider.overrideWithValue(catalog),
-      aiRungProvider.overrideWithValue(rung),
+      aiRungProvider.overrideWithValue(rungOverride ?? rung),
       photoCaptureProvider.overrideWithValue(capture),
       // Story 2.2: wire the coach providers so the post-resolve
       // whisper path can be exercised end-to-end.
       coachProvider.overrideWithValue(FakeCoach()),
       coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
+      ...extraOverrides,
     ],
     child: MaterialApp(
       themeMode: mode,
@@ -85,6 +100,8 @@ Widget _wrap(
     ),
   );
 }
+
+final _photo = Uint8List.fromList([1, 2, 3, 4]);
 
 const _apple = DatabaseFood(
   sourceRef: 'seed:apple',
@@ -98,6 +115,17 @@ const _appleMatch = FoodMatch(
   presets: <QuantityRange>[
     QuantityRange(low: 1, high: 1, unit: 'piece', displayLabel: '~1 piece'),
   ],
+);
+
+/// A plate logged a moment ago — the "recent foods" the closest-matches row
+/// offers (the fake query that searched the literal 'closest' is gone, F9).
+PlateLog _recentApplePlate() => plateAt(
+  1,
+  localTime: DateTime.now().subtract(const Duration(minutes: 5)),
+  dish: 'Apple',
+  unit: 'piece',
+  displayLabel: '~1 piece',
+  foodGroup: FoodGroup.vegFruit,
 );
 
 void main() {
@@ -120,9 +148,10 @@ void main() {
   group('CapturePhotoScreen', () {
     testWidgets(
       'HAPPY_PATH_NOOP: capture + NoopAiRung default (empty plate) opens '
-      'the match sheet with closest-matches + manual; tap Log commits',
+      'the match sheet with closest-matches (recent foods) + manual; tap Log '
+      'commits',
       (tester) async {
-        final store = FakeEncryptedStore();
+        final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
         addTearDown(store.close);
         final capture = FakePhotoCapture();
         final rung = FakeAiRung();
@@ -272,7 +301,7 @@ void main() {
       'AI_RUNG_FAILURE: rung returning RecognitionFailure surfaces the '
       'calm line + closest-matches row + manual still works',
       (tester) async {
-        final store = FakeEncryptedStore();
+        final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
         addTearDown(store.close);
         final capture = FakePhotoCapture();
         final rung = FakeAiRung();
@@ -317,5 +346,489 @@ void main() {
         expect(store.capturedDrafts.single.databaseFood.displayName, 'Apple');
       },
     );
+  });
+
+  group('closest matches (F9)', () {
+    testWidgets('are catalog matches for each RECOGNISED name, then recent '
+        'foods — and never a query for a literal placeholder', (tester) async {
+      final store = FakeEncryptedStore(
+        initial: [
+          plateAt(
+            2,
+            localTime: DateTime.now().subtract(const Duration(hours: 1)),
+            dish: 'Rye bread',
+            displayLabel: '~2 slices',
+          ),
+        ],
+      );
+      addTearDown(store.close);
+      final rung = FakeAiRung()
+        ..emit(
+          const RecognizedPlate(
+            foods: [
+              RecognizedFood(
+                databaseFood: DatabaseFood(
+                  sourceRef: 'byok-m-Apple',
+                  displayName: 'Apple',
+                  source: SourceCatalog.manual,
+                  foodGroup: FoodGroup.vegFruit,
+                ),
+                confidence: 0.5,
+                quantity: QuantityRange(
+                  low: 1,
+                  high: 1,
+                  unit: 'piece',
+                  displayLabel: '~1 piece',
+                ),
+              ),
+            ],
+          ),
+        );
+      final catalog = _FakeFoodCatalog(const [_appleMatch]);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: rung,
+          catalog: catalog,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(catalog.calls, ['Apple']);
+      expect(catalog.calls, isNot(contains('closest')));
+      expect(find.text('Closest matches'), findsOneWidget);
+      expect(find.text('Rye bread'), findsOneWidget);
+    });
+
+    testWidgets('with no history and nothing recognised the row is simply '
+        'absent and manual-add remains', (tester) async {
+      final store = FakeEncryptedStore();
+      addTearDown(store.close);
+      final catalog = _FakeFoodCatalog(const [_appleMatch]);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: FakeAiRung(),
+          catalog: catalog,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(catalog.calls, isEmpty);
+      expect(find.text('Closest matches'), findsNothing);
+      expect(find.text('Custom food name'), findsOneWidget);
+    });
+  });
+
+  group('CapturePhotoScreen photo consent (N1 / N10)', () {
+    const byok = AiSettings(
+      rung: AiRungConfig(
+        kind: AiRungKind.byok,
+        previousRung: ByokPreviousRung(previousKind: AiRungKind.noOp),
+      ),
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'm',
+      // The per-host agreement ("ask once") mode; the default is to ask for
+      // every photo (PV1), covered by its own group below.
+      askBeforeEveryPhoto: false,
+    );
+
+    Future<void> pumpScreen(
+      WidgetTester tester, {
+      required FakeAiRung rung,
+      required AiSettings settings,
+      InMemoryAiSettingsStore? settingsStore,
+      List<Override> extraOverrides = const [],
+      FakePhotoCapture? capture,
+    }) async {
+      final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
+      addTearDown(store.close);
+      capture ??= FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: rung,
+          catalog: _FakeFoodCatalog(const [_appleMatch]),
+          settings: settings,
+          settingsStore: settingsStore,
+          extraOverrides: extraOverrides,
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('first photo to a host asks, naming the host; Allow sends '
+        'the photo and remembers the host', (tester) async {
+      final rung = FakeAiRung();
+      final settingsStore = InMemoryAiSettingsStore(initial: byok);
+      await pumpScreen(
+        tester,
+        rung: rung,
+        settings: byok,
+        settingsStore: settingsStore,
+      );
+
+      expect(find.text('Send this photo to api.example.com?'), findsOneWidget);
+      expect(rung.calls, isEmpty, reason: 'nothing is sent before the answer');
+
+      await tester.tap(find.text('Allow api.example.com'));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(rung.calls, hasLength(1));
+      expect(
+        (await settingsStore.read()).hasConsentFor('api.example.com'),
+        isTrue,
+      );
+    });
+
+    testWidgets('Not now drops the photo: the rung is never called and no '
+        'consent is stored; the no-AI core still renders', (tester) async {
+      final rung = FakeAiRung();
+      final settingsStore = InMemoryAiSettingsStore(initial: byok);
+      await pumpScreen(
+        tester,
+        rung: rung,
+        settings: byok,
+        settingsStore: settingsStore,
+      );
+
+      await tester.tap(find.text('Not now'));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(rung.calls, isEmpty);
+      expect((await settingsStore.read()).photoConsentHosts, isEmpty);
+      expect(find.byType(RecognizedMatchSheet), findsOneWidget);
+      expect(find.text('Closest matches'), findsOneWidget);
+    });
+
+    testWidgets('an already-consented host is not asked again', (tester) async {
+      final rung = FakeAiRung();
+      final consented = byok.copyWith(photoConsentHosts: {'api.example.com'});
+      await pumpScreen(tester, rung: rung, settings: consented);
+
+      expect(find.textContaining('Send this photo to'), findsNothing);
+      expect(rung.calls, hasLength(1));
+    });
+
+    testWidgets('PV2: the dialog says what is sent, what the host also sees, '
+        'that it may keep requests, what is not sent; learn more is the '
+        'in-app privacy page', (tester) async {
+      await pumpScreen(tester, rung: FakeAiRung(), settings: byok);
+
+      expect(find.textContaining('a fixed instruction'), findsOneWidget);
+      expect(
+        find.textContaining('and the model name you chose'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Also visible to api.example.com: your internet address',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('device or app type'), findsOneWidget);
+      expect(
+        find.textContaining("check your provider's data policy"),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Not sent: your name, your history, or your other plates.'),
+        findsOneWidget,
+      );
+      expect(find.text('What this app stores and sends'), findsOneWidget);
+      expect(find.textContaining('Copy a link'), findsNothing);
+      expect(find.textContaining('github.com'), findsNothing);
+    });
+  });
+
+  group('CapturePhotoScreen: ask before every photo upload (PV1)', () {
+    const byokEvery = AiSettings(
+      rung: AiRungConfig(
+        kind: AiRungKind.byok,
+        previousRung: ByokPreviousRung(previousKind: AiRungKind.noOp),
+      ),
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'm',
+    );
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    // The REAL consent-gated rung over a recording inner rung, so the permit
+    // is exercised, not just the dialog.
+    ({FakeAiRung inner, PhotoUploadPermit permit, AiRung rung}) gated({
+      bool hostConsent = false,
+    }) {
+      final inner = FakeAiRung();
+      final permit = PhotoUploadPermit();
+      return (
+        inner: inner,
+        permit: permit,
+        rung: ConsentGatedAiRung(
+          inner: inner,
+          hasConsent: () => hostConsent,
+          askEveryPhoto: () => true,
+          permit: permit,
+          host: 'api.example.com',
+        ),
+      );
+    }
+
+    Future<FakePhotoCapture> pump(
+      WidgetTester tester,
+      ({FakeAiRung inner, PhotoUploadPermit permit, AiRung rung}) g,
+      AiSettings settings, {
+      InMemoryAiSettingsStore? settingsStore,
+    }) async {
+      final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
+      addTearDown(store.close);
+      final capture = FakePhotoCapture()
+        ..emitSuccess(Uint8List.fromList([1, 2, 3, 4]));
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: capture,
+          rung: g.inner,
+          catalog: _FakeFoodCatalog(const [_appleMatch]),
+          settings: settings,
+          settingsStore: settingsStore,
+          rungOverride: g.rung,
+          extraOverrides: [
+            photoUploadPermitProvider.overrideWithValue(g.permit),
+          ],
+        ),
+      );
+      await settle(tester);
+      return capture;
+    }
+
+    testWidgets('is the default for a new install', (tester) async {
+      expect(AiSettings.defaults.askBeforeEveryPhoto, isTrue);
+    });
+
+    testWidgets('even a host already agreed to is asked, per photo; "Send this '
+        'photo" sends exactly that photo and remembers nothing', (
+      tester,
+    ) async {
+      final g = gated(hostConsent: true);
+      final settingsStore = InMemoryAiSettingsStore(
+        initial: byokEvery.copyWith(photoConsentHosts: {'api.example.com'}),
+      );
+      await pump(
+        tester,
+        g,
+        byokEvery.copyWith(photoConsentHosts: {'api.example.com'}),
+        settingsStore: settingsStore,
+      );
+
+      expect(find.text('Send this photo to api.example.com?'), findsOneWidget);
+      expect(find.text('Allow api.example.com'), findsNothing);
+      expect(find.textContaining('before every photo'), findsOneWidget);
+      expect(g.inner.calls, isEmpty, reason: 'nothing before the answer');
+
+      await tester.tap(find.text('Send this photo'));
+      await settle(tester);
+
+      expect(g.inner.calls, hasLength(1));
+      expect(
+        g.permit.consume(host: 'api.example.com', bytes: _photo),
+        isFalse,
+        reason: 'the permit was spent',
+      );
+      // No standing agreement was added by this yes.
+      expect(
+        (await settingsStore.read()).photoConsentHosts,
+        {'api.example.com'},
+        reason: 'unchanged: a per-photo yes does not add a host',
+      );
+    });
+
+    testWidgets('a per-photo yes on a NEW host stores no consent for it', (
+      tester,
+    ) async {
+      final g = gated();
+      final settingsStore = InMemoryAiSettingsStore(initial: byokEvery);
+      await pump(tester, g, byokEvery, settingsStore: settingsStore);
+      await tester.tap(find.text('Send this photo'));
+      await settle(tester);
+      expect(g.inner.calls, hasLength(1));
+      expect((await settingsStore.read()).photoConsentHosts, isEmpty);
+    });
+
+    testWidgets('"Not now": nothing is sent and the no-AI core renders', (
+      tester,
+    ) async {
+      final g = gated();
+      await pump(tester, g, byokEvery);
+      await tester.tap(find.text('Not now'));
+      await settle(tester);
+      expect(g.inner.calls, isEmpty);
+      expect(g.permit.consume(host: 'api.example.com', bytes: _photo), isFalse);
+      expect(find.byType(RecognizedMatchSheet), findsOneWidget);
+    });
+
+    testWidgets('the next photo asks again (the yes was for one photo)', (
+      tester,
+    ) async {
+      final g = gated();
+      await pump(tester, g, byokEvery);
+      await tester.tap(find.text('Send this photo'));
+      await settle(tester);
+      expect(g.inner.calls, hasLength(1));
+
+      // A second photo: the permit is spent, so it is asked all over again.
+      expect(g.permit.consume(host: 'api.example.com', bytes: _photo), isFalse);
+      await tester.pumpWidget(const SizedBox());
+      await pump(tester, g, byokEvery);
+      expect(find.text('Send this photo to api.example.com?'), findsOneWidget);
+      expect(g.inner.calls, hasLength(1), reason: 'not sent before the answer');
+    });
+  });
+
+  group('ConsentGatedAiRung permit (PV1)', () {
+    final photoA = Uint8List.fromList([1, 2, 3]);
+    final photoB = Uint8List.fromList([9, 9, 9]);
+    const host = 'api.example.com';
+
+    ConsentGatedAiRung rungFor(
+      FakeAiRung inner,
+      PhotoUploadPermit? permit, {
+      bool Function()? every,
+    }) => ConsentGatedAiRung(
+      inner: inner,
+      hasConsent: () => true, // the standing host agreement is NOT enough
+      askEveryPhoto: every ?? () => true,
+      permit: permit,
+      host: host,
+    );
+
+    test(
+      'per-photo mode: no permit, no upload; one permit, one upload',
+      () async {
+        final inner = FakeAiRung();
+        final permit = PhotoUploadPermit();
+        final rung = rungFor(inner, permit);
+        expect(await rung.recognize(photoA), isA<RecognitionFailure>());
+        expect(inner.calls, isEmpty);
+
+        permit.grant(host: host, bytes: photoA);
+        expect(await rung.recognize(photoA), isA<RecognizedPlate>());
+        expect(inner.calls, hasLength(1));
+
+        // Spent: the next photo is refused until it is granted again.
+        expect(await rung.recognize(photoA), isA<RecognitionFailure>());
+        expect(inner.calls, hasLength(1));
+      },
+    );
+
+    test('a retake while recognising cannot reuse the permit: it is bound '
+        'to the photo it was granted for', () async {
+      final inner = FakeAiRung();
+      final permit = PhotoUploadPermit()..grant(host: host, bytes: photoA);
+      final rung = rungFor(inner, permit);
+      // A second capture (different bytes) reaches the rung first.
+      expect(await rung.recognize(photoB), isA<RecognitionFailure>());
+      expect(inner.calls, isEmpty);
+      // The photo the person agreed to still goes, once.
+      expect(await rung.recognize(photoA), isA<RecognizedPlate>());
+      expect(inner.calls, [photoA]);
+      expect(await rung.recognize(photoA), isA<RecognitionFailure>());
+    });
+
+    test('bound to the host: another host cannot spend it', () {
+      final permit = PhotoUploadPermit()..grant(host: host, bytes: photoA);
+      expect(permit.consume(host: 'evil.example.com', bytes: photoA), isFalse);
+      expect(permit.consume(host: 'API.example.com', bytes: photoA), isTrue);
+    });
+
+    test('a revoked permit sends nothing', () async {
+      final inner = FakeAiRung();
+      final permit = PhotoUploadPermit()
+        ..grant(host: host, bytes: photoA)
+        ..revoke();
+      expect(
+        await rungFor(inner, permit).recognize(photoA),
+        isA<RecognitionFailure>(),
+      );
+      expect(inner.calls, isEmpty);
+    });
+
+    test('per-photo mode with no permit object fails closed', () async {
+      final inner = FakeAiRung();
+      expect(
+        await rungFor(inner, null).recognize(photoA),
+        isA<RecognitionFailure>(),
+      );
+      expect(inner.calls, isEmpty);
+    });
+
+    test(
+      '"ask once" mode uses the per-host agreement, read at call time',
+      () async {
+        var agreed = false;
+        final inner = FakeAiRung();
+        final rung = ConsentGatedAiRung(
+          inner: inner,
+          hasConsent: () => agreed,
+          askEveryPhoto: () => false,
+          permit: PhotoUploadPermit(),
+          host: host,
+        );
+        expect(await rung.recognize(photoA), isA<RecognitionFailure>());
+        agreed = true;
+        expect(await rung.recognize(photoA), isA<RecognizedPlate>());
+      },
+    );
+  });
+
+  group('CapturePhotoScreen: no-AI never asks', () {
+    testWidgets('no-AI rung never asks (nothing leaves the device)', (
+      tester,
+    ) async {
+      final rung = FakeAiRung();
+      final store = FakeEncryptedStore(initial: [_recentApplePlate()]);
+      addTearDown(store.close);
+      await tester.pumpWidget(
+        _wrap(
+          const CapturePhotoScreen(),
+          store: store,
+          capture: FakePhotoCapture()
+            ..emitSuccess(Uint8List.fromList([1, 2, 3, 4])),
+          rung: rung,
+          catalog: _FakeFoodCatalog(const [_appleMatch]),
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(find.textContaining('Send this photo to'), findsNothing);
+      expect(rung.calls, hasLength(1));
+    });
   });
 }

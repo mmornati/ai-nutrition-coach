@@ -27,9 +27,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/last_log_provider.dart';
+import '../state/log_plate.dart';
 import '../state/manual_entry_provider.dart';
-import '../state/record_plate_provider.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class ManualEntryScreen extends ConsumerStatefulWidget {
   const ManualEntryScreen({super.key, this.prefilledBarcode});
@@ -83,56 +84,55 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
   }
 
   Future<void> _onLogSelected() async {
+    if (_submitting) return;
     final entry = ref.read(manualEntryProvider);
     final selected = entry.selected;
     final preset = entry.chosenPreset;
     if (selected == null || preset == null) {
-      _showSnack('Pick a quantity');
+      _showSnack(context.l10n.pickQuantity);
       return;
     }
 
     setState(() => _submitting = true);
-    final result = await _commit([
-      FoodEntryDraft(databaseFood: selected.food, quantity: preset),
-    ]);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
+        FoodEntryDraft(databaseFood: selected.food, quantity: preset),
+      ]);
+    } finally {
+      // Reset even if the commit throws: the button must never stay stuck
+      // on "Logging…" (F7).
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();
     } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      _showSnack(logFailureMessage(context.l10n, result));
     }
   }
 
   Future<void> _onLogManual() async {
+    if (_submitting) return;
     final name = _manualController.text.trim();
     if (name.isEmpty) {
-      _showSnack('Type a name first');
+      _showSnack(context.l10n.typeNameFirst);
       return;
     }
 
     setState(() => _submitting = true);
-    final result = await _commit([
-      FoodEntryDraft(
-        databaseFood: DatabaseFood(
-          sourceRef: 'manual:${name.toLowerCase()}',
-          displayName: name,
-          source: SourceCatalog.manual,
-          foodGroup: FoodGroup.other,
-        ),
-        quantity: const QuantityRange(
-          low: 1,
-          high: 1,
-          unit: 'serving',
-          displayLabel: '~1 serving',
-        ),
-      ),
-    ]);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
+        FoodEntryDraft(databaseFood: manualFood(name), quantity: kOneServing),
+      ]);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
@@ -140,24 +140,8 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
       ref.read(manualEntryProvider.notifier).clear();
       Navigator.of(context).pop();
     } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      _showSnack(logFailureMessage(context.l10n, result));
     }
-  }
-
-  Future<RecordPlateResult> _commit(List<FoodEntryDraft> entries) async {
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    return recordPlate(entries: entries, store: store);
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
   }
 
   void _showSnack(String message) {
@@ -170,7 +154,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     // FR3 / FR13: voice is transcription-only — never a voice-print.
     // The v1 adapter is a no-op (`NoopVoiceTranscriber`); the screen
     // surfaces the calm copy instead of capturing audio.
-    _showSnack('Voice not available in v1 — type instead');
+    _showSnack(context.l10n.voiceUnavailableSnack);
   }
 
   @override
@@ -187,7 +171,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Add a food',
+          context.l10n.addFoodTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
       ),
@@ -210,7 +194,10 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
               const SizedBox(height: AppSpacing.md),
               if (state.lastError != null)
                 _CalmLine(
-                  text: state.lastError!,
+                  text: switch (state.lastError!) {
+                    ManualEntryError.searchUnavailable =>
+                      context.l10n.searchUnavailable,
+                  },
                   palette: palette,
                   accent: palette.coach,
                 ),
@@ -246,7 +233,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
                     backgroundColor: palette.sageDeep,
                   ),
                   child: Text(
-                    _submitting ? 'Logging…' : 'Log',
+                    _submitting ? context.l10n.logging : context.l10n.logAction,
                     style: AppTypography.ui.copyWith(color: palette.background),
                   ),
                 ),
@@ -280,13 +267,13 @@ class _QueryField extends StatelessWidget {
         Expanded(
           child: Semantics(
             textField: true,
-            label: 'Food search',
+            label: context.l10n.foodSearch,
             child: TextField(
               controller: controller,
               onChanged: onChanged,
               style: AppTypography.ui.copyWith(color: palette.ink),
               decoration: InputDecoration(
-                labelText: 'Food search',
+                labelText: context.l10n.foodSearch,
                 labelStyle: AppTypography.uiMuted.copyWith(
                   color: palette.inkMuted,
                 ),
@@ -304,7 +291,7 @@ class _QueryField extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Semantics(
           button: true,
-          label: 'Voice not available in v1 — tap to see quiet copy',
+          label: context.l10n.voiceUnavailableSemantics,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onMicTap,
@@ -349,10 +336,7 @@ class _Body extends StatelessWidget {
       );
     }
     if (state.query.trim().isEmpty) {
-      return _Hint(
-        text: 'Type a food name. We will rank the matches for you.',
-        palette: palette,
-      );
+      return _Hint(text: context.l10n.manualTypeHint, palette: palette);
     }
     if (state.catalogStatus == ManualEntryCatalogStatus.notFound ||
         state.catalogStatus == ManualEntryCatalogStatus.catalogFailure) {
@@ -416,9 +400,11 @@ class _MatchRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label:
-          '${match.food.displayName}, ${match.food.foodGroup.label}, '
-          '${match.presets.length} presets',
+      label: context.l10n.matchSemantics(
+        match.food.displayName,
+        context.l10n.foodGroupLabel(match.food.foodGroup),
+        match.presets.length,
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -446,7 +432,7 @@ class _MatchRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        match.food.foodGroup.label,
+                        context.l10n.foodGroupLabel(match.food.foodGroup),
                         style: AppTypography.monoWhisper.copyWith(
                           color: palette.inkMuted,
                         ),
@@ -527,13 +513,13 @@ class _ManualAddForm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Hint(text: 'Type the food name to add it manually.', palette: palette),
+        _Hint(text: context.l10n.manualCustomHint, palette: palette),
         const SizedBox(height: AppSpacing.md),
         TextField(
           controller: controller,
           style: AppTypography.ui.copyWith(color: palette.ink),
           decoration: InputDecoration(
-            labelText: 'Custom food name',
+            labelText: context.l10n.customFoodName,
             labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: palette.hairline),
@@ -555,7 +541,7 @@ class _ManualAddForm extends StatelessWidget {
               foregroundColor: palette.ink,
             ),
             child: Text(
-              submitting ? 'Logging…' : 'Log custom food',
+              submitting ? context.l10n.logging : context.l10n.logCustomFood,
               style: AppTypography.ui.copyWith(color: palette.ink),
             ),
           ),

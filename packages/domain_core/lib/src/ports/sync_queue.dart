@@ -1,22 +1,21 @@
 // The `SyncQueue` port — the durable outbox (Story 4.3 / AD-6 /
 // FR-10).
 //
-// The port owns four methods: `enqueue` (idempotent on `opId`),
-// `watch` (the stream the chip surface subscribes to),
-// `markSynced` (called after a durable remote ack), and
-// `markFailed` (called after a permanent failure so the row moves
-// to `failed` and the chip surfaces the calm "retry later" hint).
+// The port owns: `enqueue` (idempotent on `opId`), `pending` (what the
+// drain loop reads), the two watch streams the chip surface subscribes to,
+// `markSynced` (called after a durable remote ack), and `markFailed`
+// (called after a permanent failure).
 //
-// The port is pure-Dart (no drift / Flutter / HTTP imports) — the
-// implementation lives in `packages/integrations` behind
-// `DriftSyncQueue`. Tests can substitute an in-memory queue.
+// The port is pure-Dart (no drift / Flutter / HTTP imports) — v1's
+// implementation is `InMemorySyncQueue` in `packages/integrations`. It is
+// in-memory ON PURPOSE: with no transport there is no consumer for a
+// persisted outbox, which would only grow. A durable (drift table) queue
+// arrives with the first real transport, behind this same port.
 //
 // AD-3 invariant: writes are local-first. The local commit lands
 // first; the enqueue is a separate write against the same drift
 // store. The UI never reflects a log before the local commit.
 
-import '../entities/sync_op.dart';
-import '../entities/sync_queue_state.dart';
 import '../results/sync_failure.dart';
 
 abstract interface class SyncQueue {
@@ -24,6 +23,10 @@ abstract interface class SyncQueue {
   /// same op returns `AlreadyEnqueued` without writing a second
   /// row. Returns `EnqueueFailed` if the durable write fails.
   Future<EnqueueResult> enqueue(SyncOp op);
+
+  /// The ops still awaiting a durable remote ack, oldest first, at most
+  /// [limit]. This is what the drain loop (`DrainSyncQueue`) reads.
+  Future<List<SyncOp>> pending({int limit = 50});
 
   /// Watch the queue's summary state. The stream emits the current
   /// `SyncQueueState` on every commit and on every status flip

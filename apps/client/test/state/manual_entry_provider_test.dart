@@ -147,7 +147,7 @@ void main() {
 
         final state = container.read(manualEntryProvider);
         expect(state.catalogStatus, ManualEntryCatalogStatus.catalogFailure);
-        expect(state.lastError, "Search isn't available right now.");
+        expect(state.lastError, ManualEntryError.searchUnavailable);
         expect(state.matches, isEmpty);
       },
     );
