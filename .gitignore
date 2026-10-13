@@ -109,3 +109,9 @@ apps/client/web/sqlite3mc*.wasm
 
 # ── Web: fetched + SHA-256-verified decoder (scripts/fetch_web_zxing.sh) ──
 apps/client/web/zxing/
+
+# ── Impeccable design tooling (local-only artifacts) ─────────
+.impeccable/review/
+.impeccable/ref/
+.impeccable/questions/
+.impeccable/hook.cache.json

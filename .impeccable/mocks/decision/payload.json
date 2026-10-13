@@ -1,0 +1,124 @@
+{
+  "title": "OpenPlate — choose the visual world",
+  "question": "Four phone mockups of the same Day Board (Tuesday: breakfast and lunch logged, dinner open). Keep the rolled direction, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Crate Label",
+      "kicker": "THE ROLL",
+      "lineage": "1920s–50s fruit-crate labels and seed packets",
+      "thesis": "Every meal is printed as its own seed packet: bold litho ink, illustrated food, and four food-group bands along the bottom.",
+      "palette": ["#22408F", "#FFF9EC", "#2E8540", "#D9412B", "#E9A216", "#3E7BD6"],
+      "materials": ["flat lithographic ink", "scalloped packet stock", "sunburst label sky"],
+      "viewport": "A cobalt sunburst sky with a slab 'Tuesday', a stack of packets, a red LOG stamp, and a week rack of seven mini packets.",
+      "risk": "Food illustrations need real production; as rough SVG they look like clip art.",
+      "raised": [
+        {"from": "challenger-folio", "raise": "Fixed-scale registration: every packet in the week rack is drawn at the same size and position, so days compare at a glance."},
+        {"from": "challenger-jcard", "raise": "Food entries are a ruled list with honest quantities set flush right (~2 fists)."},
+        {"from": "challenger-doujin", "raise": "Month history is a packed grid of stamp-sized packets, not a chart."},
+        {"from": "challenger-specimen", "raise": "One live control: the portion picker rescales the packet illustration as you drag it."}
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "Thali Table",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "steel thali and bento: the divided plate seen from above",
+      "thesis": "The balanced plate is literal: a steel thali whose four bowls fill as each food group shows up.",
+      "palette": ["#2A2350", "#D7DAE0", "#5BAA44", "#E0563C", "#EDB53A", "#F4EFE2"],
+      "materials": ["brushed steel", "woven indigo tablecloth", "glazed bowl fills"],
+      "viewport": "Today's big thali at the top, meal rows below as small thalis, and a week of steel dots.",
+      "risk": "The most familiar choice: round bowls can read like progress rings or calorie donuts if not handled carefully.",
+      "comp": ".impeccable/mocks/decision/model-pick.png"
+    },
+    {
+      "id": "challenger-transit",
+      "label": "Food Lines",
+      "verdict": "competitive",
+      "lineage": "midnight enamel metro diagram",
+      "thesis": "Each food group is a coloured line running through the day; meals are stations where lines stop or pass through.",
+      "palette": ["#101C3D", "#F3F1EA", "#3FAE5A", "#E5432F", "#F2A41C", "#5C9CF5"],
+      "materials": ["enamel signage", "porcelain station ticks"],
+      "viewport": "Four vertical lines, meals as interchange stations, and the week as a route of seven stops.",
+      "case": "Fuses cleanly: 'protein passed through without a stop' explains balance better than any ring. Loses on audience: home cooks don't think in metro maps.",
+      "risk": "Gets complicated with many snacks; needs strict diagram rules.",
+      "comp": ".impeccable/mocks/decision/challenger-transit.png",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram-hero.webp"
+    },
+    {
+      "id": "challenger-metro",
+      "label": "Plate Tiles",
+      "verdict": "competitive",
+      "lineage": "Metro typographic tile interface",
+      "thesis": "Giant lowercase day names cropped at the edge, meals as flat colour tiles, and the coach as a live tile.",
+      "palette": ["#000000", "#FFFFFF", "#339933", "#E51400", "#F09609", "#1BA1E2", "#A4D233"],
+      "materials": ["flat colour tiles", "no chrome, type as interface"],
+      "viewport": "'tuesday' at poster size with the next day peeking in, tiles for meals and actions, a lime coach tile.",
+      "case": "Very clear and fast to operate; loses on audience fit, since it reads as a 2012 phone OS rather than food.",
+      "risk": "Reads as retro Windows Phone; little food warmth.",
+      "comp": ".impeccable/mocks/decision/challenger-metro.png",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-metro-typographic-tiles-hero.webp"
+    },
+    {
+      "id": "challenger-folio",
+      "label": "Botanical Folio",
+      "verdict": "declined",
+      "lineage": "botanical plates through the seasons",
+      "palette": ["#F3EAD6", "#3D5A2E", "#B3261E"],
+      "materials": ["engraved plates", "sepia hairlines"],
+      "viewport": "Fixed-scale plates of the week on one baseline.",
+      "case": "Lands on cream paper and italic serif, the incumbent look you want to leave.",
+      "risk": "Too close to the old Sage & Cream design.",
+      "kept": "Fixed-scale registration across days."
+    },
+    {
+      "id": "challenger-jcard",
+      "label": "Mixtape J-card",
+      "verdict": "declined",
+      "lineage": "hand-lettered cassette inlay",
+      "palette": ["#FFFFFF", "#1F3FAE", "#C8102E"],
+      "materials": ["ballpoint", "ruled inlay"],
+      "viewport": "Day as side A / side B tracklists.",
+      "case": "Fixed tape length implies a budget to fill, which turns into calorie counting.",
+      "risk": "Implies a quota.",
+      "kept": "Ruled list with quantities flush right."
+    },
+    {
+      "id": "challenger-doujin",
+      "label": "Convention Catalog",
+      "verdict": "declined",
+      "lineage": "newsprint doujin event catalog",
+      "palette": ["#EDEBE4", "#111111", "#E4007F"],
+      "materials": ["newsprint", "stamp-size thumbnails"],
+      "viewport": "Packed grid of hundreds of thumbnails.",
+      "case": "Too dense for a quick daily log; no audience connection.",
+      "risk": "Overwhelming on a phone.",
+      "kept": "History as a packed stamp grid."
+    },
+    {
+      "id": "challenger-specimen",
+      "label": "Type Specimen",
+      "verdict": "declined",
+      "lineage": "variable-font specimen",
+      "palette": ["#FAFAFA", "#111111", "#FF4F00"],
+      "materials": ["letterforms", "axis sliders"],
+      "viewport": "Food names as live specimens.",
+      "case": "Type play has nothing to say about food balance.",
+      "risk": "Pure style.",
+      "kept": "One live control remapping the whole visual."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A clean nutrition tracker: white cards, rounded meal rows, soft green accent, food photos.",
+    "palette": ["#FFFFFF", "#111827", "#22C55E"],
+    "materials": ["clean card grid", "food photography"],
+    "viewport": "Today header, meal cards with photos, a floating add button.",
+    "risk": "Indistinguishable from MyFitnessPal / Cal AI by design."
+  },
+  "steer": true
+}

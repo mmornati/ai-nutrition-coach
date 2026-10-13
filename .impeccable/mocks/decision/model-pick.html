@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenPlate — Thali Table</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--cloth:#2A2350;--cloth-2:#342C63;--steel:#D7DAE0;--steel-d:#A9AEB9;--ink:#F4F1FA;--muted:#C2BBDD;
+--veg:#5BAA44;--pro:#E0563C;--sta:#EDB53A;--dai:#F4EFE2}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--cloth)}
+body{font-family:"Bricolage Grotesque",system-ui,sans-serif;color:var(--ink);width:390px;min-height:844px;margin:0 auto;position:relative;overflow:hidden;
+background:
+ repeating-linear-gradient(90deg,transparent 0 22px,rgba(255,255,255,.035) 22px 24px),
+ repeating-linear-gradient(0deg,transparent 0 22px,rgba(255,255,255,.035) 22px 24px), var(--cloth)}
+header{padding:52px 20px 0;display:flex;justify-content:space-between;align-items:center}
+h1{font-weight:800;font-size:40px;letter-spacing:-.02em;line-height:1}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.chip{font-size:12.5px;font-weight:600;border:1.5px solid rgba(255,255,255,.3);border-radius:999px;padding:7px 12px;min-height:34px;display:flex;align-items:center;gap:6px}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--veg)}
+.hero{display:flex;flex-direction:column;align-items:center;margin-top:12px}
+.legend{display:grid;grid-template-columns:repeat(4,auto);gap:6px 14px;font-size:12.5px;font-weight:600;margin-top:4px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:50%}
+.meals{padding:18px 16px 110px;display:flex;flex-direction:column;gap:10px}
+.meal{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;background:var(--cloth-2);border-radius:20px;padding:12px 14px}
+.meal h2{font-size:19px;font-weight:700}
+.meal p{font-size:14px;color:var(--muted);margin-top:2px}
+.coach{margin:2px 0 0;padding:12px 14px;border-radius:16px;background:var(--dai);color:#2A2350;font-size:15px;line-height:1.45}
+.coach .acts{display:flex;gap:8px;margin-top:10px}
+.btn{min-height:44px;padding:0 16px;border-radius:999px;font:700 14px "Bricolage Grotesque";background:#2A2350;color:#fff;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:#2A2350;border:1.5px solid #2A2350}
+.meal.open{background:transparent;border:2px dashed rgba(255,255,255,.28)}
+.fab{position:fixed;right:20px;bottom:84px;width:70px;height:70px;border-radius:50%;background:var(--sta);display:grid;place-items:center;box-shadow:0 10px 22px -6px rgba(0,0,0,.5)}
+.week{position:fixed;background:var(--cloth);bottom:0;left:0;right:0;height:72px;display:grid;grid-template-columns:repeat(7,1fr);align-items:center;padding:0 12px;border-top:1px solid rgba(255,255,255,.12)}
+.d{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-weight:600}
+.d.t{color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Tuesday</h1><div class="sub">13 October · today’s thali</div></div>
+  <div class="chip"><i></i>local</div>
+</header>
+<section class="hero" aria-label="Today: vegetables and fruit, protein, starch and dairy all present">
+  <svg width="220" height="220" viewBox="0 0 260 260">
+    <defs><radialGradient id="st" cx="40%" cy="35%"><stop offset="0" stop-color="#F1F3F6"/><stop offset="1" stop-color="#AEB3BE"/></radialGradient></defs>
+    <circle cx="130" cy="134" r="122" fill="rgba(0,0,0,.25)"/>
+    <circle cx="130" cy="128" r="122" fill="url(#st)"/>
+    <circle cx="130" cy="128" r="108" fill="none" stroke="#9BA1AD" stroke-width="1.5"/>
+    <!-- katoris -->
+    <g><circle cx="78" cy="78" r="34" fill="#8E95A3"/><circle cx="78" cy="76" r="31" fill="var(--veg)"/><circle cx="68" cy="68" r="7" fill="#7FC765"/><circle cx="86" cy="80" r="6" fill="#3F8A2E"/></g>
+    <g><circle cx="182" cy="78" r="34" fill="#8E95A3"/><circle cx="182" cy="76" r="31" fill="var(--pro)"/><circle cx="172" cy="70" r="4" fill="#A63A27"/><circle cx="190" cy="80" r="4" fill="#A63A27"/><circle cx="182" cy="66" r="4" fill="#A63A27"/></g>
+    <g><circle cx="182" cy="178" r="34" fill="#8E95A3"/><circle cx="182" cy="176" r="31" fill="var(--dai)"/><path d="M164 176c8-6 26-6 36 0" stroke="#D8D0BC" stroke-width="3" fill="none"/></g>
+    <!-- starch: rice mound -->
+    <g><ellipse cx="86" cy="178" rx="44" ry="34" fill="var(--sta)"/><ellipse cx="80" cy="170" rx="22" ry="12" fill="#F6CF6E"/></g>
+  </svg>
+  <div class="legend"><span><i style="background:var(--veg)"></i>Veg &amp; fruit</span><span><i style="background:var(--pro)"></i>Protein</span><span><i style="background:var(--sta)"></i>Starch</span><span><i style="background:var(--dai)"></i>Dairy</span></div>
+</section>
+<section class="meals">
+  <div class="meal">
+    <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="var(--steel)"/><circle cx="20" cy="20" r="9" fill="var(--veg)"/><circle cx="44" cy="20" r="9" fill="none" stroke="#8E95A3" stroke-width="2" stroke-dasharray="3 3"/><circle cx="20" cy="44" r="9" fill="var(--sta)"/><circle cx="44" cy="44" r="9" fill="var(--dai)" stroke="#8E95A3"/></svg>
+    <div><h2>Breakfast</h2><p>Oats, berries, yogurt · 3 of 4 bowls</p></div>
+  </div>
+  <div class="meal" style="grid-template-columns:64px 1fr">
+    <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="var(--steel)"/><circle cx="20" cy="20" r="9" fill="var(--veg)"/><circle cx="44" cy="20" r="9" fill="var(--pro)"/><circle cx="20" cy="44" r="9" fill="var(--sta)"/><circle cx="44" cy="44" r="9" fill="none" stroke="#8E95A3" stroke-width="2" stroke-dasharray="3 3"/></svg>
+    <div><h2>Lunch</h2><p>Lentil salad, sourdough · just now</p></div>
+    <div class="coach" style="grid-column:1/-1">Two colors of veg and a lentil protein. Want to know why lentils count twice?
+      <div class="acts"><span class="btn">Sure</span><span class="btn ghost">Ask later</span></div></div>
+  </div>
+  <div class="meal open">
+    <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-dasharray="4 4"/></svg>
+    <div><h2>Dinner</h2><p>Open. Greens would round today out.</p></div>
+  </div>
+</section>
+<div class="fab" aria-label="Log a plate"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2A2350" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+<nav class="week">
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--steel)"/></svg>W</div>
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--steel)"/></svg>T</div>
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="none" stroke="#6E6894" stroke-width="2"/></svg>F</div>
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--steel)"/></svg>S</div>
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--steel)"/></svg>S</div>
+  <div class="d"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--steel)"/></svg>M</div>
+  <div class="d t"><svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="var(--sta)"/></svg>Today</div>
+</nav>
+</body>
+</html>
