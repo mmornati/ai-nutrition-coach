@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Quiet inline shimmer + mono "reading…" arcnote.
 ///
@@ -83,7 +84,7 @@ class _ResolvingShimmerState extends State<ResolvingShimmer>
           _ShimmerBlock(palette: palette, opacity: 1.0),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'reading…',
+            context.l10n.resolvingReading,
             style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
           ),
         ],
@@ -97,12 +98,16 @@ class _ResolvingShimmerState extends State<ResolvingShimmer>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ShimmerBlock(palette: palette, opacity: 0.6 + 0.4 * _controller.value),
+            _ShimmerBlock(
+              palette: palette,
+              opacity: 0.6 + 0.4 * _controller.value,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'reading…',
-              style: AppTypography.monoWhisper
-                  .copyWith(color: palette.inkMuted),
+              context.l10n.resolvingReading,
+              style: AppTypography.monoWhisper.copyWith(
+                color: palette.inkMuted,
+              ),
             ),
           ],
         );

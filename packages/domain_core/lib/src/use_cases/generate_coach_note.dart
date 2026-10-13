@@ -41,8 +41,8 @@ class CoachNoteGenerator {
   const CoachNoteGenerator({
     required Coach coach,
     required CoachNoteStore store,
-  })  : _coach = coach,
-        _store = store;
+  }) : _coach = coach,
+       _store = store;
 
   final Coach _coach;
   final CoachNoteStore _store;
@@ -137,7 +137,6 @@ class CoachNoteGenerator {
     var protein = 0;
     var starch = 0;
     var dairy = 0;
-    var other = 0;
     for (final entry in plate.entries) {
       switch (entry.databaseFood.foodGroup) {
         case FoodGroup.vegFruit:
@@ -149,7 +148,7 @@ class CoachNoteGenerator {
         case FoodGroup.dairy:
           dairy++;
         case FoodGroup.other:
-          other++;
+          break;
       }
     }
 

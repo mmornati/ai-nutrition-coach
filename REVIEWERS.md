@@ -1,6 +1,6 @@
 # Reviewers
 
-The OpenPlate v1 release pipeline is owned by a named reviewer.
+The AI Nutrition Coach v1 release pipeline is owned by a named reviewer.
 The named-reviewer role is durable: a single person (or a small
 rotating panel documented here) owns the No-Dark-Patterns
 Standard sign-off at every PR that touches user-facing copy and at
@@ -8,7 +8,7 @@ every release tag.
 
 ## Named reviewer (v1)
 
-- **Lead maintainer** — @openplate-maintainer
+- **Lead maintainer** — @mmornati
   - Owns the FR-15 / NFR-3 / AD-7 No-Dark-Patterns gate.
   - Records the durable sign-off in the PR thread + the release
     checklist (`docs/release-checklist.md`, Gate C).

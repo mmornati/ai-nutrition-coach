@@ -76,8 +76,11 @@ void main() {
         (result as RecognitionFailure).cause.toString(),
         contains('byok key missing'),
       );
-      expect(transportCalls, 0,
-          reason: 'transport must not be called when no key is stored');
+      expect(
+        transportCalls,
+        0,
+        reason: 'transport must not be called when no key is stored',
+      );
     });
 
     test('ByokRecognized maps to RecognizedPlate', () async {
@@ -143,21 +146,21 @@ void main() {
       expect(await store.read(), 'sk-test');
     });
 
-    test('ByokQuotaExhausted maps to QuotaExhausted (FR6 carry-over)',
-        () async {
-      final store = InMemoryByokKeyStore(seed: 'sk-test');
-      final provider = _FakeByokProvider(
-        onRecognize: (_, __) => const ByokQuotaExhausted(
-          resetAt: null,
-        ),
-      );
-      final rung = ByokAiRung(keyStore: store, provider: provider);
+    test(
+      'ByokQuotaExhausted maps to QuotaExhausted (FR6 carry-over)',
+      () async {
+        final store = InMemoryByokKeyStore(seed: 'sk-test');
+        final provider = _FakeByokProvider(
+          onRecognize: (_, __) => const ByokQuotaExhausted(resetAt: null),
+        );
+        final rung = ByokAiRung(keyStore: store, provider: provider);
 
-      final result = await rung.recognize(Uint8List(0));
+        final result = await rung.recognize(Uint8List(0));
 
-      expect(result, isA<QuotaExhausted>());
-      expect((result as QuotaExhausted).resetAt, isNull);
-    });
+        expect(result, isA<QuotaExhausted>());
+        expect((result as QuotaExhausted).resetAt, isNull);
+      },
+    );
 
     test('ByokFailure maps to RecognitionFailure', () async {
       final store = InMemoryByokKeyStore(seed: 'sk-test');
@@ -169,10 +172,7 @@ void main() {
       final result = await rung.recognize(Uint8List(0));
 
       expect(result, isA<RecognitionFailure>());
-      expect(
-        (result as RecognitionFailure).cause.toString(),
-        'network down',
-      );
+      expect((result as RecognitionFailure).cause.toString(), 'network down');
     });
 
     test('the BYOK rung never includes the key in any string it '

@@ -15,7 +15,7 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/manual_entry_provider.dart';
+import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
 
 /// Hand-rolled `FoodCatalog` fake — deterministic, no LRU. Lets each
 /// test pin exactly which results the notifier should observe without
@@ -45,7 +45,8 @@ class _FakeFoodCatalog implements FoodCatalog {
 
 CatalogResult _matched(List<FoodMatch> matches) => RankedMatches(matches);
 
-FoodMatch _match(String name, {
+FoodMatch _match(
+  String name, {
   FoodGroup group = FoodGroup.other,
   List<QuantityRange>? presets,
 }) {
@@ -57,7 +58,8 @@ FoodMatch _match(String name, {
       foodGroup: group,
     ),
     confidence: 0.9,
-    presets: presets ??
+    presets:
+        presets ??
         <QuantityRange>[
           const QuantityRange(
             low: 1,
@@ -71,9 +73,7 @@ FoodMatch _match(String name, {
 
 ProviderContainer _container(FoodCatalog catalog) {
   final container = ProviderContainer(
-    overrides: [
-      foodCatalogProvider.overrideWithValue(catalog),
-    ],
+    overrides: [foodCatalogProvider.overrideWithValue(catalog)],
   );
   addTearDown(container.dispose);
   return container;
@@ -94,15 +94,14 @@ void main() {
       expect(state.catalogStatus, ManualEntryCatalogStatus.idle);
     });
 
-    test('updateQuery("apple") → matched, ranked list populated',
-        () async {
+    test('updateQuery("apple") → matched, ranked list populated', () async {
       final apple = _match('Apple', group: FoodGroup.vegFruit);
-      final catalog = _FakeFoodCatalog({'apple': _matched([apple])});
+      final catalog = _FakeFoodCatalog({
+        'apple': _matched([apple]),
+      });
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+      await container.read(manualEntryProvider.notifier).updateQuery('apple');
 
       final state = container.read(manualEntryProvider);
       expect(state.query, 'apple');
@@ -111,16 +110,13 @@ void main() {
       expect(state.matches.first.food.displayName, 'Apple');
     });
 
-    test('updateQuery("zxqwer") → notFound, empty list, no error',
-        () async {
-      final catalog = _FakeFoodCatalog(
-        {'zxqwer': const NotFoundFailure('zxqwer')},
-      );
+    test('updateQuery("zxqwer") → notFound, empty list, no error', () async {
+      final catalog = _FakeFoodCatalog({
+        'zxqwer': const NotFoundFailure('zxqwer'),
+      });
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('zxqwer');
+      await container.read(manualEntryProvider.notifier).updateQuery('zxqwer');
 
       final state = container.read(manualEntryProvider);
       expect(state.catalogStatus, ManualEntryCatalogStatus.notFound);
@@ -132,36 +128,31 @@ void main() {
       final catalog = _FakeFoodCatalog({});
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+      await container.read(manualEntryProvider.notifier).updateQuery('apple');
       // Then clear via empty query.
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('');
+      await container.read(manualEntryProvider.notifier).updateQuery('');
 
       final state = container.read(manualEntryProvider);
       expect(state.catalogStatus, ManualEntryCatalogStatus.idle);
       expect(state.matches, isEmpty);
     });
 
-    test('updateQuery → adapter throws → catalogFailure with calm copy',
-        () async {
-      final FoodCatalog catalog = _ThrowingFoodCatalog();
-      final container = _container(catalog);
+    test(
+      'updateQuery → adapter throws → catalogFailure with calm copy',
+      () async {
+        final FoodCatalog catalog = _ThrowingFoodCatalog();
+        final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+        await container.read(manualEntryProvider.notifier).updateQuery('apple');
 
-      final state = container.read(manualEntryProvider);
-      expect(state.catalogStatus, ManualEntryCatalogStatus.catalogFailure);
-      expect(state.lastError, "Search isn't available right now.");
-      expect(state.matches, isEmpty);
-    });
+        final state = container.read(manualEntryProvider);
+        expect(state.catalogStatus, ManualEntryCatalogStatus.catalogFailure);
+        expect(state.lastError, ManualEntryError.searchUnavailable);
+        expect(state.matches, isEmpty);
+      },
+    );
 
-    test('selectMatch sets selected + first preset as chosenPreset',
-        () async {
+    test('selectMatch sets selected + first preset as chosenPreset', () async {
       const presetA = QuantityRange(
         low: 1,
         high: 1,
@@ -179,12 +170,12 @@ void main() {
         group: FoodGroup.vegFruit,
         presets: [presetA, presetB],
       );
-      final catalog = _FakeFoodCatalog({'apple': _matched([match])});
+      final catalog = _FakeFoodCatalog({
+        'apple': _matched([match]),
+      });
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+      await container.read(manualEntryProvider.notifier).updateQuery('apple');
       container.read(manualEntryProvider.notifier).selectMatch(match);
 
       final state = container.read(manualEntryProvider);
@@ -192,43 +183,42 @@ void main() {
       expect(state.chosenPreset, presetA);
     });
 
-    test('selectPreset swaps the chosen preset without losing selection',
-        () async {
-      const presetA = QuantityRange(
-        low: 1,
-        high: 1,
-        unit: 'piece',
-        displayLabel: '~1 piece',
-      );
-      const presetB = QuantityRange(
-        low: 2,
-        high: 2,
-        unit: 'piece',
-        displayLabel: '~2 pieces',
-      );
-      final match = _match(
-        'Apple',
-        group: FoodGroup.vegFruit,
-        presets: [presetA, presetB],
-      );
-      final catalog = _FakeFoodCatalog({'apple': _matched([match])});
-      final container = _container(catalog);
+    test(
+      'selectPreset swaps the chosen preset without losing selection',
+      () async {
+        const presetA = QuantityRange(
+          low: 1,
+          high: 1,
+          unit: 'piece',
+          displayLabel: '~1 piece',
+        );
+        const presetB = QuantityRange(
+          low: 2,
+          high: 2,
+          unit: 'piece',
+          displayLabel: '~2 pieces',
+        );
+        final match = _match(
+          'Apple',
+          group: FoodGroup.vegFruit,
+          presets: [presetA, presetB],
+        );
+        final catalog = _FakeFoodCatalog({
+          'apple': _matched([match]),
+        });
+        final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
-      container.read(manualEntryProvider.notifier).selectMatch(match);
-      container
-          .read(manualEntryProvider.notifier)
-          .selectPreset(presetB);
+        await container.read(manualEntryProvider.notifier).updateQuery('apple');
+        container.read(manualEntryProvider.notifier).selectMatch(match);
+        container.read(manualEntryProvider.notifier).selectPreset(presetB);
 
-      final state = container.read(manualEntryProvider);
-      expect(state.selected, match);
-      expect(state.chosenPreset, presetB);
-    });
+        final state = container.read(manualEntryProvider);
+        expect(state.selected, match);
+        expect(state.chosenPreset, presetB);
+      },
+    );
 
-    test('updateQuery clears selection + chosenPreset (UI safety)',
-        () async {
+    test('updateQuery clears selection + chosenPreset (UI safety)', () async {
       const presetA = QuantityRange(
         low: 1,
         high: 1,
@@ -248,18 +238,14 @@ void main() {
       });
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+      await container.read(manualEntryProvider.notifier).updateQuery('apple');
       container.read(manualEntryProvider.notifier).selectMatch(match);
       // Confirm selected.
       expect(container.read(manualEntryProvider).selected, match);
 
       // Type a new query — selection resets so a stale match can't be
       // logged by mistake.
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('rice');
+      await container.read(manualEntryProvider.notifier).updateQuery('rice');
 
       final state = container.read(manualEntryProvider);
       expect(state.selected, isNull);
@@ -269,12 +255,12 @@ void main() {
 
     test('clear() resets every field to initial', () async {
       final apple = _match('Apple', group: FoodGroup.vegFruit);
-      final catalog = _FakeFoodCatalog({'apple': _matched([apple])});
+      final catalog = _FakeFoodCatalog({
+        'apple': _matched([apple]),
+      });
       final container = _container(catalog);
 
-      await container
-          .read(manualEntryProvider.notifier)
-          .updateQuery('apple');
+      await container.read(manualEntryProvider.notifier).updateQuery('apple');
       container.read(manualEntryProvider.notifier).selectMatch(apple);
       container.read(manualEntryProvider.notifier).clear();
 

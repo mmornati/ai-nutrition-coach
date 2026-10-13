@@ -1,0 +1,571 @@
+{
+  "@@locale": "en",
+  "appName": "AI Nutrition Coach",
+  "@appName": {
+    "description": "The app name, shown in the OS task switcher."
+  },
+  "devStoreBanner": "DEV — not encrypted. Data lives in memory only.",
+  "@devStoreBanner": {
+    "description": "Warning banner shown only in the dev in-memory web build."
+  },
+  "typeItManually": "Type it manually",
+  "retake": "Retake",
+  "logAction": "Log",
+  "logging": "Logging…",
+  "logCustomFood": "Log custom food",
+  "cameraDeniedTitle": "Camera denied — type it instead",
+  "cameraDeniedBody": "You can still log a plate from the manual entry screen.",
+  "searchUnavailable": "Search isn't available right now.",
+  "closestMatches": "Closest matches",
+  "customFoodName": "Custom food name",
+  "typeNameFirst": "Type a name first",
+  "pickQuantity": "Pick a quantity",
+  "pickFoodFirst": "Pick a food first",
+  "close": "close",
+  "sure": "sure",
+  "askLater": "ask later",
+  "logFailureMobileOnly": "Mobile-only in v1.",
+  "logFailureHistoryCannotOpen": "History can't open on this device.",
+  "logFailureGeneric": "Could not log plate.",
+  "historyCannotLoad": "History can't load right now.",
+  "dayToday": "Today",
+  "dayYesterday": "Yesterday",
+  "logAnotherPlate": "Log another plate",
+  "@logAnotherPlate": {
+    "description": "Screen-reader label of the quick-repeat link."
+  },
+  "logAnotherPlateLink": "+ log another plate",
+  "slotBreakfast": "Breakfast",
+  "slotLunch": "Lunch",
+  "slotDinner": "Dinner",
+  "slotLate": "Late / other",
+  "plateRowSemantics": "{slot}, {dish}{more}, {quantity}",
+  "@plateRowSemantics": {
+    "description": "Screen-reader label of one plate row.",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      },
+      "dish": {
+        "type": "String"
+      },
+      "more": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "openDentSemantics": "{slot} is open. An open, quiet place.",
+  "@openDentSemantics": {
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "openDentWhisper": "An open, quiet place.",
+  "openCaptureSheet": "Open capture sheet",
+  "lastDays": "{count, plural, =1{Last day} other{Last {count} days}}",
+  "@lastDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "weekStripFootnote": "no streaks · no countdowns · no guilt",
+  "dayBalanced": "{weekday}, balanced",
+  "@dayBalanced": {
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "dayQuiet": "{weekday}, quiet",
+  "@dayQuiet": {
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "statusSemantics": "Status: {status}",
+  "@statusSemantics": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "foodGroupVegFruit": "Veg & Fruit",
+  "foodGroupProtein": "Protein",
+  "foodGroupStarch": "Starch",
+  "foodGroupDairy": "Dairy",
+  "foodGroupOther": "Other",
+  "balanceArcSemantics": "Balance arc — {summary}",
+  "@balanceArcSemantics": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "balanceArcSummary": "{filled} of {total} filled: {groups}",
+  "@balanceArcSummary": {
+    "placeholders": {
+      "filled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "groups": {
+        "type": "String"
+      }
+    }
+  },
+  "balanceArcCount": "{filled} of {total}",
+  "@balanceArcCount": {
+    "placeholders": {
+      "filled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "coachQuestionSemantics": "Coach question: {question}",
+  "@coachQuestionSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "openPlateHintSemantics": "Open plate hint: {question}",
+  "@openPlateHintSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "coachDepthSemantics": "Coach depth follow-up: {question}",
+  "@coachDepthSemantics": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "coachDepthNothingToAdd": "Nothing to add.",
+  "scanBarcode": "Scan a barcode",
+  "typeOrTalk": "Type or talk",
+  "snapshotSemantics": "Snapshot — photograph a plate",
+  "snapshot": "Snapshot",
+  "snapshotSubtitle": "photo of your plate",
+  "resolvingReading": "reading…",
+  "barcodeNotFoundTitle": "Not found",
+  "barcodeNotFoundBody": "This barcode isn't in the catalog yet. Type it manually?",
+  "scanAgain": "Scan again",
+  "barcodeCheckingCamera": "Checking camera permission…",
+  "barcodeMoveCloser": "Move closer or steady",
+  "barcodeLookingUp": "Looking up {code}…",
+  "@barcodeLookingUp": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "barcodeAimHint": "Aim at a packaged barcode to log it.",
+  "barcodeUnsupportedBrowserTitle": "Scanning isn't available in this browser — type it instead",
+  "cameraUnavailableTitle": "Camera unavailable — type it instead",
+  "barcodeUnsupportedBrowserBody": "This browser can't read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.",
+  "cameraStartFailedBody": "We couldn't start the camera. Manual entry still works.",
+  "barcodeNotFoundTypeIt": "Not found — type it manually",
+  "snapPlateTitle": "Snap a plate",
+  "photoAimHint": "Aim at your plate, then tap the shutter.",
+  "photoReading": "Reading your plate…",
+  "photoNoFoodsMatched": "No foods matched — pick one below.",
+  "photoFoundFoods": "{count, plural, =1{Found 1 food on this plate.} other{Found {count} foods on this plate.}}",
+  "@photoFoundFoods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photoNothingOnPlate": "Nothing on this plate — pick one below.",
+  "photoSearchUnavailablePick": "Search isn't available right now. Pick a closest match below.",
+  "addFoodTitle": "Add a food",
+  "foodSearch": "Food search",
+  "voiceUnavailableSnack": "Voice not available in v1 — type instead",
+  "voiceUnavailableSemantics": "Voice not available in v1 — tap to see quiet copy",
+  "manualTypeHint": "Type a food name. We will rank the matches for you.",
+  "manualCustomHint": "Type the food name to add it manually.",
+  "matchSemantics": "{name}, {group}, {presets} presets",
+  "@matchSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      },
+      "presets": {
+        "type": "int"
+      }
+    }
+  },
+  "recognizedNothingMatched": "Nothing matched",
+  "recognizedPickOrType": "Pick a closest match or type the food manually.",
+  "recognizedLooksLike": "{count, plural, =1{Looks like 1 food} other{Looks like {count} foods}}",
+  "@recognizedLooksLike": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recognizedTapToConfirm": "Tap one to confirm, or pick another match.",
+  "recognizedNothingOnPlate": "Nothing on this plate",
+  "recognizedPickOrTypeFallback": "You can still pick a closest match or type it manually.",
+  "recognizedSemantics": "{name}, {group}, {quantity}, confidence {confidence}",
+  "@recognizedSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      },
+      "confidence": {
+        "type": "String"
+      }
+    }
+  },
+  "recognizedDetail": "{group}  · {quantity}  · {percent}%",
+  "@recognizedDetail": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutTitle": "About",
+  "aboutOpenSource": "yours to run · open source",
+  "aboutLicences": "Open-source licences",
+  "updateReadyMessage": "A new version is ready. Reloading locks your data, so you will enter your passphrase again.",
+  "@updateReadyMessage": {
+    "description": "Calm, dismissible line shown when a new version of the web app has been installed in the background."
+  },
+  "updateReloadAction": "Reload",
+  "@updateReloadAction": {
+    "description": "Button that activates the new version and reloads the page."
+  },
+  "updateLaterAction": "Later",
+  "@updateLaterAction": {
+    "description": "Dismisses the new-version line until the next visit."
+  },
+  "yourDataStorageProtected": "Storage: protected from automatic clean-up.",
+  "@yourDataStorageProtected": {
+    "description": "Your data screen, web only: the browser promised to keep this data."
+  },
+  "yourDataStorageNotProtected": "Storage: the browser may clear this data if space runs low — export regularly.",
+  "@yourDataStorageNotProtected": {
+    "description": "Your data screen, web only: the browser has not promised to keep this data."
+  },
+  "yourDataLastExport": "Last export: {date}",
+  "@yourDataLastExport": {
+    "description": "Your data screen: when the user last exported.",
+    "placeholders": {
+      "date": {
+        "type": "DateTime",
+        "format": "yMMMd"
+      }
+    }
+  },
+  "yourDataNeverExported": "Last export: never",
+  "@yourDataNeverExported": {
+    "description": "Your data screen: nothing has been exported yet."
+  },
+  "exportReminderStale": "It has been a while since your last export. A copy keeps your history safe if this device or browser ever loses it.",
+  "@exportReminderStale": {
+    "description": "One quiet line on Your data; dismissible; never a badge or a modal."
+  },
+  "exportReminderNever": "You have not exported yet. A copy keeps your history safe if this device or browser ever loses it.",
+  "@exportReminderNever": {
+    "description": "One quiet line on Your data when there is data but no export yet."
+  },
+  "exportReminderDismiss": "Not now",
+  "@exportReminderDismiss": {
+    "description": "Dismisses the export suggestion for a while."
+  },
+  "installTitle": "Install on your phone",
+  "@installTitle": {
+    "description": "Title of the install help screen."
+  },
+  "installIntro": "AI Nutrition Coach runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.",
+  "@installIntro": {
+    "description": "Install help intro."
+  },
+  "installAlready": "AI Nutrition Coach is already installed on this device.",
+  "@installAlready": {
+    "description": "Shown instead of instructions when running as an installed app."
+  },
+  "installButton": "Install",
+  "@installButton": {
+    "description": "Chromium only: opens the browser install dialog."
+  },
+  "installIosTitle": "iPhone or iPad",
+  "@installIosTitle": {
+    "description": "Install help heading."
+  },
+  "installIosSteps": "Open this page in Safari. Tap the Share button, choose “Add to Home Screen”, then tap “Add”.",
+  "@installIosSteps": {
+    "description": "Install help steps for iOS."
+  },
+  "installAndroidTitle": "Android",
+  "@installAndroidTitle": {
+    "description": "Install help heading."
+  },
+  "installAndroidSteps": "In Chrome, open the menu (⋮) and choose “Install app” (or “Add to Home screen”). Your browser may also offer an Install button below.",
+  "@installAndroidSteps": {
+    "description": "Install help steps for Android."
+  },
+  "installDesktopTitle": "Computer",
+  "@installDesktopTitle": {
+    "description": "Install help heading."
+  },
+  "installDesktopSteps": "In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install AI Nutrition Coach”. Other browsers can simply keep using it in a tab.",
+  "@installDesktopSteps": {
+    "description": "Install help steps for desktop browsers."
+  },
+  "installChangesTitle": "What installing changes",
+  "@installChangesTitle": {
+    "description": "Install help heading."
+  },
+  "installChangesOffline": "It opens without a connection once it has loaded once, and shows a calm line when a new version is ready.",
+  "@installChangesOffline": {
+    "description": "Install help bullet."
+  },
+  "installChangesIcon": "It gets its own icon and opens without the browser bars.",
+  "@installChangesIcon": {
+    "description": "Install help bullet."
+  },
+  "installChangesStorage": "On iPhone, Safari may clear a website’s data if you have not visited it for a while; an app added to the Home Screen is not subject to that. The installed app keeps its own separate data, so install it before you start logging.",
+  "@installChangesStorage": {
+    "description": "Install help bullet about Safari storage."
+  },
+  "installBackupNote": "Your data lives only on this device, so export a copy from Your data now and then.",
+  "@installBackupNote": {
+    "description": "Install help closing line."
+  },
+  "settingsInstallRow": "Install on your phone",
+  "@settingsInstallRow": {
+    "description": "Settings row title."
+  },
+  "settingsInstallRowSubtitle": "offline · own icon",
+  "@settingsInstallRowSubtitle": {
+    "description": "Settings row subtitle."
+  },
+  "aboutNoticeTitle": "About this app",
+  "@aboutNoticeTitle": {
+    "description": "One-time first-run notice heading."
+  },
+  "aboutNoticeAdults": "AI Nutrition Coach is designed for adults.",
+  "@aboutNoticeAdults": {
+    "description": "First-run notice line 1."
+  },
+  "aboutNoticeAi": "Photo recognition is off by default. If you turn it on, a photo is sent to a service you choose, and only after you say yes.",
+  "@aboutNoticeAi": {
+    "description": "First-run notice line 2."
+  },
+  "aboutNoticeLocal": "Your plates stay on this device, encrypted. There are no accounts and no analytics.",
+  "@aboutNoticeLocal": {
+    "description": "First-run notice line 3."
+  },
+  "aboutNoticeOk": "Got it",
+  "@aboutNoticeOk": {
+    "description": "Dismiss button of the first-run notice."
+  },
+  "privacyLinkLabel": "What this app stores and sends",
+  "@privacyLinkLabel": {
+    "description": "Link text to the in-app privacy page (first-run notice, barcode notice, consent dialog, Your AI)."
+  },
+  "privacyTitle": "What this app stores and sends",
+  "@privacyTitle": {
+    "description": "Privacy page title."
+  },
+  "privacyIntro": "A plain list. Nothing here is hidden, and nothing about you is collected.",
+  "@privacyIntro": {
+    "description": "Privacy page intro."
+  },
+  "privacyStoredHeading": "Stored on this device, encrypted",
+  "@privacyStoredHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyStoredBody": "Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. On a phone the key stays in the system keystore; on the web it is made from your passphrase and kept only while the app is unlocked.",
+  "@privacyStoredBody": {
+    "description": "Privacy page: what is stored."
+  },
+  "privacyLeavesHeading": "What leaves this device, and when",
+  "@privacyLeavesHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyLeavesBarcode": "Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and, on the web, the address of this site (the browser adds it as the Origin header). You can turn this off below.",
+  "@privacyLeavesBarcode": {
+    "description": "Privacy page: barcode lookups."
+  },
+  "privacyLeavesPhoto": "Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.",
+  "@privacyLeavesPhoto": {
+    "description": "Privacy page: AI photo upload."
+  },
+  "privacyLeavesAndroid": "On Android, barcode scanning uses Google ML Kit inside the app, which may report usage statistics to Google. We have not verified this yet.",
+  "@privacyLeavesAndroid": {
+    "description": "Privacy page: ML Kit note (PV4, unverified)."
+  },
+  "privacyServerHeading": "What the server you got this app from sees",
+  "@privacyServerHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyServerBody": "If you opened AI Nutrition Coach in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.",
+  "@privacyServerBody": {
+    "description": "Privacy page: server."
+  },
+  "privacyNeverHeading": "Never collected",
+  "@privacyNeverHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyNeverBody": "No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.",
+  "@privacyNeverBody": {
+    "description": "Privacy page: never collected."
+  },
+  "privacyDeleteHeading": "Deleting your data",
+  "@privacyDeleteHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyDeleteBody": "To remove one plate, press and hold it on the Day Board and choose Remove. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.",
+  "@privacyDeleteBody": {
+    "description": "Privacy page: deleting."
+  },
+  "privacyExportHeading": "Exporting",
+  "@privacyExportHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacyExportBody": "Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.",
+  "@privacyExportBody": {
+    "description": "Privacy page: exporting."
+  },
+  "privacySharedHeading": "Shared devices",
+  "@privacySharedHeading": {
+    "description": "Privacy page section heading."
+  },
+  "privacySharedBody": "Everyone who can open AI Nutrition Coach on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.",
+  "@privacySharedBody": {
+    "description": "Privacy page: shared devices (PV6)."
+  },
+  "privacyOffToggle": "Look up barcodes on Open Food Facts",
+  "@privacyOffToggle": {
+    "description": "Privacy page switch label."
+  },
+  "privacyOffToggleOn": "On: a scanned barcode is looked up online.",
+  "@privacyOffToggleOn": {
+    "description": "Privacy page switch state."
+  },
+  "privacyOffToggleOff": "Off: only the offline catalog is used, and an unknown barcode opens manual entry.",
+  "@privacyOffToggleOff": {
+    "description": "Privacy page switch state."
+  },
+  "privacyOffToggleUnasked": "You will be asked the first time you scan a barcode.",
+  "@privacyOffToggleUnasked": {
+    "description": "Privacy page switch state before the notice was answered."
+  },
+  "offNoticeTitle": "Barcode lookups",
+  "@offNoticeTitle": {
+    "description": "Open Food Facts notice title."
+  },
+  "offNoticeBody": "Barcodes you scan are looked up on Open Food Facts (public, no account). Only the barcode is sent.",
+  "@offNoticeBody": {
+    "description": "Open Food Facts notice body."
+  },
+  "offNoticeOk": "OK",
+  "@offNoticeOk": {
+    "description": "Open Food Facts notice: allow."
+  },
+  "offNoticeOffline": "Don’t look up online",
+  "@offNoticeOffline": {
+    "description": "Open Food Facts notice: offline catalog only."
+  },
+  "plateRemoveAction": "Remove this plate",
+  "@plateRemoveAction": {
+    "description": "Semantics action and menu label that removes a plate."
+  },
+  "plateRemoveHint": "Press and hold to remove this plate",
+  "@plateRemoveHint": {
+    "description": "Semantics long-press hint of a plate row."
+  },
+  "plateRemoveTitle": "Remove this plate?",
+  "@plateRemoveTitle": {
+    "description": "Confirm dialog title."
+  },
+  "plateRemoveBody": "{dish} will be removed from your history on this device, along with its coach note. This can’t be undone.",
+  "@plateRemoveBody": {
+    "description": "Confirm dialog body; dish is the plate's food summary.",
+    "placeholders": {
+      "dish": {
+        "type": "String"
+      }
+    }
+  },
+  "plateRemoveKeep": "Keep it",
+  "@plateRemoveKeep": {
+    "description": "Confirm dialog dismiss."
+  },
+  "plateRemoveConfirm": "Remove",
+  "@plateRemoveConfirm": {
+    "description": "Confirm dialog action."
+  },
+  "plateRemoved": "Plate removed.",
+  "@plateRemoved": {
+    "description": "Snackbar after a plate was removed."
+  },
+  "plateRemoveFailed": "Couldn’t remove it. Try again.",
+  "@plateRemoveFailed": {
+    "description": "Snackbar when the removal failed."
+  },
+  "settingsPrivacyRow": "Privacy",
+  "@settingsPrivacyRow": {
+    "description": "Settings row title."
+  },
+  "settingsPrivacyRowSubtitle": "what is stored · what is sent",
+  "@settingsPrivacyRowSubtitle": {
+    "description": "Settings row subtitle."
+  },
+  "privacySaveFailed": "Couldn’t save that. Unlock the app and try again.",
+  "@privacySaveFailed": {
+    "description": "Privacy page: the switch change could not be stored."
+  },
+  "offNoticeAlso": "Open Food Facts also sees your internet address and your app type, as any website does.",
+  "@offNoticeAlso": {
+    "description": "Open Food Facts notice, second paragraph (mobile)."
+  },
+  "offNoticeAlsoWeb": "Open Food Facts also sees your internet address, your browser type and the address of this site (your browser adds it), as any website does.",
+  "@offNoticeAlsoWeb": {
+    "description": "Open Food Facts notice, second paragraph (web)."
+  }
+}

@@ -10,7 +10,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/last_log_provider.dart';
+import 'package:ai_nutrition_coach/state/last_log_provider.dart';
 
 void main() {
   group('lastLogProvider', () {
@@ -45,14 +45,12 @@ void main() {
       expect(observed.last, later);
     });
 
-    test('clearing the state back to null returns to the "no log" state',
-        () {
+    test('clearing the state back to null returns to the "no log" state', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       // Seed a value first.
-      container.read(lastLogProvider.notifier).state =
-          DateTime(2026, 8, 15);
+      container.read(lastLogProvider.notifier).state = DateTime(2026, 8, 15);
       expect(container.read(lastLogProvider), isNotNull);
 
       // Clear it.

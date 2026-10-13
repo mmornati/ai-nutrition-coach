@@ -1,4 +1,4 @@
-# No-Dark-Patterns Standard — OpenPlate v1
+# No-Dark-Patterns Standard — AI Nutrition Coach v1
 
 The no-pressure UX promise is enforceable, not aspirational. This
 page is the named-reviewer QA gate (FR-15 / NFR3 / AD-7). Every PR
@@ -45,6 +45,7 @@ authority for the gate.
 
 - **Every PR that touches user-facing copy** — a PR that touches
   a file under `apps/client/lib/widgets/`, `apps/client/lib/screens/`,
+  `apps/client/lib/l10n/app_en.arb`,
   `packages/integrations/lib/src/l10n/coach_strings.dart`, or any
   user-visible string in the docs requires a named-reviewer
   sign-off against this list.
@@ -57,9 +58,13 @@ authority for the gate.
 
 The gate has two enforcement surfaces:
 
-1. **Code-level** — every user-facing coach string lives in
-   `packages/integrations/lib/src/l10n/coach_strings.dart` and is
-   keyed. The key store is the single source of truth; a new
+1. **Code-level** — every user-facing string is keyed: UI copy in
+   `apps/client/lib/l10n/app_en.arb` (`melos run check:i18n` rejects a
+   literal handed straight to `Text(` / `tooltip:` / `label:` / ...), coach
+   copy in `packages/integrations/lib/src/l10n/coach_strings.dart`. The
+   banned widgets and words are pinned by
+   `packages/integrations/test/no_dark_patterns_test.dart`.
+   The key stores are the single source of truth; a new
    string is a new key, and the named-reviewer tick is required
    for the PR that introduces the key. The `en*` value in the
    same file is the canonical, calm, non-judgmental copy.

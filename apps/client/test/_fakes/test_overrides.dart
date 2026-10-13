@@ -10,12 +10,37 @@
 // Callers invoke `withCoachProviders(overrides: [...])` to get a new
 // list that prepends the coach providers onto their own overrides.
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:domain_core/domain_core.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:integrations/integrations.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
 
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
+import 'fake_encrypted_store.dart';
 
-import '_fakes/fake_encrypted_store.dart';
+/// A `PrivacyPrefs` over an in-memory key/value store, pre-answered: the
+/// About notice acknowledged and Open Food Facts allowed unless told
+/// otherwise. (The kv write runs synchronously up to its first await, so the
+/// values are in place before the prefs are read.)
+PrivacyPrefs privacyPrefsFor({
+  bool aboutAcknowledged = true,
+  OffLookupChoice off = OffLookupChoice.allowed,
+  LocalKeyValueStore? kv,
+}) {
+  final store = kv ?? InMemoryKeyValueStore();
+  final prefs = PrivacyPrefs(store);
+  if (aboutAcknowledged) {
+    store.write(KvKeys.privacyAboutAckAtUtc, '2026-08-15T00:00:00.000Z');
+  }
+  if (off != OffLookupChoice.unasked) {
+    store.write(
+      KvKeys.privacyOffLookup,
+      off == OffLookupChoice.allowed ? 'allowed' : 'offlineOnly',
+    );
+  }
+  return prefs;
+}
 
 /// Wrap any existing list of overrides with the coach provider
 /// overrides every widget / provider test needs. The `coachProvider`
@@ -35,6 +60,8 @@ List<Override> withCoachProviders({
     coachNoteStoreProvider.overrideWithValue(
       coachNotes ?? FakeCoachNoteStore(),
     ),
+    // Most tests are not about the first-run notices: they are answered.
+    privacyPrefsProvider.overrideWithValue(privacyPrefsFor()),
     ...overrides,
   ];
 }

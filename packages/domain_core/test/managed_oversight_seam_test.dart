@@ -1,7 +1,7 @@
 // The `ManagedOversightSeam` marker pin (Story 5.2 / FR-14 / OQ-4).
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('ManagedOversightSeam', () {

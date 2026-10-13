@@ -16,8 +16,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/capture_sheet.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/capture_sheet.dart';
 
 /// Drives the test widget tree with `disableAnimations` so the modal
 /// bottom sheet opens in a single pump tick (no slide-up to wait on).
@@ -50,16 +50,14 @@ Future<void> _pumpSheet(
 /// lives inside a Material/InkWell; we want the InkWell ancestor so
 /// we can read its rendered size.
 Finder _tileTapTarget(String label) {
-  return find.ancestor(
-    of: find.text(label),
-    matching: find.byType(InkWell),
-  );
+  return find.ancestor(of: find.text(label), matching: find.byType(InkWell));
 }
 
 void main() {
   group('CaptureSheet', () {
-    testWidgets('renders three tiles with the spec-approved copy',
-        (tester) async {
+    testWidgets('renders three tiles with the spec-approved copy', (
+      tester,
+    ) async {
       await _pumpSheet(
         tester,
         open: (ctx) => showCaptureSheet(
@@ -83,8 +81,9 @@ void main() {
       expect(find.byType(CaptureSheet), findsOneWidget);
     });
 
-    testWidgets('Snapshot tile tap closes the sheet and invokes onSnapshot',
-        (tester) async {
+    testWidgets('Snapshot tile tap closes the sheet and invokes onSnapshot', (
+      tester,
+    ) async {
       var snap = 0;
       var scan = 0;
       var typeOrTalk = 0;
@@ -112,8 +111,9 @@ void main() {
       expect(find.byType(CaptureSheet), findsNothing);
     });
 
-    testWidgets('Scan tile tap closes the sheet and invokes onScan',
-        (tester) async {
+    testWidgets('Scan tile tap closes the sheet and invokes onScan', (
+      tester,
+    ) async {
       var snap = 0;
       var scan = 0;
       var typeOrTalk = 0;
@@ -139,62 +139,66 @@ void main() {
       expect(find.byType(CaptureSheet), findsNothing);
     });
 
-    testWidgets('Type or talk tile tap closes the sheet and invokes onTypeOrTalk',
-        (tester) async {
-      var snap = 0;
-      var scan = 0;
-      var typeOrTalk = 0;
-      await _pumpSheet(
-        tester,
-        open: (ctx) => showCaptureSheet(
-          ctx,
-          onSnapshot: () => snap++,
-          onScan: () => scan++,
-          onTypeOrTalk: () => typeOrTalk++,
-        ),
-      );
+    testWidgets(
+      'Type or talk tile tap closes the sheet and invokes onTypeOrTalk',
+      (tester) async {
+        var snap = 0;
+        var scan = 0;
+        var typeOrTalk = 0;
+        await _pumpSheet(
+          tester,
+          open: (ctx) => showCaptureSheet(
+            ctx,
+            onSnapshot: () => snap++,
+            onScan: () => scan++,
+            onTypeOrTalk: () => typeOrTalk++,
+          ),
+        );
 
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Type or talk'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Type or talk'));
+        await tester.pumpAndSettle();
 
-      expect(snap, 0);
-      expect(scan, 0);
-      expect(typeOrTalk, 1);
-      expect(find.byType(CaptureSheet), findsNothing);
-    });
+        expect(snap, 0);
+        expect(scan, 0);
+        expect(typeOrTalk, 1);
+        expect(find.byType(CaptureSheet), findsNothing);
+      },
+    );
 
-    testWidgets('scrim dismiss closes the sheet without invoking any callback',
-        (tester) async {
-      var snap = 0;
-      var scan = 0;
-      var typeOrTalk = 0;
-      await _pumpSheet(
-        tester,
-        open: (ctx) => showCaptureSheet(
-          ctx,
-          onSnapshot: () => snap++,
-          onScan: () => scan++,
-          onTypeOrTalk: () => typeOrTalk++,
-        ),
-      );
+    testWidgets(
+      'scrim dismiss closes the sheet without invoking any callback',
+      (tester) async {
+        var snap = 0;
+        var scan = 0;
+        var typeOrTalk = 0;
+        await _pumpSheet(
+          tester,
+          open: (ctx) => showCaptureSheet(
+            ctx,
+            onSnapshot: () => snap++,
+            onScan: () => scan++,
+            onTypeOrTalk: () => typeOrTalk++,
+          ),
+        );
 
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      expect(find.byType(CaptureSheet), findsOneWidget);
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        expect(find.byType(CaptureSheet), findsOneWidget);
 
-      // Tap above the sheet (top of the screen) — the scrim swallows
-      // it and pops the modal route without firing any tile callback.
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
+        // Tap above the sheet (top of the screen) — the scrim swallows
+        // it and pops the modal route without firing any tile callback.
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
 
-      expect(snap, 0);
-      expect(scan, 0);
-      expect(typeOrTalk, 0);
-      expect(find.byType(CaptureSheet), findsNothing);
-    });
+        expect(snap, 0);
+        expect(scan, 0);
+        expect(typeOrTalk, 0);
+        expect(find.byType(CaptureSheet), findsNothing);
+      },
+    );
 
     testWidgets('every tile has a ≥48px hit target (NFR7)', (tester) async {
       await _pumpSheet(
@@ -212,18 +216,28 @@ void main() {
 
       for (final label in ['Snapshot', 'Scan a barcode', 'Type or talk']) {
         final tap = _tileTapTarget(label);
-        expect(tap, findsOneWidget,
-            reason: 'tile "$label" should expose one InkWell tap target');
+        expect(
+          tap,
+          findsOneWidget,
+          reason: 'tile "$label" should expose one InkWell tap target',
+        );
         final size = tester.getSize(tap);
-        expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min),
-            reason: 'tile "$label" height ${size.height} below 48px');
-        expect(size.width, greaterThanOrEqualTo(AppTouchTargets.min),
-            reason: 'tile "$label" width ${size.width} below 48px');
+        expect(
+          size.height,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'tile "$label" height ${size.height} below 48px',
+        );
+        expect(
+          size.width,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'tile "$label" width ${size.width} below 48px',
+        );
       }
     });
 
-    testWidgets('dark mode: Snapshot tile uses AppPalette.dark.sageDeep',
-        (tester) async {
+    testWidgets('dark mode: Snapshot tile uses AppPalette.dark.sageDeep', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MediaQuery(
           data: const MediaQueryData(disableAnimations: true),
@@ -258,14 +272,14 @@ void main() {
       // surface); the nearest `Material` ancestor of the Snapshot
       // label is the tile's sage-deep fill.
       final snapshotMaterial = find
-          .ancestor(
-            of: find.text('Snapshot'),
-            matching: find.byType(Material),
-          )
+          .ancestor(of: find.text('Snapshot'), matching: find.byType(Material))
           .first;
       final materialColor = tester.widget<Material>(snapshotMaterial).color;
-      expect(materialColor, AppPalette.dark.sageDeep,
-          reason: 'dark Snapshot tile should fill with AppPalette.dark.sageDeep');
+      expect(
+        materialColor,
+        AppPalette.dark.sageDeep,
+        reason: 'dark Snapshot tile should fill with AppPalette.dark.sageDeep',
+      );
     });
   });
 }

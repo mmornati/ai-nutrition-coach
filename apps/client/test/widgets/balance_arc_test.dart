@@ -4,8 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/balance_arc.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/balance_arc.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) {
@@ -20,8 +20,9 @@ void main() {
   }
 
   group('BalanceArc', () {
-    testWidgets('paints 4 segments and declares food groups via Semantics',
-        (tester) async {
+    testWidgets('paints 4 segments and declares food groups via Semantics', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(
@@ -52,8 +53,9 @@ void main() {
       expect(label, contains('Dairy'));
     });
 
-    testWidgets('filled count shows in mono arcnote when announceFilled=true',
-        (tester) async {
+    testWidgets('filled count shows in mono arcnote when announceFilled=true', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(
@@ -66,7 +68,9 @@ void main() {
       expect(find.text('3 of 4'), findsOneWidget);
     });
 
-    testWidgets('arcnote is visible even when announceFilled=false', (tester) async {
+    testWidgets('arcnote is visible even when announceFilled=false', (
+      tester,
+    ) async {
       await pump(
         tester,
         BalanceArc(

@@ -1,0 +1,40 @@
+# Secret scan of the FULL git history (S1 / B6).
+#
+# Runs the gitleaks CLI (pinned image: version tag AND digest) over every
+# commit, on every push and pull request, weekly (a new gitleaks ruleset can
+# flag old commits), and on demand. The CLI is used rather than the
+# gitleaks-action because the action scans only the PR's commits on
+# pull_request events and needs a license for organisation repositories.
+#
+# Findings are redacted in the log. Actions are pinned by SHA and the image by
+# digest; Dependabot (.github/dependabot.yml) proposes bumps.
+
+name: gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 4 * * 1' # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan (full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks detect (all commits)
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.0@sha256:691af3c7c5a48b16f187ce3446d5f194838f91238f27270ed36eef6359a574d9 \
+            detect --source /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose

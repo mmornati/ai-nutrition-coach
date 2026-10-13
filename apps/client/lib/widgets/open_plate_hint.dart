@@ -4,36 +4,37 @@
 // Renders inside an `OpenDent` row on the Day Board when the active
 // `Coach` port returns a non-empty `openPlate` question for the
 // dent's pattern. Serif italic + sage accent (UX-DR5: no `[sure]` /
-// `[ask later]` on this surface — tapping the hint records the
-// interaction and clears the hint).
+// `[ask later]` on this surface — tapping the hint dismisses it).
 //
-// The widget is quiet: no spinner, no countdown, no badge. Tapping
-// the hint invokes `recordCoachInteractionProvider.recordOpenPlateDismiss(...)`,
-// which materialises a synthetic `CoachNote` (anchor: openPlate,
-// plateLogId: 0 sentinel) and writes the `dismiss` interaction log
-// row through the same port. The widget itself has no `ref` listener —
-// it owns the UI hygiene via local state (`onTap` toggles
-// `_hintDismissed` in `OpenDent`).
+// The widget is quiet: no spinner, no countdown, no badge. Tapping the
+// hint persists a dismissal marker keyed by (day, slot)
+// (`RecordCoachInteraction.dismissOpenPlateHint`) so it stays quiet after a
+// restart (F6). There is no synthetic coach note any more — a hint with no
+// plate has nothing to anchor a note to. The widget owns the UI hygiene via
+// the parent's `onDismissed` (`OpenDent` toggles `_hintDismissed`).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/coach_note_provider.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class OpenPlateHint extends ConsumerWidget {
   const OpenPlateHint({
     super.key,
     required this.questionKey,
     required this.question,
+    required this.dismissalKey,
     required this.onDismissed,
   });
 
   /// The reviewable key the active `Coach` rung resolved for the
-  /// `(openPlate, pattern)` pair. The use-case persists this on the
-  /// synthetic `CoachNote` so the row can be deduped on `key` alone
-  /// (AD-7 / NFR3).
+  /// `(openPlate, pattern)` pair (AD-7 / NFR3).
   final String questionKey;
+
+  /// The durable dismissal key (`openPlateDismissalKey(day, slot)`).
+  final String dismissalKey;
 
   /// The verbatim copy the active `Coach` rung resolved for the
   /// `(openPlate, pattern)` pair. Plain text only — no decorative
@@ -45,15 +46,11 @@ class OpenPlateHint extends ConsumerWidget {
   final VoidCallback? onDismissed;
 
   Future<void> _recordDismiss(WidgetRef ref) async {
-    // AD-3: every interaction flows through the use-case, which
-    // wraps `CoachNoteStore.append` + `recordInteraction`. The
-    // synthetic CoachNote (anchor: openPlate, plateLogId: 0) gives
-    // the interaction log row a durable back-ref at the database
-    // layer (same convention as the rest of the schema).
-    await ref.read(recordCoachInteractionProvider).recordOpenPlateDismiss(
-          questionKey: questionKey,
-          questionText: question,
-        );
+    // AD-3: every interaction flows through the use-case; a failed write is
+    // a typed result and the hint still clears for the session.
+    await ref
+        .read(recordCoachInteractionProvider)
+        .dismissOpenPlateHint(dismissalKey);
   }
 
   @override
@@ -61,12 +58,13 @@ class OpenPlateHint extends ConsumerWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final motion = MediaQuery.of(context).accessibleNavigation ||
+    final motion =
+        MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
     return Semantics(
       button: true,
       enabled: onDismissed != null,
-      label: 'Open plate hint: $question',
+      label: context.l10n.openPlateHintSemantics(question),
       child: motion
           ? _buildBody(context, ref, palette)
           : AnimatedOpacity(
@@ -80,12 +78,13 @@ class OpenPlateHint extends ConsumerWidget {
   Widget _buildBody(BuildContext context, WidgetRef ref, AppPalette palette) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onDismissed == null
-          ? null
-          : () async {
-              await _recordDismiss(ref);
-              onDismissed!.call();
-            },
+      onTap: switch (onDismissed) {
+        final onDismissed? => () async {
+          await _recordDismiss(ref);
+          onDismissed();
+        },
+        null => null,
+      },
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
         child: Padding(
@@ -97,7 +96,7 @@ class OpenPlateHint extends ConsumerWidget {
           ),
           child: Text(
             question,
-            style: AppTypography.coach.copyWith(color: palette.sage),
+            style: AppTypography.coach.copyWith(color: palette.sageDeep),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

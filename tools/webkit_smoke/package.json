@@ -1,0 +1,13 @@
+{
+  "name": "ai-nutrition-coach-webkit-smoke",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Opt-in browser smoke of the release web bundle (WebKit + Chromium) - docs/pwa.md. Not shipped.",
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.60.0"
+  }
+}

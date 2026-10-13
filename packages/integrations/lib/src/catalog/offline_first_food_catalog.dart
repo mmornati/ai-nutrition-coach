@@ -1,8 +1,8 @@
 // `OfflineFirstFoodCatalog` — the Story 1.5 `FoodCatalog` adapter,
 // extended in Story 1.7 with a `lookupByBarcode` path.
 //
-// Searches an in-memory seeded list of common foods (OFF + USDA-ish
-// entries) with a small LRU cache for offline replay (NFR5). The
+// Searches an in-memory seeded list of common foods (curated, shipped
+// with the app: `SourceCatalog.seed`) with a small LRU cache for offline replay (NFR5). The
 // ranking is simple Dart string matching — exact-prefix > prefix >
 // substring > token-overlap — and the cache key is the case-folded,
 // trimmed query so a previously-seen search resolves identically
@@ -34,6 +34,7 @@
 
 import 'package:domain_core/domain_core.dart';
 
+import 'food_group_classifier.dart';
 import 'lru_cache.dart';
 import 'off_barcode_source.dart';
 import 'seed_foods.dart';
@@ -59,18 +60,20 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     int lruCapacity = 32,
     int barcodeLruCapacity = 64,
     OffBarcodeSource? offSource,
-  })  : _seeds = List<SeedFood>.unmodifiable(seeds ?? seedFoods),
-        _lru = LruCache<String, List<FoodMatch>>(capacity: lruCapacity),
-        _barcodeLru = LruCache<String, _BarcodeLookup>(
-          capacity: barcodeLruCapacity,
-        ),
-        _offSource = offSource ?? OffBarcodeSource();
+    this.onlineLookupAllowed,
+  }) : _seeds = List<SeedFood>.unmodifiable(seeds ?? seedFoods),
+       _lru = LruCache<String, List<FoodMatch>>(capacity: lruCapacity),
+       _barcodeLru = LruCache<String, _BarcodeLookup>(
+         capacity: barcodeLruCapacity,
+       ),
+       _offSource = offSource ?? OffBarcodeSource();
 
   /// The seeded food list — `unmodifiable` so callers can't mutate it
   /// and break the ranking contract.
   final List<SeedFood> _seeds;
 
-  /// Per-query ranked-match cache. Survives only the current process;
+  /// Per-query ranked-match cache, keyed on the normalised query AND the
+  /// limit. Survives only the current process;
   /// the offline-first guarantee is "we don't need the network to
   /// serve the same answer we served last time", not "we remember
   /// across restarts".
@@ -87,6 +90,15 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   /// Injected so tests can supply a `dio` with a `MockAdapter` and
   /// avoid touching the network.
   final OffBarcodeSource _offSource;
+
+  /// Asked right before a barcode would leave the device (privacy audit
+  /// PV7). `null` means "always" (tests, and builds with no notice); the app
+  /// passes a check of the person's answer to the one-time Open Food Facts
+  /// notice, which is `false` until they have said OK and stays `false` when
+  /// they chose "Don't look up online". A `false` answer sends nothing and
+  /// the barcode is reported as not found (so the manual path opens); it is
+  /// not cached, so a later OK is honoured.
+  final Future<bool> Function()? onlineLookupAllowed;
 
   /// Number of entries the search LRU holds — exposed for tests.
   int get cacheCapacity => _lru.capacity;
@@ -108,12 +120,14 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       return const RankedMatches(<FoodMatch>[]);
     }
 
-    final cached = _lru.get(normalized);
+    // The key includes `limit`: the cached list is bounded by the limit it
+    // was written with, so a later call with a larger limit must not be
+    // served the shorter list (security review F10).
+    final cacheKey = '$normalized\u0000$limit';
+    final cached = _lru.get(cacheKey);
     if (cached != null) {
-      // Replay path (NFR5 / UJ-5). The cached list is already ranked
-      // and bounded by `limit` at write time — slice defensively in
-      // case `limit` grew between writes.
-      return RankedMatches(_takeLimit(cached, limit));
+      // Replay path (NFR5 / UJ-5): already ranked and bounded.
+      return RankedMatches(cached);
     }
 
     final ranked = _rank(normalized);
@@ -121,7 +135,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     if (trimmed.isEmpty) {
       return NotFoundFailure(normalized);
     }
-    _lru.put(normalized, trimmed);
+    _lru.put(cacheKey, trimmed);
     return RankedMatches(trimmed);
   }
 
@@ -143,7 +157,9 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   ///   1. Look up the barcode in the per-barcode LRU. If cached,
   ///      return the cached `CatalogResult` verbatim — no network
   ///      call (NFR5 / UJ-5).
-  ///   2. Otherwise, delegate to `OffBarcodeSource.lookup`.
+  ///   2. Otherwise, if [onlineLookupAllowed] says no, answer
+  ///      `NotFoundFailure` without any request (PV7); else delegate to
+  ///      `OffBarcodeSource.lookup`.
   ///   3. Map the typed `OffBarcodeResult` to the public
   ///      `CatalogResult` shape:
   ///         * `OffBarcodeMatch`    → `RankedMatches([match])` with
@@ -151,8 +167,8 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
   ///           categories tags.
   ///         * `OffBarcodeNotFound` → `NotFoundFailure(code)`.
   ///         * `OffBarcodeFailure`  → `CatalogFailure(cause)`.
-  ///   4. Cache the result before returning so a repeat scan stays
-  ///      offline (NFR5).
+  ///   4. Cache a match or a not-found before returning so a repeat scan
+  ///      stays offline (NFR5). A `CatalogFailure` is never cached (N4).
   ///
   /// Empty / whitespace-only codes short-circuit to
   /// `NotFoundFailure('')` — the UI never sends an empty string to
@@ -169,17 +185,32 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       return cached.result;
     }
 
+    final gate = onlineLookupAllowed;
+    if (gate != null) {
+      bool allowed;
+      try {
+        allowed = await gate();
+      } on Object {
+        allowed = false; // fail closed: nothing is sent
+      }
+      if (!allowed) return NotFoundFailure(trimmed);
+    }
+
     final result = await _offSource.lookup(trimmed);
     final CatalogResult resolved = switch (result) {
-      OffBarcodeMatch(:final displayName, :final categoryTags) =>
-        RankedMatches(<FoodMatch>[
-          _toBarcodeMatch(trimmed, displayName, categoryTags),
-        ]),
+      OffBarcodeMatch(:final displayName, :final categoryTags) => RankedMatches(
+        <FoodMatch>[_toBarcodeMatch(trimmed, displayName, categoryTags)],
+      ),
       OffBarcodeNotFound() => NotFoundFailure(trimmed),
       OffBarcodeFailure(:final cause) => CatalogFailure(cause),
     };
 
-    _barcodeLru.put(trimmed, _BarcodeLookup(resolved));
+    // N4: only a definitive answer (a match, or "OFF has no such product")
+    // is remembered. A transient failure — timeout, 5xx, offline — must not
+    // poison the barcode for the rest of the process: the next scan retries.
+    if (resolved is! CatalogFailure) {
+      _barcodeLru.put(trimmed, _BarcodeLookup(resolved));
+    }
     return resolved;
   }
 
@@ -204,9 +235,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       }
     }
     scored.sort((a, b) => b.score.compareTo(a.score));
-    return scored
-        .map((s) => s.match)
-        .toList(growable: false);
+    return scored.map((s) => s.match).toList(growable: false);
   }
 
   /// Score a single seed name against the [query]. Returns `0.0` when
@@ -247,7 +276,8 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     return DatabaseFood(
       sourceRef: 'seed:${seed.displayName.toLowerCase()}',
       displayName: seed.displayName,
-      source: SourceCatalog.off,
+      // A curated entry shipped in the app — not an Open Food Facts product.
+      source: SourceCatalog.seed,
       foodGroup: seed.foodGroup,
     );
   }
@@ -264,7 +294,7 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
     String displayName,
     List<String> categoryTags,
   ) {
-    final foodGroup = _classifyGroup(categoryTags);
+    final foodGroup = classifyFoodGroup(categoryTags);
     final food = DatabaseFood(
       sourceRef: barcode,
       displayName: displayName,
@@ -281,56 +311,6 @@ class OfflineFirstFoodCatalog implements FoodCatalog {
       // list as long as the food commits.
       presets: const <QuantityRange>[],
     );
-  }
-
-  /// Map OFF's `categories_tags` to a `FoodGroup` bucket. The
-  /// lookup is best-effort: when no tag matches, the food falls
-  /// into `FoodGroup.other` so the balance arc remains honest
-  /// (FR12 / UX-DR4). The match is case-insensitive and matches
-  /// the *substring* of any tag — OFF's taxonomy is rich enough
-  /// that a strict equality check would miss "sweet-spreads" →
-  /// "spreads" → "sweet".
-  static FoodGroup _classifyGroup(List<String> tags) {
-    for (final tag in tags) {
-      final lower = tag.toLowerCase();
-      if (lower.contains('vegetable') ||
-          lower.contains('fruit') ||
-          lower.contains('vegetables') ||
-          lower.contains('fruits') ||
-          lower.contains('salad') ||
-          lower.contains('berry')) {
-        return FoodGroup.vegFruit;
-      }
-      if (lower.contains('meat') ||
-          lower.contains('fish') ||
-          lower.contains('seafood') ||
-          lower.contains('poultry') ||
-          lower.contains('legume') ||
-          lower.contains('pulse') ||
-          lower.contains('nuts') ||
-          lower.contains('egg')) {
-        return FoodGroup.protein;
-      }
-      if (lower.contains('cereal') ||
-          lower.contains('pasta') ||
-          lower.contains('rice') ||
-          lower.contains('bread') ||
-          lower.contains('potato') ||
-          lower.contains('starch') ||
-          lower.contains('grain') ||
-          lower.contains('flour')) {
-        return FoodGroup.starch;
-      }
-      if (lower.contains('milk') ||
-          lower.contains('cheese') ||
-          lower.contains('yogurt') ||
-          lower.contains('yoghurt') ||
-          lower.contains('dairy') ||
-          lower.contains('butter')) {
-        return FoodGroup.dairy;
-      }
-    }
-    return FoodGroup.other;
   }
 }
 

@@ -24,14 +24,16 @@ void main() {
       expect(rung, isA<AiRung>());
     });
 
-    test('returns RecognizedPlate(foods: []) — the v1 degradation path',
-        () async {
-      const rung = NoopAiRung();
-      final result = await rung.recognize(Uint8List(8));
-      expect(result, isA<RecognizedPlate>());
-      final plate = result as RecognizedPlate;
-      expect(plate.foods, isEmpty);
-    });
+    test(
+      'returns RecognizedPlate(foods: []) — the v1 degradation path',
+      () async {
+        const rung = NoopAiRung();
+        final result = await rung.recognize(Uint8List(8));
+        expect(result, isA<RecognizedPlate>());
+        final plate = result as RecognizedPlate;
+        expect(plate.foods, isEmpty);
+      },
+    );
 
     test('handles empty bytes: returns the same empty plate', () async {
       const rung = NoopAiRung();

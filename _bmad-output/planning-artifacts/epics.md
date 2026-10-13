@@ -38,7 +38,7 @@ FR7 (BYOK): User can configure an OpenAI-compatible API key (stored encrypted on
 
 FR8 (Local model path, v2 seam): The AI rung interface is provider-swappable so a local endpoint can be bound without rearchitecting FR-6/FR-7. Not in v1 — declare the seam now. (UJ-3)
 
-FR9 (Local encrypted store): System stores all Plate Logs and Coach Note history in an encrypted local store (AES-256, platform-aware) with no server-side mirror and no account requirement; full feature set works with network revoked (offline-first); no telemetry transmitted without explicit opt-in; export available in portable format (CSV/JSON) — "lost my history" impossible by construction. (UJ-1, UJ-5)
+FR9 (Local encrypted store): System stores all Plate Logs and Coach Note history in an encrypted local store (authenticated cipher — ChaCha20-Poly1305 on mobile, see ADR-0001 (`architecture/architecture-openplate-2026-08-13/ADR-0001-mobile-cipher-chacha20-poly1305.md`); platform-aware) with no server-side mirror and no account requirement; full feature set works with network revoked (offline-first); no telemetry transmitted without explicit opt-in; export available in portable format (CSV/JSON) — "lost my history" impossible by construction. (UJ-1, UJ-5)
 
 FR10 (Sync): User can sync their local store across their own devices via a mechanism keeping data on user-controlled infrastructure only; no third-party sync; sync never drops or duplicates a Plate Log; retries silently on reconnection; a log flips to synced only after durable remote acknowledgment. (UJ-5)
 
@@ -60,7 +60,7 @@ NFR2 (Convergence): All three entry paths (photo, barcode, manual/voice) converg
 
 NFR3 (Tone & No-Dark-Patterns): All coach copy strings live in a localization/key store reviewed against the No-Dark-Patterns Standard, never hardcoded ad-hoc; unbounded generative coach questions are a v1 limit (bounded taxonomy only) (FR-4 NFR).
 
-NFR4 (Privacy by architecture): At-rest data encrypted AES-256 (platform-aware: mobile Keychain/Keystore; web PBKDF2 session-cached, documented weaker — never overclaimed); telemetry off by default in all shipped builds; no data transmission without explicit opt-in; no hosted backend in v1 (FR-9, FR-12).
+NFR4 (Privacy by architecture): At-rest data encrypted (mobile: ChaCha20-Poly1305, see ADR-0001 (`architecture/architecture-openplate-2026-08-13/ADR-0001-mobile-cipher-chacha20-poly1305.md`), supersedes the original AES-256 wording; platform-aware: mobile Keychain/Keystore; web PBKDF2 session-cached, documented weaker — never overclaimed); telemetry off by default in all shipped builds; no data transmission without explicit opt-in; no hosted backend in v1 (FR-9, FR-12).
 
 NFR5 (Offline-first): Full feature set works with network revoked; sync retries silently on reconnection; never drops or duplicates data (UJ-5, FR-9, FR-10).
 
@@ -83,7 +83,7 @@ NFR10 (No-account v1): No account, no signup in v1; single local identity; expor
 - AD-5 AI is a swappable tier behind one `AiRung` port with exactly one active implementation chosen by config: `no-op` (complete no-AI core), `hosted-quota`, `byok`, `local` (v2 seam). Core never branches on which rung is active — only on whether a port call succeeded.
 - AD-6 Offline-first writes; sync is an adapter draining a durable outbox queue to user-controlled infrastructure only; retries silently on reconnection; a log is synced only after durable remote acknowledgment; status chips derive from queue state.
 - AD-7 Every user-facing coach string is a keyed, localized template in the key store; no string interpolation in widgets; No-Dark-Patterns Standard is a QA checklist gate in CI/review owned by a named reviewer.
-- AD-8 At-rest encryption honest and platform-aware: mobile AES-256 via sqlite3mc build hook, 32-byte DB key from Keychain/Keystore; web same drift schema on sqlite3.wasm, passphrase-derived PBKDF2 key in memory for the session only, documented as weaker; BYOK key always via Keychain/Keystore, never leaves the device.
+- AD-8 At-rest encryption honest and platform-aware: mobile ChaCha20-Poly1305 via sqlite3mc build hook (ADR-0001), 32-byte DB key from Keychain/Keystore; web same drift schema on sqlite3mc-wasm persisted in IndexedDB (ChaCha20-Poly1305), key derived from a user passphrase via WebCrypto PBKDF2-SHA256 (600k iterations, random per-store salt) and held in memory only while unlocked, forgotten passphrase = unrecoverable (ADR-0002); BYOK key always via Keychain/Keystore, never leaves the device.
 - AD-9 Export is a read-only `Exporter` port streaming the store's Plate Logs to CSV/JSON on demand; available offline; never requires an account.
 - Monorepo structure: `apps/client`, `packages/domain_core`, `packages/integrations`, `infra/` (Docker + nginx for self-host web), `melos.yaml` on Dart pub workspaces.
 - Stack web-verified current Aug 13 2026: Flutter 3.47.0, Dart ^3.13.0, flutter_riverpod 3.4.2 (codegen), drift 2.34.3 / drift_dev 2.34.x, sqlite3 3.5.x (sqlite3mc build hook), flutter_secure_storage 11.0.0, mobile_scanner 7.4.0, image_picker 1.2.3, dio 5.11.0, melos 8.2.2, patrol 4.8.0 / patrol_cli 4.6.1; test/flutter_test/integration_test SDK-bundled.
@@ -176,7 +176,7 @@ Your history is encrypted on-device, exportable offline, optionally synced to yo
 
 **FRs covered:** FR9, FR10, FR11, FR12
 
-**Implementation notes:** Completes platform-aware encryption matrix (mobile sqlite3mc AES-256; web sqlite3.wasm PBKDF2 session-memory, documented weaker — AD-8); read-only `Exporter` port CSV/JSON offline, no account (AD-9); durable outbox sync to user-controlled infra only, chips derive from queue state (AD-6); one-command self-host via infra/ Docker multi-stage (cirruslabs/flutter:stable → flutter build web --release → nginx:alpine try_files SPA, NFR9); OSS release posture LICENSE+CONTRIBUTING+No-Dark-Patterns Standard at tag; telemetry off by default all builds. Sync concrete path is a build-time decision (OQ-1). Stories land squarely within dev-agent context the more natural way.
+**Implementation notes:** Completes platform-aware encryption matrix (mobile sqlite3mc ChaCha20-Poly1305, ADR-0001; web sqlite3.wasm PBKDF2 session-memory, documented weaker — AD-8); read-only `Exporter` port CSV/JSON offline, no account (AD-9); durable outbox sync to user-controlled infra only, chips derive from queue state (AD-6); one-command self-host via infra/ Docker multi-stage (cirruslabs/flutter:stable → flutter build web --release → nginx:alpine try_files SPA, NFR9); OSS release posture LICENSE+CONTRIBUTING+No-Dark-Patterns Standard at tag; telemetry off by default all builds. Sync concrete path is a build-time decision (OQ-1). Stories land squarely within dev-agent context the more natural way.
 
 ### Epic 5: Trust by default (adults-only & no dark patterns)
 
@@ -218,7 +218,7 @@ So that my history lives on-device as the single source of truth.
 **Given** no existing data
 **When** the `RecordPlate` use-case commits a PlateLog with FoodEntries
 **Then** the plate persists in the drift store before any UI reflects it (AD-3)
-**And** only `PlateLog`/`FoodEntry` tables exist (no over-creation, per database-principle); data is encrypted at rest via the platform-aware key — mobile AES-256 sqlite3mc + 32-byte Keychain/Keystore key (AD-8, NFR4); quantities render as honest ranges ("~2 fists"), never false-exact kcal (NFR6); every mutation flows through a core use-case with Riverpod state derived, never a second source (AD-3).
+**And** only `PlateLog`/`FoodEntry` tables exist (no over-creation, per database-principle); data is encrypted at rest via the platform-aware key — mobile ChaCha20-Poly1305 sqlite3mc (ADR-0001) + 32-byte Keychain/Keystore key (AD-8, NFR4); quantities render as honest ranges ("~2 fists"), never false-exact kcal (NFR6); every mutation flows through a core use-case with Riverpod state derived, never a second source (AD-3).
 
 ### Story 1.3: Day Board — today's plates
 

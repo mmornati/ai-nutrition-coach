@@ -1,6 +1,6 @@
-# OpenPlate — adults only (Story 5.1 / FR-13 / NFR-4)
+# AI Nutrition Coach — adults only (Story 5.1 / FR-13 / NFR-4)
 
-OpenPlate v1 is strictly adults-only. No under-13 accounts. No
+AI Nutrition Coach v1 is strictly adults-only. No under-13 accounts. No
 biometric identification anywhere. The promise is architecture, not
 policy — every shipped surface is pinned by a static check + a
 developer-facing guard + the named-reviewer QA gate (Story 5.3).
@@ -37,11 +37,12 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
 - **No `FaceID` / `TouchID` / `LocalAuthentication` /
   `face_detection` / `voice_print` reference.** The check rejects
   every banned biometric reference.
-- **The `PrivacyGuard` runs at startup.** `apps/client/lib/main.dart`
-  calls `PrivacyGuard.assertAdultsOnly()` before `runApp` so a
-  future PR that introduces a banned reference fails loudly in
-  debug builds. The static check is the durable enforcement
-  surface; the runtime guard is a safety net for widget tests.
+- **Enforcement is the static check, not a runtime guard.** An earlier
+  `PrivacyGuard` class claimed to assert this at startup, but its check
+  always returned `true` (security review F9), so it was removed rather
+  than left claiming something it did not do.
+  `tools/check_adults_only.dart` (run by `melos run check:release-posture`)
+  and the named-reviewer gate are the enforcement surfaces.
 
 ## How to verify
 
@@ -60,7 +61,7 @@ third-party disclosure. The Kurbo $1.5M FTC settlement
 (including algorithmic disgorgement) shows the trap in the
 age-gate that "encourages lying." The safe lane is plain plate
 photos (no face), adult-account observed profiles, local-only
-inference (the "internal operations" COPPA carve-out). OpenPlate
+inference (the "internal operations" COPPA carve-out). AI Nutrition Coach
 v1 stays in that lane by construction.
 
 ## Cross-references

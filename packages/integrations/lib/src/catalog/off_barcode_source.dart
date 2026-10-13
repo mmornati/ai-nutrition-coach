@@ -25,15 +25,37 @@
 //                             so the UI renders the calm "Search
 //                             isn't available right now" line.
 //
-// The source is intentionally minimal: no caching, no retries, no
-// user-agent branding. The offline-first cache lives one layer up
+// The source is intentionally minimal: no caching, no retries. Network
+// hygiene (N3): connect 10 s / send 30 s / receive 45 s timeouts; the
+// response is streamed and aborted past 2 MiB; only the fields the parser
+// reads are requested (`fields=`); and, as OFF's API terms ask, every
+// request carries a descriptive User-Agent (app, version, project URL — no
+// personal contact). Browsers forbid setting `User-Agent`, so on web the
+// header is simply omitted. Names and tags are capped (a product record is
+// user-contributed, i.e. untrusted). The offline-first cache lives one layer up
 // in `OfflineFirstFoodCatalog` so the catalog port owns the
 // "previously-seen barcode → offline replay" contract (NFR5).
 //
 // The barcode string is the only thing sent off-device (FR13). No
 // camera frames, no biometric signal, no device fingerprint.
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import '../config/app_identity.dart';
+import '../net/capped_response.dart';
+
+/// The only product fields the parser reads (N3: do not download the whole
+/// product record).
+const String kOffFields =
+    'product_name,product_name_en,generic_name,brands,categories_tags';
+
+/// Longest product name kept (characters), and most / longest category tags.
+const int kMaxOffNameLength = 100;
+const int kMaxOffTags = 50;
+const int kMaxOffTagLength = 100;
 
 /// The product OFF returned for a barcode lookup. Refreshed against
 /// the off>OFF v2 schema — the fields the adapter reads are
@@ -94,8 +116,8 @@ sealed class OffBarcodeResult {
 /// `MockAdapter`).
 class OffBarcodeSource {
   OffBarcodeSource({Dio? dio, String? baseUrl})
-      : _dio = dio ?? Dio(),
-        _baseUrl = baseUrl ?? 'https://world.openfoodfacts.org';
+    : _dio = dio ?? createTimeoutDio(),
+      _baseUrl = baseUrl ?? 'https://world.openfoodfacts.org';
 
   /// `dio` client. Tests inject a `Dio` with a `MockAdapter` so the
   /// network is never actually touched.
@@ -120,19 +142,33 @@ class OffBarcodeSource {
 
     final Uri uri = Uri.parse(
       '$_baseUrl/api/v2/product/${Uri.encodeComponent(trimmed)}',
-    );
+    ).replace(queryParameters: <String, String>{'fields': kOffFields});
 
     try {
-      final Response<dynamic> response = await _dio.get<dynamic>(
-        uri.toString(),
+      final cancel = CancelToken();
+      final Response<ResponseBody> response = await _dio.getUri<ResponseBody>(
+        uri,
+        cancelToken: cancel,
         options: Options(
-          responseType: ResponseType.json,
+          responseType: ResponseType.stream,
+          followRedirects: false,
+          maxRedirects: 0,
+          sendTimeout: kSendTimeout,
+          receiveTimeout: kReceiveTimeout,
           headers: <String, String>{
             'Accept': 'application/json',
+            if (!kIsWeb) 'User-Agent': kAiNutritionCoachUserAgent,
           },
         ),
       );
-      return _parseResponse(trimmed, response);
+      final status = response.statusCode ?? 0;
+      final Object? body =
+          status >= 200 && status < 300 && response.data != null
+          ? await readCappedJson(response.data!, cancelToken: cancel)
+          : null;
+      return _parseResponse(trimmed, status, body);
+    } on ResponseTooLargeException catch (e) {
+      return OffBarcodeFailure(trimmed, e);
     } on DioException catch (e) {
       // 404 from OFF is delivered as a DioException with the
       // response attached; treat it as a typed not-found rather
@@ -154,8 +190,11 @@ class OffBarcodeSource {
   /// Translate a successful `dio` response into the typed result.
   /// Pulled out of [lookup] so tests can exercise the parser
   /// directly without a network round-trip.
-  OffBarcodeResult _parseResponse(String barcode, Response<dynamic> response) {
-    final statusCode = response.statusCode ?? 0;
+  OffBarcodeResult _parseResponse(
+    String barcode,
+    int statusCode,
+    Object? body,
+  ) {
     if (statusCode == 404) {
       return OffBarcodeNotFound(barcode);
     }
@@ -163,7 +202,6 @@ class OffBarcodeSource {
       return OffBarcodeFailure(barcode, 'OFF HTTP $statusCode');
     }
 
-    final body = response.data;
     if (body is! Map<String, dynamic>) {
       return OffBarcodeFailure(barcode, 'OFF body is not a JSON object');
     }
@@ -211,10 +249,12 @@ class OffBarcodeSource {
       return null;
     }
 
-    final raw = pick('product_name') ??
-        pick('product_name_en') ??
-        pick('generic_name') ??
-        '';
+    final raw = _capText(
+      pick('product_name') ??
+          pick('product_name_en') ??
+          pick('generic_name') ??
+          '',
+    );
     final brands = pick('brands');
     if (brands == null || brands.isEmpty) return raw;
     // Strip the leading brand if the name starts with it followed
@@ -240,10 +280,18 @@ class OffBarcodeSource {
     if (raw is! List) return const <String>[];
     final out = <String>[];
     for (final entry in raw) {
+      if (out.length >= kMaxOffTags) break;
       if (entry is String && entry.isNotEmpty) {
-        out.add(entry.toLowerCase());
+        out.add(_capText(entry.toLowerCase(), kMaxOffTagLength));
       }
     }
     return out;
+  }
+
+  /// Caps [text] at [max] characters (runes, so no split surrogate).
+  static String _capText(String text, [int max = kMaxOffNameLength]) {
+    final runes = text.runes;
+    if (runes.length <= max) return text;
+    return String.fromCharCodes(runes.take(max)).trim();
   }
 }

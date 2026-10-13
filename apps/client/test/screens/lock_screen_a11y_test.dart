@@ -6,21 +6,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/lock_screen.dart';
-import 'package:openplate_client/state/web_session_key_provider.dart';
+import 'package:ai_nutrition_coach/screens/lock_screen.dart';
+import 'package:ai_nutrition_coach/state/web_store_controller_provider.dart';
+
+import '../_fakes/fake_web_store_controller.dart';
 
 void main() {
   group('LockScreen a11y floor (Story 5.4 / NFR-7)', () {
     testWidgets('passphrase field is announced by name', (tester) async {
+      final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            webSessionKeyProvider.overrideWithValue(WebSessionKey()),
+            webStoreControllerProvider.overrideWithValue(
+              FakeWebStoreController(),
+            ),
           ],
-          child: const MaterialApp(
-            home: LockScreen(),
-          ),
+          child: const MaterialApp(home: LockScreen()),
         ),
       );
       // The lock screen's LockScreenBody wraps the label in
@@ -29,6 +31,7 @@ void main() {
         find.bySemanticsLabel(RegExp(r'.*store.*', caseSensitive: false)),
         findsWidgets,
       );
+      semantics.dispose();
     });
   });
 }

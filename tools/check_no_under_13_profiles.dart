@@ -45,16 +45,20 @@ void main() {
       final line = lines[i].trim();
       for (final banned in _bannedProfileTypes) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned profile '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned profile '
+            'reference: $banned',
+          );
         }
       }
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:no-under-13-profiles: OK — no under-13 / '
-        'teen / parent / child profile machinery.');
+    stdout.writeln(
+      'check:no-under-13-profiles: OK — no under-13 / '
+      'teen / parent / child profile machinery.',
+    );
     exit(0);
   }
   stderr.writeln('check:no-under-13-profiles: FAIL');
@@ -70,7 +74,8 @@ bool _isExempt(String path) {
   if (path.endsWith('check_no_under_13_profiles.dart')) return true;
   if (path.endsWith('managed_oversight_seam.dart')) return true;
   if (path.endsWith('managed_oversight_seam_test.dart')) return true;
-  if (path.contains('/tools/') && path.endsWith('_check.dart')) return true;
+  // The check scripts under tools/ carry the banned-term lists themselves.
+  if (path.startsWith('./tools/') || path.startsWith('tools/')) return true;
   if (path.contains('/test/')) return true;
   if (path.contains('/integration_test/')) return true;
   if (path.endsWith('.g.dart')) return true;

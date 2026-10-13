@@ -16,10 +16,11 @@
 // `TemplateCoach()` and constructs `LocalCoachNoteStore` against the
 // open `EncryptedStoreAdapter`.
 //
-// `coachNotesForPlateProvider` is the `FutureProvider.family` the
+// `coachNotesForPlateProvider` is the `StreamProvider.family` the
 // `PlateRow` widget watches to render the whisper on each plate. The
 // family key is `plateLogId`; the empty list is the legacy-data path
-// (pre-2.2 plates have no note, render without the whisper).
+// (pre-2.2 plates have no note, render without the whisper). It is a
+// stream so a note appended right after the plate commit still shows up.
 //
 // `recordCoachInteractionProvider` (Story 2.3) hands the
 // `RecordCoachInteraction` use-case to the UI. The provider is
@@ -27,12 +28,10 @@
 // `CoachWhisper` and `OpenPlateHint` widgets can record the user's
 // tap without re-instantiating the use-case.
 //
-// `depthFollowUpProvider` (Story 2.3) is a `FutureProvider.family`
-// keyed on the post-resolve `CoachNote`. Tapping `[sure]` on a
-// whisper invokes the use-case via this provider; the future
-// resolves to the depth follow-up `CoachNote` (or `null` on the
-// calm-degrade path). The `CoachWhisper` widget watches this
-// provider to render the `CoachDepthPanel`.
+// `depthFollowUpProvider` (Story 2.3) is a family `Notifier` keyed on the
+// post-resolve `CoachNote`; its `request()` method (called from the `[sure]`
+// tap) runs the use-case and publishes the follow-up. The `CoachWhisper`
+// widget watches its state to render the `CoachDepthPanel`.
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,14 +62,24 @@ final coachNoteGeneratorProvider = Provider<CoachNoteGenerator>(
   ),
 );
 
-/// Coach notes anchored to a given `plateLogId`, in insertion order
-/// (oldest first). The empty list is the legacy-data path — a plate
-/// with no note renders without the whisper.
-final coachNotesForPlateProvider =
-    FutureProvider.family<List<CoachNote>, int>((ref, plateLogId) async {
-  final store = ref.watch(coachNoteStoreProvider);
-  return store.forPlate(plateLogId);
-});
+/// Coach notes anchored to a given `plateLogId`, oldest first, as a STREAM
+/// (security review F6). The post-resolve note is appended a moment AFTER
+/// the plate commit; a one-shot read taken when the plate row first built
+/// cached an empty list and never saw it. The watch re-emits when the note
+/// lands. The empty list is the legacy-data path — a plate with no note
+/// renders without the whisper.
+final coachNotesForPlateProvider = StreamProvider.autoDispose
+    .family<List<CoachNote>, int>(
+      (ref, plateLogId) =>
+          ref.watch(coachNoteStoreProvider).watchForPlate(plateLogId),
+    );
+
+/// The durable "quiet" markers (dismissed whispers and open-plate hints) as
+/// a stream of keys (`coachNoteDismissalKey` / `openPlateDismissalKey`).
+/// Persisted in the store, so a dismissal survives a restart (F6).
+final coachDismissalsProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(coachNoteStoreProvider).watchDismissals(),
+);
 
 /// The wired `RecordCoachInteraction` use-case — overridden in
 /// `main.dart` with a use-case constructed from `coachProvider`
@@ -84,37 +93,71 @@ final recordCoachInteractionProvider = Provider<RecordCoachInteraction>(
   ),
 );
 
-/// Resolved depth follow-up `CoachNote` for a tapped post-resolve
-/// `CoachNote` (Story 2.3). Tapping `[sure]` on the post-resolve
-/// whisper invokes the use-case via this provider; the family
-/// resolves to the new `CoachNote` (with `anchor: depthFollowUp`)
-/// on the happy path, or `null` when the active coach returned
-/// `NoCoachQuestion` for the depth anchor, when the coach port
-/// threw (defensive), or when the follow-up already exists for the
-/// plate (idempotent second tap).
+/// Where the depth follow-up for one whisper stands.
+sealed class DepthFollowUpState {
+  const DepthFollowUpState();
+}
+
+/// `[sure]` has not been tapped.
+final class DepthFollowUpIdle extends DepthFollowUpState {
+  const DepthFollowUpIdle();
+}
+
+/// The use-case is running.
+final class DepthFollowUpLoading extends DepthFollowUpState {
+  const DepthFollowUpLoading();
+}
+
+/// The use-case finished. [note] is the bounded depth follow-up, or `null` on
+/// the calm-degrade path (the active coach had nothing for the depth anchor,
+/// the store write failed, or a follow-up already existed — an idempotent
+/// second tap, FR5).
+final class DepthFollowUpReady extends DepthFollowUpState {
+  const DepthFollowUpReady(this.note);
+
+  final CoachNote? note;
+}
+
+/// The depth follow-up of one post-resolve whisper (Story 2.3 / FR5).
 ///
-/// The provider is `autoDispose` so the depth follow-up state
-/// collapses to `null` when the widget tears down — no stale
-/// follow-up survives a navigation event.
+/// This replaces a `FutureProvider` whose BUILD ran the use-case: building a
+/// provider must be free of side effects (a rebuild, a read from a test, a
+/// second listener would each have appended a note and logged a tap — F6).
+/// Now building is inert (`DepthFollowUpIdle`); the write happens only in
+/// [request], which the whisper calls from the `[sure]` tap.
 ///
-/// Family key: the post-resolve `CoachNote` itself. The widget
-/// caller (`CoachWhisper` rendered inside `PlateRow`) already
-/// holds the note (rendered via `coachNotesForPlateProvider`), so
-/// the family key is the same instance the widget taps on. Two
-/// taps on the same note share the autoDispose cache; a second
-/// tap is idempotent because the use-case's follow-up guard sees
-/// an existing depth follow-up for the plate and returns `null`
-/// (FR5).
-final depthFollowUpProvider = FutureProvider.family
-    .autoDispose<CoachNote?, CoachNote>((ref, note) async {
-  final useCase = ref.watch(recordCoachInteractionProvider);
-  final result = await useCase(
-    note: note,
-    kind: CoachInteraction.sure,
-  );
-  // The use-case returns a `RecordCoachInteractionSure` with the
-  // (possibly-null) `followedUpNote`. The provider resolves to the
-  // note itself so the UI does not have to pattern-match on the
-  // sealed result hierarchy.
-  return result.followedUpNote;
-});
+/// Family key: the post-resolve [CoachNote]. `autoDispose` so the state
+/// collapses with the widget — no stale follow-up survives navigation.
+class DepthFollowUpNotifier extends Notifier<DepthFollowUpState> {
+  DepthFollowUpNotifier(this.note);
+
+  final CoachNote note;
+
+  @override
+  DepthFollowUpState build() => const DepthFollowUpIdle();
+
+  /// Record `[sure]` and resolve the follow-up. Safe to call twice: while
+  /// loading or once ready it does nothing (the use-case is also idempotent
+  /// at the store level).
+  Future<void> request() async {
+    if (state is! DepthFollowUpIdle) return;
+    state = const DepthFollowUpLoading();
+    CoachNote? followUp;
+    try {
+      final result = await ref.read(recordCoachInteractionProvider)(
+        note: note,
+        kind: CoachInteraction.sure,
+      );
+      followUp = result.followedUpNote;
+    } on Object {
+      followUp = null;
+    }
+    if (!ref.mounted) return;
+    state = DepthFollowUpReady(followUp);
+  }
+}
+
+final depthFollowUpProvider = NotifierProvider.autoDispose
+    .family<DepthFollowUpNotifier, DepthFollowUpState, CoachNote>(
+      DepthFollowUpNotifier.new,
+    );

@@ -28,10 +28,12 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:integrations/integrations.dart';
 
 import '../state/last_log_provider.dart';
-import '../state/record_plate_provider.dart';
+import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the recognized match sheet. The future completes when the
 /// sheet is dismissed (back gesture, tap outside, scrim swipe-down).
@@ -47,10 +49,8 @@ Future<void> showRecognizedMatchSheet(
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => RecognizedMatchSheet(
-      result: result,
-      closestMatches: closestMatches,
-    ),
+    builder: (sheetCtx) =>
+        RecognizedMatchSheet(result: result, closestMatches: closestMatches),
   );
 }
 
@@ -121,14 +121,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
       final first = widget.closestMatches.first;
       _selected = _SheetSelection(
         food: first.food,
-        quantity: first.presets.isNotEmpty
-            ? first.presets.first
-            : const QuantityRange(
-                low: 1,
-                high: 1,
-                unit: 'serving',
-                displayLabel: '~1 serving',
-              ),
+        quantity: first.presets.isNotEmpty ? first.presets.first : kOneServing,
       );
       _presets = _presetsFor(first);
     }
@@ -149,9 +142,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
   List<QuantityRange> _presetsFor(FoodMatch? match) {
     final result = widget.result;
     QuantityRange? rungQuantity;
-    if (result is RecognizedPlate &&
-        match != null &&
-        result.foods.isNotEmpty) {
+    if (result is RecognizedPlate && match != null && result.foods.isNotEmpty) {
       for (final rec in result.foods) {
         if (rec.databaseFood == match.food) {
           rungQuantity = rec.quantity;
@@ -167,14 +158,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
       }
     }
     if (out.isEmpty) {
-      out.add(
-        const QuantityRange(
-          low: 1,
-          high: 1,
-          unit: 'serving',
-          displayLabel: '~1 serving',
-        ),
-      );
+      out.add(kOneServing);
     }
     return out;
   }
@@ -186,10 +170,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
         quantity: rec.quantity,
       );
       _presets = _presetsFor(null);
-      _presets = [
-        rec.quantity,
-        ..._presets.where((p) => p != rec.quantity),
-      ];
+      _presets = [rec.quantity, ..._presets.where((p) => p != rec.quantity)];
       // Try to enrich with the closest match's catalog presets if
       // one matches the recognized food.
       for (final match in widget.closestMatches) {
@@ -205,14 +186,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     setState(() {
       _selected = _SheetSelection(
         food: match.food,
-        quantity: match.presets.isNotEmpty
-            ? match.presets.first
-            : const QuantityRange(
-                low: 1,
-                high: 1,
-                unit: 'serving',
-                displayLabel: '~1 serving',
-              ),
+        quantity: match.presets.isNotEmpty ? match.presets.first : kOneServing,
       );
       _presets = _presetsFor(match);
     });
@@ -227,86 +201,55 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
   }
 
   Future<void> _onLog() async {
+    if (_submitting) return;
     final selection = _selected;
     if (selection == null) {
-      _showSnack('Pick a food first');
+      _showSnack(context.l10n.pickFoodFirst);
       return;
     }
-    setState(() => _submitting = true);
-
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
-        FoodEntryDraft(
-          databaseFood: selection.food,
-          quantity: selection.quantity,
-        ),
-      ],
-      store: store,
+    await _commit(
+      FoodEntryDraft(
+        databaseFood: selection.food,
+        quantity: selection.quantity,
+      ),
     );
-
-    if (!mounted) return;
-    setState(() => _submitting = false);
-
-    if (result is RecordPlateSuccess) {
-      ref.read(lastLogProvider.notifier).state = DateTime.now();
-      Navigator.of(context).pop();
-    } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
-    }
   }
 
   Future<void> _onLogManual() async {
+    if (_submitting) return;
     final name = _manualController.text.trim();
     if (name.isEmpty) {
-      _showSnack('Type a name first');
+      _showSnack(context.l10n.typeNameFirst);
       return;
     }
-    setState(() => _submitting = true);
-
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
-        FoodEntryDraft(
-          databaseFood: DatabaseFood(
-            sourceRef: 'manual:${name.toLowerCase()}',
-            displayName: name,
-            source: SourceCatalog.manual,
-            foodGroup: FoodGroup.other,
-          ),
-          quantity: const QuantityRange(
-            low: 1,
-            high: 1,
-            unit: 'serving',
-            displayLabel: '~1 serving',
-          ),
-        ),
-      ],
-      store: store,
+    final committed = await _commit(
+      FoodEntryDraft(databaseFood: manualFood(name), quantity: kOneServing),
     );
+    if (committed) _manualController.clear();
+  }
 
-    if (!mounted) return;
-    setState(() => _submitting = false);
+  /// Commit one entry; `true` when the plate was logged (the sheet then
+  /// closes). The busy flag is reset in `finally` so a throwing store call
+  /// can never leave the sheet stuck on "Logging…" (F7).
+  Future<bool> _commit(FoodEntryDraft draft) async {
+    setState(() => _submitting = true);
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [draft]);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+    if (!mounted) return false;
 
     if (result is RecordPlateSuccess) {
       ref.read(lastLogProvider.notifier).state = DateTime.now();
-      _manualController.clear();
       Navigator.of(context).pop();
-    } else if (result is StoreFailure) {
-      _showSnack(_messageFor(result));
+      return true;
     }
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
+    if (result is StoreFailure) {
+      _showSnack(logFailureMessage(context.l10n, result));
+    }
+    return false;
   }
 
   void _showSnack(String message) {
@@ -323,8 +266,7 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
     return Material(
       color: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -343,10 +285,11 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
               children: [
                 _Header(palette: palette, result: widget.result),
                 const SizedBox(height: AppSpacing.md),
-                if (widget.result is RecognizedPlate &&
-                    (widget.result as RecognizedPlate).foods.isNotEmpty)
+                if (widget.result case RecognizedPlate(
+                  :final foods,
+                ) when foods.isNotEmpty)
                   _RecognizedList(
-                    foods: (widget.result as RecognizedPlate).foods,
+                    foods: foods,
                     palette: palette,
                     selected: _selected,
                     onPick: _selectRecognized,
@@ -360,11 +303,11 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                     onPick: _selectClosestMatch,
                   ),
                 ],
-                if (_selected != null) ...[
+                if (_selected case final selected?) ...[
                   const SizedBox(height: AppSpacing.md),
                   _PresetRow(
                     presets: _presets,
-                    chosen: _selected!.quantity,
+                    chosen: selected.quantity,
                     palette: palette,
                     onPick: _selectPreset,
                   ),
@@ -380,15 +323,15 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                   child: OutlinedButton(
                     onPressed: _submitting ? null : _onLogManual,
                     style: OutlinedButton.styleFrom(
-                      minimumSize:
-                          const Size.fromHeight(AppTouchTargets.min),
+                      minimumSize: const Size.fromHeight(AppTouchTargets.min),
                       side: BorderSide(color: palette.hairline),
                       foregroundColor: palette.ink,
                     ),
                     child: Text(
-                      _submitting ? 'Logging…' : 'Log custom food',
-                      style:
-                          AppTypography.ui.copyWith(color: palette.ink),
+                      _submitting
+                          ? context.l10n.logging
+                          : context.l10n.logCustomFood,
+                      style: AppTypography.ui.copyWith(color: palette.ink),
                     ),
                   ),
                 ),
@@ -396,17 +339,20 @@ class _RecognizedMatchSheetState extends ConsumerState<RecognizedMatchSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed:
-                        (_selected == null || _submitting) ? null : _onLog,
+                    onPressed: (_selected == null || _submitting)
+                        ? null
+                        : _onLog,
                     style: FilledButton.styleFrom(
-                      minimumSize:
-                          const Size.fromHeight(AppTouchTargets.min),
+                      minimumSize: const Size.fromHeight(AppTouchTargets.min),
                       backgroundColor: palette.sageDeep,
                     ),
                     child: Text(
-                      _submitting ? 'Logging…' : 'Log',
-                      style: AppTypography.ui
-                          .copyWith(color: palette.background),
+                      _submitting
+                          ? context.l10n.logging
+                          : context.l10n.logAction,
+                      style: AppTypography.ui.copyWith(
+                        color: palette.background,
+                      ),
                     ),
                   ),
                 ),
@@ -430,37 +376,37 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final String title;
     final String subtitle;
     switch (result) {
       case RecognizedPlate(:final foods):
         if (foods.isEmpty) {
-          title = 'Nothing matched';
-          subtitle = 'Pick a closest match or type the food manually.';
+          title = l10n.recognizedNothingMatched;
+          subtitle = l10n.recognizedPickOrType;
         } else {
-          title = 'Looks like ${foods.length} food${foods.length == 1 ? '' : 's'}';
-          subtitle = 'Tap one to confirm, or pick another match.';
+          title = l10n.recognizedLooksLike(foods.length);
+          subtitle = l10n.recognizedTapToConfirm;
         }
       case NoMatch():
-        title = 'Nothing on this plate';
-        subtitle = 'Pick a closest match or type the food manually.';
+        title = l10n.recognizedNothingOnPlate;
+        subtitle = l10n.recognizedPickOrType;
+      case QuotaExhausted():
+        title = enAiRungStrings.noticeShort;
+        subtitle = enAiRungStrings.manualFallbackHint;
       case RecognitionFailure():
-        title = "Search isn't available right now.";
-        subtitle = 'You can still pick a closest match or type it manually.';
+        title = l10n.searchUnavailable;
+        subtitle = l10n.recognizedPickOrTypeFallback;
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          title,
-          style: AppTypography.ui.copyWith(color: palette.ink),
-        ),
+        Text(title, style: AppTypography.ui.copyWith(color: palette.ink)),
         const SizedBox(height: AppSpacing.xxs),
         Text(
           subtitle,
-          style:
-              AppTypography.coach.copyWith(color: palette.inkMuted),
+          style: AppTypography.coach.copyWith(color: palette.inkMuted),
         ),
       ],
     );
@@ -519,9 +465,12 @@ class _RecognizedRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label:
-          '${food.databaseFood.displayName}, ${food.databaseFood.foodGroup.label}, '
-          '${food.quantity.displayLabel}, confidence ${food.confidence.toStringAsFixed(2)}',
+      label: context.l10n.recognizedSemantics(
+        food.databaseFood.displayName,
+        context.l10n.foodGroupLabel(food.databaseFood.foodGroup),
+        food.quantity.displayLabel,
+        food.confidence.toStringAsFixed(2),
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -549,11 +498,16 @@ class _RecognizedRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${food.databaseFood.foodGroup.label}  '
-                        '· ${food.quantity.displayLabel}  '
-                        '· ${(food.confidence * 100).toStringAsFixed(0)}%',
-                        style: AppTypography.monoWhisper
-                            .copyWith(color: palette.inkMuted),
+                        context.l10n.recognizedDetail(
+                          context.l10n.foodGroupLabel(
+                            food.databaseFood.foodGroup,
+                          ),
+                          food.quantity.displayLabel,
+                          (food.confidence * 100).toStringAsFixed(0),
+                        ),
+                        style: AppTypography.monoWhisper.copyWith(
+                          color: palette.inkMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -592,9 +546,8 @@ class _ClosestMatchesRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Closest matches',
-          style:
-              AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
+          context.l10n.closestMatches,
+          style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
         const SizedBox(height: AppSpacing.xs),
         for (final match in matches)
@@ -628,9 +581,11 @@ class _ClosestMatchRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label:
-          '${match.food.displayName}, ${match.food.foodGroup.label}, '
-          '${match.presets.length} presets',
+      label: context.l10n.matchSemantics(
+        match.food.displayName,
+        context.l10n.foodGroupLabel(match.food.foodGroup),
+        match.presets.length,
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -658,9 +613,10 @@ class _ClosestMatchRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        match.food.foodGroup.label,
-                        style: AppTypography.monoWhisper
-                            .copyWith(color: palette.inkMuted),
+                        context.l10n.foodGroupLabel(match.food.foodGroup),
+                        style: AppTypography.monoWhisper.copyWith(
+                          color: palette.inkMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -700,15 +656,12 @@ class _PresetRow extends StatelessWidget {
       children: [
         for (final preset in presets)
           ConstrainedBox(
-            constraints:
-                const BoxConstraints(minHeight: AppTouchTargets.min),
+            constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
             child: ChoiceChip(
               label: Text(
                 preset.displayLabel,
                 style: AppTypography.mono.copyWith(
-                  color: chosen == preset
-                      ? palette.background
-                      : palette.ink,
+                  color: chosen == preset ? palette.background : palette.ink,
                 ),
               ),
               selected: chosen == preset,
@@ -738,9 +691,8 @@ class _ManualAddField extends StatelessWidget {
       controller: controller,
       style: AppTypography.ui.copyWith(color: palette.ink),
       decoration: InputDecoration(
-        labelText: 'Custom food name',
-        labelStyle:
-            AppTypography.uiMuted.copyWith(color: palette.inkMuted),
+        labelText: context.l10n.customFoodName,
+        labelStyle: AppTypography.uiMuted.copyWith(color: palette.inkMuted),
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: palette.hairline),
         ),

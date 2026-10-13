@@ -15,55 +15,75 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/coach_note_provider.dart';
 import '../state/coach_provider.dart';
 import '../state/day_board_provider.dart';
 import '../theme/app_tokens.dart';
 import 'open_plate_hint.dart';
+import '../l10n/l10n.dart';
 
 class OpenDent extends ConsumerStatefulWidget {
-  const OpenDent({super.key, required this.slot});
+  const OpenDent({super.key, required this.slot, required this.day});
 
   final MealSlot slot;
+
+  /// The local day this dent belongs to — with [slot] it keys the durable
+  /// dismissal of the open-plate hint (a new day asks again; F6).
+  final DateTime day;
 
   @override
   ConsumerState<OpenDent> createState() => _OpenDentState();
 }
 
 class _OpenDentState extends ConsumerState<OpenDent> {
-  /// `true` after the user taps the open-plate hint — the hint
-  /// hides immediately so the dent returns to its quiet form. The
-  /// store has the durable record (FR9); local state is the calm
-  /// UI.
+  /// `true` right after the user taps the open-plate hint — the hint hides
+  /// immediately so the dent returns to its quiet form, without waiting for
+  /// the store round trip. The durable record is the dismissal marker
+  /// (`coachDismissalsProvider`), which also keeps it hidden after a restart.
   bool _hintDismissed = false;
+
+  /// The open-plate question (text + key), resolved once. Open dents have
+  /// no resolved pattern (there is no plate yet), so the calm `balanced`
+  /// nudge is used regardless of what the user eventually logs; the active
+  /// rung returns `NoCoachQuestion` if the entry is missing in the key
+  /// store. Resolved in `initState` rather than every `build` — the answer
+  /// does not change, and a rebuild must not re-ask the coach.
+  late final CoachQuestion? _hint;
+
+  @override
+  void initState() {
+    super.initState();
+    final result = ref
+        .read(coachProvider)
+        .questionFor(
+          anchor: CoachAnchor.openPlate,
+          pattern: CompositionPattern.balanced,
+        );
+    _hint = switch (result) {
+      CoachFound(:final question) => question,
+      NoCoachQuestion() => null,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final coach = ref.watch(coachProvider);
-    final result = coach.questionFor(
-      anchor: CoachAnchor.openPlate,
-      // Open dents do not have a resolved pattern (there is no
-      // plate yet). We default to `balanced` for the open-plate
-      // hint — the calm nudge is the same regardless of which
-      // pattern the user eventually logs. The active rung returns
-      // `NoCoachQuestion` if the entry is missing in the key
-      // store.
-      pattern: CompositionPattern.balanced,
+    final hint = _hint;
+    final dismissalKey = openPlateDismissalKey(
+      day: widget.day,
+      slotName: widget.slot.name,
     );
-    final String? hintText = switch (result) {
-      CoachFound(:final question) => question.text,
-      NoCoachQuestion() => null,
-    };
-    final String? hintKey = switch (result) {
-      CoachFound(:final question) => question.key,
-      NoCoachQuestion() => null,
-    };
+    final dismissedForGood =
+        ref.watch(coachDismissalsProvider).value?.contains(dismissalKey) ??
+        false;
 
     return Semantics(
       container: true,
-      label: '${widget.slot.label} is open. An open, quiet place.',
+      label: context.l10n.openDentSemantics(
+        context.l10n.slotLabel(widget.slot),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: AppSpacing.sm,
@@ -86,26 +106,30 @@ class _OpenDentState extends ConsumerState<OpenDent> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.slot.label,
-                    style: AppTypography.ui
-                        .copyWith(color: palette.inkMuted),
+                    context.l10n.slotLabel(widget.slot),
+                    style: AppTypography.ui.copyWith(color: palette.inkMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'An open, quiet place.',
+                    context.l10n.openDentWhisper,
                     style: AppTypography.monoWhisper.copyWith(
                       color: palette.inkMuted,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (hintText != null && !_hintDismissed)
+                  if (hint != null && !_hintDismissed && !dismissedForGood)
                     OpenPlateHint(
-                      questionKey: hintKey!,
-                      question: hintText,
-                      onDismissed: () => setState(() => _hintDismissed = true),
+                      questionKey: hint.key,
+                      question: hint.text,
+                      dismissalKey: dismissalKey,
+                      onDismissed: () {
+                        // The tap awaits a store write first; the dent may
+                        // be gone by then.
+                        if (mounted) setState(() => _hintDismissed = true);
+                      },
                     ),
                 ],
               ),

@@ -60,7 +60,7 @@
   <p class="lead">A calm, local-first nutrition coach. One responsive Flutter app over a pure-Dart hexagon; the local encrypted store is the source of truth; AI is a swappable rung, never the product.</p>
   <div class="tagrow" style="justify-content:center">
     <span class="chip">Flutter 3.47.0</span><span class="chip">Dart ^3.13</span>
-    <span class="chip on">drift 2.34.3 · AES-256</span><span class="chip">Riverpod 3.4.2</span>
+    <span class="chip on">drift 2.34.3 · ChaCha20-Poly1305</span><span class="chip">Riverpod 3.4.2</span>
     <span class="chip on">no account · telemetry off</span>
   </div>
 </header>
@@ -126,7 +126,7 @@
   <div class="ad"><h4>AD-7 · Coach copy in a key store</h4>
     <p><b>Binds:</b> FR-4 NFR, FR-15, FR-15 QA gate. Every coach string is a keyed, localized template. No anonymous string interpolation in widgets; No-Dark-Patterns is a CI checklist.</p></div>
   <div class="ad"><h4>AD-8 · Honest at-rest encryption</h4>
-    <p><b>Binds:</b> FR-9/7. Mobile: AES-256 via sqlite3mc build-hook, key in Keychain/Keystore. Web: same schema on sqlite3.wasm with a passphrase-derived key in memory — <b>weaker, and documented as such</b>. BYOK keys never leave the device.</p></div>
+    <p><b>Binds:</b> FR-9/7. Mobile: ChaCha20-Poly1305 via sqlite3mc build-hook, key in Keychain/Keystore. Web: same schema on sqlite3.wasm with a passphrase-derived key in memory — <b>weaker, and documented as such</b>. BYOK keys never leave the device.</p></div>
   <div class="ad"><h4>AD-9 · Export is a read-only port</h4>
     <p><b>Binds:</b> FR-9 consequence, Settings &middot; Your data. CSV/JSON streams from the source of truth, offline, no account required — <i>lost my history is impossible by construction.</i></p></div>
 </div>
@@ -145,7 +145,7 @@
   <tr><td>Flutter / Dart SDK</td><td>3.47.0 / ^3.13</td><td>AD-2</td></tr>
   <tr><td>flutter_riverpod (codegen)</td><td>3.4.2</td><td>UI state, AD-3</td></tr>
   <tr><td>drift / drift_dev</td><td>2.34.3 / 2.34.x</td><td>local store, AD-3·8</td></tr>
-  <tr><td>sqlite3 (sqlite3mc build hook)</td><td>3.5.x</td><td>AES-256 at rest, AD-8</td></tr>
+  <tr><td>sqlite3 (sqlite3mc build hook)</td><td>3.5.x</td><td>ChaCha20-Poly1305 at rest, AD-8</td></tr>
   <tr><td>flutter_secure_storage</td><td>11.0.0</td><td>DB + BYOK keys, AD-8</td></tr>
   <tr><td>mobile_scanner</td><td>7.4.0</td><td>barcode, FR-2</td></tr>
   <tr><td>image_picker</td><td>1.2.3</td><td>plate photos, FR-1</td></tr>

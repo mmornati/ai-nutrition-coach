@@ -4,8 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/coach_depth_panel.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/coach_depth_panel.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -18,8 +18,9 @@ Widget _wrap(Widget child) {
 
 void main() {
   group('CoachDepthPanel', () {
-    testWidgets('renders the question text in serif italic (UX-DR5)',
-        (tester) async {
+    testWidgets('renders the question text in serif italic (UX-DR5)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const CoachDepthPanel(
@@ -56,17 +57,15 @@ void main() {
       );
 
       final closePill = find
-          .ancestor(
-            of: find.text('close'),
-            matching: find.byType(Container),
-          )
+          .ancestor(of: find.text('close'), matching: find.byType(Container))
           .first;
       final size = tester.getSize(closePill);
       expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min));
     });
 
-    testWidgets('[close] pill fires onClose callback when tapped',
-        (tester) async {
+    testWidgets('[close] pill fires onClose callback when tapped', (
+      tester,
+    ) async {
       var fired = 0;
       await tester.pumpWidget(
         _wrap(
@@ -82,8 +81,9 @@ void main() {
       expect(fired, 1);
     });
 
-    testWidgets('a11y: panel container announces the question + close label',
-        (tester) async {
+    testWidgets('a11y: panel container announces the question + close label', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const CoachDepthPanel(
@@ -92,28 +92,24 @@ void main() {
         ),
       );
 
-      final panelSemantics =
-          tester.getSemantics(find.byType(CoachDepthPanel));
+      final panelSemantics = tester.getSemantics(find.byType(CoachDepthPanel));
       expect(panelSemantics.label, contains('A handful of greens'));
 
-      expect(
-        tester.getSemantics(find.text('close')).label,
-        contains('close'),
-      );
+      expect(tester.getSemantics(find.text('close')).label, contains('close'));
     });
 
-    testWidgets('null question: empty panel renders without crashing',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(const CoachDepthPanel(question: null)),
-      );
+    testWidgets('null question: empty panel renders without crashing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(const CoachDepthPanel(question: null)));
 
       // The pill still renders so the user can dismiss.
       expect(find.text('close'), findsOneWidget);
     });
 
-    testWidgets('null onClose: pill renders but does not crash on tap',
-        (tester) async {
+    testWidgets('null onClose: pill renders but does not crash on tap', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const CoachDepthPanel(
@@ -126,8 +122,9 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('dark mode: pill colors come from AppPalette.dark (NFR8)',
-        (tester) async {
+    testWidgets('dark mode: pill colors come from AppPalette.dark (NFR8)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.dark(),

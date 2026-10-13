@@ -1,0 +1,27 @@
+# Overlay for docker-compose.traefik.yml: only these networks may reach AI Nutrition Coach
+# (Traefik v3 `ipAllowList`; v2 called it `ipWhiteList`).
+#
+#   AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST=192.168.1.0/24,100.64.0.0/10 \
+#   AI_NUTRITION_COACH_DOMAIN=plate.example.com \
+#     docker compose -f infra/docker-compose.traefik.yml \
+#                    -f infra/docker-compose.traefik-allowlist.yml up -d
+#
+# This is the recommended "family only" control; prefer it to basic auth: the
+# browser fetches the web manifest without credentials, so installability
+# checks can fail behind basic auth (not tested here). The app passphrase still protects
+# the data if the allow-list is ever wrong.
+#
+# Caveat: ipAllowList judges the address Traefik SEES. Behind Docker's NAT
+# (a published port on a bridge network with the userland proxy, or another
+# reverse proxy in front) that can be the proxy's / gateway's address instead
+# of the real client; check with a request from outside the list. Typical
+# ranges: your LAN (192.168.x.0/24), Tailscale (100.64.0.0/10), WireGuard.
+# `bin/ai-nutrition-coach up --traefik` adds this file when AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST
+# is set (comma-separated CIDRs, validated).
+
+services:
+  ai-nutrition-coach:
+    labels:
+      traefik.http.middlewares.ai-nutrition-coach-allow.ipallowlist.sourcerange: ${AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST:?set AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST to comma-separated CIDRs}
+      # Replaces the base router's middleware list: HSTS first, then the allow-list.
+      traefik.http.routers.ai-nutrition-coach.middlewares: ai-nutrition-coach-hsts,ai-nutrition-coach-allow

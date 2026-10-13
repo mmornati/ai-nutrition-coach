@@ -278,6 +278,18 @@ class $FoodEntryTableTable extends FoodEntryTable
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _foodGroupMeta = const VerificationMeta(
+    'foodGroup',
+  );
+  @override
+  late final GeneratedColumn<String> foodGroup = GeneratedColumn<String>(
+    'food_group',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('other'),
+  );
   static const VerificationMeta _quantityLowMeta = const VerificationMeta(
     'quantityLow',
   );
@@ -329,6 +341,7 @@ class $FoodEntryTableTable extends FoodEntryTable
     databaseFoodSourceRef,
     databaseFoodDisplayName,
     databaseFoodSource,
+    foodGroup,
     quantityLow,
     quantityHigh,
     quantityUnit,
@@ -392,6 +405,12 @@ class $FoodEntryTableTable extends FoodEntryTable
       );
     } else if (isInserting) {
       context.missing(_databaseFoodSourceMeta);
+    }
+    if (data.containsKey('food_group')) {
+      context.handle(
+        _foodGroupMeta,
+        foodGroup.isAcceptableOrUnknown(data['food_group']!, _foodGroupMeta),
+      );
     }
     if (data.containsKey('quantity_low')) {
       context.handle(
@@ -466,6 +485,10 @@ class $FoodEntryTableTable extends FoodEntryTable
         DriftSqlType.string,
         data['${effectivePrefix}database_food_source'],
       )!,
+      foodGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_group'],
+      )!,
       quantityLow: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}quantity_low'],
@@ -504,6 +527,12 @@ class FoodEntryTableData extends DataClass
   final String databaseFoodDisplayName;
   final String databaseFoodSource;
 
+  /// `FoodGroup.name` of the food (security review F2). Persisted so a
+  /// re-read plate keeps the group it was logged with — the coach and the
+  /// balance arc read it. Schema v4; rows written before it migrate to
+  /// `other` (unknown), which is the honest value for them.
+  final String foodGroup;
+
   /// Denormalised `QuantityRange`. Numeric halves stored as text so the
   /// round-trip is verbatim — `0.5` comes back as `0.5`, not `0`.
   final String quantityLow;
@@ -516,6 +545,7 @@ class FoodEntryTableData extends DataClass
     required this.databaseFoodSourceRef,
     required this.databaseFoodDisplayName,
     required this.databaseFoodSource,
+    required this.foodGroup,
     required this.quantityLow,
     required this.quantityHigh,
     required this.quantityUnit,
@@ -531,6 +561,7 @@ class FoodEntryTableData extends DataClass
       databaseFoodDisplayName,
     );
     map['database_food_source'] = Variable<String>(databaseFoodSource);
+    map['food_group'] = Variable<String>(foodGroup);
     map['quantity_low'] = Variable<String>(quantityLow);
     map['quantity_high'] = Variable<String>(quantityHigh);
     map['quantity_unit'] = Variable<String>(quantityUnit);
@@ -545,6 +576,7 @@ class FoodEntryTableData extends DataClass
       databaseFoodSourceRef: Value(databaseFoodSourceRef),
       databaseFoodDisplayName: Value(databaseFoodDisplayName),
       databaseFoodSource: Value(databaseFoodSource),
+      foodGroup: Value(foodGroup),
       quantityLow: Value(quantityLow),
       quantityHigh: Value(quantityHigh),
       quantityUnit: Value(quantityUnit),
@@ -569,6 +601,7 @@ class FoodEntryTableData extends DataClass
       databaseFoodSource: serializer.fromJson<String>(
         json['databaseFoodSource'],
       ),
+      foodGroup: serializer.fromJson<String>(json['foodGroup']),
       quantityLow: serializer.fromJson<String>(json['quantityLow']),
       quantityHigh: serializer.fromJson<String>(json['quantityHigh']),
       quantityUnit: serializer.fromJson<String>(json['quantityUnit']),
@@ -588,6 +621,7 @@ class FoodEntryTableData extends DataClass
         databaseFoodDisplayName,
       ),
       'databaseFoodSource': serializer.toJson<String>(databaseFoodSource),
+      'foodGroup': serializer.toJson<String>(foodGroup),
       'quantityLow': serializer.toJson<String>(quantityLow),
       'quantityHigh': serializer.toJson<String>(quantityHigh),
       'quantityUnit': serializer.toJson<String>(quantityUnit),
@@ -601,6 +635,7 @@ class FoodEntryTableData extends DataClass
     String? databaseFoodSourceRef,
     String? databaseFoodDisplayName,
     String? databaseFoodSource,
+    String? foodGroup,
     String? quantityLow,
     String? quantityHigh,
     String? quantityUnit,
@@ -612,6 +647,7 @@ class FoodEntryTableData extends DataClass
     databaseFoodDisplayName:
         databaseFoodDisplayName ?? this.databaseFoodDisplayName,
     databaseFoodSource: databaseFoodSource ?? this.databaseFoodSource,
+    foodGroup: foodGroup ?? this.foodGroup,
     quantityLow: quantityLow ?? this.quantityLow,
     quantityHigh: quantityHigh ?? this.quantityHigh,
     quantityUnit: quantityUnit ?? this.quantityUnit,
@@ -632,6 +668,7 @@ class FoodEntryTableData extends DataClass
       databaseFoodSource: data.databaseFoodSource.present
           ? data.databaseFoodSource.value
           : this.databaseFoodSource,
+      foodGroup: data.foodGroup.present ? data.foodGroup.value : this.foodGroup,
       quantityLow: data.quantityLow.present
           ? data.quantityLow.value
           : this.quantityLow,
@@ -655,6 +692,7 @@ class FoodEntryTableData extends DataClass
           ..write('databaseFoodSourceRef: $databaseFoodSourceRef, ')
           ..write('databaseFoodDisplayName: $databaseFoodDisplayName, ')
           ..write('databaseFoodSource: $databaseFoodSource, ')
+          ..write('foodGroup: $foodGroup, ')
           ..write('quantityLow: $quantityLow, ')
           ..write('quantityHigh: $quantityHigh, ')
           ..write('quantityUnit: $quantityUnit, ')
@@ -670,6 +708,7 @@ class FoodEntryTableData extends DataClass
     databaseFoodSourceRef,
     databaseFoodDisplayName,
     databaseFoodSource,
+    foodGroup,
     quantityLow,
     quantityHigh,
     quantityUnit,
@@ -684,6 +723,7 @@ class FoodEntryTableData extends DataClass
           other.databaseFoodSourceRef == this.databaseFoodSourceRef &&
           other.databaseFoodDisplayName == this.databaseFoodDisplayName &&
           other.databaseFoodSource == this.databaseFoodSource &&
+          other.foodGroup == this.foodGroup &&
           other.quantityLow == this.quantityLow &&
           other.quantityHigh == this.quantityHigh &&
           other.quantityUnit == this.quantityUnit &&
@@ -696,6 +736,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
   final Value<String> databaseFoodSourceRef;
   final Value<String> databaseFoodDisplayName;
   final Value<String> databaseFoodSource;
+  final Value<String> foodGroup;
   final Value<String> quantityLow;
   final Value<String> quantityHigh;
   final Value<String> quantityUnit;
@@ -706,6 +747,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
     this.databaseFoodSourceRef = const Value.absent(),
     this.databaseFoodDisplayName = const Value.absent(),
     this.databaseFoodSource = const Value.absent(),
+    this.foodGroup = const Value.absent(),
     this.quantityLow = const Value.absent(),
     this.quantityHigh = const Value.absent(),
     this.quantityUnit = const Value.absent(),
@@ -717,6 +759,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
     required String databaseFoodSourceRef,
     required String databaseFoodDisplayName,
     required String databaseFoodSource,
+    this.foodGroup = const Value.absent(),
     required String quantityLow,
     required String quantityHigh,
     required String quantityUnit,
@@ -735,6 +778,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
     Expression<String>? databaseFoodSourceRef,
     Expression<String>? databaseFoodDisplayName,
     Expression<String>? databaseFoodSource,
+    Expression<String>? foodGroup,
     Expression<String>? quantityLow,
     Expression<String>? quantityHigh,
     Expression<String>? quantityUnit,
@@ -749,6 +793,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
         'database_food_display_name': databaseFoodDisplayName,
       if (databaseFoodSource != null)
         'database_food_source': databaseFoodSource,
+      if (foodGroup != null) 'food_group': foodGroup,
       if (quantityLow != null) 'quantity_low': quantityLow,
       if (quantityHigh != null) 'quantity_high': quantityHigh,
       if (quantityUnit != null) 'quantity_unit': quantityUnit,
@@ -763,6 +808,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
     Value<String>? databaseFoodSourceRef,
     Value<String>? databaseFoodDisplayName,
     Value<String>? databaseFoodSource,
+    Value<String>? foodGroup,
     Value<String>? quantityLow,
     Value<String>? quantityHigh,
     Value<String>? quantityUnit,
@@ -776,6 +822,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
       databaseFoodDisplayName:
           databaseFoodDisplayName ?? this.databaseFoodDisplayName,
       databaseFoodSource: databaseFoodSource ?? this.databaseFoodSource,
+      foodGroup: foodGroup ?? this.foodGroup,
       quantityLow: quantityLow ?? this.quantityLow,
       quantityHigh: quantityHigh ?? this.quantityHigh,
       quantityUnit: quantityUnit ?? this.quantityUnit,
@@ -805,6 +852,9 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
     if (databaseFoodSource.present) {
       map['database_food_source'] = Variable<String>(databaseFoodSource.value);
     }
+    if (foodGroup.present) {
+      map['food_group'] = Variable<String>(foodGroup.value);
+    }
     if (quantityLow.present) {
       map['quantity_low'] = Variable<String>(quantityLow.value);
     }
@@ -830,6 +880,7 @@ class FoodEntryTableCompanion extends UpdateCompanion<FoodEntryTableData> {
           ..write('databaseFoodSourceRef: $databaseFoodSourceRef, ')
           ..write('databaseFoodDisplayName: $databaseFoodDisplayName, ')
           ..write('databaseFoodSource: $databaseFoodSource, ')
+          ..write('foodGroup: $foodGroup, ')
           ..write('quantityLow: $quantityLow, ')
           ..write('quantityHigh: $quantityHigh, ')
           ..write('quantityUnit: $quantityUnit, ')
@@ -1589,6 +1640,457 @@ class CoachInteractionTableCompanion
   }
 }
 
+class $CoachDismissalTableTable extends CoachDismissalTable
+    with TableInfo<$CoachDismissalTableTable, CoachDismissalTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CoachDismissalTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dismissalKeyMeta = const VerificationMeta(
+    'dismissalKey',
+  );
+  @override
+  late final GeneratedColumn<String> dismissalKey = GeneratedColumn<String>(
+    'dismissal_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dismissedAtUtcMeta = const VerificationMeta(
+    'dismissedAtUtc',
+  );
+  @override
+  late final GeneratedColumn<String> dismissedAtUtc = GeneratedColumn<String>(
+    'dismissed_at_utc',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [dismissalKey, dismissedAtUtc];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'coach_dismissal_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CoachDismissalTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('dismissal_key')) {
+      context.handle(
+        _dismissalKeyMeta,
+        dismissalKey.isAcceptableOrUnknown(
+          data['dismissal_key']!,
+          _dismissalKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_dismissalKeyMeta);
+    }
+    if (data.containsKey('dismissed_at_utc')) {
+      context.handle(
+        _dismissedAtUtcMeta,
+        dismissedAtUtc.isAcceptableOrUnknown(
+          data['dismissed_at_utc']!,
+          _dismissedAtUtcMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_dismissedAtUtcMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dismissalKey};
+  @override
+  CoachDismissalTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CoachDismissalTableData(
+      dismissalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dismissal_key'],
+      )!,
+      dismissedAtUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dismissed_at_utc'],
+      )!,
+    );
+  }
+
+  @override
+  $CoachDismissalTableTable createAlias(String alias) {
+    return $CoachDismissalTableTable(attachedDatabase, alias);
+  }
+}
+
+class CoachDismissalTableData extends DataClass
+    implements Insertable<CoachDismissalTableData> {
+  /// `coachNoteDismissalKey(id)` / `openPlateDismissalKey(day, slot)`.
+  final String dismissalKey;
+
+  /// UTC ISO-8601 — when the user dismissed it.
+  final String dismissedAtUtc;
+  const CoachDismissalTableData({
+    required this.dismissalKey,
+    required this.dismissedAtUtc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['dismissal_key'] = Variable<String>(dismissalKey);
+    map['dismissed_at_utc'] = Variable<String>(dismissedAtUtc);
+    return map;
+  }
+
+  CoachDismissalTableCompanion toCompanion(bool nullToAbsent) {
+    return CoachDismissalTableCompanion(
+      dismissalKey: Value(dismissalKey),
+      dismissedAtUtc: Value(dismissedAtUtc),
+    );
+  }
+
+  factory CoachDismissalTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CoachDismissalTableData(
+      dismissalKey: serializer.fromJson<String>(json['dismissalKey']),
+      dismissedAtUtc: serializer.fromJson<String>(json['dismissedAtUtc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dismissalKey': serializer.toJson<String>(dismissalKey),
+      'dismissedAtUtc': serializer.toJson<String>(dismissedAtUtc),
+    };
+  }
+
+  CoachDismissalTableData copyWith({
+    String? dismissalKey,
+    String? dismissedAtUtc,
+  }) => CoachDismissalTableData(
+    dismissalKey: dismissalKey ?? this.dismissalKey,
+    dismissedAtUtc: dismissedAtUtc ?? this.dismissedAtUtc,
+  );
+  CoachDismissalTableData copyWithCompanion(CoachDismissalTableCompanion data) {
+    return CoachDismissalTableData(
+      dismissalKey: data.dismissalKey.present
+          ? data.dismissalKey.value
+          : this.dismissalKey,
+      dismissedAtUtc: data.dismissedAtUtc.present
+          ? data.dismissedAtUtc.value
+          : this.dismissedAtUtc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachDismissalTableData(')
+          ..write('dismissalKey: $dismissalKey, ')
+          ..write('dismissedAtUtc: $dismissedAtUtc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(dismissalKey, dismissedAtUtc);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CoachDismissalTableData &&
+          other.dismissalKey == this.dismissalKey &&
+          other.dismissedAtUtc == this.dismissedAtUtc);
+}
+
+class CoachDismissalTableCompanion
+    extends UpdateCompanion<CoachDismissalTableData> {
+  final Value<String> dismissalKey;
+  final Value<String> dismissedAtUtc;
+  final Value<int> rowid;
+  const CoachDismissalTableCompanion({
+    this.dismissalKey = const Value.absent(),
+    this.dismissedAtUtc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CoachDismissalTableCompanion.insert({
+    required String dismissalKey,
+    required String dismissedAtUtc,
+    this.rowid = const Value.absent(),
+  }) : dismissalKey = Value(dismissalKey),
+       dismissedAtUtc = Value(dismissedAtUtc);
+  static Insertable<CoachDismissalTableData> custom({
+    Expression<String>? dismissalKey,
+    Expression<String>? dismissedAtUtc,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dismissalKey != null) 'dismissal_key': dismissalKey,
+      if (dismissedAtUtc != null) 'dismissed_at_utc': dismissedAtUtc,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CoachDismissalTableCompanion copyWith({
+    Value<String>? dismissalKey,
+    Value<String>? dismissedAtUtc,
+    Value<int>? rowid,
+  }) {
+    return CoachDismissalTableCompanion(
+      dismissalKey: dismissalKey ?? this.dismissalKey,
+      dismissedAtUtc: dismissedAtUtc ?? this.dismissedAtUtc,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dismissalKey.present) {
+      map['dismissal_key'] = Variable<String>(dismissalKey.value);
+    }
+    if (dismissedAtUtc.present) {
+      map['dismissed_at_utc'] = Variable<String>(dismissedAtUtc.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoachDismissalTableCompanion(')
+          ..write('dismissalKey: $dismissalKey, ')
+          ..write('dismissedAtUtc: $dismissedAtUtc, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KvTableTable extends KvTable with TableInfo<$KvTableTable, KvTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KvTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'kv_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KvTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  KvTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KvTableData(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $KvTableTable createAlias(String alias) {
+    return $KvTableTable(attachedDatabase, alias);
+  }
+}
+
+class KvTableData extends DataClass implements Insertable<KvTableData> {
+  /// A dotted, namespaced key, e.g. `ai.byokKey`, `export.lastAtUtc`.
+  final String key;
+
+  /// The value as text (JSON for structured values).
+  final String value;
+  const KvTableData({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  KvTableCompanion toCompanion(bool nullToAbsent) {
+    return KvTableCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory KvTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KvTableData(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  KvTableData copyWith({String? key, String? value}) =>
+      KvTableData(key: key ?? this.key, value: value ?? this.value);
+  KvTableData copyWithCompanion(KvTableCompanion data) {
+    return KvTableData(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KvTableData(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KvTableData &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class KvTableCompanion extends UpdateCompanion<KvTableData> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const KvTableCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KvTableCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<KvTableData> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KvTableCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return KvTableCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KvTableCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1597,6 +2099,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CoachNoteTableTable coachNoteTable = $CoachNoteTableTable(this);
   late final $CoachInteractionTableTable coachInteractionTable =
       $CoachInteractionTableTable(this);
+  late final $CoachDismissalTableTable coachDismissalTable =
+      $CoachDismissalTableTable(this);
+  late final $KvTableTable kvTable = $KvTableTable(this);
+  late final Index idxPlateLoggedAt = Index(
+    'idx_plate_logged_at',
+    'CREATE INDEX idx_plate_logged_at ON plate_log_table (logged_at_utc)',
+  );
+  late final Index idxEntryPlate = Index(
+    'idx_entry_plate',
+    'CREATE INDEX idx_entry_plate ON food_entry_table (plate_log_id)',
+  );
+  late final Index idxNotePlate = Index(
+    'idx_note_plate',
+    'CREATE INDEX idx_note_plate ON coach_note_table (plate_log_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1606,6 +2123,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     foodEntryTable,
     coachNoteTable,
     coachInteractionTable,
+    coachDismissalTable,
+    kvTable,
+    idxPlateLoggedAt,
+    idxEntryPlate,
+    idxNotePlate,
   ];
 }
 
@@ -1753,6 +2275,7 @@ typedef $$FoodEntryTableTableCreateCompanionBuilder =
       required String databaseFoodSourceRef,
       required String databaseFoodDisplayName,
       required String databaseFoodSource,
+      Value<String> foodGroup,
       required String quantityLow,
       required String quantityHigh,
       required String quantityUnit,
@@ -1765,6 +2288,7 @@ typedef $$FoodEntryTableTableUpdateCompanionBuilder =
       Value<String> databaseFoodSourceRef,
       Value<String> databaseFoodDisplayName,
       Value<String> databaseFoodSource,
+      Value<String> foodGroup,
       Value<String> quantityLow,
       Value<String> quantityHigh,
       Value<String> quantityUnit,
@@ -1802,6 +2326,11 @@ class $$FoodEntryTableTableFilterComposer
 
   ColumnFilters<String> get databaseFoodSource => $composableBuilder(
     column: $table.databaseFoodSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get foodGroup => $composableBuilder(
+    column: $table.foodGroup,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1860,6 +2389,11 @@ class $$FoodEntryTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get foodGroup => $composableBuilder(
+    column: $table.foodGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get quantityLow => $composableBuilder(
     column: $table.quantityLow,
     builder: (column) => ColumnOrderings(column),
@@ -1912,6 +2446,9 @@ class $$FoodEntryTableTableAnnotationComposer
     column: $table.databaseFoodSource,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get foodGroup =>
+      $composableBuilder(column: $table.foodGroup, builder: (column) => column);
 
   GeneratedColumn<String> get quantityLow => $composableBuilder(
     column: $table.quantityLow,
@@ -1976,6 +2513,7 @@ class $$FoodEntryTableTableTableManager
                 Value<String> databaseFoodSourceRef = const Value.absent(),
                 Value<String> databaseFoodDisplayName = const Value.absent(),
                 Value<String> databaseFoodSource = const Value.absent(),
+                Value<String> foodGroup = const Value.absent(),
                 Value<String> quantityLow = const Value.absent(),
                 Value<String> quantityHigh = const Value.absent(),
                 Value<String> quantityUnit = const Value.absent(),
@@ -1986,6 +2524,7 @@ class $$FoodEntryTableTableTableManager
                 databaseFoodSourceRef: databaseFoodSourceRef,
                 databaseFoodDisplayName: databaseFoodDisplayName,
                 databaseFoodSource: databaseFoodSource,
+                foodGroup: foodGroup,
                 quantityLow: quantityLow,
                 quantityHigh: quantityHigh,
                 quantityUnit: quantityUnit,
@@ -1998,6 +2537,7 @@ class $$FoodEntryTableTableTableManager
                 required String databaseFoodSourceRef,
                 required String databaseFoodDisplayName,
                 required String databaseFoodSource,
+                Value<String> foodGroup = const Value.absent(),
                 required String quantityLow,
                 required String quantityHigh,
                 required String quantityUnit,
@@ -2008,6 +2548,7 @@ class $$FoodEntryTableTableTableManager
                 databaseFoodSourceRef: databaseFoodSourceRef,
                 databaseFoodDisplayName: databaseFoodDisplayName,
                 databaseFoodSource: databaseFoodSource,
+                foodGroup: foodGroup,
                 quantityLow: quantityLow,
                 quantityHigh: quantityHigh,
                 quantityUnit: quantityUnit,
@@ -2459,6 +3000,302 @@ typedef $$CoachInteractionTableTableProcessedTableManager =
       CoachInteractionTableData,
       PrefetchHooks Function()
     >;
+typedef $$CoachDismissalTableTableCreateCompanionBuilder =
+    CoachDismissalTableCompanion Function({
+      required String dismissalKey,
+      required String dismissedAtUtc,
+      Value<int> rowid,
+    });
+typedef $$CoachDismissalTableTableUpdateCompanionBuilder =
+    CoachDismissalTableCompanion Function({
+      Value<String> dismissalKey,
+      Value<String> dismissedAtUtc,
+      Value<int> rowid,
+    });
+
+class $$CoachDismissalTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CoachDismissalTableTable> {
+  $$CoachDismissalTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dismissalKey => $composableBuilder(
+    column: $table.dismissalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dismissedAtUtc => $composableBuilder(
+    column: $table.dismissedAtUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CoachDismissalTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CoachDismissalTableTable> {
+  $$CoachDismissalTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dismissalKey => $composableBuilder(
+    column: $table.dismissalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dismissedAtUtc => $composableBuilder(
+    column: $table.dismissedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CoachDismissalTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CoachDismissalTableTable> {
+  $$CoachDismissalTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dismissalKey => $composableBuilder(
+    column: $table.dismissalKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dismissedAtUtc => $composableBuilder(
+    column: $table.dismissedAtUtc,
+    builder: (column) => column,
+  );
+}
+
+class $$CoachDismissalTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CoachDismissalTableTable,
+          CoachDismissalTableData,
+          $$CoachDismissalTableTableFilterComposer,
+          $$CoachDismissalTableTableOrderingComposer,
+          $$CoachDismissalTableTableAnnotationComposer,
+          $$CoachDismissalTableTableCreateCompanionBuilder,
+          $$CoachDismissalTableTableUpdateCompanionBuilder,
+          (
+            CoachDismissalTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CoachDismissalTableTable,
+              CoachDismissalTableData
+            >,
+          ),
+          CoachDismissalTableData,
+          PrefetchHooks Function()
+        > {
+  $$CoachDismissalTableTableTableManager(
+    _$AppDatabase db,
+    $CoachDismissalTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CoachDismissalTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CoachDismissalTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CoachDismissalTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> dismissalKey = const Value.absent(),
+                Value<String> dismissedAtUtc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CoachDismissalTableCompanion(
+                dismissalKey: dismissalKey,
+                dismissedAtUtc: dismissedAtUtc,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dismissalKey,
+                required String dismissedAtUtc,
+                Value<int> rowid = const Value.absent(),
+              }) => CoachDismissalTableCompanion.insert(
+                dismissalKey: dismissalKey,
+                dismissedAtUtc: dismissedAtUtc,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CoachDismissalTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CoachDismissalTableTable,
+      CoachDismissalTableData,
+      $$CoachDismissalTableTableFilterComposer,
+      $$CoachDismissalTableTableOrderingComposer,
+      $$CoachDismissalTableTableAnnotationComposer,
+      $$CoachDismissalTableTableCreateCompanionBuilder,
+      $$CoachDismissalTableTableUpdateCompanionBuilder,
+      (
+        CoachDismissalTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $CoachDismissalTableTable,
+          CoachDismissalTableData
+        >,
+      ),
+      CoachDismissalTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$KvTableTableCreateCompanionBuilder =
+    KvTableCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$KvTableTableUpdateCompanionBuilder =
+    KvTableCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$KvTableTableFilterComposer
+    extends Composer<_$AppDatabase, $KvTableTable> {
+  $$KvTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$KvTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $KvTableTable> {
+  $$KvTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KvTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KvTableTable> {
+  $$KvTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$KvTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KvTableTable,
+          KvTableData,
+          $$KvTableTableFilterComposer,
+          $$KvTableTableOrderingComposer,
+          $$KvTableTableAnnotationComposer,
+          $$KvTableTableCreateCompanionBuilder,
+          $$KvTableTableUpdateCompanionBuilder,
+          (
+            KvTableData,
+            BaseReferences<_$AppDatabase, $KvTableTable, KvTableData>,
+          ),
+          KvTableData,
+          PrefetchHooks Function()
+        > {
+  $$KvTableTableTableManager(_$AppDatabase db, $KvTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KvTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KvTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KvTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KvTableCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  KvTableCompanion.insert(key: key, value: value, rowid: rowid),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$KvTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KvTableTable,
+      KvTableData,
+      $$KvTableTableFilterComposer,
+      $$KvTableTableOrderingComposer,
+      $$KvTableTableAnnotationComposer,
+      $$KvTableTableCreateCompanionBuilder,
+      $$KvTableTableUpdateCompanionBuilder,
+      (KvTableData, BaseReferences<_$AppDatabase, $KvTableTable, KvTableData>),
+      KvTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2471,4 +3308,8 @@ class $AppDatabaseManager {
       $$CoachNoteTableTableTableManager(_db, _db.coachNoteTable);
   $$CoachInteractionTableTableTableManager get coachInteractionTable =>
       $$CoachInteractionTableTableTableManager(_db, _db.coachInteractionTable);
+  $$CoachDismissalTableTableTableManager get coachDismissalTable =>
+      $$CoachDismissalTableTableTableManager(_db, _db.coachDismissalTable);
+  $$KvTableTableTableManager get kvTable =>
+      $$KvTableTableTableManager(_db, _db.kvTable);
 }

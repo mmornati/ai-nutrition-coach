@@ -4,10 +4,9 @@
 //   * all four rungs (`NoopAiRung`, `HostedQuotaAiRung`,
 //     `ByokAiRung`, `LocalAiRung`) implement the `AiRung` interface;
 //   * `LocalAiRung.recognize` throws `UnsupportedError` (FR8 v2 seam);
-//   * `HostedQuotaAiRung.recognize` returns the documented
-//     `RecognitionFailure` stub (Story 3.2 fills the body);
-//   * `ByokAiRung.recognize` returns the documented
-//     `RecognitionFailure` stub (Story 3.3 fills the body);
+//   * `HostedQuotaAiRung` / `ByokAiRung` are wired through their ports
+//     (Stories 3.2 / 3.3 — behaviour is pinned in their own suites; this
+//     file only pins interface conformance + the no-key / no-match edges);
 //   * `NoopAiRung.recognize` continues to ship the empty
 //     `RecognizedPlate` shape (Story 1.8 carry-over — no regression).
 
@@ -16,6 +15,34 @@ import 'dart:typed_data';
 import 'package:domain_core/domain_core.dart';
 import 'package:integrations/integrations.dart';
 import 'package:test/test.dart';
+
+class _NoMatchHostedProvider implements HostedQuotaProvider {
+  const _NoMatchHostedProvider();
+
+  @override
+  Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async =>
+      const HostedQuotaNoMatch();
+}
+
+class _NeverCalledByokProvider implements ByokOpenAiCompatibleProvider {
+  const _NeverCalledByokProvider();
+
+  @override
+  Future<ByokOutcome> recognize({
+    required Uint8List photoBytes,
+    required String apiKey,
+  }) async => throw StateError('provider must not be called without a key');
+}
+
+HostedQuotaAiRung _hosted() => HostedQuotaAiRung(
+  quotaCounter: InMemoryQuotaCounter(ceiling: 1),
+  provider: const _NoMatchHostedProvider(),
+);
+
+ByokAiRung _byok() => ByokAiRung(
+  keyStore: InMemoryByokKeyStore(),
+  provider: const _NeverCalledByokProvider(),
+);
 
 void main() {
   group('AiRung adapters (Story 3.1 / AD-5)', () {
@@ -27,26 +54,22 @@ void main() {
       expect((result as RecognizedPlate).foods, isEmpty);
     });
 
-    test('HostedQuotaAiRung implements AiRung and returns the documented '
-        'RecognitionFailure stub (Story 3.2 fills the body)', () async {
-      const AiRung rung = HostedQuotaAiRung();
+    test('HostedQuotaAiRung implements AiRung and maps a provider '
+        'no-match to NoMatch (Story 3.2)', () async {
+      final AiRung rung = _hosted();
       final result = await rung.recognize(Uint8List(0));
-      expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('hosted-quota not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.2'));
+      expect(result, isA<NoMatch>());
     });
 
-    test('ByokAiRung implements AiRung and returns the documented '
-        'RecognitionFailure stub (Story 3.3 fills the body)', () async {
-      const AiRung rung = ByokAiRung();
+    test('ByokAiRung implements AiRung and returns the calm key-missing '
+        'RecognitionFailure when no key is stored (Story 3.3)', () async {
+      final AiRung rung = _byok();
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<RecognitionFailure>());
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('byok not yet wired'));
-      expect((result as RecognitionFailure).cause.toString(),
-          contains('Story 3.3'));
+      expect(
+        (result as RecognitionFailure).cause.toString(),
+        contains('byok key missing'),
+      );
     });
 
     test('LocalAiRung implements AiRung and throws UnsupportedError '
@@ -67,8 +90,8 @@ void main() {
         'holds one of each', () {
       final rungs = <AiRung>[
         const NoopAiRung(),
-        const HostedQuotaAiRung(),
-        const ByokAiRung(),
+        _hosted(),
+        _byok(),
         const LocalAiRung(),
       ];
       expect(rungs, hasLength(4));

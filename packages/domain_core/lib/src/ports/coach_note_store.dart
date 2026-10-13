@@ -24,12 +24,12 @@
 //
 // FR9: every note + every interaction persists locally in the
 // encrypted store. The port is `append` / `recordInteraction`-only —
-// there is no `update` or `delete` method in v1.
+// the only removal is `deleteForPlate` (the single-plate delete cascade, PV5).
 
 import '../entities/coach_note.dart';
 import '../results/coach_interaction_failure.dart';
 import '../results/coach_note_failure.dart';
-import '../value_types/coach_interaction.dart';
+import '../results/store_failure.dart' show DeletePlateResult;
 
 /// The single sanctioned coach-note write/read port (AD-1 / AD-3).
 abstract interface class CoachNoteStore {
@@ -54,6 +54,24 @@ abstract interface class CoachNoteStore {
   /// (pre-2.2 plates have no note, render without the whisper).
   Future<List<CoachNote>> forPlate(int plateLogId);
 
+  /// Watch the notes anchored to [plateLogId], oldest first. Emits the
+  /// current list, then a fresh one whenever a note is appended — so a
+  /// whisper that is written a moment AFTER the plate commit (the
+  /// post-resolve generator) still appears (security review F6: the old
+  /// one-shot read cached an empty list). Never throws: a read failure
+  /// emits an empty list.
+  Stream<List<CoachNote>> watchForPlate(int plateLogId);
+
+  /// Persist a "quiet" marker for [key] (see `coachNoteDismissalKey` / `openPlateDismissalKey`): the
+  /// whisper / hint it names stays hidden across restarts. Idempotent.
+  /// A failure is a typed `CoachInteractionFailed`; the UI still hides the
+  /// whisper for the session.
+  Future<CoachInteractionResult> recordDismissal(String key);
+
+  /// Watch the set of dismissed keys. Emits the current set, then a fresh
+  /// one on every change. A read failure emits an empty set.
+  Stream<Set<String>> watchDismissals();
+
   /// Append a single `CoachInteractionLog` entry — the local record
   /// of one user action against a coach whisper (FR5 / FR9 / Story
   /// 2.3). The adapter assigns the autoincrement `interactionId` on
@@ -72,7 +90,12 @@ abstract interface class CoachNoteStore {
   /// user action regardless of the write outcome so the UI still
   /// reflects the user's intent (whisper dismisses, depth panel
   /// closes) on a failed write.
-  Future<CoachInteractionResult> recordInteraction(
-    CoachInteractionLog log,
-  );
+  Future<CoachInteractionResult> recordInteraction(CoachInteractionLog log);
+
+  /// Remove everything this store holds about [plateLogId]: its notes, the
+  /// interactions logged against those notes, and the dismissal markers of
+  /// those notes (`coachNoteDismissalKey`). The cascade of a single-plate
+  /// delete (privacy audit PV5). Idempotent; an unknown id is a success.
+  /// Never throws.
+  Future<DeletePlateResult> deleteForPlate(int plateLogId);
 }

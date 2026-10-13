@@ -28,10 +28,7 @@ void main() {
       configStore = _FakeConfigStore(
         initial: const AiRungConfig(kind: AiRungKind.hostedQuota),
       );
-      useCase = RecordByokChange(
-        keyStore: keyStore,
-        configStore: configStore,
-      );
+      useCase = RecordByokChange(keyStore: keyStore, configStore: configStore);
     });
 
     test('enterByok writes the key AND updates the config in one '
@@ -57,8 +54,7 @@ void main() {
     });
 
     test('removeByok clears the key AND flips the active rung back '
-        'to the recorded previous rung (FR7 — not always noOp)',
-        () async {
+        'to the recorded previous rung (FR7 — not always noOp)', () async {
       // First enter the BYOK rung.
       await useCase.enterByok(
         apiKey: 'sk-test-1234',
@@ -83,16 +79,11 @@ void main() {
       configStore = _FakeConfigStore(
         initial: const AiRungConfig(kind: AiRungKind.noOp),
       );
-      useCase = RecordByokChange(
-        keyStore: keyStore,
-        configStore: configStore,
-      );
+      useCase = RecordByokChange(keyStore: keyStore, configStore: configStore);
 
       // Pretend we entered BYOK without a previous rung recorded.
-      keyStore.write('sk-test-1234');
-      await configStore.write(
-        const AiRungConfig(kind: AiRungKind.byok),
-      );
+      await keyStore.write('sk-test-1234');
+      await configStore.write(const AiRungConfig(kind: AiRungKind.byok));
 
       final newConfig = await useCase.removeByok();
 

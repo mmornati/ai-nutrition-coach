@@ -1,0 +1,50 @@
+# Dependabot version updates (B6). Pull requests only propose bumps; every one
+# still goes through the full CI gate and the named-reviewer sign-off.
+version: 2
+updates:
+  # Dart pub workspace: the root pubspec owns pubspec.lock and each member
+  # has its own constraints. `directories` (with globs) is supported for pub,
+  # so one entry and one grouped PR cover the whole workspace.
+  - package-ecosystem: pub
+    directories:
+      - /
+      - /apps/client
+      - /packages/*
+    schedule:
+      interval: weekly
+    groups:
+      pub:
+        patterns: ['*']
+
+  # Actions are pinned by commit SHA (with a version comment); Dependabot
+  # keeps both in step.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  # Container base images are pinned by digest. Version bumps of the Flutter
+  # toolchain image are deliberately NOT proposed here: a toolchain bump must
+  # update every pin together, by hand:
+  #   scripts/flutter_docker.sh (FLUTTER_VERSION + digest), infra/Dockerfile,
+  #   .github/workflows/ci.yml (container image), the subosito/flutter-action
+  #   `flutter-version` in ndp-review.yml and release-gate.yml, and
+  #   CONTRIBUTING.md. Digest refreshes of the current tag still arrive.
+  - package-ecosystem: docker
+    directory: /infra
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: ghcr.io/cirruslabs/flutter
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
+
+  - package-ecosystem: docker-compose
+    directory: /infra
+    schedule:
+      interval: weekly

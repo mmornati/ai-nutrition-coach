@@ -8,9 +8,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/capture_fab.dart';
-import 'package:openplate_client/widgets/capture_sheet.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/capture_fab.dart';
+import 'package:ai_nutrition_coach/widgets/capture_sheet.dart';
 
 /// The `Material` widget is the FAB's tap target — `InkWell` reports
 /// a hit-tested size but the rendered circle sits inside the Material,
@@ -44,8 +44,9 @@ Future<void> _pump(
 
 void main() {
   group('CaptureFab', () {
-    testWidgets('renders the `+` icon and the open-capture-sheet label',
-        (tester) async {
+    testWidgets('renders the `+` icon and the open-capture-sheet label', (
+      tester,
+    ) async {
       await _pump(
         tester,
         onSnapshot: () {},
@@ -87,8 +88,9 @@ void main() {
       expect(typeOrTalk, 0);
     });
 
-    testWidgets('the FAB has a ≥48px hit target on both axes (NFR7)',
-        (tester) async {
+    testWidgets('the FAB has a ≥48px hit target on both axes (NFR7)', (
+      tester,
+    ) async {
       await _pump(
         tester,
         onSnapshot: () {},
@@ -97,14 +99,21 @@ void main() {
       );
 
       final size = tester.getSize(_fabTapTarget());
-      expect(size.width, greaterThanOrEqualTo(AppTouchTargets.min),
-          reason: 'FAB width ${size.width} below 48px');
-      expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min),
-          reason: 'FAB height ${size.height} below 48px');
+      expect(
+        size.width,
+        greaterThanOrEqualTo(AppTouchTargets.min),
+        reason: 'FAB width ${size.width} below 48px',
+      );
+      expect(
+        size.height,
+        greaterThanOrEqualTo(AppTouchTargets.min),
+        reason: 'FAB height ${size.height} below 48px',
+      );
     });
 
-    testWidgets('reduced-motion: the FAB still opens the sheet on tap',
-        (tester) async {
+    testWidgets('reduced-motion: the FAB still opens the sheet on tap', (
+      tester,
+    ) async {
       var snap = 0;
       await _pump(
         tester,

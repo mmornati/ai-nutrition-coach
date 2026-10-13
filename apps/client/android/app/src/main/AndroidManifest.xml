@@ -1,8 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds only get what is declared here (the debug/profile
+         manifests add INTERNET for the Flutter tool). The Open Food Facts
+         lookup and the optional bring-your-own-key AI rung both need it.
+         CAMERA is merged in from mobile_scanner's own manifest, so it is
+         intentionally not declared a second time. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="OpenPlate"
+        android:label="AI Nutrition Coach"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

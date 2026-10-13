@@ -1,15 +1,30 @@
-# OpenPlate CI — reproducible build gate (NFR9).
+# AI Nutrition Coach CI — reproducible build gate (NFR9).
 #
-# Runs on every pull request and push to main. Three responsibilities:
-#   1. Static analysis across the whole workspace via `melos run analyze`,
-#      which delegates to `flutter analyze` (apps/client) and `dart analyze`
-#      (pure-Dart packages) — see melos.yaml.
-#   2. Format check via `melos run format:check` so whitespace drift is
-#      caught before review.
-#   3. A smoke test (the canonical `domain_core` AD-1 invariant + the
-#      `openplate_client` widget smoke test). The AD-1 test is the
-#      architectural gate that catches a forbidden import landing in
-#      `packages/domain_core` before it reaches main.
+# Runs on every pull request and push to main. Jobs:
+#   verify  — format check, static analysis (`melos run analyze`), the full
+#             test suite (`melos run test`), then `flutter build web --release`
+#             plus the bundle scans, inside the pinned Flutter container.
+#   apk     — `flutter build apk --debug` on the plain runner (its preinstalled
+#             Android SDK + Gradle). Separate job on purpose: in one container
+#             job the SDK download, Gradle caches and the web build exhausted
+#             the runner's disk ("No space left on device"). Debug only: a
+#             release build needs apps/client/android/key.properties, which CI
+#             deliberately does not have (docs/release-checklist.md).
+#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
+#             actually builds (it is built from the committed pubspec.lock),
+#             then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
+#
+# Secret scanning of the git history lives in gitleaks.yml (push, PR, weekly
+# schedule and manual dispatch).
+#
+# Build output is scanned for key-shaped strings after the web and APK builds
+# (tools/check_no_secrets_in_build.sh): anything compiled in is public (S1).
+#
+# Analyze + test are what the autonomous loop must pass before a story may be
+# marked committed (see _bmad-output/implementation-artifacts/loop-status.yaml).
+#
+# Toolchain: Flutter 3.44.0 pinned by version AND digest. Keep in sync with
+# scripts/flutter_docker.sh, infra/Dockerfile and CONTRIBUTING.md.
 
 name: ci
 
@@ -24,24 +39,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: jobs that need more must escalate at job level.
+permissions:
+  contents: read
+
 jobs:
   verify:
-    name: Analyze + smoke test
+    name: Analyze, test, build web
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     # Read-only token is enough for checkout + the container's tooling.
     permissions:
       contents: read
 
     container:
-      # Pin the same image the production self-host build uses. Full
-      # registry path so the job resolves on every GitHub-hosted runner.
-      image: ghcr.io/cirruslabs/flutter:stable
+      image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
       options: --user root
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Print toolchain
         run: |
@@ -57,11 +74,96 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
+      - name: Enforce the committed lockfile
+        # A drifting pubspec.lock must fail CI, not be silently rewritten.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git diff --exit-code -- pubspec.lock
+
       - name: Format check
         run: melos run format:check
 
       - name: Static analysis (AD-1 + per-package lints)
         run: melos run analyze
 
-      - name: Smoke test (domain_core AD-1 + client widget smoke)
+      - name: Tests (domain_core, integrations, client)
         run: melos run test
+
+      - name: Tests under a DST zone (TZ=Europe/Paris)
+        run: melos run test:dst
+
+      - name: Build web (release)
+        run: |
+          bash scripts/fetch_web_sqlite.sh
+          bash scripts/fetch_web_zxing.sh
+          (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost)
+          # AI Nutrition Coach's own service worker + precache manifest (ADR-0003).
+          dart run tools/generate_precache_manifest.dart apps/client/build/web
+
+      - name: Secrets scan — web bundle (S1)
+        run: |
+          bash tools/check_no_secrets_in_build.sh --self-test
+          bash tools/check_no_secrets_in_build.sh --web-only
+
+      - name: Third-party host scan — web bundle (N5)
+        run: |
+          bash tools/check_no_external_hosts.sh --self-test
+          bash tools/check_no_external_hosts.sh
+
+      - name: Telemetry gate (import-based, N6)
+        run: dart run tools/check_telemetry_claims.dart
+
+  apk:
+    name: Build Android APK (debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Flutter (same pin as the container image)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace against the committed lockfile
+        run: flutter pub get --enforce-lockfile
+
+      - name: Android platform 37
+        # flutter_secure_storage 11 compiles against android-37; the runner's
+        # preinstalled SDK may lag, so install it explicitly (licences first).
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
+
+      - name: Build APK (debug)
+        run: cd apps/client && flutter build apk --debug
+
+      - name: Secrets scan — APK (S1)
+        run: bash tools/check_no_secrets_in_build.sh --apk-only
+
+  docker:
+    name: Self-host image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build infra/Dockerfile
+        run: docker build -f infra/Dockerfile -t ai-nutrition-coach:ci .
+
+      - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ai-nutrition-coach:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table

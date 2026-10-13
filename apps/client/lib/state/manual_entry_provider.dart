@@ -61,13 +61,13 @@ class ManualEntryState {
   /// Empty / initial state. The screen renders an empty text field and
   /// no matches.
   factory ManualEntryState.initial() => const ManualEntryState(
-        query: '',
-        matches: <FoodMatch>[],
-        selected: null,
-        chosenPreset: null,
-        lastError: null,
-        catalogStatus: ManualEntryCatalogStatus.idle,
-      );
+    query: '',
+    matches: <FoodMatch>[],
+    selected: null,
+    chosenPreset: null,
+    lastError: null,
+    catalogStatus: ManualEntryCatalogStatus.idle,
+  );
 
   /// The raw text the user has typed (or transcribed). Whitespace
   /// preserved — the catalog adapter trims for the cache key.
@@ -86,9 +86,9 @@ class ManualEntryState {
   /// re-picked from the preset row.
   final QuantityRange? chosenPreset;
 
-  /// Calm copy shown above the no-match form when the adapter could
-  /// not produce a result. `null` when the adapter is healthy.
-  final String? lastError;
+  /// Why the adapter could not produce a result (the screen maps it to
+  /// localized calm copy). `null` when the adapter is healthy.
+  final ManualEntryError? lastError;
 
   /// Coarse-grained status — used by the screen to decide whether to
   /// render the ranked list, the manual-add form, or the calm failure
@@ -102,7 +102,7 @@ class ManualEntryState {
     bool clearSelected = false,
     QuantityRange? chosenPreset,
     bool clearChosenPreset = false,
-    String? lastError,
+    ManualEntryError? lastError,
     bool clearLastError = false,
     ManualEntryCatalogStatus? catalogStatus,
   }) {
@@ -110,13 +110,18 @@ class ManualEntryState {
       query: query ?? this.query,
       matches: matches ?? this.matches,
       selected: clearSelected ? null : (selected ?? this.selected),
-      chosenPreset:
-          clearChosenPreset ? null : (chosenPreset ?? this.chosenPreset),
+      chosenPreset: clearChosenPreset
+          ? null
+          : (chosenPreset ?? this.chosenPreset),
       lastError: clearLastError ? null : (lastError ?? this.lastError),
       catalogStatus: catalogStatus ?? this.catalogStatus,
     );
   }
 }
+
+/// A calm, typed reason shown above the manual-add form. The copy itself is
+/// localized by the screen (AD-7), never held in state.
+enum ManualEntryError { searchUnavailable }
 
 /// Coarse-grained status of the catalog call. The screen renders
 /// different affordances per status.
@@ -169,7 +174,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
       state = state.copyWith(
         matches: const <FoodMatch>[],
         catalogStatus: ManualEntryCatalogStatus.catalogFailure,
-        lastError: "Search isn't available right now.",
+        lastError: ManualEntryError.searchUnavailable,
         clearSelected: true,
         clearChosenPreset: true,
       );
@@ -197,7 +202,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
         state = state.copyWith(
           matches: const <FoodMatch>[],
           catalogStatus: ManualEntryCatalogStatus.catalogFailure,
-          lastError: "Search isn't available right now.",
+          lastError: ManualEntryError.searchUnavailable,
           clearSelected: true,
           clearChosenPreset: true,
         );
@@ -208,8 +213,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
   /// becomes the default chosen preset; the user can swap it via
   /// [selectPreset].
   void selectMatch(FoodMatch match) {
-    final firstPreset =
-        match.presets.isNotEmpty ? match.presets.first : null;
+    final firstPreset = match.presets.isNotEmpty ? match.presets.first : null;
     state = state.copyWith(
       selected: match,
       chosenPreset: firstPreset,
@@ -236,5 +240,5 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
 /// Epic 2 will introduce `NotifierProvider` for actual domain state.
 final manualEntryProvider =
     StateNotifierProvider<ManualEntryNotifier, ManualEntryState>(
-  (ref) => ManualEntryNotifier(ref.watch(foodCatalogProvider)),
-);
+      (ref) => ManualEntryNotifier(ref.watch(foodCatalogProvider)),
+    );

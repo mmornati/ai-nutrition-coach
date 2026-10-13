@@ -29,6 +29,36 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../state/scanner_provider.dart';
 
+/// Where the self-hosted zxing-wasm reader script is served from, relative to
+/// the document base (`<base href>`). The fetch script
+/// (`scripts/fetch_web_zxing.sh`) pins the version and writes
+/// `apps/client/web/zxing/<version>/{reader.js,zxing_reader.wasm}`; a unit
+/// test keeps this constant and the script's version in step.
+const String kWebZxingVersion = '3.1.1';
+const String kWebZxingReaderScriptPath = 'zxing/$kWebZxingVersion/reader.js';
+
+/// Phase 4 / N5, revised for the PWA (ADR-0003) — barcode decoding stays
+/// fully local on the web, without leaving Safari/iOS (which has no native
+/// `BarcodeDetector`) without a scanner.
+///
+/// `mobile_scanner`'s web reader (`WebBarcodeReader.auto`) uses the browser's
+/// native `BarcodeDetector` when it exists (Chrome, Edge) and otherwise
+/// `zxing-wasm`, which it loads as a script. By default it loads that script
+/// from cdn.jsdelivr.net (and zxing-wasm in turn fetches its `.wasm` from the
+/// same CDN) — a third-party load the CSP blocks and the zero-third-party
+/// posture forbids. So the script URL is redirected to OUR origin:
+/// [kWebZxingReaderScriptPath], a SHA-256-verified copy whose wasm path is
+/// rewritten to the sibling `zxing_reader.wasm` at build time
+/// (`scripts/fetch_web_zxing.sh`). The CDN URLs remain only as dead literals
+/// in the compiled code; `tools/check_no_external_hosts.sh` verifies that
+/// this override is present before tolerating them. No-op on Android/iOS
+/// (they use the platform ML kits).
+void configureWebBarcodeReader() {
+  final platform = MobileScannerPlatform.instance;
+  platform.setWebBarcodeReader(WebBarcodeReader.auto);
+  platform.setBarcodeLibraryScriptUrl(kWebZxingReaderScriptPath);
+}
+
 /// `BarcodeScanner` adapter — wraps `MobileScannerController` and
 /// forwards each decoded code into the `BarcodeScanner` stream.
 ///
@@ -39,21 +69,23 @@ import '../state/scanner_provider.dart';
 /// `start()` call per scan session, exactly one controller).
 class MobileScannerBarcodeScanner implements BarcodeScanner {
   MobileScannerBarcodeScanner({MobileScannerController? controller})
-      : _controller = controller ??
-            MobileScannerController(
-              // The screen processes one scan at a time; a noop
-              // barrier keeps the controller from spamming duplicate
-              // decodes while the match sheet is up.
-              detectionSpeed: DetectionSpeed.normal,
-              formats: const [
-                BarcodeFormat.ean8,
-                BarcodeFormat.ean13,
-                BarcodeFormat.upcA,
-                BarcodeFormat.upcE,
-              ],
-            );
+    : _controller =
+          controller ??
+          MobileScannerController(
+            // The screen processes one scan at a time; a noop
+            // barrier keeps the controller from spamming duplicate
+            // decodes while the match sheet is up.
+            detectionSpeed: DetectionSpeed.normal,
+            formats: const [
+              BarcodeFormat.ean8,
+              BarcodeFormat.ean13,
+              BarcodeFormat.upcA,
+              BarcodeFormat.upcE,
+            ],
+          );
 
   final MobileScannerController _controller;
+  // ignore: close_sinks
   StreamController<BarcodeScan>? _broadcast;
   StreamSubscription<BarcodeCapture>? _sub;
 
@@ -66,16 +98,41 @@ class MobileScannerBarcodeScanner implements BarcodeScanner {
 
   @override
   Stream<BarcodeScan> scan() async* {
-    _broadcast ??= StreamController<BarcodeScan>.broadcast(
+    // Closed in [dispose].
+    // ignore: close_sinks
+    final broadcast = _broadcast ??= StreamController<BarcodeScan>.broadcast(
       onListen: _attach,
       onCancel: _detach,
     );
-    yield* _broadcast!.stream;
+    yield* broadcast.stream;
   }
 
   @override
   Future<void> stop() async {
     await _detach();
+  }
+
+  @override
+  Future<void> pauseCamera() async {
+    await _controller.stop();
+  }
+
+  @override
+  Future<void> resumeCamera() async {
+    await _controller.start();
+  }
+
+  /// Release everything the adapter owns: the stream subscription, the
+  /// broadcast controller and the camera controller itself (F10 — it was
+  /// created but never disposed). Called by the provider scope on dispose.
+  Future<void> dispose() async {
+    await _detach();
+    final broadcast = _broadcast;
+    _broadcast = null;
+    if (broadcast != null && !broadcast.isClosed) {
+      await broadcast.close();
+    }
+    await _controller.dispose();
   }
 
   void _attach() {

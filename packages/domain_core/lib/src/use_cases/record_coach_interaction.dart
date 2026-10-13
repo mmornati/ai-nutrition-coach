@@ -20,16 +20,11 @@
 // `[close]` records `depthAnswer`; the depth panel disappears; the
 // underlying whisper returns to its `[sure]` / `[ask later]` form.
 //
-// The open-plate surface (UX-DR5) ships the `recordOpenPlateDismiss`
-// path: an `OpenDent` row has no logged plate, so there is no
-// `CoachNote` to anchor a `dismiss` interaction against. The
-// use-case materialises a synthetic `CoachNote` with
-// `anchor: openPlate` and `plateLogId: 0` (the documented "no plate
-// logged" sentinel) so the dismiss interaction log row has a real
-// anchor at the database layer (same convention as the rest of the
-// schema — no DB-level FK constraint, the use-case enforces the
-// back-ref). The synthetic note is not rendered to the user — it is
-// only the durable back-ref for the interaction log row.
+// Durable quiet (security review F6): `askLater` and `dismiss` also write a
+// dismissal marker (`coachNoteDismissalKey`) so the whisper stays hidden
+// after a restart. The open-plate surface (UX-DR5) has no `CoachNote` to
+// anchor anything to, so `dismissOpenPlateHint` writes only a dismissal
+// marker keyed by (day, slot) — no synthetic `plateLogId: 0` note.
 //
 // AD-5: the use-case never branches on which coach rung is active.
 // It only inspects whether `questionFor` returned a `CoachFound` and
@@ -51,7 +46,7 @@ import '../results/coach_interaction_failure.dart';
 import '../results/coach_note_failure.dart';
 import '../results/coach_question_result.dart';
 import '../results/store_failure.dart';
-import '../value_types/coach_interaction.dart';
+import '../value_types/coach_dismissal_key.dart';
 import '../value_types/composition_pattern.dart';
 
 /// The convergent result of one `RecordCoachInteraction.call(...)`
@@ -84,7 +79,10 @@ sealed class RecordCoachInteractionResult {
   final CoachInteractionResult recordInteractionOutcome;
 
   /// The bounded depth follow-up `CoachNote` the use-case appended
-  /// on the `sure` path. `null` on every other path.
+  /// on the `sure` path. `null` on every other path, when the active
+  /// coach returned `NoCoachQuestion` for `depthFollowUp`, when the
+  /// coach port threw, when a follow-up already exists (idempotent
+  /// second tap, FR5), or when the store write failed.
   final CoachNote? followedUpNote;
 }
 
@@ -92,20 +90,11 @@ class RecordCoachInteractionSure extends RecordCoachInteractionResult {
   const RecordCoachInteractionSure({
     required super.noteId,
     required super.recordInteractionOutcome,
-    this.followedUpNote,
-  }) : super(followedUpNote: followedUpNote);
+    super.followedUpNote,
+  });
 
   @override
   CoachInteraction get kind => CoachInteraction.sure;
-
-  /// The bounded depth follow-up `CoachNote` the use-case appended
-  /// on the `sure` path. `null` when the active coach returned
-  /// `NoCoachQuestion` for `depthFollowUp`, when the coach port
-  /// threw (defensive), when a follow-up already exists for the
-  /// plate (idempotent second tap, FR5), or when the store write
-  /// failed. The UI still reflects the `sure` intent — the depth
-  /// panel just doesn't render.
-  final CoachNote? followedUpNote;
 }
 
 class RecordCoachInteractionAskLater extends RecordCoachInteractionResult {
@@ -142,72 +131,19 @@ class RecordCoachInteraction {
   const RecordCoachInteraction({
     required Coach coach,
     required CoachNoteStore store,
-  })  : _coach = coach,
-        _store = store;
+  }) : _coach = coach,
+       _store = store;
 
   final Coach _coach;
   final CoachNoteStore _store;
 
-  /// Record the user's dismissal of an open-plate hint (Story 2.3
-  /// / FR5 / UX-DR5 / AC #4).
-  ///
-  /// An `OpenDent` row has no logged `PlateLog`, so there is no
-  /// `CoachNote` to anchor the `dismiss` interaction against. The
-  /// use-case materialises a synthetic `CoachNote` with
-  /// `anchor: openPlate` and `plateLogId: 0` (the documented "no
-  /// plate logged" sentinel — there is no DB-level FK constraint,
-  /// same convention as the rest of the schema), then records the
-  /// `dismiss` interaction against the newly-assigned `noteId`.
-  ///
-  /// Calm-degrade: if either store write fails, the typed result
-  /// collapses the failure but the UI still reflects the user's
-  /// intent (hint clears). The synthetic note itself is never
-  /// rendered to the user — it is the durable back-ref for the
-  /// interaction log row only (FR9).
-  Future<RecordCoachInteractionDismiss> recordOpenPlateDismiss({
-    required String questionKey,
-    required String questionText,
-  }) async {
-    final draft = CoachNote(
-      id: 0,
-      // Sentinel: no `PlateLog` exists for an `OpenDent` row. The
-      // schema has no DB-level FK constraint against
-      // `plate_log_table.id` (the constraint lives at the use-case
-      // layer — `RecordPlate` commits the plate first). The
-      // use-case is the only writer on this path, so the sentinel
-      // never escapes the open-plate dismissal path.
-      plateLogId: 0,
-      anchor: CoachAnchor.openPlate,
-      questionKey: questionKey,
-      text: questionText,
-      generatedAt: DateTime.now().toUtc(),
-    );
-
-    final appendResult = await _store.append(draft);
-    final CoachNote committedNote;
-    switch (appendResult) {
-      case CoachNoteAppended(:final note):
-        committedNote = note;
-      case CoachNoteAppendFailure():
-        // Calm-degrade: the interaction log row references the
-        // draft's `id: 0` (the store accepts this — no DB-level FK
-        // constraint). The UI still reflects the user's intent
-        // (hint clears).
-        committedNote = draft;
-    }
-
-    final log = CoachInteractionLog(
-      noteId: committedNote.id,
-      kind: CoachInteraction.dismiss,
-      at: DateTime.now().toUtc(),
-    );
-    final outcome = await _recordInteraction(log);
-
-    return RecordCoachInteractionDismiss(
-      noteId: committedNote.id,
-      recordInteractionOutcome: outcome,
-    );
-  }
+  /// Record the user's dismissal of the open-plate hint identified by
+  /// [dismissalKey] (`openPlateDismissalKey`). An `OpenDent` row has
+  /// no logged plate and therefore no `CoachNote`: the only durable record
+  /// is the dismissal marker (FR5 / UX-DR5). Calm degrade: a failed write is
+  /// a typed result; the UI still hides the hint.
+  Future<CoachInteractionResult> dismissOpenPlateHint(String dismissalKey) =>
+      _recordDismissal(dismissalKey);
 
   /// Record one user action against the coach note `note.id` and,
   /// when `kind` is `sure`, append exactly ONE bounded depth
@@ -241,28 +177,31 @@ class RecordCoachInteraction {
         followedUp = await _maybeAppendDepthFollowUp(note);
       case CoachInteraction.askLater:
       case CoachInteraction.dismiss:
+        // Quiet for good: the marker outlives the session (F6).
+        await _recordDismissal(coachNoteDismissalKey(note.id));
+        followedUp = null;
       case CoachInteraction.depthAnswer:
         followedUp = null;
     }
 
     return switch (kind) {
       CoachInteraction.sure => RecordCoachInteractionSure(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-          followedUpNote: followedUp,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+        followedUpNote: followedUp,
+      ),
       CoachInteraction.askLater => RecordCoachInteractionAskLater(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
       CoachInteraction.dismiss => RecordCoachInteractionDismiss(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
       CoachInteraction.depthAnswer => RecordCoachInteractionDepthAnswer(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
     };
   }
 
@@ -276,6 +215,16 @@ class RecordCoachInteraction {
   ) async {
     try {
       return await _store.recordInteraction(log);
+    } on Object {
+      return const CoachInteractionFailed(
+        StoreFailure(encryptedStoreError: SecureKeyFailure()),
+      );
+    }
+  }
+
+  Future<CoachInteractionResult> _recordDismissal(String key) async {
+    try {
+      return await _store.recordDismissal(key);
     } on Object {
       return const CoachInteractionFailed(
         StoreFailure(encryptedStoreError: SecureKeyFailure()),

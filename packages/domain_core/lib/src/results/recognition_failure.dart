@@ -46,8 +46,7 @@ class RecognizedPlate extends RecognitionResult {
       (other is RecognizedPlate && _listEq(other.foods, foods));
 
   @override
-  int get hashCode =>
-      Object.hash('RecognizedPlate', Object.hashAll(foods));
+  int get hashCode => Object.hash('RecognizedPlate', Object.hashAll(foods));
 
   @override
   String toString() => 'RecognizedPlate(${foods.length} foods)';
@@ -60,8 +59,7 @@ class NoMatch extends RecognitionResult {
   const NoMatch();
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is NoMatch;
+  bool operator ==(Object other) => identical(this, other) || other is NoMatch;
 
   @override
   int get hashCode => (NoMatch).hashCode;

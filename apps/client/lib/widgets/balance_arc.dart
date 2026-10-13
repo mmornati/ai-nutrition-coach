@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// The four food-group buckets the arc reports on. Declaration order is
 /// the order the arc paints — top, right, bottom, left.
@@ -25,12 +26,13 @@ enum BalanceArcGroup {
   starch,
   dairy;
 
-  String get label => switch (this) {
-        BalanceArcGroup.vegFruit => 'Veg & Fruit',
-        BalanceArcGroup.protein => 'Protein',
-        BalanceArcGroup.starch => 'Starch',
-        BalanceArcGroup.dairy => 'Dairy',
-      };
+  /// The localized group name.
+  String label(AppLocalizations l10n) => switch (this) {
+    BalanceArcGroup.vegFruit => l10n.foodGroupVegFruit,
+    BalanceArcGroup.protein => l10n.foodGroupProtein,
+    BalanceArcGroup.starch => l10n.foodGroupStarch,
+    BalanceArcGroup.dairy => l10n.foodGroupDairy,
+  };
 }
 
 /// The 4-segment balance arc. Sized to fit a 48px row budget (~64px
@@ -47,11 +49,11 @@ class BalanceArc extends StatelessWidget {
     required this.filled,
     this.size = 48,
     this.announceFilled = true,
-  })  : assert(size >= 24, 'size must be ≥ 24px for the arc to render'),
-        assert(
-          filled.length == BalanceArcGroup.values.length,
-          '`filled` must carry one entry per food-group bucket',
-        );
+  }) : assert(size >= 24, 'size must be ≥ 24px for the arc to render'),
+       assert(
+         filled.length == BalanceArcGroup.values.length,
+         '`filled` must carry one entry per food-group bucket',
+       );
 
   /// One entry per `BalanceArcGroup`, in the same order. `true` paints
   /// the sage fill on that quadrant; `false` leaves it on the track.
@@ -71,14 +73,18 @@ class BalanceArc extends StatelessWidget {
     final palette = _palette(context);
     final filledCount = filled.where((b) => b).length;
     final groups = BalanceArcGroup.values;
-    final groupLabels = groups.map((g) => g.label).join(', ');
+    final groupLabels = groups.map((g) => g.label(context.l10n)).join(', ');
     final filledSummary = announceFilled
-        ? '$filledCount of ${groups.length} filled: $groupLabels'
+        ? context.l10n.balanceArcSummary(
+            filledCount,
+            groups.length,
+            groupLabels,
+          )
         : groupLabels;
 
     return Semantics(
       container: true,
-      label: 'Balance arc — $filledSummary',
+      label: context.l10n.balanceArcSemantics(filledSummary),
       child: ExcludeSemantics(
         excluding: !announceFilled,
         child: SizedBox(
@@ -102,7 +108,7 @@ class BalanceArc extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Text(
-                  '$filledCount of ${groups.length}',
+                  context.l10n.balanceArcCount(filledCount, groups.length),
                   textAlign: TextAlign.center,
                   style: AppTypography.monoWhisper.copyWith(
                     color: palette.inkMuted,
@@ -124,11 +130,7 @@ class BalanceArc extends StatelessWidget {
 }
 
 class _ArcPainter extends CustomPainter {
-  _ArcPainter({
-    required this.filled,
-    required this.track,
-    required this.fill,
-  });
+  _ArcPainter({required this.filled, required this.track, required this.fill});
 
   final List<bool> filled;
   final Color track;

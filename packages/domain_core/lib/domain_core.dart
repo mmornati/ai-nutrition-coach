@@ -1,4 +1,4 @@
-/// Pure-Dart domain core for OpenPlate.
+/// Pure-Dart domain core for AI Nutrition Coach.
 ///
 /// This package owns entities, use-cases, and ports (the hexagonal core).
 /// It must remain free of any I/O, persistence, or UI dependency:
@@ -29,7 +29,9 @@ export 'src/ports/ai_rung.dart';
 export 'src/ports/coach.dart';
 export 'src/ports/coach_note_store.dart';
 export 'src/ports/encrypted_store.dart';
+export 'src/ports/exporter.dart';
 export 'src/ports/food_catalog.dart';
+export 'src/ports/local_data_eraser.dart';
 export 'src/ports/sync_adapter.dart';
 export 'src/ports/sync_queue.dart';
 export 'src/ports/voice_transcriber.dart';
@@ -37,9 +39,14 @@ export 'src/results/catalog_failure.dart';
 export 'src/results/coach_interaction_failure.dart';
 export 'src/results/coach_note_failure.dart';
 export 'src/results/coach_question_result.dart';
+export 'src/results/erase_failure.dart';
+export 'src/results/export_failure.dart';
 export 'src/results/recognition_failure.dart';
 export 'src/results/store_failure.dart';
 export 'src/results/sync_failure.dart';
+export 'src/use_cases/delete_plate.dart';
+export 'src/use_cases/drain_sync_queue.dart';
+export 'src/use_cases/erase_local_data.dart';
 export 'src/use_cases/generate_coach_note.dart';
 export 'src/use_cases/record_byok_change.dart';
 export 'src/use_cases/record_byok_change_ports.dart';
@@ -48,14 +55,19 @@ export 'src/use_cases/record_plate.dart';
 export 'src/use_cases/record_sync_op.dart';
 export 'src/value_types/ai_rung_config.dart';
 export 'src/value_types/ai_rung_kind.dart';
+export 'src/util/uuid_v4.dart';
+export 'src/value_types/calendar_day.dart';
+export 'src/value_types/coach_dismissal_key.dart';
 export 'src/value_types/coach_interaction.dart';
 export 'src/value_types/managed_oversight_seam.dart';
 export 'src/value_types/composition_pattern.dart';
 export 'src/value_types/export_format.dart';
+export 'src/value_types/export_reminder.dart';
 export 'src/value_types/export_scope.dart';
 export 'src/value_types/food_entry_draft.dart';
+export 'src/value_types/food_group_coverage.dart';
+export 'src/value_types/plate_range.dart';
 export 'src/value_types/quantity_range.dart';
 export 'src/value_types/recognized_food.dart';
-export 'src/value_types/web_session_key.dart';
 
 const String domainCoreVersion = '0.1.0';

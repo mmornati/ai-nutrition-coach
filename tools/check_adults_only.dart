@@ -60,28 +60,36 @@ void main() {
       for (final banned in _bannedBiometricImports) {
         if (line.contains('import \'$banned') ||
             line.contains('import "$banned')) {
-          failures.add('${entity.path}:${i + 1}: banned biometric import: '
-              '$banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned biometric import: '
+            '$banned',
+          );
         }
       }
       for (final banned in _bannedBiometricReferences) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned biometric '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned biometric '
+            'reference: $banned',
+          );
         }
       }
       for (final banned in _bannedUnder13References) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned under-13 '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned under-13 '
+            'reference: $banned',
+          );
         }
       }
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:adults-only: OK — no biometric imports, '
-        'no under-13 references.');
+    stdout.writeln(
+      'check:adults-only: OK — no biometric imports, '
+      'no under-13 references.',
+    );
     exit(0);
   }
   stderr.writeln('check:adults-only: FAIL');
@@ -94,7 +102,8 @@ void main() {
 bool _isExempt(String path) {
   // The check tool itself + test surface + generated code.
   if (path.endsWith('check_adults_only.dart')) return true;
-  if (path.contains('/tools/') && path.endsWith('_check.dart')) return true;
+  // The check scripts under tools/ carry the banned-term lists themselves.
+  if (path.startsWith('./tools/') || path.startsWith('tools/')) return true;
   if (path.contains('/test/')) return true;
   if (path.contains('/integration_test/')) return true;
   if (path.endsWith('.g.dart')) return true;

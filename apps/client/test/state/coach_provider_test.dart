@@ -14,8 +14,10 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+
+import '../_fakes/fake_encrypted_store.dart';
 
 ProviderContainer _container({Coach? coach}) {
   // Minimal EncryptedStore stub — the coach provider test does
@@ -23,7 +25,7 @@ ProviderContainer _container({Coach? coach}) {
   // the widget tree / provider graph resolves.
   final container = ProviderContainer(
     overrides: [
-      encryptedStoreProvider.overrideWithValue(const _StubEncryptedStore()),
+      encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
       if (coach != null) coachProvider.overrideWithValue(coach),
     ],
   );
@@ -33,8 +35,7 @@ ProviderContainer _container({Coach? coach}) {
 
 void main() {
   group('coachProvider', () {
-    test('throws UnimplementedError when not overridden (defensive seam)',
-        () {
+    test('throws UnimplementedError when not overridden (defensive seam)', () {
       // The seam has no default — production code must override it
       // at the ProviderScope root. This pins the error path so a
       // regression that silently defaults to a no-op is loud.
@@ -44,8 +45,7 @@ void main() {
       // provider's factory.
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
         ],
       );
       addTearDown(container.dispose);
@@ -68,8 +68,7 @@ void main() {
         'expected key for a known pattern', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -77,7 +76,6 @@ void main() {
 
       // Verify the seam resolves to the v1 active rung.
       final coach = container.read(coachProvider);
-      expect(coach, isA<Coach>());
       expect(coach, isA<TemplateCoach>());
 
       // Verify the canonical key resolves to the expected text.
@@ -136,8 +134,7 @@ void main() {
         'under the production override', () {
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(const TemplateCoach()),
         ],
       );
@@ -148,10 +145,12 @@ void main() {
 
       for (final anchor in CoachAnchor.values) {
         for (final pattern in CompositionPattern.values) {
-          final result =
-              coach.questionFor(anchor: anchor, pattern: pattern);
-          expect(result, isA<CoachFound>(),
-              reason: 'expected CoachFound for ($anchor, $pattern)');
+          final result = coach.questionFor(anchor: anchor, pattern: pattern);
+          expect(
+            result,
+            isA<CoachFound>(),
+            reason: 'expected CoachFound for ($anchor, $pattern)',
+          );
           final found = result as CoachFound;
           expect(found.question.text, isNotEmpty);
           expect(found.question.key, isNotEmpty);
@@ -166,9 +165,10 @@ void main() {
       // We use a hand-rolled fake coach to exercise the unknown-
       // pattern contract without mutating the shared key store.
       final Coach coach = _PartialCoach({
-        const CoachQuestionKey(CoachAnchor.postResolve,
-                CompositionPattern.vegLight):
-            CoachQuestion(
+        const CoachQuestionKey(
+          CoachAnchor.postResolve,
+          CompositionPattern.vegLight,
+        ): CoachQuestion(
           key: 'post.resolve.vegLight',
           text: 'A handful of greens would round this plate out.',
           anchor: CoachAnchor.postResolve,
@@ -177,8 +177,7 @@ void main() {
       });
       final container = ProviderContainer(
         overrides: [
-          encryptedStoreProvider
-              .overrideWithValue(const _StubEncryptedStore()),
+          encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
           coachProvider.overrideWithValue(coach),
         ],
       );
@@ -200,30 +199,6 @@ void main() {
       expect(unknown, isA<NoCoachQuestion>());
     });
   });
-}
-
-class _StubEncryptedStore implements EncryptedStore {
-  const _StubEncryptedStore();
-
-  @override
-  Future<RecordPlateResult> recordPlate({
-    required List<FoodEntryDraft> entries,
-    DateTime? loggedAtUtc,
-  }) async =>
-      RecordPlateSuccess(
-        PlateLog(
-          id: 0,
-          loggedAtUtc: DateTime.utc(2026, 8, 15),
-          entries: const <FoodEntry>[],
-        ),
-      );
-
-  @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
-      const Stream<List<PlateLog>>.empty();
-
-  @override
-  Future<void> close() async {}
 }
 
 /// Hand-rolled `Coach` adapter that reads from a caller-supplied map.

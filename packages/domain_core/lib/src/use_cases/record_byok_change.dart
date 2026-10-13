@@ -31,8 +31,8 @@ class RecordByokChange {
   const RecordByokChange({
     required ByokKeyStorePort keyStore,
     required AiRungConfigStorePort configStore,
-  })  : _keyStore = keyStore,
-        _configStore = configStore;
+  }) : _keyStore = keyStore,
+       _configStore = configStore;
 
   final ByokKeyStorePort _keyStore;
   final AiRungConfigStorePort _configStore;
@@ -69,7 +69,8 @@ class RecordByokChange {
   Future<AiRungConfig> removeByok() async {
     // Read the current config to find the previous rung.
     final current = await _configStore.read();
-    final previousKind = current.previousRung?.previousKind ??
+    final previousKind =
+        current.previousRung?.previousKind ??
         // Fallback: if the previous rung isn't recorded (which
         // should never happen for a real BYOK session), default
         // to `noOp` so the user is never stuck on a missing rung.

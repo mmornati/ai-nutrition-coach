@@ -1,0 +1,26 @@
+# Security headers, shared by EVERY location (I5).
+#
+# nginx's add_header is not inherited into a location that declares its own
+# add_header, so each location `include`s this file instead of relying on
+# server-level inheritance. Rendered by envsubst at container start; the only
+# variable is AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (see docs/self-host.md "CSP").
+#
+# CSP (I4):
+#   script-src 'self' 'wasm-unsafe-eval'  no inline script, no CDN. The Flutter
+#       bootstrap is an external file (apps/client/web/flutter_bootstrap.js);
+#       'wasm-unsafe-eval' is needed for CanvasKit and sqlite3mc (WebAssembly).
+#   style-src 'unsafe-inline'  Flutter's engine injects <style> elements; there
+#       is no nonce on a static host. Inline CSS cannot run script.
+#   base-uri 'self'  Flutter's engine sets the document base URI to the app
+#       origin; 'none' makes that throw a CSP violation (found in the browser
+#       smoke test).
+#   connect-src  'self' + Open Food Facts (barcode lookups) + the operator's
+#       explicit BYOK AI endpoint(s). NOT `https:`: a blanket https: would be
+#       an exfiltration channel for any injected script.
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://world.openfoodfacts.org ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA}; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header X-Frame-Options "DENY" always;
+add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always;
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Cross-Origin-Resource-Policy "same-origin" always;

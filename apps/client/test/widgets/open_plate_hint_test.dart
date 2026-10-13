@@ -6,21 +6,17 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/state/day_board_provider.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
-import 'package:openplate_client/widgets/open_dent.dart';
-import 'package:openplate_client/widgets/open_plate_hint.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/day_board_provider.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/widgets/open_dent.dart';
+import 'package:ai_nutrition_coach/widgets/open_plate_hint.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 
-Widget _wrap(
-  Widget child, {
-  FakeCoach? coach,
-  FakeCoachNoteStore? notes,
-}) {
+Widget _wrap(Widget child, {FakeCoach? coach, FakeCoachNoteStore? notes}) {
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
@@ -44,15 +40,13 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
       );
 
-      expect(
-        find.text('Greens would round this plate out.'),
-        findsOneWidget,
-      );
+      expect(find.text('Greens would round this plate out.'), findsOneWidget);
     });
 
     testWidgets('hit target is ≥48px (NFR7)', (tester) async {
@@ -61,6 +55,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
@@ -77,6 +72,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () => fired++,
           ),
         ),
@@ -93,6 +89,7 @@ void main() {
           OpenPlateHint(
             questionKey: 'openPlate.balanced',
             question: 'Greens would round this plate out.',
+            dismissalKey: 'openPlate:2026-08-16:breakfast',
             onDismissed: () {},
           ),
         ),
@@ -105,8 +102,9 @@ void main() {
 
   group('OpenDent renders OpenPlateHint when the active coach has a question '
       '(FR5)', () {
-    testWidgets('renders the hint when Coach.questionFor returns CoachFound',
-        (tester) async {
+    testWidgets('renders the hint when Coach.questionFor returns CoachFound', (
+      tester,
+    ) async {
       final coach = FakeCoach()
         ..emit(
           const CoachFound(
@@ -120,7 +118,10 @@ void main() {
         );
 
       await tester.pumpWidget(
-        _wrap(const OpenDent(slot: MealSlot.breakfast), coach: coach),
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+          coach: coach,
+        ),
       );
 
       expect(
@@ -133,16 +134,59 @@ void main() {
         'NoCoachQuestion', (tester) async {
       final coach = FakeCoach(); // defaults to NoCoachQuestion
       await tester.pumpWidget(
-        _wrap(const OpenDent(slot: MealSlot.breakfast), coach: coach),
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+          coach: coach,
+        ),
       );
 
       expect(find.byType(OpenPlateHint), findsNothing);
       expect(find.text('An open, quiet place.'), findsOneWidget);
     });
 
-    testWidgets('tapping the hint hides it locally AND records a dismiss '
-        'interaction through the use-case (AC #4 / HAPPY_PATH_OPEN_PLATE_HINT)',
-        (tester) async {
+    testWidgets(
+      'tapping the hint hides it locally AND records a dismiss '
+      'interaction through the use-case (AC #4 / HAPPY_PATH_OPEN_PLATE_HINT)',
+      (tester) async {
+        final coach = FakeCoach()
+          ..emit(
+            const CoachFound(
+              CoachQuestion(
+                key: 'openPlate.balanced',
+                text: 'A calm, varied plate — anything you want to add?',
+                anchor: CoachAnchor.openPlate,
+                pattern: CompositionPattern.balanced,
+              ),
+            ),
+          );
+        final notes = FakeCoachNoteStore();
+
+        await tester.pumpWidget(
+          _wrap(
+            OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
+            coach: coach,
+            notes: notes,
+          ),
+        );
+        expect(find.byType(OpenPlateHint), findsOneWidget);
+
+        await tester.tap(find.byType(OpenPlateHint));
+        await tester.pumpAndSettle();
+
+        // The hint hides; the dent returns to its quiet form.
+        expect(find.byType(OpenPlateHint), findsNothing);
+        // F6: the dismissal is a DURABLE marker keyed by (day, slot) — no
+        // synthetic plateLogId: 0 note, no interaction row.
+        expect(notes.dismissed, {'openPlate:2026-08-16:breakfast'});
+        expect(notes.interactions, isEmpty);
+        expect(notes.byPlate, isEmpty);
+      },
+    );
+
+    testWidgets('a persisted dismissal keeps the hint hidden on the next '
+        'launch (F6)', (tester) async {
+      final notes = FakeCoachNoteStore()
+        ..dismissed.add('openPlate:2026-08-16:breakfast');
       final coach = FakeCoach()
         ..emit(
           const CoachFound(
@@ -154,27 +198,42 @@ void main() {
             ),
           ),
         );
-      final notes = FakeCoachNoteStore();
-
       await tester.pumpWidget(
         _wrap(
-          const OpenDent(slot: MealSlot.breakfast),
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 16)),
           coach: coach,
           notes: notes,
         ),
       );
-      expect(find.byType(OpenPlateHint), findsOneWidget);
-
-      await tester.tap(find.byType(OpenPlateHint));
       await tester.pumpAndSettle();
-
-      // The hint hides; the dent returns to its quiet form.
       expect(find.byType(OpenPlateHint), findsNothing);
-      // The store saw the dismiss interaction (mirrors the
-      // coach_whisper_test.dart assertions for `sure` / `askLater` /
-      // `depthAnswer`).
-      expect(notes.interactions, hasLength(1));
-      expect(notes.interactions.first.kind, CoachInteraction.dismiss);
+    });
+
+    testWidgets('the dismissal is per day and slot: another day asks again', (
+      tester,
+    ) async {
+      final notes = FakeCoachNoteStore()
+        ..dismissed.add('openPlate:2026-08-16:breakfast');
+      final coach = FakeCoach()
+        ..emit(
+          const CoachFound(
+            CoachQuestion(
+              key: 'openPlate.balanced',
+              text: 'A calm, varied plate — anything you want to add?',
+              anchor: CoachAnchor.openPlate,
+              pattern: CompositionPattern.balanced,
+            ),
+          ),
+        );
+      await tester.pumpWidget(
+        _wrap(
+          OpenDent(slot: MealSlot.breakfast, day: DateTime(2026, 8, 17)),
+          coach: coach,
+          notes: notes,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OpenPlateHint), findsOneWidget);
     });
   });
 }

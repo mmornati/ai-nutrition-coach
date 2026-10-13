@@ -9,11 +9,18 @@
 // passed in local time so the visible-day classifier the Day
 // Board uses is the one the exporter uses.
 //
+// `range` resolves the scope to the half-open instant range the store reads
+// (`EncryptedStore.readRange`): the boundaries are LOCAL calendar days, built
+// with `DateTime(y, m, d + n)` — never `add(Duration(days: n))`, which is
+// wrong across a daylight-saving change (security review F3).
+//
 // The `when` method lets the exporter branch on the variant
 // without exposing the private subtypes.
 
+import 'calendar_day.dart';
+
 sealed class ExportScope {
-  const ExportScope._();
+  const ExportScope();
 
   /// The visible day: every plate whose `loggedAtUtc` falls on
   /// the same local calendar day as `day`.
@@ -26,6 +33,16 @@ sealed class ExportScope {
   /// Every plate in the store.
   const factory ExportScope.allHistory() = _AllHistory;
 
+  /// The half-open range `[from, to)` this scope covers; both `null` for
+  /// all history.
+  ({DateTime? from, DateTime? to}) get range => when(
+    visibleDay: (day) =>
+        (from: startOfLocalDay(day), to: startOfNextLocalDay(day)),
+    week: (start) =>
+        (from: startOfLocalDay(start), to: addCalendarDays(start, 7)),
+    allHistory: () => (from: null, to: null),
+  );
+
   /// Pattern-match the variant. The consumer provides a handler
   /// for each; the analyzer enforces exhaustiveness.
   T when<T>({
@@ -34,23 +51,24 @@ sealed class ExportScope {
     required T Function() allHistory,
   }) {
     final self = this;
-    if (self is _VisibleDay) return visibleDay(self.day);
-    if (self is _Week) return week(self.start);
-    if (self is _AllHistory) return allHistory();
-    throw StateError('unreachable: sealed ExportScope variant');
+    return switch (self) {
+      _VisibleDay() => visibleDay(self.day),
+      _Week() => week(self.start),
+      _AllHistory() => allHistory(),
+    };
   }
 }
 
-class _VisibleDay implements ExportScope {
+final class _VisibleDay extends ExportScope {
   const _VisibleDay(this.day);
   final DateTime day;
 }
 
-class _Week implements ExportScope {
+final class _Week extends ExportScope {
   const _Week(this.start);
   final DateTime start;
 }
 
-class _AllHistory implements ExportScope {
+final class _AllHistory extends ExportScope {
   const _AllHistory();
 }

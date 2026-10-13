@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:integrations/integrations.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key, this.copy = enManagedOversightStrings});
@@ -31,7 +32,7 @@ class AboutScreen extends StatelessWidget {
         backgroundColor: palette.background,
         elevation: 0,
         title: Text(
-          'About',
+          context.l10n.aboutTitle,
           style: AppTypography.ui.copyWith(color: palette.ink),
         ),
       ),
@@ -50,8 +51,23 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'yours to run · open source',
+                context.l10n.aboutOpenSource,
                 style: AppTypography.mono.copyWith(color: palette.inkMuted),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(AppTouchTargets.min),
+                  alignment: Alignment.centerLeft,
+                ),
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: context.l10n.appName,
+                ),
+                child: Text(
+                  context.l10n.aboutLicences,
+                  style: AppTypography.ui.copyWith(color: palette.ink),
+                ),
               ),
             ],
           ),

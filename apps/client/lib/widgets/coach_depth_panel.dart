@@ -17,13 +17,10 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 class CoachDepthPanel extends StatelessWidget {
-  const CoachDepthPanel({
-    super.key,
-    required this.question,
-    this.onClose,
-  });
+  const CoachDepthPanel({super.key, required this.question, this.onClose});
 
   /// The verbatim copy the active `Coach` rung resolved for the
   /// depth follow-up. `null` is the calm-degrade path — the panel
@@ -42,11 +39,14 @@ class CoachDepthPanel extends StatelessWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final motion = MediaQuery.of(context).accessibleNavigation ||
+    final motion =
+        MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
     return Semantics(
       container: true,
-      label: 'Coach depth follow-up: ${question ?? "Nothing to add."}',
+      label: context.l10n.coachDepthSemantics(
+        question ?? context.l10n.coachDepthNothingToAdd,
+      ),
       child: motion
           ? _buildBody(palette)
           : AnimatedOpacity(
@@ -79,12 +79,7 @@ class CoachDepthPanel extends StatelessWidget {
             ),
           const SizedBox(height: AppSpacing.sm),
           Row(
-            children: [
-              _ClosePill(
-                palette: palette,
-                onTap: onClose,
-              ),
-            ],
+            children: [_ClosePill(palette: palette, onTap: onClose)],
           ),
         ],
       ),
@@ -103,7 +98,7 @@ class _ClosePill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: 'close',
+      label: context.l10n.close,
       child: Material(
         color: Colors.transparent,
         shape: StadiumBorder(
@@ -122,10 +117,8 @@ class _ClosePill extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              'close',
-              style: AppTypography.ui.copyWith(
-                color: palette.coach,
-              ),
+              context.l10n.close,
+              style: AppTypography.ui.copyWith(color: palette.coach),
             ),
           ),
         ),

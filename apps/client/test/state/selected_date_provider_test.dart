@@ -9,7 +9,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/selected_date_provider.dart';
+import 'package:ai_nutrition_coach/state/selected_date_provider.dart';
 
 void main() {
   group('selectedDateProvider', () {
@@ -44,14 +44,16 @@ void main() {
       expect(observed.last, wednesday);
     });
 
-    test('clearing the state back to null returns to the today fallback',
-        () {
+    test('clearing the state back to null returns to the today fallback', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       // Seed a value first.
-      container.read(selectedDateProvider.notifier).state =
-          DateTime(2026, 8, 10);
+      container.read(selectedDateProvider.notifier).state = DateTime(
+        2026,
+        8,
+        10,
+      );
       expect(container.read(selectedDateProvider), isNotNull);
 
       // Clear it.

@@ -44,3 +44,9 @@ class ExportFormatFailure extends ExportFailure {
 class ExportScopeFailure extends ExportFailure {
   const ExportScopeFailure();
 }
+
+/// The store could not be read for the export (storage error). The UI
+/// surfaces the calm export-failed line; no cause text crosses the port.
+class ExportReadFailed extends ExportFailure {
+  const ExportReadFailed();
+}

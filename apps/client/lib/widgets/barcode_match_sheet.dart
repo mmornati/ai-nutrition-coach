@@ -25,8 +25,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/last_log_provider.dart';
-import '../state/record_plate_provider.dart';
+import '../state/log_plate.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/l10n.dart';
 
 /// Show the match sheet. Returns the future the caller awaits; the
 /// future completes when the sheet is dismissed (back gesture, tap
@@ -43,10 +44,7 @@ Future<void> showBarcodeMatchSheet(
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => BarcodeMatchSheet(
-      match: match,
-      presets: presets,
-    ),
+    builder: (sheetCtx) => BarcodeMatchSheet(match: match, presets: presets),
   );
 }
 
@@ -61,8 +59,7 @@ class BarcodeMatchSheet extends ConsumerStatefulWidget {
   final List<QuantityRange> presets;
 
   @override
-  ConsumerState<BarcodeMatchSheet> createState() =>
-      _BarcodeMatchSheetState();
+  ConsumerState<BarcodeMatchSheet> createState() => _BarcodeMatchSheetState();
 }
 
 class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
@@ -75,31 +72,23 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     // Default to the first preset (or a single-serving shim when
     // OFF ships no curated presets — barcode-resolved foods always
     // fall back to `~1 serving`).
-    _chosen = widget.presets.isNotEmpty
-        ? widget.presets.first
-        : const QuantityRange(
-            low: 1,
-            high: 1,
-            unit: 'serving',
-            displayLabel: '~1 serving',
-          );
+    _chosen = widget.presets.isNotEmpty ? widget.presets.first : kOneServing;
   }
 
   Future<void> _onLog() async {
     if (_submitting) return;
     setState(() => _submitting = true);
 
-    final recordPlate = ref.read(recordPlateProvider);
-    final store = ref.read(encryptedStoreProvider);
-    final result = await recordPlate(
-      entries: [
+    final RecordPlateResult result;
+    try {
+      result = await commitPlate(ref, [
         FoodEntryDraft(databaseFood: widget.match.food, quantity: _chosen),
-      ],
-      store: store,
-    );
-
+      ]);
+    } finally {
+      // Reset even if the commit throws (F7).
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
-    setState(() => _submitting = false);
 
     if (result is RecordPlateSuccess) {
       // Mirror the manual-entry path: stamp `lastLogProvider` so
@@ -109,18 +98,10 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     } else if (result is StoreFailure) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_messageFor(result))));
+        ..showSnackBar(
+          SnackBar(content: Text(logFailureMessage(context.l10n, result))),
+        );
     }
-  }
-
-  String _messageFor(StoreFailure failure) {
-    return switch (failure) {
-      StoreFailure(platformError: UnsupportedPlatformFailure()) =>
-        'Mobile-only in v1.',
-      StoreFailure(encryptedStoreError: SecureKeyFailure()) =>
-        "History can't open on this device.",
-      StoreFailure() => 'Could not log plate.',
-    };
   }
 
   @override
@@ -131,8 +112,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     return Material(
       color: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -148,10 +128,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _FoodHeader(
-                match: widget.match,
-                palette: palette,
-              ),
+              _FoodHeader(match: widget.match, palette: palette),
               const SizedBox(height: AppSpacing.md),
               _PresetRow(
                 presets: widget.presets,
@@ -167,14 +144,12 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
                 child: FilledButton(
                   onPressed: _submitting ? null : _onLog,
                   style: FilledButton.styleFrom(
-                    minimumSize:
-                        const Size.fromHeight(AppTouchTargets.min),
+                    minimumSize: const Size.fromHeight(AppTouchTargets.min),
                     backgroundColor: palette.sageDeep,
                   ),
                   child: Text(
-                    _submitting ? 'Logging…' : 'Log',
-                    style:
-                        AppTypography.ui.copyWith(color: palette.background),
+                    _submitting ? context.l10n.logging : context.l10n.logAction,
+                    style: AppTypography.ui.copyWith(color: palette.background),
                   ),
                 ),
               ),
@@ -187,10 +162,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
 }
 
 class _FoodHeader extends StatelessWidget {
-  const _FoodHeader({
-    required this.match,
-    required this.palette,
-  });
+  const _FoodHeader({required this.match, required this.palette});
 
   final FoodMatch match;
   final AppPalette palette;
@@ -209,7 +181,7 @@ class _FoodHeader extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          match.food.foodGroup.label,
+          context.l10n.foodGroupLabel(match.food.foodGroup),
           style: AppTypography.monoWhisper.copyWith(color: palette.inkMuted),
         ),
       ],
@@ -252,15 +224,12 @@ class _PresetRow extends StatelessWidget {
       children: [
         for (final preset in shown)
           ConstrainedBox(
-            constraints:
-                const BoxConstraints(minHeight: AppTouchTargets.min),
+            constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
             child: ChoiceChip(
               label: Text(
                 preset.displayLabel,
                 style: AppTypography.mono.copyWith(
-                  color: chosen == preset
-                      ? palette.background
-                      : palette.ink,
+                  color: chosen == preset ? palette.background : palette.ink,
                 ),
               ),
               selected: chosen == preset,
