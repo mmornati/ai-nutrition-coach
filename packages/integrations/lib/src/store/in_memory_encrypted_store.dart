@@ -3,7 +3,7 @@
 // The real web store is `WasmEncryptedStore` (sqlite3mc wasm, ChaCha20-
 // Poly1305 pages in IndexedDB, passphrase-derived key). These in-memory
 // stores are selected ONLY when the web build is compiled with
-// `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true` (see
+// `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true` (see
 // `create_encrypted_store_web.dart`) so the capture -> log -> Day Board loop
 // can be exercised in a browser without the wasm binary. They mirror the
 // contract the real adapters keep: a broadcast controller that re-emits a

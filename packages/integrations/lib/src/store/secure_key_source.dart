@@ -1,6 +1,6 @@
 // 32-byte DB key handling for the encrypted drift store (AD-8).
 //
-// On a fresh install the alias `openplate_db_key_v1` is absent from the
+// On a fresh install the alias `ai_nutrition_coach_db_key_v1` is absent from the
 // secure storage and no database file exists; we generate 32 random
 // bytes via `Random.secure()`, write them under that alias, and use them
 // for every subsequent open. On a warm start we read the alias verbatim.
@@ -66,7 +66,7 @@ abstract interface class SecureKeySource {
 /// (Keychain on iOS, Keystore-wrapped preferences on Android).
 class SecureKeySourceImpl implements SecureKeySource {
   SecureKeySourceImpl({FlutterSecureStorage? storage})
-    : _storage = storage ?? openPlateSecureStorage;
+    : _storage = storage ?? aiNutritionCoachSecureStorage;
 
   static const String alias = SecureStorageAliases.dbKey;
 

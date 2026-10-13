@@ -1,4 +1,4 @@
-// Static facts about the self-host definition (`infra/`, `bin/openplate`) that
+// Static facts about the self-host definition (`infra/`, `bin/ai-nutrition-coach`) that
 // docs/self-host.md and the README trust table promise. The container-level
 // proof is `scripts/smoke_self_host.sh` (needs Docker, run in CI); this pins
 // the same promises at the config level so a regression fails `melos run test`.
@@ -28,13 +28,15 @@ void main() {
   setUpAll(() {
     compose = _read('infra/docker-compose.yml');
     dockerfile = _read('infra/Dockerfile');
-    headers = _read('infra/nginx/templates/openplate-headers.inc.template');
-    vhost = _read('infra/nginx/templates/openplate.conf.template');
+    headers = _read(
+      'infra/nginx/templates/ai-nutrition-coach-headers.inc.template',
+    );
+    vhost = _read('infra/nginx/templates/ai-nutrition-coach.conf.template');
     caddyfile = _read('infra/Caddyfile');
   });
 
   test('the app port is published on loopback by default', () {
-    expect(compose, contains(r'${OPENPLATE_BIND:-127.0.0.1}'));
+    expect(compose, contains(r'${AI_NUTRITION_COACH_BIND:-127.0.0.1}'));
   });
 
   test(
@@ -91,7 +93,7 @@ void main() {
     final connect = RegExp(r'connect-src ([^;]*);').firstMatch(csp)!.group(1)!;
     expect(
       connect,
-      r"'self' https://world.openfoodfacts.org ${OPENPLATE_CONNECT_SRC_EXTRA}",
+      r"'self' https://world.openfoodfacts.org ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA}",
     );
     expect(RegExp(r'\bhttps:(?!//)').hasMatch(csp), isFalse);
   });
@@ -131,7 +133,10 @@ void main() {
 
     test('nginx.conf logs nothing by itself: it only includes the rendered '
         'file', () {
-      expect(nginxConf, contains('include /tmp/openplate-access-log.inc;'));
+      expect(
+        nginxConf,
+        contains('include /tmp/ai-nutrition-coach-access-log.inc;'),
+      );
       expect(
         RegExp(r'^\s*access_log\b', multiLine: true).hasMatch(nginxConf),
         isFalse,
@@ -142,8 +147,8 @@ void main() {
     test('no nginx config or template ever logs the User-Agent or Referer', () {
       for (final f in [
         'infra/nginx/nginx.conf',
-        'infra/nginx/templates/openplate.conf.template',
-        'infra/nginx/templates/openplate-headers.inc.template',
+        'infra/nginx/templates/ai-nutrition-coach.conf.template',
+        'infra/nginx/templates/ai-nutrition-coach-headers.inc.template',
         'infra/nginx/docker-entrypoint.d/10-render-access-log.sh',
       ]) {
         final text = _read(f);
@@ -158,21 +163,27 @@ void main() {
     });
 
     test('the image and both compose files default the mode to off', () {
-      expect(dockerfile, contains('OPENPLATE_ACCESS_LOG="off"'));
+      expect(dockerfile, contains('AI_NUTRITION_COACH_ACCESS_LOG="off"'));
       expect(dockerfile, contains('10-render-access-log.sh'));
       expect(
         compose,
-        contains(r'OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}'),
+        contains(
+          r'AI_NUTRITION_COACH_ACCESS_LOG: ${AI_NUTRITION_COACH_ACCESS_LOG:-off}',
+        ),
       );
       expect(
         _read('infra/docker-compose.traefik.yml'),
-        contains(r'OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}'),
+        contains(
+          r'AI_NUTRITION_COACH_ACCESS_LOG: ${AI_NUTRITION_COACH_ACCESS_LOG:-off}',
+        ),
       );
     });
 
     // The entrypoint script is POSIX sh and needs no Docker.
     Future<(int, String, String)> render(String? mode) async {
-      final dir = Directory.systemTemp.createTempSync('openplate_log_');
+      final dir = Directory.systemTemp.createTempSync(
+        'ai_nutrition_coach_log_',
+      );
       addTearDown(() => dir.deleteSync(recursive: true));
       final out = '${dir.path}/log.inc';
       final r = await Process.run(
@@ -182,8 +193,8 @@ void main() {
         ],
         environment: {
           'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
-          'OPENPLATE_ACCESS_LOG_OUT': out,
-          'OPENPLATE_ACCESS_LOG': ?mode,
+          'AI_NUTRITION_COACH_ACCESS_LOG_OUT': out,
+          'AI_NUTRITION_COACH_ACCESS_LOG': ?mode,
         },
         includeParentEnvironment: false,
       );
@@ -213,13 +224,13 @@ void main() {
         r'^log_format .*$',
         multiLine: true,
       ).firstMatch(conf)!.group(0)!;
-      expect(format, contains(r'$openplate_log_ip'));
+      expect(format, contains(r'$ai_nutrition_coach_log_ip'));
       expect(format, isNot(contains(r'$remote_addr')));
       expect(format, contains(r'$uri'));
       expect(format, isNot(contains(r'$request ')));
       expect(format, isNot(contains('user_agent')));
       expect(format, isNot(contains('referer')));
-      expect(conf, contains(r'if=$openplate_loggable'));
+      expect(conf, contains(r'if=$ai_nutrition_coach_loggable'));
       // IPv4 keeps three octets; IPv6 keeps at most two groups.
       expect(conf, contains(r'\.[0-9]+$"'));
       expect(conf, contains(r'$net.0;'));
@@ -274,23 +285,26 @@ void main() {
         final (code, conf, err) = await render(bad);
         expect(code, 1, reason: bad);
         expect(conf, isEmpty);
-        expect(err, contains('OPENPLATE_ACCESS_LOG'));
+        expect(err, contains('AI_NUTRITION_COACH_ACCESS_LOG'));
       }
     });
 
-    test('bin/openplate validates the mode before touching Docker', () async {
-      final r = await Process.run(
-        'sh',
-        ['${repoRoot().path}/bin/openplate', 'up'],
-        environment: {
-          'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
-          'OPENPLATE_ACCESS_LOG': 'verbose',
-        },
-        includeParentEnvironment: false,
-      );
-      expect(r.exitCode, 42, reason: '${r.stderr}');
-      expect(r.stderr, contains('OPENPLATE_ACCESS_LOG'));
-    });
+    test(
+      'bin/ai-nutrition-coach validates the mode before touching Docker',
+      () async {
+        final r = await Process.run(
+          'sh',
+          ['${repoRoot().path}/bin/ai-nutrition-coach', 'up'],
+          environment: {
+            'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
+            'AI_NUTRITION_COACH_ACCESS_LOG': 'verbose',
+          },
+          includeParentEnvironment: false,
+        );
+        expect(r.exitCode, 42, reason: '${r.stderr}');
+        expect(r.stderr, contains('AI_NUTRITION_COACH_ACCESS_LOG'));
+      },
+    );
   });
 
   group('PWA serving (ADR-0003)', () {
@@ -300,7 +314,7 @@ void main() {
         for (final f in ['sw.js', 'precache-manifest.json']) {
           expect(
             RegExp(
-              'location = /${RegExp.escape(f)} \\{[^}]*alias /tmp/openplate-pwa/${RegExp.escape(f)};[^}]*Cache-Control "no-cache"',
+              'location = /${RegExp.escape(f)} \\{[^}]*alias /tmp/ai-nutrition-coach-pwa/${RegExp.escape(f)};[^}]*Cache-Control "no-cache"',
             ).hasMatch(vhost),
             isTrue,
             reason: f,
@@ -359,15 +373,18 @@ void main() {
       traefik = _read('infra/docker-compose.traefik.yml');
       certresolver = _read('infra/docker-compose.traefik-certresolver.yml');
       allowlist = _read('infra/docker-compose.traefik-allowlist.yml');
-      dynamic = _read('infra/traefik/openplate-dynamic.yml');
-      script = _read('bin/openplate');
+      dynamic = _read('infra/traefik/ai-nutrition-coach-dynamic.yml');
+      script = _read('bin/ai-nutrition-coach');
     });
 
     test('publishes NO port and joins the external Traefik network', () {
       expect(traefik, isNot(contains('ports:')));
       expect(traefik, isNot(contains('network_mode')));
       expect(traefik, contains('external: true'));
-      expect(traefik, contains(r'${OPENPLATE_TRAEFIK_NETWORK:-traefik}'));
+      expect(
+        traefik,
+        contains(r'${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}'),
+      );
       for (final overlay in [certresolver, allowlist]) {
         expect(overlay, isNot(contains('ports:')));
       }
@@ -378,7 +395,7 @@ void main() {
       expect(traefik, contains('cap_drop: [ALL]'));
       expect(traefik, contains('no-new-privileges:true'));
       expect(traefik, contains('/tmp:rw,noexec,nosuid'));
-      expect(traefik, contains(r'${OPENPLATE_CONNECT_SRC_EXTRA:-}'));
+      expect(traefik, contains(r'${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}'));
     });
 
     test('routes the domain over HTTPS to port 8080', () {
@@ -386,20 +403,23 @@ void main() {
       expect(
         traefik,
         contains(
-          r'traefik.http.routers.openplate.rule: Host(`${OPENPLATE_DOMAIN:?',
+          r'traefik.http.routers.ai-nutrition-coach.rule: Host(`${AI_NUTRITION_COACH_DOMAIN:?',
         ),
       );
       expect(
         traefik,
         contains(
-          r'traefik.http.routers.openplate.entrypoints: ${OPENPLATE_TRAEFIK_ENTRYPOINT:-websecure}',
+          r'traefik.http.routers.ai-nutrition-coach.entrypoints: ${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}',
         ),
       );
-      expect(traefik, contains('traefik.http.routers.openplate.tls: "true"'));
+      expect(
+        traefik,
+        contains('traefik.http.routers.ai-nutrition-coach.tls: "true"'),
+      );
       expect(
         traefik,
         contains(
-          'traefik.http.services.openplate.loadbalancer.server.port: "8080"',
+          'traefik.http.services.ai-nutrition-coach.loadbalancer.server.port: "8080"',
         ),
       );
     });
@@ -412,7 +432,7 @@ void main() {
         expect(
           traefik,
           contains(
-            r'stsIncludeSubdomains: ${OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS:-false}',
+            r'stsIncludeSubdomains: ${AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS:-false}',
           ),
         );
         for (final forbidden in [
@@ -438,9 +458,12 @@ void main() {
       expect(traefik, isNot(contains('certresolver')));
       expect(
         certresolver,
-        contains('traefik.http.routers.openplate.tls.certresolver'),
+        contains('traefik.http.routers.ai-nutrition-coach.tls.certresolver'),
       );
-      expect(certresolver, contains(r'${OPENPLATE_TRAEFIK_CERTRESOLVER:?'));
+      expect(
+        certresolver,
+        contains(r'${AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER:?'),
+      );
     });
 
     test('the allow-list overlay is ipAllowList, not basic auth', () {
@@ -449,7 +472,7 @@ void main() {
       expect(
         allowlist,
         contains(
-          'traefik.http.routers.openplate.middlewares: openplate-hsts,openplate-allow',
+          'traefik.http.routers.ai-nutrition-coach.middlewares: ai-nutrition-coach-hsts,ai-nutrition-coach-allow',
         ),
       );
     });
@@ -462,7 +485,7 @@ void main() {
       expect(dynamic, isNot(contains('0.0.0.0')));
     });
 
-    test('bin/openplate has --traefik with strict validation', () {
+    test('bin/ai-nutrition-coach has --traefik with strict validation', () {
       expect(script, contains('--traefik)'));
       expect(script, contains('validate_traefik'));
       expect(script, contains('validate_domain'));
@@ -478,7 +501,7 @@ void main() {
       List<String> args = const ['up', '--traefik'],
     }) => Process.run(
       'sh',
-      ['${repoRoot().path}/bin/openplate', ...args],
+      ['${repoRoot().path}/bin/ai-nutrition-coach', ...args],
       environment: {
         'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
         ...env,
@@ -489,58 +512,59 @@ void main() {
     test('refuses without a domain (exit 41)', () async {
       final r = await up({});
       expect(r.exitCode, 41);
-      expect(r.stderr, contains('OPENPLATE_DOMAIN'));
+      expect(r.stderr, contains('AI_NUTRITION_COACH_DOMAIN'));
     });
 
     for (final bad in [
-      {'OPENPLATE_DOMAIN': 'plate.example.com/x'},
-      {'OPENPLATE_DOMAIN': 'a b'},
-      {'OPENPLATE_DOMAIN': r'x`),Host(`evil.com'},
+      {'AI_NUTRITION_COACH_DOMAIN': 'plate.example.com/x'},
+      {'AI_NUTRITION_COACH_DOMAIN': 'a b'},
+      {'AI_NUTRITION_COACH_DOMAIN': r'x`),Host(`evil.com'},
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_NETWORK': 'a b',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_NETWORK': 'a b',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_NETWORK': '-lead',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_NETWORK': '-lead',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_ENTRYPOINT': 'web;x',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT': 'web;x',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_ENTRYPOINT': r'$(id)',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT': r'$(id)',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_CERTRESOLVER': 'le,x',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER': 'le,x',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_CERTRESOLVER': 'le\nx',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER': 'le\nx',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS': 'yes',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS': 'yes',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_ALLOWLIST': '1.2.3.4',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST': '1.2.3.4',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_TRAEFIK_ALLOWLIST': '10.0.0.0/8,evil',
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST': '10.0.0.0/8,evil',
       },
       {
-        'OPENPLATE_DOMAIN': 'ok.example.com',
-        'OPENPLATE_CONNECT_SRC_EXTRA': "https://a.example'; script-src *",
+        'AI_NUTRITION_COACH_DOMAIN': 'ok.example.com',
+        'AI_NUTRITION_COACH_CONNECT_SRC_EXTRA':
+            "https://a.example'; script-src *",
       },
     ]) {
       test('refuses invalid settings (exit 42): $bad', () async {
         final r = await up(bad);
         expect(r.exitCode, 42, reason: '${r.stderr}');
-        expect(r.stderr, startsWith('openplate:'));
+        expect(r.stderr, startsWith('ai-nutrition-coach:'));
       });
     }
 
@@ -548,14 +572,14 @@ void main() {
       'valid settings pass validation (the next failure is Docker, not input)',
       () async {
         final r = await up({
-          'OPENPLATE_DOMAIN': 'plate.example.com',
-          'OPENPLATE_TRAEFIK_NETWORK': 'proxy_net.1',
-          'OPENPLATE_TRAEFIK_ENTRYPOINT': 'websecure',
-          'OPENPLATE_TRAEFIK_CERTRESOLVER': 'letsencrypt',
-          'OPENPLATE_TRAEFIK_ALLOWLIST':
+          'AI_NUTRITION_COACH_DOMAIN': 'plate.example.com',
+          'AI_NUTRITION_COACH_TRAEFIK_NETWORK': 'proxy_net.1',
+          'AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT': 'websecure',
+          'AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER': 'letsencrypt',
+          'AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST':
               '192.168.1.0/24,100.64.0.0/10,fd00::/8',
-          'OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS': 'true',
-          'OPENPLATE_CONNECT_SRC_EXTRA': 'https://api.openai.com',
+          'AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS': 'true',
+          'AI_NUTRITION_COACH_CONNECT_SRC_EXTRA': 'https://api.openai.com',
         });
         // 10 = no docker here; 43 = docker present but no such network. Never 41/42.
         expect(r.exitCode, anyOf(10, 43), reason: '${r.stderr}');

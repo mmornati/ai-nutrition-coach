@@ -11,7 +11,7 @@
 //   4. delete export files (the temp export directory, the `share_plus`
 //      cache copies, the plate photos `image_picker` left in the temp
 //      directory (PV3), plus any legacy
-//      `*-openplate.csv|json` an older build left in the documents
+//      `*-openplate.csv|json` / `*-ai-nutrition-coach.csv|json` an older build left in the documents
 //      directory).
 //
 // Steps are independent and best-effort: a failure in one never skips
@@ -21,7 +21,7 @@
 // key (`KeyLostFailure`, D7).
 //
 // Paths and the storage instance are injectable; production defaults
-// come from `path_provider` and `openPlateSecureStorage`.
+// come from `path_provider` and `aiNutritionCoachSecureStorage`.
 
 import 'dart:io';
 
@@ -32,6 +32,7 @@ import 'package:path_provider/path_provider.dart';
 import '../export/export_paths.dart';
 import '../privacy/picker_files_io.dart' show purgeAllPickerFiles;
 import 'create_encrypted_store.dart' show kDatabaseFileName;
+import 'native_database_opener.dart' show kLegacyDatabaseFileName;
 import 'secure_storage_options.dart';
 
 class LocalDataEraserImpl implements LocalDataEraser {
@@ -43,7 +44,7 @@ class LocalDataEraserImpl implements LocalDataEraser {
     Future<String> Function()? temporaryDirectoryPath,
     Future<String> Function()? documentsDirectoryPath,
     Future<List<String>> Function()? pickerRootPaths,
-  }) : _storage = storage ?? openPlateSecureStorage,
+  }) : _storage = storage ?? aiNutritionCoachSecureStorage,
        _databaseFilePath = databaseFilePath ?? _defaultDatabaseFilePath,
        _temporaryDirectoryPath =
            temporaryDirectoryPath ?? _defaultTemporaryDirectoryPath,
@@ -115,9 +116,18 @@ class LocalDataEraserImpl implements LocalDataEraser {
 
   Future<void> _deleteDatabaseFiles() async {
     final path = await _databaseFilePath();
-    for (final suffix in const ['', '-wal', '-shm', '-journal']) {
-      final file = File('$path$suffix');
-      if (file.existsSync()) await file.delete();
+    final paths = <String>[
+      path,
+      // A pre-rename database the one-time file rename never got to.
+      if (path.endsWith('/$kDatabaseFileName'))
+        '${path.substring(0, path.length - kDatabaseFileName.length)}'
+            '$kLegacyDatabaseFileName',
+    ];
+    for (final p in paths) {
+      for (final suffix in const ['', '-wal', '-shm', '-journal']) {
+        final file = File('$p$suffix');
+        if (file.existsSync()) await file.delete();
+      }
     }
   }
 
@@ -143,6 +153,10 @@ class LocalDataEraserImpl implements LocalDataEraser {
       '${await _temporaryDirectoryPath()}/$kExportSubdirectory',
     );
     if (tmp.existsSync()) await tmp.delete(recursive: true);
+    final legacyTmp = Directory(
+      '${await _temporaryDirectoryPath()}/$kLegacyExportSubdirectory',
+    );
+    if (legacyTmp.existsSync()) await legacyTmp.delete(recursive: true);
     // Android `share_plus` leaves a copy of every shared file here.
     final shared = Directory(
       '${await _temporaryDirectoryPath()}/$kSharePlusCacheSubdirectory',

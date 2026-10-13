@@ -1,7 +1,7 @@
 // End-to-end on the REAL wiring and the REAL store (security review §2.9,
 // Phase 5 exit criteria).
 //
-// Nothing here is a fake store: `OpenPlateBootstrap` builds the provider
+// Nothing here is a fake store: `AiNutritionCoachBootstrap` builds the provider
 // scope with `buildAppOverrides` — the very function `main.dart` runs — and
 // the encrypted store is the production factory (`createStores`) opening a
 // keyed SQLite3MultipleCiphers file in a temp directory. Only the platform
@@ -20,24 +20,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/boot.dart';
-import 'package:openplate_client/main.dart';
-import 'package:openplate_client/screens/about_notice_screen.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/state/ai_rung_provider.dart';
-import 'package:openplate_client/state/ai_settings_provider.dart';
-import 'package:openplate_client/state/clock_provider.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/manual_entry_provider.dart';
-import 'package:openplate_client/state/photo_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/state/scanner_provider.dart';
-import 'package:openplate_client/state/sync_queue_provider.dart';
-import 'package:openplate_client/widgets/balance_arc.dart';
-import 'package:openplate_client/widgets/coach_whisper.dart';
-import 'package:openplate_client/widgets/plate_row.dart';
-import 'package:openplate_client/widgets/recognized_match_sheet.dart';
+import 'package:ai_nutrition_coach/boot.dart';
+import 'package:ai_nutrition_coach/main.dart';
+import 'package:ai_nutrition_coach/screens/about_notice_screen.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
+import 'package:ai_nutrition_coach/state/clock_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
+import 'package:ai_nutrition_coach/state/photo_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/scanner_provider.dart';
+import 'package:ai_nutrition_coach/state/sync_queue_provider.dart';
+import 'package:ai_nutrition_coach/widgets/balance_arc.dart';
+import 'package:ai_nutrition_coach/widgets/coach_whisper.dart';
+import 'package:ai_nutrition_coach/widgets/plate_row.dart';
+import 'package:ai_nutrition_coach/widgets/recognized_match_sheet.dart';
 
 /// 12:30 local on a Friday: the lunch slot.
 final DateTime _now = DateTime(2026, 10, 2, 12, 30);
@@ -84,7 +84,7 @@ class _World {
 /// [recognition] != null swaps the AI rung for a fake that returns it (the
 /// photo flow); otherwise the PRODUCTION rung wiring is left untouched.
 _World _world({RecognitionResult? recognition}) {
-  final dir = Directory.systemTemp.createTempSync('openplate_e2e_');
+  final dir = Directory.systemTemp.createTempSync('ai_nutrition_coach_e2e_');
   addTearDown(() {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
@@ -125,9 +125,12 @@ Future<void> _bootToDayBoard(
   _World w, {
   bool expectNotice = true,
 }) async {
-  await tester.pumpWidget(OpenPlateBootstrap(dependencies: w.deps));
+  await tester.pumpWidget(AiNutritionCoachBootstrap(dependencies: w.deps));
+  // Boot opens the real keyed store in a background isolate; under CI load
+  // this can take longer than the default budget. `until` returns early.
   await _settle(
     tester,
+    rounds: 400,
     until: () =>
         find.byType(DayBoardScreen).evaluate().isNotEmpty ||
         find.byType(AboutNoticeScreen).evaluate().isNotEmpty,
@@ -138,6 +141,7 @@ Future<void> _bootToDayBoard(
     await tester.tap(find.text('Got it'));
     await _settle(
       tester,
+      rounds: 400,
       until: () => find.byType(DayBoardScreen).evaluate().isNotEmpty,
     );
   } else {

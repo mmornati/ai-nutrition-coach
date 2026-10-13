@@ -1,11 +1,11 @@
-# OpenPlate SPA server (rendered to /tmp/openplate.conf at container start).
+# AI Nutrition Coach SPA server (rendered to /tmp/ai-nutrition-coach.conf at container start).
 #
 #   1. Serve the release build from /usr/share/nginx/html on :8080.
 #   2. SPA fallback to /index.html for client-side routes (FR11).
 #   3. Correct caching (I5): Flutter's assets are NOT content-hashed, so only
 #      files whose NAME carries a version are `immutable`; everything the
 #      loader / engine / app code is coupled to is revalidated.
-#   4. The security headers from openplate-headers.inc on every response.
+#   4. The security headers from ai-nutrition-coach-headers.inc on every response.
 
 # mime.types has no entry for ttf/otf, so gzip_types could not match them.
 types {
@@ -31,13 +31,13 @@ server {
     # Server-level headers so responses generated here (405 below, nginx's own
     # 400/414/...) carry them too; locations include the same file themselves
     # because add_header is not inherited into a location that has its own.
-    include /tmp/openplate-headers.inc;
+    include /tmp/ai-nutrition-coach-headers.inc;
 
     # A static site: read-only methods only, and no request bodies.
     client_max_body_size 1k;
     if ($request_method !~ ^(GET|HEAD)$) { return 405; }
 
-    # Entry points, loader, app code, OpenPlate's service worker (sw.js), the
+    # Entry points, loader, app code, AI Nutrition Coach's service worker (sw.js), the
     # web manifest and the precache manifest: always revalidate so an upgrade
     # is picked up on the next load (the old `immutable 7d` on main.dart.js
     # served stale code after upgrades). sw.js and precache-manifest.json MUST
@@ -47,29 +47,29 @@ server {
     location ~ ^/(index\.html|flutter_bootstrap\.js|flutter\.js|main\.dart\.js|flutter_service_worker\.js|manifest\.json|version\.json)$ {
         try_files $uri =404;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # The service worker and its precache manifest are RENDERED at container
     # start (30-render-sw.sh): the build id also covers the response headers,
     # so a CSP-only redeploy reaches installed apps. Always revalidated.
     location = /sw.js {
-        alias /tmp/openplate-pwa/sw.js;
+        alias /tmp/ai-nutrition-coach-pwa/sw.js;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     location = /precache-manifest.json {
-        alias /tmp/openplate-pwa/precache-manifest.json;
+        alias /tmp/ai-nutrition-coach-pwa/precache-manifest.json;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # Versioned by filename (sqlite3mc-<ver>.wasm): safe to cache forever.
     location ~ ^/sqlite3mc-[0-9][0-9.]*\.wasm$ {
         try_files $uri =404;
         add_header Cache-Control "public, max-age=31536000, immutable";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # The self-hosted zxing-wasm decoder (scripts/fetch_web_zxing.sh): the
@@ -77,7 +77,7 @@ server {
     location ~ ^/zxing/[0-9][0-9.]*/ {
         try_files $uri =404;
         add_header Cache-Control "public, max-age=31536000, immutable";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # CanvasKit / skwasm are coupled to the exact main.dart.js build but not
@@ -85,7 +85,7 @@ server {
     location /canvaskit/ {
         try_files $uri =404;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # Engine-coupled asset data (manifests, shader bundles, licence text):
@@ -93,7 +93,7 @@ server {
     location ~ ^/assets/(.+\.(bin|json)|shaders/.*|NOTICES)$ {
         try_files $uri =404;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # Unhashed static assets (fonts, icons, images): short cache + revalidate.
@@ -102,13 +102,13 @@ server {
     location ~ ^/(assets|icons|fallback-fonts)/ {
         try_files $uri =404;
         add_header Cache-Control "public, max-age=300, must-revalidate";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     location = /favicon.png {
         try_files $uri =404;
         add_header Cache-Control "public, max-age=300, must-revalidate";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 
     # SPA fallback (FR11): any unmatched path serves the shell. The internal
@@ -116,6 +116,6 @@ server {
     location / {
         try_files $uri /index.html;
         add_header Cache-Control "no-cache";
-        include /tmp/openplate-headers.inc;
+        include /tmp/ai-nutrition-coach-headers.inc;
     }
 }

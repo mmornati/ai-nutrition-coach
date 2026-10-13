@@ -1,4 +1,4 @@
-// Licence texts for the fonts OpenPlate ships (N5): Roboto (Apache-2.0,
+// Licence texts for the fonts AI Nutrition Coach ships (N5): Roboto (Apache-2.0,
 // bundled as the default family) and Noto Sans Symbols (SIL OFL 1.1, served
 // from /fallback-fonts/). Registered with Flutter's LicenseRegistry so they
 // appear on the licences page (Settings -> About -> Open-source licences).

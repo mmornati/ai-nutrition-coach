@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'OpenPlate';
+  String get appName => 'AI Nutrition Coach';
 
   @override
   String get devStoreBanner =>
@@ -250,7 +250,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get barcodeUnsupportedBrowserBody =>
-      'This browser can\'t read barcodes on your device, and OpenPlate never sends camera images elsewhere. Manual entry still works.';
+      'This browser can\'t read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.';
 
   @override
   String get cameraStartFailedBody =>
@@ -413,10 +413,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get installIntro =>
-      'OpenPlate runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.';
+      'AI Nutrition Coach runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.';
 
   @override
-  String get installAlready => 'OpenPlate is already installed on this device.';
+  String get installAlready =>
+      'AI Nutrition Coach is already installed on this device.';
 
   @override
   String get installButton => 'Install';
@@ -440,7 +441,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get installDesktopSteps =>
-      'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install OpenPlate”. Other browsers can simply keep using it in a tab.';
+      'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install AI Nutrition Coach”. Other browsers can simply keep using it in a tab.';
 
   @override
   String get installChangesTitle => 'What installing changes';
@@ -471,7 +472,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutNoticeTitle => 'About this app';
 
   @override
-  String get aboutNoticeAdults => 'OpenPlate is designed for adults.';
+  String get aboutNoticeAdults => 'AI Nutrition Coach is designed for adults.';
 
   @override
   String get aboutNoticeAi =>
@@ -522,7 +523,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyServerBody =>
-      'If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.';
+      'If you opened AI Nutrition Coach in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.';
 
   @override
   String get privacyNeverHeading => 'Never collected';
@@ -550,7 +551,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacySharedBody =>
-      'Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.';
+      'Everyone who can open AI Nutrition Coach on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.';
 
   @override
   String get privacyOffToggle => 'Look up barcodes on Open Food Facts';

@@ -1,6 +1,6 @@
 // Log hygiene gate (privacy audit, proposed check 3).
 //
-// OpenPlate must never write what the user logged (food names, barcodes,
+// AI Nutrition Coach must never write what the user logged (food names, barcodes,
 // photos, endpoints, keys) to a console or system log. This reads every
 // `lib/` Dart file of the workspace from the AST and fails on:
 //

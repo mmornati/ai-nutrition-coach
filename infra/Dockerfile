@@ -2,7 +2,7 @@
 # AI Nutrition Coach self-host web build — multi-stage.
 #
 #   Build from the repository root (the build context must be the repo root):
-#       docker build -f infra/Dockerfile -t openplate:dev .
+#       docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .
 #
 #   stage 1 (build):   ghcr.io/cirruslabs/flutter:3.44.0 (pinned by digest)
 #                      → flutter pub get --enforce-lockfile (pubspec.lock)
@@ -62,7 +62,7 @@ COPY tools/pwa/ tools/pwa/
 
 # Build the web release bundle via the `build:web` script in the root
 # pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` drops
-# Flutter's own (deprecated) service worker; OpenPlate's own `sw.js` and the
+# Flutter's own (deprecated) service worker; AI Nutrition Coach's own `sw.js` and the
 # precache manifest are then generated into the bundle by
 # tools/generate_precache_manifest.dart (offline use + the "new version is
 # ready" flow, ADR-0003, docs/pwa.md).
@@ -70,21 +70,21 @@ COPY tools/pwa/ tools/pwa/
 # this origin), then runs the secrets scan and the third-party-host scan: the
 # image build fails if the bundle would call out to a CDN.
 # Debug symbol maps for the engine are never loaded at run time: drop them.
-# OPENPLATE_PROJECT_URL (build argument, optional) is the project page that goes
+# AI_NUTRITION_COACH_PROJECT_URL (build argument, optional) is the project page that goes
 # into the app identity / Open Food Facts User-Agent. Unset keeps the
-# unresolvable https://openplate.invalid default, which
-# `OPENPLATE_BUILD=release dart run tools/check_release_posture.dart` refuses
-# for a release (docs/release-checklist.md).
-# OPENPLATE_RELEASE=1 makes this a RELEASE build: the project-URL rule is
-# enforced here (it fails while the URL is the `.invalid` default). The release
+# default (the project repository https://github.com/mmornati/ai-nutrition-coach);
+# `AI_NUTRITION_COACH_BUILD=release dart run tools/check_release_posture.dart` refuses
+# an empty or `.invalid` override for a release (docs/release-checklist.md).
+# AI_NUTRITION_COACH_RELEASE=1 makes this a RELEASE build: the project-URL rule is
+# enforced here (it fails if the URL is empty or `.invalid`). The release
 # workflow passes both arguments (.github/workflows/release-gate.yml). Whatever
 # the value, a URL that is set must be a plain https URL (checked by the same
 # tool, also inside `build:web`).
-ARG OPENPLATE_PROJECT_URL=""
-ARG OPENPLATE_RELEASE=0
-ENV OPENPLATE_PROJECT_URL=${OPENPLATE_PROJECT_URL}
-RUN if [ "$OPENPLATE_RELEASE" = "1" ]; then \
-      OPENPLATE_BUILD=selfhost dart run tools/check_release_posture.dart --project-url-only; \
+ARG AI_NUTRITION_COACH_PROJECT_URL=""
+ARG AI_NUTRITION_COACH_RELEASE=0
+ENV AI_NUTRITION_COACH_PROJECT_URL=${AI_NUTRITION_COACH_PROJECT_URL}
+RUN if [ "$AI_NUTRITION_COACH_RELEASE" = "1" ]; then \
+      AI_NUTRITION_COACH_BUILD=selfhost dart run tools/check_release_posture.dart --project-url-only; \
     else \
       dart run tools/check_release_posture.dart --project-url-only; \
     fi
@@ -107,25 +107,25 @@ USER 101
 COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
 # Rendered by the base image's entrypoint (envsubst) into /tmp — a tmpfs when
 # the container runs with a read-only root filesystem. NGINX_ENVSUBST_FILTER
-# limits substitution to OPENPLATE_* variables so nginx's own $variables are
+# limits substitution to AI_NUTRITION_COACH_* variables so nginx's own $variables are
 # left alone.
 COPY infra/nginx/templates/ /etc/nginx/templates/
-# Fails the start-up (before envsubst) if OPENPLATE_CONNECT_SRC_EXTRA could
+# Fails the start-up (before envsubst) if AI_NUTRITION_COACH_CONNECT_SRC_EXTRA could
 # alter the CSP beyond adding origins.
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/05-validate-csp.sh /docker-entrypoint.d/05-validate-csp.sh
 # Renders sw.js + the precache manifest for this start (build id = bundle +
 # header hash, so a CSP-only redeploy reaches installed apps) or, with
-# OPENPLATE_SW_KILL=1, the kill-switch worker (docs/pwa.md).
-# Renders the access-log config (PV9): off by default; OPENPLATE_ACCESS_LOG=on
+# AI_NUTRITION_COACH_SW_KILL=1, the kill-switch worker (docs/pwa.md).
+# Renders the access-log config (PV9): off by default; AI_NUTRITION_COACH_ACCESS_LOG=on
 # is a minimal, address-truncated log without User-Agent.
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/10-render-access-log.sh /docker-entrypoint.d/10-render-access-log.sh
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/30-render-sw.sh /docker-entrypoint.d/30-render-sw.sh
-COPY tools/pwa/sw.kill.js /etc/openplate/sw.kill.js
+COPY tools/pwa/sw.kill.js /etc/ai-nutrition-coach/sw.kill.js
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
-    NGINX_ENVSUBST_FILTER=OPENPLATE_ \
+    NGINX_ENVSUBST_FILTER=AI_NUTRITION_COACH_ \
     NGINX_ENTRYPOINT_QUIET_LOGS=1 \
-    OPENPLATE_CONNECT_SRC_EXTRA="" \
-    OPENPLATE_ACCESS_LOG="off"
+    AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="" \
+    AI_NUTRITION_COACH_ACCESS_LOG="off"
 
 # The release build output.
 COPY --from=build /work/apps/client/build/web /usr/share/nginx/html

@@ -1,4 +1,4 @@
-# OpenPlate — accessibility floor (NFR-7 / NFR-8 / UX-DR-12 / UX-DR-13)
+# AI Nutrition Coach — accessibility floor (NFR-7 / NFR-8 / UX-DR-12 / UX-DR-13)
 
 The floor is **measured by widget tests**, not by grepping for the word
 `Semantics`. (An earlier checker passed any file that merely contained

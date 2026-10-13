@@ -155,7 +155,9 @@ void main() {
   cascade(
     'native adapter in a background isolate (as in production)',
     () async {
-      final dir = Directory.systemTemp.createTempSync('openplate_cascade_iso_');
+      final dir = Directory.systemTemp.createTempSync(
+        'ai_nutrition_coach_cascade_iso_',
+      );
       final db = AppDatabase(
         NativeDatabase.createInBackground(File('${dir.path}/x.sqlite')),
       );
@@ -172,10 +174,12 @@ void main() {
   );
 
   cascade('web adapter (real sqlite3mc, file backend)', () async {
-    final dir = Directory.systemTemp.createTempSync('openplate_cascade_');
+    final dir = Directory.systemTemp.createTempSync(
+      'ai_nutrition_coach_cascade_',
+    );
     final controller = WebStoreController(
       storage: InMemoryWebStoreStorage(),
-      backend: FileWebBackend(File('${dir.path}/openplate.db')),
+      backend: FileWebBackend(File('${dir.path}/ai_nutrition_coach.db')),
       kdf: const DartPbkdf2Kdf(),
       lock: InMemoryWebStoreLock(),
       normalizePassphrase: (s) => s,

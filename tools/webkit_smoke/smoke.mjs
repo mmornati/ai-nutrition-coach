@@ -1,4 +1,4 @@
-// OpenPlate release-bundle browser smoke (opt-in; docs/pwa.md "Browser smoke").
+// AI Nutrition Coach release-bundle browser smoke (opt-in; docs/pwa.md "Browser smoke").
 //
 // Drives the REAL production image (nginx + the release build) in WebKit
 // and/or Chromium through Playwright, over http://localhost (a secure
@@ -195,7 +195,7 @@ async function flutterReady(page) {
 /** The store is open: this tab holds its Web Lock (a condition, not a sleep). */
 const storeOpen = (page) =>
   page.waitForFunction(
-    async () => (await navigator.locks.query()).held.some((l) => l.name === 'openplate-store'),
+    async () => (await navigator.locks.query()).held.some((l) => l.name === 'ai-nutrition-coach-store'),
     null,
     { timeout: 90000, polling: 300 },
   );
@@ -215,10 +215,10 @@ async function waitForServiceWorker(page, expectBuild) {
     const manifest = await (await fetch('precache-manifest.json', { cache: 'no-store' })).json();
     for (;;) {
       const reg = await navigator.serviceWorker.getRegistration();
-      const keys = (await caches.keys()).filter((k) => k.startsWith('openplate-precache-'));
+      const keys = (await caches.keys()).filter((k) => k.startsWith('ai-nutrition-coach-precache-'));
       const ready =
         reg && reg.active && reg.active.state === 'activated' && navigator.serviceWorker.controller &&
-        keys.length === 1 && keys[0] === 'openplate-precache-' + (expectBuild || manifest.buildId);
+        keys.length === 1 && keys[0] === 'ai-nutrition-coach-precache-' + (expectBuild || manifest.buildId);
       if (ready) {
         const cached = (await (await caches.open(keys[0])).keys()).length;
         return { keys, cached, expected: manifest.files.length, buildId: manifest.buildId };
@@ -233,7 +233,7 @@ async function waitForServiceWorker(page, expectBuild) {
 
 async function runBrowser(name, type) {
   const chromiumCamera = name === 'chromium';
-  const fakeVideo = path.join(process.env.TMPDIR || '/tmp', `openplate-smoke-${EAN}.y4m`);
+  const fakeVideo = path.join(process.env.TMPDIR || '/tmp', `ai-nutrition-coach-smoke-${EAN}.y4m`);
   if (chromiumCamera) writeBarcodeY4m(fakeVideo, EAN);
   const browser = await type.launch(
     chromiumCamera
@@ -448,7 +448,7 @@ async function runBrowser(name, type) {
     ]);
     const file = await download.path();
     const text = fs.readFileSync(file, 'utf8');
-    if (!/openplate/i.test(download.suggestedFilename()) || !download.suggestedFilename().endsWith('.csv')) {
+    if (!/ai-nutrition-coach/i.test(download.suggestedFilename()) || !download.suggestedFilename().endsWith('.csv')) {
       throw new Error('unexpected file name ' + download.suggestedFilename());
     }
     if (!/Apple/.test(text)) throw new Error('the export does not contain the plate');
@@ -514,7 +514,7 @@ async function runBrowser(name, type) {
       const original = { sw: fs.readFileSync(swFile, 'utf8'), man: fs.readFileSync(manFile, 'utf8') };
       const id2 = 'smoke-' + Date.now().toString(36);
       try {
-        // What `OPENPLATE_BUILD_ID=... dart run tools/generate_precache_manifest.dart` produces.
+        // What `AI_NUTRITION_COACH_BUILD_ID=... dart run tools/generate_precache_manifest.dart` produces.
         fs.writeFileSync(swFile, original.sw.replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${id2}';`));
         fs.writeFileSync(manFile, original.man.replace(/"buildId": "[^"]*"/, `"buildId": "${id2}"`));
         await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
@@ -528,7 +528,7 @@ async function runBrowser(name, type) {
           }
         });
         if (!state.waiting) throw new Error('the new worker never reached "waiting"');
-        if (!state.keys.includes('openplate-precache-' + build1) || !state.keys.includes('openplate-precache-' + id2)) throw new Error('caches while waiting: ' + state.keys);
+        if (!state.keys.includes('ai-nutrition-coach-precache-' + build1) || !state.keys.includes('ai-nutrition-coach-precache-' + id2)) throw new Error('caches while waiting: ' + state.keys);
         await waitForText(page, /A new version is ready/, 30000);
         const beforeNav = navigations;
         await page.getByRole('button', { name: 'Reload' }).click();

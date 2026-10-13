@@ -1,4 +1,4 @@
-# OpenPlate — Security & Quality Review (2026-10-01)
+# AI Nutrition Coach (formerly OpenPlate) — Security & Quality Review (2026-10-01)
 
 Scope: whole repository at `d7ac31b` (branch `claude/project-security-review-b3675a`).
 Method: four parallel read-only audits (storage/crypto, network/AI/sync/export,
@@ -35,7 +35,7 @@ test: own service worker (checksummed precache manifest, calm "new version is re
 touches cross-origin or non-GET requests), manifest + maskable icons + iOS tags, durable-storage
 request and a quiet last-export reminder, the web BYOK key and AI settings moved **into the encrypted
 store** (schema v5, never `localStorage`; this supersedes S4's "memory only"), a self-hosted
-SHA-256-verified zxing-wasm decoder so Safari/iOS can scan, `bin/openplate up --traefik`
+SHA-256-verified zxing-wasm decoder so Safari/iOS can scan, `bin/ai-nutrition-coach up --traefik`
 (no published port, HSTS-only middleware, optional cert-resolver / IP allow-list overlays, host-Traefik
 file-provider example), and `scripts/webkit_smoke.sh` (production image under Playwright, WebKit +
 Chromium). Remaining PWA items:
@@ -50,7 +50,7 @@ Chromium). Remaining PWA items:
   them. Android/iOS native launcher icons are still the Flutter placeholders.
 - A passphrase guess against a copied IndexedDB now also yields the stored BYOK key (documented in
   `docs/ai-tiers.md`).
-- The unencrypted DEV banner (`OPENPLATE_DEV_IN_MEMORY_STORE`) still sits before the Navigator in
+- The unencrypted DEV banner (`AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE`) still sits before the Navigator in
   semantic order, so a Navigator route hides it from screen readers (dev-only; the update banner was
   fixed).
 
@@ -65,8 +65,8 @@ worked through; each fix has a test. `scripts/verify.sh` is the gate.
 | PV5 delete a plate | `EncryptedStore.deletePlate` + `CoachNoteStore.deleteForPlate` (`DeletePlate` use case; shared contract suite; native, wasm, in-memory, failed and fake stores); press-and-hold with confirm, plus a screen-reader custom action. |
 | PV7 OFF disclosure | One-time notice before the first online lookup (OK / Don't look up online), stored; the catalog refuses to send until "OK". |
 | PV8 erase / export copy | Erase copy no longer claims to remove exports "from this device" unconditionally; a plaintext-export line under the Export button. |
-| PV9 server logs | nginx `access_log` is off by default (`OPENPLATE_ACCESS_LOG=off|on|full`; `on` = resolved file only, address truncated (IPv4 /24, IPv6 at most /32), no User-Agent/Referer/query); Traefik recommendation in `docs/pwa.md`. Asserted in `self_host_config_test.dart` and `smoke_self_host.sh`. |
-| PV11 placeholder URL | `OPENPLATE_PROJECT_URL` define; with no public repository the default is the unresolvable `https://openplate.invalid`; `check_release_posture --project-url-only` fails a `selfhost` / `release` build that still has it. Enforced for release images by `docker build --build-arg OPENPLATE_RELEASE=1` and by `release-gate.yml` (repository variable `OPENPLATE_PROJECT_URL`); a set URL must be plain https. |
+| PV9 server logs | nginx `access_log` is off by default (`AI_NUTRITION_COACH_ACCESS_LOG=off|on|full`; `on` = resolved file only, address truncated (IPv4 /24, IPv6 at most /32), no User-Agent/Referer/query); Traefik recommendation in `docs/pwa.md`. Asserted in `self_host_config_test.dart` and `smoke_self_host.sh`. |
+| PV11 placeholder URL | `AI_NUTRITION_COACH_PROJECT_URL` define; at this snapshot the default was an unresolvable `.invalid` placeholder (now the real repository URL, see the rebase entry below); `check_release_posture --project-url-only` fails a `selfhost` / `release` build whose URL is empty or `.invalid`. Enforced for release images by `docker build --build-arg AI_NUTRITION_COACH_RELEASE=1` and by `release-gate.yml` (repository variable `AI_NUTRITION_COACH_PROJECT_URL`); a set URL must be plain https. |
 | §4.4 checks | Exact key-set test of the AI request; exact path/query/header test of the OFF request; `tools/check_log_hygiene.dart` in `check:release-posture`; browser smoke steps for the OFF request (Chromium only: WebKit has no fake camera) and the export, with the foreign-origin assertion extended. |
 | §4.5 privacy page | Settings → Privacy, "What this app stores and sends". |
 
@@ -81,9 +81,38 @@ Remaining after the privacy pass:
 - Picker-file cleanup follows the plugin source (Android: the cache directory; iOS: `image_picker_<guid>` in
   `NSTemporaryDirectory()` = `Directory.systemTemp`, which is *not* path_provider's Caches directory, so both roots are
   purged) and is unit-tested against fake roots only; **not exercised on a device**.
-- The About notice with the unencrypted dev web store (`OPENPLATE_DEV_IN_MEMORY_STORE`) keeps its answer in memory only, so it
+- The About notice with the unencrypted dev web store (`AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE`) keeps its answer in memory only, so it
   reappears on every load; dev-only, accepted.
-- The real project URL is a maintainer decision; until then releases are blocked by the check above, by design.
+- The real project URL: resolved by the rename (the default is now the repository URL; see the rebase entry below).
+
+### Rebase onto main + rename completion (2026-10-13)
+
+The 13 commits of this branch were cherry-picked onto `origin/main`, which meanwhile renamed the project from
+OpenPlate to AI Nutrition Coach (`7c56375`, repository `github.com/mmornati/ai-nutrition-coach`).
+
+- **What main contributed.** The rename itself (package `ai_nutrition_coach`, app ids, `AI_NUTRITION_COACH_*`
+  variables, `bin/ai-nutrition-coach`, storage identifiers, CODEOWNERS/REVIEWERS handle `@mmornati`); a compile fix
+  (`01a0eba`), **superseded by Phase 1** of this branch; a web-image boot fix, **superseded by Phase 4**; and a
+  DejaVu font set (`9434c90`), **superseded by the Phase 4 Roboto + Noto Symbols setup** (the DejaVu files and the
+  duplicate Roboto licence were removed; `LICENSE-Roboto.txt` is the one loaded by `font_licenses.dart`). The deletion
+  of `melos.yaml` (config lives in the root `pubspec.yaml`) and of `infra/nginx.conf` (the nginx config is
+  `infra/nginx/`) are intentional.
+- **Conflict policy.** Where a conflict arose, this branch's hunks won; main's rename hunks that were dropped that way
+  were then re-applied by a repository-wide rename pass (every file outside the historical `_bmad-output` planning
+  artifacts), so the tree uses one name. The "open plate" feature vocabulary (`CoachAnchor.openPlate`,
+  `OpenPlateHint`, "open-plate hint") is unchanged, as on main.
+- **Storage-identifier migration.** Main renamed the on-disk identifiers without a migration (pre-release). This
+  branch adds one for mobile, because Phase 2A data may exist: secure-storage aliases move `openplate_*` ->
+  `ai_nutrition_coach_*` on first read (read old, write new, delete old, under both keychain accessibilities;
+  `secureReadMigrating`), and the eraser deletes old and new names; a pre-rename `openplate_v1.sqlite` (+ `-wal`,
+  `-shm`, `-journal`) is renamed to `ai_nutrition_coach_v1.sqlite` before the database is opened
+  (`migrateLegacyDatabaseFile`); the eraser also removes the old export directory and `*-openplate.csv|json` files.
+  **Web needs no migration** (development data only): IndexedDB (`ai_nutrition_coach_encrypted_v1`,
+  `ai_nutrition_coach_header_v1`), the localStorage keys and the Web Lock name are new, so an existing local
+  dev store in a browser profile is simply not found and a fresh one is created; old entries can be cleared through
+  the browser's site-data settings.
+- **Project URL.** The `*_PROJECT_URL` default is now the repository URL; the release-posture check fails only for an
+  empty or `.invalid` value, and the release-gate variable is an optional override.
 
 ### Known remaining items
 
@@ -111,8 +140,8 @@ Decisions / follow-ups for the maintainer:
 - **CJK / emoji glyphs** render as missing-glyph boxes on web (no CDN fallback
   by design); bundle the fonts if needed.
 - **Open Food Facts `User-Agent` project URL** is now the build-time
-  `OPENPLATE_PROJECT_URL`, defaulting to the unresolvable `https://openplate.invalid`
-  until the public repository exists; releases are gated on it (privacy fix pass).
+  `AI_NUTRITION_COACH_PROJECT_URL`, defaulting at this snapshot to an unresolvable `.invalid` placeholder
+  (now `https://github.com/mmornati/ai-nutrition-coach`); releases are gated on it (privacy fix pass).
 - **The photo sheet logs one food per plate** even when several foods are
   recognised.
 - **Key rotation reminder**: any key that was ever compiled into a bundle or
@@ -204,13 +233,13 @@ No secrets in git history (all 57 commits scanned; only test fixtures and placeh
 | # | Sev | Finding | Evidence | Fix |
 |---|---|---|---|---|
 | W1 ✔ | C | Derived key ignored; DB is `NativeDatabase.memory()`; any passphrase "valid"; no persistence | `create_encrypted_store_web.dart:65-89` | Implement `WasmDatabase` with cipher + OPFS/IndexedDB VFS, key verified on unlock — or ship web as an explicit "unprotected preview". |
-| W2 ✔ | H | Fixed global salt `openplate-web-v1` (comment claims per-install), PBKDF2 100k iterations in pure Dart on UI isolate | `web_session_key.dart:29,129-141` | Random per-store salt stored with DB; WebCrypto `deriveBits` ≥600k or Argon2id; store KDF params/version. |
+| W2 ✔ | H | Fixed global salt `ai-nutrition-coach-web-v1` (comment claims per-install), PBKDF2 100k iterations in pure Dart on UI isolate | `web_session_key.dart:29,129-141` | Random per-store salt stored with DB; WebCrypto `deriveBits` ≥600k or Argon2id; store KDF params/version. |
 | W3 | H | Unlock ordering bug: probe runs before `_derived` is set, `tryOpen()` checks `isOpen` → always false | `web_session_key.dart:97-110`, `wasm_encrypted_store.dart:61-71` | Pass candidate key into the probe. |
 | W4 | H | `UnlockGate` never rebuilds (`notifyListeners` never called), spinner stuck (`_busy` never reset), no lock/auto-lock | `widgets/unlock_gate.dart:78-97`, `screens/lock_screen.dart:75-86` | `WebSessionKey` as Notifier; reset `_busy`; idle + `visibilitychange` lock. |
 | W5 | H | `package:drift/native.dart` (FFI) imported into the web branch — likely breaks `flutter build web` (regression of commit 55ce05a) **[verify]** | `create_encrypted_store_web.dart` | Remove import; add web build to CI. |
 | W6 | M | No passphrase creation/confirmation flow or strength floor; typo on first use becomes the key | lock screen | Create-passphrase screen with confirmation. |
 | W7 | L | "Passphrase wiped" claim false (Dart strings immutable; buffers not zeroed) | `web_session_key.dart:90` | Zero `Uint8List`s, clear controller, reword. |
-| W8 | L | `OPENPLATE_DEV_IN_MEMORY_STORE` has no visible indicator | `create_encrypted_store_web.dart:40` | "DEV — unprotected" banner. |
+| W8 | L | `AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE` has no visible indicator | `create_encrypted_store_web.dart:40` | "DEV — unprotected" banner. |
 
 ### 2.4 Network, AI, export, privacy
 
@@ -231,14 +260,14 @@ No secrets in git history (all 57 commits scanned; only test fixtures and placeh
 
 | # | Sev | Finding | Evidence | Fix |
 |---|---|---|---|---|
-| I1 ✔ | H | Image can't build: no root `Dockerfile` but `docker build .` without `-f`; `.dockerignore` excludes `**/*.g.dart` (drops committed `app_database.g.dart`) | `bin/openplate:46`, `scripts/smoke_self_host.sh:49`, `.dockerignore:32` | `-f infra/Dockerfile`; remove exclusion or run `build_runner`. |
+| I1 ✔ | H | Image can't build: no root `Dockerfile` but `docker build .` without `-f`; `.dockerignore` excludes `**/*.g.dart` (drops committed `app_database.g.dart`) | `bin/ai-nutrition-coach:46`, `scripts/smoke_self_host.sh:49`, `.dockerignore:32` | `-f infra/Dockerfile`; remove exclusion or run `build_runner`. |
 | I2 ✔ | H | Container runs as root (no `USER`; `useradd … \|\| true`), contrary to comments | `infra/Dockerfile:51-70` | `nginx-unprivileged` by digest, port 8080, `read_only`, `cap_drop: ALL`, `no-new-privileges`, tmpfs. |
-| I3 | H | Plain HTTP on `0.0.0.0:80`, no TLS path — passphrase/JS injectable on LAN; camera & `crypto.subtle` need a secure context | `infra/docker-compose.yml:20`, `bin/openplate:64` | Bind `127.0.0.1` by default; opt-in Caddy/Traefik TLS profile; HSTS; doc. |
+| I3 | H | Plain HTTP on `0.0.0.0:80`, no TLS path — passphrase/JS injectable on LAN; camera & `crypto.subtle` need a secure context | `infra/docker-compose.yml:20`, `bin/ai-nutrition-coach:64` | Bind `127.0.0.1` by default; opt-in Caddy/Traefik TLS profile; HSTS; doc. |
 | I4 | H | CSP `connect-src 'self'` blocks OFF + BYOK; `script-src`/`font-src` block CDN CanvasKit/fonts; wasm needs `'wasm-unsafe-eval'` | `infra/nginx.conf:64` | Self-hosted CanvasKit; explicit allow-list; drop `'unsafe-inline'` if possible. |
 | I5 | M | Asset `location` has own `add_header` → security headers not inherited on JS/wasm; `immutable 7d` on unhashed `main.dart.js` (stale code after upgrade); no `server_tokens off`; thin `Permissions-Policy` | `infra/nginx.conf:43` | `include` header snippet; `no-cache` for bootstrap files; `camera=(self), microphone=(), geolocation=()`. |
-| I6 | M | `/data` volume & "DB lives at /data/openplate_v1.sqlite" claim is false — container is static nginx | `docs/self-host.md:35-38`, `docker-compose.yml`, `Dockerfile:61-64` | Remove volume + claim; document browser-side storage. |
+| I6 | M | `/data` volume & "DB lives at /data/ai_nutrition_coach_v1.sqlite" claim is false — container is static nginx | `docs/self-host.md:35-38`, `docker-compose.yml`, `Dockerfile:61-64` | Remove volume + claim; document browser-side storage. |
 | I7 | M | Non-reproducible: `pubspec.lock` not copied, `flutter:stable` floating tag, Flutter/Dart versions inconsistent across CI/Docker/docs | `Dockerfile:19,27`, `ci.yml:39`, `release-gate.yml` | Copy lockfile + `--enforce-lockfile`; pin Flutter image by version+digest; one version everywhere. |
-| I8 | L | `bin/openplate` assumes CWD = repo root; `OPENPLATE_HOST_PORT` ignored with `--with-persist`; smoke uses fixed `sleep 8` | `bin/openplate`, `smoke_self_host.sh` | `cd "$(dirname "$0")/.."`; readiness loop. |
+| I8 | L | `bin/ai-nutrition-coach` assumes CWD = repo root; `AI_NUTRITION_COACH_HOST_PORT` ignored with `--with-persist`; smoke uses fixed `sleep 8` | `bin/ai-nutrition-coach`, `smoke_self_host.sh` | `cd "$(dirname "$0")/.."`; readiness loop. |
 
 ### 2.6 Mobile platform config
 
@@ -372,7 +401,7 @@ Option **B (full):**
 5. Remove `/data` volume and the false persistence claim (I6).
 6. Smoke test: readiness loop, run with egress capture (or `--network none` + assert app boots), scan built JS for external hosts (N6, I8). Rewrite `check_telemetry_claims` to be import-based.
 
-**Exit:** `bin/openplate up` works from any CWD, image runs non-root, smoke proves zero egress.
+**Exit:** `bin/ai-nutrition-coach up` works from any CWD, image runs non-root, smoke proves zero egress.
 
 ### Phase 5 — Functional correctness (3–4 days)
 
@@ -423,16 +452,16 @@ Read-only data-privacy pass (inventory, flows, consent, erasure) at `705ed7f`; n
 
 | Data | Where | Encrypted | Retention / deletion | Who else can read |
 | --- | --- | --- | --- | --- |
-| Plates (`loggedAtUtc`, food name, source+sourceRef incl. barcode, group, quantity range) | mobile sqlite3mc file (Documents); web IDB `openplate_encrypted_v1` | yes (ChaCha20-Poly1305) | forever; **no per-plate delete/edit**, only erase-all | iOS iCloud/iTunes backup (ciphertext); anyone with the unlocked phone (no mobile app lock) or the web passphrase |
+| Plates (`loggedAtUtc`, food name, source+sourceRef incl. barcode, group, quantity range) | mobile sqlite3mc file (Documents); web IDB `ai_nutrition_coach_encrypted_v1` | yes (ChaCha20-Poly1305) | forever; **no per-plate delete/edit**, only erase-all | iOS iCloud/iTunes backup (ciphertext); anyone with the unlocked phone (no mobile app lock) or the web passphrase |
 | Coach notes (anchor, `questionKey` e.g. `proteinLight`, template text), interactions, dismissals | same DB | yes | forever; only `openPlate:` dismissals pruned >7 d (`local_coach_note_store.dart:146`) | as above |
-| BYOK key, AI rung/endpoint/model, per-host consent set (no timestamp) | mobile Keychain/Keystore (`openplate_byok_key_v1`, `openplate_ai_rung_config_v1`); web `kv_table` | yes | until removed / erase-all | not in backups (Keychain this-device-only, Android backup off) |
-| DB key (mobile) | Keychain/Keystore `openplate_db_key_v1` | OS | erase-all | - |
+| BYOK key, AI rung/endpoint/model, per-host consent set (no timestamp) | mobile Keychain/Keystore (`ai_nutrition_coach_byok_key_v1`, `ai_nutrition_coach_ai_rung_config_v1`); web `kv_table` | yes | until removed / erase-all | not in backups (Keychain this-device-only, Android backup off) |
+| DB key (mobile) | Keychain/Keystore `ai_nutrition_coach_db_key_v1` | OS | erase-all | - |
 | Passphrase / derived key (web) | memory only (WASM heap while unlocked) | n/a | lock / idle 15 min / hidden 5 min | malicious script on origin while unlocked |
 | `lastExportAt`, reminder snooze | `kv_table` | yes | erase-all | - |
 | Quota counter (hosted rung, unused) | secure storage | OS | erase-all | - |
-| Web header (salt, KDF cost, version), idle-lock minutes | `localStorage` `openplate.web.store.meta`, `openplate.web.lock.idleMinutes`; IDB `openplate_header_v1` | no (not secret) | erase-all deletes all three | reveals "OpenPlate used in this profile" |
+| Web header (salt, KDF cost, version), idle-lock minutes | `localStorage` `ai_nutrition_coach.web.store.meta`, `ai_nutrition_coach.web.lock.idleMinutes`; IDB `ai_nutrition_coach_header_v1` | no (not secret) | erase-all deletes all three | reveals "AI Nutrition Coach used in this profile" |
 | Plate photo | memory → upload; **mobile: image_picker temp/cache file** | no | **never deleted by app; not covered by erase-all** [verify path] | app-private cache; OS clears eventually |
-| Exports CSV/JSON (plates only) | mobile tmp `openplate_exports/` + Android cache `share_plus/`; web: browser Downloads | **plaintext** | mobile: deleted after hand-off / >1 h purge / erase-all; web: never (outside app) | whatever app/folder the user picks, cloud-synced Downloads |
+| Exports CSV/JSON (plates only) | mobile tmp `ai_nutrition_coach_exports/` + Android cache `share_plus/`; web: browser Downloads | **plaintext** | mobile: deleted after hand-off / >1 h purge / erase-all; web: never (outside app) | whatever app/folder the user picks, cloud-synced Downloads |
 | Barcode/search LRU | memory | n/a | process lifetime | - |
 | SW precache (app shell only) | Cache Storage | no | per build | no personal data |
 | nginx access log (Traefik container IP, time, path, full UA, status) | container stdout → json-file 10 MB×3 | no | rotation (~days; healthcheck every 30 s adds lines) | host admin |
@@ -441,7 +470,7 @@ Read-only data-privacy pass (inventory, flows, consent, erasure) at `705ed7f`; n
 
 | Flow | Sent | To | Consent / disclosure |
 | --- | --- | --- | --- |
-| Barcode lookup | GET `/api/v2/product/<barcode>?fields=…`, `Accept`; mobile UA `OpenPlate/0.1.0 (+placeholder URL)` / Dart UA; web browser UA **+ `Origin: https://<family-domain>`** (CORS; `Referrer-Policy: no-referrer` suppresses Referer, not Origin); client IP; time | Open Food Facts (public, FR nonprofit) | **none in app**; only `docs/telemetry-posture.md` |
+| Barcode lookup | GET `/api/v2/product/<barcode>?fields=…`, `Accept`; mobile UA `AiNutritionCoach/0.1.0 (+placeholder URL)` / Dart UA; web browser UA **+ `Origin: https://<family-domain>`** (CORS; `Referrer-Policy: no-referrer` suppresses Referer, not Origin); client IP; time | Open Food Facts (public, FR nonprofit) | **none in app**; only `docs/telemetry-posture.md` |
 | BYOK recognise | JSON `{model, messages:[fixed prompt, data:image/* base64 ≤1024 px q80, EXIF stripped], max_tokens 800, temperature 0.2}`; `Authorization: Bearer`; UA; web `Origin` + preflight; IP | user-chosen host (default hint openrouter.ai) | standing per-host dialog, once; revocable in Your AI |
 | BYOK test connection | `{model, "ping", max_tokens 1}` + key | same host | user action, no dialog (no photo) |
 | Android barcode decode (mobile_scanner → Google ML Kit) | ML Kit may send usage/performance metrics to Google (firelog) **[verify]** | Google | **undisclosed**; `docs/telemetry-posture.md` claims none |
@@ -453,11 +482,11 @@ The prompt asks only for name / quantityHint / group (`openai_compatible_byok_pr
 ### 4.3 Findings
 
 **High**
-- **PV1 Children vs third-party AI.** `check_adults_only.dart` / `check_no_under_13_profiles.dart` only grep identifiers (`childProfile`, `ageGate`…); no runtime age statement, no first-run "adults only" notice. AI consent is standing per host (`ai_settings.dart:46`), so a child using a parent's device photographs plates straight to OpenRouter/OpenAI (whose terms require 13+/18+, verify). Fix: for a family test with children, either (a) children get their own device/browser profile with AI rung `noOp` (document it in the test brief), or (b) add a per-photo confirm option ("Ask every time", default on) and a one-line first-run "OpenPlate is designed for adults" notice. No AI for minors' devices; barcode lookup acceptable (barcode only).
+- **PV1 Children vs third-party AI.** `check_adults_only.dart` / `check_no_under_13_profiles.dart` only grep identifiers (`childProfile`, `ageGate`…); no runtime age statement, no first-run "adults only" notice. AI consent is standing per host (`ai_settings.dart:46`), so a child using a parent's device photographs plates straight to OpenRouter/OpenAI (whose terms require 13+/18+, verify). Fix: for a family test with children, either (a) children get their own device/browser profile with AI rung `noOp` (document it in the test brief), or (b) add a per-photo confirm option ("Ask every time", default on) and a one-line first-run "AI Nutrition Coach is designed for adults" notice. No AI for minors' devices; barcode lookup acceptable (barcode only).
 
 **Medium**
 - **PV2 Consent copy overclaims.** `coach_strings.dart:1189` "Not sent: your name, your history, or anything else." The host also receives IP address, User-Agent, time, and on web the family domain via `Origin`; provider retention/training is not mentioned. Fix: "Also visible to {host}: your internet address and device type, as with any website. {host} may keep requests under its own terms; check its data-retention and training settings (OpenRouter: Settings → Privacy)."
-- **PV3 Plate photos left in the image_picker cache, not erased** (`photo_provider.dart:99`; eraser `local_data_eraser_io.dart:132` only removes `openplate_exports/` and `share_plus/`). On Android the original camera file may keep EXIF/GPS **[verify]**. Fix: after `readAsBytes()` delete `file.path` (`File(file.path).delete()` on io), and have the eraser also remove `image_picker*` files in the temp dir; add a unit test with an injected temp dir.
+- **PV3 Plate photos left in the image_picker cache, not erased** (`photo_provider.dart:99`; eraser `local_data_eraser_io.dart:132` only removes `ai_nutrition_coach_exports/` and `share_plus/`). On Android the original camera file may keep EXIF/GPS **[verify]**. Fix: after `readAsBytes()` delete `file.path` (`File(file.path).delete()` on io), and have the eraser also remove `image_picker*` files in the temp dir; add a unit test with an injected temp dir.
 - **PV4 Undisclosed ML Kit egress on Android** **[verify]**: confirm with a network capture; if present, disclose in `docs/telemetry-posture.md` and Your data, or switch to the unbundled model + `firebase_*`/datatransport opt-out meta-data, or a pure-Dart/zxing decoder.
 - **PV5 No granular erasure.** The store port has `recordPlate`/`readRange`/`close` only (`ports/encrypted_store.dart:31-58`). A wrong or another member's plate can only be removed by erasing everything. Fix: `deletePlate(id)` (cascade food entries, coach notes/interactions) + a long-press "Remove" on Day Board.
 - **PV6 Shared devices.** One store per device/profile, no profiles, no mobile app lock: every member who can unlock the phone, or knows the shared web passphrase, sees the whole history. Fix for the test: one device or browser profile (and passphrase) per person; say so in the test brief and on Your data.

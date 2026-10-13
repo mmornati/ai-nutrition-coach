@@ -157,7 +157,7 @@ class OffBarcodeSource {
           receiveTimeout: kReceiveTimeout,
           headers: <String, String>{
             'Accept': 'application/json',
-            if (!kIsWeb) 'User-Agent': kOpenPlateUserAgent,
+            if (!kIsWeb) 'User-Agent': kAiNutritionCoachUserAgent,
           },
         ),
       );

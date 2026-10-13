@@ -5,7 +5,7 @@
 // (included in iCloud / iTunes / Android backups) and never removed it.
 //
 // Now:
-//   1. the bytes are written to `<temp>/openplate_exports/<filename>`
+//   1. the bytes are written to `<temp>/ai_nutrition_coach_exports/<filename>`
 //      (the OS cache area: not backed up, evictable);
 //   2. the file is handed to the platform share sheet (`share_plus`) so
 //      the user chooses where it goes — Files, mail, a share target;

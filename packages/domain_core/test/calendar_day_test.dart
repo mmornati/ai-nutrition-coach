@@ -65,19 +65,22 @@ void main() {
         ? false
         : 'local zone has no DST (run with TZ=Europe/Paris)';
 
-    test('OPENPLATE_REQUIRE_DST=1 means the zone MUST have DST (never a '
-        'silent skip)', () {
-      if (Platform.environment['OPENPLATE_REQUIRE_DST'] == '1') {
-        expect(
-          isDstZone,
-          isTrue,
-          reason:
-              'test:dst must run in a daylight-saving zone (TZ is '
-              '${Platform.environment['TZ']}); the DST assertions would '
-              'otherwise be skipped',
-        );
-      }
-    });
+    test(
+      'AI_NUTRITION_COACH_REQUIRE_DST=1 means the zone MUST have DST (never a '
+      'silent skip)',
+      () {
+        if (Platform.environment['AI_NUTRITION_COACH_REQUIRE_DST'] == '1') {
+          expect(
+            isDstZone,
+            isTrue,
+            reason:
+                'test:dst must run in a daylight-saving zone (TZ is '
+                '${Platform.environment['TZ']}); the DST assertions would '
+                'otherwise be skipped',
+          );
+        }
+      },
+    );
 
     test('spring forward: the day is 23h but the next day is the 30th', () {
       final start = DateTime(2026, 3, 29);

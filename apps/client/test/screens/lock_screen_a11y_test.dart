@@ -6,8 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/screens/lock_screen.dart';
-import 'package:openplate_client/state/web_store_controller_provider.dart';
+import 'package:ai_nutrition_coach/screens/lock_screen.dart';
+import 'package:ai_nutrition_coach/state/web_store_controller_provider.dart';
 
 import '../_fakes/fake_web_store_controller.dart';
 

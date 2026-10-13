@@ -66,7 +66,7 @@ void main() {
   late String dbPath;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('openplate_enc_it_');
+    tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_enc_it_');
     dbPath = '${tmp.path}/$kDatabaseFileName';
   });
 

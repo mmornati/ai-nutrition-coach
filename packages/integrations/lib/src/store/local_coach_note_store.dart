@@ -131,7 +131,7 @@ class LocalCoachNoteStore implements CoachNoteStore {
             ),
             mode: InsertMode.insertOrIgnore,
           );
-      await _pruneOldOpenPlateKeys();
+      await _pruneOldAiNutritionCoachKeys();
       return CoachInteractionRecorded(id);
     } on Exception catch (e) {
       return CoachInteractionFailed(mapStoreError(e));
@@ -143,7 +143,7 @@ class LocalCoachNoteStore implements CoachNoteStore {
   /// every dismissal write (the only place the table grows): keys dated
   /// before today minus 7 days go. (`openPlate:` is 10 characters, so the
   /// ISO date starts at position 11 and compares as text.) Best-effort.
-  Future<void> _pruneOldOpenPlateKeys() async {
+  Future<void> _pruneOldAiNutritionCoachKeys() async {
     try {
       final cutoff = addCalendarDays(DateTime.now(), -7);
       final iso =

@@ -2,7 +2,7 @@
 <!--
   Android 12+ (API 31+) backup / device-transfer rules (security review D6).
 
-  OpenPlate keeps nothing in cloud backup or device-to-device transfer:
+  AI Nutrition Coach keeps nothing in cloud backup or device-to-device transfer:
   the encrypted database is useless without its Keystore-bound key, the
   key cannot be transferred, and a restored database with no key would
   only strand the user (D7). Everything is excluded from both channels.

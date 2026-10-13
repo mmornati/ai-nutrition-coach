@@ -580,10 +580,10 @@ const WebSessionStrings enWebSessionStrings = WebSessionStrings(
       'again.',
   throttled: 'Please wait a moment before trying again.',
   inOtherTab:
-      'OpenPlate is open in another tab. Lock or close it there, then try '
+      'AI Nutrition Coach is open in another tab. Lock or close it there, then try '
       'again here.',
   newerVersion:
-      'This data was opened by a newer version of OpenPlate. Nothing is '
+      'This data was opened by a newer version of AI Nutrition Coach. Nothing is '
       'lost: reload the page to update, then unlock again.',
   forgot: 'Forgot your passphrase?',
   forgotBody:
@@ -593,7 +593,7 @@ const WebSessionStrings enWebSessionStrings = WebSessionStrings(
   forgotAction: 'Erase and start over',
   createTitle: 'Protect your history',
   createExplain:
-      'Choose a passphrase. It encrypts everything OpenPlate saves in this '
+      'Choose a passphrase. It encrypts everything AI Nutrition Coach saves in this '
       'browser, and you enter it each time you open the app.',
   createWarning:
       'If you forget it, your data cannot be recovered — not by us, not by '
@@ -716,7 +716,7 @@ const YourDataStrings enYourDataStrings = YourDataStrings(
   eraseConfirmAction: 'Erase',
   eraseCancel: 'Keep my data',
   eraseDone:
-      'All local data was erased. Close and reopen OpenPlate to start '
+      'All local data was erased. Close and reopen AI Nutrition Coach to start '
       'fresh.',
   eraseFailed:
       'Some data could not be erased. Please try again, or clear the '
@@ -765,7 +765,7 @@ const KeyLostStrings enStoreOpenFailedStrings = KeyLostStrings(
   title: "Your history can't be opened right now",
   body:
       'The protected store on this device could not be opened. Closing and '
-      'reopening OpenPlate sometimes fixes this. If it keeps happening, '
+      'reopening AI Nutrition Coach sometimes fixes this. If it keeps happening, '
       'you can erase the unreadable data and start over — this removes '
       'everything saved on this device.',
   action: 'Erase local data and start over',
@@ -1089,7 +1089,7 @@ class YourAiStrings {
 const YourAiStrings enYourAiStrings = YourAiStrings(
   title: 'Your AI',
   intro:
-      'OpenPlate works fully without AI. If you like, you can let a service '
+      'AI Nutrition Coach works fully without AI. If you like, you can let a service '
       'you choose suggest foods from a photo — with your own key, your call.',
   rungHeading: 'Recognising a photo',
   rungNoneLabel: 'No AI',
@@ -1223,7 +1223,7 @@ const PhotoConsentStrings enPhotoConsentStrings = PhotoConsentStrings(
   whatIsSent:
       'What is sent: the photo, shrunk, with its location and camera '
       'details removed, a fixed instruction asking which foods are on the '
-      'plate, and the model name you chose. OpenPlate does not run that '
+      'plate, and the model name you chose. AI Nutrition Coach does not run that '
       'service and never sees the photo.',
   alsoVisible:
       'Also visible to {host}: your internet address and your device or '

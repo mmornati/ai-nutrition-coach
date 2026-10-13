@@ -261,7 +261,7 @@ void main() {
 
   group('through the real encrypted factory (sqlite3mc file)', () {
     test('foodGroup survives close + reopen with the same key', () async {
-      final tmp = Directory.systemTemp.createTempSync('openplate_fg_');
+      final tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_fg_');
       addTearDown(() => tmp.deleteSync(recursive: true));
       final keys = InMemoryKeySource();
       final path = '${tmp.path}/$kDatabaseFileName';

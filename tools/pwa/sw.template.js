@@ -1,4 +1,4 @@
-/* OpenPlate service worker (ADR-0003, docs/pwa.md).
+/* AI Nutrition Coach service worker (ADR-0003, docs/pwa.md).
  *
  * GENERATED into the release bundle by tools/generate_precache_manifest.dart
  * from this template: the build id below changes whenever any shipped file
@@ -14,7 +14,7 @@
  *             worker then WAITS; it never skipWaiting()s on its own.
  *   message   {type: 'SKIP_WAITING'} (sent when the user taps "Reload") ->
  *             skipWaiting().
- *   activate  delete every OTHER openplate-precache-* cache, claim clients.
+ *   activate  delete every OTHER ai-nutrition-coach-precache-* cache, claim clients.
  *   fetch     GET, same-origin only:
  *               navigation (no file extension) -> cached index.html, so a page
  *                 load is always ONE consistent build, online or off;
@@ -27,10 +27,10 @@
  */
 'use strict';
 
-const BUILD_ID = '__OPENPLATE_BUILD_ID__';
-const CACHE_PREFIX = 'openplate-precache-';
+const BUILD_ID = '__AI_NUTRITION_COACH_BUILD_ID__';
+const CACHE_PREFIX = 'ai-nutrition-coach-precache-';
 const CACHE_NAME = CACHE_PREFIX + BUILD_ID;
-const HASH_HEADER = 'x-openplate-sha256';
+const HASH_HEADER = 'x-ai-nutrition-coach-sha256';
 const MANIFEST = 'precache-manifest.json';
 // Headers describing the wire encoding of the body (the cache stores the
 // decoded bytes) or that must never be replayed from a cache.

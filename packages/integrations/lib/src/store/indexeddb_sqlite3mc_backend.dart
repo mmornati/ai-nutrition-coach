@@ -40,9 +40,9 @@ import 'web_database_backend.dart';
 import 'web_header_copy.dart' as header_copy;
 
 /// IndexedDB database name holding the encrypted file system.
-const String kWebIndexedDbName = 'openplate_encrypted_v1';
+const String kWebIndexedDbName = 'ai_nutrition_coach_encrypted_v1';
 
-const String _databasePath = '/openplate.db';
+const String _databasePath = '/ai_nutrition_coach.db';
 
 /// sqlite3mc's wrapper-VFS name prefix (`SQLITE3MC_VFS_NAME`).
 const String _mcVfsPrefix = 'multipleciphers';
@@ -67,7 +67,7 @@ final class IndexedDbSqlite3mcBackend implements WebDatabaseBackend {
     required bool expectExisting,
   }) async {
     final sqlite3 = await _load();
-    final vfsName = 'openplate-idb-${_opens++}';
+    final vfsName = 'ai-nutrition-coach-idb-${_opens++}';
     final fs = await IndexedDbFileSystem.open(
       dbName: indexedDbName,
       vfsName: vfsName,

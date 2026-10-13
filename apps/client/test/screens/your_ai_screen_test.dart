@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/your_ai_screen.dart';
-import 'package:openplate_client/state/ai_rung_provider.dart';
-import 'package:openplate_client/state/ai_settings_provider.dart';
+import 'package:ai_nutrition_coach/screens/your_ai_screen.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
 
 class _Tester implements ByokConnectionTester {
   _Tester(this.result);

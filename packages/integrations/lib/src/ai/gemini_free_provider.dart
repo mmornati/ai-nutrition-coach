@@ -33,7 +33,7 @@ import 'hosted_quota_provider.dart';
 class GeminiFreeProvider implements HostedQuotaProvider {
   const GeminiFreeProvider({this.relayUrl = ''});
 
-  /// The URL of the OpenPlate relay that fronts Gemini (S5). Not a secret;
+  /// The URL of the AI Nutrition Coach relay that fronts Gemini (S5). Not a secret;
   /// empty until the relay exists.
   final String relayUrl;
 

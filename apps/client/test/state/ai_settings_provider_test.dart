@@ -8,10 +8,10 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/ai_rung_provider.dart';
-import 'package:openplate_client/state/ai_settings_provider.dart';
-import 'package:openplate_client/state/photo_provider.dart' show FakeAiRung;
-import 'package:openplate_client/state/your_ai_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
+import 'package:ai_nutrition_coach/state/photo_provider.dart' show FakeAiRung;
+import 'package:ai_nutrition_coach/state/your_ai_provider.dart';
 
 class _ExplodingStore implements AiSettingsStore {
   @override

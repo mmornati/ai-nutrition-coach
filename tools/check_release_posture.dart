@@ -149,7 +149,7 @@ final RegExp projectUrlPattern = RegExp(
   r'^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?$',
 );
 
-/// The default `OPENPLATE_PROJECT_URL` declared in `app_identity.dart`, or
+/// The default `AI_NUTRITION_COACH_PROJECT_URL` declared in `app_identity.dart`, or
 /// `null` when it cannot be found.
 String? declaredDefaultProjectUrl(Directory root) {
   final file = File(
@@ -157,36 +157,38 @@ String? declaredDefaultProjectUrl(Directory root) {
   );
   if (!file.existsSync()) return null;
   return RegExp(
-    r"kDefaultOpenPlateProjectUrl\s*=\s*'([^']*)'",
+    r"kDefaultAiNutritionCoachProjectUrl\s*=\s*'([^']*)'",
   ).firstMatch(file.readAsStringSync())?.group(1);
 }
 
 /// Failures of the project-URL rule for a build of flavour [build] with the
-/// environment [env] (`OPENPLATE_BUILD`, `OPENPLATE_PROJECT_URL`): a release
-/// build must not fall back to the unresolvable `.invalid` default.
+/// environment [env] (`AI_NUTRITION_COACH_BUILD`, `AI_NUTRITION_COACH_PROJECT_URL`): a release
+/// build must not fall back to the `.invalid`/empty project URL (the default is now the real repo URL).
 List<String> checkProjectUrl(Directory root, Map<String, String> env) {
   final declared = declaredDefaultProjectUrl(root);
   if (declared == null) {
-    return ['app_identity.dart does not declare kDefaultOpenPlateProjectUrl'];
+    return [
+      'app_identity.dart does not declare kDefaultAiNutritionCoachProjectUrl',
+    ];
   }
-  final given = env['OPENPLATE_PROJECT_URL'] ?? '';
+  final given = env['AI_NUTRITION_COACH_PROJECT_URL'] ?? '';
   // Whatever the flavour, a URL that is set must be a plain https URL: it is
   // compiled into a --dart-define and shell scripts, so no whitespace, quotes
   // or other metacharacters.
   if (given.isNotEmpty && !projectUrlPattern.hasMatch(given)) {
     return [
-      'OPENPLATE_PROJECT_URL must be a plain https:// URL (no whitespace, '
+      'AI_NUTRITION_COACH_PROJECT_URL must be a plain https:// URL (no whitespace, '
           'quotes or shell characters)',
     ];
   }
-  final build = env['OPENPLATE_BUILD'] ?? '';
+  final build = env['AI_NUTRITION_COACH_BUILD'] ?? '';
   if (!releaseBuildFlavors.contains(build)) return const [];
   final url = given.isNotEmpty ? given : declared;
   final host = Uri.tryParse(url)?.host ?? '';
   if (host.isEmpty || host == 'invalid' || host.endsWith('.invalid')) {
     return [
-      'OPENPLATE_BUILD=$build but the project URL is "$url" (unresolvable '
-          'default): set OPENPLATE_PROJECT_URL to the real project page',
+      'AI_NUTRITION_COACH_BUILD=$build but the project URL is "$url" (empty or '
+          'unresolvable): set AI_NUTRITION_COACH_PROJECT_URL to the real project page',
     ];
   }
   return const [];

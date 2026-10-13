@@ -176,7 +176,7 @@ What this means in practice:
   offers the same erase. (A header lost from `localStorage` only is
   restored from the IndexedDB copy automatically.)
 - **Only one tab at a time.** The store is held by one tab; a second
-  tab says OpenPlate is open in another tab and lets you retry once the
+  tab says AI Nutrition Coach is open in another tab and lets you retry once the
   first has locked or closed. A tab hidden for 5 minutes locks itself.
 - Exports (CSV/JSON) are plaintext downloads the browser saves (often into a
   Downloads folder, without asking); the app does not keep them and cannot delete
@@ -243,8 +243,8 @@ against a weak passphrase. The web build needs a **secure context**
   controller's open database. While locked every `recordPlate` returns
   `StoreFailure(encryptedStoreError: WebSessionKeyFailure())`; no exception
   crosses the port.
-- `OPENPLATE_DEV_IN_MEMORY_STORE=true` is the only unencrypted web path
-  (red DEV banner) and is honoured only with `OPENPLATE_BUILD=dev`; every
+- `AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true` is the only unencrypted web path
+  (red DEV banner) and is honoured only with `AI_NUTRITION_COACH_BUILD=dev`; every
   other build ignores it.
 - The AD-1 invariant holds: `packages/domain_core` is free of Flutter /
   SQLite / HTTP / web imports.

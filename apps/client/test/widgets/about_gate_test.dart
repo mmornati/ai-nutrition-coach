@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/about_notice_screen.dart';
-import 'package:openplate_client/screens/privacy_screen.dart';
-import 'package:openplate_client/state/privacy_provider.dart';
-import 'package:openplate_client/widgets/about_gate.dart';
+import 'package:ai_nutrition_coach/screens/about_notice_screen.dart';
+import 'package:ai_nutrition_coach/screens/privacy_screen.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
+import 'package:ai_nutrition_coach/widgets/about_gate.dart';
 
 class _FailingKv implements LocalKeyValueStore {
   _FailingKv({this.failRead = false, this.failWrite = false});
@@ -52,7 +52,10 @@ void main() {
     expect(find.byType(AboutNoticeScreen), findsOneWidget);
     expect(find.text('the day board'), findsNothing);
     expect(find.text('About this app'), findsOneWidget);
-    expect(find.text('OpenPlate is designed for adults.'), findsOneWidget);
+    expect(
+      find.text('AI Nutrition Coach is designed for adults.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('off by default'), findsOneWidget);
     expect(find.textContaining('only after you say yes'), findsOneWidget);
     expect(find.text('What this app stores and sends'), findsOneWidget);

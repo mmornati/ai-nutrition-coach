@@ -11,9 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/your_data_screen.dart';
-import 'package:openplate_client/state/erase_provider.dart';
-import 'package:openplate_client/state/web_store_controller_provider.dart';
+import 'package:ai_nutrition_coach/screens/your_data_screen.dart';
+import 'package:ai_nutrition_coach/state/erase_provider.dart';
+import 'package:ai_nutrition_coach/state/web_store_controller_provider.dart';
 
 import '../_fakes/fake_web_store_controller.dart';
 

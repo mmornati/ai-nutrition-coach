@@ -6,11 +6,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/boot.dart';
+import 'package:ai_nutrition_coach/boot.dart';
 import 'package:domain_core/domain_core.dart';
-import 'package:openplate_client/state/manual_entry_provider.dart';
-import 'package:openplate_client/state/privacy_provider.dart';
-import 'package:openplate_client/state/pwa_provider.dart';
+import 'package:ai_nutrition_coach/state/manual_entry_provider.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
+import 'package:ai_nutrition_coach/state/pwa_provider.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 import '../_fakes/fake_web_store_controller.dart';

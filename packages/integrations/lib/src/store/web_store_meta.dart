@@ -26,7 +26,7 @@ import 'dart:typed_data';
 import 'web_kdf.dart';
 import 'web_store_storage.dart';
 
-const String kWebStoreMetaKey = 'openplate.web.store.meta';
+const String kWebStoreMetaKey = 'ai_nutrition_coach.web.store.meta';
 
 /// Current header/format version. Also the AAD-equivalent "format version"
 /// of the data: bump it together with any change to cipher or schema keying.

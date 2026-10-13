@@ -170,8 +170,8 @@ void main() {
       );
 
       setUp(() {
-        dir = Directory.systemTemp.createTempSync('openplate_kv_web_');
-        backend = FileWebBackend(File('${dir.path}/openplate.db'));
+        dir = Directory.systemTemp.createTempSync('ai_nutrition_coach_kv_web_');
+        backend = FileWebBackend(File('${dir.path}/ai_nutrition_coach.db'));
         storage = InMemoryWebStoreStorage();
       });
       tearDown(() {
@@ -228,7 +228,9 @@ void main() {
 
           // The key is not in the plaintext file bytes (the whole file is encrypted).
           await controller.lock();
-          final bytes = File('${dir.path}/openplate.db').readAsBytesSync();
+          final bytes = File(
+            '${dir.path}/ai_nutrition_coach.db',
+          ).readAsBytesSync();
           expect(String.fromCharCodes(bytes), isNot(contains('sk-persisted')));
 
           // Erase takes it with it.

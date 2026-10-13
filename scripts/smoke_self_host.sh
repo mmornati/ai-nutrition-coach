@@ -3,7 +3,7 @@
 #
 #   bash scripts/smoke_self_host.sh
 #
-# Builds the image through `bin/openplate up` (so the real run flags are what
+# Builds the image through `bin/ai-nutrition-coach up` (so the real run flags are what
 # is tested) and asserts:
 #   * the base images are digest-pinned (nginx-unprivileged, Caddy);
 #   * readiness (a poll loop, no fixed sleep) and HTTP 200 for the app shell,
@@ -14,7 +14,7 @@
 #   * the CSP has no 'unsafe-inline' script, no blanket https: connect-src;
 #   * the container is non-root, has a read-only root filesystem, dropped
 #     capabilities and no-new-privileges;
-#   * a second `bin/openplate up` fails with a clear name-collision error;
+#   * a second `bin/ai-nutrition-coach up` fails with a clear name-collision error;
 #   * EGRESS: the same hardened container, on a docker `--internal` network
 #     (no outbound route), still boots and serves — i.e. it NEEDS no outbound
 #     network — and the rendered nginx config contains no proxy_pass /
@@ -23,12 +23,12 @@
 #     request from the container fails, so the test notices if the network
 #     were not actually isolated;
 #   * ACCESS LOG (privacy audit PV9): off by default - the requests above left
-#     no line (and no User-Agent) in `docker logs`; OPENPLATE_ACCESS_LOG=on
+#     no line (and no User-Agent) in `docker logs`; AI_NUTRITION_COACH_ACCESS_LOG=on
 #     logs the resolved file only, with the client address truncated, and never the
 #     User-Agent, Referer or query string; a bad value refuses to start;
-#   * OPENPLATE_CONNECT_SRC_EXTRA values that could rewrite the CSP (quote
+#   * AI_NUTRITION_COACH_CONNECT_SRC_EXTRA values that could rewrite the CSP (quote
 #     injection, `;`, `*`, newline) make the container refuse to start;
-#   * the OPENPLATE_CONNECT_SRC_EXTRA knob reaches the CSP;
+#   * the AI_NUTRITION_COACH_CONNECT_SRC_EXTRA knob reaches the CSP;
 #   * the compose file is valid, binds 127.0.0.1 by default, has the tls
 #     profile, and the shipped bundle has no third-party hosts.
 #
@@ -40,12 +40,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-NAME="openplate-smoke"
-NET="openplate-smoke-internal"
-NAME_ISO="openplate-smoke-iso"
-PORT="${OPENPLATE_SMOKE_PORT:-8088}"
-IMAGE="openplate:smoke"
-BUDGET="${OPENPLATE_SMOKE_BUDGET:-300}"
+NAME="ai-nutrition-coach-smoke"
+NET="ai-nutrition-coach-smoke-internal"
+NAME_ISO="ai-nutrition-coach-smoke-iso"
+PORT="${AI_NUTRITION_COACH_SMOKE_PORT:-8088}"
+IMAGE="ai-nutrition-coach:smoke"
+BUDGET="${AI_NUTRITION_COACH_SMOKE_BUDGET:-300}"
 START_TS=$(date +%s)
 TMP="$(mktemp -d)"
 
@@ -80,49 +80,49 @@ compose_cfg="$(docker compose -f infra/docker-compose.yml config 2>&1)" \
 grep -q 'host_ip: 127.0.0.1' <<<"$compose_cfg" \
   || fail 40 "compose default does not bind 127.0.0.1"
 ! grep -q 'caddy:' <<<"$compose_cfg" || fail 40 "caddy runs without the tls profile"
-OPENPLATE_DOMAIN=plate.example.test docker compose -f infra/docker-compose.yml --profile tls config 2>&1 \
+AI_NUTRITION_COACH_DOMAIN=plate.example.test docker compose -f infra/docker-compose.yml --profile tls config 2>&1 \
   | grep -q 'caddy:' || fail 40 "tls profile does not define caddy"
-! grep -q 'openplate-data' infra/docker-compose.yml || fail 40 "compose still references the removed /data volume"
+! grep -q 'ai-nutrition-coach-data' infra/docker-compose.yml || fail 40 "compose still references the removed /data volume"
 ok "compose: loopback by default, tls profile present, no /data volume"
 
 # ── Traefik compose (docs/pwa.md): renders, no published port, right labels ──
-! OPENPLATE_DOMAIN='' docker compose -f infra/docker-compose.traefik.yml config >/dev/null 2>&1 \
-  || fail 40 "the Traefik compose renders without OPENPLATE_DOMAIN"
-tcfg="$(OPENPLATE_DOMAIN=plate.example.test docker compose -f infra/docker-compose.traefik.yml config 2>&1)" \
+! AI_NUTRITION_COACH_DOMAIN='' docker compose -f infra/docker-compose.traefik.yml config >/dev/null 2>&1 \
+  || fail 40 "the Traefik compose renders without AI_NUTRITION_COACH_DOMAIN"
+tcfg="$(AI_NUTRITION_COACH_DOMAIN=plate.example.test docker compose -f infra/docker-compose.traefik.yml config 2>&1)" \
   || fail 40 "docker-compose.traefik.yml is invalid: $tcfg"
 ! grep -Eq '^[[:space:]]+(ports|published|host_ip):' <<<"$tcfg" || fail 40 "the Traefik compose publishes a port"
-for want in 'traefik.enable: "true"' 'Host(`plate.example.test`)' 'traefik.http.routers.openplate.entrypoints: websecure' \
-            'traefik.http.routers.openplate.tls: "true"' 'loadbalancer.server.port: "8080"' \
+for want in 'traefik.enable: "true"' 'Host(`plate.example.test`)' 'traefik.http.routers.ai-nutrition-coach.entrypoints: websecure' \
+            'traefik.http.routers.ai-nutrition-coach.tls: "true"' 'loadbalancer.server.port: "8080"' \
             'headers.stsSeconds: "31536000"' 'headers.stsPreload: "false"' 'traefik.docker.network: traefik' \
             'external: true' 'read_only: true'; do
   grep -qF "$want" <<<"$tcfg" || fail 40 "Traefik compose lacks: $want"
 done
 ! grep -q 'certresolver' <<<"$tcfg" || fail 40 "the Traefik compose emits a certresolver label without the overlay"
-tfull="$(OPENPLATE_DOMAIN=plate.example.test OPENPLATE_TRAEFIK_CERTRESOLVER=le OPENPLATE_TRAEFIK_NETWORK=proxy \
-  OPENPLATE_TRAEFIK_ENTRYPOINT=https OPENPLATE_TRAEFIK_ALLOWLIST=192.168.1.0/24 \
+tfull="$(AI_NUTRITION_COACH_DOMAIN=plate.example.test AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER=le AI_NUTRITION_COACH_TRAEFIK_NETWORK=proxy \
+  AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT=https AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST=192.168.1.0/24 \
   docker compose -f infra/docker-compose.traefik.yml -f infra/docker-compose.traefik-certresolver.yml \
   -f infra/docker-compose.traefik-allowlist.yml config 2>&1)" || fail 40 "Traefik overlays do not render: $tfull"
 for want in 'tls.certresolver: le' 'name: proxy' 'entrypoints: https' 'ipallowlist.sourcerange: 192.168.1.0/24' \
-            'middlewares: openplate-hsts,openplate-allow'; do
+            'middlewares: ai-nutrition-coach-hsts,ai-nutrition-coach-allow'; do
   grep -qF "$want" <<<"$tfull" || fail 40 "Traefik overlays lack: $want"
 done
 ! grep -Eq '^[[:space:]]+(ports|published|host_ip):' <<<"$tfull" || fail 40 "the Traefik overlays publish a port"
 rc=0
-OPENPLATE_DOMAIN=ok.example.test OPENPLATE_TRAEFIK_ENTRYPOINT='web;x' bin/openplate up --traefik >/dev/null 2>&1 || rc=$?
-[[ "$rc" -eq 42 ]] || fail 40 "bin/openplate accepted a hostile OPENPLATE_TRAEFIK_ENTRYPOINT (exit $rc)"
+AI_NUTRITION_COACH_DOMAIN=ok.example.test AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT='web;x' bin/ai-nutrition-coach up --traefik >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 40 "bin/ai-nutrition-coach accepted a hostile AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT (exit $rc)"
 rc=0
-OPENPLATE_DOMAIN=ok.example.test OPENPLATE_TRAEFIK_NETWORK=openplate-smoke-no-such-net bin/openplate up --traefik >/dev/null 2>&1 || rc=$?
-[[ "$rc" -eq 43 ]] || fail 40 "bin/openplate --traefik did not report the missing network (exit $rc)"
+AI_NUTRITION_COACH_DOMAIN=ok.example.test AI_NUTRITION_COACH_TRAEFIK_NETWORK=ai-nutrition-coach-smoke-no-such-net bin/ai-nutrition-coach up --traefik >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 43 ]] || fail 40 "bin/ai-nutrition-coach --traefik did not report the missing network (exit $rc)"
 ok "Traefik compose: no published port, HSTS-only middleware, optional overlays render, hostile input refused"
 
 # ── build + run through the real entry point ────────────────────────────────
-printf 'smoke: building and starting via bin/openplate up (port %s) ...\n' "$PORT"
-export OPENPLATE_IMAGE_TAG="$IMAGE" OPENPLATE_CONTAINER_NAME="$NAME" OPENPLATE_PORT="$PORT"
+printf 'smoke: building and starting via bin/ai-nutrition-coach up (port %s) ...\n' "$PORT"
+export AI_NUTRITION_COACH_IMAGE_TAG="$IMAGE" AI_NUTRITION_COACH_CONTAINER_NAME="$NAME" AI_NUTRITION_COACH_PORT="$PORT"
 rc=0
-bin/openplate up >"$TMP/up.log" 2>&1 || rc=$?
+bin/ai-nutrition-coach up >"$TMP/up.log" 2>&1 || rc=$?
 if [[ "$rc" -ne 0 ]]; then
   tail -30 "$TMP/up.log" >&2
-  fail 20 "bin/openplate up exited $rc"
+  fail 20 "bin/ai-nutrition-coach up exited $rc"
 fi
 
 # readiness loop (replaces the old fixed sleep)
@@ -137,9 +137,9 @@ ok "ready, HTTP 200 for /"
 
 # ── name collision ──────────────────────────────────────────────────────────
 rc=0
-bin/openplate up >"$TMP/dup.log" 2>&1 || rc=$?
+bin/ai-nutrition-coach up >"$TMP/dup.log" 2>&1 || rc=$?
 [[ "$rc" -eq 31 ]] && grep -q 'already exists' "$TMP/dup.log" \
-  || fail 30 "second 'bin/openplate up' did not fail with the name-collision error (exit $rc)"
+  || fail 30 "second 'bin/ai-nutrition-coach up' did not fail with the name-collision error (exit $rc)"
 ok "container name collision is reported clearly"
 
 # ── HTTP behaviour ──────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ docker network create --internal "$NET" >/dev/null
 docker run -d --name "$NAME_ISO" --network "$NET" \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
   --security-opt no-new-privileges:true \
-  -e OPENPLATE_CONNECT_SRC_EXTRA="https://api.byok.example.test" \
+  -e AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="https://api.byok.example.test" \
   "$IMAGE" >/dev/null
 ready=0
 for _ in $(seq 1 60); do
@@ -259,8 +259,8 @@ fi
 ok "boots and serves with no outbound network (needs none); outbound requests from it fail"
 docker exec "$NAME_ISO" wget -q -S -O /dev/null http://127.0.0.1:8080/ 2>&1 \
   | grep -i 'content-security-policy' | grep -qF 'connect-src '"'self'"' https://world.openfoodfacts.org https://api.byok.example.test' \
-  || fail 50 "OPENPLATE_CONNECT_SRC_EXTRA did not reach the CSP"
-ok "OPENPLATE_CONNECT_SRC_EXTRA reaches the CSP"
+  || fail 50 "AI_NUTRITION_COACH_CONNECT_SRC_EXTRA did not reach the CSP"
+ok "AI_NUTRITION_COACH_CONNECT_SRC_EXTRA reaches the CSP"
 
 # A CSP-only redeploy must reach installed apps: the service-worker build id
 # covers the headers applied at container start (30-render-sw.sh).
@@ -268,27 +268,27 @@ iso_sw_id="$(docker exec "$NAME_ISO" wget -q -O - http://127.0.0.1:8080/sw.js | 
 [[ "$iso_sw_id" =~ ^[A-Za-z0-9]+-[0-9a-f]{12}$ && "$sw_id" =~ ^[A-Za-z0-9]+-[0-9a-f]{12}$ ]] \
   || fail 50 "service-worker build ids are not <bundle>-<header hash>: '$sw_id' / '$iso_sw_id'"
 [[ "${iso_sw_id%-*}" == "${sw_id%-*}" ]] || fail 50 "the bundle part of the build id differs between containers of one image"
-[[ "$iso_sw_id" != "$sw_id" ]] || fail 50 "a different OPENPLATE_CONNECT_SRC_EXTRA did not change the service-worker build id"
+[[ "$iso_sw_id" != "$sw_id" ]] || fail 50 "a different AI_NUTRITION_COACH_CONNECT_SRC_EXTRA did not change the service-worker build id"
 iso_man_id="$(docker exec "$NAME_ISO" wget -q -O - http://127.0.0.1:8080/precache-manifest.json | sed -n 's/.*"buildId": "\([^"]*\)".*/\1/p' | head -1)"
 [[ "$iso_man_id" == "$iso_sw_id" ]] || fail 50 "sw.js and the precache manifest disagree after rendering ($iso_sw_id vs $iso_man_id)"
-ok "a different OPENPLATE_CONNECT_SRC_EXTRA is a different service-worker version ($sw_id vs $iso_sw_id)"
+ok "a different AI_NUTRITION_COACH_CONNECT_SRC_EXTRA is a different service-worker version ($sw_id vs $iso_sw_id)"
 
 docker rm -f "$NAME_ISO-kill" >/dev/null 2>&1 || true
 docker run -d --name "$NAME_ISO-kill" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
-  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_SW_KILL=1 "$IMAGE" >/dev/null
+  --cap-drop ALL --security-opt no-new-privileges:true -e AI_NUTRITION_COACH_SW_KILL=1 "$IMAGE" >/dev/null
 for _ in $(seq 1 40); do
   docker exec "$NAME_ISO-kill" wget -q -O /dev/null http://127.0.0.1:8080/sw.js 2>/dev/null && break
   sleep 0.5
 done
 kill_sw="$(docker exec "$NAME_ISO-kill" wget -q -O - http://127.0.0.1:8080/sw.js)"
 grep -q 'client.navigate(client.url)' <<<"$kill_sw" && grep -q 'caches.delete' <<<"$kill_sw" \
-  || fail 50 "OPENPLATE_SW_KILL=1 does not serve the kill-switch worker"
+  || fail 50 "AI_NUTRITION_COACH_SW_KILL=1 does not serve the kill-switch worker"
 ! grep -q 'precache-manifest' <<<"$kill_sw" || fail 50 "the kill-switch worker precaches"
 docker rm -f "$NAME_ISO-kill" >/dev/null 2>&1 || true
-ok "OPENPLATE_SW_KILL=1 serves the kill-switch service worker"
+ok "AI_NUTRITION_COACH_SW_KILL=1 serves the kill-switch service worker"
 
 # ── access log (PV9): off by default, minimal and anonymised when on ────────
-docker exec "$NAME" cat /tmp/openplate-access-log.inc | grep -q '^access_log off;' \
+docker exec "$NAME" cat /tmp/ai-nutrition-coach-access-log.inc | grep -q '^access_log off;' \
   || fail 50 "the default container does not render 'access_log off;'"
 logs_default="$(docker logs "$NAME" 2>&1)"
 if grep -Eq '"(GET|POST|HEAD) |curl/|Mozilla|Wget' <<<"$logs_default"; then
@@ -296,7 +296,7 @@ if grep -Eq '"(GET|POST|HEAD) |curl/|Mozilla|Wget' <<<"$logs_default"; then
 fi
 docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 docker run -d --name "$NAME_ISO-log" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
-  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_ACCESS_LOG=on "$IMAGE" >/dev/null
+  --cap-drop ALL --security-opt no-new-privileges:true -e AI_NUTRITION_COACH_ACCESS_LOG=on "$IMAGE" >/dev/null
 for _ in $(seq 1 40); do
   docker exec "$NAME_ISO-log" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break
   sleep 0.5
@@ -308,50 +308,50 @@ docker run --rm --network "$NET" --entrypoint wget "$IMAGE" -q -O /dev/null \
 sleep 1
 logs_on="$(docker logs "$NAME_ISO-log" 2>&1)"
 grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.0 \[[^]]+\] "GET /manifest.json" 200 ' <<<"$logs_on" \
-  || fail 50 "OPENPLATE_ACCESS_LOG=on did not log the path with a truncated address: $(tail -3 <<<"$logs_on")"
+  || fail 50 "AI_NUTRITION_COACH_ACCESS_LOG=on did not log the path with a truncated address: $(tail -3 <<<"$logs_on")"
 for secret in smoke-secret-ua secret.referer.test smoke-secret-query; do
   ! grep -qF "$secret" <<<"$logs_on" || fail 50 "the access log contains '$secret' (User-Agent / Referer / query string)"
 done
 ! grep -qE '"GET / "|"GET / HTTP' <<<"$logs_on" || fail 50 "the loopback healthcheck is being logged"
 docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 docker run -d --name "$NAME_ISO-log" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
-  --cap-drop ALL --security-opt no-new-privileges:true -e OPENPLATE_ACCESS_LOG=verbose "$IMAGE" >/dev/null 2>&1 || true
+  --cap-drop ALL --security-opt no-new-privileges:true -e AI_NUTRITION_COACH_ACCESS_LOG=verbose "$IMAGE" >/dev/null 2>&1 || true
 sleep 2
 [[ "$(docker inspect -f '{{.State.Running}}' "$NAME_ISO-log" 2>/dev/null || echo false)" == false ]] \
-  || fail 50 "container started with an invalid OPENPLATE_ACCESS_LOG"
+  || fail 50 "container started with an invalid AI_NUTRITION_COACH_ACCESS_LOG"
 docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 ok "access log: off by default; =on logs the resolved file only, address truncated, no User-Agent/Referer/query; bad value refused"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
-cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/openplate.conf /tmp/openplate-headers.inc /etc/nginx/nginx.conf')"
+cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /etc/nginx/nginx.conf')"
 if grep -Eq '^[[:space:]]*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b' <<<"$cfg"; then
   fail 70 "rendered nginx config contains proxy_pass/resolver-style directives"
 fi
 ok "rendered nginx config contains no proxy_pass / resolver"
 
-# ── CSP injection: hostile OPENPLATE_CONNECT_SRC_EXTRA must stop the container ──
+# ── CSP injection: hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA must stop the container ──
 inject_cases=("https://a.test'; script-src *" "https://a.test; script-src 'unsafe-inline'" "*" "https:" \
               $'https://a.test\nhttps://b.test' "https://a.test/path" "http://evil.test")
 for bad in "${inject_cases[@]}"; do
   docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
   if docker run -d --name "$NAME_ISO-bad" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
        --cap-drop ALL --security-opt no-new-privileges:true \
-       -e OPENPLATE_CONNECT_SRC_EXTRA="$bad" "$IMAGE" >/dev/null 2>&1; then
+       -e AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="$bad" "$IMAGE" >/dev/null 2>&1; then
     sleep 2
     state="$(docker inspect -f '{{.State.Running}}' "$NAME_ISO-bad" 2>/dev/null || echo false)"
     docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
-    [[ "$state" == false ]] || fail 50 "container started with hostile OPENPLATE_CONNECT_SRC_EXTRA: $(printf %q "$bad")"
+    [[ "$state" == false ]] || fail 50 "container started with hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA: $(printf %q "$bad")"
   fi
   docker rm -f "$NAME_ISO-bad" >/dev/null 2>&1 || true
 done
-ok "hostile OPENPLATE_CONNECT_SRC_EXTRA values (quote, ;, *, https:, newline, path, http) refuse to start"
+ok "hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA values (quote, ;, *, https:, newline, path, http) refuse to start"
 rc=0
-OPENPLATE_CONNECT_SRC_EXTRA="*" bin/openplate up >/dev/null 2>&1 || rc=$?
-[[ "$rc" -eq 42 ]] || fail 50 "bin/openplate accepted a hostile OPENPLATE_CONNECT_SRC_EXTRA (exit $rc)"
+AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="*" bin/ai-nutrition-coach up >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 50 "bin/ai-nutrition-coach accepted a hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (exit $rc)"
 rc=0
-OPENPLATE_DOMAIN=$'a.test\nevil' bin/openplate up --tls >/dev/null 2>&1 || rc=$?
-[[ "$rc" -eq 42 ]] || fail 50 "bin/openplate accepted a hostile OPENPLATE_DOMAIN (exit $rc)"
-ok "bin/openplate rejects hostile OPENPLATE_CONNECT_SRC_EXTRA / OPENPLATE_DOMAIN"
+AI_NUTRITION_COACH_DOMAIN=$'a.test\nevil' bin/ai-nutrition-coach up --tls >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 50 "bin/ai-nutrition-coach accepted a hostile AI_NUTRITION_COACH_DOMAIN (exit $rc)"
+ok "bin/ai-nutrition-coach rejects hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / AI_NUTRITION_COACH_DOMAIN"
 
 ELAPSED=$(($(date +%s) - START_TS))
 [[ "$ELAPSED" -le "$BUDGET" ]] || fail 30 "exceeded the ${BUDGET}s budget (took ${ELAPSED}s)"

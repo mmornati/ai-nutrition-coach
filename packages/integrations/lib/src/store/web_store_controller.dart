@@ -168,7 +168,7 @@ int _clampIdleMinutes(int minutes) {
   return best;
 }
 
-const String kWebLockIdleMinutesKey = 'openplate.web.lock.idleMinutes';
+const String kWebLockIdleMinutesKey = 'ai_nutrition_coach.web.lock.idleMinutes';
 
 /// Default idle auto-lock.
 const Duration kWebDefaultIdleTimeout = Duration(minutes: 15);

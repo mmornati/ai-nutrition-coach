@@ -51,7 +51,7 @@ class SecureStorageAiSettingsStore implements AiSettingsStore {
         '(it is localStorage). Use KvAiSettingsStore.',
       );
     }
-    return openPlateSecureStorage;
+    return aiNutritionCoachSecureStorage;
   }
 
   static const String alias = SecureStorageAliases.rungConfig;

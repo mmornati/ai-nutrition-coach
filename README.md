@@ -1,5 +1,7 @@
 # AI Nutrition Coach
 
+_(formerly OpenPlate)_
+
 AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you
 ate via photo, barcode, or voice/typing, and it lands on your Day
 Board as one honest row per meal. No streaks, no scores, no
@@ -38,7 +40,7 @@ change; CI has never run without a remote; iOS has not been built; Firefox is un
 
 ## Quickstart
 
-OpenPlate's primary way to run is as an **installable, offline-capable web app**
+AI Nutrition Coach's primary way to run is as an **installable, offline-capable web app**
 (a PWA): deploy one container, open its HTTPS address on each phone, add it to the
 home screen. Everything about building, deploying (including behind Traefik),
 installing and updating is in [`docs/pwa.md`](./docs/pwa.md).
@@ -46,10 +48,10 @@ installing and updating is in [`docs/pwa.md`](./docs/pwa.md).
 ### Self-host
 
 ```sh
-bin/openplate up            # builds + serves http://localhost:8080 (loopback only)
-bin/openplate up --tls      # + automatic HTTPS for $OPENPLATE_DOMAIN (Caddy), for other devices
-OPENPLATE_DOMAIN=plate.example.com bin/openplate up --traefik   # behind YOUR Traefik: no published port
-bin/openplate down
+bin/ai-nutrition-coach up            # builds + serves http://localhost:8080 (loopback only)
+bin/ai-nutrition-coach up --tls      # + automatic HTTPS for $AI_NUTRITION_COACH_DOMAIN (Caddy), for other devices
+AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --traefik   # behind YOUR Traefik: no published port
+bin/ai-nutrition-coach down
 ```
 
 Open `http://localhost:8080/`; choose a passphrase to create your store. The
@@ -65,7 +67,7 @@ melos bootstrap   # or: scripts/flutter_docker.sh melos bootstrap (pinned Flutte
 bash scripts/fetch_web_sqlite.sh   # the web store's sqlite3mc-3.5.1.wasm, SHA-256 verified (not committed)
 bash scripts/fetch_web_zxing.sh    # the self-hosted barcode decoder (Safari/iOS), SHA-256 verified (not committed)
 cd apps/client
-flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost
+flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
 cd ../.. && dart run tools/generate_precache_manifest.dart apps/client/build/web   # sw.js + precache manifest
 ```
 

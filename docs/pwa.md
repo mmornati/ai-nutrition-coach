@@ -1,9 +1,9 @@
-# OpenPlate as an installable, offline-capable web app (PWA)
+# AI Nutrition Coach as an installable, offline-capable web app (PWA)
 
-OpenPlate's web build is a **Progressive Web App**: you open one URL on your
+AI Nutrition Coach's web build is a **Progressive Web App**: you open one URL on your
 phone, add it to the home screen, and from then on it has its own icon, opens
 without a connection and tells you calmly when a new version is ready. For a
-family trial this is the primary way to use OpenPlate; the Android and iOS apps
+family trial this is the primary way to use AI Nutrition Coach; the Android and iOS apps
 come from the same code and keep working, but the web app is what you deploy and
 hand around.
 
@@ -58,16 +58,16 @@ files into the bundle:
 - `sw.js` — from `tools/pwa/sw.template.js` with the **build id** baked in. The build
   id is a hash of the file list, so *any* change to a shipped file changes the bytes of
   `sw.js`, which is exactly what makes a browser run its update check.
-  (`OPENPLATE_BUILD_ID=...` / `--build-id` forces an id, e.g. to test the banner.)
+  (`AI_NUTRITION_COACH_BUILD_ID=...` / `--build-id` forces an id, e.g. to test the banner.)
 
 What the worker does:
 
 | Event | Behaviour |
 | --- | --- |
-| install | Precache the manifest into the cache `openplate-precache-<buildId>`: cache-busting fetches, each body checked against its SHA-256, files unchanged since the previous build reused from its cache. Any failure aborts the install and the running version is untouched. |
+| install | Precache the manifest into the cache `ai-nutrition-coach-precache-<buildId>`: cache-busting fetches, each body checked against its SHA-256, files unchanged since the previous build reused from its cache. Any failure aborts the install and the running version is untouched. |
 | waiting | The new worker waits. It **never** takes over by itself. |
 | `SKIP_WAITING` message | Sent when you tap *Reload* → `skipWaiting()`. |
-| activate | Deletes every other `openplate-precache-*` cache and claims open pages. |
+| activate | Deletes every other `ai-nutrition-coach-precache-*` cache and claims open pages. |
 | fetch | **GET + same-origin only.** A page navigation (a path without a file extension) gets the cached `index.html`, online or offline, so a page load is always one consistent build. A precached file is served cache-first. Anything else goes to the network untouched. **Cross-origin requests (Open Food Facts, your AI endpoint) and all non-GET requests are never intercepted**, and the worker never writes a cache at run time, so no API response can be cached. |
 
 Registration is done by the app itself (`main.dart.js`, a same-origin script — hence no
@@ -86,7 +86,7 @@ visit; there is no badge, no counter, no repeat.
 security headers>`. The headers matter because the worker serves the *cached* `index.html` with the headers it was
 fetched with (the stored responses keep the network response's headers, minus `Content-Encoding`/`Content-Length`/
 `Transfer-Encoding`/`Set-Cookie`, and the document is always re-fetched on an update). So **changing
-`OPENPLATE_CONNECT_SRC_EXTRA` and restarting the container is a new service-worker version**: installed apps show the
+`AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restarting the container is a new service-worker version**: installed apps show the
 "new version is ready" line and pick up the new CSP when the user taps Reload. nginx serves `sw.js`, `precache-manifest.json`, `manifest.json`, `index.html` and the loader/app
 code with `Cache-Control: no-cache`; the worker is served from `/`, so its scope is `/` and no
 `Service-Worker-Allowed` header is needed. CSP `worker-src 'self' blob:` already allows it.
@@ -141,7 +141,7 @@ available in this browser — type it instead" and manual entry still works.
 ### Content-Security-Policy
 
 Unchanged and still strict. The worker and the decoder are both `'self'`. The one knob is
-`OPENPLATE_CONNECT_SRC_EXTRA`: **this is where you add the origin of your own AI endpoint** (BYOK), e.g.
+`AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`: **this is where you add the origin of your own AI endpoint** (BYOK), e.g.
 `https://api.openai.com`. Without it the browser blocks the call. Details in
 [`self-host.md`](./self-host.md#content-security-policy-and-your-ai-endpoint).
 
@@ -158,11 +158,11 @@ scripts/flutter_docker.sh dart run melos run build:web      # = melos run build:
 # -> apps/client/build/web
 
 # Re-generate only sw.js + precache-manifest.json for an existing bundle
-# (OPENPLATE_BUILD_ID forces a new build id, e.g. to test the update banner):
-OPENPLATE_BUILD_ID=test-2 scripts/flutter_docker.sh dart run melos run pwa:manifest
+# (AI_NUTRITION_COACH_BUILD_ID forces a new build id, e.g. to test the update banner):
+AI_NUTRITION_COACH_BUILD_ID=test-2 scripts/flutter_docker.sh dart run melos run pwa:manifest
 
 # The production image (multi-stage: build above, then nginx-unprivileged):
-docker build -f infra/Dockerfile -t openplate:dev .
+docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .
 ```
 
 Icons are generated deterministically from one piece of geometry by `tools/generate_icons.dart`
@@ -172,8 +172,8 @@ The Android/iOS launcher icons are still the Flutter placeholders.
 ## Run locally
 
 ```sh
-bin/openplate up                 # builds the image, serves http://localhost:8080/ (loopback only)
-bin/openplate down
+bin/ai-nutrition-coach up                 # builds the image, serves http://localhost:8080/ (loopback only)
+bin/ai-nutrition-coach down
 scripts/run_local_web.sh         # build in the toolchain image + serve build/web with python, open Chrome
 ```
 
@@ -197,17 +197,17 @@ attached to a Docker network (conventionally called `traefik`), an HTTPS entrypo
 2. Build and start:
 
    ```sh
-   OPENPLATE_DOMAIN=plate.example.com \
-   OPENPLATE_TRAEFIK_CERTRESOLVER=letsencrypt \
-   OPENPLATE_CONNECT_SRC_EXTRA="https://api.openai.com" \
-     bin/openplate up --traefik
+   AI_NUTRITION_COACH_DOMAIN=plate.example.com \
+   AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER=letsencrypt \
+   AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="https://api.openai.com" \
+     bin/ai-nutrition-coach up --traefik
    ```
 
-   (`bin/openplate down` stops it. The network is external and is never removed.) The equivalent compose
-   command, which `bin/openplate up --traefik` runs after building the image:
+   (`bin/ai-nutrition-coach down` stops it. The network is external and is never removed.) The equivalent compose
+   command, which `bin/ai-nutrition-coach up --traefik` runs after building the image:
 
    ```sh
-   OPENPLATE_DOMAIN=plate.example.com OPENPLATE_TRAEFIK_CERTRESOLVER=letsencrypt \
+   AI_NUTRITION_COACH_DOMAIN=plate.example.com AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER=letsencrypt \
      docker compose -f infra/docker-compose.traefik.yml \
                     -f infra/docker-compose.traefik-certresolver.yml up -d
    ```
@@ -215,8 +215,8 @@ attached to a Docker network (conventionally called `traefik`), an HTTPS entrypo
 
 What `infra/docker-compose.traefik.yml` does: the same hardened container as the base file (read-only, no
 capabilities, `no-new-privileges`) with **no `ports:`**, joined to the external network; labels
-`traefik.enable=true`, router `openplate` with ``Host(`$OPENPLATE_DOMAIN`)`` on `$OPENPLATE_TRAEFIK_ENTRYPOINT`,
-`tls=true`, service port 8080, and a middleware `openplate-hsts` (Strict-Transport-Security, one year, no
+`traefik.enable=true`, router `ai-nutrition-coach` with ``Host(`$AI_NUTRITION_COACH_DOMAIN`)`` on `$AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT`,
+`tls=true`, service port 8080, and a middleware `ai-nutrition-coach-hsts` (Strict-Transport-Security, one year, no
 `preload`, subdomains only if you ask). That middleware sets *only* HSTS: Traefik's headers middleware changes
 nothing it is not told to, so the app's CSP, COOP, Permissions-Policy and the rest pass through untouched.
 It is a standalone file (not an override of `docker-compose.yml`) because compose cannot remove a published
@@ -224,16 +224,16 @@ port inherited from another file without `!reset`; here the absence of `ports:` 
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OPENPLATE_DOMAIN` | **required** | Public host name (`bin/openplate` checks it is a plain hostname). |
-| `OPENPLATE_TRAEFIK_NETWORK` | `traefik` | The existing Docker network shared with Traefik (must exist). |
-| `OPENPLATE_TRAEFIK_ENTRYPOINT` | `websecure` | Name of Traefik's HTTPS entrypoint. |
-| `OPENPLATE_TRAEFIK_CERTRESOLVER` | unset | Your ACME resolver name. When set, `up --traefik` adds the overlay `docker-compose.traefik-certresolver.yml`; when unset **no** certresolver label exists at all (use this if Traefik serves a wildcard/default certificate). |
-| `OPENPLATE_TRAEFIK_ALLOWLIST` | unset | Comma-separated CIDRs allowed to connect, e.g. `192.168.1.0/24,100.64.0.0/10`. Adds the overlay `docker-compose.traefik-allowlist.yml` (Traefik v3 `ipAllowList`). |
-| `OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `true` adds `includeSubdomains` to HSTS. |
-| `OPENPLATE_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins — **the BYOK AI endpoint goes here** (validated: space-separated `https://host[:port]` only). |
-| `OPENPLATE_IMAGE_TAG` | `openplate:dev` | Image to build/run. |
+| `AI_NUTRITION_COACH_DOMAIN` | **required** | Public host name (`bin/ai-nutrition-coach` checks it is a plain hostname). |
+| `AI_NUTRITION_COACH_TRAEFIK_NETWORK` | `traefik` | The existing Docker network shared with Traefik (must exist). |
+| `AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT` | `websecure` | Name of Traefik's HTTPS entrypoint. |
+| `AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER` | unset | Your ACME resolver name. When set, `up --traefik` adds the overlay `docker-compose.traefik-certresolver.yml`; when unset **no** certresolver label exists at all (use this if Traefik serves a wildcard/default certificate). |
+| `AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST` | unset | Comma-separated CIDRs allowed to connect, e.g. `192.168.1.0/24,100.64.0.0/10`. Adds the overlay `docker-compose.traefik-allowlist.yml` (Traefik v3 `ipAllowList`). |
+| `AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `true` adds `includeSubdomains` to HSTS. |
+| `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins — **the BYOK AI endpoint goes here** (validated: space-separated `https://host[:port]` only). |
+| `AI_NUTRITION_COACH_IMAGE_TAG` | `ai-nutrition-coach:dev` | Image to build/run. |
 
-`bin/openplate up --traefik` validates every value with a strict pattern before it reaches a label (a
+`bin/ai-nutrition-coach up --traefik` validates every value with a strict pattern before it reaches a label (a
 domain, network, entrypoint or resolver can never add a label or alter the router rule), and exits with 41
 (no domain), 42 (invalid value) or 43 (the network does not exist).
 
@@ -242,17 +242,17 @@ domain, network, entrypoint or resolver can never add a label or alter the route
 Run the app container loopback-only (the default), and route to it with the file provider:
 
 ```sh
-bin/openplate up --compose            # 127.0.0.1:8080 only
-cp infra/traefik/openplate-dynamic.yml /etc/traefik/dynamic/openplate.yml    # your providers.file directory
-# edit the domain, entrypoint and resolver marked EDIT; add `openplate-allow` to the router for family-only access
+bin/ai-nutrition-coach up --compose            # 127.0.0.1:8080 only
+cp infra/traefik/ai-nutrition-coach-dynamic.yml /etc/traefik/dynamic/ai-nutrition-coach.yml    # your providers.file directory
+# edit the domain, entrypoint and resolver marked EDIT; add `ai-nutrition-coach-allow` to the router for family-only access
 ```
 
-`infra/traefik/openplate-dynamic.yml` routes ``Host(`plate.example.com`)`` to `http://127.0.0.1:8080` with the
+`infra/traefik/ai-nutrition-coach-dynamic.yml` routes ``Host(`plate.example.com`)`` to `http://127.0.0.1:8080` with the
 same HSTS-only middleware and an optional `ipAllowList`.
 
 ### DNS and certificates
 
-Point an `A`/`AAAA` record at the host (the same name as `OPENPLATE_DOMAIN`). For Let's Encrypt, ports 80 and 443
+Point an `A`/`AAAA` record at the host (the same name as `AI_NUTRITION_COACH_DOMAIN`). For Let's Encrypt, ports 80 and 443
 must reach Traefik and your resolver must be configured in Traefik's *static* configuration. If you prefer
 no public exposure, use a DNS-01 resolver or a wildcard certificate and keep the host reachable only over your
 VPN. Browsers need a valid certificate for the service worker and the encrypted store; a self-signed
@@ -260,8 +260,8 @@ certificate you clicked through is *not* enough for a service worker.
 
 ### Logs behind Traefik
 
-OpenPlate's own container logs nothing per request by default
-(`OPENPLATE_ACCESS_LOG=off`, [`docs/self-host.md`](./self-host.md#logs)). **Traefik is the
+AI Nutrition Coach's own container logs nothing per request by default
+(`AI_NUTRITION_COACH_ACCESS_LOG=off`, [`docs/self-host.md`](./self-host.md#logs)). **Traefik is the
 one that sees the real client addresses**, and its access log is off unless you turned it on.
 Recommendations:
 
@@ -273,14 +273,14 @@ Recommendations:
 - Set a retention: rotate (or let Docker rotate: `json-file` with `max-size` / `max-file`) and
   delete after days, not months. Address + time + path is personal data about *when the family
   uses the app*.
-- Do not forward OpenPlate's or Traefik's logs to a third-party log service.
+- Do not forward AI Nutrition Coach's or Traefik's logs to a third-party log service.
 
 ### Family-only access
 
 Pick one, in this order of preference:
 
 1. **Don't expose it publicly:** a VPN (WireGuard, Tailscale) and a name that only resolves inside it.
-2. **IP allow-list** in Traefik (`OPENPLATE_TRAEFIK_ALLOWLIST`). It judges the address Traefik *sees*: behind
+2. **IP allow-list** in Traefik (`AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST`). It judges the address Traefik *sees*: behind
    Docker NAT or another proxy that may be the proxy's address, so test from outside the list.
 3. Nothing: the app itself is protected by the passphrase (data is encrypted in each browser, the server
    holds none). Open access to the *app shell* exposes only static files.
@@ -300,7 +300,7 @@ see [limitations](#limitations)).
 - **Android (Chrome):** menu (⋮) → **Install app** (or **Add to Home screen**). Settings → *Install on your
   phone* also shows an **Install** button when Chrome offers installation.
 - **Desktop (Chrome / Edge):** the install icon at the right of the address bar, or the browser menu →
-  **Install OpenPlate**.
+  **Install AI Nutrition Coach**.
 
 What installing changes: it opens without a connection once it has loaded once; it has its own icon and no
 browser bars; on iPhone, Safari may clear a *website's* data after a while without a visit, but an app added to
@@ -308,8 +308,8 @@ the Home Screen is not subject to that. It does **not** move data: see below.
 
 ## Updating
 
-Deploy a new image (`bin/openplate up --traefik` again, or `docker compose ... up -d` with a new
-`OPENPLATE_IMAGE_TAG`). Installed apps check for a new version when they open and when they return to the
+Deploy a new image (`bin/ai-nutrition-coach up --traefik` again, or `docker compose ... up -d` with a new
+`AI_NUTRITION_COACH_IMAGE_TAG`). Installed apps check for a new version when they open and when they return to the
 foreground. When the new version has finished installing in the background they show the calm line "A new
 version is ready" — tap **Reload** (the page reloads once and asks for your passphrase again) or **Later**.
 Old caches are deleted when the new version activates. Nothing else is needed on the phones; data is untouched.
@@ -324,10 +324,10 @@ written to be safely re-runnable.
    activates it **once** (a `sessionStorage` flag prevents reload loops) and the page reloads into the fix. Deploy
    the fixed image; open the app; wait ~30 s.
 2. **Kill switch** — when that is not enough (the bootstrap itself is broken, or no newer worker will install):
-   restart the container with `OPENPLATE_SW_KILL=1`, e.g.
+   restart the container with `AI_NUTRITION_COACH_SW_KILL=1`, e.g.
 
    ```sh
-   OPENPLATE_SW_KILL=1 docker compose -f infra/docker-compose.traefik.yml up -d   # or: docker run -e OPENPLATE_SW_KILL=1 ...
+   AI_NUTRITION_COACH_SW_KILL=1 docker compose -f infra/docker-compose.traefik.yml up -d   # or: docker run -e AI_NUTRITION_COACH_SW_KILL=1 ...
    ```
 
    The container then serves `tools/pwa/sw.kill.js` as `/sw.js` (an empty precache manifest). Browsers fetch it on
@@ -338,7 +338,7 @@ written to be safely re-runnable.
    re-installed and reload the page forever). Once users are healthy, **redeploy normally** (without the variable):
    the normal worker replaces the kill switch through the usual banner flow.
 3. **Data written by a newer version** (for example another tab still ran a newer build): the unlock screen says
-   "This data was opened by a newer version of OpenPlate… reload the page to update". Nothing is lost or changed;
+   "This data was opened by a newer version of AI Nutrition Coach… reload the page to update". Nothing is lost or changed;
    reloading gets the current build.
 
 Also: every tab reloads once when a new worker takes control (not only the tab where you tapped Reload), and *Reload*
@@ -361,7 +361,7 @@ path. A forgotten passphrase cannot be recovered by anyone.
   exempt. Chromium and Firefox decide `persist()` differently (see above). Keep exports regardless.
 - **Passphrase every time the app opens**, and again after the idle lock (15 minutes by default) or 5 minutes
   hidden. This is by design (ADR-0002); there is no "stay unlocked".
-- **One tab at a time.** A second tab/window says OpenPlate is open elsewhere.
+- **One tab at a time.** A second tab/window says AI Nutrition Coach is open elsewhere.
 - **No sync.** Devices do not talk to each other.
 - **Camera** needs HTTPS (or localhost) and your permission; the scanner decodes on the device.
 - **Locale:** an unparseable `navigator.languages` entry (POSIX-style `en-US@posix`, `en_US.UTF-8`) used to stop the
@@ -421,12 +421,12 @@ WebKit instead (above), not in the pane.
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Stuck on an old version | Close every OpenPlate tab/app window and reopen (the update applies on next open), or tap *Reload* on the banner. To force it from a desktop browser: DevTools → Application → Service Workers → *Unregister*, and Cache Storage → delete the `openplate-precache-*` entries, then reload. **Do not use "Clear site data" / "Clear storage"**: that also erases your encrypted history (IndexedDB) — export first if you must. On a phone: removing the Home Screen app and re-adding it also fixes it (on iOS this discards that app's data — export first). |
+| Stuck on an old version | Close every AI Nutrition Coach tab/app window and reopen (the update applies on next open), or tap *Reload* on the banner. To force it from a desktop browser: DevTools → Application → Service Workers → *Unregister*, and Cache Storage → delete the `ai-nutrition-coach-precache-*` entries, then reload. **Do not use "Clear site data" / "Clear storage"**: that also erases your encrypted history (IndexedDB) — export first if you must. On a phone: removing the Home Screen app and re-adding it also fixes it (on iOS this discards that app's data — export first). |
 | "Web storage unavailable" / store unavailable | The page is not a **secure context**: you opened `http://<ip>` instead of `https://…` or `http://localhost`, or the certificate is not trusted. Fix the URL/certificate. Private browsing modes can also block IndexedDB. |
 | The app never becomes installable / no install icon | Needs HTTPS with a valid certificate, the manifest and the service worker. Check `https://<host>/manifest.json` and `/sw.js` load without credentials (basic auth breaks this) and DevTools → Application → Manifest shows no errors. |
-| The AI call is blocked / "Test connection" fails | CSP `connect-src`: add the endpoint origin to `OPENPLATE_CONNECT_SRC_EXTRA` and restart the container (browser console shows a CSP violation). |
+| The AI call is blocked / "Test connection" fails | CSP `connect-src`: add the endpoint origin to `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restart the container (browser console shows a CSP violation). |
 | Camera / scanner does nothing | Allow the camera for the site in the browser settings; needs HTTPS. If the decoder fails to start the screen says so and manual entry still works. |
 | White page / the app never starts after an update | Wait ~30 s (the bootstrap activates a waiting fix once). Still broken: use the **kill switch** (see *Updating → If an update goes wrong*). |
-| The banner never appears after a deploy | The browser checks on open/foreground; reopen the app once. Check that `sw.js` is served `no-cache` (`curl -I https://<host>/sw.js`) and that its `BUILD_ID` differs from the old one (it changes with the bundle *and* with any change to the security headers, e.g. `OPENPLATE_CONNECT_SRC_EXTRA`). |
+| The banner never appears after a deploy | The browser checks on open/foreground; reopen the app once. Check that `sw.js` is served `no-cache` (`curl -I https://<host>/sw.js`) and that its `BUILD_ID` differs from the old one (it changes with the bundle *and* with any change to the security headers, e.g. `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`). |
 | "Open in another tab" | Another tab/window holds the store; lock or close it, then retry. |
 | Blank page after an update on iOS | Remove the Home Screen app and re-add it (export first if it had data). |

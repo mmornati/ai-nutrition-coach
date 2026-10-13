@@ -2,7 +2,7 @@
 # ───────────────────────────────────────────────────────────────────────────
 # Fail if the built web bundle references a third-party host (N5).
 #
-# OpenPlate's zero-third-party posture means the shipped bundle must not load
+# AI Nutrition Coach's zero-third-party posture means the shipped bundle must not load
 # fonts, CanvasKit, scanner libraries or anything else from a CDN. This scans
 # the text assets of apps/client/build/web (.js .html .json .css; the
 # CanvasKit/skwasm engine binaries under canvaskit/ and the licence NOTICES

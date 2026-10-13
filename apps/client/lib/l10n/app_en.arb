@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appName": "OpenPlate",
+  "appName": "AI Nutrition Coach",
   "@appName": {
     "description": "The app name, shown in the OS task switcher."
   },
@@ -185,7 +185,7 @@
   "barcodeAimHint": "Aim at a packaged barcode to log it.",
   "barcodeUnsupportedBrowserTitle": "Scanning isn't available in this browser — type it instead",
   "cameraUnavailableTitle": "Camera unavailable — type it instead",
-  "barcodeUnsupportedBrowserBody": "This browser can't read barcodes on your device, and OpenPlate never sends camera images elsewhere. Manual entry still works.",
+  "barcodeUnsupportedBrowserBody": "This browser can't read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.",
   "cameraStartFailedBody": "We couldn't start the camera. Manual entry still works.",
   "barcodeNotFoundTypeIt": "Not found — type it manually",
   "snapPlateTitle": "Snap a plate",
@@ -319,11 +319,11 @@
   "@installTitle": {
     "description": "Title of the install help screen."
   },
-  "installIntro": "OpenPlate runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.",
+  "installIntro": "AI Nutrition Coach runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.",
   "@installIntro": {
     "description": "Install help intro."
   },
-  "installAlready": "OpenPlate is already installed on this device.",
+  "installAlready": "AI Nutrition Coach is already installed on this device.",
   "@installAlready": {
     "description": "Shown instead of instructions when running as an installed app."
   },
@@ -351,7 +351,7 @@
   "@installDesktopTitle": {
     "description": "Install help heading."
   },
-  "installDesktopSteps": "In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install OpenPlate”. Other browsers can simply keep using it in a tab.",
+  "installDesktopSteps": "In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install AI Nutrition Coach”. Other browsers can simply keep using it in a tab.",
   "@installDesktopSteps": {
     "description": "Install help steps for desktop browsers."
   },
@@ -387,7 +387,7 @@
   "@aboutNoticeTitle": {
     "description": "One-time first-run notice heading."
   },
-  "aboutNoticeAdults": "OpenPlate is designed for adults.",
+  "aboutNoticeAdults": "AI Nutrition Coach is designed for adults.",
   "@aboutNoticeAdults": {
     "description": "First-run notice line 1."
   },
@@ -443,7 +443,7 @@
   "@privacyServerHeading": {
     "description": "Privacy page section heading."
   },
-  "privacyServerBody": "If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.",
+  "privacyServerBody": "If you opened AI Nutrition Coach in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.",
   "@privacyServerBody": {
     "description": "Privacy page: server."
   },
@@ -475,7 +475,7 @@
   "@privacySharedHeading": {
     "description": "Privacy page section heading."
   },
-  "privacySharedBody": "Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.",
+  "privacySharedBody": "Everyone who can open AI Nutrition Coach on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.",
   "@privacySharedBody": {
     "description": "Privacy page: shared devices (PV6)."
   },

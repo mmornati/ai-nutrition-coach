@@ -6,8 +6,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/l10n/l10n.dart';
-import 'package:openplate_client/main.dart';
+import 'package:ai_nutrition_coach/l10n/l10n.dart';
+import 'package:ai_nutrition_coach/main.dart';
 
 void main() {
   final supported = AppLocalizations.supportedLocales;
@@ -39,7 +39,7 @@ void main() {
         home: Builder(builder: (c) => Text(c.l10n.appName)),
       ),
     );
-    expect(find.text('OpenPlate'), findsOneWidget);
+    expect(find.text('AI Nutrition Coach'), findsOneWidget);
   });
 
   test(

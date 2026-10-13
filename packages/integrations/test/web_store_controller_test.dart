@@ -71,8 +71,8 @@ void main() {
           .meta;
 
   setUp(() {
-    dir = Directory.systemTemp.createTempSync('openplate_web_store_');
-    file = File('${dir.path}/openplate.db');
+    dir = Directory.systemTemp.createTempSync('ai_nutrition_coach_web_store_');
+    file = File('${dir.path}/ai_nutrition_coach.db');
     storage = InMemoryWebStoreStorage();
     backend = FileWebBackend(file);
     now = DateTime.utc(2026, 10, 1, 12);

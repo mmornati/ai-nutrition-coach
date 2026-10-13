@@ -1,17 +1,17 @@
 #!/bin/sh
 # Runs before the image's envsubst step (20-envsubst-on-templates.sh).
 #
-# OPENPLATE_CONNECT_SRC_EXTRA is substituted into the Content-Security-Policy
+# AI_NUTRITION_COACH_CONNECT_SRC_EXTRA is substituted into the Content-Security-Policy
 # header. An unvalidated value could close the quote/directive and rewrite the
 # policy (`'; script-src *`), so refuse to start unless every entry is a plain
 # origin: https://host[:port] (or http://localhost[:port] for a local model),
 # separated by spaces. No quotes, semicolons, wildcards, newlines, paths.
 set -eu
 
-v="${OPENPLATE_CONNECT_SRC_EXTRA:-}"
+v="${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}"
 
 die() {
-  echo "05-validate-csp: refusing to start: OPENPLATE_CONNECT_SRC_EXTRA must be space-separated https://host[:port] origins (got an invalid value)." >&2
+  echo "05-validate-csp: refusing to start: AI_NUTRITION_COACH_CONNECT_SRC_EXTRA must be space-separated https://host[:port] origins (got an invalid value)." >&2
   exit 1
 }
 

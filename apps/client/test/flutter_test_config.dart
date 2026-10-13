@@ -7,7 +7,7 @@
 
 import 'dart:async';
 
-import 'package:openplate_client/l10n/l10n.dart';
+import 'package:ai_nutrition_coach/l10n/l10n.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   debugAllowMissingL10n = true;

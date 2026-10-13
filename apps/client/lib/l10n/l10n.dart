@@ -1,6 +1,6 @@
 // Convenience access to the generated localizations (AD-7).
 //
-// `context.l10n` resolves the delegate installed by `OpenPlateApp`; when a
+// `context.l10n` resolves the delegate installed by `AiNutritionCoachApp`; when a
 // widget is pumped under a bare `MaterialApp` (most widget tests) there is no
 // delegate, and it falls back to the English strings so the same widgets work
 // there unchanged.

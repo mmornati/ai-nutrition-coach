@@ -24,9 +24,9 @@ void main() {
     expect(r, isA<OffBarcodeMatch>());
 
     final ua = a.last.headers['User-Agent']! as String;
-    expect(ua, startsWith('OpenPlate/'));
-    expect(ua, contains(kOpenPlateVersion));
-    expect(ua, contains(kOpenPlateProjectUrl));
+    expect(ua, startsWith('AiNutritionCoach/'));
+    expect(ua, contains(kAiNutritionCoachVersion));
+    expect(ua, contains(kAiNutritionCoachProjectUrl));
     expect(ua, isNot(contains('@')), reason: 'no personal email');
 
     expect(a.last.uri.queryParameters['fields'], kOffFields);
@@ -68,7 +68,7 @@ void main() {
       expect(names, isNot(contains(forbidden)));
     }
     expect(r.headers['Accept'], 'application/json');
-    expect(r.headers['User-Agent'], kOpenPlateUserAgent);
+    expect(r.headers['User-Agent'], kAiNutritionCoachUserAgent);
     expect(kOffFields.split(','), isNot(contains('code')));
     expect(r.followRedirects, isFalse);
   });

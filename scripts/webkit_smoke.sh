@@ -6,7 +6,7 @@
 #   scripts/webkit_smoke.sh                 build the image if needed, run both
 #   scripts/webkit_smoke.sh --no-build      use an existing image
 #   BROWSERS=webkit scripts/webkit_smoke.sh only WebKit
-#   OPENPLATE_SMOKE_IMAGE=openplate:ci ...  smoke a specific image
+#   AI_NUTRITION_COACH_SMOKE_IMAGE=ai-nutrition-coach:ci ...  smoke a specific image
 #
 # Opt-in: it is not part of scripts/verify.sh (it needs ~10 minutes the first
 # time: the Playwright image is ~2 GB and `npm ci` needs the network). It runs
@@ -31,7 +31,7 @@ cd "$ROOT"
 # Keep the tag, the digest and tools/webkit_smoke/package.json's `playwright`
 # version in step when bumping.
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.60.0-noble@sha256:9bd26ad900bb5e0f4dee75839e957a89ae89c2b7ab1e76050e559790e946b948"
-IMAGE="${OPENPLATE_SMOKE_IMAGE:-openplate:browser-smoke}"
+IMAGE="${AI_NUTRITION_COACH_SMOKE_IMAGE:-ai-nutrition-coach:browser-smoke}"
 BROWSERS="${BROWSERS:-webkit,chromium}"
 BUILD=1
 for arg in "$@"; do
@@ -43,11 +43,11 @@ done
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 10; }
 
-SERVER="openplate-browser-smoke"
-SITE="$(mktemp -d "${TMPDIR:-/tmp}/openplate-site.XXXXXX")"
+SERVER="ai-nutrition-coach-browser-smoke"
+SITE="$(mktemp -d "${TMPDIR:-/tmp}/ai-nutrition-coach-site.XXXXXX")"
 # Where the container renders sw.js + the precache manifest at start
 # (30-render-sw.sh); mounted so the smoke can play "a new build was deployed".
-PWA="$(mktemp -d "${TMPDIR:-/tmp}/openplate-pwa.XXXXXX")"
+PWA="$(mktemp -d "${TMPDIR:-/tmp}/ai-nutrition-coach-pwa.XXXXXX")"
 EXTRACT=""
 cleanup() {
   docker rm -f "$SERVER" ${EXTRACT:+"$EXTRACT"} >/dev/null 2>&1 || true
@@ -73,7 +73,7 @@ chmod 0777 "$PWA"
 echo "▶ starting the server (the image's nginx, serving the extracted copy read-only)"
 docker run -d --name "$SERVER" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  -v "$SITE":/usr/share/nginx/html:ro -v "$PWA":/tmp/openplate-pwa "$IMAGE" >/dev/null
+  -v "$SITE":/usr/share/nginx/html:ro -v "$PWA":/tmp/ai-nutrition-coach-pwa "$IMAGE" >/dev/null
 for _ in $(seq 1 40); do
   docker exec "$SERVER" wget -q --spider http://127.0.0.1:8080/ 2>/dev/null && break
   sleep 0.5

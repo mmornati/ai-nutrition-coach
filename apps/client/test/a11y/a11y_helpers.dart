@@ -7,8 +7,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/l10n/l10n.dart';
-import 'package:openplate_client/theme/app_theme.dart';
+import 'package:ai_nutrition_coach/l10n/l10n.dart';
+import 'package:ai_nutrition_coach/theme/app_theme.dart';
 
 /// A phone-wide, TALL surface (400 x 2400 logical px at 2x).
 ///

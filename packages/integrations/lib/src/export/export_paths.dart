@@ -6,14 +6,17 @@
 /// between "written" and "handed to the share sheet". Never the
 /// documents directory: that is included in device backups (iCloud /
 /// iTunes) and, on iOS, can be exposed through the Files app.
-const String kExportSubdirectory = 'openplate_exports';
+const String kExportSubdirectory = 'ai_nutrition_coach_exports';
 
 /// Exports written by builds before Phase 2A landed in the documents
-/// directory as `YYYY-MM-DD-openplate.csv|json`. The eraser removes
-/// these legacy files too.
+/// directory as `YYYY-MM-DD-ai-nutrition-coach.csv|json` (`-openplate` before
+/// the project rename). The eraser removes these legacy files too.
 final RegExp legacyExportFileName = RegExp(
-  r'^\d{4}-\d{2}-\d{2}-openplate\.(csv|json)$',
+  r'^\d{4}-\d{2}-\d{2}-(ai-nutrition-coach|openplate)\.(csv|json)$',
 );
+
+/// The pre-rename name of [kExportSubdirectory]; the eraser removes it too.
+const String kLegacyExportSubdirectory = 'openplate_exports';
 
 /// Sub-directory of the temp/cache directory where `share_plus` on Android
 /// copies every shared file so the receiving app can read it through a

@@ -27,7 +27,7 @@
 // the two generated files themselves.
 //
 // The build id is a hash of the file list + hashes (deterministic: the same
-// bundle always gets the same id) unless `--build-id` / OPENPLATE_BUILD_ID is
+// bundle always gets the same id) unless `--build-id` / AI_NUTRITION_COACH_BUILD_ID is
 // given -- the way to force "a new version" in a test.
 
 import 'dart:convert';
@@ -138,10 +138,10 @@ String renderServiceWorker(String template, String buildId) {
   if (!_validBuildId.hasMatch(buildId)) {
     throw ArgumentError.value(buildId, 'buildId', 'must match $_validBuildId');
   }
-  if (!template.contains('__OPENPLATE_BUILD_ID__')) {
+  if (!template.contains('__AI_NUTRITION_COACH_BUILD_ID__')) {
     throw StateError('the service worker template has no build-id marker');
   }
-  return template.replaceAll('__OPENPLATE_BUILD_ID__', buildId);
+  return template.replaceAll('__AI_NUTRITION_COACH_BUILD_ID__', buildId);
 }
 
 /// Generates `precache-manifest.json` and `sw.js` into [webDir]. Returns the
@@ -172,7 +172,7 @@ String generate({
 
 void main(List<String> args) {
   String? webPath;
-  String? buildId = Platform.environment['OPENPLATE_BUILD_ID'];
+  String? buildId = Platform.environment['AI_NUTRITION_COACH_BUILD_ID'];
   for (var i = 0; i < args.length; i++) {
     if (args[i] == '--build-id' && i + 1 < args.length) {
       buildId = args[++i];

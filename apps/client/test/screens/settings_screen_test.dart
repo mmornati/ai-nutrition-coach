@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/about_screen.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/screens/settings_screen.dart';
-import 'package:openplate_client/screens/your_ai_screen.dart';
-import 'package:openplate_client/screens/your_data_screen.dart';
-import 'package:openplate_client/state/ai_rung_provider.dart';
-import 'package:openplate_client/state/ai_settings_provider.dart';
-import 'package:openplate_client/state/clock_provider.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/screens/about_screen.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/screens/settings_screen.dart';
+import 'package:ai_nutrition_coach/screens/your_ai_screen.dart';
+import 'package:ai_nutrition_coach/screens/your_data_screen.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
+import 'package:ai_nutrition_coach/state/clock_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 

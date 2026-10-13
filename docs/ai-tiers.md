@@ -43,7 +43,7 @@ The rung, the BYOK endpoint and model, and the per-host photo consents
 so they are stored like one:
 
 - **Mobile / desktop:** the OS keystore (`flutter_secure_storage`, alias
-  `openplate_ai_rung_config_v1`). Chosen over a table in the encrypted
+  `ai_nutrition_coach_ai_rung_config_v1`). Chosen over a table in the encrypted
   database because it needs no schema migration and is already wiped by
   *Erase all local data*.
 - **Web:** a row of `kv_table` inside the **encrypted web store** (schema v5,
@@ -100,7 +100,7 @@ alike.
 
 The only acceptable shape for a hosted tier is a server-side relay:
 
-    app ──(photo, no credential)──► OpenPlate relay ──(token)──► provider
+    app ──(photo, no credential)──► AI Nutrition Coach relay ──(token)──► provider
 
 - the relay holds the provider token and never returns it;
 - the relay enforces the per-day quota server-side (per IP / per install
@@ -156,7 +156,7 @@ the app re-reads them after every unlock.
 The key **never leaves the device** except as the `Authorization` header on
 your own request. It is:
 
-- **Never** transmitted to any OpenPlate-owned server.
+- **Never** transmitted to any AI Nutrition Coach-owned server.
 - **Never** logged in any form; `toString` of every holder is redacted.
 - **Never displayed back.** The field is obscured (no suggestions, no
   autocorrect, no IME learning), paste-friendly (whitespace a paste drags
@@ -214,7 +214,7 @@ and `20ms`. Anything else is "reset unknown" and the calm copy says so.
 
 ## Photos and privacy (N1)
 
-A photo is the most personal thing OpenPlate can send anywhere, so:
+A photo is the most personal thing AI Nutrition Coach can send anywhere, so:
 
 1. **Consent, for every photo by default.** *Settings → Your AI* has a switch,
    **Ask before every photo upload**, **on by default** (also for settings saved by
@@ -233,7 +233,7 @@ A photo is the most personal thing OpenPlate can send anywhere, so:
      you are using, via the `Origin` header).
    - *Retention:* the host may keep requests under its own terms; check your
      provider's data policy (OpenRouter: Settings → Privacy; OpenAI: data controls).
-     OpenPlate cannot see or change that.
+     AI Nutrition Coach cannot see or change that.
    - *Not sent:* your name, your history, your other plates.
    A link opens the in-app privacy page (never an external URL). *Not now* drops
    the photo — the closest-matches / manual path is right there. The BYOK rung also
@@ -243,7 +243,7 @@ A photo is the most personal thing OpenPlate can send anywhere, so:
    covers every path on it. If the agreement cannot be saved, the photo is not
    sent (fail closed) and you are asked again next time.
 
-   **Children.** OpenPlate is designed for adults (a one-time notice says so) and
+   **Children.** AI Nutrition Coach is designed for adults (a one-time notice says so) and
    most AI providers' terms require users to be 13 or 18+. If a child uses a device
    that has an AI key, leave **Ask before every photo upload** on, or better give the
    child their own device or browser profile with *No AI*. Barcode lookups send a barcode
@@ -267,7 +267,7 @@ A photo is the most personal thing OpenPlate can send anywhere, so:
 field: the body is exactly `{model, messages, max_tokens, temperature}` with one user
 message of two parts (the fixed prompt, the image data URL); the headers are only
 `Authorization`, `Content-Type` (and the transport's `content-length`) and, off the web, an explicit `User-Agent` that is the app
-identity string (`OpenPlate/<version> (+<project URL>)`; no device info; without it `dart:io` would send `Dart/<version>`). On the
+identity string (`AiNutritionCoach/<version> (+<project URL>)`; no device info; without it `dart:io` would send `Dart/<version>`). On the
 web the browser adds its own `User-Agent` and an `Origin` header, which the consent dialog and the privacy page say; no date, id,
 locale or name is in it. The connection test sends a one-token `ping`. Nothing is
 sent about the person: no name, no history, no other plates, no coach notes.
@@ -282,11 +282,10 @@ characters — the reply is untrusted text that ends up in the UI and in
 exports. Open Food Facts lookups ask only for the fields the parser reads
 (`fields=`) and carry a descriptive `User-Agent` (app, version, project URL;
 no personal contact; omitted on web, where browsers forbid setting it). The
-project URL comes from `--dart-define=OPENPLATE_PROJECT_URL`; with no public
-repository yet the default is the unresolvable `https://openplate.invalid`, so
-Open Food Facts cannot reach the maintainers through it until a real one is set.
-`OPENPLATE_BUILD=selfhost|release dart run tools/check_release_posture.dart`
-fails while it is still `.invalid` (see the release checklist). A
+project URL comes from `--dart-define=AI_NUTRITION_COACH_PROJECT_URL`; the default is the
+project repository, `https://github.com/mmornati/ai-nutrition-coach` (override it for a fork).
+`AI_NUTRITION_COACH_BUILD=selfhost|release dart run tools/check_release_posture.dart`
+fails only if the URL is empty or `.invalid` (see the release checklist). A
 transient OFF failure is **not** cached for the rest of the session — only a
 match or a definitive "not found" is.
 

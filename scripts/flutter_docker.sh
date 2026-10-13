@@ -15,8 +15,8 @@ set -euo pipefail
 # infra/Dockerfile, .github/workflows/*, CONTRIBUTING.md).
 FLUTTER_VERSION="3.44.0"
 FLUTTER_IMAGE_DIGEST="sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8"
-IMAGE="${OPENPLATE_FLUTTER_IMAGE:-ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}@${FLUTTER_IMAGE_DIGEST}}"
-PUB_VOLUME="${OPENPLATE_PUB_VOLUME:-openplate_pubcache}"
+IMAGE="${AI_NUTRITION_COACH_FLUTTER_IMAGE:-ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}@${FLUTTER_IMAGE_DIGEST}}"
+PUB_VOLUME="${AI_NUTRITION_COACH_PUB_VOLUME:-ai_nutrition_coach_pubcache}"
 
 if [[ $# -eq 0 ]]; then
   echo "usage: $0 <command> [args...] | --print-image" >&2
@@ -36,8 +36,8 @@ for a in "$@"; do
   quoted+=" $(printf '%q' "$a")"
 done
 
-if [[ -n "${OPENPLATE_FLUTTER_IMAGE:-}" ]]; then
-  echo "warning: OPENPLATE_FLUTTER_IMAGE overrides the pinned toolchain; using $IMAGE" >&2
+if [[ -n "${AI_NUTRITION_COACH_FLUTTER_IMAGE:-}" ]]; then
+  echo "warning: AI_NUTRITION_COACH_FLUTTER_IMAGE overrides the pinned toolchain; using $IMAGE" >&2
 fi
 
 # -i keeps stdin attached (piped input works); -t only when stdin is a TTY.

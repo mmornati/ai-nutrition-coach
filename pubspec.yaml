@@ -1,5 +1,5 @@
-name: _openplate_workspace
-description: "OpenPlate monorepo root — Dart pub workspace. Melos scripts live in the `melos:` block below."
+name: _ai_nutrition_coach_workspace
+description: "AI Nutrition Coach monorepo root — Dart pub workspace. Melos scripts live in the `melos:` block below."
 publish_to: 'none'
 version: 0.0.0
 
@@ -63,9 +63,9 @@ melos:
         melos exec -c 1 --order-dependents -- "if grep -q 'sdk: flutter' pubspec.yaml; then flutter test --no-pub; else dart test; fi"
 
     test:dst:
-      description: Re-run the calendar-day / Day Board tests under a daylight-saving zone (TZ=Europe/Paris) - 2026-03-29 has 23 hours and 2026-10-25 has 25 - so the DST assertions run instead of skipping (F3). OPENPLATE_REQUIRE_DST=1 makes a zone without DST a hard failure, never a silent skip.
+      description: Re-run the calendar-day / Day Board tests under a daylight-saving zone (TZ=Europe/Paris) - 2026-03-29 has 23 hours and 2026-10-25 has 25 - so the DST assertions run instead of skipping (F3). AI_NUTRITION_COACH_REQUIRE_DST=1 makes a zone without DST a hard failure, never a silent skip.
       run: |
-        export OPENPLATE_REQUIRE_DST=1 TZ=Europe/Paris && (cd packages/domain_core && dart test test/calendar_day_test.dart) && (cd apps/client && flutter test --no-pub test/day_board_f3_test.dart)
+        export AI_NUTRITION_COACH_REQUIRE_DST=1 TZ=Europe/Paris && (cd packages/domain_core && dart test test/calendar_day_test.dart) && (cd apps/client && flutter test --no-pub test/day_board_f3_test.dart)
 
     format:check:
       description: Verify every package is `dart format`-clean (read-only; run `dart format .` to fix).
@@ -74,11 +74,11 @@ melos:
         dart format --output=none --set-exit-if-changed tools
 
     build:web:
-      description: Fetch + verify the pinned sqlite3mc.wasm and zxing-wasm decoder, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn, no Flutter service worker), generate the precache manifest + OpenPlate's own sw.js (ADR-0003), then scan the bundle for secret-shaped strings (S1) and third-party hosts (N5).
-      run: dart run tools/check_release_posture.dart --project-url-only && bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost ${OPENPLATE_PROJECT_URL:+"--dart-define=OPENPLATE_PROJECT_URL=$OPENPLATE_PROJECT_URL"}) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
+      description: Fetch + verify the pinned sqlite3mc.wasm and zxing-wasm decoder, build the responsive client as a release web bundle (self-host, CanvasKit self-hosted via --no-web-resources-cdn, no Flutter service worker), generate the precache manifest + AI Nutrition Coach's own sw.js (ADR-0003), then scan the bundle for secret-shaped strings (S1) and third-party hosts (N5).
+      run: dart run tools/check_release_posture.dart --project-url-only && bash scripts/fetch_web_sqlite.sh && bash scripts/fetch_web_zxing.sh && (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost ${AI_NUTRITION_COACH_PROJECT_URL:+"--dart-define=AI_NUTRITION_COACH_PROJECT_URL=$AI_NUTRITION_COACH_PROJECT_URL"}) && dart run tools/generate_precache_manifest.dart apps/client/build/web && bash tools/check_no_secrets_in_build.sh --web-only && bash tools/check_no_external_hosts.sh
 
     pwa:manifest:
-      description: Re-generate precache-manifest.json + sw.js for an existing apps/client/build/web (set OPENPLATE_BUILD_ID to force a new build id, e.g. to test the update banner).
+      description: Re-generate precache-manifest.json + sw.js for an existing apps/client/build/web (set AI_NUTRITION_COACH_BUILD_ID to force a new build id, e.g. to test the update banner).
       run: dart run tools/generate_precache_manifest.dart apps/client/build/web
 
     check:hosts:
@@ -102,7 +102,7 @@ melos:
       run: dart run tools/check_telemetry_claims.dart
 
     check:release-posture:
-      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), a release build (OPENPLATE_BUILD=selfhost|release) has a real OPENPLATE_PROJECT_URL (PV11), no log call can carry content (log hygiene, PV-checks), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist and every README trust-table row names a proof test (Story 4.6), a release build (AI_NUTRITION_COACH_BUILD=selfhost|release) has a real AI_NUTRITION_COACH_PROJECT_URL (PV11), no log call can carry content (log hygiene, PV-checks), the adults-only gates hold, every screen has an a11y guideline test, and no user-facing string literal bypasses the ARB files.
       run: dart run tools/check_release_posture.dart && dart run tools/check_log_hygiene.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart && dart run tools/check_i18n_literals.dart
 
     check:i18n:

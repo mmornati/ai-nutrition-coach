@@ -329,7 +329,7 @@ class StoreStreamException implements Exception {
 
 /// Sealed marker for any failure that originates in the encrypted
 /// store's key handling. Mobile returns `SecureKeyFailure` (Keychain
-/// read/write under `openplate_db_key_v1` failed, or the cipher / key
+/// read/write under `ai_nutrition_coach_db_key_v1` failed, or the cipher / key
 /// could not be applied), `KeyLostFailure` (database present, key gone)
 /// or `StoreOperationFailure` (any other storage error); web returns
 /// `WebSessionKeyFailure` (the session is locked, AD-8). All shapes

@@ -13,10 +13,12 @@ import '_support/file_web_backend.dart';
 import '_support/store_contract.dart';
 
 Future<(WebStoreController, Directory)> _unlocked() async {
-  final dir = Directory.systemTemp.createTempSync('openplate_wasm_contract_');
+  final dir = Directory.systemTemp.createTempSync(
+    'ai_nutrition_coach_wasm_contract_',
+  );
   final controller = WebStoreController(
     storage: InMemoryWebStoreStorage(),
-    backend: FileWebBackend(File('${dir.path}/openplate.db')),
+    backend: FileWebBackend(File('${dir.path}/ai_nutrition_coach.db')),
     kdf: const DartPbkdf2Kdf(),
     lock: InMemoryWebStoreLock(),
     normalizePassphrase: (s) => s,

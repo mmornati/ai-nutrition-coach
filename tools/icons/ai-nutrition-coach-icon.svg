@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <title>OpenPlate</title>
-  <rect width="512" height="512" fill="#6B8E5A"/>
-  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
+  <title>AI Nutrition Coach</title>
+  <rect width="512" height="512" rx="112" fill="#6B8E5A"/>
+  <g transform="translate(256 256) scale(1) translate(-256 -256)">
     <circle cx="256" cy="256" r="170" fill="#E2DBC6"/>
     <circle cx="256" cy="256" r="150" fill="#FBF7EE"/>
     <path d="M 188.12 323.88 A 96 96 0 1 1 323.88 323.88" fill="none" stroke="#3F5A36" stroke-width="26" stroke-linecap="round"/>

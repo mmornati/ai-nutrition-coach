@@ -19,7 +19,7 @@ void main() async {
   // pretending to check it (security review F9).
   configureWebBarcodeReader();
   registerBundledFontLicenses();
-  runApp(const OpenPlateBootstrap());
+  runApp(const AiNutritionCoachBootstrap());
 }
 
 /// Builds the stores and the provider overrides, and rebuilds them from
@@ -28,8 +28,8 @@ void main() async {
 /// the app must not keep running on it. `appRestartProvider` hands the
 /// restart callback to the screens; calling it discards the whole
 /// `ProviderScope` and re-runs `createStores()` — a first-run state.
-class OpenPlateBootstrap extends StatefulWidget {
-  const OpenPlateBootstrap({
+class AiNutritionCoachBootstrap extends StatefulWidget {
+  const AiNutritionCoachBootstrap({
     super.key,
     this.dependencies = const BootDependencies(),
   });
@@ -40,10 +40,11 @@ class OpenPlateBootstrap extends StatefulWidget {
   final BootDependencies dependencies;
 
   @override
-  State<OpenPlateBootstrap> createState() => _OpenPlateBootstrapState();
+  State<AiNutritionCoachBootstrap> createState() =>
+      _AiNutritionCoachBootstrapState();
 }
 
-class _OpenPlateBootstrapState extends State<OpenPlateBootstrap> {
+class _AiNutritionCoachBootstrapState extends State<AiNutritionCoachBootstrap> {
   int _generation = 0;
   late Future<List<Override>> _overrides = _boot();
 
@@ -73,7 +74,7 @@ class _OpenPlateBootstrapState extends State<OpenPlateBootstrap> {
         return ProviderScope(
           key: ValueKey<int>(_generation),
           overrides: overrides,
-          child: const OpenPlateApp(),
+          child: const AiNutritionCoachApp(),
         );
       },
     );
@@ -95,8 +96,8 @@ Locale resolveAppLocale(Locale? locale, Iterable<Locale> supported) {
   );
 }
 
-class OpenPlateApp extends StatelessWidget {
-  const OpenPlateApp({super.key, this.themeMode = ThemeMode.system});
+class AiNutritionCoachApp extends StatelessWidget {
+  const AiNutritionCoachApp({super.key, this.themeMode = ThemeMode.system});
 
   /// `themeMode` is exposed so widget tests can pin light or dark
   /// independently of the platform brightness. Production callers leave it

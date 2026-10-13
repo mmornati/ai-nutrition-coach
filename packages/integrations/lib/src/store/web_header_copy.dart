@@ -9,7 +9,7 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
-const String kWebHeaderDbName = 'openplate_header_v1';
+const String kWebHeaderDbName = 'ai_nutrition_coach_header_v1';
 const String _store = 'kv';
 const String _key = 'header';
 

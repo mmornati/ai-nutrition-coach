@@ -5,7 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/scanner_adapters.dart';
+import 'package:ai_nutrition_coach/state/scanner_adapters.dart';
 
 void main() {
   final script = File('../../scripts/fetch_web_zxing.sh').readAsStringSync();

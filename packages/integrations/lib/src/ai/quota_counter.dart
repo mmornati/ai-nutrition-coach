@@ -153,7 +153,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
         '(localStorage). Use InMemoryQuotaCounter / createQuotaCounter().',
       );
     }
-    return openPlateSecureStorage;
+    return aiNutritionCoachSecureStorage;
   }
 
   final AsyncMutex _lock = AsyncMutex();
@@ -169,7 +169,7 @@ class SecureStorageQuotaCounter implements QuotaCounter {
   /// separate counter per provider without collision.
   static String _alias(String providerKind) => providerKind == 'hostedQuota'
       ? SecureStorageAliases.quotaHostedQuota
-      : 'openplate_quota_${providerKind}_v1';
+      : 'ai_nutrition_coach_quota_${providerKind}_v1';
 
   /// Counter value encoded as a JSON envelope: `{"day":"YYYY-MM-DD","calls":N}`.
   static String _encode(DateTime dayKey, int calls) => jsonEncode(

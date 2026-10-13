@@ -55,7 +55,7 @@ void main() {
   }
 
   setUp(() {
-    web = Directory.systemTemp.createTempSync('openplate_precache_');
+    web = Directory.systemTemp.createTempSync('ai_nutrition_coach_precache_');
     bundle();
   });
   tearDown(() => web.deleteSync(recursive: true));
@@ -198,7 +198,7 @@ void main() {
         .join('\n');
 
     test('has exactly one build-id marker and renders', () {
-      expect('__OPENPLATE_BUILD_ID__'.allMatches(sw), hasLength(1));
+      expect('__AI_NUTRITION_COACH_BUILD_ID__'.allMatches(sw), hasLength(1));
       expect(renderServiceWorker(sw, 'abc123'), contains("'abc123'"));
     });
 
@@ -279,7 +279,7 @@ void main() {
   group('rendered at container start (30-render-sw.sh)', () {
     late Directory work;
     setUp(() {
-      work = Directory.systemTemp.createTempSync('openplate_render_');
+      work = Directory.systemTemp.createTempSync('ai_nutrition_coach_render_');
       Directory('${work.path}/html').createSync();
       File('${work.path}/html/sw.js').writeAsStringSync(
         "'use strict';\nconst BUILD_ID = 'abc123';\nrest();\n",
@@ -338,9 +338,9 @@ void main() {
     });
 
     test(
-      'OPENPLATE_SW_KILL=1 serves the kill-switch worker and an empty manifest',
+      'AI_NUTRITION_COACH_SW_KILL=1 serves the kill-switch worker and an empty manifest',
       () async {
-        final r = await _render(work, env: {'OPENPLATE_SW_KILL': '1'});
+        final r = await _render(work, env: {'AI_NUTRITION_COACH_SW_KILL': '1'});
         expect(r.exitCode, 0, reason: '${r.stderr}');
         expect(
           File('${work.path}/out/sw.js').readAsStringSync(),
@@ -384,28 +384,25 @@ void main() {
       },
     );
 
-    test(
-      'the image ships it and nginx serves the rendered worker, no-cache',
-      () {
-        final docker = File(
-          '${repoRoot().path}/infra/Dockerfile',
-        ).readAsStringSync();
-        expect(
-          docker,
-          contains('tools/pwa/sw.kill.js /etc/openplate/sw.kill.js'),
-        );
-        expect(docker, contains('30-render-sw.sh'));
-        final conf = File(
-          '${repoRoot().path}/infra/nginx/templates/openplate.conf.template',
-        ).readAsStringSync();
-        expect(conf, contains('location = /sw.js {'));
-        expect(conf, contains('alias /tmp/openplate-pwa/sw.js;'));
-        expect(
-          conf,
-          contains('alias /tmp/openplate-pwa/precache-manifest.json;'),
-        );
-      },
-    );
+    test('the image ships it and nginx serves the rendered worker, no-cache', () {
+      final docker = File(
+        '${repoRoot().path}/infra/Dockerfile',
+      ).readAsStringSync();
+      expect(
+        docker,
+        contains('tools/pwa/sw.kill.js /etc/ai-nutrition-coach/sw.kill.js'),
+      );
+      expect(docker, contains('30-render-sw.sh'));
+      final conf = File(
+        '${repoRoot().path}/infra/nginx/templates/ai-nutrition-coach.conf.template',
+      ).readAsStringSync();
+      expect(conf, contains('location = /sw.js {'));
+      expect(conf, contains('alias /tmp/ai-nutrition-coach-pwa/sw.js;'));
+      expect(
+        conf,
+        contains('alias /tmp/ai-nutrition-coach-pwa/precache-manifest.json;'),
+      );
+    });
   });
 
   group('bootstrap (flutter_bootstrap.js)', () {
@@ -435,7 +432,7 @@ void main() {
         expect(bootstrap, contains("document.querySelector('flt-glass-pane')"));
         expect(
           bootstrap,
-          contains("sessionStorage.getItem('openplate.recovery')"),
+          contains("sessionStorage.getItem('ai_nutrition_coach.recovery')"),
         );
         expect(bootstrap, contains("type: 'SKIP_WAITING'"));
       },
@@ -454,13 +451,15 @@ Future<ProcessResult> _render(
   ['${repoRoot().path}/infra/nginx/docker-entrypoint.d/30-render-sw.sh'],
   environment: {
     'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
-    'OPENPLATE_PWA_SRC': '${work.path}/html',
-    'OPENPLATE_PWA_OUT': '${work.path}/out',
-    'OPENPLATE_HEADERS_FILE': '${work.path}/headers.inc',
-    'OPENPLATE_SW_KILL_FILE': '${repoRoot().path}/tools/pwa/sw.kill.js',
+    'AI_NUTRITION_COACH_PWA_SRC': '${work.path}/html',
+    'AI_NUTRITION_COACH_PWA_OUT': '${work.path}/out',
+    'AI_NUTRITION_COACH_HEADERS_FILE': '${work.path}/headers.inc',
+    'AI_NUTRITION_COACH_SW_KILL_FILE':
+        '${repoRoot().path}/tools/pwa/sw.kill.js',
     ...env,
   },
   includeParentEnvironment: false,
 );
 
-const String _template = "const BUILD_ID = '__OPENPLATE_BUILD_ID__';\n";
+const String _template =
+    "const BUILD_ID = '__AI_NUTRITION_COACH_BUILD_ID__';\n";

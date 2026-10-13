@@ -92,8 +92,8 @@ jobs:
         run: |
           bash scripts/fetch_web_sqlite.sh
           bash scripts/fetch_web_zxing.sh
-          (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=OPENPLATE_BUILD=selfhost)
-          # OpenPlate's own service worker + precache manifest (ADR-0003).
+          (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost)
+          # AI Nutrition Coach's own service worker + precache manifest (ADR-0003).
           dart run tools/generate_precache_manifest.dart apps/client/build/web
 
       - name: Secrets scan — web bundle (S1)
@@ -132,12 +132,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build infra/Dockerfile
-        run: docker build -f infra/Dockerfile -t openplate:ci .
+        run: docker build -f infra/Dockerfile -t ai-nutrition-coach:ci .
 
       - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: openplate:ci
+          image-ref: ai-nutrition-coach:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'

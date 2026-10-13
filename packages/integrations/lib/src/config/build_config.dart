@@ -20,22 +20,23 @@
 class BuildConfig {
   const BuildConfig();
 
-  /// The build flavour (`--dart-define=OPENPLATE_BUILD=selfhost` for the
+  /// The build flavour (`--dart-define=AI_NUTRITION_COACH_BUILD=selfhost` for the
   /// production self-host bundle, `dev` for local development builds).
-  String get buildFlavor => const String.fromEnvironment('OPENPLATE_BUILD');
+  String get buildFlavor =>
+      const String.fromEnvironment('AI_NUTRITION_COACH_BUILD');
 
   /// `true` for the production self-host bundle.
   bool get isSelfHostBuild => buildFlavor == 'selfhost';
 
-  /// `true` when built with BOTH `--dart-define=OPENPLATE_BUILD=dev` and
-  /// `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`: the web store is an
+  /// `true` when built with BOTH `--dart-define=AI_NUTRITION_COACH_BUILD=dev` and
+  /// `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`: the web store is an
   /// UNENCRYPTED in-memory placeholder and the app shows a visible banner.
   /// The flag is honoured ONLY for an explicit `dev` build (W8 / L5): any
   /// other flavour (the `selfhost` release, or an unlabelled build) ignores
   /// it, so the unprotected path cannot ship by accident.
   bool get devInMemoryStore =>
       buildFlavor == 'dev' &&
-      const bool.fromEnvironment('OPENPLATE_DEV_IN_MEMORY_STORE');
+      const bool.fromEnvironment('AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE');
 
   /// A default OpenAI-compatible base URL (e.g.
   /// `https://openrouter.ai/api/v1`) used to pre-fill the Your AI form.
@@ -46,7 +47,8 @@ class BuildConfig {
   /// The model id the endpoint should serve (e.g.
   /// `google/gemini-2.0-flash-exp:free`). Empty in default v1
   /// builds.
-  String get byokModel => const String.fromEnvironment('OPENPLATE_BYOK_MODEL');
+  String get byokModel =>
+      const String.fromEnvironment('AI_NUTRITION_COACH_BYOK_MODEL');
 
   /// True when a default endpoint AND model are baked in. They are NOT
   /// secrets, so they may pre-fill the Your AI form; they never switch the

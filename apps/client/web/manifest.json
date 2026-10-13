@@ -1,7 +1,7 @@
 {
     "id": "/",
-    "name": "OpenPlate",
-    "short_name": "OpenPlate",
+    "name": "AI Nutrition Coach",
+    "short_name": "Nutrition Coach",
     "description": "A calm, private plate log. Your data stays on your device; no account, no tracking.",
     "start_url": "/",
     "scope": "/",

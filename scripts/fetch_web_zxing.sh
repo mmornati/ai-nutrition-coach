@@ -118,6 +118,8 @@ if text.count(old) != 1:
 text = text.replace(old, new)
 if "jsdelivr" in text:
     sys.exit("✗ a CDN host remains in the patched zxing-wasm reader")
+# NOTE: this header text is covered by ZXING_READER_PATCHED_SHA256; renaming "OpenPlate"
+# to the new project name is a deliberate re-pin (see "To re-pin" above), deferred.
 header = ("/* zxing-wasm %s (MIT, see LICENSE) - self-hosted by OpenPlate: the wasm "
           "path points at this directory instead of a CDN. Patched by "
           "scripts/fetch_web_zxing.sh. */\n" % version)

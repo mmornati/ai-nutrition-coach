@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/l10n/l10n.dart';
-import 'package:openplate_client/screens/privacy_screen.dart';
-import 'package:openplate_client/screens/settings_screen.dart';
-import 'package:openplate_client/state/ai_rung_provider.dart';
-import 'package:openplate_client/state/ai_settings_provider.dart';
-import 'package:openplate_client/state/privacy_provider.dart';
+import 'package:ai_nutrition_coach/l10n/l10n.dart';
+import 'package:ai_nutrition_coach/screens/privacy_screen.dart';
+import 'package:ai_nutrition_coach/screens/settings_screen.dart';
+import 'package:ai_nutrition_coach/state/ai_rung_provider.dart';
+import 'package:ai_nutrition_coach/state/ai_settings_provider.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
 
 import '../_fakes/test_overrides.dart' show privacyPrefsFor;
 

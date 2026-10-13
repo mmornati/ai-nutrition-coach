@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/screens/install_screen.dart';
-import 'package:openplate_client/state/pwa_provider.dart';
+import 'package:ai_nutrition_coach/screens/install_screen.dart';
+import 'package:ai_nutrition_coach/state/pwa_provider.dart';
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -85,7 +85,7 @@ void main() {
   ) async {
     await _pump(tester, platform: InstallPlatform.ios, standalone: true);
     expect(
-      find.text('OpenPlate is already installed on this device.'),
+      find.text('AI Nutrition Coach is already installed on this device.'),
       findsOneWidget,
     );
     expect(find.textContaining('Add to Home Screen'), findsNothing);

@@ -1,6 +1,6 @@
 # Caddy reverse proxy for the opt-in `tls` compose profile.
 #
-# Automatic HTTPS for $OPENPLATE_DOMAIN (certificate issuance + renewal, and
+# Automatic HTTPS for $AI_NUTRITION_COACH_DOMAIN (certificate issuance + renewal, and
 # HTTP -> HTTPS redirect, are Caddy defaults). The app container sets every
 # other security header (CSP, COOP, ...); HSTS belongs here because only this
 # layer speaks HTTPS.
@@ -15,7 +15,7 @@
 	}
 }
 
-{$OPENPLATE_DOMAIN} {
+{$AI_NUTRITION_COACH_DOMAIN} {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
@@ -23,5 +23,5 @@
 		-Via
 		defer
 	}
-	reverse_proxy openplate:8080
+	reverse_proxy ai-nutrition-coach:8080
 }

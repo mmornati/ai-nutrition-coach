@@ -17,7 +17,7 @@ import 'package:web/web.dart' as web;
 
 import 'web_store_lock.dart';
 
-const String kWebStoreLockName = 'openplate-store';
+const String kWebStoreLockName = 'ai-nutrition-coach-store';
 
 final class WebLocksStoreLock implements WebStoreLock {
   const WebLocksStoreLock();

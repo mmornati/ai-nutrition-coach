@@ -1,6 +1,6 @@
 # AI Nutrition Coach — self-host (Story 4.4 / FR-11 / AD-2 / NFR9)
 
-OpenPlate is yours to run. The self-host build is the same `apps/client`
+AI Nutrition Coach is yours to run. The self-host build is the same `apps/client`
 Flutter web build the mobile apps ship. The container is a **static web
 server**: it serves the app and nothing else. It stores no data, makes no
 outbound calls and runs as a non-root user on a read-only filesystem.
@@ -8,26 +8,26 @@ outbound calls and runs as a non-root user on a read-only filesystem.
 ## Quick start (this machine)
 
 ```sh
-bin/openplate up        # builds the image, serves http://localhost:8080/
-bin/openplate down      # stops and removes it
+bin/ai-nutrition-coach up        # builds the image, serves http://localhost:8080/
+bin/ai-nutrition-coach down      # stops and removes it
 ```
 
-`bin/openplate` works from any directory. Open <http://localhost:8080/>; the
+`bin/ai-nutrition-coach` works from any directory. Open <http://localhost:8080/>; the
 first screen is "Protect your history" (choose a passphrase), then the Day
-Board. Change the port with `OPENPLATE_PORT=9000 bin/openplate up`.
+Board. Change the port with `AI_NUTRITION_COACH_PORT=9000 bin/ai-nutrition-coach up`.
 
 By default the port is published on **127.0.0.1 only**, so only this machine
 can reach it.
 
 ## Reaching it from other devices: HTTPS is required
 
-> **Plain HTTP over a network is unsupported.** OpenPlate's encrypted web
+> **Plain HTTP over a network is unsupported.** AI Nutrition Coach's encrypted web
 > store needs the browser's WebCrypto API, which browsers only expose on a
 > *secure context*: `https://…` or `http://localhost`. Opened over
 > `http://192.168.x.y:8080/` the app reports the store as unavailable instead
 > of running unprotected (and the camera is blocked too). Plain HTTP would
 > also let anyone on the network rewrite the JavaScript and read your
-> passphrase. Do not expose the plain-HTTP port with `OPENPLATE_BIND=0.0.0.0`
+> passphrase. Do not expose the plain-HTTP port with `AI_NUTRITION_COACH_BIND=0.0.0.0`
 > unless something in front of it terminates TLS.
 
 The supported way is the bundled, opt-in Caddy profile. It obtains and renews a
@@ -35,15 +35,15 @@ Let's Encrypt certificate automatically, redirects HTTP to HTTPS and adds
 `Strict-Transport-Security`:
 
 ```sh
-OPENPLATE_DOMAIN=plate.example.com bin/openplate up --tls
+AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --tls
 ```
 
 Requirements: a DNS name pointing at the host, and ports 80 and 443 reachable
-from the internet for the certificate challenge. `OPENPLATE_DOMAIN=localhost`
+from the internet for the certificate challenge. `AI_NUTRITION_COACH_DOMAIN=localhost`
 gives a local, self-signed trial. The equivalent compose command is
 
 ```sh
-OPENPLATE_DOMAIN=plate.example.com \
+AI_NUTRITION_COACH_DOMAIN=plate.example.com \
   docker compose -f infra/docker-compose.yml --profile tls up -d
 ```
 
@@ -52,19 +52,19 @@ OPENPLATE_DOMAIN=plate.example.com \
 Already run Traefik for HTTPS? Keep the app container local-only and let Traefik route to it:
 
 ```sh
-OPENPLATE_DOMAIN=plate.example.com OPENPLATE_TRAEFIK_CERTRESOLVER=letsencrypt bin/openplate up --traefik
+AI_NUTRITION_COACH_DOMAIN=plate.example.com AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER=letsencrypt bin/ai-nutrition-coach up --traefik
 ```
 
 `infra/docker-compose.traefik.yml` publishes **no port**, joins the Docker network Traefik is on
-(`OPENPLATE_TRAEFIK_NETWORK`, default `traefik`), and adds the router, service and an HSTS-only middleware
+(`AI_NUTRITION_COACH_TRAEFIK_NETWORK`, default `traefik`), and adds the router, service and an HSTS-only middleware
 as labels; optional overlays add a cert resolver and an `ipAllowList`. Traefik on the host instead? Use
-`infra/traefik/openplate-dynamic.yml` with the loopback-published container. Everything — variables,
+`infra/traefik/ai-nutrition-coach-dynamic.yml` with the loopback-published container. Everything — variables,
 step-by-step, DNS/certificates, family-only access (and why not basic auth), the CSP knob for the BYOK
 endpoint — is in [`docs/pwa.md`](./pwa.md#deploy-behind-traefik).
 
 Another reverse proxy (nginx, a tunnel)? Point it at the app, terminate TLS there and add HSTS yourself. If
 that proxy runs **in a container**, `127.0.0.1:8080` is its own loopback, not the app: put both on a shared
-docker network and proxy to `http://openplate:8080` (the compose service name).
+docker network and proxy to `http://ai-nutrition-coach:8080` (the compose service name).
 
 ## Where your data lives
 
@@ -87,29 +87,29 @@ site's origin, keyed from your passphrase (see
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OPENPLATE_BIND` | `127.0.0.1` | Host interface for the app port. |
-| `OPENPLATE_PORT` | `8080` | Host port (`OPENPLATE_HOST_PORT` is a deprecated alias). |
-| `OPENPLATE_DOMAIN` | – | DNS name for `--tls` and `--traefik` (required there). |
-| `OPENPLATE_TRAEFIK_NETWORK` | `traefik` | `--traefik`: existing Docker network shared with Traefik. |
-| `OPENPLATE_TRAEFIK_ENTRYPOINT` | `websecure` | `--traefik`: Traefik's HTTPS entrypoint. |
-| `OPENPLATE_TRAEFIK_CERTRESOLVER` | – | `--traefik`: ACME resolver name (optional overlay). |
-| `OPENPLATE_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
-| `OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
-| `OPENPLATE_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
-| `OPENPLATE_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
-| `OPENPLATE_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
-| `OPENPLATE_IMAGE_TAG` | `openplate:dev` | Image tag to build/run. |
-| `OPENPLATE_CONTAINER_NAME` | `openplate` | Container name for plain `up`. |
+| `AI_NUTRITION_COACH_BIND` | `127.0.0.1` | Host interface for the app port. |
+| `AI_NUTRITION_COACH_PORT` | `8080` | Host port (`AI_NUTRITION_COACH_HOST_PORT` is a deprecated alias). |
+| `AI_NUTRITION_COACH_DOMAIN` | – | DNS name for `--tls` and `--traefik` (required there). |
+| `AI_NUTRITION_COACH_TRAEFIK_NETWORK` | `traefik` | `--traefik`: existing Docker network shared with Traefik. |
+| `AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT` | `websecure` | `--traefik`: Traefik's HTTPS entrypoint. |
+| `AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER` | – | `--traefik`: ACME resolver name (optional overlay). |
+| `AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
+| `AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
+| `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
+| `AI_NUTRITION_COACH_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
+| `AI_NUTRITION_COACH_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
+| `AI_NUTRITION_COACH_IMAGE_TAG` | `ai-nutrition-coach:dev` | Image tag to build/run. |
+| `AI_NUTRITION_COACH_CONTAINER_NAME` | `ai-nutrition-coach` | Container name for plain `up`. |
 
-`bin/openplate up --compose` runs the same container through
+`bin/ai-nutrition-coach up --compose` runs the same container through
 `infra/docker-compose.yml`. If the container name is taken, `up` stops with a
-clear message and exit code 31 (`bin/openplate down` first).
+clear message and exit code 31 (`bin/ai-nutrition-coach down` first).
 
 ### Logs
 
-The container logs **nothing per request by default** (`OPENPLATE_ACCESS_LOG=off`): the
+The container logs **nothing per request by default** (`AI_NUTRITION_COACH_ACCESS_LOG=off`): the
 server holds no user data, and its access log would only record page addresses and
-times. Set `OPENPLATE_ACCESS_LOG=on` to debug: each line is
+times. Set `AI_NUTRITION_COACH_ACCESS_LOG=on` to debug: each line is
 `<address, last octet zeroed> [time] "GET /resolved-file" status bytes` (the resolved file: app-shell and deep-link requests log as `/index.html`). The query string, the
 User-Agent and the Referer are never logged, the container's own healthcheck is skipped,
 and IPv6 addresses keep at most their first two groups (a /32; anything unrecognised logs as `::`). nginx has no built-in
@@ -124,17 +124,16 @@ is the one to look at: see [`docs/pwa.md`](./pwa.md#logs-behind-traefik).
 ### The project URL
 
 The Open Food Facts `User-Agent` of mobile builds (and the app's identity) contains a
-project URL: `--dart-define=OPENPLATE_PROJECT_URL=https://…` (for the container build:
-`docker build --build-arg OPENPLATE_PROJECT_URL=https://… -f infra/Dockerfile .`). There
-is no public repository yet, so the default is the unresolvable `https://openplate.invalid`
-(a reserved TLD) instead of a real-looking URL that might belong to someone else.
-`OPENPLATE_BUILD=release OPENPLATE_PROJECT_URL=… dart run tools/check_release_posture.dart --project-url-only`
-fails while the URL is still `.invalid` for a `selfhost` / `release` build. It is **enforced** for release images:
-`docker build --build-arg OPENPLATE_RELEASE=1 --build-arg OPENPLATE_PROJECT_URL=…` runs it before the web build, and
+project URL: `--dart-define=AI_NUTRITION_COACH_PROJECT_URL=https://…` (for the container build:
+`docker build --build-arg AI_NUTRITION_COACH_PROJECT_URL=https://… -f infra/Dockerfile .`). The
+default is the project repository, `https://github.com/mmornati/ai-nutrition-coach`; set the variable only to point at a fork.
+`AI_NUTRITION_COACH_BUILD=release AI_NUTRITION_COACH_PROJECT_URL=… dart run tools/check_release_posture.dart --project-url-only`
+fails only if the URL is empty or `.invalid` for a `selfhost` / `release` build. It is **enforced** for release images:
+`docker build --build-arg AI_NUTRITION_COACH_RELEASE=1 --build-arg AI_NUTRITION_COACH_PROJECT_URL=…` runs it before the web build, and
 `.github/workflows/release-gate.yml` does so for tags, taking the URL from the repository **variable**
-`OPENPLATE_PROJECT_URL` (set it under Settings → Secrets and variables → Actions → Variables; until it is set the release
-build fails, by design). A URL that is set must be a plain `https://` URL (no spaces or quotes); `bin/openplate`, `build:web` and the
-image build all refuse anything else. Ordinary builds keep the `.invalid` default. Browsers forbid setting `User-Agent`, so the web bundle never sends it.
+`AI_NUTRITION_COACH_PROJECT_URL` (optional override, under Settings → Secrets and variables → Actions → Variables; left unset, the
+default above is used). A URL that is set must be a plain `https://` URL (no spaces or quotes); `bin/ai-nutrition-coach`, `build:web` and the
+image build all refuse anything else. Browsers forbid setting `User-Agent`, so the web bundle never sends it.
 
 ### Content-Security-Policy and your AI endpoint
 
@@ -144,7 +143,7 @@ script, no CDN; the WebAssembly flag is for CanvasKit and the encrypted store),
 `form-action 'none'`, and
 
 ```
-connect-src 'self' https://world.openfoodfacts.org <OPENPLATE_CONNECT_SRC_EXTRA>
+connect-src 'self' https://world.openfoodfacts.org <AI_NUTRITION_COACH_CONNECT_SRC_EXTRA>
 ```
 
 Browser requests the app itself makes are limited to this list: barcode lookups
@@ -155,16 +154,16 @@ plain `up`). **If you use
 otherwise the browser blocks the call:
 
 ```sh
-OPENPLATE_CONNECT_SRC_EXTRA="https://api.openai.com" bin/openplate up
+AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="https://api.openai.com" bin/ai-nutrition-coach up
 # several origins are space-separated; a local model works too:
-OPENPLATE_CONNECT_SRC_EXTRA="https://openrouter.ai http://localhost:11434"
+AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="https://openrouter.ai http://localhost:11434"
 ```
 
 Trade-off, chosen deliberately: the BYOK endpoint is user-chosen, so the CSP
 could simply allow `https:` — but then any script injected into the page could
 send your data to any https server. An explicit, operator-configured allow-list
 keeps that exfiltration channel closed; the cost is one environment variable.
-The value is validated, in `bin/openplate` and again when the container starts:
+The value is validated, in `bin/ai-nutrition-coach` and again when the container starts:
 only space-separated `https://host[:port]` origins (plus `http://localhost[:port]`)
 are accepted. Quotes, `;`, `*`, bare `https:`, paths and newlines make the
 container refuse to start, because the value is written into the CSP header and
@@ -180,7 +179,7 @@ serves HTTP/1.1 and HTTP/2 only (HTTP/3 would need `443/udp`), and hides
 
 ### Container hardening
 
-`bin/openplate` and `infra/docker-compose.yml` run the image (nginx-unprivileged,
+`bin/ai-nutrition-coach` and `infra/docker-compose.yml` run the image (nginx-unprivileged,
 uid 101, port 8080) with `--read-only`, a small `tmpfs` on `/tmp` (the only place
 nginx writes), `--cap-drop ALL` and `no-new-privileges`. Every response carries
 `nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a
@@ -215,7 +214,7 @@ Settings → About → Open-source licences.
 ## Verifying a build
 
 ```sh
-bash scripts/smoke_self_host.sh      # builds via bin/openplate and asserts:
+bash scripts/smoke_self_host.sh      # builds via bin/ai-nutrition-coach and asserts:
 ```
 
 - digest-pinned base images (`nginxinc/nginx-unprivileged`, `caddy`);
@@ -230,10 +229,10 @@ bash scripts/smoke_self_host.sh      # builds via bin/openplate and asserts:
   server **needs** no outbound network, and its rendered nginx config contains
   no `proxy_pass` / `resolver` (this is a self-containedness check, not a
   packet capture);
-- the access log is off by default (the requests above left no line), and with `OPENPLATE_ACCESS_LOG=on` a request
+- the access log is off by default (the requests above left no line), and with `AI_NUTRITION_COACH_ACCESS_LOG=on` a request
   with a distinctive User-Agent, Referer and query string is logged as the resolved file only, with a truncated address; an
   invalid value refuses to start;
-- hostile `OPENPLATE_CONNECT_SRC_EXTRA` / `OPENPLATE_DOMAIN` values are rejected;
+- hostile `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` / `AI_NUTRITION_COACH_DOMAIN` values are rejected;
 - the Traefik compose renders with **no published port**, the expected labels (HSTS-only middleware),
   optional overlays and refusals of hostile Traefik settings; `sw.js`, `precache-manifest.json` and
   `manifest.json` are `no-cache` and agree on the build id; the zxing decoder is served and `immutable`;
@@ -251,8 +250,8 @@ infra/nginx/templates/         vhost + shared security-header include (envsubst 
 infra/docker-compose.yml       hardened app service + opt-in `tls` profile (Caddy)
 infra/docker-compose.traefik*.yml  behind your Traefik: no published port (+ cert-resolver / allow-list overlays)
 infra/traefik/                 file-provider example for a Traefik running on the host
-infra/Caddyfile                automatic HTTPS + HSTS for $OPENPLATE_DOMAIN
-bin/openplate                  the one-command affordance
+infra/Caddyfile                automatic HTTPS + HSTS for $AI_NUTRITION_COACH_DOMAIN
+bin/ai-nutrition-coach                  the one-command affordance
 scripts/smoke_self_host.sh     CI / local smoke test
 tools/check_no_external_hosts.sh  built-bundle third-party host scan
 ```

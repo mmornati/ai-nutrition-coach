@@ -12,16 +12,16 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/state/clock_provider.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/day_board_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/widgets/balance_arc.dart';
-import 'package:openplate_client/widgets/coach_whisper.dart';
-import 'package:openplate_client/widgets/open_dent.dart';
-import 'package:openplate_client/widgets/plate_row.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/state/clock_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/day_board_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/widgets/balance_arc.dart';
+import 'package:ai_nutrition_coach/widgets/coach_whisper.dart';
+import 'package:ai_nutrition_coach/widgets/open_dent.dart';
+import 'package:ai_nutrition_coach/widgets/plate_row.dart';
 
 import '_fakes/fake_encrypted_store.dart';
 
@@ -125,19 +125,22 @@ void main() {
         DateTime(2026, 1, 1).timeZoneOffset;
     final skip = isDstZone ? false : 'local zone has no DST';
 
-    test('OPENPLATE_REQUIRE_DST=1 means the zone MUST have DST (never a '
-        'silent skip)', () {
-      if (Platform.environment['OPENPLATE_REQUIRE_DST'] == '1') {
-        expect(
-          isDstZone,
-          isTrue,
-          reason:
-              'test:dst must run in a daylight-saving zone (TZ is '
-              '${Platform.environment['TZ']}); the DST assertions would '
-              'otherwise be skipped',
-        );
-      }
-    });
+    test(
+      'AI_NUTRITION_COACH_REQUIRE_DST=1 means the zone MUST have DST (never a '
+      'silent skip)',
+      () {
+        if (Platform.environment['AI_NUTRITION_COACH_REQUIRE_DST'] == '1') {
+          expect(
+            isDstZone,
+            isTrue,
+            reason:
+                'test:dst must run in a daylight-saving zone (TZ is '
+                '${Platform.environment['TZ']}); the DST assertions would '
+                'otherwise be skipped',
+          );
+        }
+      },
+    );
 
     test(
       'spring-forward day (23h): 23:30 stays in the day, 00:10 after does not',

@@ -14,7 +14,7 @@
 import '../results/erase_failure.dart';
 
 abstract interface class LocalDataEraser {
-  /// Erase everything OpenPlate persists on this device. Best-effort
+  /// Erase everything AI Nutrition Coach persists on this device. Best-effort
   /// across steps: a failing step does not stop the later ones, and the
   /// result names every step that failed.
   Future<EraseLocalDataResult> eraseAll();

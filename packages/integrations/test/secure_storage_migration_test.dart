@@ -157,6 +157,74 @@ void main() {
     expect(result.runtimeType.toString(), 'EraseLocalDataSuccess');
     expect(storage.items, isEmpty);
   });
+
+  group('pre-rename (openplate_*) aliases', () {
+    test('every alias has an openplate_ twin', () {
+      expect(legacyAliasFor(SecureStorageAliases.dbKey), 'openplate_db_key_v1');
+      expect(
+        legacyAliasFor(SecureStorageAliases.byokKey),
+        'openplate_byok_key_v1',
+      );
+      expect(
+        legacyAliasFor(SecureStorageAliases.rungConfig),
+        'openplate_ai_rung_config_v1',
+      );
+      expect(legacyAliasFor('unrelated'), isNull);
+    });
+
+    test('DB key under the old NAME (old accessibility) is moved', () async {
+      final storage = upgraded();
+      final oldKey = List<int>.generate(32, (i) => 255 - i);
+      storage.items[(legacy, 'openplate_db_key_v1')] = base64Of(oldKey);
+
+      final result = await SecureKeySourceImpl(
+        storage: storage,
+      ).getOrCreateDbKey(databaseExists: true);
+
+      expect(result, isA<DbKeyReady>());
+      expect((result as DbKeyReady).key, oldKey);
+      expect(
+        storage.items[(current, SecureStorageAliases.dbKey)],
+        base64Of(oldKey),
+      );
+      expect(
+        storage.items.keys.where((k) => k.$2.startsWith('openplate_')),
+        isEmpty,
+      );
+    });
+
+    test('BYOK key and quota counter under the old name are moved', () async {
+      final storage = upgraded();
+      storage.items[(current, 'openplate_byok_key_v1')] = 'sk-test';
+      storage.items[(current, 'openplate_quota_hostedQuota_v1')] =
+          '{"day":"2026-10-01","calls":4}';
+
+      expect(
+        await SecureStorageByokKeyStore(storage: storage).read(),
+        'sk-test',
+      );
+      final quota = SecureStorageQuotaCounter(
+        ceiling: 10,
+        storage: storage,
+        now: () => DateTime(2026, 10, 1),
+      );
+      expect(await quota.callsToday(), 4);
+      expect(
+        storage.items.keys.where((k) => k.$2.startsWith('openplate_')),
+        isEmpty,
+      );
+      expect(storage.items[(current, SecureStorageAliases.byokKey)], 'sk-test');
+    });
+
+    test('the new name wins and the old copy is left to the eraser', () async {
+      final storage = upgraded();
+      storage.items[(current, SecureStorageAliases.byokKey)] = 'new';
+      storage.items[(current, 'openplate_byok_key_v1')] = 'old';
+      expect(await SecureStorageByokKeyStore(storage: storage).read(), 'new');
+      await SecureStorageByokKeyStore(storage: storage).clear();
+      expect(storage.items, isEmpty);
+    });
+  });
 }
 
 String base64Of(List<int> bytes) => base64Encode(bytes);

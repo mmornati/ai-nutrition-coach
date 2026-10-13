@@ -4,8 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/widgets/create_passphrase_body.dart';
-import 'package:openplate_client/widgets/lock_screen_body.dart'
+import 'package:ai_nutrition_coach/widgets/create_passphrase_body.dart';
+import 'package:ai_nutrition_coach/widgets/lock_screen_body.dart'
     show LockScreenPalette;
 
 Future<void> _pump(

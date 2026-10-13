@@ -1,7 +1,7 @@
 # `_bmad-output/` — planning and implementation artifacts
 
 This folder is **not product documentation**. It holds what the BMad
-planning/implementation workflow produced while OpenPlate was built: briefs,
+planning/implementation workflow produced while the project (then named OpenPlate) was built: briefs,
 the PRD / architecture / ADRs, epic and story specs, sprint and loop status,
 and the security and quality review (`review/`). It is kept in the tree as the
 project's decision history and is the source the user-facing docs in `../docs/`
@@ -13,6 +13,9 @@ were translated from.
   never here.
 - `review/security-and-quality-review-2026-10-01.md` is the review and its
   remediation plan; its "Status" section lists what is done and what remains.
+- **Rename (2026-10-13):** the project was renamed from OpenPlate to AI Nutrition
+  Coach. The artifacts here keep the old name on purpose (history); everything
+  outside `_bmad-output/` uses the new one.
 - Nothing in here is built, shipped or read by the app.
 
 ## `.opencode/`

@@ -51,7 +51,7 @@ _flutter.loader.load({
   setTimeout(async function () {
     try {
       if (document.querySelector('flt-glass-pane')) return; // booted fine
-      if (sessionStorage.getItem('openplate.recovery')) return;
+      if (sessionStorage.getItem('ai_nutrition_coach.recovery')) return;
       var reg = await navigator.serviceWorker.getRegistration();
       if (!reg) return;
       if (!reg.waiting) {
@@ -59,7 +59,7 @@ _flutter.loader.load({
         await new Promise(function (resolve) { setTimeout(resolve, 8000); });
       }
       if (!reg.waiting) return;
-      sessionStorage.setItem('openplate.recovery', '1');
+      sessionStorage.setItem('ai_nutrition_coach.recovery', '1');
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         location.reload();
       });

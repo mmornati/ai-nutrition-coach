@@ -10,10 +10,10 @@
 // browser adapters (`WebCryptoPbkdf2Kdf`, `WebLocalStorage`,
 // `IndexedDbSqlite3mcBackend`) and wires the two stores to the controller.
 //
-// For LOCAL DEVELOPMENT ONLY, `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`
+// For LOCAL DEVELOPMENT ONLY, `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`
 // selects an UNENCRYPTED in-memory store (no passphrase, data lives and dies
 // with the tab; the app paints a red DEV banner). `BuildConfig` ignores the
-// flag in a production build (`OPENPLATE_BUILD=selfhost`, W8), so the
+// flag in a production build (`AI_NUTRITION_COACH_BUILD=selfhost`, W8), so the
 // unprotected path cannot reach a released bundle by accident.
 //
 // AD-3 invariant: the controller's open database is the single source of

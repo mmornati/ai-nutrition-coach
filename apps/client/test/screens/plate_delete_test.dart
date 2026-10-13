@@ -7,13 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/l10n/l10n.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/state/clock_provider.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/widgets/plate_row.dart';
+import 'package:ai_nutrition_coach/l10n/l10n.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/state/clock_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/widgets/plate_row.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 

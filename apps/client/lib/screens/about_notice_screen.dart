@@ -1,7 +1,7 @@
 // The one-time "About this app" notice (privacy audit PV1).
 //
 // Shown once, before the first Day Board on mobile and before the passphrase
-// is created on the web: OpenPlate is designed for adults; photo recognition
+// is created on the web: AI Nutrition Coach is designed for adults; photo recognition
 // is off by default and only ever sends a photo to a service the person
 // chooses, after they say yes; plates stay on the device, encrypted. One
 // calm "Got it" dismisses it for good (the answer is kept in the encrypted

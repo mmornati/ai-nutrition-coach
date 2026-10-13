@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/pwa_provider.dart';
-import 'package:openplate_client/widgets/update_banner.dart';
+import 'package:ai_nutrition_coach/state/pwa_provider.dart';
+import 'package:ai_nutrition_coach/widgets/update_banner.dart';
 
 Future<void> _pump(WidgetTester tester, ManualAppUpdateSignal signal) =>
     tester.pumpWidget(

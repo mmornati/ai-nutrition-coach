@@ -396,33 +396,54 @@ void f(c, a, b) {
   group('project URL rule (PV11)', () {
     final root = repoRoot();
 
-    test('the declared default is the unresolvable .invalid URL', () {
+    test('the declared default is the real project page', () {
       expect(
         posture.declaredDefaultProjectUrl(root),
-        'https://openplate.invalid',
+        'https://github.com/mmornati/ai-nutrition-coach',
       );
     });
 
-    test('a release build with the default URL fails', () {
+    test('a release build with the default (real) URL passes', () {
       for (final build in ['selfhost', 'release']) {
-        final f = posture.checkProjectUrl(root, {'OPENPLATE_BUILD': build});
-        expect(f, hasLength(1), reason: build);
-        expect(f.single, contains('OPENPLATE_PROJECT_URL'));
+        expect(
+          posture.checkProjectUrl(root, {'AI_NUTRITION_COACH_BUILD': build}),
+          isEmpty,
+          reason: build,
+        );
       }
+    });
+
+    test('a release build fails on an .invalid or empty-host URL', () {
+      // An explicit override that is unresolvable.
+      for (final build in ['selfhost', 'release']) {
+        final f = posture.checkProjectUrl(root, {
+          'AI_NUTRITION_COACH_BUILD': build,
+          'AI_NUTRITION_COACH_PROJECT_URL': 'https://example.invalid',
+        });
+        expect(f, hasLength(1), reason: build);
+        expect(f.single, contains('AI_NUTRITION_COACH_PROJECT_URL'));
+      }
+      // A checkout whose declared default is `.invalid` (the old posture).
+      final tmp = Directory.systemTemp.createTempSync('anc_posture_');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File('${tmp.path}/packages/integrations/lib/src/config/app_identity.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          "const String kDefaultAiNutritionCoachProjectUrl = 'https://x.invalid';",
+        );
       expect(
-        posture.checkProjectUrl(root, {
-          'OPENPLATE_BUILD': 'release',
-          'OPENPLATE_PROJECT_URL': 'https://openplate.invalid',
-        }),
+        posture.checkProjectUrl(tmp, {'AI_NUTRITION_COACH_BUILD': 'release'}),
         hasLength(1),
       );
+      expect(posture.checkProjectUrl(tmp, {}), isEmpty);
     });
 
     test('a release build with a real URL passes', () {
       expect(
         posture.checkProjectUrl(root, {
-          'OPENPLATE_BUILD': 'selfhost',
-          'OPENPLATE_PROJECT_URL': 'https://example.org/openplate',
+          'AI_NUTRITION_COACH_BUILD': 'selfhost',
+          'AI_NUTRITION_COACH_PROJECT_URL':
+              'https://example.org/ai-nutrition-coach',
         }),
         isEmpty,
       );
@@ -440,14 +461,17 @@ void f(c, a, b) {
           'ftp://example.org',
         ]) {
           expect(
-            posture.checkProjectUrl(root, {'OPENPLATE_PROJECT_URL': bad}),
+            posture.checkProjectUrl(root, {
+              'AI_NUTRITION_COACH_PROJECT_URL': bad,
+            }),
             hasLength(1),
             reason: bad,
           );
         }
         expect(
           posture.checkProjectUrl(root, {
-            'OPENPLATE_PROJECT_URL': 'https://example.org:8443/openplate-x',
+            'AI_NUTRITION_COACH_PROJECT_URL':
+                'https://example.org:8443/ai-nutrition-coach-x',
           }),
           isEmpty,
         );
@@ -457,7 +481,7 @@ void f(c, a, b) {
     test('dev builds and unlabeled runs never fail on the URL', () {
       expect(posture.checkProjectUrl(root, {}), isEmpty);
       expect(
-        posture.checkProjectUrl(root, {'OPENPLATE_BUILD': 'dev'}),
+        posture.checkProjectUrl(root, {'AI_NUTRITION_COACH_BUILD': 'dev'}),
         isEmpty,
       );
     });

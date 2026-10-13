@@ -134,11 +134,42 @@ void migratePlaintextDatabase(File file, Uint8List key) {
   }
 }
 
+/// The pre-rename database file name (project rename OpenPlate -> AI
+/// Nutrition Coach). Only ever read, to move it to the new name.
+const String kLegacyDatabaseFileName = 'openplate_v1.sqlite';
+
+/// One-time rename of a pre-rename database to the new file name. Runs
+/// before the existence check, so the key lookup sees the migrated file
+/// (the key itself moves in `secureReadMigrating`). Moves the main file and
+/// its `-wal` / `-shm` / `-journal` sidecars; never overwrites an existing
+/// new-name database; best effort (a failure is left for the normal open,
+/// which then treats it as a fresh install). Returns true if it renamed.
+bool migrateLegacyDatabaseFile(File file) {
+  if (file.uri.pathSegments.last != 'ai_nutrition_coach_v1.sqlite') {
+    return false;
+  }
+  final legacy = File('${file.parent.path}/$kLegacyDatabaseFileName');
+  try {
+    if (!legacy.existsSync() || databaseExistsOnDisk(file)) return false;
+    // Sidecars first: if the main file rename is the last step, a crash
+    // part-way leaves the legacy main file in place to retry.
+    for (final suffix in const ['-wal', '-shm', '-journal']) {
+      final side = File('${legacy.path}$suffix');
+      if (side.existsSync()) side.renameSync('${file.path}$suffix');
+    }
+    legacy.renameSync(file.path);
+    return true;
+  } on Object {
+    return false;
+  }
+}
+
 /// Resolve the key for [file], open it and probe it. Never throws.
 Future<StoreOpenResult> openEncryptedStore({
   required File file,
   required SecureKeySource keySource,
 }) async {
+  migrateLegacyDatabaseFile(file);
   final bool databaseExists;
   final DbKeyLookup lookup;
   try {

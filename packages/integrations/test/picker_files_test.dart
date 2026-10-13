@@ -19,7 +19,10 @@ void main() {
     return f;
   }
 
-  setUp(() => tmp = Directory.systemTemp.createTempSync('openplate_picker_'));
+  setUp(
+    () =>
+        tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_picker_'),
+  );
   tearDown(() => tmp.deleteSync(recursive: true));
 
   group('deletePickerFile', () {
@@ -76,7 +79,7 @@ void main() {
     test('never touches files that are not the picker\'s', () async {
       final other = [
         put(
-          'openplate_exports/2026-10-12-openplate.csv',
+          'ai_nutrition_coach_exports/2026-10-12-ai-nutrition-coach.csv',
           age: const Duration(days: 9),
         ),
         put('share_plus/x.csv', age: const Duration(days: 9)),

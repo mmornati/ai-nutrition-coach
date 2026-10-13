@@ -56,7 +56,7 @@ void main() {
   late String dbPath;
 
   setUp(() {
-    root = Directory.systemTemp.createTempSync('openplate_erase_');
+    root = Directory.systemTemp.createTempSync('ai_nutrition_coach_erase_');
     docs = Directory('${root.path}/docs')..createSync();
     tmp = Directory('${root.path}/tmp')..createSync();
     iosTmp = Directory('${root.path}/ios_tmp')..createSync();
@@ -83,9 +83,11 @@ void main() {
     }
     Directory('${tmp.path}/$kExportSubdirectory').createSync();
     File(
-      '${tmp.path}/$kExportSubdirectory/2026-01-01-openplate.csv',
+      '${tmp.path}/$kExportSubdirectory/2026-01-01-ai-nutrition-coach.csv',
     ).writeAsStringSync('a,b');
-    File('${docs.path}/2025-12-31-openplate.json').writeAsStringSync('{}');
+    File(
+      '${docs.path}/2025-12-31-ai-nutrition-coach.json',
+    ).writeAsStringSync('{}');
     Directory('${tmp.path}/$kSharePlusCacheSubdirectory').createSync();
     File(
       '${tmp.path}/$kSharePlusCacheSubdirectory/copy.csv',
@@ -120,8 +122,11 @@ void main() {
       expect(File('$dbPath$suffix').existsSync(), isFalse, reason: suffix);
     }
     expect(storage.deleted, containsAll(SecureStorageAliases.all));
-    expect(SecureStorageAliases.all, contains('openplate_db_key_v1'));
-    expect(SecureStorageAliases.all, contains('openplate_byok_key_v1'));
+    expect(SecureStorageAliases.all, contains('ai_nutrition_coach_db_key_v1'));
+    expect(
+      SecureStorageAliases.all,
+      contains('ai_nutrition_coach_byok_key_v1'),
+    );
     expect(storage.clearedAll, isTrue);
     expect(storage.data, isEmpty);
     expect(Directory('${tmp.path}/$kExportSubdirectory').existsSync(), isFalse);
@@ -130,7 +135,7 @@ void main() {
       isFalse,
     );
     expect(
-      File('${docs.path}/2025-12-31-openplate.json').existsSync(),
+      File('${docs.path}/2025-12-31-ai-nutrition-coach.json').existsSync(),
       isFalse,
     );
     expect(File('${docs.path}/keep-me.txt').existsSync(), isTrue);
@@ -145,6 +150,24 @@ void main() {
     );
     expect(File('${tmp.path}/unrelated-cache.bin').existsSync(), isTrue);
     expect(File('${iosTmp.path}/image_picker_GUID.jpg').existsSync(), isFalse);
+  });
+
+  test('also erases pre-rename (openplate) leftovers', () async {
+    final legacyDb = File('${docs.path}/openplate_v1.sqlite')
+      ..writeAsStringSync('x');
+    final legacyWal = File('${legacyDb.path}-wal')..writeAsStringSync('x');
+    final legacyDir = Directory('${tmp.path}/openplate_exports')..createSync();
+    File('${legacyDir.path}/2026-01-01-openplate.csv').writeAsStringSync('a');
+    final legacyDoc = File('${docs.path}/2025-12-31-openplate.json')
+      ..writeAsStringSync('{}');
+
+    final result = await build(storage: _FakeStorage({})).eraseAll();
+
+    expect(result, isA<EraseLocalDataSuccess>());
+    expect(legacyDb.existsSync(), isFalse);
+    expect(legacyWal.existsSync(), isFalse);
+    expect(legacyDir.existsSync(), isFalse);
+    expect(legacyDoc.existsSync(), isFalse);
   });
 
   test('works on an already-empty device (nothing to delete)', () async {

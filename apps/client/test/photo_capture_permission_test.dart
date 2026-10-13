@@ -8,8 +8,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:integrations/integrations.dart' show deletePickerFile;
-import 'package:openplate_client/state/photo_provider.dart';
-import 'package:openplate_client/state/scanner_provider.dart';
+import 'package:ai_nutrition_coach/state/photo_provider.dart';
+import 'package:ai_nutrition_coach/state/scanner_provider.dart';
 
 class _RecordingPicker extends ImagePicker {
   int calls = 0;
@@ -60,7 +60,10 @@ void main() {
 
   group('PV3: the picker\'s temp file does not outlive the capture', () {
     late Directory tmp;
-    setUp(() => tmp = Directory.systemTemp.createTempSync('openplate_cap_'));
+    setUp(
+      () =>
+          tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_cap_'),
+    );
     tearDown(() => tmp.deleteSync(recursive: true));
 
     ImagePickerPhotoCapture capture(ImagePicker picker, {List<String>? seen}) =>

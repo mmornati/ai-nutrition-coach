@@ -1,12 +1,12 @@
 # Security policy
 
-OpenPlate is built so that a user's data stays on their own device, and the
+AI Nutrition Coach is built so that a user's data stays on their own device, and the
 security of that promise matters more to us than any feature. Thank you for
 helping keep it true.
 
 ## Supported versions
 
-OpenPlate has not had a stable release yet. Until `1.0`, only the latest
+AI Nutrition Coach has not had a stable release yet. Until `1.0`, only the latest
 commit on `main` and the most recent tagged release receive security fixes.
 
 | Version                    | Supported |

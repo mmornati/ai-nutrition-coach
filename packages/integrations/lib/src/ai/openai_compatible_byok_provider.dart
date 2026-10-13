@@ -317,7 +317,7 @@ class OpenAiCompatibleByokProvider
           // The app identity string, no device info; without it dart:io
           // would send its own `Dart/<version>`. Browsers forbid setting it
           // (and add their own, plus `Origin`).
-          if (!kIsWeb) 'User-Agent': kOpenPlateUserAgent,
+          if (!kIsWeb) 'User-Agent': kAiNutritionCoachUserAgent,
         },
         responseType: ResponseType.stream,
         // A redirect would re-send the Authorization header and the photo

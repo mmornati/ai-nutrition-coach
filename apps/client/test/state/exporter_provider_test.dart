@@ -11,8 +11,8 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/state/exporter_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/state/exporter_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 

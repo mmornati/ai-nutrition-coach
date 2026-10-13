@@ -39,14 +39,14 @@ named reviewer records the human sign-off.
   `precache-manifest.json`; the bundle contains the self-hosted zxing decoder
   and the host scan still passes.
 - [ ] **Service-worker update test.** Against the release image: install, then change the build id
-  (`OPENPLATE_BUILD_ID=...` + `melos run pwa:manifest`, or a rebuild); the old version keeps running,
+  (`AI_NUTRITION_COACH_BUILD_ID=...` + `melos run pwa:manifest`, or a rebuild); the old version keeps running,
   the calm "A new version is ready" line appears, *Reload* reloads exactly once, old caches are gone,
   the data is still there after unlocking. `scripts/webkit_smoke.sh` automates this in Chromium and WebKit.
 - [ ] **WebKit smoke.** `scripts/webkit_smoke.sh` is green (WebKit and Chromium): create → log → reload →
   unlock → offline reload → update. Record any browser-specific finding in `docs/pwa.md`.
-- [ ] **Traefik config.** `docker compose -f infra/docker-compose.traefik.yml config` (with `OPENPLATE_DOMAIN`
+- [ ] **Traefik config.** `docker compose -f infra/docker-compose.traefik.yml config` (with `AI_NUTRITION_COACH_DOMAIN`
   set) renders with **no published port** and the expected labels; the overlays render;
-  `bin/openplate up --traefik` refuses hostile values (exit 42). `melos run smoke:self-host` asserts all of it.
+  `bin/ai-nutrition-coach up --traefik` refuses hostile values (exit 42). `melos run smoke:self-host` asserts all of it.
 - [ ] `sw.js`, `precache-manifest.json` and `manifest.json` are `Cache-Control: no-cache`
   (asserted by the self-host smoke).
 - [ ] **Real iPhone with VoiceOver ON (blocker if it fails).** Create a passphrase, then log a plate through
@@ -54,7 +54,7 @@ named reviewer records the human sign-off.
   semantics are on never reaches the app; whether VoiceOver on iOS Safari is affected is unverified. A failure is an
   **accessibility release blocker**: file it upstream (flutter/flutter) with the repro and do not ship the web app to
   screen-reader users until fixed.
-- [ ] **Kill switch rehearsal.** Start the container with `OPENPLATE_SW_KILL=1` and confirm an installed app reloads
+- [ ] **Kill switch rehearsal.** Start the container with `AI_NUTRITION_COACH_SW_KILL=1` and confirm an installed app reloads
   once and then loads from the network (docs/pwa.md "If an update goes wrong").
 - [ ] On a real iPhone and a real Android phone: install from HTTPS, open offline, log a plate, export.
   (Not automated; the maintainer records the result.)
@@ -78,11 +78,11 @@ named reviewer records the human sign-off.
 
 - [ ] `melos run check:release-posture` is green, including `tools/check_log_hygiene.dart`
   (no `print(`; every interpolating `debugPrint` / `log` call reviewed as content-free).
-- [ ] **Project URL.** `OPENPLATE_BUILD=release OPENPLATE_PROJECT_URL=<the real project page> dart run tools/check_release_posture.dart --project-url-only`
-  is green (it fails while the URL is the unresolvable `https://openplate.invalid` default). Build mobile
-  releases with the same `--dart-define=OPENPLATE_PROJECT_URL=…`; the container with
-  `--build-arg OPENPLATE_PROJECT_URL=… --build-arg OPENPLATE_RELEASE=1` (the build then enforces the rule itself;
-  `.github/workflows/release-gate.yml` does this from the repository variable `OPENPLATE_PROJECT_URL`).
+- [ ] **Project URL.** `AI_NUTRITION_COACH_BUILD=release [AI_NUTRITION_COACH_PROJECT_URL=<override>] dart run tools/check_release_posture.dart --project-url-only`
+  is green (the default is the project repository, so this only fails for an empty or `.invalid` override; set the URL for a fork). Build mobile
+  releases with the same `--dart-define=AI_NUTRITION_COACH_PROJECT_URL=…`; the container with
+  `--build-arg AI_NUTRITION_COACH_PROJECT_URL=… --build-arg AI_NUTRITION_COACH_RELEASE=1` (the build then enforces the rule itself;
+  `.github/workflows/release-gate.yml` does this from the repository variable `AI_NUTRITION_COACH_PROJECT_URL`).
 - [ ] **Android ML Kit capture (one time, unverified until done).** Build the APK, run it on a device or
   emulator behind a capturing proxy (or `tcpdump` on the host), scan one barcode, and record whether anything
   other than the Open Food Facts lookup leaves the device (in particular Google / Firebase hosts such as
@@ -99,7 +99,7 @@ named reviewer records the human sign-off.
   with a screen reader the "Remove this plate" action is offered.
 - [ ] **No leftover photos (mobile).** After a photo recognition, the app's cache directory holds no `image_picker*` /
   `scaled_*` file; *Erase all local data* leaves none.
-- [ ] **Self-host logs.** `bash scripts/smoke_self_host.sh` is green (it asserts `OPENPLATE_ACCESS_LOG` off by default
+- [ ] **Self-host logs.** `bash scripts/smoke_self_host.sh` is green (it asserts `AI_NUTRITION_COACH_ACCESS_LOG` off by default
   and, with `on`, no User-Agent / Referer / query string and a truncated address). If you run Traefik, its access log is
   off or anonymised and has a retention ([`docs/pwa.md`](./pwa.md#logs-behind-traefik)).
 - [ ] **Browser smoke.** `scripts/webkit_smoke.sh` is green: the Open Food Facts request (Chromium) and the export

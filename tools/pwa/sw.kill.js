@@ -1,8 +1,8 @@
-/* OpenPlate service worker KILL SWITCH (docs/pwa.md "Kill switch").
+/* AI Nutrition Coach service worker KILL SWITCH (docs/pwa.md "Kill switch").
  *
  * What it is for: a service worker that serves a broken build from its cache
  * and cannot be talked out of it. Served as /sw.js (start the container with
- * OPENPLATE_SW_KILL=1; see infra/nginx/docker-entrypoint.d/30-render-sw.sh) it
+ * AI_NUTRITION_COACH_SW_KILL=1; see infra/nginx/docker-entrypoint.d/30-render-sw.sh) it
  * replaces the old worker through the browser's normal update check:
  *
  *   install   skipWaiting() at once (no banner, no tap needed);

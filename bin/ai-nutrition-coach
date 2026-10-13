@@ -2,17 +2,17 @@
 # ────────────────────────────────────────────────────────────────────────────
 # ai-nutrition-coach — the one-command self-host affordance (Story 4.4 / FR-11).
 #
-#   bin/openplate up              build the image and run it (docker run) on
+#   bin/ai-nutrition-coach up              build the image and run it (docker run) on
 #                                 http://localhost:8080 (loopback only)
-#   bin/openplate up --compose    the same, through docker compose
-#   bin/openplate up --tls        compose + Caddy automatic HTTPS for
-#                                 $OPENPLATE_DOMAIN (the supported way to
-#                                 reach OpenPlate from other devices)
-#   bin/openplate up --traefik    compose behind YOUR Traefik: no published
+#   bin/ai-nutrition-coach up --compose    the same, through docker compose
+#   bin/ai-nutrition-coach up --tls        compose + Caddy automatic HTTPS for
+#                                 $AI_NUTRITION_COACH_DOMAIN (the supported way to
+#                                 reach AI Nutrition Coach from other devices)
+#   bin/ai-nutrition-coach up --traefik    compose behind YOUR Traefik: no published
 #                                 port, joins the Docker network Traefik is on
-#                                 and is routed for $OPENPLATE_DOMAIN over
+#                                 and is routed for $AI_NUTRITION_COACH_DOMAIN over
 #                                 HTTPS (docs/pwa.md)
-#   bin/openplate down            stop and remove whatever `up` started
+#   bin/ai-nutrition-coach down            stop and remove whatever `up` started
 #
 # The container is a static web server with NO server-side data: your data is
 # encrypted in your browser. (The old `--with-persist` / /data volume never
@@ -22,9 +22,9 @@
 #   0   success                         10  docker not installed
 #   20  image build failed              30  docker run failed
 #   31  container name already in use   40  compose stack failed to start
-#   41  --tls / --traefik without OPENPLATE_DOMAIN
-#   42  invalid OPENPLATE_DOMAIN / OPENPLATE_CONNECT_SRC_EXTRA / Traefik setting
-#   43  --traefik: the Docker network OPENPLATE_TRAEFIK_NETWORK does not exist
+#   41  --tls / --traefik without AI_NUTRITION_COACH_DOMAIN
+#   42  invalid AI_NUTRITION_COACH_DOMAIN / AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / Traefik setting
+#   43  --traefik: the Docker network AI_NUTRITION_COACH_TRAEFIK_NETWORK does not exist
 #
 # POSIX sh. Works from any current directory.
 # ────────────────────────────────────────────────────────────────────────────
@@ -35,28 +35,28 @@ set -eu
 # context resolve no matter where the script is invoked from.
 cd "$(dirname "$0")/.."
 
-IMAGE_TAG="${OPENPLATE_IMAGE_TAG:-openplate:dev}"
-CONTAINER_NAME="${OPENPLATE_CONTAINER_NAME:-openplate}"
-BIND="${OPENPLATE_BIND:-127.0.0.1}"
-# OPENPLATE_HOST_PORT is the pre-Phase-4 name; still honoured.
-PORT="${OPENPLATE_PORT:-${OPENPLATE_HOST_PORT:-8080}}"
-CSP_EXTRA="${OPENPLATE_CONNECT_SRC_EXTRA:-}"
+IMAGE_TAG="${AI_NUTRITION_COACH_IMAGE_TAG:-ai-nutrition-coach:dev}"
+CONTAINER_NAME="${AI_NUTRITION_COACH_CONTAINER_NAME:-ai-nutrition-coach}"
+BIND="${AI_NUTRITION_COACH_BIND:-127.0.0.1}"
+# AI_NUTRITION_COACH_HOST_PORT is the pre-Phase-4 name; still honoured.
+PORT="${AI_NUTRITION_COACH_PORT:-${AI_NUTRITION_COACH_HOST_PORT:-8080}}"
+CSP_EXTRA="${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}"
 COMPOSE_FILE="infra/docker-compose.yml"
 TRAEFIK_COMPOSE_FILE="infra/docker-compose.traefik.yml"
-TRAEFIK_NETWORK="${OPENPLATE_TRAEFIK_NETWORK:-traefik}"
-TRAEFIK_ENTRYPOINT="${OPENPLATE_TRAEFIK_ENTRYPOINT:-websecure}"
-TRAEFIK_CERTRESOLVER="${OPENPLATE_TRAEFIK_CERTRESOLVER:-}"
-TRAEFIK_ALLOWLIST="${OPENPLATE_TRAEFIK_ALLOWLIST:-}"
-TRAEFIK_HSTS_SUBDOMAINS="${OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS:-false}"
+TRAEFIK_NETWORK="${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}"
+TRAEFIK_ENTRYPOINT="${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}"
+TRAEFIK_CERTRESOLVER="${AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER:-}"
+TRAEFIK_ALLOWLIST="${AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST:-}"
+TRAEFIK_HSTS_SUBDOMAINS="${AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS:-false}"
 
 # Exported so compose (and its ${VAR:-default} substitutions) sees the same
 # values as the plain `docker run` path.
-export OPENPLATE_IMAGE_TAG="$IMAGE_TAG" OPENPLATE_BIND="$BIND" \
-  OPENPLATE_PORT="$PORT" OPENPLATE_CONNECT_SRC_EXTRA="$CSP_EXTRA" \
-  OPENPLATE_ACCESS_LOG="${OPENPLATE_ACCESS_LOG:-off}" \
-  OPENPLATE_TRAEFIK_NETWORK="$TRAEFIK_NETWORK" \
-  OPENPLATE_TRAEFIK_ENTRYPOINT="$TRAEFIK_ENTRYPOINT" \
-  OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS"
+export AI_NUTRITION_COACH_IMAGE_TAG="$IMAGE_TAG" AI_NUTRITION_COACH_BIND="$BIND" \
+  AI_NUTRITION_COACH_PORT="$PORT" AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="$CSP_EXTRA" \
+  AI_NUTRITION_COACH_ACCESS_LOG="${AI_NUTRITION_COACH_ACCESS_LOG:-off}" \
+  AI_NUTRITION_COACH_TRAEFIK_NETWORK="$TRAEFIK_NETWORK" \
+  AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT="$TRAEFIK_ENTRYPOINT" \
+  AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS"
 
 # True if $1 contains only characters from the plain-origin set (no newline,
 # quote, semicolon, wildcard, ...). Mirrors infra/nginx/docker-entrypoint.d/05-validate-csp.sh.
@@ -65,7 +65,7 @@ only_safe_chars() {
   [ "$(printf '%s#' "$1" | LC_ALL=C tr -d 'A-Za-z0-9.:/ -')" = '#' ]
 }
 
-# OPENPLATE_CONNECT_SRC_EXTRA lands in the CSP header: only origins, so it
+# AI_NUTRITION_COACH_CONNECT_SRC_EXTRA lands in the CSP header: only origins, so it
 # cannot rewrite the policy. Empty is fine.
 validate_csp_extra() {
   only_safe_chars "$CSP_EXTRA" || bad_csp
@@ -82,45 +82,45 @@ validate_csp_extra() {
 }
 
 bad_csp() {
-  printf 'openplate: OPENPLATE_CONNECT_SRC_EXTRA must be space-separated https://host[:port] origins\n' >&2
+  printf 'ai-nutrition-coach: AI_NUTRITION_COACH_CONNECT_SRC_EXTRA must be space-separated https://host[:port] origins\n' >&2
   printf '           (http://localhost[:port] is also accepted); no quotes, semicolons or wildcards.\n' >&2
   exit 42
 }
 
-# OPENPLATE_ACCESS_LOG selects the nginx access-log mode (PV9): off (default),
+# AI_NUTRITION_COACH_ACCESS_LOG selects the nginx access-log mode (PV9): off (default),
 # on (minimal, address truncated, no User-Agent) or full. Anything else is
 # refused here, as the container would refuse to start.
 validate_access_log() {
-  case "${OPENPLATE_ACCESS_LOG:-off}" in
+  case "${AI_NUTRITION_COACH_ACCESS_LOG:-off}" in
     off|on|full) ;;
     *)
-      printf 'openplate: OPENPLATE_ACCESS_LOG must be off, on or full.\n' >&2
+      printf 'ai-nutrition-coach: AI_NUTRITION_COACH_ACCESS_LOG must be off, on or full.\n' >&2
       exit 42
       ;;
   esac
 }
 
-# OPENPLATE_PROJECT_URL is compiled into the image (a --dart-define): a plain
-# https URL only. Empty is fine (the unresolvable .invalid default).
+# AI_NUTRITION_COACH_PROJECT_URL is compiled into the image (a --dart-define): a plain
+# https URL only. Empty is fine (the default is the project repository).
 validate_project_url() {
-  [ -z "${OPENPLATE_PROJECT_URL:-}" ] && return 0
-  printf '%s' "$OPENPLATE_PROJECT_URL" | grep -Eq '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?$' && return 0
-  printf 'openplate: OPENPLATE_PROJECT_URL must be a plain https:// URL (no spaces or quotes).\n' >&2
+  [ -z "${AI_NUTRITION_COACH_PROJECT_URL:-}" ] && return 0
+  printf '%s' "$AI_NUTRITION_COACH_PROJECT_URL" | grep -Eq '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?$' && return 0
+  printf 'ai-nutrition-coach: AI_NUTRITION_COACH_PROJECT_URL must be a plain https:// URL (no spaces or quotes).\n' >&2
   exit 42
 }
 
-# OPENPLATE_DOMAIN is written into the Caddyfile: a plain hostname only.
+# AI_NUTRITION_COACH_DOMAIN is written into the Caddyfile: a plain hostname only.
 validate_domain() {
-  only_safe_chars "$OPENPLATE_DOMAIN" && \
-    printf '%s' "$OPENPLATE_DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$' && return 0
-  printf 'openplate: OPENPLATE_DOMAIN must be a plain hostname (e.g. plate.example.com).\n' >&2
+  only_safe_chars "$AI_NUTRITION_COACH_DOMAIN" && \
+    printf '%s' "$AI_NUTRITION_COACH_DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$' && return 0
+  printf 'ai-nutrition-coach: AI_NUTRITION_COACH_DOMAIN must be a plain hostname (e.g. plate.example.com).\n' >&2
   exit 42
 }
 
 # The Traefik settings land in compose labels (router rule, entrypoint, ...):
 # strict patterns, so a value can never add a label or alter the rule.
 bad_traefik() {
-  printf 'openplate: %s\n' "$1" >&2
+  printf 'ai-nutrition-coach: %s\n' "$1" >&2
   exit 42
 }
 
@@ -129,32 +129,32 @@ bad_traefik() {
 validate_traefik() {
   v="$TRAEFIK_NETWORK"
   case "$v" in
-    ''|*[!A-Za-z0-9_.-]*|[._-]*) bad_traefik 'OPENPLATE_TRAEFIK_NETWORK must be a Docker network name (letters, digits, _ . -).' ;;
+    ''|*[!A-Za-z0-9_.-]*|[._-]*) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_NETWORK must be a Docker network name (letters, digits, _ . -).' ;;
   esac
-  [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_NETWORK is too long.'
+  [ "${#v}" -le 63 ] || bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_NETWORK is too long.'
   v="$TRAEFIK_ENTRYPOINT"
   case "$v" in
-    ''|*[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'OPENPLATE_TRAEFIK_ENTRYPOINT must be a Traefik entrypoint name (letters, digits, _ -).' ;;
+    ''|*[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT must be a Traefik entrypoint name (letters, digits, _ -).' ;;
   esac
-  [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_ENTRYPOINT is too long.'
+  [ "${#v}" -le 63 ] || bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT is too long.'
   if [ -n "$TRAEFIK_CERTRESOLVER" ]; then
     v="$TRAEFIK_CERTRESOLVER"
     case "$v" in
-      *[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'OPENPLATE_TRAEFIK_CERTRESOLVER must be a Traefik certificate resolver name (letters, digits, _ -).' ;;
+      *[!A-Za-z0-9_-]*|[_-]*) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER must be a Traefik certificate resolver name (letters, digits, _ -).' ;;
     esac
-    [ "${#v}" -le 63 ] || bad_traefik 'OPENPLATE_TRAEFIK_CERTRESOLVER is too long.'
+    [ "${#v}" -le 63 ] || bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER is too long.'
   fi
   case "$TRAEFIK_HSTS_SUBDOMAINS" in
     true|false) ;;
-    *) bad_traefik 'OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS must be true or false.' ;;
+    *) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS must be true or false.' ;;
   esac
   if [ -n "$TRAEFIK_ALLOWLIST" ]; then
     # Comma-separated IPv4 / IPv6 CIDRs, nothing else.
     case "$TRAEFIK_ALLOWLIST" in
-      *[!0-9A-Fa-f:./,]*) bad_traefik 'OPENPLATE_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.' ;;
+      *[!0-9A-Fa-f:./,]*) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.' ;;
     esac
     printf '%s' "$TRAEFIK_ALLOWLIST" | grep -Eq '^[0-9A-Fa-f:.]+/[0-9]{1,3}(,[0-9A-Fa-f:.]+/[0-9]{1,3})*$' \
-      || bad_traefik 'OPENPLATE_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.'
+      || bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST must be comma-separated CIDRs, e.g. 192.168.1.0/24,100.64.0.0/10.'
   fi
 }
 
@@ -168,7 +168,7 @@ traefik_compose_args() {
 
 need_docker() {
   if ! command -v docker >/dev/null 2>&1; then
-    printf 'openplate: docker is required — install it from https://docs.docker.com/get-docker/\n' >&2
+    printf 'ai-nutrition-coach: docker is required — install it from https://docs.docker.com/get-docker/\n' >&2
     exit 10
   fi
 }
@@ -184,9 +184,9 @@ warn_if_exposed() {
   case "$BIND" in
     127.0.0.1|localhost|"[::1]"|"::1") ;;
     *)
-      printf 'openplate: WARNING — bound to %s over plain HTTP. Browsers only give the web store\n' "$BIND" >&2
+      printf 'ai-nutrition-coach: WARNING — bound to %s over plain HTTP. Browsers only give the web store\n' "$BIND" >&2
       printf '           a secure context on https:// or localhost, so other devices will see\n' >&2
-      printf '           "store unavailable". Use `bin/openplate up --tls` for HTTPS.\n' >&2
+      printf '           "store unavailable". Use `bin/ai-nutrition-coach up --tls` for HTTPS.\n' >&2
       ;;
   esac
 }
@@ -199,7 +199,7 @@ up() {
       --tls) mode=tls ;;
       --traefik) mode=traefik ;;
       --with-persist)
-        printf 'openplate: --with-persist was removed: the container stores no data. Your data is\n' >&2
+        printf 'ai-nutrition-coach: --with-persist was removed: the container stores no data. Your data is\n' >&2
         printf '           encrypted in your browser (IndexedDB); use the in-app export to back it up.\n' >&2
         exit 1 ;;
       --help|-h) usage; exit 0 ;;
@@ -213,15 +213,15 @@ up() {
   validate_access_log
   validate_project_url
   if [ "$mode" = tls ]; then
-    if [ -z "${OPENPLATE_DOMAIN:-}" ]; then
-      printf 'openplate: --tls needs OPENPLATE_DOMAIN (e.g. OPENPLATE_DOMAIN=plate.example.com bin/openplate up --tls)\n' >&2
+    if [ -z "${AI_NUTRITION_COACH_DOMAIN:-}" ]; then
+      printf 'ai-nutrition-coach: --tls needs AI_NUTRITION_COACH_DOMAIN (e.g. AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --tls)\n' >&2
       exit 41
     fi
     validate_domain
   fi
   if [ "$mode" = traefik ]; then
-    if [ -z "${OPENPLATE_DOMAIN:-}" ]; then
-      printf 'openplate: --traefik needs OPENPLATE_DOMAIN (e.g. OPENPLATE_DOMAIN=plate.example.com bin/openplate up --traefik)\n' >&2
+    if [ -z "${AI_NUTRITION_COACH_DOMAIN:-}" ]; then
+      printf 'ai-nutrition-coach: --traefik needs AI_NUTRITION_COACH_DOMAIN (e.g. AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --traefik)\n' >&2
       exit 41
     fi
     validate_domain
@@ -231,75 +231,75 @@ up() {
   need_docker
 
   if [ "$mode" = traefik ] && ! docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1; then
-    printf 'openplate: the Docker network "%s" does not exist. Create it and attach Traefik to it\n' "$TRAEFIK_NETWORK" >&2
-    printf '           (docker network create %s), or set OPENPLATE_TRAEFIK_NETWORK to the network\n' "$TRAEFIK_NETWORK" >&2
+    printf 'ai-nutrition-coach: the Docker network "%s" does not exist. Create it and attach Traefik to it\n' "$TRAEFIK_NETWORK" >&2
+    printf '           (docker network create %s), or set AI_NUTRITION_COACH_TRAEFIK_NETWORK to the network\n' "$TRAEFIK_NETWORK" >&2
     printf '           your Traefik container is on.\n' >&2
     exit 43
   fi
 
   # Fail early and clearly on a name collision (instead of docker's terse error).
   if [ "$mode" = run ] && docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
-    printf 'openplate: a container named "%s" already exists. Run `bin/openplate down` first,\n' "$CONTAINER_NAME" >&2
-    printf '           or pick another name with OPENPLATE_CONTAINER_NAME.\n' >&2
+    printf 'ai-nutrition-coach: a container named "%s" already exists. Run `bin/ai-nutrition-coach down` first,\n' "$CONTAINER_NAME" >&2
+    printf '           or pick another name with AI_NUTRITION_COACH_CONTAINER_NAME.\n' >&2
     exit 31
   fi
 
-  printf 'openplate: building %s ...\n' "$IMAGE_TAG"
+  printf 'ai-nutrition-coach: building %s ...\n' "$IMAGE_TAG"
   if ! docker build -f infra/Dockerfile -t "$IMAGE_TAG" \
-        --build-arg "OPENPLATE_PROJECT_URL=${OPENPLATE_PROJECT_URL:-}" \
-        --build-arg "OPENPLATE_RELEASE=${OPENPLATE_RELEASE:-0}" . ; then
-    printf 'openplate: image build failed — see the log tail above.\n' >&2
+        --build-arg "AI_NUTRITION_COACH_PROJECT_URL=${AI_NUTRITION_COACH_PROJECT_URL:-}" \
+        --build-arg "AI_NUTRITION_COACH_RELEASE=${AI_NUTRITION_COACH_RELEASE:-0}" . ; then
+    printf 'ai-nutrition-coach: image build failed — see the log tail above.\n' >&2
     exit 20
   fi
 
   if [ "$mode" = traefik ]; then
-    printf 'openplate: starting compose stack behind Traefik (no published port) ...\n'
+    printf 'ai-nutrition-coach: starting compose stack behind Traefik (no published port) ...\n'
     # shellcheck disable=SC2046
     if ! docker compose $(traefik_compose_args) up -d ; then
-      printf 'openplate: compose stack failed to start.\n' >&2
+      printf 'ai-nutrition-coach: compose stack failed to start.\n' >&2
       exit 40
     fi
-    printf 'openplate is up behind Traefik: https://%s/ (once Traefik has picked up the labels)\n' "$OPENPLATE_DOMAIN"
+    printf 'ai-nutrition-coach is up behind Traefik: https://%s/ (once Traefik has picked up the labels)\n' "$AI_NUTRITION_COACH_DOMAIN"
     exit 0
   fi
 
   if [ "$mode" != run ]; then
     profile=""
     [ "$mode" = tls ] && profile="--profile tls"
-    printf 'openplate: starting compose stack ...\n'
+    printf 'ai-nutrition-coach: starting compose stack ...\n'
     # shellcheck disable=SC2086
     if ! docker compose -f "$COMPOSE_FILE" $profile up -d ; then
-      printf 'openplate: compose stack failed to start.\n' >&2
+      printf 'ai-nutrition-coach: compose stack failed to start.\n' >&2
       exit 40
     fi
     if [ "$mode" = tls ]; then
-      printf 'openplate is up at https://%s/\n' "$OPENPLATE_DOMAIN"
+      printf 'ai-nutrition-coach is up at https://%s/\n' "$AI_NUTRITION_COACH_DOMAIN"
     else
       warn_if_exposed
-      printf 'openplate is up at http://%s:%s/\n' "$(url_host)" "$PORT"
+      printf 'ai-nutrition-coach is up at http://%s:%s/\n' "$(url_host)" "$PORT"
     fi
     exit 0
   fi
 
-  printf 'openplate: starting container (static server; your data stays in your browser) ...\n'
+  printf 'ai-nutrition-coach: starting container (static server; your data stays in your browser) ...\n'
   if ! docker run -d \
         --name "$CONTAINER_NAME" \
         --read-only \
         --tmpfs /tmp:rw,noexec,nosuid,size=16m \
         --cap-drop ALL \
         --security-opt no-new-privileges:true \
-        -e "OPENPLATE_CONNECT_SRC_EXTRA=$CSP_EXTRA" \
-        -e "OPENPLATE_SW_KILL=${OPENPLATE_SW_KILL:-}" \
-        -e "OPENPLATE_ACCESS_LOG=${OPENPLATE_ACCESS_LOG:-off}" \
+        -e "AI_NUTRITION_COACH_CONNECT_SRC_EXTRA=$CSP_EXTRA" \
+        -e "AI_NUTRITION_COACH_SW_KILL=${AI_NUTRITION_COACH_SW_KILL:-}" \
+        -e "AI_NUTRITION_COACH_ACCESS_LOG=${AI_NUTRITION_COACH_ACCESS_LOG:-off}" \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
-    printf 'openplate: docker run failed (is port %s already in use? try OPENPLATE_PORT=...).\n' "$PORT" >&2
+    printf 'ai-nutrition-coach: docker run failed (is port %s already in use? try AI_NUTRITION_COACH_PORT=...).\n' "$PORT" >&2
     # A failed `run` can leave a created-but-not-started container behind.
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
     exit 30
   fi
   warn_if_exposed
-  printf 'openplate is up at http://%s:%s/\n' "$(url_host)" "$PORT"
+  printf 'ai-nutrition-coach is up at http://%s:%s/\n' "$(url_host)" "$PORT"
 }
 
 down() {
@@ -308,18 +308,18 @@ down() {
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
   fi
   if [ -f "$COMPOSE_FILE" ]; then
-    # --profile tls so the Caddy service is stopped too; OPENPLATE_DOMAIN only
+    # --profile tls so the Caddy service is stopped too; AI_NUTRITION_COACH_DOMAIN only
     # needs to be non-empty for compose to parse the file.
-    OPENPLATE_DOMAIN="${OPENPLATE_DOMAIN:-unused}" \
+    AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
       docker compose -f "$COMPOSE_FILE" --profile tls down >/dev/null 2>&1 || true
   fi
   if [ -f "$TRAEFIK_COMPOSE_FILE" ]; then
     # Down needs the file to parse: any non-empty domain does. The network is
     # external, so it is never removed.
-    OPENPLATE_DOMAIN="${OPENPLATE_DOMAIN:-unused}" \
+    AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
       docker compose -f "$TRAEFIK_COMPOSE_FILE" down >/dev/null 2>&1 || true
   fi
-  printf 'openplate: stopped.\n'
+  printf 'ai-nutrition-coach: stopped.\n'
 }
 
 usage() {
@@ -327,30 +327,30 @@ usage() {
 ai-nutrition-coach — self-host affordance (Story 4.4 / FR-11)
 
 Usage:
-  bin/openplate up [--compose | --tls | --traefik]
-  bin/openplate down
+  bin/ai-nutrition-coach up [--compose | --tls | --traefik]
+  bin/ai-nutrition-coach down
 
 Environment:
-  OPENPLATE_BIND               host interface (default: 127.0.0.1)
-  OPENPLATE_PORT               host port (default: 8080)
-  OPENPLATE_DOMAIN             DNS name for --tls / --traefik (required with them)
-  OPENPLATE_TRAEFIK_NETWORK    --traefik: existing Docker network shared with
+  AI_NUTRITION_COACH_BIND               host interface (default: 127.0.0.1)
+  AI_NUTRITION_COACH_PORT               host port (default: 8080)
+  AI_NUTRITION_COACH_DOMAIN             DNS name for --tls / --traefik (required with them)
+  AI_NUTRITION_COACH_TRAEFIK_NETWORK    --traefik: existing Docker network shared with
                                Traefik (default: traefik)
-  OPENPLATE_TRAEFIK_ENTRYPOINT --traefik: HTTPS entrypoint (default: websecure)
-  OPENPLATE_TRAEFIK_CERTRESOLVER  --traefik: ACME resolver name (optional)
-  OPENPLATE_TRAEFIK_ALLOWLIST  --traefik: comma-separated CIDRs allowed to
+  AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT --traefik: HTTPS entrypoint (default: websecure)
+  AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER  --traefik: ACME resolver name (optional)
+  AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST  --traefik: comma-separated CIDRs allowed to
                                connect (optional; Traefik v3 ipAllowList)
-  OPENPLATE_TRAEFIK_HSTS_SUBDOMAINS  --traefik: true|false (default: false)
-  OPENPLATE_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK
+  AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS  --traefik: true|false (default: false)
+  AI_NUTRITION_COACH_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK
                                AI endpoint ("https://api.openai.com"); origins
                                only, validated
-  OPENPLATE_ACCESS_LOG         nginx access log: off (default) | on (address
+  AI_NUTRITION_COACH_ACCESS_LOG         nginx access log: off (default) | on (address
                                truncated, no User-Agent) | full
-  OPENPLATE_PROJECT_URL        project page compiled into the build (plain https URL;
-                               default https://openplate.invalid)
-  OPENPLATE_RELEASE            1 = release build: refuse the .invalid project URL
-  OPENPLATE_IMAGE_TAG          image tag (default: openplate:dev)
-  OPENPLATE_CONTAINER_NAME     container name for plain \`up\` (default: openplate)
+  AI_NUTRITION_COACH_PROJECT_URL        project page compiled into the build (plain https URL;
+                               default https://github.com/mmornati/ai-nutrition-coach)
+  AI_NUTRITION_COACH_RELEASE            1 = release build: refuse an empty/.invalid project URL
+  AI_NUTRITION_COACH_IMAGE_TAG          image tag (default: ai-nutrition-coach:dev)
+  AI_NUTRITION_COACH_CONTAINER_NAME     container name for plain \`up\` (default: ai-nutrition-coach)
 
 Plain HTTP on a network is unsupported (the web store needs https or
 localhost); see docs/self-host.md.

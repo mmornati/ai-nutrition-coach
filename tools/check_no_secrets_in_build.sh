@@ -54,7 +54,7 @@ PATTERNS=(
   'github_pat_[A-Za-z0-9_]{30,}'
   # The retired build-time key define: its mere presence means a key could
   # have been compiled in. ([A] keeps this very file from containing it.)
-  'OPENPLATE_BYOK_[A]PI_KEY'
+  'AI_NUTRITION_COACH_BYOK_[A]PI_KEY'
 )
 # Cloudflare API tokens have no fixed, documented prefix/shape, so there is no
 # pattern for them here; gitleaks (CI) covers them with its own rules.
@@ -120,7 +120,7 @@ self_test() {
     " hf_""abcdefghijklmnopqrstuvwxyz0123456789"
     " ghp_""abcdefghijklmnopqrstuvwxyz0123456789"
     "github_pat_""abcdefghijklmnopqrstuvwxyz0123456789"
-    "OPENPLATE_BYOK_""API_KEY"
+    "AI_NUTRITION_COACH_BYOK_""API_KEY"
   )
   local v n=0
   for v in "${planted[@]}"; do

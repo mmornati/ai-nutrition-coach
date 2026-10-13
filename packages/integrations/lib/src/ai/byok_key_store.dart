@@ -87,7 +87,7 @@ class SecureStorageByokKeyStore implements ByokKeyStore {
         '(it is localStorage). Use KvByokKeyStore / createByokKeyStore().',
       );
     }
-    return openPlateSecureStorage;
+    return aiNutritionCoachSecureStorage;
   }
 
   /// The secure-storage alias. Versioned (`_v1`) so a future

@@ -104,7 +104,7 @@ class StoreOpenOverrides {
 }
 
 /// The file name of the mobile database inside the documents directory.
-const String kDatabaseFileName = 'openplate_v1.sqlite';
+const String kDatabaseFileName = 'ai_nutrition_coach_v1.sqlite';
 
 Future<StoreBundle> createStores({StoreOpenOverrides? overrides}) =>
     impl.createStores(overrides: overrides);

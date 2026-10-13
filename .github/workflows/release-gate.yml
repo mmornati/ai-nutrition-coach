@@ -64,8 +64,8 @@ jobs:
       - name: Gate C - project URL (release tags)
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          OPENPLATE_BUILD: release
-          OPENPLATE_PROJECT_URL: ${{ vars.OPENPLATE_PROJECT_URL }}
+          AI_NUTRITION_COACH_BUILD: release
+          AI_NUTRITION_COACH_PROJECT_URL: ${{ vars.AI_NUTRITION_COACH_PROJECT_URL }}
         run: dart run tools/check_release_posture.dart --project-url-only
 
       - name: Gate summary
@@ -84,26 +84,27 @@ jobs:
 
       - name: Build infra/Dockerfile
         # A release image: the project-URL rule is enforced inside the build.
-        # Set the repository VARIABLE OPENPLATE_PROJECT_URL (Settings ->
-        # Secrets and variables -> Actions -> Variables) to the real project
-        # page; while it is unset the build FAILS by design.
+        # The project URL defaults to the repository page. A fork may set the
+        # repository VARIABLE AI_NUTRITION_COACH_PROJECT_URL (Settings ->
+        # Secrets and variables -> Actions -> Variables) to override it; the
+        # build FAILS if the override is empty-hosted or `.invalid`.
         run: >
-          docker build -f infra/Dockerfile -t openplate:release
-          --build-arg OPENPLATE_RELEASE=1
-          --build-arg "OPENPLATE_PROJECT_URL=${{ vars.OPENPLATE_PROJECT_URL }}" .
+          docker build -f infra/Dockerfile -t ai-nutrition-coach:release
+          --build-arg AI_NUTRITION_COACH_RELEASE=1
+          --build-arg "AI_NUTRITION_COACH_PROJECT_URL=${{ vars.AI_NUTRITION_COACH_PROJECT_URL }}" .
 
       - name: Generate SBOM (SPDX JSON)
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
-          image: openplate:release
+          image: ai-nutrition-coach:release
           format: spdx-json
-          output-file: openplate-image.spdx.json
+          output-file: ai-nutrition-coach-image.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
       - name: Upload SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: openplate-image-sbom
-          path: openplate-image.spdx.json
+          name: ai-nutrition-coach-image-sbom
+          path: ai-nutrition-coach-image.spdx.json
           if-no-files-found: error

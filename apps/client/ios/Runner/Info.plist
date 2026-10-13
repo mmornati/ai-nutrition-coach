@@ -27,7 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>OpenPlate uses the camera only when you choose to scan a barcode or photograph a plate. It is never used in the background.</string>
+	<string>AI Nutrition Coach uses the camera only when you choose to scan a barcode or photograph a plate. It is never used in the background.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

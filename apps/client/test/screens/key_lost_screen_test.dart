@@ -4,9 +4,9 @@ import 'package:domain_core/domain_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openplate_client/screens/key_lost_screen.dart';
-import 'package:openplate_client/state/erase_provider.dart';
-import 'package:openplate_client/widgets/unlock_gate.dart';
+import 'package:ai_nutrition_coach/screens/key_lost_screen.dart';
+import 'package:ai_nutrition_coach/state/erase_provider.dart';
+import 'package:ai_nutrition_coach/widgets/unlock_gate.dart';
 
 class _Eraser implements LocalDataEraser {
   int calls = 0;

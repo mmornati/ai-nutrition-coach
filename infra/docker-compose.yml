@@ -1,10 +1,10 @@
-# OpenPlate self-host stack.
+# AI Nutrition Coach self-host stack.
 #
 #   docker compose -f infra/docker-compose.yml up -d                 # app on 127.0.0.1:8080
-#   OPENPLATE_DOMAIN=plate.example.com \
+#   AI_NUTRITION_COACH_DOMAIN=plate.example.com \
 #     docker compose -f infra/docker-compose.yml --profile tls up -d # + Caddy, automatic HTTPS
 #
-# (`bin/openplate up --compose` / `bin/openplate up --tls` wrap these.)
+# (`bin/ai-nutrition-coach up --compose` / `bin/ai-nutrition-coach up --tls` wrap these.)
 #
 # The app container is a STATIC web server: it holds no user data and has no
 # volume. Your data lives encrypted in your browser (IndexedDB, ADR-0002); use
@@ -14,15 +14,15 @@
 # run without a secure context (https:// or localhost). Hence the default bind
 # of 127.0.0.1 — to reach it from other devices, use the `tls` profile.
 #
-# Environment (all optional; set OPENPLATE_DOMAIN for a real tls deployment):
-#   OPENPLATE_IMAGE_TAG          image to run (default openplate:dev)
-#   OPENPLATE_BIND               host interface for the app port (default 127.0.0.1)
-#   OPENPLATE_PORT               host port for the app (default 8080)
-#   OPENPLATE_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK AI
+# Environment (all optional; set AI_NUTRITION_COACH_DOMAIN for a real tls deployment):
+#   AI_NUTRITION_COACH_IMAGE_TAG          image to run (default ai-nutrition-coach:dev)
+#   AI_NUTRITION_COACH_BIND               host interface for the app port (default 127.0.0.1)
+#   AI_NUTRITION_COACH_PORT               host port for the app (default 8080)
+#   AI_NUTRITION_COACH_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK AI
 #                                endpoint: "https://api.openai.com"
-#   OPENPLATE_DOMAIN             public DNS name for the tls profile (default
+#   AI_NUTRITION_COACH_DOMAIN             public DNS name for the tls profile (default
 #                                `localhost`: a local, self-signed trial)
-#   OPENPLATE_TLS_BIND           interface Caddy listens on (default 0.0.0.0)
+#   AI_NUTRITION_COACH_TLS_BIND           interface Caddy listens on (default 0.0.0.0)
 
 x-hardening: &hardening
   read_only: true
@@ -34,23 +34,23 @@ x-hardening: &hardening
     options: { max-size: "10m", max-file: "3" }
 
 services:
-  openplate:
+  ai-nutrition-coach:
     <<: *hardening
-    image: ${OPENPLATE_IMAGE_TAG:-openplate:dev}
+    image: ${AI_NUTRITION_COACH_IMAGE_TAG:-ai-nutrition-coach:dev}
     ports:
-      - "${OPENPLATE_BIND:-127.0.0.1}:${OPENPLATE_PORT:-8080}:8080"
+      - "${AI_NUTRITION_COACH_BIND:-127.0.0.1}:${AI_NUTRITION_COACH_PORT:-8080}:8080"
     environment:
-      OPENPLATE_CONNECT_SRC_EXTRA: ${OPENPLATE_CONNECT_SRC_EXTRA:-}
+      AI_NUTRITION_COACH_CONNECT_SRC_EXTRA: ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}
       # 1 = serve the service-worker kill switch (docs/pwa.md); normally unset.
-      OPENPLATE_SW_KILL: ${OPENPLATE_SW_KILL:-}
+      AI_NUTRITION_COACH_SW_KILL: ${AI_NUTRITION_COACH_SW_KILL:-}
       # off (default) | on (minimal, address-truncated, no User-Agent) | full
       # (docs/self-host.md "Logs").
-      OPENPLATE_ACCESS_LOG: ${OPENPLATE_ACCESS_LOG:-off}
+      AI_NUTRITION_COACH_ACCESS_LOG: ${AI_NUTRITION_COACH_ACCESS_LOG:-off}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
 
-  # Opt-in HTTPS: Caddy obtains and renews a certificate for OPENPLATE_DOMAIN
+  # Opt-in HTTPS: Caddy obtains and renews a certificate for AI_NUTRITION_COACH_DOMAIN
   # automatically (Let's Encrypt; ports 80 + 443 must be reachable from the
   # internet for a public domain; use `localhost` for a local, self-signed
   # trial) and adds HSTS. It is the only service that publishes 80/443.
@@ -59,13 +59,13 @@ services:
     profiles: ["tls"]
     image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
     depends_on:
-      openplate:
+      ai-nutrition-coach:
         condition: service_healthy
     ports:
-      - "${OPENPLATE_TLS_BIND:-0.0.0.0}:80:80"
-      - "${OPENPLATE_TLS_BIND:-0.0.0.0}:443:443"
+      - "${AI_NUTRITION_COACH_TLS_BIND:-0.0.0.0}:80:80"
+      - "${AI_NUTRITION_COACH_TLS_BIND:-0.0.0.0}:443:443"
     environment:
-      OPENPLATE_DOMAIN: ${OPENPLATE_DOMAIN:-localhost}
+      AI_NUTRITION_COACH_DOMAIN: ${AI_NUTRITION_COACH_DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data       # certificates + ACME account (keep this!)

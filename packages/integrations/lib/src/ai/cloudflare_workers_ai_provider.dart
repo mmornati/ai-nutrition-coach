@@ -8,7 +8,7 @@
 // bundle or an APK can be extracted and used by anyone, with no quota. The
 // only acceptable shape is:
 //
-//     app  ──(photo, no credential)──►  OpenPlate relay  ──(token)──►  Cloudflare
+//     app  ──(photo, no credential)──►  AI Nutrition Coach relay  ──(token)──►  Cloudflare
 //
 // where the relay holds the token and enforces the per-day quota
 // server-side (the on-device `QuotaCounter` is a courtesy, not a control).
@@ -44,7 +44,7 @@ class CloudflareWorkersAiProvider implements HostedQuotaProvider {
     this.model = '@cf/llava-1.5-7b-hf',
   });
 
-  /// The URL of the OpenPlate relay that fronts Cloudflare (S5). Not a
+  /// The URL of the AI Nutrition Coach relay that fronts Cloudflare (S5). Not a
   /// secret, and NOT a Cloudflare URL: the app never talks to Cloudflare
   /// directly and never holds its token. Empty until the relay exists.
   final String relayUrl;

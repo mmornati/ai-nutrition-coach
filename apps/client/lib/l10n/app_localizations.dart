@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// The app name, shown in the OS task switcher.
   ///
   /// In en, this message translates to:
-  /// **'OpenPlate'**
+  /// **'AI Nutrition Coach'**
   String get appName;
 
   /// Warning banner shown only in the dev in-memory web build.
@@ -498,7 +498,7 @@ abstract class AppLocalizations {
   /// No description provided for @barcodeUnsupportedBrowserBody.
   ///
   /// In en, this message translates to:
-  /// **'This browser can\'t read barcodes on your device, and OpenPlate never sends camera images elsewhere. Manual entry still works.'**
+  /// **'This browser can\'t read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.'**
   String get barcodeUnsupportedBrowserBody;
 
   /// No description provided for @cameraStartFailedBody.
@@ -737,13 +737,13 @@ abstract class AppLocalizations {
   /// Install help intro.
   ///
   /// In en, this message translates to:
-  /// **'OpenPlate runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.'**
+  /// **'AI Nutrition Coach runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.'**
   String get installIntro;
 
   /// Shown instead of instructions when running as an installed app.
   ///
   /// In en, this message translates to:
-  /// **'OpenPlate is already installed on this device.'**
+  /// **'AI Nutrition Coach is already installed on this device.'**
   String get installAlready;
 
   /// Chromium only: opens the browser install dialog.
@@ -785,7 +785,7 @@ abstract class AppLocalizations {
   /// Install help steps for desktop browsers.
   ///
   /// In en, this message translates to:
-  /// **'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install OpenPlate”. Other browsers can simply keep using it in a tab.'**
+  /// **'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install AI Nutrition Coach”. Other browsers can simply keep using it in a tab.'**
   String get installDesktopSteps;
 
   /// Install help heading.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// First-run notice line 1.
   ///
   /// In en, this message translates to:
-  /// **'OpenPlate is designed for adults.'**
+  /// **'AI Nutrition Coach is designed for adults.'**
   String get aboutNoticeAdults;
 
   /// First-run notice line 2.
@@ -923,7 +923,7 @@ abstract class AppLocalizations {
   /// Privacy page: server.
   ///
   /// In en, this message translates to:
-  /// **'If you opened OpenPlate in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.'**
+  /// **'If you opened AI Nutrition Coach in a browser: nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.'**
   String get privacyServerBody;
 
   /// Privacy page section heading.
@@ -971,7 +971,7 @@ abstract class AppLocalizations {
   /// Privacy page: shared devices (PV6).
   ///
   /// In en, this message translates to:
-  /// **'Everyone who can open OpenPlate on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.'**
+  /// **'Everyone who can open AI Nutrition Coach on this device, or in this browser profile, sees the same history. For separate histories use a separate device or, on the web, a separate browser profile, each with its own passphrase.'**
   String get privacySharedBody;
 
   /// Privacy page switch label.

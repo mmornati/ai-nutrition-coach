@@ -3,12 +3,12 @@
 # security-header include has been rendered.
 #
 # Renders the service worker and its precache manifest for THIS container
-# start into /tmp/openplate-pwa (the root filesystem is read-only), and nginx
+# start into /tmp/ai-nutrition-coach-pwa (the root filesystem is read-only), and nginx
 # serves them from there (`location = /sw.js`, `= /precache-manifest.json`).
 #
 # Why not serve the files baked into the image: the build id the generator
 # wrote hashes the BUNDLE only, but the Content-Security-Policy -- applied at
-# container start from OPENPLATE_CONNECT_SRC_EXTRA -- also decides what an
+# container start from AI_NUTRITION_COACH_CONNECT_SRC_EXTRA -- also decides what an
 # installed app may do, and the service worker serves the cached index.html
 # WITH the headers it was fetched with. A deployment that only changed the CSP
 # would otherwise never reach installed clients. So the id served is
@@ -16,24 +16,24 @@
 # and any change to the headers is a new service-worker version: users get the
 # normal calm "new version" banner after the restart.
 #
-# OPENPLATE_SW_KILL=1 serves the kill-switch worker instead (docs/pwa.md).
+# AI_NUTRITION_COACH_SW_KILL=1 serves the kill-switch worker instead (docs/pwa.md).
 #
-# Overridable for tests: OPENPLATE_PWA_SRC, OPENPLATE_PWA_OUT,
-# OPENPLATE_HEADERS_FILE, OPENPLATE_SW_KILL_FILE.
+# Overridable for tests: AI_NUTRITION_COACH_PWA_SRC, AI_NUTRITION_COACH_PWA_OUT,
+# AI_NUTRITION_COACH_HEADERS_FILE, AI_NUTRITION_COACH_SW_KILL_FILE.
 set -eu
 
-src="${OPENPLATE_PWA_SRC:-/usr/share/nginx/html}"
-out="${OPENPLATE_PWA_OUT:-/tmp/openplate-pwa}"
-headers="${OPENPLATE_HEADERS_FILE:-/tmp/openplate-headers.inc}"
-kill_file="${OPENPLATE_SW_KILL_FILE:-/etc/openplate/sw.kill.js}"
+src="${AI_NUTRITION_COACH_PWA_SRC:-/usr/share/nginx/html}"
+out="${AI_NUTRITION_COACH_PWA_OUT:-/tmp/ai-nutrition-coach-pwa}"
+headers="${AI_NUTRITION_COACH_HEADERS_FILE:-/tmp/ai-nutrition-coach-headers.inc}"
+kill_file="${AI_NUTRITION_COACH_SW_KILL_FILE:-/etc/ai-nutrition-coach/sw.kill.js}"
 
 mkdir -p "$out"
 
-if [ "${OPENPLATE_SW_KILL:-}" = "1" ]; then
+if [ "${AI_NUTRITION_COACH_SW_KILL:-}" = "1" ]; then
   cp "$kill_file" "$out/sw.js"
   # No precache list: the kill worker caches nothing.
   printf '{ "buildId": "kill", "files": [] }\n' > "$out/precache-manifest.json"
-  echo "30-render-sw: OPENPLATE_SW_KILL=1 - serving the kill-switch service worker" >&2
+  echo "30-render-sw: AI_NUTRITION_COACH_SW_KILL=1 - serving the kill-switch service worker" >&2
   exit 0
 fi
 

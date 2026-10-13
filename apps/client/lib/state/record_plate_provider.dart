@@ -49,7 +49,7 @@ final recordPlateProvider = Provider<RecordPlate>(
     // debug builds only (the plate itself is committed).
     onWarning: (warning) {
       // log-hygiene: content-free (a step name only, never plate content)
-      debugPrint('openplate: $warning after commit');
+      debugPrint('ai-nutrition-coach: $warning after commit');
     },
   ),
 );

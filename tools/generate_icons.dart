@@ -1,4 +1,4 @@
-// tools/generate_icons.dart — the OpenPlate app icon, drawn from one piece of
+// tools/generate_icons.dart — the AI Nutrition Coach app icon, drawn from one piece of
 // geometry (ADR-0003). Deterministic: the same code always writes the same
 // bytes, so the committed PNGs can be regenerated and diffed.
 //
@@ -9,8 +9,8 @@
 // tokens in apps/client/lib/theme/app_tokens.dart.
 //
 // Writes
-//   tools/icons/openplate-icon.svg             the source (any-purpose)
-//   tools/icons/openplate-icon-maskable.svg    full-bleed, motif in the safe zone
+//   tools/icons/ai-nutrition-coach-icon.svg             the source (any-purpose)
+//   tools/icons/ai-nutrition-coach-icon-maskable.svg    full-bleed, motif in the safe zone
 //   apps/client/web/icons/Icon-192.png, Icon-512.png          (any: rounded)
 //   apps/client/web/icons/Icon-maskable-192.png, -512.png     (maskable)
 //   apps/client/web/icons/apple-touch-icon.png                (180, opaque)
@@ -191,7 +191,7 @@ String renderSvg({required double scale, required bool rounded}) {
       ? '<rect width="512" height="512" rx="${n(_cornerR)}" fill="${_hex(_sage)}"/>'
       : '<rect width="512" height="512" fill="${_hex(_sage)}"/>';
   return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <title>OpenPlate</title>
+  <title>AI Nutrition Coach</title>
   $bg
   <g transform="translate(256 256) scale(${n(scale)}) translate(-256 -256)">
     <circle cx="256" cy="256" r="${n(_plateR)}" fill="${_hex(_rim)}"/>
@@ -250,10 +250,10 @@ void main() {
   png('apps/client/web/favicon.png', 48, scale: 1.0, rounded: true);
 
   File(
-    '$root/tools/icons/openplate-icon.svg',
+    '$root/tools/icons/ai-nutrition-coach-icon.svg',
   ).writeAsStringSync(renderSvg(scale: 1.0, rounded: true));
   File(
-    '$root/tools/icons/openplate-icon-maskable.svg',
+    '$root/tools/icons/ai-nutrition-coach-icon-maskable.svg',
   ).writeAsStringSync(renderSvg(scale: 0.78, rounded: false));
   stdout.writeln('wrote tools/icons/*.svg');
 }

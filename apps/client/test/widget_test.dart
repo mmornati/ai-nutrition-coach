@@ -21,12 +21,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:openplate_client/main.dart';
-import 'package:openplate_client/screens/day_board_screen.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/privacy_provider.dart';
-import 'package:openplate_client/state/record_plate_provider.dart';
-import 'package:openplate_client/theme/app_tokens.dart';
+import 'package:ai_nutrition_coach/main.dart';
+import 'package:ai_nutrition_coach/screens/day_board_screen.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
+import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
+import 'package:ai_nutrition_coach/theme/app_tokens.dart';
 
 import '_fakes/fake_encrypted_store.dart';
 import '_fakes/test_overrides.dart' show privacyPrefsFor;
@@ -50,7 +50,7 @@ Future<void> _pumpWithMode(WidgetTester tester, ThemeMode mode) async {
 }
 
 void main() {
-  testWidgets('OpenPlate scaffold renders and wires light tokens', (
+  testWidgets('AI Nutrition Coach scaffold renders and wires light tokens', (
     tester,
   ) async {
     await _pumpWithMode(tester, ThemeMode.light);
@@ -66,16 +66,17 @@ void main() {
     expect(theme.scaffoldBackgroundColor, AppPalette.light.background);
   });
 
-  testWidgets('OpenPlate scaffold resolves dark tokens from Theme.of', (
-    tester,
-  ) async {
-    await _pumpWithMode(tester, ThemeMode.dark);
+  testWidgets(
+    'AI Nutrition Coach scaffold resolves dark tokens from Theme.of',
+    (tester) async {
+      await _pumpWithMode(tester, ThemeMode.dark);
 
-    final ctx = tester.element(find.byType(DayBoardScreen));
-    final theme = Theme.of(ctx);
-    expect(theme.brightness, Brightness.dark);
-    expect(theme.scaffoldBackgroundColor, AppPalette.dark.background);
-  });
+      final ctx = tester.element(find.byType(DayBoardScreen));
+      final theme = Theme.of(ctx);
+      expect(theme.brightness, Brightness.dark);
+      expect(theme.scaffoldBackgroundColor, AppPalette.dark.background);
+    },
+  );
 
   test('palette exposes both light and dark variants', () {
     expect(AppPalette.light.background, isNot(AppPalette.dark.background));

@@ -1,4 +1,4 @@
-// The one `FlutterSecureStorage` configuration every OpenPlate secret
+// The one `FlutterSecureStorage` configuration every AI Nutrition Coach secret
 // uses (Phase 2A / D5).
 //
 // iOS / macOS: `KeychainAccessibility.first_unlock_this_device`.
@@ -22,7 +22,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const FlutterSecureStorage openPlateSecureStorage = FlutterSecureStorage(
+const FlutterSecureStorage aiNutritionCoachSecureStorage = FlutterSecureStorage(
   iOptions: IOSOptions(
     accessibility: KeychainAccessibility.first_unlock_this_device,
   ),
@@ -31,24 +31,25 @@ const FlutterSecureStorage openPlateSecureStorage = FlutterSecureStorage(
   ),
 );
 
-/// Every secure-storage alias OpenPlate writes. The eraser (D8) deletes
+/// Every secure-storage alias AI Nutrition Coach writes. The eraser (D8) deletes
 /// each by name AND clears the whole namespace as a backstop, so a
 /// forgotten alias cannot survive "Erase all local data".
 abstract final class SecureStorageAliases {
   /// 32-byte database key (`SecureKeySourceImpl`).
-  static const String dbKey = 'openplate_db_key_v1';
+  static const String dbKey = 'ai_nutrition_coach_db_key_v1';
 
   /// User / build-time BYOK API key (`SecureStorageByokKeyStore`).
-  static const String byokKey = 'openplate_byok_key_v1';
+  static const String byokKey = 'ai_nutrition_coach_byok_key_v1';
 
   /// Hosted-quota daily counter (`SecureStorageQuotaCounter`).
-  static const String quotaHostedQuota = 'openplate_quota_hostedQuota_v1';
+  static const String quotaHostedQuota =
+      'ai_nutrition_coach_quota_hostedQuota_v1';
 
   /// AI settings JSON (`SecureStorageAiSettingsStore`): active rung,
   /// BYOK endpoint + model, per-host photo consents. Not secret, but
   /// personal; wiped by the eraser. Mobile / desktop only (web keeps it
   /// in memory).
-  static const String rungConfig = 'openplate_ai_rung_config_v1';
+  static const String rungConfig = 'ai_nutrition_coach_ai_rung_config_v1';
 
   static const List<String> all = <String>[
     dbKey,
@@ -71,9 +72,29 @@ abstract final class SecureStorageAliases {
 // Linux, Windows and web the extra legacy lookups are harmless no-ops.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Legacy-NAME migration (project rename OpenPlate -> AI Nutrition Coach).
+//
+// Builds before the rename stored every alias under an `openplate_` prefix.
+// Each alias now starts with `ai_nutrition_coach_`; the matching old name is
+// the same string with the old prefix. Readers fall back to the old name
+// (under both accessibilities) and MOVE the value: read old, write new,
+// delete old. Deleters remove the old name as well, so "Erase all local
+// data" cannot leave a pre-rename secret behind.
+// ---------------------------------------------------------------------------
+
+const String _currentAliasPrefix = 'ai_nutrition_coach_';
+const String _legacyAliasPrefix = 'openplate_';
+
+/// The pre-rename name of [alias], or null if [alias] has no legacy twin.
+String? legacyAliasFor(String alias) => alias.startsWith(_currentAliasPrefix)
+    ? '$_legacyAliasPrefix${alias.substring(_currentAliasPrefix.length)}'
+    : null;
+
 /// Read [key]; if absent under the current options, look under the plugin's
-/// legacy default accessibility, and if found MOVE it: write with the
-/// current options, then delete the legacy item. The legacy item is only
+/// legacy default accessibility, then under the pre-rename name (both
+/// accessibilities), and if found MOVE it: write with the current options
+/// under the new name, then delete the old item. The old item is only
 /// deleted after the new write succeeded, so a failure never loses it.
 Future<String?> secureReadMigrating(
   FlutterSecureStorage storage,
@@ -86,18 +107,31 @@ Future<String?> secureReadMigrating(
     iOptions: IOSOptions.defaultOptions,
     mOptions: MacOsOptions.defaultOptions,
   );
-  if (legacy == null) return null;
-  await storage.write(key: key, value: legacy);
-  await storage.delete(
-    key: key,
-    iOptions: IOSOptions.defaultOptions,
-    mOptions: MacOsOptions.defaultOptions,
-  );
-  return legacy;
+  if (legacy != null) {
+    await storage.write(key: key, value: legacy);
+    await storage.delete(
+      key: key,
+      iOptions: IOSOptions.defaultOptions,
+      mOptions: MacOsOptions.defaultOptions,
+    );
+    return legacy;
+  }
+  final oldName = legacyAliasFor(key);
+  if (oldName == null) return null;
+  final moved =
+      await storage.read(key: oldName) ??
+      await storage.read(
+        key: oldName,
+        iOptions: IOSOptions.defaultOptions,
+        mOptions: MacOsOptions.defaultOptions,
+      );
+  if (moved == null) return null;
+  await storage.write(key: key, value: moved);
+  await _deleteBothAccessibilities(storage, oldName);
+  return moved;
 }
 
-/// Delete [key] under both the current and the legacy accessibility.
-Future<void> secureDeleteEverywhere(
+Future<void> _deleteBothAccessibilities(
   FlutterSecureStorage storage,
   String key,
 ) async {
@@ -107,6 +141,17 @@ Future<void> secureDeleteEverywhere(
     iOptions: IOSOptions.defaultOptions,
     mOptions: MacOsOptions.defaultOptions,
   );
+}
+
+/// Delete [key] under both the current and the legacy accessibility, and
+/// its pre-rename name too.
+Future<void> secureDeleteEverywhere(
+  FlutterSecureStorage storage,
+  String key,
+) async {
+  await _deleteBothAccessibilities(storage, key);
+  final oldName = legacyAliasFor(key);
+  if (oldName != null) await _deleteBothAccessibilities(storage, oldName);
 }
 
 /// Clear the whole namespace under both the current and the legacy
@@ -131,7 +176,7 @@ Future<void> purgeLegacyWebSecureStorage({
   FlutterSecureStorage? storage,
 }) async {
   if (!kIsWeb && storage == null) return;
-  final s = storage ?? openPlateSecureStorage;
+  final s = storage ?? aiNutritionCoachSecureStorage;
   for (final alias in const [
     SecureStorageAliases.byokKey,
     SecureStorageAliases.rungConfig,

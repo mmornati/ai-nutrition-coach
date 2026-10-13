@@ -27,7 +27,7 @@ imported anywhere.
 Three paths open a connection — each one only after the user explicitly
 enables the feature. In the browser build the Content-Security-Policy enforces
 this list (`connect-src 'self' https://world.openfoodfacts.org` plus the AI
-endpoint you add via `OPENPLATE_CONNECT_SRC_EXTRA`; see
+endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
 [`docs/self-host.md`](./self-host.md)):
 
 - **The food catalog** (Open Food Facts barcode lookup,
@@ -78,7 +78,7 @@ locally (native `BarcodeDetector` or the self-hosted zxing-wasm).
   `// log-hygiene: content-free` and interpolates only allow-listed identifiers
   (row / plate / note ids, steps, counts, fixed reasons).
 - **The self-host container** logs no request by default
-  (`OPENPLATE_ACCESS_LOG=off`). `on` writes time, method and resolved file (app-shell requests log as `/index.html`) only, with the
+  (`AI_NUTRITION_COACH_ACCESS_LOG=off`). `on` writes time, method and resolved file (app-shell requests log as `/index.html`) only, with the
   client address truncated and **no User-Agent, Referer or query string**; `full`
   adds the whole address. See [`docs/self-host.md`](./self-host.md#logs). A reverse
   proxy in front (Traefik, Caddy) has its own log: see [`docs/pwa.md`](./pwa.md#logs-behind-traefik).
@@ -109,7 +109,7 @@ version of the posture:
   host outside a short, justified allow-list (`melos run check:hosts`): inert doc links by host, and
   the four known engine/scanner default CDN URLs only as exact strings with exact counts.
 - Your data never reaches the server: it is encrypted in your browser.
-- Put TLS in front for other devices (`bin/openplate up --tls`); OpenPlate
+- Put TLS in front for other devices (`bin/ai-nutrition-coach up --tls`); AI Nutrition Coach
   itself does not phone home.
 
 ## How to verify

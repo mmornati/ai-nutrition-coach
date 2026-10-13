@@ -13,9 +13,9 @@
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:integrations/integrations.dart';
-import 'package:openplate_client/state/coach_note_provider.dart';
-import 'package:openplate_client/state/coach_provider.dart';
-import 'package:openplate_client/state/privacy_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_note_provider.dart';
+import 'package:ai_nutrition_coach/state/coach_provider.dart';
+import 'package:ai_nutrition_coach/state/privacy_provider.dart';
 
 import 'fake_encrypted_store.dart';
 

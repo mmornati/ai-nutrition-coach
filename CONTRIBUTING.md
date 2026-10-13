@@ -86,9 +86,9 @@ scripts/verify.sh                                   # the full gate, incl. the r
 scripts/flutter_docker.sh dart run melos run build:web   # release bundle -> apps/client/build/web
                                                     # (fetches sqlite3mc + zxing-wasm, builds, generates sw.js
                                                     #  and precache-manifest.json, scans for secrets/hosts)
-docker build -f infra/Dockerfile -t openplate:dev . # the production image
-bin/openplate up                                    # http://localhost:8080 (a secure context)
-bin/openplate up --traefik                          # behind your Traefik, no published port (docs/pwa.md)
+docker build -f infra/Dockerfile -t ai-nutrition-coach:dev . # the production image
+bin/ai-nutrition-coach up                                    # http://localhost:8080 (a secure context)
+bin/ai-nutrition-coach up --traefik                          # behind your Traefik, no published port (docs/pwa.md)
 scripts/run_local_web.sh                            # build + serve build/web, open Chrome
 scripts/webkit_smoke.sh                             # opt-in: WebKit + Chromium smoke of the image (needs Docker + network)
 ```
@@ -122,7 +122,7 @@ Three gates run on every PR and every tag:
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
 | `melos run check:telemetry`   | Import-based: only allow-listed adapters import a network transport; no telemetry SDKs; doc claims are anchored. |
 | `melos run check:hosts`       | The built web bundle references no third-party host.     |
-| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD; every row of the README trust table names a proof test that exists and contains a test; the adults-only gates hold; every screen has an a11y guideline test (`check:a11y`); no user-facing string literal bypasses the ARB files (`check:i18n`); no `print(` in `lib/` and no `debugPrint` / `log` call that could carry content (`tools/check_log_hygiene.dart`, mark a reviewed line `// log-hygiene: content-free`); with `OPENPLATE_BUILD=selfhost|release` set, a real `OPENPLATE_PROJECT_URL`. |
+| `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD; every row of the README trust table names a proof test that exists and contains a test; the adults-only gates hold; every screen has an a11y guideline test (`check:a11y`); no user-facing string literal bypasses the ARB files (`check:i18n`); no `print(` in `lib/` and no `debugPrint` / `log` call that could carry content (`tools/check_log_hygiene.dart`, mark a reviewed line `// log-hygiene: content-free`); with `AI_NUTRITION_COACH_BUILD=selfhost|release` set, a real `AI_NUTRITION_COACH_PROJECT_URL`. |
 | CI: `self-host-smoke`         | Same as `melos run smoke:self-host` on every PR.         |
 | CI: `release-gate`            | Same posture checks at tag time.                         |
 

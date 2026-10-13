@@ -11,7 +11,9 @@ import 'package:test/test.dart';
 
 void main() {
   late Directory tmp;
-  setUp(() => tmp = Directory.systemTemp.createTempSync('openplate_exp_'));
+  setUp(
+    () => tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_exp_'),
+  );
   tearDown(() => tmp.deleteSync(recursive: true));
 
   Directory exportDir() => Directory('${tmp.path}/$kExportSubdirectory');
@@ -32,11 +34,11 @@ void main() {
       seenPath = path;
       seenBytes = File(path).readAsBytesSync();
       expect(mimeType, 'text/csv');
-      expect(filename, '2026-01-01-openplate.csv');
+      expect(filename, '2026-01-01-ai-nutrition-coach.csv');
       return ShareResultStatus.success;
     });
     await dest.write(
-      filename: '2026-01-01-openplate.csv',
+      filename: '2026-01-01-ai-nutrition-coach.csv',
       mimeType: 'text/csv',
       bytes: Uint8List.fromList([1, 2, 3]),
     );

@@ -42,7 +42,7 @@ void main() {
   late File file;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('openplate_migration_');
+    tmp = Directory.systemTemp.createTempSync('ai_nutrition_coach_migration_');
     file = File('${tmp.path}/v3.sqlite');
     final raw = sqlite3.sqlite3.open(file.path);
     for (final sql in _v3Schema) {

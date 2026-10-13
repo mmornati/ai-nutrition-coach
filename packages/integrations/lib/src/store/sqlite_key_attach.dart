@@ -47,7 +47,7 @@
 
 import 'package:sqlite3/common.dart' as sqlite3;
 
-/// The cipher OpenPlate pins on every mobile database (AD-8 / D4).
+/// The cipher AI Nutrition Coach pins on every mobile database (AD-8 / D4).
 const String kPinnedCipher = 'chacha20';
 
 /// Why opening the encrypted database failed.

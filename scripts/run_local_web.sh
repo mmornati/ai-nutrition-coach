@@ -12,7 +12,7 @@
 #      (port 8080 by default) — it is never exposed on the LAN,
 #   4. opens Chrome at `http://localhost:8080`.
 #
-# The bundle is compiled with `--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true`
+# The bundle is compiled with `--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true`
 # when .env asks for it, so the capture → log → Day Board loop works in the
 # browser without the passphrase flow. Data then lives and dies with the tab —
 # see create_encrypted_store_web.dart.
@@ -23,7 +23,7 @@
 # (readable only after you unlock it; ADR-0003).
 #
 # .env (gitignored; see .env.example) is read as DATA, never executed. Only the
-# allow-listed, non-secret OPENPLATE_* names below are used; anything else —
+# allow-listed, non-secret AI_NUTRITION_COACH_* names below are used; anything else —
 # especially anything that looks like a secret — is ignored with a notice.
 #
 # Usage:
@@ -64,8 +64,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="$("$ROOT/scripts/flutter_docker.sh" --print-image)"
 
 # ── per-run temp files (mktemp: unpredictable names, mode 0600) ─────────────
-BUILD_LOG="$(mktemp "${TMPDIR:-/tmp}/openplate-web-build.XXXXXX")"
-NGROK_LOG="$(mktemp "${TMPDIR:-/tmp}/openplate-ngrok.XXXXXX")"
+BUILD_LOG="$(mktemp "${TMPDIR:-/tmp}/ai-nutrition-coach-web-build.XXXXXX")"
+NGROK_LOG="$(mktemp "${TMPDIR:-/tmp}/ai-nutrition-coach-ngrok.XXXXXX")"
 SERVER_PID=""
 NGROK_PID=""
 
@@ -102,9 +102,9 @@ load_env_file() {
       value="${BASH_REMATCH[1]}"
     fi
     case "$key" in
-      OPENPLATE_BYOK_ENDPOINT_URL) ENDPOINT_URL="$value" ;;
-      OPENPLATE_BYOK_MODEL) MODEL="$value" ;;
-      OPENPLATE_DEV_IN_MEMORY_STORE) DEV_IN_MEMORY="$value" ;;
+      AI_NUTRITION_COACH_BYOK_ENDPOINT_URL) ENDPOINT_URL="$value" ;;
+      AI_NUTRITION_COACH_BYOK_MODEL) MODEL="$value" ;;
+      AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE) DEV_IN_MEMORY="$value" ;;
       *KEY*|*TOKEN*|*SECRET*|*PASSWORD*)
         echo "• ignoring $key in .env — secrets are never read from files or" \
           "compiled in; enter keys in the app (Settings → Your AI)." >&2 ;;
@@ -123,28 +123,28 @@ if [[ -n "$ENDPOINT_URL" ]]; then
   # Same rules as the app (validateByokEndpoint): https, or http only for
   # localhost / 127.0.0.1 / ::1; no credentials, query or fragment.
   if [[ "$ENDPOINT_URL" =~ [[:space:][:cntrl:]] || "$ENDPOINT_URL" == *[\?\#@]* ]]; then
-    echo "✗ OPENPLATE_BYOK_ENDPOINT_URL must not contain spaces, '?', '#' or '@'" >&2
+    echo "✗ AI_NUTRITION_COACH_BYOK_ENDPOINT_URL must not contain spaces, '?', '#' or '@'" >&2
     exit 2
   fi
   if ! [[ "$ENDPOINT_URL" =~ ^https://[^/:]+(:[0-9]+)?(/.*)?$ \
     || "$ENDPOINT_URL" =~ ^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?(/.*)?$ ]]; then
-    echo "✗ OPENPLATE_BYOK_ENDPOINT_URL must be https:// (http:// only for" \
+    echo "✗ AI_NUTRITION_COACH_BYOK_ENDPOINT_URL must be https:// (http:// only for" \
       "localhost, 127.0.0.1 or [::1])" >&2
     exit 2
   fi
-  DEFINES+=("--dart-define=OPENPLATE_BYOK_ENDPOINT_URL=$ENDPOINT_URL")
+  DEFINES+=("--dart-define=AI_NUTRITION_COACH_BYOK_ENDPOINT_URL=$ENDPOINT_URL")
 fi
 if [[ -n "$MODEL" ]]; then
   if [[ "$MODEL" =~ [[:space:]] ]]; then
-    echo "✗ OPENPLATE_BYOK_MODEL must not contain spaces" >&2
+    echo "✗ AI_NUTRITION_COACH_BYOK_MODEL must not contain spaces" >&2
     exit 2
   fi
-  DEFINES+=("--dart-define=OPENPLATE_BYOK_MODEL=$MODEL")
+  DEFINES+=("--dart-define=AI_NUTRITION_COACH_BYOK_MODEL=$MODEL")
 fi
 if [[ "$DEV_IN_MEMORY" == "true" ]]; then
-  DEFINES+=("--dart-define=OPENPLATE_DEV_IN_MEMORY_STORE=true" "--dart-define=OPENPLATE_BUILD=dev")
+  DEFINES+=("--dart-define=AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE=true" "--dart-define=AI_NUTRITION_COACH_BUILD=dev")
 elif [[ -n "$DEV_IN_MEMORY" && "$DEV_IN_MEMORY" != "false" ]]; then
-  echo "✗ OPENPLATE_DEV_IN_MEMORY_STORE must be true or false" >&2
+  echo "✗ AI_NUTRITION_COACH_DEV_IN_MEMORY_STORE must be true or false" >&2
   exit 2
 fi
 
