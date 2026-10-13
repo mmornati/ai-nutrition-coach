@@ -2,10 +2,14 @@
 #
 # Runs on every pull request and push to main. Jobs:
 #   verify  — format check, static analysis (`melos run analyze`), the full
-#             test suite (`melos run test`), then the two compile gates:
-#             `flutter build web --release` and `flutter build apk --debug`
-#             (debug: a release build needs apps/client/android/key.properties,
-#             which CI deliberately does not have; see docs/release-checklist.md).
+#             test suite (`melos run test`), then `flutter build web --release`
+#             plus the bundle scans, inside the pinned Flutter container.
+#   apk     — `flutter build apk --debug` on the plain runner (its preinstalled
+#             Android SDK + Gradle). Separate job on purpose: in one container
+#             job the SDK download, Gradle caches and the web build exhausted
+#             the runner's disk ("No space left on device"). Debug only: a
+#             release build needs apps/client/android/key.properties, which CI
+#             deliberately does not have (docs/release-checklist.md).
 #   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
 #             actually builds (it is built from the committed pubspec.lock),
 #             then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
@@ -41,7 +45,7 @@ permissions:
 
 jobs:
   verify:
-    name: Analyze, test, build web + apk
+    name: Analyze, test, build web
     runs-on: ubuntu-latest
     timeout-minutes: 40
     # Read-only token is enough for checkout + the container's tooling.
@@ -109,17 +113,38 @@ jobs:
       - name: Telemetry gate (import-based, N6)
         run: dart run tools/check_telemetry_claims.dart
 
-      - name: Build Android APK (debug)
-        # flutter_secure_storage 11 compiles against android-37, which the
-        # pinned image does not ship — install it (Phase 6 revisits the pin).
-        run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-37.0"
-          cd apps/client
-          flutter build apk --debug
+  apk:
+    name: Build Android APK (debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Secrets scan — web bundle + APK (S1)
-        run: bash tools/check_no_secrets_in_build.sh
+      - name: Set up Flutter (same pin as the container image)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace against the committed lockfile
+        run: flutter pub get --enforce-lockfile
+
+      - name: Android platform 37
+        # flutter_secure_storage 11 compiles against android-37; the runner's
+        # preinstalled SDK may lag, so install it explicitly (licences first).
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
+
+      - name: Build APK (debug)
+        run: cd apps/client && flutter build apk --debug
+
+      - name: Secrets scan — APK (S1)
+        run: bash tools/check_no_secrets_in_build.sh --apk-only
 
   docker:
     name: Self-host image builds

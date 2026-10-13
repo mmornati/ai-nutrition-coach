@@ -9,6 +9,7 @@
 #
 #   tools/check_no_secrets_in_build.sh                scan build/web (+ APK if any)
 #   tools/check_no_secrets_in_build.sh --web-only     skip the APK lookup
+#   tools/check_no_secrets_in_build.sh --apk-only     scan only the APK(s)
 #   tools/check_no_secrets_in_build.sh --self-test    prove the scanner works
 #   tools/check_no_secrets_in_build.sh <dir|file>...  scan these paths instead
 #
@@ -158,11 +159,13 @@ self_test() {
 }
 
 WEB_ONLY=0
+APK_ONLY=0
 EXPLICIT=()
 for arg in "$@"; do
   case "$arg" in
     --self-test) self_test; exit $? ;;
     --web-only) WEB_ONLY=1 ;;
+    --apk-only) APK_ONLY=1 ;;
     -h|--help) sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
     *) EXPLICIT+=("$arg") ;;
@@ -176,20 +179,28 @@ if [[ ${#EXPLICIT[@]} -gt 0 ]]; then
     scan_path "$path"
   done
 else
-  WEB_DIR="$ROOT/apps/client/build/web"
-  if [[ ! -d "$WEB_DIR" ]]; then
-    echo "✗ $WEB_DIR does not exist — build the web bundle first" >&2
-    echo "  (melos run build:web), or pass the paths to scan." >&2
-    exit 2
+  if [[ "$APK_ONLY" -eq 0 ]]; then
+    WEB_DIR="$ROOT/apps/client/build/web"
+    if [[ ! -d "$WEB_DIR" ]]; then
+      echo "✗ $WEB_DIR does not exist — build the web bundle first" >&2
+      echo "  (melos run build:web), or pass the paths to scan." >&2
+      exit 2
+    fi
+    echo "▶ scanning $WEB_DIR"
+    scan_path "$WEB_DIR"
   fi
-  echo "▶ scanning $WEB_DIR"
-  scan_path "$WEB_DIR"
 
   if [[ "$WEB_ONLY" -eq 0 ]]; then
+    APK_COUNT=0
     if [[ -d "$ROOT/apps/client/build/app/outputs" ]]; then
       while IFS= read -r apk; do
-        [[ -n "$apk" ]] && scan_apk "$apk"
+        [[ -n "$apk" ]] && { scan_apk "$apk"; APK_COUNT=$((APK_COUNT + 1)); }
       done < <(find "$ROOT/apps/client/build/app/outputs" -name '*.apk' -type f)
+    fi
+    if [[ "$APK_ONLY" -eq 1 && "$APK_COUNT" -eq 0 ]]; then
+      echo "✗ no APK under apps/client/build/app/outputs — build it first" >&2
+      echo "  (cd apps/client && flutter build apk --debug)." >&2
+      exit 2
     fi
   fi
 fi

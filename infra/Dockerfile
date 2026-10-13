@@ -101,7 +101,12 @@ FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3
 # user juggling is needed (the previous `useradd ... || true` never worked).
 # Drop the stock vhost; ours is rendered from the templates at start-up.
 USER root
-RUN rm -f /etc/nginx/conf.d/default.conf /usr/share/nginx/html/50x.html
+# Pull the distribution's security fixes on top of the digest-pinned base:
+# the base tag lags Alpine's package updates (CI's Trivy gate failed on
+# fixable HIGH CVEs in pcre2/tiff). Dependabot keeps the digest moving; this
+# step closes the window between base-image releases.
+RUN apk upgrade --no-cache \
+  && rm -f /etc/nginx/conf.d/default.conf /usr/share/nginx/html/50x.html
 USER 101
 
 COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
