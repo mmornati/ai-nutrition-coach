@@ -25,11 +25,9 @@ import 'dart:async';
 import 'package:domain_core/domain_core.dart';
 
 class FakeEncryptedStore implements EncryptedStore {
-  FakeEncryptedStore({
-    List<PlateLog>? initial,
-    this.recordResult,
-  })  : _plates = [...?initial],
-        _controller = StreamController<List<PlateLog>>.broadcast();
+  FakeEncryptedStore({List<PlateLog>? initial, this.recordResult})
+    : _plates = [...?initial],
+      _controller = StreamController<List<PlateLog>>.broadcast();
 
   final RecordPlateResult? recordResult;
   final List<FoodEntryDraft> _seenDrafts = [];
@@ -149,11 +147,7 @@ PlateLog plateAt(
     ),
     ...extraEntries,
   ];
-  return PlateLog(
-    id: id,
-    loggedAtUtc: localTime.toUtc(),
-    entries: entries,
-  );
+  return PlateLog(id: id, loggedAtUtc: localTime.toUtc(), entries: entries);
 }
 
 /// Test-only `CoachNoteStore` fake — paired with `FakeEncryptedStore`

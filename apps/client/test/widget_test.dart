@@ -36,14 +36,13 @@ class _StubEncryptedStore implements EncryptedStore {
   Future<RecordPlateResult> recordPlate({
     required List<FoodEntryDraft> entries,
     DateTime? loggedAtUtc,
-  }) async =>
-      RecordPlateSuccess(
-        PlateLog(
-          id: 0,
-          loggedAtUtc: DateTime.utc(2026, 8, 15),
-          entries: const <FoodEntry>[],
-        ),
-      );
+  }) async => RecordPlateSuccess(
+    PlateLog(
+      id: 0,
+      loggedAtUtc: DateTime.utc(2026, 8, 15),
+      entries: const <FoodEntry>[],
+    ),
+  );
 
   @override
   Stream<List<PlateLog>> watchRecent({DateTime? since}) =>
@@ -53,10 +52,7 @@ class _StubEncryptedStore implements EncryptedStore {
   Future<void> close() async {}
 }
 
-Future<void> _pumpWithMode(
-  WidgetTester tester,
-  ThemeMode mode,
-) async {
+Future<void> _pumpWithMode(WidgetTester tester, ThemeMode mode) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -73,8 +69,9 @@ Future<void> _pumpWithMode(
 }
 
 void main() {
-  testWidgets('AI Nutrition Coach scaffold renders and wires light tokens',
-      (tester) async {
+  testWidgets('AI Nutrition Coach scaffold renders and wires light tokens', (
+    tester,
+  ) async {
     await _pumpWithMode(tester, ThemeMode.light);
 
     // Story 1.3: home is the Day Board — its title is "Today".
@@ -88,15 +85,17 @@ void main() {
     expect(theme.scaffoldBackgroundColor, AppPalette.light.background);
   });
 
-  testWidgets('AI Nutrition Coach scaffold resolves dark tokens from Theme.of',
-      (tester) async {
-    await _pumpWithMode(tester, ThemeMode.dark);
+  testWidgets(
+    'AI Nutrition Coach scaffold resolves dark tokens from Theme.of',
+    (tester) async {
+      await _pumpWithMode(tester, ThemeMode.dark);
 
-    final ctx = tester.element(find.byType(DayBoardScreen));
-    final theme = Theme.of(ctx);
-    expect(theme.brightness, Brightness.dark);
-    expect(theme.scaffoldBackgroundColor, AppPalette.dark.background);
-  });
+      final ctx = tester.element(find.byType(DayBoardScreen));
+      final theme = Theme.of(ctx);
+      expect(theme.brightness, Brightness.dark);
+      expect(theme.scaffoldBackgroundColor, AppPalette.dark.background);
+    },
+  );
 
   test('palette exposes both light and dark variants', () {
     expect(AppPalette.light.background, isNot(AppPalette.dark.background));
@@ -118,16 +117,19 @@ void main() {
       AppSpacing.xxxl,
     ];
     for (final s in steps) {
-      expect(s == 2 || s % 4 == 0, isTrue,
-          reason: 'spacing value $s is not on the 4px scale');
+      expect(
+        s == 2 || s % 4 == 0,
+        isTrue,
+        reason: 'spacing value $s is not on the 4px scale',
+      );
     }
   });
 
   test('FakeEncryptedStore yields seeded plates through watchRecent', () async {
     final today = DateTime(2026, 8, 15, 7, 30);
-    final store = FakeEncryptedStore(initial: [
-      plateAt(1, localTime: today, dish: 'Oatmeal'),
-    ]);
+    final store = FakeEncryptedStore(
+      initial: [plateAt(1, localTime: today, dish: 'Oatmeal')],
+    );
 
     final plates = await store.watchRecent().first;
     expect(plates, hasLength(1));

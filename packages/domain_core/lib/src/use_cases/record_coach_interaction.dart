@@ -142,8 +142,8 @@ class RecordCoachInteraction {
   const RecordCoachInteraction({
     required Coach coach,
     required CoachNoteStore store,
-  })  : _coach = coach,
-        _store = store;
+  }) : _coach = coach,
+       _store = store;
 
   final Coach _coach;
   final CoachNoteStore _store;
@@ -247,22 +247,22 @@ class RecordCoachInteraction {
 
     return switch (kind) {
       CoachInteraction.sure => RecordCoachInteractionSure(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-          followedUpNote: followedUp,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+        followedUpNote: followedUp,
+      ),
       CoachInteraction.askLater => RecordCoachInteractionAskLater(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
       CoachInteraction.dismiss => RecordCoachInteractionDismiss(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
       CoachInteraction.depthAnswer => RecordCoachInteractionDepthAnswer(
-          noteId: note.id,
-          recordInteractionOutcome: outcome,
-        ),
+        noteId: note.id,
+        recordInteractionOutcome: outcome,
+      ),
     };
   }
 

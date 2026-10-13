@@ -5,25 +5,27 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('CaptureSheet a11y floor (Story 5.4 / NFR-7)', () {
-    testWidgets('every affordance carries a Semantics wrapper', (
-      tester,
-    ) async {
+    testWidgets('every affordance carries a Semantics wrapper', (tester) async {
+      final handle = tester.ensureSemantics();
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Column(
               children: [
                 Semantics(
+                  excludeSemantics: true,
                   button: true,
                   label: 'Snapshot',
                   child: Text('Snapshot'),
                 ),
                 Semantics(
+                  excludeSemantics: true,
                   button: true,
                   label: 'Scan',
                   child: Text('Scan'),
                 ),
                 Semantics(
+                  excludeSemantics: true,
                   button: true,
                   label: 'Type or talk',
                   child: Text('Type or talk'),
@@ -36,6 +38,7 @@ void main() {
       expect(find.bySemanticsLabel('Snapshot'), findsOneWidget);
       expect(find.bySemanticsLabel('Scan'), findsOneWidget);
       expect(find.bySemanticsLabel('Type or talk'), findsOneWidget);
+      handle.dispose();
     });
   });
 }

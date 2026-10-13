@@ -23,7 +23,6 @@
 // imports. The AD-1 grep test in
 // `packages/domain_core/test/domain_core_test.dart` pins the rule.
 
-import '../value_types/coach_interaction.dart';
 import 'store_failure.dart';
 
 export '../value_types/coach_interaction.dart'
@@ -58,8 +57,7 @@ class CoachInteractionRecorded extends CoachInteractionResult {
   int get hashCode => Object.hash('CoachInteractionRecorded', interactionId);
 
   @override
-  String toString() =>
-      'CoachInteractionRecorded($interactionId)';
+  String toString() => 'CoachInteractionRecorded($interactionId)';
 }
 
 /// The adapter refused the write with a typed `StoreFailure`. The
@@ -89,6 +87,5 @@ class CoachInteractionFailed extends CoachInteractionResult {
 /// the recorded / failed outcome the `RecordCoachInteraction`
 /// use-case cares about. Kept here (not in the use-case) so the
 /// result shape and the helper stay together.
-bool isRecorded(
-  CoachInteractionResult result,
-) => result is CoachInteractionRecorded;
+bool isRecorded(CoachInteractionResult result) =>
+    result is CoachInteractionRecorded;

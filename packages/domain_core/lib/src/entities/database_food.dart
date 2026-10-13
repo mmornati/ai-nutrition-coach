@@ -34,12 +34,12 @@ enum FoodGroup {
 
   /// Short label used by the UI (and the seeded catalog).
   String get label => switch (this) {
-        FoodGroup.vegFruit => 'Veg & Fruit',
-        FoodGroup.protein => 'Protein',
-        FoodGroup.starch => 'Starch',
-        FoodGroup.dairy => 'Dairy',
-        FoodGroup.other => 'Other',
-      };
+    FoodGroup.vegFruit => 'Veg & Fruit',
+    FoodGroup.protein => 'Protein',
+    FoodGroup.starch => 'Starch',
+    FoodGroup.dairy => 'Dairy',
+    FoodGroup.other => 'Other',
+  };
 }
 
 class DatabaseFood {
@@ -83,8 +83,7 @@ class DatabaseFood {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(sourceRef, displayName, source, foodGroup);
+  int get hashCode => Object.hash(sourceRef, displayName, source, foodGroup);
 
   @override
   String toString() =>

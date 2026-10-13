@@ -30,10 +30,7 @@ class LockScreen extends ConsumerWidget {
       body: SafeArea(
         child: LockScreenBody(
           sessionKey: sessionKey,
-          palette: LockScreenPalette(
-            ink: palette.ink,
-            muted: palette.inkMuted,
-          ),
+          palette: LockScreenPalette(ink: palette.ink, muted: palette.inkMuted),
           onTryUnlock: (key, passphrase) async {
             final ok = await key.unlock(
               passphrase: passphrase,

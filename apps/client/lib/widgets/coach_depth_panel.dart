@@ -19,11 +19,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 
 class CoachDepthPanel extends StatelessWidget {
-  const CoachDepthPanel({
-    super.key,
-    required this.question,
-    this.onClose,
-  });
+  const CoachDepthPanel({super.key, required this.question, this.onClose});
 
   /// The verbatim copy the active `Coach` rung resolved for the
   /// depth follow-up. `null` is the calm-degrade path — the panel
@@ -42,7 +38,8 @@ class CoachDepthPanel extends StatelessWidget {
     final palette = Theme.of(context).brightness == Brightness.dark
         ? AppPalette.dark
         : AppPalette.light;
-    final motion = MediaQuery.of(context).accessibleNavigation ||
+    final motion =
+        MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
     return Semantics(
       container: true,
@@ -79,12 +76,7 @@ class CoachDepthPanel extends StatelessWidget {
             ),
           const SizedBox(height: AppSpacing.sm),
           Row(
-            children: [
-              _ClosePill(
-                palette: palette,
-                onTap: onClose,
-              ),
-            ],
+            children: [_ClosePill(palette: palette, onTap: onClose)],
           ),
         ],
       ),
@@ -123,9 +115,7 @@ class _ClosePill extends StatelessWidget {
             ),
             child: Text(
               'close',
-              style: AppTypography.ui.copyWith(
-                color: palette.coach,
-              ),
+              style: AppTypography.ui.copyWith(color: palette.coach),
             ),
           ),
         ),

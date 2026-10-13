@@ -30,8 +30,11 @@ class SyncQueueState {
   /// "retry later" hint when the count is non-zero.
   final int failed;
 
-  static const SyncQueueState empty =
-      SyncQueueState(pending: 0, synced: 0, failed: 0);
+  static const SyncQueueState empty = SyncQueueState(
+    pending: 0,
+    synced: 0,
+    failed: 0,
+  );
 
   /// The chip state for a given plate log id. The default mapping
   /// is conservative: any pending op about the plate is `pending`;

@@ -38,9 +38,7 @@ void main() {
 
     test('QuotaExhausted carries an optional resetAt timestamp', () {
       const noReset = QuotaExhausted();
-      final reset = QuotaExhausted(
-        resetAt: DateTime.utc(2026, 8, 17),
-      );
+      final reset = QuotaExhausted(resetAt: DateTime.utc(2026, 8, 17));
       expect(noReset.resetAt, isNull);
       expect(reset.resetAt, DateTime.utc(2026, 8, 17));
     });
@@ -54,8 +52,7 @@ void main() {
       expect(a, isNot(c));
     });
 
-    test(
-        'QuotaExhausted is distinct from RecognitionFailure: the UI routes '
+    test('QuotaExhausted is distinct from RecognitionFailure: the UI routes '
         'them to different surfaces (FR6 / AD-5)', () {
       const failure = RecognitionFailure('byok key rejected');
       const exhausted = QuotaExhausted();
@@ -112,8 +109,7 @@ void main() {
       expect(plateA.hashCode, plateB.hashCode);
     });
 
-    test(
-        'AiRung adapter conformance: a minimal adapter returning the empty '
+    test('AiRung adapter conformance: a minimal adapter returning the empty '
         'recognition shape compiles against the port (AD-5)', () async {
       // The behavioural lock for AD-5: any adapter that returns the
       // empty `RecognizedPlate` shape is valid against the port.

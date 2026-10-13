@@ -120,7 +120,8 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
         ? AppPalette.dark
         : AppPalette.light;
     // NFR8: reduced-motion collapses the entrance to a fade only.
-    final motion = MediaQuery.of(context).accessibleNavigation ||
+    final motion =
+        MediaQuery.of(context).accessibleNavigation ||
         MediaQuery.of(context).disableAnimations;
 
     // Self-managed dismissal: once the user taps `[ask later]`, the
@@ -157,10 +158,7 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
     );
   }
 
-  Widget _buildBody(
-    AppPalette palette,
-    AsyncValue<CoachNote?> depthAsync,
-  ) {
+  Widget _buildBody(AppPalette palette, AsyncValue<CoachNote?> depthAsync) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: AppSpacing.xs,
@@ -180,15 +178,9 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              _SurePill(
-                palette: palette,
-                onTap: _openDepthPanel,
-              ),
+              _SurePill(palette: palette, onTap: _openDepthPanel),
               const SizedBox(width: AppSpacing.sm),
-              _AskLaterPill(
-                palette: palette,
-                onTap: _onAskLater,
-              ),
+              _AskLaterPill(palette: palette, onTap: _onAskLater),
             ],
           ),
           if (_depthPanelVisible) ...[
@@ -198,14 +190,10 @@ class _CoachWhisperState extends ConsumerState<CoachWhisper> {
                 question: followUp?.text,
                 onClose: _closeDepthPanel,
               ),
-              loading: () => const CoachDepthPanel(
-                question: null,
-                onClose: null,
-              ),
-              error: (_, _) => const CoachDepthPanel(
-                question: null,
-                onClose: null,
-              ),
+              loading: () =>
+                  const CoachDepthPanel(question: null, onClose: null),
+              error: (_, _) =>
+                  const CoachDepthPanel(question: null, onClose: null),
             ),
           ],
         ],
@@ -243,9 +231,7 @@ class _SurePill extends StatelessWidget {
             ),
             child: Text(
               'sure',
-              style: AppTypography.ui.copyWith(
-                color: palette.background,
-              ),
+              style: AppTypography.ui.copyWith(color: palette.background),
             ),
           ),
         ),
@@ -285,9 +271,7 @@ class _AskLaterPill extends StatelessWidget {
             ),
             child: Text(
               'ask later',
-              style: AppTypography.ui.copyWith(
-                color: palette.coach,
-              ),
+              style: AppTypography.ui.copyWith(color: palette.coach),
             ),
           ),
         ),

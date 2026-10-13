@@ -45,14 +45,12 @@ void main() {
       expect(observed.last, later);
     });
 
-    test('clearing the state back to null returns to the "no log" state',
-        () {
+    test('clearing the state back to null returns to the "no log" state', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       // Seed a value first.
-      container.read(lastLogProvider.notifier).state =
-          DateTime(2026, 8, 15);
+      container.read(lastLogProvider.notifier).state = DateTime(2026, 8, 15);
       expect(container.read(lastLogProvider), isNotNull);
 
       // Clear it.

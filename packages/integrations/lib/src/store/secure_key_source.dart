@@ -33,7 +33,7 @@ abstract interface class SecureKeySource {
 /// (Keychain on iOS, EncryptedSharedPreferences on Android).
 class SecureKeySourceImpl implements SecureKeySource {
   SecureKeySourceImpl({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const String alias = 'ai_nutrition_coach_db_key_v1';
 
@@ -54,10 +54,11 @@ class SecureKeySourceImpl implements SecureKeySource {
 /// In-memory implementation for tests — deterministic bytes, no I/O.
 class InMemoryKeySource implements SecureKeySource {
   InMemoryKeySource({Uint8List? seed})
-      : _key = seed ??
-            Uint8List.fromList(
-              List<int>.generate(32, (i) => i + 1, growable: false),
-            );
+    : _key =
+          seed ??
+          Uint8List.fromList(
+            List<int>.generate(32, (i) => i + 1, growable: false),
+          );
 
   Uint8List? _key;
 

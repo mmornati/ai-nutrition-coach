@@ -43,9 +43,7 @@ Future<_Harness> _pump(
 }) async {
   final fake = store ?? FakeEncryptedStore();
   final container = ProviderContainer(
-    overrides: [
-      encryptedStoreProvider.overrideWithValue(fake),
-    ],
+    overrides: [encryptedStoreProvider.overrideWithValue(fake)],
   );
   // Dispose the container first (cancels StreamProvider subscriptions)
   // then close the fake's broadcast controller — the canonical teardown
@@ -83,8 +81,11 @@ Finder _dots() {
 
 Future<void> _tapDot(WidgetTester tester, int index) async {
   final dots = _dots();
-  expect(dots, findsNWidgets(WeekStrip.dayCount),
-      reason: 'Expected ${WeekStrip.dayCount} tap targets on the strip');
+  expect(
+    dots,
+    findsNWidgets(WeekStrip.dayCount),
+    reason: 'Expected ${WeekStrip.dayCount} tap targets on the strip',
+  );
   await tester.tap(dots.at(index));
   await tester.pumpAndSettle();
 }
@@ -96,14 +97,18 @@ void main() {
 
       // 7 dots on the strip — none filled.
       expect(_dots(), findsNWidgets(WeekStrip.dayCount));
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == Colors.transparent,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == Colors.transparent,
+          ),
         ),
-      ), findsNWidgets(WeekStrip.dayCount));
+        findsNWidgets(WeekStrip.dayCount),
+      );
 
       // The literal whisper copy — the spec-approved text.
       expect(
@@ -116,8 +121,9 @@ void main() {
       expect(whisper.style!.fontFamily, AppTypography.monoWhisper.fontFamily);
     });
 
-    testWidgets('happy path: 7 sage-filled dots when every day has a plate',
-        (tester) async {
+    testWidgets('happy path: 7 sage-filled dots when every day has a plate', (
+      tester,
+    ) async {
       // Build a 7-day history (today + 6 prior days).
       final today = DateTime.now();
       final plates = <PlateLog>[
@@ -132,14 +138,18 @@ void main() {
 
       // 7 dots — every Container is sage-filled.
       expect(_dots(), findsNWidgets(WeekStrip.dayCount));
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+          ),
         ),
-      ), findsNWidgets(WeekStrip.dayCount));
+        findsNWidgets(WeekStrip.dayCount),
+      );
     });
 
     testWidgets('partial week: 2 sage-filled dots, 5 outlined', (tester) async {
@@ -147,36 +157,46 @@ void main() {
       // Plates on today and two days ago; rest are quiet.
       await _pump(
         tester,
-        store: FakeEncryptedStore(initial: [
-          plateAt(
-            1,
-            localTime: DateTime(today.year, today.month, today.day, 7, 30),
-            dish: 'Oatmeal',
-          ),
-          plateAt(
-            2,
-            localTime: DateTime(today.year, today.month, today.day - 2, 12),
-            dish: 'Salad',
-          ),
-        ]),
+        store: FakeEncryptedStore(
+          initial: [
+            plateAt(
+              1,
+              localTime: DateTime(today.year, today.month, today.day, 7, 30),
+              dish: 'Oatmeal',
+            ),
+            plateAt(
+              2,
+              localTime: DateTime(today.year, today.month, today.day - 2, 12),
+              dish: 'Salad',
+            ),
+          ],
+        ),
       );
 
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+          ),
         ),
-      ), findsNWidgets(2));
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == Colors.transparent,
+        findsNWidgets(2),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == Colors.transparent,
+          ),
         ),
-      ), findsNWidgets(WeekStrip.dayCount - 2));
+        findsNWidgets(WeekStrip.dayCount - 2),
+      );
     });
 
     testWidgets('tap on a dot updates selectedDateProvider', (tester) async {
@@ -189,24 +209,29 @@ void main() {
       // from `DateTime.now()`, so the expected date is `today - 6d`.
       await _tapDot(tester, 0);
 
-      final expected = _localMidnight(DateTime.now())
-          .subtract(const Duration(days: WeekStrip.dayCount - 1));
+      final expected = _localMidnight(
+        DateTime.now(),
+      ).subtract(const Duration(days: WeekStrip.dayCount - 1));
       expect(harness.container.read(selectedDateProvider), expected);
     });
 
-    testWidgets('tap on the rightmost dot sets selected date to today',
-        (tester) async {
+    testWidgets('tap on the rightmost dot sets selected date to today', (
+      tester,
+    ) async {
       final harness = await _pump(tester);
 
       // Rightmost = today (last in left-to-right order).
       await _tapDot(tester, WeekStrip.dayCount - 1);
 
-      expect(harness.container.read(selectedDateProvider),
-          _localMidnight(DateTime.now()));
+      expect(
+        harness.container.read(selectedDateProvider),
+        _localMidnight(DateTime.now()),
+      );
     });
 
-    testWidgets('seed() on the fake store re-emits and the strip refreshes',
-        (tester) async {
+    testWidgets('seed() on the fake store re-emits and the strip refreshes', (
+      tester,
+    ) async {
       // The 1.3 fake did not re-emit on seed(); Story 1.4 swaps it to a
       // broadcast controller. The week strip must update when a new
       // plate is pushed mid-test.
@@ -214,14 +239,18 @@ void main() {
       final harness = await _pump(tester);
 
       // Empty week — all 7 dots are outlined.
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+          ),
         ),
-      ), findsNothing);
+        findsNothing,
+      );
 
       // Push a plate for today.
       harness.store.seed([
@@ -234,14 +263,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // Rightmost dot (today) is now sage-filled.
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == AppPalette.light.sage,
+          ),
         ),
-      ), findsOneWidget);
+        findsOneWidget,
+      );
     });
 
     testWidgets('dark mode: dots use AppPalette.dark palette', (tester) async {
@@ -249,24 +282,30 @@ void main() {
       await _pump(
         tester,
         brightness: Brightness.dark,
-        store: FakeEncryptedStore(initial: [
-          plateAt(
-            1,
-            localTime: DateTime(today.year, today.month, today.day, 8),
-            dish: 'Oatmeal',
-          ),
-        ]),
+        store: FakeEncryptedStore(
+          initial: [
+            plateAt(
+              1,
+              localTime: DateTime(today.year, today.month, today.day, 8),
+              dish: 'Oatmeal',
+            ),
+          ],
+        ),
       );
 
       // One filled dot — uses the dark-palette sage, not the light one.
-      expect(find.descendant(
-        of: find.byType(WeekStrip),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppPalette.dark.sage,
+      expect(
+        find.descendant(
+          of: find.byType(WeekStrip),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color == AppPalette.dark.sage,
+          ),
         ),
-      ), findsOneWidget);
+        findsOneWidget,
+      );
 
       // Whisper readable in dark — `inkMuted` from the dark palette.
       final whisper = tester.widget<Text>(
@@ -275,19 +314,22 @@ void main() {
       expect(whisper.style!.color, AppPalette.dark.inkMuted);
     });
 
-    testWidgets('Semantics: each dot announces date + balance state',
-        (tester) async {
+    testWidgets('Semantics: each dot announces date + balance state', (
+      tester,
+    ) async {
       final today = DateTime.now();
       await _pump(
         tester,
-        store: FakeEncryptedStore(initial: [
-          // Today has a plate — that dot announces "balanced".
-          plateAt(
-            1,
-            localTime: DateTime(today.year, today.month, today.day, 8),
-            dish: 'Oatmeal',
-          ),
-        ]),
+        store: FakeEncryptedStore(
+          initial: [
+            // Today has a plate — that dot announces "balanced".
+            plateAt(
+              1,
+              localTime: DateTime(today.year, today.month, today.day, 8),
+              dish: 'Oatmeal',
+            ),
+          ],
+        ),
       );
 
       // The SemanticsHandle must be released before the test ends —
@@ -307,8 +349,11 @@ void main() {
         expect(rightmost, contains(_weekdayName(DateTime.now().weekday)));
 
         for (var i = 0; i < WeekStrip.dayCount - 1; i++) {
-          expect(dotLabels[i], endsWith('quiet'),
-              reason: 'day index $i should be quiet');
+          expect(
+            dotLabels[i],
+            endsWith('quiet'),
+            reason: 'day index $i should be quiet',
+          );
         }
       } finally {
         handle.dispose();
@@ -320,10 +365,16 @@ void main() {
 
       for (var i = 0; i < WeekStrip.dayCount; i++) {
         final size = tester.getSize(_dots().at(i));
-        expect(size.width, greaterThanOrEqualTo(AppTouchTargets.min),
-            reason: 'dot $i width ${size.width} below 48px');
-        expect(size.height, greaterThanOrEqualTo(AppTouchTargets.min),
-            reason: 'dot $i height ${size.height} below 48px');
+        expect(
+          size.width,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'dot $i width ${size.width} below 48px',
+        );
+        expect(
+          size.height,
+          greaterThanOrEqualTo(AppTouchTargets.min),
+          reason: 'dot $i height ${size.height} below 48px',
+        );
       }
     });
   });

@@ -13,7 +13,6 @@ import 'state/scanner_adapters.dart';
 import 'state/scanner_provider.dart';
 import 'state/web_session_key_provider.dart';
 import 'state/web_unlock_probe_provider.dart';
-import 'state/your_ai_provider.dart';
 import 'theme/app_tokens.dart';
 import 'widgets/privacy_guard.dart';
 import 'widgets/unlock_gate.dart';
@@ -46,12 +45,11 @@ void main() async {
   // wins if present).
   const buildConfig = BuildConfig();
   final byokKeyStore = SecureStorageByokKeyStore();
-  if (buildConfig.hasByokDefaults &&
-      !await byokKeyStore.hasKey()) {
+  if (buildConfig.hasByokDefaults && !await byokKeyStore.hasKey()) {
     await byokKeyStore.write(buildConfig.byokApiKey);
   }
-  final byokProvider = buildConfig.byokEndpointUrl.isNotEmpty &&
-          buildConfig.byokModel.isNotEmpty
+  final byokProvider =
+      buildConfig.byokEndpointUrl.isNotEmpty && buildConfig.byokModel.isNotEmpty
       ? OpenAiCompatibleByokProvider(
           endpointUrl: buildConfig.byokEndpointUrl,
           model: buildConfig.byokModel,
@@ -77,18 +75,16 @@ void main() async {
         // is offline-first; the voice transcriber is a no-op (FR3 /
         // FR13). Both are swapped out behind the same port shapes when
         // Epic 3+ ships real adapters.
-        foodCatalogProvider
-            .overrideWithValue(OfflineFirstFoodCatalog()),
-        voiceTranscriberProvider
-            .overrideWithValue(const NoopVoiceTranscriber()),
+        foodCatalogProvider.overrideWithValue(OfflineFirstFoodCatalog()),
+        voiceTranscriberProvider.overrideWithValue(
+          const NoopVoiceTranscriber(),
+        ),
         // Story 1.7 — wire the barcode seam. `mobile_scanner` is the
         // only camera dependency; `permission_handler` is the
         // cross-platform permission surface (NFR7). Both are wrapped
         // behind the `BarcodeScanner` / `CameraPermission` ports so
         // tests can substitute fakes without touching the camera.
-        barcodeScannerProvider.overrideWithValue(
-          MobileScannerBarcodeScanner(),
-        ),
+        barcodeScannerProvider.overrideWithValue(MobileScannerBarcodeScanner()),
         cameraPermissionProvider.overrideWithValue(
           const PermissionHandlerCameraPermission(),
         ),
@@ -109,8 +105,7 @@ void main() async {
         // so the rung never crashes the photo path.
         byokKeyStoreProvider.overrideWithValue(byokKeyStore),
         byokOpenAiCompatibleProviderProvider.overrideWithValue(byokProvider),
-        photoCaptureProvider
-            .overrideWithValue(const ImagePickerPhotoCapture()),
+        photoCaptureProvider.overrideWithValue(const ImagePickerPhotoCapture()),
         // Story 2.1 — wire the coach seam. `TemplateCoach` is the
         // v1 active rung; it resolves the `en` key store at
         // `packages/integrations/lib/src/l10n/coach_strings.dart`
@@ -126,11 +121,9 @@ void main() async {
         // back to the throw-on-unoverridden defaults — which are
         // unreachable.
         if (bundle.webSessionKey != null)
-          webSessionKeyProvider
-              .overrideWithValue(bundle.webSessionKey!),
+          webSessionKeyProvider.overrideWithValue(bundle.webSessionKey!),
         if (bundle.webUnlockProbe != null)
-          webUnlockProbeProvider
-              .overrideWithValue(bundle.webUnlockProbe!),
+          webUnlockProbeProvider.overrideWithValue(bundle.webUnlockProbe!),
       ],
       child: const AiNutritionCoachApp(),
     ),

@@ -127,9 +127,9 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
   /// routing site — Story 1.7 / 1.8 replace the placeholder targets
   /// without touching the call sites.
   void _pushSnapshot() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const CapturePhotoScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const CapturePhotoScreen()));
   }
 
   /// Push the barcode-scan placeholder screen (Story 1.7 wiring).
@@ -141,9 +141,9 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
 
   /// Push the manual entry screen (Story 1.5, already shipped).
   void _pushTypeOrTalk() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const ManualEntryScreen()));
   }
 
   @override
@@ -197,10 +197,7 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
                 ),
               const SizedBox(height: AppSpacing.lg),
               if (_quickRepeatVisible) ...[
-                _QuickRepeatLink(
-                  onTap: _openCaptureSheet,
-                  palette: palette,
-                ),
+                _QuickRepeatLink(onTap: _openCaptureSheet, palette: palette),
                 const SizedBox(height: AppSpacing.sm),
               ],
               if (state.hasError)
@@ -260,10 +257,8 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
   // Reduced-motion / NFR7: no spinner ever on this surface (UX-DR10).
   // While the store is opening, the screen renders the three open
   // dents — the day is always visible.
-  Widget _placeholderList(AppPalette palette) => _BoardList(
-        day: null,
-        palette: palette,
-      );
+  Widget _placeholderList(AppPalette palette) =>
+      _BoardList(day: null, palette: palette);
 }
 
 /// The `+ log another plate` link that surfaces for 5 seconds after a
@@ -271,10 +266,7 @@ class _DayBoardScreenState extends ConsumerState<DayBoardScreen> {
 /// icon, no card, no celebration — just a tap target with the same
 /// typography as the open-dent whispers below it.
 class _QuickRepeatLink extends StatelessWidget {
-  const _QuickRepeatLink({
-    required this.onTap,
-    required this.palette,
-  });
+  const _QuickRepeatLink({required this.onTap, required this.palette});
 
   final VoidCallback onTap;
   final AppPalette palette;
@@ -311,10 +303,7 @@ class _QuickRepeatLink extends StatelessWidget {
 }
 
 class _BoardList extends StatelessWidget {
-  const _BoardList({
-    required this.day,
-    required this.palette,
-  });
+  const _BoardList({required this.day, required this.palette});
 
   final DayBoardDay? day;
   final AppPalette palette;
@@ -326,10 +315,8 @@ class _BoardList extends StatelessWidget {
       itemCount: slots.length,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      separatorBuilder: (_, _) => Divider(
-        color: palette.hairline,
-        height: AppSpacing.hairline,
-      ),
+      separatorBuilder: (_, _) =>
+          Divider(color: palette.hairline, height: AppSpacing.hairline),
       itemBuilder: (_, i) {
         final slot = slots[i];
         if (slot.isOpen) {
@@ -341,8 +328,6 @@ class _BoardList extends StatelessWidget {
   }
 
   List<DayBoardSlot> _placeholderSlots() {
-    return [
-      for (final s in MealSlot.values) DayBoardSlot.open(slot: s),
-    ];
+    return [for (final s in MealSlot.values) DayBoardSlot.open(slot: s)];
   }
 }

@@ -73,24 +73,14 @@ const _appleMatch = FoodMatch(
   food: _apple,
   confidence: 0.95,
   presets: <QuantityRange>[
-    QuantityRange(
-      low: 1,
-      high: 1,
-      unit: 'piece',
-      displayLabel: '~1 piece',
-    ),
+    QuantityRange(low: 1, high: 1, unit: 'piece', displayLabel: '~1 piece'),
   ],
 );
 const _salmonMatch = FoodMatch(
   food: _salmon,
   confidence: 0.92,
   presets: <QuantityRange>[
-    QuantityRange(
-      low: 1,
-      high: 1,
-      unit: 'fist',
-      displayLabel: '~1 fist',
-    ),
+    QuantityRange(low: 1, high: 1, unit: 'fist', displayLabel: '~1 fist'),
   ],
 );
 
@@ -102,10 +92,7 @@ void main() {
   setUp(() {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
     binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
-    binding.platformDispatcher.views.first.physicalSize = const Size(
-      800,
-      1600,
-    );
+    binding.platformDispatcher.views.first.physicalSize = const Size(800, 1600);
   });
 
   tearDown(() {
@@ -116,166 +103,184 @@ void main() {
 
   group('RecognizedMatchSheet', () {
     testWidgets(
-        'HAPPY_PATH_NOOP: empty RecognizedPlate renders closest-matches + '
-        'manual + auto-selects first match so Log is enabled', (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
+      'HAPPY_PATH_NOOP: empty RecognizedPlate renders closest-matches + '
+      'manual + auto-selects first match so Log is enabled',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => showRecognizedMatchSheet(
-              ctx,
-              result: const RecognizedPlate(foods: <RecognizedFood>[]),
-              closestMatches: const [_appleMatch, _salmonMatch],
-            ),
-            child: const Text('open'),
-          ),
-        ),
-        store: store,
-      ));
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-
-      // Header copy + manual-add field are up.
-      expect(find.text('Nothing matched'), findsOneWidget);
-      expect(find.text('Custom food name'), findsOneWidget);
-      // Closest-matches row is up.
-      expect(find.text('Closest matches'), findsOneWidget);
-      expect(find.text('Apple'), findsOneWidget);
-      expect(find.text('Salmon'), findsOneWidget);
-      // `Log custom food` + `Log` both render; Log is auto-enabled
-      // because the first closest match is auto-selected.
-      expect(find.text('Log custom food'), findsOneWidget);
-      final logButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Log'),
-      );
-      expect(logButton.onPressed, isNotNull,
-          reason: 'Log must be auto-enabled with the first closest match');
-    });
-
-    testWidgets(
-        'HAPPY_PATH_MATCHED: RecognizedPlate with foods auto-selects the '
-        'first one; tap Log commits via RecordPlate + writes '
-        'lastLogProvider', (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
-
-      final ProviderContainer container = ProviderContainer(
-        overrides: [
-          encryptedStoreProvider.overrideWithValue(store),
-          coachProvider.overrideWithValue(FakeCoach()),
-          coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          themeMode: ThemeMode.light,
-          theme: ThemeData(brightness: Brightness.light),
-          home: Builder(
-            builder: (ctx) => ElevatedButton(
-              onPressed: () => showRecognizedMatchSheet(
-                ctx,
-                result: RecognizedPlate(foods: [
-                  RecognizedFood(
-                    databaseFood: _apple,
-                    confidence: 0.95,
-                    quantity: const QuantityRange(
-                      low: 1,
-                      high: 1,
-                      unit: 'piece',
-                      displayLabel: '~1 piece',
-                    ),
-                  ),
-                ]),
-                closestMatches: const [_salmonMatch],
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => showRecognizedMatchSheet(
+                  ctx,
+                  result: const RecognizedPlate(foods: <RecognizedFood>[]),
+                  closestMatches: const [_appleMatch, _salmonMatch],
+                ),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
+            store: store,
           ),
-        ),
-      ));
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      // The recognized food is auto-selected; Salmon (closest match)
-      // is also up so the user can switch.
-      expect(find.text('Apple'), findsOneWidget);
-      expect(find.text('Salmon'), findsOneWidget);
-      // Tap Log — commits through RecordPlate + pops back.
-      await tester.tap(find.widgetWithText(FilledButton, 'Log'));
-      await tester.pumpAndSettle();
-
-      // Exactly one plate was committed with the auto-selected food.
-      expect(store.capturedDrafts, hasLength(1));
-      final draft = store.capturedDrafts.single;
-      expect(draft.databaseFood.displayName, 'Apple');
-      expect(draft.quantity.unit, 'piece');
-
-      // lastLogProvider was stamped so the Day Board's quick-repeat
-      // affordance surfaces.
-      final lastLog = container.read(lastLogProvider);
-      expect(lastLog, isNotNull,
-          reason: 'lastLogProvider must be written on a successful commit');
-    });
+        // Header copy + manual-add field are up.
+        expect(find.text('Nothing matched'), findsOneWidget);
+        expect(find.text('Custom food name'), findsOneWidget);
+        // Closest-matches row is up.
+        expect(find.text('Closest matches'), findsOneWidget);
+        expect(find.text('Apple'), findsOneWidget);
+        expect(find.text('Salmon'), findsOneWidget);
+        // `Log custom food` + `Log` both render; Log is auto-enabled
+        // because the first closest match is auto-selected.
+        expect(find.text('Log custom food'), findsOneWidget);
+        final logButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Log'),
+        );
+        expect(
+          logButton.onPressed,
+          isNotNull,
+          reason: 'Log must be auto-enabled with the first closest match',
+        );
+      },
+    );
 
     testWidgets(
-        'AMBIGUOUS_RECOGNITION: NoMatch renders "Nothing on this plate" + '
-        'closest-matches row + manual still works', (tester) async {
-      final store = FakeEncryptedStore();
-      addTearDown(store.close);
+      'HAPPY_PATH_MATCHED: RecognizedPlate with foods auto-selects the '
+      'first one; tap Log commits via RecordPlate + writes '
+      'lastLogProvider',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => showRecognizedMatchSheet(
-              ctx,
-              result: const NoMatch(),
-              closestMatches: const [_appleMatch],
+        final ProviderContainer container = ProviderContainer(
+          overrides: [
+            encryptedStoreProvider.overrideWithValue(store),
+            coachProvider.overrideWithValue(FakeCoach()),
+            coachNoteStoreProvider.overrideWithValue(FakeCoachNoteStore()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              themeMode: ThemeMode.light,
+              theme: ThemeData(brightness: Brightness.light),
+              home: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () => showRecognizedMatchSheet(
+                    ctx,
+                    result: RecognizedPlate(
+                      foods: [
+                        RecognizedFood(
+                          databaseFood: _apple,
+                          confidence: 0.95,
+                          quantity: const QuantityRange(
+                            low: 1,
+                            high: 1,
+                            unit: 'piece',
+                            displayLabel: '~1 piece',
+                          ),
+                        ),
+                      ],
+                    ),
+                    closestMatches: const [_salmonMatch],
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
             ),
-            child: const Text('open'),
           ),
-        ),
-        store: store,
-      ));
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Nothing on this plate'), findsOneWidget);
-      expect(find.text('Closest matches'), findsOneWidget);
-      expect(find.text('Apple'), findsOneWidget);
-      expect(find.text('Custom food name'), findsOneWidget);
-    });
+        // The recognized food is auto-selected; Salmon (closest match)
+        // is also up so the user can switch.
+        expect(find.text('Apple'), findsOneWidget);
+        expect(find.text('Salmon'), findsOneWidget);
+        // Tap Log — commits through RecordPlate + pops back.
+        await tester.tap(find.widgetWithText(FilledButton, 'Log'));
+        await tester.pumpAndSettle();
+
+        // Exactly one plate was committed with the auto-selected food.
+        expect(store.capturedDrafts, hasLength(1));
+        final draft = store.capturedDrafts.single;
+        expect(draft.databaseFood.displayName, 'Apple');
+        expect(draft.quantity.unit, 'piece');
+
+        // lastLogProvider was stamped so the Day Board's quick-repeat
+        // affordance surfaces.
+        final lastLog = container.read(lastLogProvider);
+        expect(
+          lastLog,
+          isNotNull,
+          reason: 'lastLogProvider must be written on a successful commit',
+        );
+      },
+    );
 
     testWidgets(
-        'AI_RUNG_FAILURE: RecognitionFailure renders the calm line + '
+      'AMBIGUOUS_RECOGNITION: NoMatch renders "Nothing on this plate" + '
+      'closest-matches row + manual still works',
+      (tester) async {
+        final store = FakeEncryptedStore();
+        addTearDown(store.close);
+
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => showRecognizedMatchSheet(
+                  ctx,
+                  result: const NoMatch(),
+                  closestMatches: const [_appleMatch],
+                ),
+                child: const Text('open'),
+              ),
+            ),
+            store: store,
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Nothing on this plate'), findsOneWidget);
+        expect(find.text('Closest matches'), findsOneWidget);
+        expect(find.text('Apple'), findsOneWidget);
+        expect(find.text('Custom food name'), findsOneWidget);
+      },
+    );
+
+    testWidgets('AI_RUNG_FAILURE: RecognitionFailure renders the calm line + '
         'closest-matches still selectable + Log commits', (tester) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => showRecognizedMatchSheet(
-              ctx,
-              result: const RecognitionFailure('offline'),
-              closestMatches: const [_appleMatch],
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => showRecognizedMatchSheet(
+                ctx,
+                result: const RecognitionFailure('offline'),
+                closestMatches: const [_appleMatch],
+              ),
+              child: const Text('open'),
             ),
-            child: const Text('open'),
           ),
+          store: store,
         ),
-        store: store,
-      ));
+      );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text("Search isn't available right now."),
-        findsOneWidget,
-      );
+      expect(find.text("Search isn't available right now."), findsOneWidget);
       expect(find.text('Apple'), findsOneWidget);
 
       // Apple is auto-selected (it's the only closest match) so Log
@@ -287,25 +292,26 @@ void main() {
       expect(store.capturedDrafts.single.databaseFood.displayName, 'Apple');
     });
 
-    testWidgets(
-        'Log custom food: typing a name + tapping the button commits a '
+    testWidgets('Log custom food: typing a name + tapping the button commits a '
         'manual DatabaseFood', (tester) async {
       final store = FakeEncryptedStore();
       addTearDown(store.close);
 
-      await tester.pumpWidget(_wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => showRecognizedMatchSheet(
-              ctx,
-              result: const RecognizedPlate(foods: <RecognizedFood>[]),
-              closestMatches: const [_appleMatch],
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => showRecognizedMatchSheet(
+                ctx,
+                result: const RecognizedPlate(foods: <RecognizedFood>[]),
+                closestMatches: const [_appleMatch],
+              ),
+              child: const Text('open'),
             ),
-            child: const Text('open'),
           ),
+          store: store,
         ),
-        store: store,
-      ));
+      );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 

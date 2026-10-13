@@ -1,14 +1,22 @@
 // `WebSessionKey` (in-memory PBKDF2 holder) round-trip + wrong-passphrase
 // + lock-resets-state pins. Story 4.1 / AD-8.
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
+import 'package:integrations/src/store/app_database.dart';
+import 'package:test/test.dart';
 
 void main() {
+  // `WebSessionKey()` is a process-wide singleton; reset it so one
+  // test's unlock never leaks into the next.
+  setUp(() => WebSessionKey().lock());
+  tearDown(() => WebSessionKey().lock());
+
   group('WebSessionKey', () {
     test('starts locked, derives a key on unlock, opens on probe', () async {
       final key = WebSessionKey();
@@ -54,10 +62,7 @@ void main() {
     test('lock() clears the derived key but keeps the salt', () async {
       final key = WebSessionKey();
       final saltBefore = Uint8List.fromList(key.salt);
-      await key.unlock(
-        passphrase: 'passphrase-123',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'passphrase-123', probe: (_) async => true);
       expect(key.isOpen, isTrue);
       key.lock();
       expect(key.isLocked, isTrue);
@@ -70,10 +75,7 @@ void main() {
       final s = key.toString();
       expect(s, contains('isOpen'));
       expect(s, isNot(contains('derivedKey')));
-      await key.unlock(
-        passphrase: 'whatever',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'whatever', probe: (_) async => true);
       expect(key.toString(), 'WebSessionKey(isOpen: true)');
     });
 
@@ -137,10 +139,7 @@ void main() {
           return AppDatabase(NativeDatabase.memory());
         },
       );
-      await key.unlock(
-        passphrase: 'whatever',
-        probe: (_) async => true,
-      );
+      await key.unlock(passphrase: 'whatever', probe: (_) async => true);
       final ok = await store.tryOpen();
       expect(ok, isTrue);
       expect(store.isOpen, isTrue);
@@ -157,7 +156,7 @@ Uint8List _deriveForTest({
   required Uint8List salt,
   required int iterations,
 }) {
-  final hmac = Hmac(sha256, utf8Encode(passphrase));
+  final hmac = Hmac(sha256, utf8.encode(passphrase));
   final block = Uint8List(salt.length + 4)
     ..setRange(0, salt.length, salt)
     ..buffer.asByteData().setUint32(salt.length, 1, Endian.big);

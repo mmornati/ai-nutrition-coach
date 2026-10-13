@@ -32,4 +32,5 @@ jobs:
 
       - name: Smoke summary
         if: success()
-        run: echo "self-host smoke: PASS"
+        run: |
+          echo "self-host smoke: PASS"

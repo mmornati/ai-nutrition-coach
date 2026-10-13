@@ -28,7 +28,7 @@ const String kCsvHeader =
     'quantity_display_label';
 
 class CsvExporter implements Exporter {
-  CsvExporter({required EncryptedStore store}) : _store = store;
+  CsvExporter({required this._store});
 
   final EncryptedStore _store;
 
@@ -79,18 +79,22 @@ List<PlateLog> filterPlates(List<PlateLog> plates, ExportScope scope) {
     visibleDay: (day) {
       final start = DateTime(day.year, day.month, day.day);
       final end = start.add(const Duration(days: 1));
-      return plates.where((p) {
-        final local = p.loggedAtUtc.toLocal();
-        return !local.isBefore(start) && local.isBefore(end);
-      }).toList(growable: false);
+      return plates
+          .where((p) {
+            final local = p.loggedAtUtc.toLocal();
+            return !local.isBefore(start) && local.isBefore(end);
+          })
+          .toList(growable: false);
     },
     week: (start) {
       final startLocal = DateTime(start.year, start.month, start.day);
       final endLocal = startLocal.add(const Duration(days: 7));
-      return plates.where((p) {
-        final local = p.loggedAtUtc.toLocal();
-        return !local.isBefore(startLocal) && local.isBefore(endLocal);
-      }).toList(growable: false);
+      return plates
+          .where((p) {
+            final local = p.loggedAtUtc.toLocal();
+            return !local.isBefore(startLocal) && local.isBefore(endLocal);
+          })
+          .toList(growable: false);
     },
     allHistory: () => plates,
   );

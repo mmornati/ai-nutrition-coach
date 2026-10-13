@@ -87,9 +87,9 @@ final lastPhotoBytesProvider = StateProvider<Uint8List?>((_) => null);
 /// recognition lands on screen).
 final recognitionProvider = FutureProvider.autoDispose
     .family<RecognitionResult, Uint8List>((ref, bytes) async {
-  final rung = ref.watch(aiRungProvider);
-  return rung.recognize(bytes);
-});
+      final rung = ref.watch(aiRungProvider);
+      return rung.recognize(bytes);
+    });
 
 /// Production `PhotoCapture` adapter — wraps `image_picker`. The
 /// adapter uses `ImageSource.camera` so the user lands on the OS

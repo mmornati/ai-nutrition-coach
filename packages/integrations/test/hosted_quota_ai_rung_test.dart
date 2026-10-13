@@ -29,6 +29,7 @@ void main() {
       final counter = _FakeQuotaCounter(
         ceiling: 5,
         initialCalls: 5,
+        resetAt: DateTime(2026, 8, 17),
       );
       var transportCalls = 0;
       final provider = _FakeHostedQuotaProvider(
@@ -37,16 +38,16 @@ void main() {
           return const HostedQuotaNoMatch();
         },
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
 
       expect(result, isA<QuotaExhausted>());
-      expect(transportCalls, 0,
-          reason: 'transport must not be called on quota exhaustion');
+      expect(
+        transportCalls,
+        0,
+        reason: 'transport must not be called on quota exhaustion',
+      );
       final exhausted = result as QuotaExhausted;
       expect(exhausted.resetAt, isNotNull);
       expect(exhausted.resetAt, DateTime(2026, 8, 17));
@@ -54,10 +55,7 @@ void main() {
 
     test('HostedQuotaRecognized with foods maps to RecognizedPlate '
         'and increments the counter (NFR5)', () async {
-      final counter = _FakeQuotaCounter(
-        ceiling: 5,
-        initialCalls: 0,
-      );
+      final counter = _FakeQuotaCounter(ceiling: 5, initialCalls: 0);
       final foods = <RecognizedFood>[
         const RecognizedFood(
           databaseFood: DatabaseFood(
@@ -78,10 +76,7 @@ void main() {
       final provider = _FakeHostedQuotaProvider(
         onRecognize: (_) => HostedQuotaRecognized(foods),
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
 
@@ -93,70 +88,58 @@ void main() {
     test('HostedQuotaRecognized with empty foods maps to '
         'RecognizedPlate(foods: []) and does NOT increment the counter '
         '(NFR5)', () async {
-      final counter = _FakeQuotaCounter(
-        ceiling: 5,
-        initialCalls: 0,
-      );
+      final counter = _FakeQuotaCounter(ceiling: 5, initialCalls: 0);
       final provider = _FakeHostedQuotaProvider(
         onRecognize: (_) => const HostedQuotaRecognized(<RecognizedFood>[]),
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
 
       expect(result, isA<RecognizedPlate>());
       expect((result as RecognizedPlate).foods, isEmpty);
-      expect(counter.recordCallCount, 0,
-          reason: 'empty recognition does not burn a quota slot');
+      expect(
+        counter.recordCallCount,
+        0,
+        reason: 'empty recognition does not burn a quota slot',
+      );
     });
 
     test('HostedQuotaNoMatch maps to NoMatch and does NOT increment '
         'the counter (NFR5)', () async {
-      final counter = _FakeQuotaCounter(
-        ceiling: 5,
-        initialCalls: 0,
-      );
+      final counter = _FakeQuotaCounter(ceiling: 5, initialCalls: 0);
       final provider = _FakeHostedQuotaProvider(
         onRecognize: (_) => const HostedQuotaNoMatch(),
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
 
       expect(result, isA<NoMatch>());
-      expect(counter.recordCallCount, 0,
-          reason: 'no-match does not burn a quota slot');
+      expect(
+        counter.recordCallCount,
+        0,
+        reason: 'no-match does not burn a quota slot',
+      );
     });
 
     test('HostedQuotaFailure maps to RecognitionFailure and does NOT '
         'increment the counter (NFR5)', () async {
-      final counter = _FakeQuotaCounter(
-        ceiling: 5,
-        initialCalls: 0,
-      );
+      final counter = _FakeQuotaCounter(ceiling: 5, initialCalls: 0);
       final provider = _FakeHostedQuotaProvider(
         onRecognize: (_) => const HostedQuotaFailure('network down'),
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
 
       expect(result, isA<RecognitionFailure>());
+      expect((result as RecognitionFailure).cause.toString(), 'network down');
       expect(
-        (result as RecognitionFailure).cause.toString(),
-        'network down',
+        counter.recordCallCount,
+        0,
+        reason: 'transport failure does not burn a quota slot',
       );
-      expect(counter.recordCallCount, 0,
-          reason: 'transport failure does not burn a quota slot');
     });
 
     test('resetAt propagates from the counter to the result', () async {
@@ -168,10 +151,7 @@ void main() {
       final provider = _FakeHostedQuotaProvider(
         onRecognize: (_) => const HostedQuotaNoMatch(),
       );
-      final rung = HostedQuotaAiRung(
-        quotaCounter: counter,
-        provider: provider,
-      );
+      final rung = HostedQuotaAiRung(quotaCounter: counter, provider: provider);
 
       final result = await rung.recognize(Uint8List(0));
       expect(result, isA<QuotaExhausted>());
@@ -188,13 +168,12 @@ class _FakeQuotaCounter implements QuotaCounter {
   _FakeQuotaCounter({
     required this.ceiling,
     required this.initialCalls,
-    this.resetAt,
+    this._resetAt,
   }) : _calls = initialCalls;
 
-  @override
   final int ceiling;
   final int initialCalls;
-  final DateTime? resetAt;
+  final DateTime? _resetAt;
   int _calls;
   int recordCallCount = 0;
 
@@ -208,7 +187,7 @@ class _FakeQuotaCounter implements QuotaCounter {
   }
 
   @override
-  Future<DateTime?> resetAt() async => resetAt;
+  Future<DateTime?> resetAt() async => _resetAt;
 
   @override
   Future<bool> isExhausted() async => _calls >= ceiling;
@@ -224,9 +203,7 @@ class _FakeHostedQuotaProvider implements HostedQuotaProvider {
   final HostedQuotaOutcome Function(Uint8List) onRecognize;
 
   @override
-  Future<HostedQuotaOutcome> recognize({
-    required Uint8List photoBytes,
-  }) async {
+  Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async {
     return onRecognize(photoBytes);
   }
 }

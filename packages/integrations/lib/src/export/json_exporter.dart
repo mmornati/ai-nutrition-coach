@@ -20,7 +20,7 @@ import 'package:domain_core/domain_core.dart';
 import 'csv_exporter.dart' show filterPlates;
 
 class JsonExporter implements Exporter {
-  JsonExporter({required EncryptedStore store}) : _store = store;
+  JsonExporter({required this._store});
 
   final EncryptedStore _store;
 
@@ -61,9 +61,7 @@ Map<String, Object?> _plateToJson(PlateLog plate) {
   return <String, Object?>{
     'id': plate.id,
     'loggedAtUtc': plate.loggedAtUtc.toUtc().toIso8601String(),
-    'entries': plate.entries
-        .map(_entryToJson)
-        .toList(growable: false),
+    'entries': plate.entries.map(_entryToJson).toList(growable: false),
   };
 }
 

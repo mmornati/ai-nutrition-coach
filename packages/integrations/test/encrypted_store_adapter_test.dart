@@ -8,7 +8,6 @@
 
 import 'package:domain_core/domain_core.dart';
 import 'package:drift/native.dart';
-import 'package:integrations/integrations.dart';
 import 'package:integrations/src/store/app_database.dart';
 import 'package:integrations/src/store/encrypted_store_adapter.dart';
 import 'package:test/test.dart';
@@ -26,33 +25,35 @@ void main() {
       await store.close();
     });
 
-    test('recordPlate commits, returns RecordPlateSuccess with assigned ids',
-        () async {
-      final draft = FoodEntryDraft(
-        databaseFood: const DatabaseFood(
-          sourceRef: 'manual:apple',
-          displayName: 'Apple',
-          source: SourceCatalog.manual,
-        ),
-        quantity: const QuantityRange(
-          low: 1,
-          high: 2,
-          unit: 'piece',
-          displayLabel: '~1–2 pieces',
-        ),
-      );
+    test(
+      'recordPlate commits, returns RecordPlateSuccess with assigned ids',
+      () async {
+        final draft = FoodEntryDraft(
+          databaseFood: const DatabaseFood(
+            sourceRef: 'manual:apple',
+            displayName: 'Apple',
+            source: SourceCatalog.manual,
+          ),
+          quantity: const QuantityRange(
+            low: 1,
+            high: 2,
+            unit: 'piece',
+            displayLabel: '~1–2 pieces',
+          ),
+        );
 
-      final result = await store.recordPlate(entries: [draft]);
+        final result = await store.recordPlate(entries: [draft]);
 
-      expect(result, isA<RecordPlateSuccess>());
-      final success = result as RecordPlateSuccess;
-      expect(success.plateLog.id, isPositive);
-      expect(success.plateLog.entries, hasLength(1));
-      final entry = success.plateLog.entries.single;
-      expect(entry.plateLogId, success.plateLog.id);
-      expect(entry.databaseFood, draft.databaseFood);
-      expect(entry.quantity, draft.quantity);
-    });
+        expect(result, isA<RecordPlateSuccess>());
+        final success = result as RecordPlateSuccess;
+        expect(success.plateLog.id, isPositive);
+        expect(success.plateLog.entries, hasLength(1));
+        final entry = success.plateLog.entries.single;
+        expect(entry.plateLogId, success.plateLog.id);
+        expect(entry.databaseFood, draft.databaseFood);
+        expect(entry.quantity, draft.quantity);
+      },
+    );
 
     test('QuantityRange round-trip preserves low/high verbatim', () async {
       const fractional = QuantityRange(
@@ -72,8 +73,7 @@ void main() {
 
       final result = await store.recordPlate(entries: [draft]);
       expect(result, isA<RecordPlateSuccess>());
-      final entry =
-          (result as RecordPlateSuccess).plateLog.entries.single;
+      final entry = (result as RecordPlateSuccess).plateLog.entries.single;
 
       expect(entry.quantity.low, 0.5);
       expect(entry.quantity.high, 1.5);
@@ -127,54 +127,62 @@ void main() {
       expect(snapshots.length, greaterThanOrEqualTo(2));
       final last = snapshots.last;
       expect(last, hasLength(2));
-      expect(last.first.entries.single.databaseFood.displayName, anyOf('A', 'B'));
-      expect(last.last.entries.single.databaseFood.displayName, anyOf('A', 'B'));
+      expect(
+        last.first.entries.single.databaseFood.displayName,
+        anyOf('A', 'B'),
+      );
+      expect(
+        last.last.entries.single.databaseFood.displayName,
+        anyOf('A', 'B'),
+      );
     });
 
-    test('two concurrent records each commit (separate transactions)',
-        () async {
-      final first = store.recordPlate(
-        entries: [
-          FoodEntryDraft(
-            databaseFood: const DatabaseFood(
-              sourceRef: 'manual:a',
-              displayName: 'A',
-              source: SourceCatalog.manual,
+    test(
+      'two concurrent records each commit (separate transactions)',
+      () async {
+        final first = store.recordPlate(
+          entries: [
+            FoodEntryDraft(
+              databaseFood: const DatabaseFood(
+                sourceRef: 'manual:a',
+                displayName: 'A',
+                source: SourceCatalog.manual,
+              ),
+              quantity: const QuantityRange(
+                low: 1,
+                high: 1,
+                unit: 'piece',
+                displayLabel: '~1 piece',
+              ),
             ),
-            quantity: const QuantityRange(
-              low: 1,
-              high: 1,
-              unit: 'piece',
-              displayLabel: '~1 piece',
+          ],
+        );
+        final second = store.recordPlate(
+          entries: [
+            FoodEntryDraft(
+              databaseFood: const DatabaseFood(
+                sourceRef: 'manual:b',
+                displayName: 'B',
+                source: SourceCatalog.manual,
+              ),
+              quantity: const QuantityRange(
+                low: 2,
+                high: 2,
+                unit: 'piece',
+                displayLabel: '~2 pieces',
+              ),
             ),
-          ),
-        ],
-      );
-      final second = store.recordPlate(
-        entries: [
-          FoodEntryDraft(
-            databaseFood: const DatabaseFood(
-              sourceRef: 'manual:b',
-              displayName: 'B',
-              source: SourceCatalog.manual,
-            ),
-            quantity: const QuantityRange(
-              low: 2,
-              high: 2,
-              unit: 'piece',
-              displayLabel: '~2 pieces',
-            ),
-          ),
-        ],
-      );
-      final results = await Future.wait([first, second]);
+          ],
+        );
+        final results = await Future.wait([first, second]);
 
-      expect(results, hasLength(2));
-      expect(results.every((r) => r is RecordPlateSuccess), isTrue);
-      final ids = results
-          .map((r) => (r as RecordPlateSuccess).plateLog.id)
-          .toList();
-      expect(ids[0], isNot(ids[1]));
-    });
+        expect(results, hasLength(2));
+        expect(results.every((r) => r is RecordPlateSuccess), isTrue);
+        final ids = results
+            .map((r) => (r as RecordPlateSuccess).plateLog.id)
+            .toList();
+        expect(ids[0], isNot(ids[1]));
+      },
+    );
   });
 }

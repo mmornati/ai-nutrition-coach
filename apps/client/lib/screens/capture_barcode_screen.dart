@@ -63,8 +63,7 @@ class CaptureBarcodeScreen extends ConsumerStatefulWidget {
       _CaptureBarcodeScreenState();
 }
 
-class _CaptureBarcodeScreenState
-    extends ConsumerState<CaptureBarcodeScreen> {
+class _CaptureBarcodeScreenState extends ConsumerState<CaptureBarcodeScreen> {
   /// Local permission state — initialised on first build via
   /// `WidgetsBinding.addPostFrameCallback` so we never call the
   /// permission API during build.
@@ -94,8 +93,7 @@ class _CaptureBarcodeScreenState
   MobileScannerController? _previewController;
 
   void _ensurePreviewController() {
-    _previewController ??=
-        ref.read(barcodeScannerProvider).previewController;
+    _previewController ??= ref.read(barcodeScannerProvider).previewController;
   }
 
   @override
@@ -143,15 +141,18 @@ class _CaptureBarcodeScreenState
       // permission is granted.
       unawaited(controller.start());
     }
-    _scanSub = ref.read(barcodeScannerProvider).scan().listen(
-      _onScan,
-      onError: (Object _) {
-        // Scanner errors are usually camera-init failures — surface
-        // the calm "Camera unavailable" copy.
-        if (!mounted) return;
-        setState(() => _permission = CameraPermissionStatus.unavailable);
-      },
-    );
+    _scanSub = ref
+        .read(barcodeScannerProvider)
+        .scan()
+        .listen(
+          _onScan,
+          onError: (Object _) {
+            // Scanner errors are usually camera-init failures — surface
+            // the calm "Camera unavailable" copy.
+            if (!mounted) return;
+            setState(() => _permission = CameraPermissionStatus.unavailable);
+          },
+        );
   }
 
   Future<void> _onScan(BarcodeScan event) async {
@@ -192,8 +193,8 @@ class _CaptureBarcodeScreenState
     // visible surface. Clear the inline block BEFORE awaiting the
     // dialog so the user does not see two "Type it manually"
     // surfaces stacked (Patch M2 — not-found duplicates).
-    final bool clearsOnDismiss = result is RankedMatches ||
-        result is NotFoundFailure;
+    final bool clearsOnDismiss =
+        result is RankedMatches || result is NotFoundFailure;
     if (clearsOnDismiss && mounted) {
       setState(() {
         _lookupResult = null;
@@ -270,13 +271,11 @@ class _CaptureBarcodeScreenState
               onPressed: () => Navigator.of(dialogCtx).pop(true),
               style: FilledButton.styleFrom(
                 backgroundColor: palette.sageDeep,
-                minimumSize:
-                    const Size.fromHeight(AppTouchTargets.min),
+                minimumSize: const Size.fromHeight(AppTouchTargets.min),
               ),
               child: Text(
                 'Type it manually',
-                style:
-                    AppTypography.ui.copyWith(color: palette.background),
+                style: AppTypography.ui.copyWith(color: palette.background),
               ),
             ),
           ],
@@ -356,9 +355,8 @@ class _CaptureBarcodeScreenState
           onTypeInstead: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => ManualEntryScreen(
-                  prefilledBarcode: _lookupBarcode ?? '',
-                ),
+                builder: (_) =>
+                    ManualEntryScreen(prefilledBarcode: _lookupBarcode ?? ''),
               ),
             );
           },
@@ -429,13 +427,13 @@ class _ScannerBody extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: palette.surface.withValues(alpha: 0.85),
-                        borderRadius:
-                            BorderRadius.circular(AppRadii.pill),
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
                       child: Text(
                         'Move closer or steady',
-                        style: AppTypography.coach
-                            .copyWith(color: palette.inkMuted),
+                        style: AppTypography.coach.copyWith(
+                          color: palette.inkMuted,
+                        ),
                       ),
                     ),
                   ),
@@ -580,10 +578,7 @@ class _UnavailableCalm extends StatelessWidget {
 }
 
 class _NotFoundBlock extends StatelessWidget {
-  const _NotFoundBlock({
-    required this.palette,
-    required this.onTypeInstead,
-  });
+  const _NotFoundBlock({required this.palette, required this.onTypeInstead});
   final AppPalette palette;
   final VoidCallback onTypeInstead;
 
@@ -618,10 +613,7 @@ class _NotFoundBlock extends StatelessWidget {
 }
 
 class _FailureBlock extends StatelessWidget {
-  const _FailureBlock({
-    required this.palette,
-    required this.onTypeInstead,
-  });
+  const _FailureBlock({required this.palette, required this.onTypeInstead});
   final AppPalette palette;
   final VoidCallback onTypeInstead;
 
@@ -662,7 +654,8 @@ class _Hint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = palette ??
+    final p =
+        palette ??
         (Theme.of(context).brightness == Brightness.dark
             ? AppPalette.dark
             : AppPalette.light);

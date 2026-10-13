@@ -30,6 +30,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:domain_core/domain_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,8 +85,7 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
                 locked
                     ? widget.copy.lockedProtection
                     : widget.copy.unlockedProtection,
-                style: AppTypography.coach
-                    .copyWith(color: palette.inkMuted),
+                style: AppTypography.coach.copyWith(color: palette.inkMuted),
               ),
               const SizedBox(height: AppSpacing.lg),
               const Divider(height: AppSpacing.hairline),
@@ -120,12 +120,9 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
             ('csv', ExportFormat.csv),
             ('json', ExportFormat.json),
           ],
-          labels: const {
-            ExportFormat.csv: 'CSV',
-            ExportFormat.json: 'JSON',
-          },
+          labels: const {ExportFormat.csv: 'CSV', ExportFormat.json: 'JSON'},
           selected: _format,
-          onSelect: (v) => setState(() => _format = v as ExportFormat),
+          onSelect: (v) => setState(() => _format = v),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -231,32 +228,43 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    // A bare GestureDetector carries no semantics role, so announce
+    // the pill as a selectable button (NFR-7). `excludeSemantics`
+    // keeps the visible label from being read twice; the tap action
+    // is re-exposed on the Semantics node itself.
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: AppTouchTargets.min,
-          minWidth: 64,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTargets.min,
+            minWidth: 64,
           ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? palette.sage : palette.hairline,
-              width: 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
             ),
-            borderRadius: BorderRadius.circular(0),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: AppTypography.ui.copyWith(
-                color: selected ? palette.sage : palette.ink,
-                fontSize: 14,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: selected ? palette.sage : palette.hairline,
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(0),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: AppTypography.ui.copyWith(
+                  color: selected ? palette.sage : palette.ink,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
@@ -285,10 +293,12 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
         case ExportReady(:final plates):
           final dest = ref.read(exportDestinationProvider);
           final bytes = switch (_format) {
-            ExportFormat.csv =>
-              Uint8List.fromList(utf8.encode(serializePlatesToCsv(plates))),
-            ExportFormat.json =>
-              Uint8List.fromList(utf8.encode(serializePlatesToJson(plates))),
+            ExportFormat.csv => Uint8List.fromList(
+              utf8.encode(serializePlatesToCsv(plates)),
+            ),
+            ExportFormat.json => Uint8List.fromList(
+              utf8.encode(serializePlatesToJson(plates)),
+            ),
           };
           final filename = exportFilename(
             localDay: DateTime.now(),

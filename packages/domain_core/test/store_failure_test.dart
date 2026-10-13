@@ -29,16 +29,17 @@ void main() {
 
     test('exactly one field set — assert rejects zero', () {
       expect(
-        () => const StoreFailure(),
+        // Non-const: a const call would fail the assert at compile time.
+        () => StoreFailure(),
         throwsA(isA<AssertionError>()),
       );
     });
 
     test('exactly one field set — assert rejects two', () {
       expect(
-        () => const StoreFailure(
-          platformError: UnsupportedPlatformFailure(),
-          validationError: EmptyPlateFailure(),
+        () => StoreFailure(
+          platformError: const UnsupportedPlatformFailure(),
+          validationError: const EmptyPlateFailure(),
         ),
         throwsA(isA<AssertionError>()),
       );

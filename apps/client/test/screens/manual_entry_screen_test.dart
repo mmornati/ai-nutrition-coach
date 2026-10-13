@@ -59,12 +59,7 @@ const _salmonMatch = FoodMatch(
   ),
   confidence: 0.9,
   presets: <QuantityRange>[
-    QuantityRange(
-      low: 1,
-      high: 1,
-      unit: 'fist',
-      displayLabel: '~1 fist',
-    ),
+    QuantityRange(low: 1, high: 1, unit: 'fist', displayLabel: '~1 fist'),
     QuantityRange(
       low: 1.5,
       high: 1.5,
@@ -83,12 +78,7 @@ const _appleMatch = FoodMatch(
   ),
   confidence: 0.9,
   presets: <QuantityRange>[
-    QuantityRange(
-      low: 1,
-      high: 1,
-      unit: 'piece',
-      displayLabel: '~1 piece',
-    ),
+    QuantityRange(low: 1, high: 1, unit: 'piece', displayLabel: '~1 piece'),
   ],
 );
 
@@ -131,25 +121,19 @@ Future<void> _pumpManualEntry(
 }
 
 Finder _textFieldByLabel(String label) {
-  return find.ancestor(
-    of: find.text(label),
-    matching: find.byType(TextField),
-  );
+  return find.ancestor(of: find.text(label), matching: find.byType(TextField));
 }
 
 void main() {
   group('ManualEntryScreen', () {
-    testWidgets('typing "salm" surfaces Salmon in the ranked list',
-        (tester) async {
+    testWidgets('typing "salm" surfaces Salmon in the ranked list', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'salm');
       await tester.pumpAndSettle();
@@ -158,16 +142,14 @@ void main() {
       expect(find.text('Protein'), findsOneWidget);
     });
 
-    testWidgets('selecting + Log commits a PlateLog + pops back', (tester) async {
+    testWidgets('selecting + Log commits a PlateLog + pops back', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'salm');
       await tester.pumpAndSettle();
@@ -190,17 +172,14 @@ void main() {
       expect(draft.quantity.unit, 'fist');
     });
 
-    testWidgets('swapping the preset before Log commits the new preset',
-        (tester) async {
+    testWidgets('swapping the preset before Log commits the new preset', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'salm');
       await tester.pumpAndSettle();
@@ -217,15 +196,12 @@ void main() {
       expect(store.capturedDrafts.single.quantity.displayLabel, '~1.5 fists');
     });
 
-    testWidgets('mic button shows the calm "voice not available in v1" copy',
-        (tester) async {
+    testWidgets('mic button shows the calm "voice not available in v1" copy', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({});
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       // The mic icon lives at the trailing edge of the text field row.
       await tester.tap(find.byIcon(Icons.mic_none));
@@ -240,11 +216,7 @@ void main() {
     testWidgets('no-match renders the manual-add form', (tester) async {
       final catalog = _FakeFoodCatalog({'zxqwer': _notFound});
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'zxqwer');
       await tester.pumpAndSettle();
@@ -254,8 +226,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Custom food name'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, 'Log custom food'),
-          findsOneWidget);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Log custom food'),
+        findsOneWidget,
+      );
 
       // Type a custom name and commit.
       await tester.enterText(
@@ -263,9 +237,7 @@ void main() {
         'Mystery Stew',
       );
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.widgetWithText(OutlinedButton, 'Log custom food'),
-      );
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Log custom food'));
       await tester.pumpAndSettle();
 
       expect(store.capturedDrafts, hasLength(1));
@@ -275,24 +247,19 @@ void main() {
       expect(draft.databaseFood.foodGroup, FoodGroup.other);
     });
 
-    testWidgets('catalog failure surfaces the calm failure line', (tester) async {
+    testWidgets('catalog failure surfaces the calm failure line', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'apple': const CatalogFailure('simulated'),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'apple');
       await tester.pumpAndSettle();
 
-      expect(
-        find.text("Search isn't available right now."),
-        findsOneWidget,
-      );
+      expect(find.text("Search isn't available right now."), findsOneWidget);
       // Log button is disabled because no match was picked.
       final logButton = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Log'),
@@ -311,17 +278,14 @@ void main() {
       );
     });
 
-    testWidgets('happy-path commit with multiple matches keeps rank order',
-        (tester) async {
+    testWidgets('happy-path commit with multiple matches keeps rank order', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'a': const RankedMatches(<FoodMatch>[_appleMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'a');
       await tester.pumpAndSettle();
@@ -332,17 +296,14 @@ void main() {
       expect(find.text('Veg & Fruit'), findsOneWidget);
     });
 
-    testWidgets('every interactive surface has a ≥48px hit target (NFR7)',
-        (tester) async {
+    testWidgets('every interactive surface has a ≥48px hit target (NFR7)', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       // Mic button — the SizedBox is the actual 48px hit target; the
       // Icon inside is 24px and only sits inside the larger touch area.
@@ -385,8 +346,9 @@ void main() {
       expect(logSize.height, greaterThanOrEqualTo(AppTouchTargets.min));
     });
 
-    testWidgets('dark mode uses AppPalette.dark background (NFR8)',
-        (tester) async {
+    testWidgets('dark mode uses AppPalette.dark background (NFR8)', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({});
       final store = FakeEncryptedStore();
       await _pumpManualEntry(
@@ -400,17 +362,14 @@ void main() {
       expect(Theme.of(ctx).scaffoldBackgroundColor, AppPalette.dark.background);
     });
 
-    testWidgets('Log stamps lastLogProvider on the matched-food path',
-        (tester) async {
+    testWidgets('Log stamps lastLogProvider on the matched-food path', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({
         'salm': const RankedMatches(<FoodMatch>[_salmonMatch]),
       });
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'salm');
       await tester.pumpAndSettle();
@@ -425,19 +384,19 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(MaterialApp)),
       );
-      expect(container.read(lastLogProvider), isNotNull,
-          reason: 'lastLogProvider should be stamped after a successful log');
+      expect(
+        container.read(lastLogProvider),
+        isNotNull,
+        reason: 'lastLogProvider should be stamped after a successful log',
+      );
     });
 
-    testWidgets('Log custom food stamps lastLogProvider on the manual path',
-        (tester) async {
+    testWidgets('Log custom food stamps lastLogProvider on the manual path', (
+      tester,
+    ) async {
       final catalog = _FakeFoodCatalog({'zxqwer': _notFound});
       final store = FakeEncryptedStore();
-      await _pumpManualEntry(
-        tester,
-        catalog: catalog,
-        store: store,
-      );
+      await _pumpManualEntry(tester, catalog: catalog, store: store);
 
       await tester.enterText(_textFieldByLabel('Food search'), 'zxqwer');
       await tester.pumpAndSettle();
@@ -446,16 +405,17 @@ void main() {
         'Mystery Stew',
       );
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.widgetWithText(OutlinedButton, 'Log custom food'),
-      );
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Log custom food'));
       await tester.pumpAndSettle();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(MaterialApp)),
       );
-      expect(container.read(lastLogProvider), isNotNull,
-          reason: 'lastLogProvider should be stamped after a manual log');
+      expect(
+        container.read(lastLogProvider),
+        isNotNull,
+        reason: 'lastLogProvider should be stamped after a manual log',
+      );
     });
   });
 }

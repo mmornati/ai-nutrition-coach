@@ -25,8 +25,7 @@ void main() {
       expect(coach, isA<Coach>());
     });
 
-    test(
-        'en key store ships exactly the 18-entry v1 taxonomy '
+    test('en key store ships exactly the 18-entry v1 taxonomy '
         '(3 anchors × 6 patterns)', () {
       // The named NDP reviewer signs off on this exact count.
       expect(enCoachStrings.length, 18);
@@ -41,11 +40,13 @@ void main() {
       }
     });
 
-    test('every v1 (anchor, pattern) entry is a non-empty CoachQuestion',
-        () {
+    test('every v1 (anchor, pattern) entry is a non-empty CoachQuestion', () {
       for (final entry in enCoachStrings.entries) {
-        expect(entry.value.text, isNotEmpty,
-            reason: '${entry.key} has empty text');
+        expect(
+          entry.value.text,
+          isNotEmpty,
+          reason: '${entry.key} has empty text',
+        );
         expect(entry.value.text.length, greaterThanOrEqualTo(1));
         expect(entry.value.key, isNotEmpty);
         expect(entry.value.anchor, entry.key.anchor);
@@ -53,8 +54,7 @@ void main() {
       }
     });
 
-    test(
-        'every key store text is calm + non-judgmental: '
+    test('every key store text is calm + non-judgmental: '
         'no calorie / shame / streak / restriction vocabulary', () {
       // FR15 / NFR3 / NFR7. The reviewer scans this list; the
       // test pins the same vocabulary ban so a regression in the
@@ -94,10 +94,12 @@ void main() {
       const coach = TemplateCoach();
       for (final anchor in CoachAnchor.values) {
         for (final pattern in CompositionPattern.values) {
-          final result =
-              coach.questionFor(anchor: anchor, pattern: pattern);
-          expect(result, isA<CoachFound>(),
-              reason: 'expected CoachFound for ($anchor, $pattern)');
+          final result = coach.questionFor(anchor: anchor, pattern: pattern);
+          expect(
+            result,
+            isA<CoachFound>(),
+            reason: 'expected CoachFound for ($anchor, $pattern)',
+          );
           final found = result as CoachFound;
           expect(found.question.text, isNotEmpty);
           expect(found.question.key, isNotEmpty);
@@ -119,8 +121,10 @@ void main() {
         pattern: CompositionPattern.vegLight,
       );
       expect(first, second);
-      expect((first as CoachFound).question,
-          equals((second as CoachFound).question));
+      expect(
+        (first as CoachFound).question,
+        equals((second as CoachFound).question),
+      );
     });
 
     test('CoachQuestion equality by key: same key dedupes regardless '
@@ -137,8 +141,10 @@ void main() {
         anchor: CoachAnchor.postResolve,
         pattern: CompositionPattern.vegLight,
       );
-      expect((a as CoachFound).question.key,
-          equals((b as CoachFound).question.key));
+      expect(
+        (a as CoachFound).question.key,
+        equals((b as CoachFound).question.key),
+      );
       expect((a).question, equals((b).question));
     });
 
@@ -185,14 +191,15 @@ void main() {
       // count. The test asserts the same vocabulary family so a
       // regression is caught here.
       for (final entry in enCoachStrings.values) {
-        expect(entry.text.contains(RegExp(r'\d+\s*kcal')),
-            isFalse,
-            reason: '${entry.key} contains kcal-as-float');
+        expect(
+          entry.text.contains(RegExp(r'\d+\s*kcal')),
+          isFalse,
+          reason: '${entry.key} contains kcal-as-float',
+        );
       }
     });
 
-    test('each entry text is plain text (NFR7: no decorative unicode)',
-        () {
+    test('each entry text is plain text (NFR7: no decorative unicode)', () {
       // The UI applies its own theme — copy must not carry color
       // tokens, typography references, or decorative unicode
       // (em-dashes used for range separators like "~1–2 pieces"
@@ -200,12 +207,17 @@ void main() {
       // per NFR6, and ship in plain text).
       for (final entry in enCoachStrings.values) {
         // Block decorative dingbats / emoji.
-        expect(entry.text.contains(RegExp(r'[\u2600-\u27BF]')), isFalse,
-            reason: '${entry.key} contains decorative unicode');
+        expect(
+          entry.text.contains(RegExp(r'[\u2600-\u27BF]')),
+          isFalse,
+          reason: '${entry.key} contains decorative unicode',
+        );
         // Block hex color tokens.
-        expect(entry.text.contains(RegExp(r'#[0-9a-fA-F]{3,8}')),
-            isFalse,
-            reason: '${entry.key} contains color tokens');
+        expect(
+          entry.text.contains(RegExp(r'#[0-9a-fA-F]{3,8}')),
+          isFalse,
+          reason: '${entry.key} contains color tokens',
+        );
       }
     });
   });

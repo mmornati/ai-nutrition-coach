@@ -88,12 +88,12 @@ final byokKeyStoreProvider = Provider<ByokKeyStore>(
 /// fake provider.
 final byokOpenAiCompatibleProviderProvider =
     Provider<ByokOpenAiCompatibleProvider>(
-  (ref) => throw UnimplementedError(
-    'byokOpenAiCompatibleProviderProvider must be overridden at the '
-    'ProviderScope root with the result of '
-    '`OpenAiCompatibleByokProvider()` — see apps/client/lib/main.dart.',
-  ),
-);
+      (ref) => throw UnimplementedError(
+        'byokOpenAiCompatibleProviderProvider must be overridden at the '
+        'ProviderScope root with the result of '
+        '`OpenAiCompatibleByokProvider()` — see apps/client/lib/main.dart.',
+      ),
+    );
 
 /// The config-driven `AiRung` adapter selection. Reads
 /// `aiRungConfigProvider` and constructs the matching adapter:
@@ -112,24 +112,22 @@ final byokOpenAiCompatibleProviderProvider =
 /// adapter type. Tests inject a `FakeAiRung` (Story 1.8) that
 /// records `recognize` calls and returns configured results; the
 /// config-driven branch is for production wiring only.
-final aiRungProvider = Provider<AiRung>(
-  (ref) {
-    final config = ref.watch(aiRungConfigProvider);
-    switch (config.kind) {
-      case AiRungKind.noOp:
-        return const NoopAiRung();
-      case AiRungKind.hostedQuota:
-        return HostedQuotaAiRung(
-          quotaCounter: ref.watch(quotaCounterProvider),
-          provider: ref.watch(hostedQuotaProviderProvider),
-        );
-      case AiRungKind.byok:
-        return ByokAiRung(
-          keyStore: ref.watch(byokKeyStoreProvider),
-          provider: ref.watch(byokOpenAiCompatibleProviderProvider),
-        );
-      case AiRungKind.local:
-        return const LocalAiRung();
-    }
-  },
-);
+final aiRungProvider = Provider<AiRung>((ref) {
+  final config = ref.watch(aiRungConfigProvider);
+  switch (config.kind) {
+    case AiRungKind.noOp:
+      return const NoopAiRung();
+    case AiRungKind.hostedQuota:
+      return HostedQuotaAiRung(
+        quotaCounter: ref.watch(quotaCounterProvider),
+        provider: ref.watch(hostedQuotaProviderProvider),
+      );
+    case AiRungKind.byok:
+      return ByokAiRung(
+        keyStore: ref.watch(byokKeyStoreProvider),
+        provider: ref.watch(byokOpenAiCompatibleProviderProvider),
+      );
+    case AiRungKind.local:
+      return const LocalAiRung();
+  }
+});

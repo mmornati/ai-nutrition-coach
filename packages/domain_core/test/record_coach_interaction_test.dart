@@ -47,13 +47,9 @@ class _FakeCoach implements Coach {
   final List<({CoachAnchor anchor, CompositionPattern pattern})> calls =
       <({CoachAnchor anchor, CompositionPattern pattern})>[];
   final List<CoachInteractionLog> interactions = [];
-  CoachInteractionResult _nextInteraction = const CoachInteractionRecorded(1);
-  CoachNoteAppendResult? _nextAppendResult;
   CoachQuestionResult _next = const NoCoachQuestion();
   CoachQuestionResult _depthNext = const NoCoachQuestion();
   bool throwOnDepthCall = false;
-  int _nextNoteId = 100;
-  int _nextInteractionId = 1;
 
   void emit(CoachQuestionResult result) {
     _next = result;
@@ -61,20 +57,6 @@ class _FakeCoach implements Coach {
 
   void emitDepth(CoachQuestionResult result) {
     _depthNext = result;
-  }
-
-  /// Force the next `recordInteraction` to return a typed failure.
-  void forceInteractionFailure() {
-    _nextInteraction = const CoachInteractionFailed(
-      StoreFailure(encryptedStoreError: SecureKeyFailure()),
-    );
-  }
-
-  /// Force the next `append` to fail (the depth follow-up path).
-  void forceAppendFailure() {
-    _nextAppendResult = const CoachNoteAppendFailure(
-      StoreFailure(encryptedStoreError: SecureKeyFailure()),
-    );
   }
 
   @override
@@ -160,8 +142,7 @@ class _FakeCoachNoteStore implements CoachNoteStore {
     if (next is CoachInteractionFailed) {
       _nextInteractionResult = const CoachInteractionRecorded(1);
     } else {
-      _nextInteractionResult =
-          CoachInteractionRecorded(_nextInteractionId++);
+      _nextInteractionResult = CoachInteractionRecorded(_nextInteractionId++);
     }
     return next;
   }
@@ -259,9 +240,8 @@ void main() {
     });
   });
 
-  group('RecordCoachInteraction use-case dispatch (FR5 / AD-3 / AD-5)',
-      () {
-    CoachNote _postResolveNote({
+  group('RecordCoachInteraction use-case dispatch (FR5 / AD-3 / AD-5)', () {
+    CoachNote postResolveNote({
       int id = 7,
       int plateLogId = 7,
       String questionKey = 'post.resolve.vegLight',
@@ -277,45 +257,44 @@ void main() {
     }
 
     test(
-        '[sure] writes the interaction AND appends exactly one bounded '
-        'depth follow-up CoachNote with anchor: depthFollowUp (HAPPY_PATH_SURE)',
-        () async {
-      final coach = _FakeCoach()
-        ..emitDepth(
-          const CoachFound(
-            CoachQuestion(
-              key: 'depth.followUp.vegLight',
-              text: 'A handful of greens would round this plate out.',
-              anchor: CoachAnchor.depthFollowUp,
-              pattern: CompositionPattern.vegLight,
+      '[sure] writes the interaction AND appends exactly one bounded '
+      'depth follow-up CoachNote with anchor: depthFollowUp (HAPPY_PATH_SURE)',
+      () async {
+        final coach = _FakeCoach()
+          ..emitDepth(
+            const CoachFound(
+              CoachQuestion(
+                key: 'depth.followUp.vegLight',
+                text: 'A handful of greens would round this plate out.',
+                anchor: CoachAnchor.depthFollowUp,
+                pattern: CompositionPattern.vegLight,
+              ),
             ),
-          ),
+          );
+        final store = _FakeCoachNoteStore();
+        final useCase = RecordCoachInteraction(coach: coach, store: store);
+
+        final result = await useCase(
+          note: postResolveNote(),
+          kind: CoachInteraction.sure,
         );
-      final store = _FakeCoachNoteStore();
-      final useCase = RecordCoachInteraction(coach: coach, store: store);
 
-      final result = await useCase(
-        note: _postResolveNote(),
-        kind: CoachInteraction.sure,
-      );
+        expect(result, isA<RecordCoachInteractionSure>());
+        expect(result.kind, CoachInteraction.sure);
+        expect(store.interactions, hasLength(1));
+        expect(store.interactions.first.kind, CoachInteraction.sure);
+        expect(store.interactions.first.noteId, 7);
+        expect(result.followedUpNote, isNotNull);
+        expect(result.followedUpNote!.anchor, CoachAnchor.depthFollowUp);
+        expect(result.followedUpNote!.questionKey, 'depth.followUp.vegLight');
+        // Exactly ONE coach port call — for `depthFollowUp`.
+        expect(coach.calls, hasLength(1));
+        expect(coach.calls.first.anchor, CoachAnchor.depthFollowUp);
+        expect(coach.calls.first.pattern, CompositionPattern.vegLight);
+      },
+    );
 
-      expect(result, isA<RecordCoachInteractionSure>());
-      expect(result.kind, CoachInteraction.sure);
-      expect(store.interactions, hasLength(1));
-      expect(store.interactions.first.kind, CoachInteraction.sure);
-      expect(store.interactions.first.noteId, 7);
-      expect(result.followedUpNote, isNotNull);
-      expect(result.followedUpNote!.anchor, CoachAnchor.depthFollowUp);
-      expect(result.followedUpNote!.questionKey,
-          'depth.followUp.vegLight');
-      // Exactly ONE coach port call — for `depthFollowUp`.
-      expect(coach.calls, hasLength(1));
-      expect(coach.calls.first.anchor, CoachAnchor.depthFollowUp);
-      expect(coach.calls.first.pattern, CompositionPattern.vegLight);
-    });
-
-    test(
-        'second [sure] tap is idempotent — no extra notes '
+    test('second [sure] tap is idempotent — no extra notes '
         '(DEPTH_FOLLOWUP_ALREADY_VIEWED)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore();
@@ -333,7 +312,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -349,54 +328,57 @@ void main() {
       expect(coach.calls, isEmpty);
     });
 
-    test('[ask later] writes the interaction only (HAPPY_PATH_ASK_LATER)',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore();
-      final useCase = RecordCoachInteraction(coach: coach, store: store);
+    test(
+      '[ask later] writes the interaction only (HAPPY_PATH_ASK_LATER)',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore();
+        final useCase = RecordCoachInteraction(coach: coach, store: store);
 
-      final result = await useCase(
-        note: _postResolveNote(),
-        kind: CoachInteraction.askLater,
-      );
+        final result = await useCase(
+          note: postResolveNote(),
+          kind: CoachInteraction.askLater,
+        );
 
-      expect(result, isA<RecordCoachInteractionAskLater>());
-      expect(result.kind, CoachInteraction.askLater);
-      expect(result.followedUpNote, isNull);
-      expect(store.interactions, hasLength(1));
-      expect(store.interactions.first.kind, CoachInteraction.askLater);
-      // No coach port call, no append — quiet path.
-      expect(coach.calls, isEmpty);
-    });
-
-    test('[dismiss] writes the interaction only (HAPPY_PATH_DISMISS)',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore();
-      final useCase = RecordCoachInteraction(coach: coach, store: store);
-
-      final result = await useCase(
-        note: _postResolveNote(),
-        kind: CoachInteraction.dismiss,
-      );
-
-      expect(result, isA<RecordCoachInteractionDismiss>());
-      expect(result.kind, CoachInteraction.dismiss);
-      expect(result.followedUpNote, isNull);
-      expect(store.interactions, hasLength(1));
-      expect(store.interactions.first.kind, CoachInteraction.dismiss);
-      expect(coach.calls, isEmpty);
-    });
+        expect(result, isA<RecordCoachInteractionAskLater>());
+        expect(result.kind, CoachInteraction.askLater);
+        expect(result.followedUpNote, isNull);
+        expect(store.interactions, hasLength(1));
+        expect(store.interactions.first.kind, CoachInteraction.askLater);
+        // No coach port call, no append — quiet path.
+        expect(coach.calls, isEmpty);
+      },
+    );
 
     test(
-        '[depthAnswer] (depth panel close) writes the interaction only '
+      '[dismiss] writes the interaction only (HAPPY_PATH_DISMISS)',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore();
+        final useCase = RecordCoachInteraction(coach: coach, store: store);
+
+        final result = await useCase(
+          note: postResolveNote(),
+          kind: CoachInteraction.dismiss,
+        );
+
+        expect(result, isA<RecordCoachInteractionDismiss>());
+        expect(result.kind, CoachInteraction.dismiss);
+        expect(result.followedUpNote, isNull);
+        expect(store.interactions, hasLength(1));
+        expect(store.interactions.first.kind, CoachInteraction.dismiss);
+        expect(coach.calls, isEmpty);
+      },
+    );
+
+    test('[depthAnswer] (depth panel close) writes the interaction only '
         '(HAPPY_PATH_DEPTH_CLOSE)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore();
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.depthAnswer,
       );
 
@@ -408,17 +390,14 @@ void main() {
       expect(coach.calls, isEmpty);
     });
 
-    test(
-        'coach port returning NoCoachQuestion for depthFollowUp collapses to '
-        'no follow-up — interaction still recorded (calm degrade)',
-        () async {
-      final coach = _FakeCoach()
-        ..emitDepth(const NoCoachQuestion());
+    test('coach port returning NoCoachQuestion for depthFollowUp collapses to '
+        'no follow-up — interaction still recorded (calm degrade)', () async {
+      final coach = _FakeCoach()..emitDepth(const NoCoachQuestion());
       final store = _FakeCoachNoteStore();
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -434,7 +413,7 @@ void main() {
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.sure,
       );
 
@@ -443,56 +422,56 @@ void main() {
       expect(store.interactions, hasLength(1));
     });
 
-    test(
-        'recordInteraction store failure collapses to typed '
+    test('recordInteraction store failure collapses to typed '
         'CoachInteractionFailed (STORE_WRITE_FAILURE)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore()..forceInteractionFailure();
       final useCase = RecordCoachInteraction(coach: coach, store: store);
 
       final result = await useCase(
-        note: _postResolveNote(),
+        note: postResolveNote(),
         kind: CoachInteraction.askLater,
       );
 
-      expect(
-        result.recordInteractionOutcome,
-        isA<CoachInteractionFailed>(),
-      );
+      expect(result.recordInteractionOutcome, isA<CoachInteractionFailed>());
       // UI still reflects the user intent — `askLater` is the variant.
       expect(result.kind, CoachInteraction.askLater);
     });
 
-    test('append failure on the depth-follow-up path collapses to no note',
-        () async {
-      final coach = _FakeCoach()
-        ..emitDepth(
-          const CoachFound(
-            CoachQuestion(
-              key: 'depth.followUp.vegLight',
-              text: 'A handful of greens would round this plate out.',
-              anchor: CoachAnchor.depthFollowUp,
-              pattern: CompositionPattern.vegLight,
-            ),
-          ),
-        );
-      final store = _FakeCoachNoteStore()..forceAppendFailure();
-      final useCase = RecordCoachInteraction(coach: coach, store: store);
-
-      final result = await useCase(
-        note: _postResolveNote(),
-        kind: CoachInteraction.sure,
-      );
-
-      expect(result.kind, CoachInteraction.sure);
-      expect(result.followedUpNote, isNull,
-          reason: 'failed append must not record a follow-up');
-      // The interaction log still records the tap.
-      expect(store.interactions, hasLength(1));
-    });
-
     test(
-        'note whose anchor is openPlate cannot spawn a depth follow-up '
+      'append failure on the depth-follow-up path collapses to no note',
+      () async {
+        final coach = _FakeCoach()
+          ..emitDepth(
+            const CoachFound(
+              CoachQuestion(
+                key: 'depth.followUp.vegLight',
+                text: 'A handful of greens would round this plate out.',
+                anchor: CoachAnchor.depthFollowUp,
+                pattern: CompositionPattern.vegLight,
+              ),
+            ),
+          );
+        final store = _FakeCoachNoteStore()..forceAppendFailure();
+        final useCase = RecordCoachInteraction(coach: coach, store: store);
+
+        final result = await useCase(
+          note: postResolveNote(),
+          kind: CoachInteraction.sure,
+        );
+
+        expect(result.kind, CoachInteraction.sure);
+        expect(
+          result.followedUpNote,
+          isNull,
+          reason: 'failed append must not record a follow-up',
+        );
+        // The interaction log still records the tap.
+        expect(store.interactions, hasLength(1));
+      },
+    );
+
+    test('note whose anchor is openPlate cannot spawn a depth follow-up '
         '(defensive)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore();
@@ -520,8 +499,7 @@ void main() {
       expect(coach.calls, isEmpty);
     });
 
-    test(
-        'note whose questionKey cannot be parsed to a pattern collapses '
+    test('note whose questionKey cannot be parsed to a pattern collapses '
         'to no follow-up (defensive)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore();
@@ -551,43 +529,42 @@ void main() {
 
   group('Open-plate dismissal path (Story 2.3 / FR5 / UX-DR5 / AC #4)', () {
     test(
-        'recordOpenPlateDismiss appends a synthetic CoachNote with anchor '
-        'openPlate + records the dismiss interaction (HAPPY_PATH_OPEN_PLATE_HINT)',
-        () async {
-      final coach = _FakeCoach();
-      final store = _FakeCoachNoteStore();
-      final useCase = RecordCoachInteraction(coach: coach, store: store);
+      'recordOpenPlateDismiss appends a synthetic CoachNote with anchor '
+      'openPlate + records the dismiss interaction (HAPPY_PATH_OPEN_PLATE_HINT)',
+      () async {
+        final coach = _FakeCoach();
+        final store = _FakeCoachNoteStore();
+        final useCase = RecordCoachInteraction(coach: coach, store: store);
 
-      final result = await useCase.recordOpenPlateDismiss(
-        questionKey: 'openPlate.balanced',
-        questionText: 'A calm, varied plate — anything you want to add?',
-      );
+        final result = await useCase.recordOpenPlateDismiss(
+          questionKey: 'openPlate.balanced',
+          questionText: 'A calm, varied plate — anything you want to add?',
+        );
 
-      // The synthetic CoachNote lands in the store with the openPlate
-      // anchor and the documented `plateLogId: 0` sentinel.
-      expect(store.appended, hasLength(1));
-      expect(store.appended.first.anchor, CoachAnchor.openPlate);
-      expect(store.appended.first.plateLogId, 0);
-      expect(store.appended.first.questionKey, 'openPlate.balanced');
-      expect(
-        store.appended.first.text,
-        'A calm, varied plate — anything you want to add?',
-      );
-      // The interaction log row references the committed note id.
-      expect(store.interactions, hasLength(1));
-      expect(store.interactions.first.kind, CoachInteraction.dismiss);
-      expect(store.interactions.first.noteId, store.appended.first.id);
-      expect(result, isA<RecordCoachInteractionDismiss>());
-      expect(result.kind, CoachInteraction.dismiss);
-      // No coach port call — the open-plate path is a quiet dismissal.
-      expect(coach.calls, isEmpty);
-    });
+        // The synthetic CoachNote lands in the store with the openPlate
+        // anchor and the documented `plateLogId: 0` sentinel.
+        expect(store.appended, hasLength(1));
+        expect(store.appended.first.anchor, CoachAnchor.openPlate);
+        expect(store.appended.first.plateLogId, 0);
+        expect(store.appended.first.questionKey, 'openPlate.balanced');
+        expect(
+          store.appended.first.text,
+          'A calm, varied plate — anything you want to add?',
+        );
+        // The interaction log row references the committed note id.
+        expect(store.interactions, hasLength(1));
+        expect(store.interactions.first.kind, CoachInteraction.dismiss);
+        expect(store.interactions.first.noteId, store.appended.first.id);
+        expect(result, isA<RecordCoachInteractionDismiss>());
+        expect(result.kind, CoachInteraction.dismiss);
+        // No coach port call — the open-plate path is a quiet dismissal.
+        expect(coach.calls, isEmpty);
+      },
+    );
 
-    test(
-        'recordOpenPlateDismiss append failure collapses to typed '
+    test('recordOpenPlateDismiss append failure collapses to typed '
         'CoachInteractionFailed — UI still records the dismiss intent '
-        '(STORE_WRITE_FAILURE)',
-        () async {
+        '(STORE_WRITE_FAILURE)', () async {
       final coach = _FakeCoach();
       final store = _FakeCoachNoteStore()..forceAppendFailure();
       final useCase = RecordCoachInteraction(coach: coach, store: store);
@@ -606,10 +583,7 @@ void main() {
       expect(result, isA<RecordCoachInteractionDismiss>());
       // The interaction log write may also fail — the typed result
       // collapses to CoachInteractionFailed.
-      expect(
-        result.recordInteractionOutcome,
-        isA<CoachInteractionRecorded>(),
-      );
+      expect(result.recordInteractionOutcome, isA<CoachInteractionRecorded>());
     });
   });
 }

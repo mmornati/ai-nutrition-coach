@@ -52,10 +52,7 @@ class DriftSyncQueue implements SyncQueue {
       _emit();
       return const AlreadyEnqueued();
     }
-    _byOpId[op.opId] = _QueueRow(
-      op: op,
-      status: SyncOpStatusValue.pending,
-    );
+    _byOpId[op.opId] = _QueueRow(op: op, status: SyncOpStatusValue.pending);
     _byPlate.putIfAbsent(op.plateLogId, () => <String>{}).add(op.opId);
     _emit();
     return const Enqueued();
@@ -110,11 +107,7 @@ class DriftSyncQueue implements SyncQueue {
           failed++;
       }
     }
-    return SyncQueueState(
-      pending: pending,
-      synced: synced,
-      failed: failed,
-    );
+    return SyncQueueState(pending: pending, synced: synced, failed: failed);
   }
 
   /// Snapshot the per-plate view. The chip widget reads this to

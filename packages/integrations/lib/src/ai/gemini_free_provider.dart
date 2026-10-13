@@ -20,8 +20,6 @@
 
 import 'dart:typed_data';
 
-import 'package:domain_core/domain_core.dart';
-
 import 'hosted_quota_provider.dart';
 
 /// The OQ-2 alternative `HostedQuotaProvider` adapter (Gemini free
@@ -34,9 +32,7 @@ import 'hosted_quota_provider.dart';
 /// adapter degrades honestly. The Gemini integration is a v1.1
 /// effort (see `docs/ai-tiers.md`).
 class GeminiFreeProvider implements HostedQuotaProvider {
-  const GeminiFreeProvider({
-    this.apiKey = '',
-  });
+  const GeminiFreeProvider({this.apiKey = ''});
 
   /// The Gemini API key. A build-time configuration value (read
   /// from `--dart-define=GEMINI_API_KEY=...` or equivalent).
@@ -45,12 +41,8 @@ class GeminiFreeProvider implements HostedQuotaProvider {
   final String apiKey;
 
   @override
-  Future<HostedQuotaOutcome> recognize({
-    required Uint8List photoBytes,
-  }) async {
+  Future<HostedQuotaOutcome> recognize({required Uint8List photoBytes}) async {
     // OQ-2 stub body — the Gemini integration is a v1.1 effort.
-    return const HostedQuotaFailure(
-      'gemini free tier not yet wired (OQ-2)',
-    );
+    return const HostedQuotaFailure('gemini free tier not yet wired (OQ-2)');
   }
 }

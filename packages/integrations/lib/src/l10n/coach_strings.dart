@@ -68,144 +68,180 @@ String _coachKey(CoachAnchor anchor, CompositionPattern pattern) =>
 /// deterministically on `key`.
 final Map<CoachQuestionKey, CoachQuestion> enCoachStrings =
     <CoachQuestionKey, CoachQuestion>{
-  // --- post-resolve whisper (Story 2.2 lands the surface) ---
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.vegLight):
-      const CoachQuestion(
-    key: 'post.resolve.vegLight',
-    text: 'A handful of greens would round this plate out.',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.vegLight,
-  ),
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.proteinHeavy):
-      const CoachQuestion(
-    key: 'post.resolve.proteinHeavy',
-    text: 'A small bowl of greens or roasted veg would lighten this up.',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.proteinHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.starchHeavy):
-      const CoachQuestion(
-    key: 'post.resolve.starchHeavy',
-    text: 'Some veg on the side would balance this nicely.',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.starchHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.dairyLight):
-      const CoachQuestion(
-    key: 'post.resolve.dairyLight',
-    text: 'If you have a bit of dairy around, it would round this off.',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.dairyLight,
-  ),
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.vegRich):
-      const CoachQuestion(
-    key: 'post.resolve.vegRich',
-    text: 'A protein on the side would complete this plate.',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.vegRich,
-  ),
-  CoachQuestionKey(CoachAnchor.postResolve, CompositionPattern.balanced):
-      const CoachQuestion(
-    key: 'post.resolve.balanced',
-    text: 'Nice plate — anything you would change next time?',
-    anchor: CoachAnchor.postResolve,
-    pattern: CompositionPattern.balanced,
-  ),
+      // --- post-resolve whisper (Story 2.2 lands the surface) ---
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.vegLight,
+      ): const CoachQuestion(
+        key: 'post.resolve.vegLight',
+        text: 'A handful of greens would round this plate out.',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.vegLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.proteinHeavy,
+      ): const CoachQuestion(
+        key: 'post.resolve.proteinHeavy',
+        text: 'A small bowl of greens or roasted veg would lighten this up.',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.proteinHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.starchHeavy,
+      ): const CoachQuestion(
+        key: 'post.resolve.starchHeavy',
+        text: 'Some veg on the side would balance this nicely.',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.starchHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.dairyLight,
+      ): const CoachQuestion(
+        key: 'post.resolve.dairyLight',
+        text: 'If you have a bit of dairy around, it would round this off.',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.dairyLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.vegRich,
+      ): const CoachQuestion(
+        key: 'post.resolve.vegRich',
+        text: 'A protein on the side would complete this plate.',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.vegRich,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.postResolve,
+        CompositionPattern.balanced,
+      ): const CoachQuestion(
+        key: 'post.resolve.balanced',
+        text: 'Nice plate — anything you would change next time?',
+        anchor: CoachAnchor.postResolve,
+        pattern: CompositionPattern.balanced,
+      ),
 
-  // --- open-plate hint (Story 2.2 / 2.3 surfaces) ---
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.vegLight):
-      const CoachQuestion(
-    key: 'openPlate.vegLight',
-    text: 'Greens would round this plate out.',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.vegLight,
-  ),
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.proteinHeavy):
-      const CoachQuestion(
-    key: 'openPlate.proteinHeavy',
-    text: 'A handful of greens or veg would lighten this up.',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.proteinHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.starchHeavy):
-      const CoachQuestion(
-    key: 'openPlate.starchHeavy',
-    text: 'Some veg on the side would balance this nicely.',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.starchHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.dairyLight):
-      const CoachQuestion(
-    key: 'openPlate.dairyLight',
-    text: 'A bit of dairy would round this off if you have some.',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.dairyLight,
-  ),
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.vegRich):
-      const CoachQuestion(
-    key: 'openPlate.vegRich',
-    text: 'A protein on the side would complete this plate.',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.vegRich,
-  ),
-  CoachQuestionKey(CoachAnchor.openPlate, CompositionPattern.balanced):
-      const CoachQuestion(
-    key: 'openPlate.balanced',
-    text: 'A calm, varied plate — anything you want to add?',
-    anchor: CoachAnchor.openPlate,
-    pattern: CompositionPattern.balanced,
-  ),
+      // --- open-plate hint (Story 2.2 / 2.3 surfaces) ---
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.vegLight,
+      ): const CoachQuestion(
+        key: 'openPlate.vegLight',
+        text: 'Greens would round this plate out.',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.vegLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.proteinHeavy,
+      ): const CoachQuestion(
+        key: 'openPlate.proteinHeavy',
+        text: 'A handful of greens or veg would lighten this up.',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.proteinHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.starchHeavy,
+      ): const CoachQuestion(
+        key: 'openPlate.starchHeavy',
+        text: 'Some veg on the side would balance this nicely.',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.starchHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.dairyLight,
+      ): const CoachQuestion(
+        key: 'openPlate.dairyLight',
+        text: 'A bit of dairy would round this off if you have some.',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.dairyLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.vegRich,
+      ): const CoachQuestion(
+        key: 'openPlate.vegRich',
+        text: 'A protein on the side would complete this plate.',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.vegRich,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.openPlate,
+        CompositionPattern.balanced,
+      ): const CoachQuestion(
+        key: 'openPlate.balanced',
+        text: 'A calm, varied plate — anything you want to add?',
+        anchor: CoachAnchor.openPlate,
+        pattern: CompositionPattern.balanced,
+      ),
 
-  // --- depth follow-up (Story 2.3 lands the surface) ---
-  // Reuses the post-resolve calm copy — the key is the reviewable
-  // identity, so each depth entry is its own reviewable item; the
-  // text mirrors the post-resolve wording so the user sees the same
-  // non-judgmental nudge one notch deeper. A future AI rung can
-  // replace the depth text behind the same key without changing the
-  // core.
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.vegLight):
-      const CoachQuestion(
-    key: 'depth.followUp.vegLight',
-    text: 'A handful of greens would round this plate out.',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.vegLight,
-  ),
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.proteinHeavy):
-      const CoachQuestion(
-    key: 'depth.followUp.proteinHeavy',
-    text: 'A small bowl of greens or roasted veg would lighten this up.',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.proteinHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.starchHeavy):
-      const CoachQuestion(
-    key: 'depth.followUp.starchHeavy',
-    text: 'Some veg on the side would balance this nicely.',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.starchHeavy,
-  ),
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.dairyLight):
-      const CoachQuestion(
-    key: 'depth.followUp.dairyLight',
-    text: 'If you have a bit of dairy around, it would round this off.',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.dairyLight,
-  ),
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.vegRich):
-      const CoachQuestion(
-    key: 'depth.followUp.vegRich',
-    text: 'A protein on the side would complete this plate.',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.vegRich,
-  ),
-  CoachQuestionKey(CoachAnchor.depthFollowUp, CompositionPattern.balanced):
-      const CoachQuestion(
-    key: 'depth.followUp.balanced',
-    text: 'Nice plate — anything you would change next time?',
-    anchor: CoachAnchor.depthFollowUp,
-    pattern: CompositionPattern.balanced,
-  ),
-};
+      // --- depth follow-up (Story 2.3 lands the surface) ---
+      // Reuses the post-resolve calm copy — the key is the reviewable
+      // identity, so each depth entry is its own reviewable item; the
+      // text mirrors the post-resolve wording so the user sees the same
+      // non-judgmental nudge one notch deeper. A future AI rung can
+      // replace the depth text behind the same key without changing the
+      // core.
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.vegLight,
+      ): const CoachQuestion(
+        key: 'depth.followUp.vegLight',
+        text: 'A handful of greens would round this plate out.',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.vegLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.proteinHeavy,
+      ): const CoachQuestion(
+        key: 'depth.followUp.proteinHeavy',
+        text: 'A small bowl of greens or roasted veg would lighten this up.',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.proteinHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.starchHeavy,
+      ): const CoachQuestion(
+        key: 'depth.followUp.starchHeavy',
+        text: 'Some veg on the side would balance this nicely.',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.starchHeavy,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.dairyLight,
+      ): const CoachQuestion(
+        key: 'depth.followUp.dairyLight',
+        text: 'If you have a bit of dairy around, it would round this off.',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.dairyLight,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.vegRich,
+      ): const CoachQuestion(
+        key: 'depth.followUp.vegRich',
+        text: 'A protein on the side would complete this plate.',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.vegRich,
+      ),
+      CoachQuestionKey(
+        CoachAnchor.depthFollowUp,
+        CompositionPattern.balanced,
+      ): const CoachQuestion(
+        key: 'depth.followUp.balanced',
+        text: 'Nice plate — anything you would change next time?',
+        anchor: CoachAnchor.depthFollowUp,
+        pattern: CompositionPattern.balanced,
+      ),
+    };
 
 /// The map key used by the v1 `en` key store.
 ///
@@ -390,7 +426,7 @@ class ByokStrings {
 
   /// Hint copy rendered under the BYOK entry form when the
   /// previous rung is recorded. Reads "removing this key returns
-  /// to <previous rung label>" (calm non-judgmental; FR7).
+  /// to `<previous rung label>`" (calm non-judgmental; FR7).
   final String previousRungHint;
 }
 
@@ -532,7 +568,7 @@ class ExportStrings {
   final String exportButton;
 
   /// The calm line after a successful export. Renders as
-  /// "exported: <file>" with the filename in mono. No card, no
+  /// "exported: `<file>`" with the filename in mono. No card, no
   /// celebration.
   final String exportedLine;
 
@@ -615,9 +651,7 @@ const SyncQueueStrings enSyncQueueStrings = SyncQueueStrings(
 /// The named NDP reviewer signs off this single value; the keys
 /// are the identity the `AboutScreen` binds to.
 class ManagedOversightStrings {
-  const ManagedOversightStrings({
-    required this.v2Notice,
-  });
+  const ManagedOversightStrings({required this.v2Notice});
 
   /// The single calm line that surfaces in Settings → About.
   /// Plain "not in v1" framing — never "coming soon", never a
@@ -627,7 +661,7 @@ class ManagedOversightStrings {
 
 const ManagedOversightStrings enManagedOversightStrings =
     ManagedOversightStrings(
-  v2Notice:
-      'Family oversight is a v2 seam — not in v1. Read-only, '
-      'support-not-surveillance, pending COPPA review.',
-);
+      v2Notice:
+          'Family oversight is a v2 seam — not in v1. Read-only, '
+          'support-not-surveillance, pending COPPA review.',
+    );

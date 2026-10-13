@@ -72,7 +72,5 @@ abstract interface class CoachNoteStore {
   /// user action regardless of the write outcome so the UI still
   /// reflects the user's intent (whisper dismisses, depth panel
   /// closes) on a failed write.
-  Future<CoachInteractionResult> recordInteraction(
-    CoachInteractionLog log,
-  );
+  Future<CoachInteractionResult> recordInteraction(CoachInteractionLog log);
 }

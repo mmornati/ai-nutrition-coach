@@ -53,4 +53,5 @@ jobs:
 
       - name: Gate summary
         if: success()
-        run: echo "release-gate: PASS"
+        run: |
+          echo "release-gate: PASS"

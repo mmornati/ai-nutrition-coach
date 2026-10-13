@@ -41,8 +41,7 @@ import 'ai_rung_provider.dart';
 /// `NotifyingAiRungConfigStore` that holds the current config in
 /// memory + persists it under the secure storage alias for cold
 /// start. Tests inject an `InMemoryAiRungConfigStore`.
-final notifyingAiRungConfigStoreProvider =
-    Provider<AiRungConfigStorePort>(
+final notifyingAiRungConfigStoreProvider = Provider<AiRungConfigStorePort>(
   (ref) => throw UnimplementedError(
     'notifyingAiRungConfigStoreProvider must be overridden at the '
     'ProviderScope root — see apps/client/lib/main.dart.',
@@ -93,8 +92,7 @@ class _ByokKeyStoreAdapter implements ByokKeyStorePort {
 /// without touching the secure storage.
 class InMemoryAiRungConfigStore implements AiRungConfigStorePort {
   InMemoryAiRungConfigStore({AiRungConfig? initial})
-      : _config = initial ??
-            const AiRungConfig(kind: AiRungKind.noOp);
+    : _config = initial ?? const AiRungConfig(kind: AiRungKind.noOp);
 
   AiRungConfig _config;
 
@@ -124,8 +122,7 @@ class NotifyingAiRungConfigStore implements AiRungConfigStorePort {
   /// The in-memory cache. Initialized to the v1 default
   /// (`AiRungKind.noOp`); a cold start reads the persisted value
   /// from `flutter_secure_storage` and overwrites this.
-  AiRungConfig _config =
-      const AiRungConfig(kind: AiRungKind.noOp);
+  AiRungConfig _config = const AiRungConfig(kind: AiRungKind.noOp);
 
   /// Hydrate the store from the persisted config. Called from
   /// `main.dart` after the secure storage read returns.
@@ -145,10 +142,7 @@ class NotifyingAiRungConfigStore implements AiRungConfigStorePort {
 
 /// The Your AI sub-screen state (Story 3.3 / FR7).
 class YourAiState {
-  const YourAiState({
-    required this.config,
-    required this.hasKey,
-  });
+  const YourAiState({required this.config, required this.hasKey});
 
   /// The current rung config. The screen reads the rung label and
   /// the BYOK hint from this value.
@@ -176,7 +170,8 @@ class YourAiState {
   int get hashCode => Object.hash(config, hasKey);
 
   @override
-  String toString() => 'YourAiState(kind: ${config.kind.keyToken}, '
+  String toString() =>
+      'YourAiState(kind: ${config.kind.keyToken}, '
       'hasKey: $hasKey)';
 }
 
@@ -211,10 +206,9 @@ class YourAiNotifier extends Notifier<YourAiState> {
     required String apiKey,
     required AiRungKind previousKind,
   }) async {
-    final newConfig = await ref.read(recordByokChangeProvider).enterByok(
-          apiKey: apiKey,
-          previousKind: previousKind,
-        );
+    final newConfig = await ref
+        .read(recordByokChangeProvider)
+        .enterByok(apiKey: apiKey, previousKind: previousKind);
     state = YourAiState(config: newConfig, hasKey: true);
   }
 
@@ -230,5 +224,6 @@ class YourAiNotifier extends Notifier<YourAiState> {
 /// The `yourAiProvider` (Story 3.3 / FR7). The Your AI sub-screen
 /// reads this notifier for the rung label + the status line + the
 /// `enterByok` / `removeByok` actions.
-final yourAiProvider =
-    NotifierProvider<YourAiNotifier, YourAiState>(YourAiNotifier.new);
+final yourAiProvider = NotifierProvider<YourAiNotifier, YourAiState>(
+  YourAiNotifier.new,
+);

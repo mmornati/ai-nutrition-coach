@@ -42,7 +42,9 @@ class LocalCoachNoteStore implements CoachNoteStore {
   @override
   Future<CoachNoteAppendResult> append(CoachNote note) async {
     try {
-      final id = await _db.into(_db.coachNoteTable).insert(
+      final id = await _db
+          .into(_db.coachNoteTable)
+          .insert(
             CoachNoteTableCompanion.insert(
               plateLogId: note.plateLogId,
               anchor: note.anchor.name,
@@ -53,9 +55,9 @@ class LocalCoachNoteStore implements CoachNoteStore {
           );
       return CoachNoteAppended(note.copyWith(id: id));
     } on DriftWrappedException catch (_) {
-      return const CoachNoteAppendFailure(StoreFailure(
-        encryptedStoreError: SecureKeyFailure(),
-      ));
+      return const CoachNoteAppendFailure(
+        StoreFailure(encryptedStoreError: SecureKeyFailure()),
+      );
     }
   }
 
@@ -84,7 +86,9 @@ class LocalCoachNoteStore implements CoachNoteStore {
     CoachInteractionLog log,
   ) async {
     try {
-      final id = await _db.into(_db.coachInteractionTable).insert(
+      final id = await _db
+          .into(_db.coachInteractionTable)
+          .insert(
             CoachInteractionTableCompanion.insert(
               coachNoteId: log.noteId,
               kind: log.kind.persistedName,

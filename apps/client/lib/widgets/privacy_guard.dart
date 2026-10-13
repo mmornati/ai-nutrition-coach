@@ -10,10 +10,14 @@
 // telemetry, no logging, no user-visible affordance — the guard is
 // a developer-only invariant, not a UX surface.
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 class PrivacyGuard {
   const PrivacyGuard._();
+
+  /// Test-only handle so the redacted `toString` can be pinned.
+  @visibleForTesting
+  const PrivacyGuard.forTesting() : this._();
 
   /// Asserts the v1 surface is strictly adults-only (FR-13 / NFR-4).
   /// Returns silently when the surface is clean. Throws

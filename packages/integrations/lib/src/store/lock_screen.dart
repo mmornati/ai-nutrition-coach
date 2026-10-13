@@ -15,7 +15,6 @@
 // announces the field by name; reduce-motion collapses the gate
 // transition to a fade; dynamic type honored without truncation.
 
-import 'package:domain_core/domain_core.dart' hide WebSessionKey;
 import 'package:flutter/material.dart';
 
 import '../l10n/coach_strings.dart';
@@ -41,7 +40,7 @@ class LockScreenBody extends StatefulWidget {
   /// wasm store; `false` on a wrong passphrase. The parent injects
   /// the probe so the body stays free of the drift/wasm details.
   final Future<bool> Function(WebSessionKey sessionKey, String passphrase)
-      onTryUnlock;
+  onTryUnlock;
 
   final WebSessionStrings copy;
   final LockScreenPalette palette;
@@ -146,10 +145,7 @@ class _LockScreenBodyState extends State<LockScreenBody> {
               const SizedBox(height: 16),
               Text(
                 _error!,
-                style: TextStyle(
-                  color: widget.palette.muted,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: widget.palette.muted, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],

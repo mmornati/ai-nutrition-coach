@@ -87,8 +87,7 @@ class _OpenDentState extends ConsumerState<OpenDent> {
                 children: [
                   Text(
                     widget.slot.label,
-                    style: AppTypography.ui
-                        .copyWith(color: palette.inkMuted),
+                    style: AppTypography.ui.copyWith(color: palette.inkMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

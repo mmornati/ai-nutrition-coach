@@ -97,12 +97,16 @@ class _ResolvingShimmerState extends State<ResolvingShimmer>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ShimmerBlock(palette: palette, opacity: 0.6 + 0.4 * _controller.value),
+            _ShimmerBlock(
+              palette: palette,
+              opacity: 0.6 + 0.4 * _controller.value,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'reading…',
-              style: AppTypography.monoWhisper
-                  .copyWith(color: palette.inkMuted),
+              style: AppTypography.monoWhisper.copyWith(
+                color: palette.inkMuted,
+              ),
             ),
           ],
         );

@@ -50,6 +50,10 @@ dependencies:
   # and the on-disk schema. Pure-Dart, no JS interop.
   crypto: ^3.0.6
 
+  # `package:web` backs the browser Blob download in
+  # `WebExportDestination` (Story 4.2); already resolved transitively.
+  web: ^1.1.1
+
 dev_dependencies:
   drift_dev: ^2.34.3
   lints: ^5.0.0

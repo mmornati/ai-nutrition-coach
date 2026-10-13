@@ -72,8 +72,7 @@ class CaptureSheet extends StatelessWidget {
     return Material(
       color: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -227,11 +226,7 @@ class _Subtile extends StatelessWidget {
                       style: AppTypography.ui.copyWith(color: palette.ink),
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: palette.inkMuted,
-                    size: 20,
-                  ),
+                  Icon(Icons.chevron_right, color: palette.inkMuted, size: 20),
                 ],
               ),
             ),

@@ -43,10 +43,7 @@ Future<void> showBarcodeMatchSheet(
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => BarcodeMatchSheet(
-      match: match,
-      presets: presets,
-    ),
+    builder: (sheetCtx) => BarcodeMatchSheet(match: match, presets: presets),
   );
 }
 
@@ -61,8 +58,7 @@ class BarcodeMatchSheet extends ConsumerStatefulWidget {
   final List<QuantityRange> presets;
 
   @override
-  ConsumerState<BarcodeMatchSheet> createState() =>
-      _BarcodeMatchSheetState();
+  ConsumerState<BarcodeMatchSheet> createState() => _BarcodeMatchSheetState();
 }
 
 class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
@@ -131,8 +127,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
     return Material(
       color: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -148,10 +143,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _FoodHeader(
-                match: widget.match,
-                palette: palette,
-              ),
+              _FoodHeader(match: widget.match, palette: palette),
               const SizedBox(height: AppSpacing.md),
               _PresetRow(
                 presets: widget.presets,
@@ -167,14 +159,12 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
                 child: FilledButton(
                   onPressed: _submitting ? null : _onLog,
                   style: FilledButton.styleFrom(
-                    minimumSize:
-                        const Size.fromHeight(AppTouchTargets.min),
+                    minimumSize: const Size.fromHeight(AppTouchTargets.min),
                     backgroundColor: palette.sageDeep,
                   ),
                   child: Text(
                     _submitting ? 'Logging…' : 'Log',
-                    style:
-                        AppTypography.ui.copyWith(color: palette.background),
+                    style: AppTypography.ui.copyWith(color: palette.background),
                   ),
                 ),
               ),
@@ -187,10 +177,7 @@ class _BarcodeMatchSheetState extends ConsumerState<BarcodeMatchSheet> {
 }
 
 class _FoodHeader extends StatelessWidget {
-  const _FoodHeader({
-    required this.match,
-    required this.palette,
-  });
+  const _FoodHeader({required this.match, required this.palette});
 
   final FoodMatch match;
   final AppPalette palette;
@@ -252,15 +239,12 @@ class _PresetRow extends StatelessWidget {
       children: [
         for (final preset in shown)
           ConstrainedBox(
-            constraints:
-                const BoxConstraints(minHeight: AppTouchTargets.min),
+            constraints: const BoxConstraints(minHeight: AppTouchTargets.min),
             child: ChoiceChip(
               label: Text(
                 preset.displayLabel,
                 style: AppTypography.mono.copyWith(
-                  color: chosen == preset
-                      ? palette.background
-                      : palette.ink,
+                  color: chosen == preset ? palette.background : palette.ink,
                 ),
               ),
               selected: chosen == preset,

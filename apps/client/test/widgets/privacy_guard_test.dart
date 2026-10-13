@@ -14,9 +14,18 @@ void main() {
     });
 
     test('toString is redacted — never reveals key material', () {
-      expect(PrivacyGuard().toString(), contains('adults-only: true'));
-      expect(PrivacyGuard().toString(), isNot(contains('key')));
-      expect(PrivacyGuard().toString(), isNot(contains('biometric')));
+      expect(
+        const PrivacyGuard.forTesting().toString(),
+        contains('adults-only: true'),
+      );
+      expect(
+        const PrivacyGuard.forTesting().toString(),
+        isNot(contains('key')),
+      );
+      expect(
+        const PrivacyGuard.forTesting().toString(),
+        isNot(contains('biometric')),
+      );
     });
   });
 }

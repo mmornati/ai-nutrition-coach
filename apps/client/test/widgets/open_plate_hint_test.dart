@@ -16,11 +16,7 @@ import 'package:ai_nutrition_coach/widgets/open_plate_hint.dart';
 
 import '../_fakes/fake_encrypted_store.dart';
 
-Widget _wrap(
-  Widget child, {
-  FakeCoach? coach,
-  FakeCoachNoteStore? notes,
-}) {
+Widget _wrap(Widget child, {FakeCoach? coach, FakeCoachNoteStore? notes}) {
   return ProviderScope(
     overrides: [
       encryptedStoreProvider.overrideWithValue(FakeEncryptedStore()),
@@ -49,10 +45,7 @@ void main() {
         ),
       );
 
-      expect(
-        find.text('Greens would round this plate out.'),
-        findsOneWidget,
-      );
+      expect(find.text('Greens would round this plate out.'), findsOneWidget);
     });
 
     testWidgets('hit target is ≥48px (NFR7)', (tester) async {
@@ -105,8 +98,9 @@ void main() {
 
   group('OpenDent renders OpenPlateHint when the active coach has a question '
       '(FR5)', () {
-    testWidgets('renders the hint when Coach.questionFor returns CoachFound',
-        (tester) async {
+    testWidgets('renders the hint when Coach.questionFor returns CoachFound', (
+      tester,
+    ) async {
       final coach = FakeCoach()
         ..emit(
           const CoachFound(
@@ -140,41 +134,43 @@ void main() {
       expect(find.text('An open, quiet place.'), findsOneWidget);
     });
 
-    testWidgets('tapping the hint hides it locally AND records a dismiss '
-        'interaction through the use-case (AC #4 / HAPPY_PATH_OPEN_PLATE_HINT)',
-        (tester) async {
-      final coach = FakeCoach()
-        ..emit(
-          const CoachFound(
-            CoachQuestion(
-              key: 'openPlate.balanced',
-              text: 'A calm, varied plate — anything you want to add?',
-              anchor: CoachAnchor.openPlate,
-              pattern: CompositionPattern.balanced,
+    testWidgets(
+      'tapping the hint hides it locally AND records a dismiss '
+      'interaction through the use-case (AC #4 / HAPPY_PATH_OPEN_PLATE_HINT)',
+      (tester) async {
+        final coach = FakeCoach()
+          ..emit(
+            const CoachFound(
+              CoachQuestion(
+                key: 'openPlate.balanced',
+                text: 'A calm, varied plate — anything you want to add?',
+                anchor: CoachAnchor.openPlate,
+                pattern: CompositionPattern.balanced,
+              ),
             ),
+          );
+        final notes = FakeCoachNoteStore();
+
+        await tester.pumpWidget(
+          _wrap(
+            const OpenDent(slot: MealSlot.breakfast),
+            coach: coach,
+            notes: notes,
           ),
         );
-      final notes = FakeCoachNoteStore();
+        expect(find.byType(OpenPlateHint), findsOneWidget);
 
-      await tester.pumpWidget(
-        _wrap(
-          const OpenDent(slot: MealSlot.breakfast),
-          coach: coach,
-          notes: notes,
-        ),
-      );
-      expect(find.byType(OpenPlateHint), findsOneWidget);
+        await tester.tap(find.byType(OpenPlateHint));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(OpenPlateHint));
-      await tester.pumpAndSettle();
-
-      // The hint hides; the dent returns to its quiet form.
-      expect(find.byType(OpenPlateHint), findsNothing);
-      // The store saw the dismiss interaction (mirrors the
-      // coach_whisper_test.dart assertions for `sure` / `askLater` /
-      // `depthAnswer`).
-      expect(notes.interactions, hasLength(1));
-      expect(notes.interactions.first.kind, CoachInteraction.dismiss);
-    });
+        // The hint hides; the dent returns to its quiet form.
+        expect(find.byType(OpenPlateHint), findsNothing);
+        // The store saw the dismiss interaction (mirrors the
+        // coach_whisper_test.dart assertions for `sure` / `askLater` /
+        // `depthAnswer`).
+        expect(notes.interactions, hasLength(1));
+        expect(notes.interactions.first.kind, CoachInteraction.dismiss);
+      },
+    );
   });
 }

@@ -9,12 +9,10 @@
 // a fresh stream (UX-DR10).
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:domain_core/domain_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integrations/integrations.dart';
 import 'package:ai_nutrition_coach/state/exporter_provider.dart';
 import 'package:ai_nutrition_coach/state/record_plate_provider.dart';
 
@@ -22,38 +20,34 @@ class _FakeStore implements EncryptedStore {
   _FakeStore(this._plates);
   final List<PlateLog> _plates;
   @override
-  Future<RecordPlateResult> recordPlate(
-      {required List<FoodEntryDraft> entries, DateTime? loggedAtUtc}) async {
+  Future<RecordPlateResult> recordPlate({
+    required List<FoodEntryDraft> entries,
+    DateTime? loggedAtUtc,
+  }) async {
     throw UnimplementedError();
   }
 
   @override
-  Stream<List<PlateLog>> watchRecent({DateTime? since}) async* {
-    yield List.unmodifiable(_plates);
+  Stream<List<PlateLog>> watchRecent({DateTime? since}) {
+    // Multi-listen, like drift's `query.watch()`: every listener gets
+    // its own snapshot. (The exporters listen twice — see the skipped
+    // single-subscription regression test in packages/integrations.)
+    return Stream<List<PlateLog>>.multi((controller) {
+      controller
+        ..add(List.unmodifiable(_plates))
+        ..close();
+    });
   }
 
   @override
   Future<void> close() async {}
 }
 
-class _RecordingDestination implements ExportDestination {
-  _RecordingDestination();
-  final List<String> filenames = [];
-  @override
-  Future<void> write({
-    required String filename,
-    required String mimeType,
-    required Uint8List bytes,
-  }) async {
-    filenames.add(filename);
-  }
-}
-
 PlateLog _plate(int id) => PlateLog(
-      id: id,
-      loggedAtUtc: DateTime.utc(2026, 8, 16, 9),
-      entries: const <FoodEntry>[],
-    );
+  id: id,
+  loggedAtUtc: DateTime.utc(2026, 8, 16, 9),
+  entries: const <FoodEntry>[],
+);
 
 void main() {
   group('exportFilename', () {
@@ -74,27 +68,23 @@ void main() {
   group('exporter providers', () {
     test('csvExporterProvider reads from the encrypted store', (() async {
       final store = _FakeStore([_plate(1), _plate(2)]);
-      final container = ProviderContainer(overrides: [
-        encryptedStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [encryptedStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final exp = container.read(csvExporterProvider);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 2);
     }));
 
     test('jsonExporterProvider reads from the same store', (() async {
       final store = _FakeStore([_plate(1)]);
-      final container = ProviderContainer(overrides: [
-        encryptedStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [encryptedStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final exp = container.read(jsonExporterProvider);
-      final got = await exp.readPlates(
-        scope: const ExportScope.allHistory(),
-      );
+      final got = await exp.readPlates(scope: const ExportScope.allHistory());
       expect(got.length, 1);
     }));
   });

@@ -20,7 +20,7 @@
 
 class LruCache<K, V> {
   LruCache({required this.capacity})
-      : assert(capacity > 0, 'capacity must be > 0');
+    : assert(capacity > 0, 'capacity must be > 0');
 
   /// Maximum number of entries. Eviction triggers when [put] would push
   /// the cache above this bound.

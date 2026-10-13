@@ -10,8 +10,8 @@
 //      in v1).
 
 import 'package:domain_core/domain_core.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:integrations/integrations.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('DriftSyncQueue', () {
@@ -52,25 +52,27 @@ void main() {
     });
 
     test('watchPerPlate rolls up per-plate status', () async {
-      await queue.enqueue(SyncOp(
-        opId: 'plate-1',
-        plateLogId: 1,
-        enqueuedAtUtc: DateTime.utc(2026, 8, 16),
-        kind: SyncOpKind.plateLogCreated,
-      ));
-      await queue.enqueue(SyncOp(
-        opId: 'plate-2',
-        plateLogId: 2,
-        enqueuedAtUtc: DateTime.utc(2026, 8, 16),
-        kind: SyncOpKind.plateLogCreated,
-      ));
+      await queue.enqueue(
+        SyncOp(
+          opId: 'plate-1',
+          plateLogId: 1,
+          enqueuedAtUtc: DateTime.utc(2026, 8, 16),
+          kind: SyncOpKind.plateLogCreated,
+        ),
+      );
+      await queue.enqueue(
+        SyncOp(
+          opId: 'plate-2',
+          plateLogId: 2,
+          enqueuedAtUtc: DateTime.utc(2026, 8, 16),
+          kind: SyncOpKind.plateLogCreated,
+        ),
+      );
       await queue.markSynced('plate-2');
       final perPlate = await queue.watchPerPlate().first;
       expect(perPlate, hasLength(2));
-      final p1 =
-          perPlate.firstWhere((e) => e.plateLogId == 1);
-      final p2 =
-          perPlate.firstWhere((e) => e.plateLogId == 2);
+      final p1 = perPlate.firstWhere((e) => e.plateLogId == 1);
+      final p2 = perPlate.firstWhere((e) => e.plateLogId == 2);
       expect(p1.status, SyncOpStatusValue.pending);
       expect(p2.status, SyncOpStatusValue.synced);
     });
@@ -79,12 +81,14 @@ void main() {
   group('LocalOnlySyncAdapter', () {
     test('returns Drained without opening a socket', () async {
       const adapter = LocalOnlySyncAdapter();
-      final result = await adapter.drain(SyncOp(
-        opId: 'plate-1',
-        plateLogId: 1,
-        enqueuedAtUtc: DateTime.utc(2026, 8, 16),
-        kind: SyncOpKind.plateLogCreated,
-      ));
+      final result = await adapter.drain(
+        SyncOp(
+          opId: 'plate-1',
+          plateLogId: 1,
+          enqueuedAtUtc: DateTime.utc(2026, 8, 16),
+          kind: SyncOpKind.plateLogCreated,
+        ),
+      );
       expect(result, isA<Drained>());
     });
   });
@@ -93,12 +97,14 @@ void main() {
     test('enqueues via the injected queue', () async {
       final queue = DriftSyncQueue();
       final useCase = RecordSyncOp(queue: queue);
-      final result = await useCase(SyncOp(
-        opId: 'plate-1',
-        plateLogId: 1,
-        enqueuedAtUtc: DateTime.utc(2026, 8, 16),
-        kind: SyncOpKind.plateLogCreated,
-      ));
+      final result = await useCase(
+        SyncOp(
+          opId: 'plate-1',
+          plateLogId: 1,
+          enqueuedAtUtc: DateTime.utc(2026, 8, 16),
+          kind: SyncOpKind.plateLogCreated,
+        ),
+      );
       expect(result, isA<Enqueued>());
       queue.dispose();
     });

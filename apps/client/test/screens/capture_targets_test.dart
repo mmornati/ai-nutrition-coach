@@ -43,8 +43,9 @@ void main() {
       );
     });
 
-    testWidgets('CapturePhotoScreen is the real flow (Story 1.8 / FR1)',
-        (tester) async {
+    testWidgets('CapturePhotoScreen is the real flow (Story 1.8 / FR1)', (
+      tester,
+    ) async {
       // Story 1.8 replaced the 1.6 placeholder with the real
       // `image_picker`-backed flow (FR1). The probe here just
       // asserts the class still resolves at the import surface —

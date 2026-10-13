@@ -10,7 +10,8 @@ import 'dart:typed_data';
 
 import 'export_destination_stub.dart'
     if (dart.library.html) 'web_export_destination.dart'
-    if (dart.library.io) 'mobile_export_destination.dart' as impl;
+    if (dart.library.io) 'mobile_export_destination.dart'
+    as impl;
 
 /// The abstract destination the exporters serialize to. The
 /// adapter writes the bytes to the user-chosen destination (web

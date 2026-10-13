@@ -12,10 +12,7 @@ import '../entities/database_food.dart';
 import 'quantity_range.dart';
 
 class FoodEntryDraft {
-  const FoodEntryDraft({
-    required this.databaseFood,
-    required this.quantity,
-  });
+  const FoodEntryDraft({required this.databaseFood, required this.quantity});
 
   final DatabaseFood databaseFood;
   final QuantityRange quantity;
