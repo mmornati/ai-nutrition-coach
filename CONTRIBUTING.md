@@ -73,8 +73,8 @@ Three gates run on every PR and every tag:
 | `melos run smoke:self-host`   | The self-host build serves the lock screen in <5 min.    |
 | `melos run check:telemetry`   | No unsanctioned socket users; doc claims are anchored.   |
 | `melos run check:release-posture` | `LICENSE` + `CONTRIBUTING.md` + `docs/no-dark-patterns-standard.md` are at HEAD. |
-| CI: `self-host-smoke`         | Same as `melos run smoke:self-host` on every PR.         |
-| CI: `release-gate`            | Same posture checks at tag time.                         |
+| CI: `ci`                      | Posture checks + `domain_core` format/analyze/test on every PR, `main` and tag (Dart only — run the Flutter gates above locally until the PWA migration). |
+| CI: `self-host-smoke`         | Same as `melos run smoke:self-host`, manual trigger only until the PWA migration. |
 
 A regression on any gate fails the build.
 

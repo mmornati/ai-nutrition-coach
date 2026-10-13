@@ -65,7 +65,7 @@ infra/docker-compose.yml  opt-in persistent-data stack (Story 4.4)
 bin/ai-nutrition-coach             the one-command affordance
 scripts/smoke_self_host.sh CI / local smoke test
 docs/self-host.md         this file
-.github/workflows/        self-host-smoke.yml + release-gate.yml (Stories 4.4 / 4.6)
+.github/workflows/        self-host-smoke.yml (manual) + ci.yml (Stories 4.4 / 4.6)
 ```
 
 ## What's NOT in v1
