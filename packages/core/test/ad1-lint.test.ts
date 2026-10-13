@@ -24,8 +24,15 @@ describe('AD-1 lint rules (packages/core must stay pure)', () => {
     ["export const x = localStorage.getItem('k');", 'no-restricted-globals'],
     ["export const x = () => fetch('/');", 'no-restricted-globals'],
     ['export const x = navigator.onLine;', 'no-restricted-globals'],
+    ["export const x = () => globalThis.fetch('x');", 'no-restricted-properties'],
+    ['export const x = globalThis.localStorage;', 'no-restricted-properties'],
+    ['export const x = self.indexedDB;', 'no-restricted-properties'],
   ])('flags %j', async (code, rule) => {
     expect(await ruleIds(code)).toContain(rule);
+  });
+
+  it('still allows globalThis.crypto (uuid-v4)', async () => {
+    expect(await ruleIds('export const x = () => globalThis.crypto.randomUUID();')).toEqual([]);
   });
 
   it('accepts pure code', async () => {

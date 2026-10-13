@@ -57,6 +57,19 @@ const forbiddenGlobals = [
   message: `AD-1: "${name}" is an I/O or DOM global; reach it through a port implemented in apps/web.`,
 }));
 
+// `globalThis.fetch` and `self.fetch` reach the same I/O as the bare globals. `globalThis.crypto`
+// stays allowed (util/uuid-v4.ts).
+const forbiddenGlobalProperties = ['globalThis', 'self'].flatMap((object) =>
+  forbiddenGlobals
+    .map(({ name }) => name)
+    .filter((name) => name !== 'self')
+    .map((property) => ({
+      object,
+      property,
+      message: `AD-1: "${object}.${property}" is an I/O or DOM global; reach it through a port implemented in apps/web.`,
+    })),
+);
+
 export default tseslint.config(
   { ignores: ['dist'] },
   js.configs.recommended,
@@ -65,6 +78,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: forbiddenImports }],
       'no-restricted-globals': ['error', ...forbiddenGlobals],
+      'no-restricted-properties': ['error', ...forbiddenGlobalProperties],
     },
   },
 );
