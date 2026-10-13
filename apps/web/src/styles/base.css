@@ -1,0 +1,50 @@
+@layer base {
+  html {
+    background: var(--color-enamel);
+    color-scheme: dark;
+    caret-color: var(--color-line-starch);
+    scrollbar-color: var(--color-rule) var(--color-enamel);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--color-enamel);
+    color: var(--color-porcelain);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-line-starch);
+    color: var(--color-enamel);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-line-starch);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rule);
+    border-radius: 0;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-enamel);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

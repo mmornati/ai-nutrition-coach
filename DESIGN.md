@@ -1,11 +1,12 @@
 ---
-name: OpenPlate
+name: AI Nutrition Coach (formerly OpenPlate)
 description: The day drawn as a transit map. Four food lines, each meal a station, on midnight enamel.
 colors:
   enamel: "#0E1A3A"
   enamel-raised: "#15244B"
   rule: "#2C3F72"
   control: "#5B6C9C"
+  control-raised: "#6474A6"
   porcelain: "#F3F1EA"
   porcelain-dim: "#C9CFE0"
   signal-muted: "#A3AFCF"
@@ -148,7 +149,7 @@ components:
     width: "92px"
 ---
 
-# Design System: OpenPlate
+# Design System: AI Nutrition Coach (formerly OpenPlate)
 
 > Reference implementation: `docs/design/food-lines/index.html` (self-hosted Barlow and Barlow Condensed in `docs/design/food-lines/fonts/`). Production target: the React 19 + Tailwind v4 PWA in `apps/web` (see `docs/pwa-refactor-plan.md`); the tokens above port to Tailwind `@theme` variables. The fixed "proto" screen switcher at the top of the prototype is a prototype-only navigation aid and is not part of this system. This file supersedes the visual layer of the earlier "Sage & Cream calm" DESIGN.md; its behavior rules still hold.
 
@@ -187,6 +188,7 @@ A midnight enamel ground with porcelain ink and four saturated transit-line colo
 - **Raised Enamel** (enamel-raised): the bottom dock and the capture sheet, the only raised planes.
 - **Night Rule** (rule): dividers between list rows, the rail border, the week-route track. Never a control outline.
 - **Control Edge** (control, #5B6C9C, ≥3:1 on enamel): outlines of unselected controls (portion presets, AI tiers, icon buttons).
+- **Raised Control Edge** (control-raised, #6474A6, 3.3:1 on raised enamel, 3.7:1 on enamel): the same outlines when the control sits on a raised enamel plane (capture sheet, bottom dock), where the plain control edge falls to 2.9:1.
 - **Porcelain Dim** (porcelain-dim): secondary sentences (stop summaries, hints, tier descriptions, back links, inactive rail items).
 - **Signal Muted** (signal-muted): metadata, times, sub-headers, section labels, inactive week-route days, placeholders.
 
@@ -301,4 +303,4 @@ When a plate resolves, the station capsule draws in (0.55s) and each present lin
 - **Don't** add drop shadows or blur for depth; use the raised enamel plane or a rule.
 - **Don't** bend a line at any angle other than 45° or 90°.
 - **Don't** load fonts from a CDN.
-- **Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge; selected ones use porcelain.
+- **Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge (the raised control edge on the sheet and the dock); selected ones use porcelain.

@@ -1,0 +1,30 @@
+# Flutter / Dart side (untouched by the JS toolchain)
+apps/client
+packages/domain_core
+packages/integrations
+pubspec.lock
+pubspec.yaml
+melos.yaml
+analysis_options.yaml
+# Planning, infra and docs are not formatted by this toolchain
+_bmad
+_bmad-output
+docs
+infra
+.impeccable
+# Build output and generated files
+dist
+dev-dist
+coverage
+playwright-report
+test-results
+node_modules
+pnpm-lock.yaml
+# Non-JS repo content
+.github/dependabot.yml
+*.md
+tools
+scripts
+.claude
+.github/workflows/*
+!.github/workflows/web.yml

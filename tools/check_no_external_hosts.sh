@@ -45,6 +45,24 @@ INERT_HOSTS=(
   openrouter.ai localhost
   drift.simonbinder.eu
 )
+# JS/React build (apps/web/dist). Inert string constants, never loaded from the network;
+# allowed as EXACT URLs (or a fixed path prefix), not as whole hosts, so any other URL on
+# these hosts still fails:
+#   w3.org namespace URIs   XML namespace identifiers React DOM passes to
+#                           createElementNS / setAttributeNS (svg, xlink, MathML, xml).
+#   react.dev/errors        the production error-decoder message React prints; text only.
+#   bit.ly/wb-precache      a documentation link inside a Workbox warning string.
+INERT_URLS=(
+  "http://www.w3.org/2000/svg"
+  "http://www.w3.org/1999/xlink"
+  "http://www.w3.org/1999/xhtml"
+  "http://www.w3.org/1998/Math/MathML"
+  "http://www.w3.org/XML/1998/namespace"
+  "https://bit.ly/wb-precache"
+)
+INERT_URL_PREFIXES=(
+  "https://react.dev/errors/"
+)
 # Engine / scanner default CDN URLs that exist as dead literals in the shipped
 # JS but are neutralised by build/runtime config (see verify_overrides). They
 # are allowed as EXACT strings with an EXACT expected number of occurrences
@@ -93,6 +111,12 @@ scan_dir() {
         OVERRIDDEN_SEEN=1
         matched=1
       fi
+    done
+    [[ "$matched" -eq 1 ]] && continue
+    if in_list "$url" "${INERT_URLS[@]}"; then continue; fi
+    local p
+    for p in "${INERT_URL_PREFIXES[@]}"; do
+      [[ "$url" == "$p"* ]] && matched=1
     done
     [[ "$matched" -eq 1 ]] && continue
     if in_list "$host" "${NETWORK_HOSTS[@]}" "${INERT_HOSTS[@]}"; then continue; fi
@@ -170,6 +194,9 @@ self_test() {
   printf 'var a="https://evil.example.com/x.js";\n' >"$tmp/bad/main.dart.js"
   printf 'var f="https://fonts.gstatic.com/s/";var g="//cdn.evil.example/x.js";var w="wss://t.evil.example/s";\n' >"$tmp/bad/flutter_bootstrap.js"
   printf 'import "https://fonts.gstatic.com/s/other.woff2";\n' >"$tmp/bad/lib.mjs"
+  # JS build: the known inert strings pass, anything else on the same hosts fails.
+  printf 'var n="http://www.w3.org/2000/svg";var e="https://react.dev/errors/418";var w="https://bit.ly/wb-precache";\n' >"$tmp/good/index.js"
+  printf 'var x="https://react.dev/other";var y="http://www.w3.org/evil";var z="https://bit.ly/other";\n' >"$tmp/bad/index.js"
   scan_dir "$tmp/good"
   verify_overrides "$tmp/good"
   if [[ "$HITS" -ne 0 ]]; then
@@ -178,8 +205,8 @@ self_test() {
   fi
   scan_dir "$tmp/bad" 2>/dev/null
   verify_overrides "$tmp/bad" 2>/dev/null
-  if [[ "$HITS" -lt 6 ]]; then
-    echo "self-test FAILED: expected >=6 detections, got $HITS" >&2
+  if [[ "$HITS" -lt 9 ]]; then
+    echo "self-test FAILED: expected >=9 detections, got $HITS" >&2
     rc=1
   fi
   [[ "$rc" -eq 0 ]] && echo "✓ external-host scanner self-test passed"

@@ -1,0 +1,137 @@
+/* Design tokens from DESIGN.md. Colours are the "Night Line Map" palette. */
+
+@font-face {
+  font-family: 'Barlow';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlow-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlow-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlow-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlowcond-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlowcond-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/barlowcond-700.woff2') format('woff2');
+}
+
+@theme {
+  /* Only design-system values exist: drop Tailwind's default palette, radii, shadows, type
+     scale, families and easings so nothing can bypass DESIGN.md. Keep breakpoints and spacing. */
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+  --blur-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+
+  --color-enamel: #0e1a3a;
+  --color-enamel-raised: #15244b;
+  --color-rule: #2c3f72;
+  --color-control: #5b6c9c;
+  /* Control edge on raised-enamel surfaces (sheet, dock): 3.3:1 on #15244B, 3.7:1 on #0E1A3A. */
+  --color-control-raised: #6474a6;
+  --color-porcelain: #f3f1ea;
+  --color-porcelain-dim: #c9cfe0;
+  --color-signal-muted: #a3afcf;
+  --color-line-veg: #3fae5a;
+  --color-line-protein: #e5432f;
+  --color-line-starch: #f2a41c;
+  --color-line-dairy: #5c9cf5;
+
+  --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+
+  /* Type scale: size + weight + line-height + letter-spacing, from the DESIGN.md frontmatter. */
+  --text-display: 44px;
+  --text-display--font-weight: 700;
+  --text-display--line-height: 0.95;
+  --text-display--letter-spacing: 0.01em;
+  --text-headline: 28px;
+  --text-headline--font-weight: 700;
+  --text-headline--line-height: 1;
+  --text-headline--letter-spacing: 0.03em;
+  --text-title: 22px;
+  --text-title--font-weight: 700;
+  --text-title--line-height: 1.1;
+  --text-title--letter-spacing: 0.05em;
+  --text-section: 17px;
+  --text-section--font-weight: 700;
+  --text-section--line-height: 1.2;
+  --text-section--letter-spacing: 0.12em;
+  --text-button: 16px;
+  --text-button--font-weight: 700;
+  --text-button--line-height: 1;
+  --text-button--letter-spacing: 0.08em;
+  --text-label: 14px;
+  --text-label--font-weight: 600;
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.06em;
+  --text-quantity: 19px;
+  --text-quantity--font-weight: 600;
+  --text-quantity--line-height: 1.2;
+  --text-quantity--letter-spacing: 0.03em;
+  --text-body: 16px;
+  --text-body--font-weight: 400;
+  --text-body--line-height: 1.45;
+  --text-body-small: 15px;
+  --text-body-small--font-weight: 400;
+  --text-body-small--line-height: 1.45;
+
+  /* Desktop (>= 1024px) sizes; use as `lg:text-display-desktop`. */
+  --text-display-desktop: 64px;
+  --text-display-desktop--font-weight: 700;
+  --text-display-desktop--line-height: 0.95;
+  --text-display-desktop--letter-spacing: 0.01em;
+  --text-headline-desktop: 34px;
+  --text-headline-desktop--font-weight: 700;
+  --text-headline-desktop--line-height: 1;
+  --text-headline-desktop--letter-spacing: 0.03em;
+
+  --radius-station: 14px;
+
+  --spacing-gutter: 20px;
+  --spacing-gutter-desktop: 28px;
+  --spacing-column-gap: 36px;
+
+  --ease-line: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Quantities (portions, grams, counts): condensed face with tabular figures so columns align. */
+@utility quantity {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
