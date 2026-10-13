@@ -1,15 +1,26 @@
-# AI Nutrition Coach CI — reproducible build gate (NFR9).
+# AI Nutrition Coach CI — the single PR / main / tag gate (NFR9).
 #
-# Runs on every pull request and push to main. Three responsibilities:
-#   1. Static analysis across the whole workspace via `melos run analyze`,
-#      which delegates to `flutter analyze` (apps/client) and `dart analyze`
-#      (pure-Dart packages) — see melos.yaml.
-#   2. Format check via `melos run format:check` so whitespace drift is
-#      caught before review.
-#   3. A smoke test (the canonical `domain_core` AD-1 invariant + the
-#      `ai_nutrition_coach` widget smoke test). The AD-1 test is the
-#      architectural gate that catches a forbidden import landing in
-#      `packages/domain_core` before it reaches main.
+# One job, Dart SDK only (no Flutter): GitHub bills every job rounded up to
+# the minute, and this one finishes in well under a minute. It replaces the
+# former `ci`, `release-gate` and `ndp-review` workflows, which each
+# installed Flutter (~1 min) and bootstrapped the workspace, and ran the same
+# analyze + test suite twice.
+#
+# What it checks:
+#   1. NDP review (Story 5.3 / FR-15): REVIEWERS.md + CODEOWNERS name the
+#      reviewer.
+#   2. Release posture gates C + D (Stories 4.5 / 4.6 / 5.1 / 5.2): the
+#      `tools/check_*.dart` scripts. They only import `dart:io`, so they run
+#      with plain `dart` — no `pub get`, no melos.
+#   3. `packages/domain_core` (AD-1): format, analyze, test. It is pure Dart,
+#      so it is resolved on its own (out of the pub workspace, whose other
+#      members need the Flutter SDK).
+#
+# Deliberately NOT run: anything that needs Flutter (`apps/client`,
+# `packages/integrations`, the web bundle). The Flutter client is being
+# replaced by a PWA; its CI comes back with the migration. Until then run
+# `melos run analyze` / `melos run test` locally when touching Flutter code.
+# The self-host image smoke test is manual-only (self-host-smoke.yml).
 
 name: ci
 
@@ -17,51 +28,62 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
-# Cancel in-progress runs on the same ref — keeps PR feedback loops fast
-# without burning runner minutes on superseded commits.
+permissions:
+  contents: read
+
+# Cancel in-progress runs on the same ref — no runner minutes on superseded
+# commits.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
-    name: Analyze + smoke test
+    name: Gates + domain_core
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    # Read-only token is enough for checkout + the container's tooling.
-    permissions:
-      contents: read
-
-    container:
-      # Pin the same image the production self-host build uses. Full
-      # registry path so the job resolves on every GitHub-hosted runner.
-      image: ghcr.io/cirruslabs/flutter:stable
-      options: --user root
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Print toolchain
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+        with:
+          sdk: stable
+
+      - name: NDP review — REVIEWERS.md + CODEOWNERS name the reviewer
         run: |
-          flutter --version
-          dart --version
+          test -f REVIEWERS.md || { echo 'ndp-review: REVIEWERS.md missing — see Story 5.3 / FR-15.'; exit 1; }
+          test -f .github/CODEOWNERS || { echo 'ndp-review: .github/CODEOWNERS missing — see Story 5.3 / FR-15.'; exit 1; }
+          grep -q '@mmornati' REVIEWERS.md || { echo 'ndp-review: REVIEWERS.md missing the named-reviewer handle.'; exit 1; }
+          grep -q '@mmornati' .github/CODEOWNERS || { echo 'ndp-review: CODEOWNERS missing the named-reviewer handle.'; exit 1; }
 
-      - name: Activate melos
-        run: flutter pub global activate melos 8.2.2
+      # Same scripts as `melos run check:telemetry` / `check:release-posture`.
+      - name: Gate D — check telemetry
+        run: dart tools/check_telemetry_claims.dart
 
-      - name: Add melos to PATH
-        run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+      - name: Gate C — check release posture
+        run: |
+          dart tools/check_release_posture.dart
+          dart tools/check_adults_only.dart
+          dart tools/check_no_under_13_profiles.dart
+          dart tools/check_accessibility_floor.dart
 
-      - name: Bootstrap workspace
-        run: melos bootstrap
+      - name: domain_core — resolve outside the Flutter workspace
+        working-directory: packages/domain_core
+        run: |
+          sed -i '/^resolution: workspace/d' pubspec.yaml
+          dart pub get
 
-      - name: Format check
-        run: melos run format:check
+      - name: domain_core — format check
+        working-directory: packages/domain_core
+        run: dart format --output=none --set-exit-if-changed .
 
-      - name: Static analysis (AD-1 + per-package lints)
-        run: melos run analyze
+      - name: domain_core — analyze
+        working-directory: packages/domain_core
+        run: dart analyze
 
-      - name: Smoke test (domain_core AD-1 + client widget smoke)
-        run: melos run test
+      - name: domain_core — test (includes the AD-1 import gate)
+        working-directory: packages/domain_core
+        run: dart test

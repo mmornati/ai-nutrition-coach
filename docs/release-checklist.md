@@ -3,7 +3,9 @@
 The release pipeline is intentionally lightweight. Every tagged
 release runs this checklist end-to-end; a tag cannot ship until
 the durable sign-offs are recorded. The CI workflow
-`.github/workflows/release-gate.yml` automates the gating; the
+`.github/workflows/ci.yml` automates gates C + D and the
+`domain_core` checks (Flutter gates run locally until the PWA
+migration); the
 named reviewer records the human sign-off.
 
 ## Gate A — Build
@@ -47,8 +49,10 @@ named reviewer records the human sign-off.
 
 - [ ] The version tag (`vX.Y.Z`) is created from `main`.
 - [ ] The release notes enumerate the closed stories (Epic 1-5).
-- [ ] The CI workflow `.github/workflows/release-gate.yml` is
-  green on the tag commit.
+- [ ] The CI workflow `.github/workflows/ci.yml` is green on
+  the tag commit.
+- [ ] `.github/workflows/self-host-smoke.yml` (manual) is green
+  on the tag commit.
 
 ## Cross-references
 

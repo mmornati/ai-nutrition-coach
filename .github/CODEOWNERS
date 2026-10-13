@@ -39,6 +39,5 @@
 /tools/check_no_under_13_profiles.dart  @mmornati
 
 # ── CI workflows that run the gate ──
-/.github/workflows/release-gate.yml  @mmornati
-/.github/workflows/ndp-review.yml  @mmornati
+/.github/workflows/ci.yml  @mmornati
 /.github/workflows/self-host-smoke.yml  @mmornati
