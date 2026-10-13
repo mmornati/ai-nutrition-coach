@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenPlate — Plate Tiles</title>
+<link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#fff;--muted:#B5B5B5;--accent:#A4D233;
+--veg:#339933;--pro:#E51400;--sta:#F09609;--dai:#1BA1E2}
+*{box-sizing:border-box;margin:0}
+html,body{background:#000}
+body{font-family:Mulish,system-ui,sans-serif;color:var(--fg);width:390px;min-height:844px;margin:0 auto;position:relative;overflow:hidden}
+.pivot{padding:44px 0 0 18px;white-space:nowrap}
+.pivot small{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.pivot h1{font-weight:300;font-size:92px;letter-spacing:-.04em;line-height:.95;margin-left:-4px}
+.pivot h1 span{color:#7A7A7A}
+.tabs{display:flex;gap:18px;padding:6px 18px 0;font-size:22px;font-weight:300;color:#8F8F8F}
+.tabs b{color:#fff;font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px 18px 0}
+.t{position:relative;padding:10px;display:flex;flex-direction:column;justify-content:space-between;font-size:14px;font-weight:600;color:#fff}
+.t h2{font-weight:300;font-size:28px;letter-spacing:-.02em;line-height:1}
+.wide{grid-column:span 4;min-height:112px}
+.half{grid-column:span 2;min-height:84px}
+.sq{grid-column:span 1;min-height:96px}
+.groups{display:flex;gap:4px;margin-top:8px}
+.groups i{width:22px;height:22px;display:block}
+.groups i.off{outline:1.5px solid rgba(255,255,255,.5);outline-offset:-1.5px}
+.live{background:var(--accent);color:#000}
+.live p{font-size:15.5px;font-weight:600;line-height:1.35}
+.acts{display:flex;gap:14px;margin-top:10px;font-weight:800;font-size:14px}
+.acts span{min-height:44px;display:flex;align-items:center;border-bottom:2px solid #000}
+.open{border:2px solid #444;color:var(--muted)}
+.open h2{color:#fff}
+.fab{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;border:2.5px solid #fff;display:grid;place-items:center}
+.appbar{position:absolute;bottom:0;left:0;right:0;height:104px;background:#1F1F1F}
+.appbar .lbl{position:absolute;bottom:4px;width:100%;text-align:center;font-size:12px;color:var(--muted)}
+.chip{position:absolute;top:50px;right:18px;font-size:12px;font-weight:800;color:var(--accent);letter-spacing:.08em}
+</style>
+</head>
+<body>
+<div class="chip">LOCAL</div>
+<div class="pivot"><small>13 OCTOBER</small><h1>tuesday <span>monday</span></h1></div>
+<div class="tabs"><b>plates</b><span>week</span><span>data</span><span>ai</span></div>
+<section class="grid">
+  <div class="t wide" style="background:var(--sta);color:#000">
+    <h2>breakfast</h2>
+    <div>Oats with berries · Greek yogurt · 07:40
+      <div class="groups" aria-label="veg and fruit present, protein missing, starch present, dairy present"><i style="background:var(--veg)"></i><i class="off"></i><i style="background:#9C5C00"></i><i style="background:var(--dai)"></i></div></div>
+  </div>
+  <div class="t half" style="background:#1F7A1F"><h2>lunch</h2><div>Lentil salad, sourdough<div class="groups"><i style="background:#1E6B1E"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i class="off"></i></div></div></div>
+  <div class="t sq" style="background:var(--pro)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>edit</span></div>
+  <div class="t sq" style="background:#2B2B2B"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M7 4v16M17 4v16M3 8h4M3 16h4M17 8h4M17 16h4"/></svg><span>scan</span></div>
+  <div class="t wide live"><p>Two colors of veg and a lentil protein. Want to know why lentils count twice?</p><div class="acts"><span>sure</span><span>ask later</span></div></div>
+  <div class="t wide open" style="min-height:96px"><h2>dinner</h2><span>open — greens would round today out</span></div>
+</section>
+<div class="appbar"><div class="lbl">yours to run · open source</div></div>
+<div class="fab" aria-label="Log a plate"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+</body>
+</html>

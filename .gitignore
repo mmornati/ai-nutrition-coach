@@ -104,6 +104,12 @@ _bmad/custom/*.user.toml
 *.log
 *.tmp
 *.bak
+# ── Impeccable design tooling (local-only artifacts) ─────────
+.impeccable/review/
+.impeccable/ref/
+.impeccable/questions/
+.impeccable/hook.cache.json
+
 # Phase 2B: fetched + SHA-256-verified by scripts/fetch_web_sqlite.sh, never committed.
 apps/client/web/sqlite3mc*.wasm
 
