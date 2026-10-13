@@ -49,7 +49,7 @@ set -euo pipefail
 ZXING_WASM_VERSION="3.1.1"
 MOBILE_SCANNER_REVIEWED="7.4.0"
 ZXING_TARBALL_SHA256="294f1c96be94f8f59d44ddcb0c4703d68ea67ecd7fd478de88a179ed5a65e0ab"
-ZXING_READER_PATCHED_SHA256="71d50f5365e2822629477c0da78d3f1b9f2a982ae5c39ff7c78352c7c8e4639b"
+ZXING_READER_PATCHED_SHA256="a82be6b3daddbee473d308ca4ce87f210be2dce984051ac86c4500a952e4b2ef"
 ZXING_WASM_SHA256="6a858c01e076bab3a1bd413e4f2cf5e5e45f819a0d9441d83c66993bc48ed38f"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -118,9 +118,9 @@ if text.count(old) != 1:
 text = text.replace(old, new)
 if "jsdelivr" in text:
     sys.exit("✗ a CDN host remains in the patched zxing-wasm reader")
-# NOTE: this header text is covered by ZXING_READER_PATCHED_SHA256; renaming "OpenPlate"
-# to the new project name is a deliberate re-pin (see "To re-pin" above), deferred.
-header = ("/* zxing-wasm %s (MIT, see LICENSE) - self-hosted by OpenPlate: the wasm "
+# NOTE: this header text is covered by ZXING_READER_PATCHED_SHA256; changing it is a
+# deliberate re-pin (see "To re-pin" above).
+header = ("/* zxing-wasm %s (MIT, see LICENSE) - self-hosted by AI Nutrition Coach: the wasm "
           "path points at this directory instead of a CDN. Patched by "
           "scripts/fetch_web_zxing.sh. */\n" % version)
 open(dst, "w", encoding="utf-8", newline="\n").write(header + text)
