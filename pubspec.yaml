@@ -45,3 +45,15 @@ melos:
     build:runner:
       description: Run drift codegen across the integrations package.
       run: melos exec -c 1 --order-dependents --dir-exists=lib/src/store -- "dart run build_runner build --delete-conflicting-outputs"
+
+    smoke:self-host:
+      description: Run the self-host smoke test (Story 4.4 / FR-11).
+      run: bash scripts/smoke_self_host.sh
+
+    check:telemetry:
+      description: Pin the FR-12 / FR-9 / NFR4 no-telemetry invariant (Story 4.5).
+      run: dart run tools/check_telemetry_claims.dart
+
+    check:release-posture:
+      description: Assert the LICENSE + CONTRIBUTING + NDP Standard exist (Story 4.6).
+      run: dart run tools/check_release_posture.dart && dart run tools/check_adults_only.dart && dart run tools/check_no_under_13_profiles.dart && dart run tools/check_accessibility_floor.dart

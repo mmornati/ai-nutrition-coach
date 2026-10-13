@@ -38,7 +38,7 @@ stolen mobile device. We say so plainly. (Story 4.1 / AD-8.)
 - The lock screen's passphrase field masks the input. The key is
   derived in the same Dart runtime as the rest of the app — no
   JavaScript bridge, no browser `window.crypto` call, no telemetry
-  on the unlock event.
+  on the unlock event (pinned by `melos run check:telemetry`).
 - A wrong passphrase renders a single calm line: *"That passphrase
   does not open this store."* No exception is ever thrown across
   the storage port.

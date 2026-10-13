@@ -228,32 +228,43 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    // A bare GestureDetector carries no semantics role, so announce
+    // the pill as a selectable button (NFR-7). `excludeSemantics`
+    // keeps the visible label from being read twice; the tap action
+    // is re-exposed on the Semantics node itself.
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: AppTouchTargets.min,
-          minWidth: 64,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTargets.min,
+            minWidth: 64,
           ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? palette.sage : palette.hairline,
-              width: 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
             ),
-            borderRadius: BorderRadius.circular(0),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: AppTypography.ui.copyWith(
-                color: selected ? palette.sage : palette.ink,
-                fontSize: 14,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: selected ? palette.sage : palette.hairline,
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(0),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: AppTypography.ui.copyWith(
+                  color: selected ? palette.sage : palette.ink,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),

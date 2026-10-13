@@ -53,7 +53,13 @@ void main() {
       .replaceAll(RegExp(r'//.*'), '')
       .replaceAll(RegExp(r"'.*?'"), "''")
       .replaceAll(RegExp(r'".*?"'), '""');
-  for (final pattern in ['dio.get', 'dio.post', 'http.get', 'http.post', 'WebSocket']) {
+  for (final pattern in [
+    'dio.get',
+    'dio.post',
+    'http.get',
+    'http.post',
+    'WebSocket',
+  ]) {
     if (stripped.contains(pattern)) {
       failures.add('apps/client/lib/main.dart invokes $pattern at startup');
     }
@@ -79,8 +85,10 @@ void main() {
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:telemetry: OK — no unsanctioned sockets; '
-        'docs match code.');
+    stdout.writeln(
+      'check:telemetry: OK — no unsanctioned sockets; '
+      'docs match code.',
+    );
     exit(0);
   }
   stderr.writeln('check:telemetry: FAIL');
@@ -91,6 +99,14 @@ void main() {
 }
 
 bool _isSanctioned(String path) {
+  // The release-gate check scripts grep for the same patterns.
+  if (path.contains('tools/check_')) return true;
+  // Tool caches / build output (`.dart_tool/`, `build/`, …).
+  if (path
+      .split('/')
+      .any((s) => (s.startsWith('.') && s != '.') || s == 'build')) {
+    return true;
+  }
   if (path.contains('/test/')) return true;
   if (path.contains('/integration_test/')) return true;
   if (path.endsWith('.g.dart')) return true;

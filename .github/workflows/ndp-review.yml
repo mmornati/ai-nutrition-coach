@@ -52,4 +52,5 @@ jobs:
 
       - name: Gate summary
         if: success()
-        run: echo "ndp-review: PASS"
+        run: |
+          echo "ndp-review: PASS"

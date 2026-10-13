@@ -45,16 +45,20 @@ void main() {
       final line = lines[i].trim();
       for (final banned in _bannedProfileTypes) {
         if (_bareMentions(line, banned)) {
-          failures.add('${entity.path}:${i + 1}: banned profile '
-              'reference: $banned');
+          failures.add(
+            '${entity.path}:${i + 1}: banned profile '
+            'reference: $banned',
+          );
         }
       }
     }
   }
 
   if (failures.isEmpty) {
-    stdout.writeln('check:no-under-13-profiles: OK — no under-13 / '
-        'teen / parent / child profile machinery.');
+    stdout.writeln(
+      'check:no-under-13-profiles: OK — no under-13 / '
+      'teen / parent / child profile machinery.',
+    );
     exit(0);
   }
   stderr.writeln('check:no-under-13-profiles: FAIL');
@@ -67,7 +71,14 @@ void main() {
 bool _isExempt(String path) {
   // The seam marker is the only allowed reference. The check tool
   // itself + test surface + generated code.
-  if (path.endsWith('check_no_under_13_profiles.dart')) return true;
+  // The release-gate check scripts list the banned references.
+  if (path.contains('tools/check_')) return true;
+  // Tool caches / build output (`.dart_tool/`, `build/`, …).
+  if (path
+      .split('/')
+      .any((s) => (s.startsWith('.') && s != '.') || s == 'build')) {
+    return true;
+  }
   if (path.endsWith('managed_oversight_seam.dart')) return true;
   if (path.endsWith('managed_oversight_seam_test.dart')) return true;
   if (path.contains('/tools/') && path.endsWith('_check.dart')) return true;
