@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1A3A">
+<title>OpenPlate — Food Lines prototype</title>
+<style>
+@font-face{font-family:Barlow;font-weight:400;font-display:swap;src:url(fonts/barlow-400.woff2) format("woff2")}
+@font-face{font-family:Barlow;font-weight:500;font-display:swap;src:url(fonts/barlow-500.woff2) format("woff2")}
+@font-face{font-family:Barlow;font-weight:600;font-display:swap;src:url(fonts/barlow-600.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:500;font-display:swap;src:url(fonts/barlowcond-500.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:600;font-display:swap;src:url(fonts/barlowcond-600.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlowcond-700.woff2) format("woff2")}
+:root{
+  --enamel:#0E1A3A; --enamel-2:#15244B; --rule:#2C3F72; --control:#5B6C9C;
+  --porc:#F3F1EA; --porc-dim:#C9CFE0; --muted:#A3AFCF;
+  --veg:#3FAE5A; --pro:#E5432F; --sta:#F2A41C; --dai:#5C9CF5;
+  --display:"Barlow Condensed",system-ui,sans-serif; --body:Barlow,system-ui,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--enamel);color-scheme:dark}
+body{font-family:var(--body);font-size:16px;line-height:1.45;color:var(--porc);background:var(--enamel);min-height:100dvh;-webkit-font-smoothing:antialiased}
+::selection{background:var(--sta);color:var(--enamel)}
+:focus-visible{outline:3px solid var(--sta);outline-offset:2px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+.disp{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:var(--rule);border-radius:0}::-webkit-scrollbar-track{background:var(--enamel)}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:1fr;min-height:100dvh;padding-top:40px}
+.rail{display:none}
+.view{display:none;padding-bottom:110px}
+.view.on{display:block}
+header.top{padding:max(env(safe-area-inset-top),28px) 20px 12px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:4px solid var(--porc)}
+header.top h1{font-family:var(--display);font-weight:700;font-size:44px;line-height:.95;text-transform:uppercase;letter-spacing:.01em}
+header.top .sub{color:var(--muted);font-size:15px;font-weight:500;margin-top:6px}
+.chip{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.08em;border:2px solid var(--porc);padding:6px 10px;min-height:36px;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--veg)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;padding:14px 16px 4px}
+.legend span{display:flex;align-items:center;gap:6px;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.legend i{width:16px;height:6px}
+
+/* ---------- day map ---------- */
+.map{position:relative;padding:8px 16px 0 0}
+.map svg.lines{position:absolute;left:0;top:0;width:132px;height:100%;overflow:visible}
+.stations{list-style:none;margin-left:132px;display:flex;flex-direction:column}
+.station{padding:18px 0 22px;min-height:120px;position:relative}
+.station h2{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.03em;text-transform:uppercase;line-height:1;display:flex;align-items:center;gap:10px}
+.station .meta{color:var(--muted);font-size:15px;margin-top:4px}
+.station .stops{font-size:14.5px;color:var(--porc-dim);margin-top:6px}
+.station button.open-detail{position:absolute;inset:0;width:100%;min-height:48px}
+.station .t{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted);letter-spacing:.06em}
+.coach{position:relative;z-index:1;margin-top:12px;background:var(--porc);color:var(--enamel);padding:14px 14px 12px;font-size:16px;line-height:1.45}
+.coach .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.08em;text-transform:uppercase;min-height:48px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:2px solid currentColor}
+.btn.solid{background:var(--enamel);color:var(--porc);border-color:var(--enamel)}
+.btn.ghost{color:var(--enamel)}
+.btn.porc{background:var(--porc);color:var(--enamel);border-color:var(--porc)}
+.btn.line{color:var(--porc);border-color:var(--porc)}
+.station.open h2{color:var(--porc)}
+.weeklink{margin:8px 16px 0 148px}
+.station.open .hint{color:var(--porc-dim);font-size:15.5px;margin-top:6px;max-width:34ch}
+.reading{display:none;font-family:var(--display);font-weight:600;letter-spacing:.1em;color:var(--sta);font-size:15px;margin-top:6px}
+.station.resolving .reading{display:block}
+.station.resolving .hint{display:none}
+
+.hbtns{display:flex;gap:8px;align-items:center}
+.ibtn{width:48px;height:48px;display:grid;place-items:center;border:2px solid var(--control)}
+.ibtn[aria-current="page"]{border-color:var(--porc)}
+
+/* bottom dock: week route + log */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--enamel-2);border-top:2px solid var(--rule);display:grid;grid-template-columns:1fr 92px;align-items:stretch;padding-bottom:env(safe-area-inset-bottom)}
+.route{display:flex;align-items:center;padding:0 6px 0 12px;position:relative}
+.route::before{content:"";position:absolute;left:24px;right:22px;top:29px;height:4px;background:var(--rule)}
+.route button{flex:1;min-width:0;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:20px;gap:6px;position:relative;font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.route b{width:20px;height:20px;border-radius:50%;border:3.5px solid var(--porc);background:var(--enamel-2)}
+.route button.full b{background:var(--porc)}
+.route button[aria-current="date"]{color:var(--porc)}
+.route button[aria-current="date"] b{border-color:var(--sta);background:var(--sta);box-shadow:0 0 0 3px var(--enamel-2),0 0 0 5px var(--sta)}
+.dock .log{background:var(--porc);color:var(--enamel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.1em;text-transform:uppercase}
+
+/* ---------- capture sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(5,10,25,.6);z-index:30;opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:31;background:var(--enamel-2);border-top:4px solid var(--porc);padding:18px 16px calc(20px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .35s var(--ease)}
+.sheet-open .scrim{opacity:1;pointer-events:auto}
+.sheet-open .sheet{transform:none}
+.sheet h2{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+.sheet .sub{color:var(--muted);font-size:15px;margin:2px 0 14px}
+.cap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cap button{border:2px solid var(--porc);min-height:96px;padding:14px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
+.cap button.main{grid-column:1/-1;background:var(--porc);color:var(--enamel);min-height:132px}
+.cap b{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;width:100%}
+.cap small{font-size:14.5px;opacity:.85}
+.sheet .close{position:absolute;right:12px;top:12px;width:48px;height:48px;display:grid;place-items:center}
+
+/* ---------- detail ---------- */
+.detail-head{padding:max(env(safe-area-inset-top),24px) 20px 14px;border-bottom:4px solid var(--porc)}
+.back{display:inline-flex;align-items:center;gap:8px;min-height:48px;font-family:var(--display);font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--porc-dim)}
+.detail-head h1{font-family:var(--display);font-weight:700;font-size:44px;text-transform:uppercase;line-height:1}
+.linebar{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:16px 20px 0;border:2px solid var(--porc)}
+.linebar div{padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.linebar div+div{border-left:2px solid var(--rule)}
+.linebar i{height:8px;display:block}
+.linebar .off{color:var(--muted)}
+.linebar .off i{background:none!important;border-top:3px dashed var(--muted);height:8px;margin-top:2px}
+.section-t{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:22px 20px 8px}
+.entries{list-style:none;margin:0 20px;border-top:2px solid var(--porc)}
+.entries li{border-bottom:1px solid var(--rule);padding:12px 0}
+.entries .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:17px}
+.entries .q{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.entries .tags{display:flex;gap:6px;margin-top:6px}
+.entries .tags i{width:22px;height:5px}
+.presets{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.presets button{min-height:44px;padding:0 14px;border:2px solid var(--control);font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.05em}
+.presets button[aria-pressed="true"]{border-color:var(--porc);background:var(--porc);color:var(--enamel)}
+.detail .coach{margin:18px 20px 0}
+
+/* ---------- week ---------- */
+.weekmap{margin:20px 16px 0;position:relative}
+.weekmap svg{width:100%;height:auto;display:block}
+.weeknote{margin:16px 20px 0;font-size:17px;color:var(--porc-dim);max-width:40ch}
+.weeknote b{color:var(--porc);font-weight:600}
+.daylist{list-style:none;margin:20px 20px 0;border-top:2px solid var(--porc)}
+.daylist li{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;min-height:56px;border-bottom:1px solid var(--rule)}
+.daylist .d{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.06em}
+.daylist .segs{display:flex;gap:4px}
+.daylist .segs i{width:28px;height:6px}
+.daylist .segs i.off{background:transparent;outline:1.5px dashed var(--rule);outline-offset:-1.5px}
+.daylist .n{color:var(--muted);font-size:14.5px}
+
+/* ---------- settings ---------- */
+.board{list-style:none;margin:8px 20px 0}
+.board li button{width:100%;display:grid;grid-template-columns:24px 1fr auto 20px;gap:14px;align-items:center;min-height:68px;border-bottom:1px solid var(--rule);text-align:left}
+.board .bar{width:24px;height:6px}
+.board b{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.05em;text-transform:uppercase;display:block}
+.board small{color:var(--muted);font-size:14.5px}
+.board .st{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--porc-dim)}
+.tiers{margin:14px 20px 0;display:flex;flex-direction:column;gap:10px}
+.tier{border:2px solid var(--control);padding:14px;display:grid;grid-template-columns:28px 1fr;gap:12px;text-align:left;width:100%}
+.tier[aria-checked="true"]{border-color:var(--porc)}
+.tier .ring{width:24px;height:24px;border-radius:50%;border:3px solid var(--porc);margin-top:2px;display:grid;place-items:center}
+.tier[aria-checked="true"] .ring::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--porc)}
+.tier b{font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:.05em;text-transform:uppercase}
+.tier p{color:var(--porc-dim);font-size:15px;margin-top:2px}
+.tier .tag{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.1em;border:1.5px solid var(--muted);color:var(--muted);padding:1px 6px;margin-left:8px;vertical-align:3px}
+.tier[aria-disabled="true"]{opacity:.75}
+.foot{text-align:center;color:var(--muted);font-size:14px;margin:28px 0 0;font-family:var(--display);letter-spacing:.1em;text-transform:uppercase}
+
+/* ---------- unlock ---------- */
+.unlock{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:24px 24px 60px;max-width:440px;margin:0 auto}
+.unlock svg{width:100%;height:auto;margin-bottom:28px}
+.unlock h1{font-family:var(--display);font-weight:700;font-size:48px;text-transform:uppercase;line-height:.95}
+.unlock p{color:var(--porc-dim);margin:10px 0 22px;font-size:16.5px}
+.field{display:flex;border:2px solid var(--porc);min-height:56px}
+.field input{flex:1;background:transparent;border:0;padding:0 14px;font-size:17px;outline:none;min-width:0}
+.field input::placeholder{color:var(--muted)}
+.field:focus-within{outline:3px solid var(--sta);outline-offset:2px}
+.unlock .btn{width:100%;margin-top:12px;min-height:56px;font-size:19px}
+.unlock small{display:block;margin-top:14px;color:var(--muted);font-size:14.5px}
+
+/* proto switcher */
+.proto{position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:4px;background:rgba(5,10,25,.85);padding:4px;border:1px solid var(--rule)}
+.proto button{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 8px;color:var(--porc-dim)}
+.proto button[aria-pressed="true"]{color:var(--enamel);background:var(--sta)}
+
+/* signature motion */
+.stopdot{transform-box:fill-box;transform-origin:center}
+.ring-draw{stroke-dasharray:260;stroke-dashoffset:260}
+.arrive .ring-draw{animation:draw .55s var(--ease) forwards}
+.arrive .stopdot{animation:pop .45s var(--ease) both}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{transform:scale(0)}60%{transform:scale(1.25)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:1024px){
+  .station h2{font-size:34px} .station .meta,.station .stops{font-size:16px} .station{min-height:140px}
+  .app{grid-template-columns:240px 1fr}
+  .rail{display:flex;flex-direction:column;border-right:2px solid var(--rule);padding:24px 18px;position:sticky;top:40px;height:calc(100dvh - 40px);overflow-y:auto}
+  .rail .brand{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:10px;padding-bottom:20px;border-bottom:2px solid var(--rule)}
+  .rail nav{display:flex;flex-direction:column;margin-top:18px;gap:2px}
+  .rail nav button{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 10px;font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:var(--porc-dim);text-align:left;position:relative}
+  .rail nav button[aria-current="page"]{color:var(--porc)}
+  .rail nav button[aria-current="page"]::after{content:"";position:absolute;left:10px;width:64px;bottom:6px;height:4px;background:var(--sta)}
+  .rail .logbtn{margin-top:22px;width:100%}
+  .rail .status{margin-top:auto;border-top:2px solid var(--rule);padding-top:16px;font-size:14.5px;color:var(--porc-dim)}
+  .rail .status b{font-family:var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--porc);display:flex;align-items:center;gap:8px;font-weight:700}
+  .rail .status b i{width:9px;height:9px;border-radius:50%;background:var(--veg)}
+  .dock,.mob{display:none!important}
+  .view{padding-bottom:60px}
+  .today-grid{display:grid;grid-template-columns:minmax(420px,560px) 1fr;gap:0}
+  .today-grid > .col-week{border-left:2px solid var(--rule);padding:0 28px 0 0}
+  .col-week .section-t{padding-left:28px}
+  .col-week .weekmap{margin:8px 0 0 28px}
+  .col-week .weeknote{margin-left:28px}
+  header.top{padding:32px 28px 14px}
+  header.top h1{font-size:64px}
+  .legend{padding-left:28px}
+  .sheet{left:50%;right:auto;bottom:auto;top:50%;width:560px;transform:translate(-50%,-46%) scale(.98);opacity:0;pointer-events:none;border:2px solid var(--porc);border-top-width:4px;transition:transform .3s var(--ease),opacity .2s}
+  .sheet-open .sheet{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+  .detail-wrap,.settings-wrap,.week-wrap{max-width:none}
+  .detail-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,460px);column-gap:36px;padding-right:28px}
+  .detail-wrap .detail-head{grid-column:1/-1}
+  .detail-wrap .linebar,.detail-wrap .section-t,.detail-wrap .entries,.detail-wrap .addrow{grid-column:1}
+  .detail-wrap .coach{grid-column:2;grid-row:2 / span 4;align-self:start;margin:16px 0 0}
+  .week-wrap{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr);column-gap:36px;padding-right:28px}
+  .week-wrap header{grid-column:1/-1}
+  .week-wrap .weekmap,.week-wrap .weeknote{grid-column:1}
+  .week-wrap .section-t,.week-wrap .daylist{grid-column:2}
+  .week-wrap .section-t{grid-row:2;align-self:start;padding-top:20px}
+  .week-wrap .daylist{grid-row:2;align-self:start;margin-top:58px}
+  .settings-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:36px;padding-right:28px;align-items:start}
+  .settings-wrap header{grid-column:1/-1}
+  .settings-wrap .board{grid-column:1;grid-row:2 / span 2;margin-top:52px}
+  .settings-wrap .section-t,.settings-wrap .tiers{grid-column:2}
+  .settings-wrap .foot{grid-column:1/-1}
+}
+@media (max-width:1023px){ .col-week{display:none} }
+</style>
+</head>
+<body>
+
+<div class="proto" role="group" aria-label="Prototype screens (not part of the app)">
+  <button data-proto="today" aria-pressed="true">Today</button>
+  <button data-proto="detail">Plate</button>
+  <button data-proto="week">Week</button>
+  <button data-proto="settings">AI</button>
+  <button data-proto="unlock">Unlock</button>
+</div>
+
+<div class="app" id="app">
+  <aside class="rail">
+    <div class="brand"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 2v10l8 8v8" stroke="#3FAE5A" stroke-width="4" fill="none"/><path d="M14 2v26" stroke="#E5432F" stroke-width="4"/><path d="M22 2v10l-8 8" stroke="#F2A41C" stroke-width="4" fill="none"/><circle cx="14" cy="20" r="5" fill="#0E1A3A" stroke="#F3F1EA" stroke-width="3"/></svg>OpenPlate</div>
+    <nav aria-label="Main">
+      <button data-go="today" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v18M12 3v18M18 3v18"/><circle cx="12" cy="12" r="3" fill="#0E1A3A"/></svg>Today</button>
+      <button data-go="week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h18M3 16h18"/><circle cx="7" cy="8" r="2"/><circle cx="17" cy="16" r="2"/></svg>Week</button>
+      <button data-go="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    </nav>
+    <button class="btn porc logbtn" data-open-sheet><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Log a plate</button>
+    <div class="status"><b><i></i>Local</b>All plates stored on this device. Nothing leaves home.<div class="foot" style="text-align:left;margin-top:14px">yours to run · open source</div></div>
+  </aside>
+
+  <main>
+  <!-- ================= TODAY ================= -->
+  <section class="view on" id="v-today" aria-label="Today">
+    <header class="top">
+      <div><h1 id="dayname">Tuesday</h1><div class="sub">13 Oct · <span id="linesCount">3 lines</span> running</div></div>
+      <div class="hbtns"><span class="chip"><i></i>Local</span>
+        
+        <button class="ibtn mob" data-go="settings" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+    </header>
+    <div class="today-grid">
+      <div class="col-day">
+        <div class="legend" aria-hidden="true">
+          <span><i style="background:var(--veg)"></i>Veg &amp; fruit</span>
+          <span><i style="background:var(--pro)"></i>Protein</span>
+          <span><i style="background:var(--sta)"></i>Starch</span>
+          <span><i style="background:var(--dai)"></i>Dairy</span>
+        </div>
+        <div class="map" id="daymap">
+          <svg class="lines" id="lines" aria-hidden="true"></svg>
+          <ol class="stations" id="stations"></ol>
+        </div>
+        <button class="btn line mob weeklink" data-go="week">See the week’s network<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="col-week">
+        <div class="section-t">This week’s network</div>
+        <div class="weekmap" id="weekmap-side"></div>
+        <p class="weeknote"><b>All four lines ran this week.</b> Dairy was quiet on Friday and Sunday.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DETAIL ================= -->
+  <section class="view detail" id="v-detail" aria-label="Lunch plate">
+    <div class="detail-wrap">
+    <div class="detail-head">
+      <button class="back" data-go="today"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>Today</button>
+      <h1>Lunch</h1>
+      <div class="sub" style="color:var(--muted);margin-top:4px">12:55 · from a photo · <span class="disp" style="font-weight:600">local</span></div>
+    </div>
+    <div class="linebar" role="list" aria-label="Lines stopping at this plate">
+      <div role="listitem"><i style="background:var(--veg)"></i>Veg &amp; fruit</div>
+      <div role="listitem"><i style="background:var(--pro)"></i>Protein</div>
+      <div role="listitem"><i style="background:var(--sta)"></i>Starch</div>
+      <div role="listitem" class="off"><i></i>Dairy · passed</div>
+    </div>
+    <div class="section-t">On the plate</div>
+    <ul class="entries">
+      <li><div class="row"><span>Lentil &amp; tomato salad</span><span class="q">~2 fists</span></div>
+        <div class="tags" aria-label="veg and fruit, protein"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i></div>
+        <div class="presets" role="group" aria-label="Portion">
+          <button aria-pressed="false">~½ fist</button><button aria-pressed="false">~1 fist</button><button aria-pressed="true">~2 fists</button><button aria-pressed="false">~3 fists</button>
+        </div></li>
+      <li><div class="row"><span>Sourdough slice</span><span class="q">~1 palm</span></div>
+        <div class="tags" aria-label="starch"><i style="background:var(--sta)"></i></div></li>
+    </ul>
+    <div class="addrow" style="margin:12px 20px 0;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn line">Add a food</button><button class="btn line">Not quite right?</button>
+    </div>
+    <div class="coach"><b class="disp" style="display:block;font-size:15px;letter-spacing:.12em;margin-bottom:4px">Why lentils count twice</b>Lentils are a legume: they bring plant protein and fibre, so this plate stops on both the green and the red line. Want an idea for tonight’s dairy?
+      <div class="acts"><button class="btn solid">Sure</button><button class="btn ghost">Ask later</button></div></div>
+    </div>
+  </section>
+
+  <!-- ================= WEEK ================= -->
+  <section class="view" id="v-week" aria-label="Week">
+    <div class="week-wrap">
+    <header class="top"><div><button class="back mob" data-go="today"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>Today</button><h1>This week</h1><div class="sub">7 – 13 October</div></div><span class="chip"><i></i>Local</span></header>
+    <div class="weekmap" id="weekmap-main"></div>
+    <p class="weeknote"><b>All four lines ran this week.</b> Dairy was quiet on Friday and Sunday — nothing to fix, only something to notice.</p>
+    <div class="section-t">Day by day</div>
+    <ul class="daylist" id="daylist"></ul>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS / YOUR AI ================= -->
+  <section class="view" id="v-settings" aria-label="Settings">
+    <div class="settings-wrap">
+    <header class="top"><div><button class="back mob" data-go="today"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>Today</button><h1>Settings</h1><div class="sub">Everything here stays on this device</div></div></header>
+    <ul class="board">
+      <li><button><span class="bar" style="background:var(--dai)"></span><span><b>Your AI</b><small>Reads your plate photos</small></span><span class="st">Free quota</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button></li>
+      <li><button><span class="bar" style="background:var(--veg)"></span><span><b>Your data</b><small>Export and sync</small></span><span class="st">Local</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button></li>
+      <li><button><span class="bar" style="background:var(--sta)"></span><span><b>Tip jar</b><small>Keeps OpenPlate free to run</small></span><span class="st"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button></li>
+      <li><button><span class="bar" style="background:var(--porc)"></span><span><b>About</b><small>Open source, self-hosted</small></span><span class="st"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button></li>
+    </ul>
+    <div class="section-t">Your AI · choose a line</div>
+    <div class="tiers" role="radiogroup" aria-label="AI tier">
+      <button class="tier" role="radio" aria-checked="false"><span class="ring"></span><span><b>No AI</b><p>Log by barcode and typing. The coach still works; it’s a full app without a key.</p></span></button>
+      <button class="tier" role="radio" aria-checked="true"><span class="ring"></span><span><b>Free quota</b><p>Photos read by a free hosted model with a monthly allowance. When it runs out, your photos still log.</p></span></button>
+      <button class="tier" role="radio" aria-checked="false"><span class="ring"></span><span><b>Your own key</b><p>Any OpenAI-compatible endpoint. The key is stored encrypted on this device and never uploaded.</p></span></button>
+      <button class="tier" role="radio" aria-checked="false" aria-disabled="true"><span class="ring"></span><span><b>Local model<span class="tag">v2</span></b><p>A vision model on your own hardware. Not available yet.</p></span></button>
+    </div>
+    <p class="foot">yours to run · open source</p>
+    </div>
+  </section>
+
+  <!-- ================= UNLOCK ================= -->
+  <section class="view" id="v-unlock" aria-label="Unlock">
+    <div class="unlock">
+      <svg viewBox="0 0 360 120" aria-hidden="true">
+        <path d="M0 30 H120 l30 30 H360" stroke="#3FAE5A" stroke-width="8" fill="none"/>
+        <path d="M0 60 H360" stroke="#E5432F" stroke-width="8"/>
+        <path d="M0 90 H120 l30 -30 H360" stroke="#F2A41C" stroke-width="8" fill="none"/>
+        <path d="M0 110 H200 l20 -20 H360" stroke="#5C9CF5" stroke-width="8" fill="none" opacity=".9"/>
+        <rect x="128" y="44" width="44" height="32" rx="16" fill="#0E1A3A" stroke="#F3F1EA" stroke-width="5"/>
+      </svg>
+      <h1>Unlock your plates</h1>
+      <p>Your plates are sealed on this device. Enter your passphrase to open them for this session.</p>
+      <label class="sr" for="pp">Passphrase</label>
+      <div class="field"><input id="pp" type="password" placeholder="Passphrase" autocomplete="current-password"></div>
+      <button class="btn porc" data-go="today">Unlock</button>
+      <small>Forgot it? The data can’t be recovered without it. That’s the point.</small>
+    </div>
+  </section>
+  </main>
+</div>
+
+
+
+<div class="dock" id="dock">
+  <nav class="route" aria-label="This week — choose a day" id="route"></nav>
+  <button class="log" data-open-sheet aria-label="Log a plate"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Log</button>
+</div>
+
+<div class="scrim" data-close-sheet></div>
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+  <button class="close" data-close-sheet aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <h2 id="sheet-t">Log a plate</h2>
+  <p class="sub">Next station: Dinner</p>
+  <div class="cap">
+    <button class="main" data-snap><b>Snapshot<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.5"/></svg></b><small>One photo of the plate is plenty.</small></button>
+    <button><b>Barcode<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5v14M8 5v14M11 5v14M15 5v14M18 5v14M20 5v14"/></svg></b><small>Packaged food</small></button>
+    <button><b>Type it<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h13"/></svg></b><small>Works offline</small></button>
+  </div>
+</div>
+
+<script>
+const LINES=[{k:'veg',c:'var(--veg)',n:'veg and fruit'},{k:'pro',c:'var(--pro)',n:'protein'},{k:'sta',c:'var(--sta)',n:'starch'},{k:'dai',c:'var(--dai)',n:'dairy'}];
+const X=[30,54,78,102];
+const day=[
+  {name:'Breakfast',t:'07:40',what:'Oats with berries, Greek yogurt',stops:['veg','sta','dai']},
+  {name:'Lunch',t:'12:55',what:'Lentil salad, sourdough',stops:['veg','pro','sta'],coach:true},
+  {name:'Dinner',open:true}
+];
+const week=[
+  {d:'Wed',s:['veg','pro','sta','dai'],n:3},{d:'Thu',s:['veg','pro','sta','dai'],n:4},{d:'Fri',s:['veg','pro','sta'],n:3},
+  {d:'Sat',s:['veg','pro','sta','dai'],n:3},{d:'Sun',s:['veg','pro','sta'],n:2},{d:'Mon',s:['veg','pro','sta','dai'],n:4},{d:'Today',s:['veg','pro','sta','dai'],n:2,today:true}
+];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+function renderDay(){
+  const ol=$('#stations'); ol.innerHTML='';
+  day.forEach((m,i)=>{
+    const li=document.createElement('li');
+    li.className='station'+(m.open?' open':'')+(m.resolving?' resolving':'');
+    li.dataset.i=i;
+    if(m.open){
+      li.innerHTML=`<h2>${m.name}</h2><p class="hint">Open station. The green line would love a stop here — want a 10-second idea?</p><p class="reading">Reading the plate…</p>`;
+    }else{
+      const missing=LINES.filter(l=>!m.stops.includes(l.k)).map(l=>l.n);
+      li.innerHTML=`<h2>${m.name} <span class="t">${m.t}</span></h2><p class="meta">${m.what}</p>
+        <p class="stops">${missing.length?`${cap(missing.join(' and '))} passed through without a stop`:'All four lines stopped here'}</p>
+        <button class="open-detail" aria-label="Open ${m.name}: ${LINES.filter(l=>m.stops.includes(l.k)).map(l=>l.n).join(', ')} present"></button>
+        ${m.coach?`<div class="coach">${m.coachText||'Two colours of veg and a lentil protein. Want to know why lentils count twice?'}<div class="acts"><button class="btn solid" data-go="detail">Sure</button><button class="btn ghost">Ask later</button></div></div>`:''}`;
+    }
+    ol.appendChild(li);
+  });
+  requestAnimationFrame(drawLines);
+}
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+function drawLines(arriveIdx){
+  const svg=$('#lines'), map=$('#daymap'); const H=map.offsetHeight;
+  const sts=$$('#stations .station').map(el=>el.offsetTop+ (el.querySelector('h2').offsetTop) + 14);
+  let g=`<g>`;
+  sts.forEach((y,i)=>{ const m=day[i];
+    if(m.open||m.resolving){ g+=`<rect x="16" y="${y-14}" width="100" height="28" rx="14" fill="var(--enamel)" stroke="var(--porc)" stroke-width="3" stroke-dasharray="6 5"/>`; }
+    else { g+=`<rect class="${i===arriveIdx?'ring-draw':''}" x="18" y="${y-8}" width="96" height="16" rx="8" fill="var(--porc)" stroke="var(--porc)" stroke-width="2"/>`; }
+  });
+  LINES.forEach((l,j)=>{ g+=`<path d="M${X[j]} 0 V${H}" stroke="${l.c}" stroke-width="8"/>`; });
+  sts.forEach((y,i)=>{ const m=day[i]; if(m.open||m.resolving) return;
+    let n=0; LINES.forEach((l,j)=>{ if(m.stops.includes(l.k)){ g+=`<circle class="stopdot" style="animation-delay:${i===arriveIdx?(200+60*n++):0}ms" cx="${X[j]}" cy="${y}" r="10" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3.5"/>`; } }); });
+  g+='</g>';
+  svg.innerHTML=g; svg.setAttribute('viewBox',`0 0 132 ${H}`); svg.style.height=H+'px';
+  svg.classList.toggle('arrive',arriveIdx!=null);
+  const running=new Set(day.flatMap(m=>m.stops||[])).size; $('#linesCount').textContent=`${running} lines`;
+}
+
+function weekMap(el,compact){
+  const cw=Math.max(320,el.clientWidth||360), W=Math.min(cw,680), H=compact?300:320, padL=W<480?72:84, top=36, gap=(H-top-30)/3, colW=(W-padL-24)/6;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Week network: ${week.map(d=>d.d+' '+d.s.length+' of 4 lines').join(', ')}">`;
+  week.forEach((d,i)=>{ const x=padL+i*colW; s+=`<text x="${x}" y="20" text-anchor="middle" fill="${d.today?'#F2A41C':'#A3AFCF'}" font-family="Barlow Condensed" font-weight="700" font-size="16" letter-spacing="1.5">${d.d.toUpperCase()}</text>`; });
+  LINES.forEach((l,j)=>{ const y=top+j*gap+10;
+    s+=`<text x="0" y="${y+5}" fill="#C9CFE0" font-family="Barlow Condensed" font-weight="600" font-size="14" letter-spacing="1">${['VEG·FRUIT','PROTEIN','STARCH','DAIRY'][j]}</text>`;
+    const x0=padL, x1=padL+6*colW;
+    s+=`<path d="M${x0} ${y} H${x1}" stroke="${l.c}" stroke-width="7" fill="none"/><path d="M${x0} ${y-9} V${y+9} M${x1} ${y-9} V${y+9}" stroke="${l.c}" stroke-width="5"/>`;
+    week.forEach((d,i)=>{ const x=padL+i*colW; if(d.s.includes(l.k)) s+=`<circle cx="${x}" cy="${y}" r="8" fill="#F3F1EA" stroke="#0E1A3A" stroke-width="3"/>`; else s+=`<circle cx="${x}" cy="${y}" r="7" fill="#0E1A3A" stroke="#7A86A8" stroke-width="2" stroke-dasharray="3 3"/>`; });
+  });
+  week.forEach((d,i)=>{ if(d.today){ const x=padL+i*colW; s+=`<rect x="${x-16}" y="${top-4}" width="32" height="${3*gap+28}" rx="16" fill="none" stroke="#F2A41C" stroke-width="2.5"/>`; } });
+  s+='</svg>'; el.innerHTML=s;
+}
+function route(){
+  $('#route').innerHTML=week.map((d,i)=>`<button class="${d.s.length===4?'full':''}" data-day="${i}" ${d.today?'aria-current="date"':''} aria-label="${d.today?'Today':d.d}: ${d.s.length} of 4 food groups"><b></b>${d.today?'Today':d.d.slice(0,1)}</button>`).join('');
+}
+function dayList(){
+  $('#daylist').innerHTML=week.map(d=>`<li><span class="d">${d.d.toUpperCase()}</span><span class="segs">${LINES.map(l=>`<i ${d.s.includes(l.k)?`style="background:${l.c}"`:'class="off"'}></i>`).join('')}</span><span class="n">${d.n} plates</span></li>`).join('');
+}
+
+function go(v){
+  $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  $$('[data-go]').forEach(b=>{ if(b.closest('nav')||b.classList.contains('ibtn')) b.toggleAttribute('aria-current',b.dataset.go===v||(v==='detail'&&b.dataset.go==='today')); if(b.hasAttribute('aria-current')) b.setAttribute('aria-current','page'); });
+  $$('[data-proto]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.proto===v));
+  const hideChrome=v==='unlock'; $('#dock').style.display=hideChrome?'none':'';  $('.rail').style.display=hideChrome?'none':''; $('#app').style.gridTemplateColumns=hideChrome?'1fr':'';
+  if(v==='today') requestAnimationFrame(()=>drawLines()); if(v==='week') requestAnimationFrame(()=>weekMap($('#weekmap-main')));
+  window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){go(g.dataset.go);return;}
+  const p=e.target.closest('[data-proto]'); if(p){go(p.dataset.proto);return;}
+  if(e.target.closest('.open-detail')){go('detail');return;}
+  const db=e.target.closest('[data-day]'); if(db){$$('[data-day]').forEach(b=>b.removeAttribute('aria-current')); db.setAttribute('aria-current','date'); const d=week[+db.dataset.day]; $('#dayname').textContent=d.today?'Tuesday':({Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday',Mon:'Monday'})[d.d]; go('today'); return;}
+  if(e.target.closest('[data-open-sheet]')){document.body.classList.add('sheet-open');setTimeout(()=>$('[data-snap]').focus(),50);return;}
+  if(e.target.closest('[data-close-sheet]')){document.body.classList.remove('sheet-open');return;}
+  if(e.target.closest('[data-snap]')){
+    document.body.classList.remove('sheet-open'); go('today');
+    const d=day[2]; if(!d.open) return;
+    d.resolving=true; renderDay();
+    setTimeout(()=>{ Object.assign(d,{open:false,resolving:false,t:'19:30',what:'Salmon, green beans, rice',stops:['veg','pro','sta'],coach:true,coachText:'Green beans and salmon on one plate. Want to know what a spoon of yogurt sauce would add?'}); day[1].coach=false; renderDay(); requestAnimationFrame(()=>drawLines(2)); },1600);
+  }
+  const pr=e.target.closest('.presets button'); if(pr){pr.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b===pr)); pr.closest('li').querySelector('.q').textContent=pr.textContent;}
+  const tr=e.target.closest('.tier'); if(tr&&tr.getAttribute('aria-disabled')!=='true'){$$('.tier').forEach(t=>t.setAttribute('aria-checked',t===tr));}
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.body.classList.remove('sheet-open'); });
+addEventListener('resize',()=>{drawLines();weekMap($('#weekmap-side'),true);weekMap($('#weekmap-main'));});
+renderDay(); route(); weekMap($('#weekmap-side'),true); weekMap($('#weekmap-main')); dayList();
+document.fonts&&document.fonts.ready.then(()=>drawLines());
+</script>
+</body>
+</html>

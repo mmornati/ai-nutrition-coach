@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenPlate — Food Lines</title>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--enamel:#101C3D;--enamel-2:#18264F;--porc:#F3F1EA;--muted:#A9B4D3;
+--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--enamel)}
+body{font-family:Overpass,system-ui,sans-serif;color:var(--porc);width:390px;min-height:844px;margin:0 auto;position:relative;overflow:hidden}
+header{padding:52px 20px 10px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:4px solid var(--porc)}
+h1{font-weight:800;font-size:38px;line-height:1;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px;margin-top:6px;font-weight:600}
+.chip{font-weight:800;font-size:12px;background:var(--porc);color:var(--enamel);padding:7px 10px;border-radius:4px;min-height:32px;display:flex;align-items:center}
+.keys{display:flex;gap:8px;padding:12px 20px}
+.key{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.02em}
+.key i{width:16px;height:6px;border-radius:3px}
+.map{position:relative;height:480px;margin-top:4px}
+.map svg{position:absolute;left:0;top:0}
+.st{position:absolute;left:142px;right:16px}
+.st h2{font-size:22px;font-weight:800;line-height:1.1}
+.st p{font-size:14px;color:var(--muted);margin-top:3px}
+.coach{margin-top:10px;background:var(--porc);color:var(--enamel);border-radius:6px;padding:11px 12px;font-size:14.5px;line-height:1.45}
+.acts{display:flex;gap:8px;margin-top:9px}
+.btn{min-height:44px;padding:0 14px;border-radius:4px;font:800 13.5px Overpass;background:var(--enamel);color:#fff;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--enamel);border:2px solid var(--enamel)}
+.fab{position:absolute;right:20px;bottom:86px;height:60px;padding:0 22px;border-radius:30px;background:var(--porc);color:var(--enamel);display:flex;gap:8px;align-items:center;font-weight:800;font-size:16px;box-shadow:0 10px 22px -6px rgba(0,0,0,.55)}
+.week{position:absolute;bottom:0;left:0;right:0;height:70px;background:var(--enamel-2);display:flex;align-items:center;padding:0 16px;gap:0}
+.week .ln{flex:1;height:4px;background:#3A4A7A}
+.week .stop{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:800;color:var(--muted);width:30px}
+.week .stop b{width:16px;height:16px;border-radius:50%;border:3px solid var(--porc);background:var(--enamel-2)}
+.week .stop.full b{background:var(--porc)}
+.week .stop.t{color:#fff}
+.week .stop.t b{width:20px;height:20px;border-color:var(--sta);background:var(--sta)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Tuesday</h1><div class="sub">13 October · 3 lines running today</div></div>
+  <div class="chip">● LOCAL</div>
+</header>
+<div class="keys">
+  <span class="key"><i style="background:var(--veg)"></i>Veg &amp; fruit</span>
+  <span class="key"><i style="background:var(--pro)"></i>Protein</span>
+  <span class="key"><i style="background:var(--sta)"></i>Starch</span>
+  <span class="key"><i style="background:var(--dai)"></i>Dairy</span>
+</div>
+<div class="map">
+  <svg width="140" height="480" viewBox="0 0 140 480" aria-hidden="true"><rect x="20" y="49" width="92" height="14" rx="7" fill="var(--porc)"/><rect x="20" y="189" width="92" height="14" rx="7" fill="var(--porc)"/><rect x="18" y="392" width="96" height="24" rx="12" fill="var(--enamel)" stroke="var(--porc)" stroke-width="3" stroke-dasharray="5 4"/><path d="M30 0 V480" stroke="var(--veg)" stroke-width="8"/><path d="M54 0 V480" stroke="var(--pro)" stroke-width="8"/><path d="M78 0 V480" stroke="var(--sta)" stroke-width="8"/><path d="M102 0 V480" stroke="var(--dai)" stroke-width="8"/><circle cx="30" cy="56" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/><circle cx="78" cy="56" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/><circle cx="102" cy="56" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/><circle cx="30" cy="196" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/><circle cx="54" cy="196" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/><circle cx="78" cy="196" r="9" fill="var(--porc)" stroke="var(--enamel)" stroke-width="3"/></svg>
+  <div class="st" style="top:38px"><h2>Breakfast</h2><p>07:40 · oats, berries, yogurt<br>Protein passed through without a stop</p></div>
+  <div class="st" style="top:176px"><h2>Lunch</h2><p>12:55 · lentil salad, sourdough</p>
+    <div class="coach">Two colors of veg and a lentil protein. Want to know why lentils count twice?
+      <div class="acts"><span class="btn">Sure</span><span class="btn ghost">Ask later</span></div></div></div>
+  <div class="st" style="top:386px"><h2>Dinner</h2><p>Open station. The green line would love a stop here.</p></div>
+</div>
+<div class="fab" aria-label="Log a plate"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Log a plate</div>
+<nav class="week" aria-label="This week">
+  <div class="stop full"><b></b>W</div><div class="ln"></div>
+  <div class="stop full"><b></b>T</div><div class="ln"></div>
+  <div class="stop"><b></b>F</div><div class="ln"></div>
+  <div class="stop full"><b></b>S</div><div class="ln"></div>
+  <div class="stop"><b></b>S</div><div class="ln"></div>
+  <div class="stop full"><b></b>M</div><div class="ln"></div>
+  <div class="stop t"><b></b>Today</div>
+</nav>
+</body>
+</html>

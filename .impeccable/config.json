@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-13T05:59:25.698Z",
+        "reason": "Claude: spent direction-round mockup, each deliberately in its own candidate type world; not part of the Food Lines system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-13T05:59:25.717Z",
+        "reason": "Claude: spent direction-round mockup, each deliberately in its own candidate type world; not part of the Food Lines system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-transit.html"
+        ],
+        "createdAt": "2026-10-13T05:59:25.735Z",
+        "reason": "Claude: spent direction-round mockup, each deliberately in its own candidate type world; not part of the Food Lines system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-metro.html"
+        ],
+        "createdAt": "2026-10-13T05:59:25.753Z",
+        "reason": "Claude: spent direction-round mockup, each deliberately in its own candidate type world; not part of the Food Lines system"
+      }
+    ]
+  }
+}

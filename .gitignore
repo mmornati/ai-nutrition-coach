@@ -104,3 +104,8 @@ _bmad/custom/*.user.toml
 *.log
 *.tmp
 *.bak
+# ── Impeccable design tooling (local-only artifacts) ─────────
+.impeccable/review/
+.impeccable/ref/
+.impeccable/questions/
+.impeccable/hook.cache.json
