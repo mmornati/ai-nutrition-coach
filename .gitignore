@@ -115,3 +115,10 @@ apps/client/web/zxing/
 .impeccable/ref/
 .impeccable/questions/
 .impeccable/hook.cache.json
+
+# ── JS workspace (apps/web, packages/core) ───────────────────
+dist/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo

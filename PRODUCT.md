@@ -18,7 +18,7 @@ Public open-source self-hosters and the people they share their instance with. P
 
 ## Product Purpose
 
-OpenPlate records what you ate — photo, barcode, or typing — and lands each meal on a Day Board as one honest plate, then coaches with a question instead of a verdict. Success: meals logged with understanding (a "why" surfaced or a coach question answered), choices that improve over weeks, and a tool that never scolds.
+AI Nutrition Coach (formerly OpenPlate) records what you ate — photo, barcode, or typing — and lands each meal on a Day Board as one honest plate, then coaches with a question instead of a verdict. Success: meals logged with understanding (a "why" surfaced or a coach question answered), choices that improve over weeks, and a tool that never scolds.
 
 ## Positioning
 
@@ -43,7 +43,7 @@ A coach, not a calculator. Trust is architectural: no account, local encrypted s
 
 ## Brand Commitments
 
-- Name: OpenPlate. Footmark: "yours to run · open source".
+- Name: AI Nutrition Coach (formerly OpenPlate). Footmark: "yours to run · open source".
 - Voice: warm-but-reserved calm kitchen friend; asks, never tells; no exclamation marks, no celebratory language, no streak vocabulary.
 - No-Dark-Patterns Standard (`docs/no-dark-patterns-standard.md`) is binding: no streaks, scores, badges, countdowns, celebratory pop-ups, red-guilt states, push re-engagement, or spinners for resolve.
 - Energy in the visuals is welcome; the behavioral rules above constrain devices, not exuberance.

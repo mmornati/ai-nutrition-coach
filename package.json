@@ -1,0 +1,24 @@
+{
+  "name": "ai-nutrition-coach",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.14.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @anc/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @anc/web e2e",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "verify": "pnpm format:check && pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
+}

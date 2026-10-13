@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-13T05:59:31.993990+00:00",
-  "title": "Design System: OpenPlate",
+  "title": "Design System: AI Nutrition Coach (formerly OpenPlate)",
   "extensions": {
     "colorMeta": {
       "enamel": {
@@ -57,6 +57,22 @@
         "displayName": "Control Edge",
         "canonical": "#5B6C9C",
         "oklch": "oklch(52.0% 0.075 268.0)",
+        "tonalRamp": [
+          "#010330",
+          "#101F4F",
+          "#2A3D6F",
+          "#465B91",
+          "#657BB4",
+          "#859DD7",
+          "#ACC3FB",
+          "#E8EEFE"
+        ]
+      },
+      "control-raised": {
+        "role": "neutral",
+        "displayName": "Raised Control Edge",
+        "canonical": "#6474A6",
+        "oklch": "oklch(56.7% 0.080 270.1)",
         "tonalRamp": [
           "#010330",
           "#101F4F",
@@ -420,7 +436,7 @@
       "Don't add drop shadows or blur for depth; use the raised enamel plane or a rule.",
       "Don't bend a line at any angle other than 45° or 90°.",
       "Don't load fonts from a CDN.",
-      "**Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge; selected ones use porcelain."
+      "**Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge (the raised control edge on the sheet and the dock); selected ones use porcelain."
     ]
   }
 }
