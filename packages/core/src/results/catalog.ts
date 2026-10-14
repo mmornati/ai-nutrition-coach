@@ -8,7 +8,7 @@ export interface FoodMatch {
 }
 
 /**
- * Why a catalog lookup failed (the Dart `CatalogFailure.reason` was an untyped object; these are
+ * Why a catalog lookup failed (the earlier `CatalogFailure.reason` was an untyped object; these are
  * the causes its barcode adapter produces). Plain data: structured-clone safe.
  */
 export type CatalogFailureReason =

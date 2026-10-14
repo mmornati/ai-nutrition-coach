@@ -82,7 +82,7 @@ describe('weekNote', () => {
     );
   });
 
-  it('names at most two quiet lines', () => {
+  it('never drops a line: every quiet line is named, each with its own days', () => {
     const week = [
       day(-6, ['vegFruit', 'protein', 'starch', 'dairy']),
       day(-5, ['vegFruit']),
@@ -92,8 +92,44 @@ describe('weekNote', () => {
       day(-1, ['vegFruit', 'starch']),
       day(0, ALL),
     ];
-    const sentences = weekNoteParts(week).detail.split('. ').filter(Boolean);
-    expect(sentences).toHaveLength(2);
+    expect(weekNoteParts(week).detail).toBe(
+      'Protein was quiet on Thursday, Friday, Sunday and Monday. ' +
+        'Starch was quiet on Thursday, Friday, Saturday and Sunday. ' +
+        'Dairy was quiet on Thursday, Friday, Saturday and Monday.',
+    );
+  });
+
+  it('puts every line that never ran in ONE sentence', () => {
+    const week = WEEK.map((d) => ({ ...d, groups: d.groups.length ? ['protein' as const] : [] }));
+    expect(weekNote(week)).toBe(
+      'Protein ran this week. Veg & fruit, starch and dairy were quiet this week.',
+    );
+    const two = WEEK.map((d) => ({ ...d, groups: ['vegFruit' as const, 'protein' as const] }));
+    expect(weekNoteParts(two).detail).toBe('Starch and dairy were quiet this week.');
+  });
+
+  it('all four quiet: plates logged, no line ran', () => {
+    const week = WEEK.map((d) => ({ ...d, groups: [], plateCount: 1 }));
+    expect(weekNoteParts(week)).toMatchObject({
+      lead: 'No line ran this week.',
+      detail: 'Veg & fruit, protein, starch and dairy were quiet this week.',
+    });
+  });
+
+  it('with no logged day before today, only the lead sentence', () => {
+    const week = [...[-6, -5, -4, -3, -2, -1].map((o) => day(o, [], 0)), day(0, ['vegFruit'])];
+    expect(weekNoteParts(week)).toEqual({
+      lead: 'Veg & fruit ran this week.',
+      detail: '',
+      text: 'Veg & fruit ran this week.',
+    });
+  });
+
+  it('a day with plates but no line counts as a logged earlier day', () => {
+    const week = [day(-1, [], 1), day(0, ALL)];
+    expect(weekNoteParts(week).detail).toBe(
+      'Veg & fruit was quiet on Monday. Protein was quiet on Monday. Starch was quiet on Monday. Dairy was quiet on Monday.',
+    );
   });
 });
 
@@ -201,6 +237,15 @@ describe('WeekRoute', () => {
     expect(visible).toEqual(['W', 'T', 'F', 'S', 'S', 'M', 'Today']);
   });
 
+  it('gives every stop a 48px-wide hit area and no side padding on the track', () => {
+    route();
+    const nav = screen.getByRole('navigation');
+    expect(nav.className).not.toMatch(/\bp[lr]-/);
+    for (const b of within(nav).getAllByRole('button')) {
+      expect(b).toHaveClass('min-w-[48px]', 'min-h-19', 'flex-1');
+    }
+  });
+
   it('marks only the selected day aria-current="true" and selecting calls back', async () => {
     const onSelect = route(localTime(2026, 10, 11));
     const current = screen
@@ -284,6 +329,16 @@ describe('DayList and note', () => {
     expect(items[2]).toHaveTextContent('2 plates');
     expect(items[6]).toHaveTextContent('Today');
     expect(items[6]).toHaveTextContent('Today: all four lines');
+  });
+
+  it('with onSelectDay every day is a button that selects it', async () => {
+    const onSelectDay = vi.fn();
+    render(<DayList days={WEEK} onSelectDay={onSelectDay} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(7);
+    expect(buttons[6]).toHaveAttribute('aria-current', 'date');
+    await userEvent.click(buttons[2] as HTMLElement);
+    expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(WEEK[2]?.date);
   });
 
   it('pluralises plates', () => {

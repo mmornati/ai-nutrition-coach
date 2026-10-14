@@ -14,14 +14,12 @@
 # ── Default owner (catches everything not explicitly pinned) ──
 *  @mmornati
 
-# ── Coach strings (every user-facing string lives here) ──
-/packages/integrations/lib/src/l10n/coach_strings.dart  @mmornati
+# ── Strings catalogue (every user-facing string lives here) ──
+/apps/web/src/i18n/  @mmornati
 
-# ── All user-facing widgets ──
-/apps/client/lib/widgets/  @mmornati
-
-# ── All user-facing screens ──
-/apps/client/lib/screens/  @mmornati
+# ── All user-facing components and screens ──
+/apps/web/src/components/  @mmornati
+/apps/web/src/screens/  @mmornati
 
 # ── All docs (user-facing + contributor-facing) ──
 /docs/  @mmornati
@@ -40,16 +38,14 @@
 /tools/  @mmornati
 /.github/  @mmornati
 /SECURITY.md  @mmornati
-/apps/client/android/  @mmornati
-/apps/client/ios/  @mmornati
 
 # ── Reviewers file ──
 /REVIEWERS.md  @mmornati
 
 # ── Verification scripts (the gate itself) ──
-/tools/check_release_posture.dart  @mmornati
-/tools/check_adults_only.dart  @mmornati
-/tools/check_no_under_13_profiles.dart  @mmornati
+/tools/check_release_posture.mjs  @mmornati
+/tools/check_adults_only.mjs  @mmornati
+/tools/check_telemetry_claims.mjs  @mmornati
 
 # ── CI workflows that run the gate (also covered by /.github/ above) ──
 /.github/workflows/  @mmornati

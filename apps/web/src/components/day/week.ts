@@ -5,9 +5,9 @@ import {
   dayDetail,
   lineName,
   lineNames,
-  noteQuietAll,
   joinSentences,
   noteQuietDays,
+  noteQuietNever,
   noteSome,
   noteText,
   routeStop,
@@ -95,7 +95,9 @@ export interface WeekNote {
 
 /**
  * The week observation, in words and without counts: which lines ran, and where one went quiet
- * on a day that had plates. Today is still in progress, so it never counts as quiet.
+ * on a day that had plates. Today is still in progress, so only logged days BEFORE today give a
+ * "quiet" verdict; with none, only the lead sentence is shown. Nothing is dropped: every line
+ * that never ran shares ONE sentence, and every line quiet on some days gets its own.
  */
 export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
   const w = strings().week;
@@ -104,19 +106,22 @@ export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
     return { lead: w.noteNone, detail: '', text: w.noteNone };
   }
   const ran = LINE_GROUPS.filter((g) => days.some((d) => d.groups.includes(g)));
-  const lead = ran.length === LINE_GROUPS.length ? w.noteAllRan : noteSome(lineNames(ran));
+  const lead =
+    ran.length === LINE_GROUPS.length
+      ? w.noteAllRan
+      : ran.length === 0
+        ? w.noteNoneRan
+        : noteSome(lineNames(ran));
+
+  const earlier = logged.filter((d) => !d.isToday);
+  if (earlier.length === 0) return { lead, detail: '', text: lead };
 
   const sentences: string[] = [];
-  const quiet = LINE_GROUPS.map((g) => ({
-    g,
-    onDays: logged.filter((d) => !d.isToday && !d.groups.includes(g)),
-  }));
-  // Lines that never ran first, then the ones with the most quiet days; at most two sentences.
-  for (const g of LINE_GROUPS.filter((x) => !ran.includes(x))) {
-    sentences.push(noteQuietAll(lineName(g)));
-  }
-  const partial = quiet
-    .filter((q) => ran.includes(q.g) && q.onDays.length > 0)
+  const never = LINE_GROUPS.filter((g) => !ran.includes(g));
+  if (never.length > 0) sentences.push(noteQuietNever(lineNames(never)));
+  const partial = LINE_GROUPS.filter((g) => ran.includes(g))
+    .map((g) => ({ g, onDays: earlier.filter((d) => !d.groups.includes(g)) }))
+    .filter((q) => q.onDays.length > 0)
     .sort((a, b) => b.onDays.length - a.onDays.length);
   for (const q of partial) {
     sentences.push(
@@ -126,7 +131,7 @@ export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
       ),
     );
   }
-  const detail = joinSentences(sentences.slice(0, 2));
+  const detail = joinSentences(sentences);
   return { lead, detail, text: noteText(lead, detail) };
 }
 

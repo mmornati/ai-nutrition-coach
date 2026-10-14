@@ -3,9 +3,8 @@
 AI Nutrition Coach's web build is a **Progressive Web App**: you open one URL on your
 phone, add it to the home screen, and from then on it has its own icon, opens
 without a connection and tells you calmly when a new version is ready. For a
-family trial this is the primary way to use AI Nutrition Coach; the Android and iOS apps
-come from the same code and keep working, but the web app is what you deploy and
-hand around.
+family trial this is the way to use AI Nutrition Coach: the web app is what you
+deploy and hand around.
 
 This page is the whole story: what changed and why, how it works, how to build,
 run and deploy it (including behind Traefik), how to install it on a phone, how
@@ -31,34 +30,40 @@ Design record: [ADR-0003](../_bmad-output/planning-artifacts/architecture/archit
 | Needed a connection to start; no icon | Own service worker precaches the app: opens offline, installable (manifest with maskable icons, iOS tags) |
 | No update story | A new image shows a calm "A new version is ready — Reload" line; one tap activates it |
 | The browser could evict the data silently | The app asks the browser to protect it (`navigator.storage.persist()`), says what the browser answered, tracks the last export and suggests one now and then |
-| BYOK key and AI settings lived in memory, re-entered after every lock | They are stored **inside the encrypted web store** (schema v5) and read after you unlock |
+| BYOK key and AI settings lived in memory, re-entered after every lock | They are stored **inside the encrypted web store** and read after you unlock |
 | Barcode scanning only where the browser has `BarcodeDetector` (not Safari) | A SHA-256-verified zxing-wasm decoder is served from your own origin: Safari/iOS and Firefox scan too |
 | Deploy: loopback or the Caddy profile | Also: behind your existing Traefik (Docker or host), no published port |
 
 Nothing about the trust model changed: the server is still a static file server
 that holds no data, makes no outbound request and never sees your passphrase or
-your history (ADR-0002). The strict CSP is unchanged
-(`script-src 'self' 'wasm-unsafe-eval'`, no inline script, no CDN).
+your history ([ADR-0005](./adr/0005-web-encrypted-store.md)). The CSP is strict
+(`script-src 'self' 'wasm-unsafe-eval'`, `style-src 'self'`, no inline script or style, no CDN).
 
 ## How it works
 
 ### Service worker: caches, offline, updates
 
-`flutter build web --pwa-strategy=none` stays (Flutter's own worker is
-deprecated). After the build, `tools/generate_precache_manifest.dart` writes two
-files into the bundle:
+The app is a Vite build (`apps/web`). Vite names its JS and CSS by content hash
+(`assets/index-<hash>.js`), so the **build id is a hash of the file list and their SHA-256s**:
+any change to a shipped file changes the bytes of `sw.js`, which is exactly what makes a browser
+run its update check. After `vite build`, `tools/generate_precache_manifest.mjs` writes two files into `apps/web/dist`:
 
-- `precache-manifest.json` — `{ buildId, files: [ { url, sha256, size } ] }` for every
-  file needed to boot offline: `index.html`, `flutter.js`, `flutter_bootstrap.js`,
-  `main.dart.js`, the web manifest, icons, `assets/`, the fallback font, the
-  versioned `sqlite3mc-<ver>.wasm`, the self-hosted zxing decoder and the CanvasKit
-  builds a browser can pick. Left out: `skwasm*`/`wimp*` (unused without
-  cross-origin isolation), `*.symbols`, source maps, `version.json`, Flutter's own
-  worker.
-- `sw.js` — from `tools/pwa/sw.template.js` with the **build id** baked in. The build
-  id is a hash of the file list, so *any* change to a shipped file changes the bytes of
-  `sw.js`, which is exactly what makes a browser run its update check.
-  (`AI_NUTRITION_COACH_BUILD_ID=...` / `--build-id` forces an id, e.g. to test the banner.)
+- `precache-manifest.json` — `{ buildId, files: [ { url, sha256, size } ] }` for every file in
+  the bundle except source maps and dotfiles: `index.html`, `boot-guard.js`, the hashed JS/CSS
+  chunks (including `store.worker-<hash>.js`), the web manifest, icons, fonts, licence texts, the
+  versioned `sqlite3mc/<ver>/` engine (`sqlite3.mjs` + `sqlite3.wasm`) and the self-hosted
+  `zxing/<ver>/` decoder. The generator **refuses a bundle that cannot boot offline**: it must
+  contain the document, the web manifest, the boot guard, every local script/stylesheet/module the
+  document references, the store worker chunk and the sqlite3mc and zxing files.
+- `sw.js` — `tools/pwa/sw.template.js` with the build id baked in. (`AI_NUTRITION_COACH_BUILD_ID=...`
+  or `--build-id` forces an id, e.g. to test the banner.)
+
+The worker is hand-written and hardened (`tools/pwa/sw.template.js`); its
+manifest is generated for Vite's output, and `vite-plugin-pwa`/Workbox is not used (the plugin's
+`generateSW` could not express the SHA-256 verification, the always-refetched `index.html`, the
+header-preserving cache entries or the waiting-only update; the generator and the template are
+~350 lines and are covered by `tools/pwa/*.test.mjs`, which executes the worker against a fake
+CacheStorage).
 
 What the worker does:
 
@@ -70,10 +75,11 @@ What the worker does:
 | activate | Deletes every other `ai-nutrition-coach-precache-*` cache and claims open pages. |
 | fetch | **GET + same-origin only.** A page navigation (a path without a file extension) gets the cached `index.html`, online or offline, so a page load is always one consistent build. A precached file is served cache-first. Anything else goes to the network untouched. **Cross-origin requests (Open Food Facts, your AI endpoint) and all non-GET requests are never intercepted**, and the worker never writes a cache at run time, so no API response can be cached. |
 
-Registration is done by the app itself (`main.dart.js`, a same-origin script — hence no
-inline script and no CSP change), **only on a secure context and only in a release build**
-(`flutter run` never registers it, so development is never served from a stale cache). The
-app checks for a new version on every load and whenever it comes back to the foreground.
+Registration is done by the app itself (`apps/web/src/pwa/app-update.ts`, a same-origin module —
+hence no inline script and no CSP change), **only on a secure context and only in a release build**
+(`pnpm dev` never registers it, so development is never served from a stale cache). The app checks
+for a new version on every load and whenever it comes back to the foreground. The web manifest
+(`apps/web/public/manifest.webmanifest`) is a static file linked from `index.html`.
 
 The *update flow* in the UI: the new worker finishes installing → the app shows one
 dismissible line ("A new version is ready. Reloading locks your data, so you will enter your
@@ -87,14 +93,16 @@ security headers>`. The headers matter because the worker serves the *cached* `i
 fetched with (the stored responses keep the network response's headers, minus `Content-Encoding`/`Content-Length`/
 `Transfer-Encoding`/`Set-Cookie`, and the document is always re-fetched on an update). So **changing
 `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restarting the container is a new service-worker version**: installed apps show the
-"new version is ready" line and pick up the new CSP when the user taps Reload. nginx serves `sw.js`, `precache-manifest.json`, `manifest.json`, `index.html` and the loader/app
-code with `Cache-Control: no-cache`; the worker is served from `/`, so its scope is `/` and no
-`Service-Worker-Allowed` header is needed. CSP `worker-src 'self' blob:` already allows it.
+"new version is ready" line and pick up the new CSP when the user taps Reload. nginx serves `sw.js`, `precache-manifest.json`, `manifest.webmanifest`, `index.html` and `boot-guard.js`
+with `Cache-Control: no-cache`; Vite's hashed `assets/*` and the versioned `sqlite3mc/<ver>/` and
+`zxing/<ver>/` files are `public, max-age=31536000, immutable`; the worker is served from `/`, so its
+scope is `/` and no `Service-Worker-Allowed` header is needed. CSP `worker-src 'self' blob:` already
+allows it.
 
 ### Storage and persistence
 
-Your data is the encrypted SQLite database in the browser's IndexedDB (ADR-0002;
-[`your-data.md`](./your-data.md)). Browsers may clear a site's storage when space runs low unless
+Your data is the encrypted SQLite database in the browser's origin-private file system (OPFS), opened by a
+worker (ADR-0005; [`your-data.md`](./your-data.md)). Browsers may clear a site's storage when space runs low unless
 the site is *persistent*, so after every create/unlock (once, and only if not already protected)
 the app calls `navigator.storage.persist()`. **Your data** then shows one plain line:
 
@@ -113,73 +121,85 @@ remembered for another 14 days. No badge, no modal, no streak
 
 ### Encryption recap and where the BYOK key lives
 
-Unchanged: ChaCha20-Poly1305 pages in IndexedDB; the key is derived from your passphrase with
-PBKDF2-HMAC-SHA256, 600,000 iterations and a random salt, held in memory only while unlocked; the page
-locks after idle / hidden time; one tab at a time (Web Locks).
+ChaCha20-Poly1305 pages (SQLite3 Multiple Ciphers, WebAssembly) in a worker on OPFS; the key is derived
+from your passphrase and held in memory only while unlocked; the page locks after idle / hidden time; one tab
+at a time (Web Locks). The parameters are in [ADR-0005](./adr/0005-web-encrypted-store.md).
 
-New: the schema is **v5**, with a small `kv_table`. On web it holds your **BYOK key** (bound to the host it
-was entered for, as on mobile) and your **AI settings and per-host consents**. They are inside the
-encrypted database, readable only after the passphrase unlock, and deleted by *Erase all local data*. They
-are never in `localStorage` (the app still purges what older builds left there). The old "kept in memory,
-paste it again after every lock" behaviour is gone. On mobile the key stays in the OS keystore. See
-[`ai-tiers.md`](./ai-tiers.md).
-
-Because settings are read from the open database, the app restarts its view after every unlock as well as
-every lock (you may notice a blink).
+Your **BYOK key** (bound to the host it was entered for) and your **AI settings and per-host consents** live
+**inside the encrypted database**, readable only after the passphrase unlock, and deleted by *Erase all local
+data*. They are never in `localStorage`. See [`ai-tiers.md`](./ai-tiers.md).
 
 ### Barcode decoder
 
-`mobile_scanner` uses the browser's native `BarcodeDetector` where it exists (Chrome, Edge) and otherwise
-`zxing-wasm`. By default it loads that from a CDN, which the CSP blocks. The build therefore self-hosts it:
-`scripts/fetch_web_zxing.sh` downloads the exact npm tarball `mobile_scanner 7.4.x` expects (zxing-wasm 3.1.1,
-MIT, bundling zxing-cpp, Apache-2.0), verifies its SHA-256, rewrites the one CDN wasm URL to a path next to
-the reader, verifies the result against a second SHA-256, and writes `apps/client/web/zxing/3.1.1/`
-(git-ignored; the version is in the path so nginx caches it as `immutable`). The decoder runs entirely on the
-device; the camera never leaves it. If the decoder cannot start, the scanner shows the calm "scanning isn't
-available in this browser — type it instead" and manual entry still works.
+The scanner uses the browser's native `BarcodeDetector` where it exists (Chrome, Edge) and otherwise
+`zxing-wasm`. By default that library loads its wasm from a CDN, which the CSP blocks. The build therefore
+self-hosts it: `scripts/fetch_web_zxing_pwa.sh` downloads the exact npm tarball (zxing-wasm 3.1.1, MIT,
+bundling zxing-cpp, Apache-2.0), verifies its SHA-256, rewrites the one CDN wasm URL to a path next to the
+reader, verifies the result against a second SHA-256, and writes `apps/web/public/zxing/3.1.1/` (git-ignored;
+the version is in the path so nginx caches it as `immutable`). The decoder runs entirely on the device; the
+camera never leaves it. If the decoder cannot start, the scanner shows the calm "scanning isn't available in
+this browser — type it instead" and manual entry still works.
 
 ### Content-Security-Policy
 
-Unchanged and still strict. The worker and the decoder are both `'self'`. The one knob is
-`AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`: **this is where you add the origin of your own AI endpoint** (BYOK), e.g.
-`https://api.openai.com`. Without it the browser blocks the call. Details in
-[`self-host.md`](./self-host.md#content-security-policy-and-your-ai-endpoint).
+Strict, and **set by the server** (`infra/nginx/templates/ai-nutrition-coach-headers.inc.template`):
+
+```
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:;
+font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:;
+connect-src 'self' https://world.openfoodfacts.org <AI_NUTRITION_COACH_CONNECT_SRC_EXTRA>;
+manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+```
+
+- **No `'unsafe-inline'`, not even for styles.** The build ships its CSS as a file, and React's `style={}` props
+  are applied through the CSSOM (`element.style`), which `style-src` does not govern; only `style=""`
+  attributes in markup and `<style>` elements are. The e2e suite and the browser smoke fail on any
+  Content-Security-Policy violation, so an inline style added later is a red build. (`vite dev` adds
+  `'unsafe-inline'` for its HMR style injection; the release never has it.)
+- `index.html` also carries a `<meta>` CSP with **only** `script-src`, `worker-src`, `object-src`, `base-uri`
+  and `form-action`: a meta and a header CSP are both enforced, so a meta `connect-src` could never be widened
+  by the knob below. `connect-src` therefore exists **only** in the header.
+- The one knob is `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`: **this is where you add the origin of your own AI
+  endpoint** (BYOK), e.g. `https://api.openai.com`. Without it the browser blocks the call. Details in
+  [`self-host.md`](./self-host.md#content-security-policy-and-your-ai-endpoint).
 
 ## Build
 
-All Flutter work runs in the pinned toolchain image (Flutter 3.44.0 by digest); you only need Docker.
+Needs Node 24 and pnpm (`corepack enable`; the version is pinned in `package.json`), or just Docker for the image.
 
 ```sh
-# The whole gate (format, analyze, tests, release posture, release web build, scans):
-scripts/verify.sh
+pnpm install
+# The whole gate (format, lint, typecheck, unit tests incl. the service-worker tests, build, scans):
+pnpm verify
 
-# Just the release web bundle (fetches sqlite + zxing, builds, generates sw.js + the manifest, scans):
-scripts/flutter_docker.sh dart run melos run build:web      # = melos run build:web inside the container
-# -> apps/client/build/web
+# Just the release web bundle (fetches + verifies sqlite3mc and zxing, tsc, vite build, then writes
+# sw.js + precache-manifest.json and refuses a bundle that cannot boot offline):
+pnpm --filter @anc/web build            # -> apps/web/dist
 
 # Re-generate only sw.js + precache-manifest.json for an existing bundle
 # (AI_NUTRITION_COACH_BUILD_ID forces a new build id, e.g. to test the update banner):
-AI_NUTRITION_COACH_BUILD_ID=test-2 scripts/flutter_docker.sh dart run melos run pwa:manifest
+AI_NUTRITION_COACH_BUILD_ID=test-2 pnpm --filter @anc/web precache
 
-# The production image (multi-stage: build above, then nginx-unprivileged):
+# The production image (node build stage, then nginx-unprivileged; the scans fail the build):
 docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .
 ```
 
-Icons are generated deterministically from one piece of geometry by `tools/generate_icons.dart`
-(`scripts/flutter_docker.sh dart run tools/generate_icons.dart`); the SVG sources are in `tools/icons/`.
-The Android/iOS launcher icons are still the Flutter placeholders.
+Icons: the SVG sources are in `tools/icons/`; the PNGs in `apps/web/public/icons/` are committed (the
+192 px maskable icon is the 512 px one scaled down). The generator that drew them was removed with
+the earlier client; to change the icon, edit the SVGs and re-render the PNGs with any SVG rasteriser.
 
 ## Run locally
 
 ```sh
 bin/ai-nutrition-coach up                 # builds the image, serves http://localhost:8080/ (loopback only)
 bin/ai-nutrition-coach down
-scripts/run_local_web.sh         # build in the toolchain image + serve build/web with python, open Chrome
+scripts/run_local_web.sh         # the Vite dev server on 127.0.0.1 (no service worker), open Chrome
 ```
 
 `http://localhost` counts as a **secure context**, so the service worker, the encrypted store and the camera
 all work there; `http://192.168.x.y:8080` does **not**. To try it on a phone you need HTTPS: use the Caddy
-profile or Traefik below (or `scripts/run_local_web.sh --tunnel` with throwaway data).
+profile or Traefik below (or `scripts/run_local_web.sh --tunnel`, which serves the release bundle through
+an ngrok URL, with throwaway data).
 
 ## Deploy behind Traefik
 
@@ -313,16 +333,16 @@ Deploy a new image (`bin/ai-nutrition-coach up --traefik` again, or `docker comp
 foreground. When the new version has finished installing in the background they show the calm line "A new
 version is ready" — tap **Reload** (the page reloads once and asks for your passphrase again) or **Later**.
 Old caches are deleted when the new version activates. Nothing else is needed on the phones; data is untouched.
-Schema migrations (like v4 → v5) run automatically the first time the new version opens the store, and are
-written to be safely re-runnable.
+Store migrations run automatically the first time the new version opens the store.
 
 ### If an update goes wrong: the escape hatches
 
 1. **A build that crashes at start-up** can keep serving itself from the worker's cache, and it never reaches the
-   Dart code that shows the banner. `flutter_bootstrap.js` (served by the worker like everything else) therefore
-   checks, 20 s after it ran, whether the engine painted anything; if not, and a newer worker is *waiting*, it
-   activates it **once** (a `sessionStorage` flag prevents reload loops) and the page reloads into the fix. Deploy
-   the fixed image; open the app; wait ~30 s.
+   code that shows the banner. `boot-guard.js` (a separate classic script, loaded by `index.html` independently
+   of the app bundle and served by the worker like everything else) therefore checks, 20 s after it ran,
+   whether the app painted anything into `#root`; if not, and a newer worker is *waiting*, it activates it
+   **once** (a `sessionStorage` flag prevents reload loops) and the page reloads into the fix. Deploy the fixed
+   image; open the app; wait ~30 s.
 2. **Kill switch** — when that is not enough (the bootstrap itself is broken, or no newer worker will install):
    restart the container with `AI_NUTRITION_COACH_SW_KILL=1`, e.g.
 
@@ -332,7 +352,7 @@ written to be safely re-runnable.
 
    The container then serves `tools/pwa/sw.kill.js` as `/sw.js` (an empty precache manifest). Browsers fetch it on
    their next visit/foreground; it takes over immediately (no banner, no tap), **deletes every cache** (they hold
-   only app files — never your history, which is the encrypted IndexedDB database), and reloads each open window once
+   only app files — never your history, which is the encrypted store in OPFS), and reloads each open window once
    from the network. It has no fetch handler, so everything then loads straight from the server. It deliberately does
    **not** unregister itself (the app registers `/sw.js` on every load; an unregistered kill switch would be
    re-installed and reload the page forever). Once users are healthy, **redeploy normally** (without the variable):
@@ -364,66 +384,49 @@ path. A forgotten passphrase cannot be recovered by anyone.
 - **One tab at a time.** A second tab/window says AI Nutrition Coach is open elsewhere.
 - **No sync.** Devices do not talk to each other.
 - **Camera** needs HTTPS (or localhost) and your permission; the scanner decodes on the device.
-- **Locale:** an unparseable `navigator.languages` entry (POSIX-style `en-US@posix`, `en_US.UTF-8`) used to stop the
-  engine at start-up ("RangeError: Incorrect locale information provided"); `flutter_bootstrap.js` repairs or drops such
-  tags before the engine reads them and the app resolves any locale to English.
-- **Fonts:** emoji/CJK render as boxes (no CDN fallback, by design).
-- **Android/iOS launcher icons** of the native apps are still placeholders.
+- **Fonts:** Barlow is self-hosted; a character outside it falls back to the system font (no CDN, by design).
 
 ## Browser smoke (WebKit and Chromium)
 
-`scripts/webkit_smoke.sh` runs the production image under Playwright (the official image, pinned by digest) in
-WebKit — Safari's engine — and Chromium, over `http://localhost`:
-manifest + icons valid; service worker registers and precaches exactly the manifest; create a passphrase, log a
-plate by manual entry; reload → unlock → the plate is there; **offline reload** served by the worker and the
-data opens; **update**: the build id changes → the worker waits → the banner appears → *Reload* reloads exactly
-once and the old cache is deleted; the first-run *About this app* notice precedes the passphrase screen; **export** downloads a plain CSV and says so; and, in **Chromium only** (Playwright's WebKit has no fake camera), a **barcode** step: a fake camera shows an EAN-13, the one-time Open Food Facts notice appears *before* anything is sent, and after *OK* exactly one request leaves - `GET /api/v2/product/<code>?fields=…`, no Referer / Cookie / Authorization (the request is intercepted and answered by the script) - while no other request may leave the origin, at any time. It is opt-in (needs Docker and the network, ~10
-minutes the first time) and runs as its own CI job; it is in the [release checklist](./release-checklist.md).
+`scripts/webkit_smoke.sh` runs the **production image** (hardened like the compose file) and drives it with
+Playwright (the official image, pinned by digest, sharing the server's network namespace so the page is
+`http://localhost:8080`, a secure context) in WebKit — Safari's engine — and Chromium, with real selectors
+(`tools/webkit_smoke/smoke.spec.mjs`):
+
+1. the web manifest and icons are valid, the service worker registers and **precaches exactly the files of
+   `precache-manifest.json`**, with no CSP violation;
+2. first run: create a passphrase, log a plate by *Type it*, see it on Today and the **durable-storage line**;
+   reload → unlock → the plate is there;
+3. **offline reload** served by the worker; unlock; the plate is there;
+4. **update**: the build id changes → the new worker waits (both caches exist) → the banner appears → *Reload*
+   reloads exactly once → the old cache is deleted → unlock → the data is intact;
+5. in **Chromium only** (Playwright's WebKit has no fake camera): a **barcode** step: a fake camera shows an
+   EAN-13, the one-time Open Food Facts notice appears *before* anything is sent, and after *OK* exactly one
+   request leaves — `GET /api/v2/product/<code>?fields=…`, no Referer / Cookie / Authorization (the host is
+   answered by the test; nothing real is contacted);
+6. **export** downloads a plain CSV;
+7. in every test, no request to any other origin (each is aborted and recorded) and no uncaught page error.
+
+It is opt-in (needs Docker and the network; the Playwright image is ~3 GB), runs as its own CI job
+(`.github/workflows/browser-smoke.yml`) and is in the [release checklist](./release-checklist.md). The same
+offline-reload and update flows also run on every PR in `pnpm e2e` (`apps/web/e2e/pwa.spec.ts`, Chromium and
+WebKit) against a small static server that plays "a new version was deployed".
 
 ```sh
 scripts/webkit_smoke.sh                       # both browsers (builds the image)
 BROWSERS=webkit scripts/webkit_smoke.sh --no-build
 ```
 
-**Result of the privacy-pass run (2026-10-12):** WebKit 10/10 and Chromium 11/11 (the barcode step is skipped in WebKit). One note: reloading with the fake camera live makes the scanner plugin throw a generic `Error` in Chromium; it is logged by the step and not treated as a failure (the cause was not investigated). Also: typing right after a click can drop the first characters in Chromium, so the smoke waits 400 ms after focusing a field.
-
-**Result of the earlier run (2026-10-02, Playwright 1.60 on Linux, release image):** 8/8 steps passed in WebKit
-and 8/8 in Chromium. In particular the web store works in WebKit — sqlite3mc-wasm in IndexedDB, the WebCrypto
-key derivation and Web Locks — and the service worker precaches, serves the app offline and updates there too.
-No bug in the web store, the service worker or the encryption was found. What it did find:
-
-- **A real bug, fixed (review):** the service worker stored precached responses with only a content type and a hash, so
-  the cached `index.html` lost the CSP and every other security header for returning users (an injected inline script
-  would have run). It now keeps the network headers, and a smoke step asserts the CSP on a worker-served navigation
-  and that an injected inline script is blocked.
-- **A real bug, fixed:** the "new version is ready" line was drawn but invisible to screen readers when placed
-  next to the app's Navigator (a route blocks the semantics of siblings that precede it). The banner now follows
-  the Navigator in semantic order and is still drawn on top; a widget test pins it.
-- **Open question, not ours to fix:** with Flutter's accessibility semantics *on*, characters typed into a text
-  field in Playwright's WebKit stay in the semantics `<input>` and never reach the app (Chromium is fine).
-  Text entry without semantics works. So the smoke types by coordinates with semantics off and turns semantics on
-  only to read the screen (`tools/webkit_smoke/calibrate.mjs` records the coordinates; re-run it if a screen on the
-  path changes). Whether VoiceOver users on Safari / iOS are affected is **not verified** — worth a manual check on a
-  real iPhone with VoiceOver on, and an upstream Flutter issue if it reproduces.
-- Playwright's WebKit offers no `navigator.storage`, so "Storage: …" is not shown there (the app hides it when the
-  API is missing); real Safari has it. Its offline emulation also aborts navigations that a service worker would
-  answer, so the smoke empties the server instead (any request reaching it would 404) and additionally uses the
-  network-level switch in Chromium.
-- Flutter needs `navigator.language` to be set: a headless Chromium with no locale fails at start-up ("Incorrect
-  locale information provided"); the smoke sets `en-US`.
-
-**Also done in the Chromium built into the Claude desktop app:** the bundle loads and the manifest, icons and
-create-passphrase flow render; that embedded browser refuses *every* service-worker registration (even Flutter's
-empty file), so installability, offline reload and the update banner were verified in Playwright's Chromium and
-WebKit instead (above), not in the pane.
+Known gaps, stated plainly: Firefox is not tested, and neither is a real iPhone Safari (Playwright's WebKit is
+the same engine, not the same browser: it has no `navigator.storage.persist()` grant, for one).
 
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Stuck on an old version | Close every AI Nutrition Coach tab/app window and reopen (the update applies on next open), or tap *Reload* on the banner. To force it from a desktop browser: DevTools → Application → Service Workers → *Unregister*, and Cache Storage → delete the `ai-nutrition-coach-precache-*` entries, then reload. **Do not use "Clear site data" / "Clear storage"**: that also erases your encrypted history (IndexedDB) — export first if you must. On a phone: removing the Home Screen app and re-adding it also fixes it (on iOS this discards that app's data — export first). |
-| "Web storage unavailable" / store unavailable | The page is not a **secure context**: you opened `http://<ip>` instead of `https://…` or `http://localhost`, or the certificate is not trusted. Fix the URL/certificate. Private browsing modes can also block IndexedDB. |
-| The app never becomes installable / no install icon | Needs HTTPS with a valid certificate, the manifest and the service worker. Check `https://<host>/manifest.json` and `/sw.js` load without credentials (basic auth breaks this) and DevTools → Application → Manifest shows no errors. |
+| Stuck on an old version | Close every AI Nutrition Coach tab/app window and reopen (the update applies on next open), or tap *Reload* on the banner. To force it from a desktop browser: DevTools → Application → Service Workers → *Unregister*, and Cache Storage → delete the `ai-nutrition-coach-precache-*` entries, then reload. **Do not use "Clear site data" / "Clear storage"**: that also erases your encrypted history (OPFS) — export first if you must. On a phone: removing the Home Screen app and re-adding it also fixes it (on iOS this discards that app's data — export first). |
+| "Web storage unavailable" / store unavailable | The page is not a **secure context**: you opened `http://<ip>` instead of `https://…` or `http://localhost`, or the certificate is not trusted. Fix the URL/certificate. Private browsing modes can also block OPFS (an ephemeral WebKit context has none). |
+| The app never becomes installable / no install icon | Needs HTTPS with a valid certificate, the manifest and the service worker. Check `https://<host>/manifest.webmanifest` and `/sw.js` load without credentials (basic auth breaks this) and DevTools → Application → Manifest shows no errors. |
 | The AI call is blocked / "Test connection" fails | CSP `connect-src`: add the endpoint origin to `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restart the container (browser console shows a CSP violation). |
 | Camera / scanner does nothing | Allow the camera for the site in the browser settings; needs HTTPS. If the decoder fails to start the screen says so and manual entry still works. |
 | White page / the app never starts after an update | Wait ~30 s (the bootstrap activates a waiting fix once). Still broken: use the **kill switch** (see *Updating → If an update goes wrong*). |

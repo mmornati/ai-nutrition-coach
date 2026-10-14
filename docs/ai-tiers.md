@@ -7,23 +7,24 @@ canonical reference for FR6 (free quota honesty), FR7 (BYOK key
 on-device), and FR8 (local-model v2 seam).
 
 > Source of truth: the architecture spine (`ARCHITECTURE-SPINE.md`
-> §AD-5 — AI tier ladder) and the story specs in
+> §AD-5 — AI tier ladder), kept in the PWA (ADR 0004), and the story specs in
 > `_bmad-output/implementation-artifacts/spec-3-1-…`,
 > `spec-3-2-…`, and `spec-3-3-…`. This doc is the user-facing
-> translation; the specs are the contract.
+> translation; the specs are the contract. The code is
+> `apps/web/src/ai` (adapters) and `packages/core` (the `AiRung` port).
 
 ## The four rungs
 
 Exactly one rung is active at any time. The active rung is the user's
 choice in **Settings → Your AI** (reached from the gear on the Day Board)
-and reads through `aiRungProvider`. It is **runtime state**: a change takes
+and is read through the AI settings controller. It is **runtime state**: a change takes
 effect on the next photo, with no restart, and is remembered across
 restarts (see "Where settings live" below).
 
 | Rung            | `AiRungKind`     | Status in this build                                   |
 |-----------------|------------------|--------------------------------------------------------|
 | Offline (no AI) | `noOp`           | Default; always available                              |
-| Free model      | `hostedQuota`    | **Not available** — a stub; needs a server-side relay  |
+| Free model      | `hostedQuota`    | **Not built** (known accepted gap) — needs a server-side relay |
 | Your key        | `byok`           | Active; your key, your endpoint                        |
 | Local model     | `local`          | v2 seam — not implemented                              |
 
@@ -31,10 +32,9 @@ The Your AI screen lists all four, but only *No AI* and *My own key* can be
 chosen; the other two read "Not available yet". A persisted value naming an
 unavailable rung is normalised to *No AI* when it is loaded.
 
-The v2 `local` rung exists in the type system and the provider
-wiring (`LocalAiRung` implements `AiRung`); the v1 adapter throws
-`UnsupportedError` on `recognize` so the seam is declared without
-crashing the core.
+The v2 `local` rung exists in the type system and the rung registry; it
+cannot be selected and returns a typed failure, so the seam is declared
+without crashing the core.
 
 ### Where settings live
 
@@ -42,25 +42,21 @@ The rung, the BYOK endpoint and model, and the per-host photo consents
 (`AiSettings`) are not secrets, but they say which third parties you trust,
 so they are stored like one:
 
-- **Mobile / desktop:** the OS keystore (`flutter_secure_storage`, alias
-  `ai_nutrition_coach_ai_rung_config_v1`). Chosen over a table in the encrypted
-  database because it needs no schema migration and is already wiped by
-  *Erase all local data*.
-- **Web:** a row of `kv_table` inside the **encrypted web store** (schema v5,
-  ADR-0003), readable only after the passphrase unlock and erased with the store.
-  `flutter_secure_storage` on web is `localStorage`, readable by any script on the
-  origin, so it is never used (the app refuses to construct it there).
+- A row of the `kv` table inside the **encrypted web store** (`ai.settings`),
+  readable only after the passphrase unlock and erased with the store. It is
+  never in `localStorage` or `sessionStorage`, which any script on the origin
+  can read.
 
 ## Free model — quota honesty (FR6)
 
-> **Status: not available.** The adapters (`CloudflareWorkersAiProvider`,
-> `GeminiFreeProvider`) are stubs that make no request, and the rung cannot
-> be selected. Everything below describes the intended behaviour once a relay
-> exists — see "Hosted tiers need a relay".
+> **Status: not built.** The hosted tier is a known accepted gap: there is no
+> adapter that makes a request, and the rung cannot be selected. Everything
+> below describes the intended behaviour once a relay exists — see "Hosted
+> tiers need a relay".
 
 The hosted-quota rung calls the configured free provider
 (Cloudflare Workers AI by default — OQ-2) within a per-day
-quota. The v1 quota is **`kHostedQuotaPerDay = 50`** calls per
+quota. The intended quota is **50** calls per
 local day. The quota resets at the next **local** midnight.
 
 When the quota is exhausted, the rung returns
@@ -93,10 +89,10 @@ anyone can clear local storage. Real enforcement is the relay's job.
 
 A provider token — a Cloudflare API token, a Gemini key — is a credential
 for *the project's* account. **It must never be shipped in the client.**
-Anything compiled into a web bundle or an APK is public: it can be extracted
+Anything compiled into a web bundle is public: it can be extracted
 in minutes and then used by anyone, with no quota, at the project's expense.
-This applies to `--dart-define`, to a constant, and to a "protected" asset
-alike.
+This applies to a build variable (`VITE_*`), to a constant, and to a
+"protected" asset alike.
 
 The only acceptable shape for a hosted tier is a server-side relay:
 
@@ -110,9 +106,9 @@ The only acceptable shape for a hosted tier is a server-side relay:
   and nothing is logged beyond what quota needs;
 - the app only ever learns the relay's URL (`relayUrl`, not a secret).
 
-That relay does not exist, so the stubs deliberately have **no token
-parameter** and the rung is not selectable. Do not add one. If you are
-tempted to "just pass a key with `--dart-define` for now": that is the
+That relay does not exist, so there is deliberately **no token
+parameter** anywhere and the rung is not selectable. Do not add one. If you are
+tempted to "just pass a key in a build variable for now": that is the
 mistake the security review (S1) found, and
 `tools/check_no_secrets_in_build.sh` will fail CI on it.
 
@@ -121,35 +117,27 @@ mistake the security review (S1) found, and
 The BYOK rung sends photos to an OpenAI-compatible endpoint **you** choose,
 using **your** API key, via `Authorization: Bearer <key>`.
 
-**There is no build-time key (S1).** Earlier builds could be given a key with
-a `--dart-define`; that compiled the key into the JavaScript bundle / APK,
-where anyone could read it. That define no longer exists. Only the
-non-secret *endpoint* and *model* may be baked in as defaults, and they merely
-pre-fill the form — they never switch the AI on. CI scans the build output
+**There is no build-time key (S1).** An earlier client could be given a key at
+build time; that compiled the key into the bundle, where anyone could read it.
+That mechanism no longer exists, and the scan below fails if its name
+reappears. Only the non-secret *endpoint* and *model* may be baked in as
+defaults, and they merely pre-fill the form — they never switch the AI on. CI scans the build output
 (`tools/check_no_secrets_in_build.sh`: `sk-`, `sk-or-v1-`, `AIza`,
 `Bearer <token>` shapes) and fails if a secret-shaped string is present.
 
 ### Where the key lives
 
-| Platform         | Storage                                                                 | Lifetime                       |
-|------------------|-------------------------------------------------------------------------|--------------------------------|
-| iOS / macOS      | Keychain, `first_unlock_this_device` (not in backups / iCloud Keychain) | Until you remove it            |
-| Android          | Keystore-wrapped `EncryptedSharedPreferences` (backup disabled)         | Until you remove it            |
-| **Web**          | **Inside the encrypted web store** (a row of `kv_table`, schema v5)     | Until you remove it or erase the store |
-
-On web the key is stored **inside the encrypted web store** (the same
-passphrase-derived ChaCha20-Poly1305 database as your plates, ADR-0002 /
-ADR-0003), together with your AI settings and per-host photo consents. It is
-readable only after you unlock the app, it survives locking and reloads (you do
-not paste it again), and *Erase all local data* deletes it with everything else.
-It is **never** in `localStorage` or `sessionStorage` — `flutter_secure_storage`
-on web *is* `localStorage`, readable by any script on the origin, so the app
-refuses to build that key store on web and still purges anything an older build
-left there. Honest limits: someone who copies your IndexedDB and guesses your
-passphrase offline gets the key along with the rest of your data (pick a long
-passphrase), and a malicious script running in your unlocked page could read it
-(the strict CSP is the control). Because settings are read from the open store,
-the app re-reads them after every unlock.
+The key is stored **inside the encrypted web store** (a row of the `kv` table,
+`ai.byokKey`: the same passphrase-derived ChaCha20-Poly1305 database as your
+plates, ADR 0005), together with your AI settings and per-host photo consents.
+It is readable only after you unlock the app, it survives locking and reloads
+(you do not paste it again), and *Erase all local data* deletes it with
+everything else. It is **never** in `localStorage` or `sessionStorage`, which any
+script on the origin can read. Honest limits: someone who copies your browser's
+storage and guesses your passphrase offline gets the key along with the rest of
+your data (pick a long passphrase), and a malicious script running in your
+unlocked page could read it (the strict CSP is the control). Because settings are
+read from the open store, the app re-reads them after every unlock.
 
 ### The key and the screen
 
@@ -157,14 +145,14 @@ The key **never leaves the device** except as the `Authorization` header on
 your own request. It is:
 
 - **Never** transmitted to any AI Nutrition Coach-owned server.
-- **Never** logged in any form; `toString` of every holder is redacted.
+- **Never** logged in any form (the log-hygiene gate fails on a log that could carry it).
 - **Never displayed back.** The field is obscured (no suggestions, no
   autocorrect, no IME learning), paste-friendly (whitespace a paste drags
   along is filtered out), and cleared after saving. The only trace on screen
   is `key saved • ends with ••••abcd` — the last four characters, and only for
   keys of 12+ characters (shorter keys show just "key saved"; the start of the
   key, which identifies the provider, is never shown).
-- **Never** serialized outside the platform keystore (or the encrypted store on web).
+- **Never** serialized outside the encrypted store.
 
 ### The key is bound to its host
 
@@ -178,10 +166,11 @@ by host only, not scheme, port or path. Redirects are never followed (a
 nobody chose); a 3xx is a failure.
 
 > **Rotate any key that was ever compiled in.** If a key was ever passed as a
-> build-time define, or was held in a browser's `localStorage` by an older
-> build, treat it as exposed: revoke it at the provider and issue a new one.
-> Current web builds also delete any such leftover entries on start (best
-> effort), but that does not un-leak a key already shipped.
+> build-time define, or was held in a browser's `localStorage` by an earlier
+> client on this origin, treat it as exposed: revoke it at the provider and
+> issue a new one. This build does not touch those leftovers (it only ever uses
+> its own `anc.pwa.*` names), and removing them does not un-leak a key already
+> shipped.
 
 ### Endpoint rules (N7)
 
@@ -189,7 +178,7 @@ nobody chose); a 3xx is a failure.
   `localhost`, `127.0.0.1` and `::1` (a model running on this device).
 - No `user:pass@`, no `?query`, no `#fragment` (that is where keys leak into
   logs).
-- The chat URL is built with `Uri.resolve`, so a trailing slash on the base
+- The chat URL is resolved with the `URL` API, so a trailing slash on the base
   never produces `//chat/completions`.
 
 ### Test connection
@@ -201,7 +190,7 @@ couldn't reach it, unexpected status. A test saves nothing.
 
 Removing the key returns the app cleanly to the previous rung
 (the one that was active before the key was entered). The
-previous rung is remembered in `AiRungConfig.previousRung` so
+previous rung is remembered in the rung config (`previousRung`) so
 the user gets back exactly what they had — not always
 `noOp`.
 
@@ -248,10 +237,10 @@ A photo is the most personal thing AI Nutrition Coach can send anywhere, so:
    that has an AI key, leave **Ask before every photo upload** on, or better give the
    child their own device or browser profile with *No AI*. Barcode lookups send a barcode
    only.
-2. **Smaller.** The camera is asked for at most 1024 × 1024 at quality 80.
-3. **No metadata.** The platform's downscaling is *not* trusted to remove EXIF
-   (the Android plugin copies the original's EXIF — including GPS — onto the
-   resized file). At the single egress point the app strips it itself: JPEG
+2. **Smaller.** The photo is downscaled in the browser to at most 1024 × 1024 at quality 80.
+3. **No metadata.** The browser's re-encoding is *not* trusted to remove EXIF
+   (a photo that is passed through unchanged keeps its GPS). At the single egress
+   point the app strips it itself: JPEG
    APP1 (EXIF / XMP), APP3–APP13 (IPTC) and comment segments; PNG `eXIf` /
    text / time chunks; WebP `EXIF` / `XMP ` chunks. A file whose metadata
    cannot be removed safely (HEIC), or that is malformed or unrecognised, is
@@ -263,29 +252,28 @@ A photo is the most personal thing AI Nutrition Coach can send anywhere, so:
 
 ### What the request contains (pinned by tests)
 
-`openai_compatible_byok_provider_test.dart` fails if the photo request ever gains a
+`apps/web/src/ai/openai-compatible-provider.test.ts` fails if the photo request ever gains a
 field: the body is exactly `{model, messages, max_tokens, temperature}` with one user
-message of two parts (the fixed prompt, the image data URL); the headers are only
-`Authorization`, `Content-Type` (and the transport's `content-length`) and, off the web, an explicit `User-Agent` that is the app
-identity string (`AiNutritionCoach/<version> (+<project URL>)`; no device info; without it `dart:io` would send `Dart/<version>`). On the
-web the browser adds its own `User-Agent` and an `Origin` header, which the consent dialog and the privacy page say; no date, id,
-locale or name is in it. The connection test sends a one-token `ping`. Nothing is
+message of two parts (the fixed prompt, the image data URL); the headers the app sets are only
+`Authorization` and `Content-Type`. The browser adds its own `User-Agent` and an `Origin` header,
+which the consent dialog and the privacy page say; no date, id, locale or name is in it. The connection test sends a one-token `ping`. Nothing is
 sent about the person: no name, no history, no other plates, no coach notes.
 
 ## Network hygiene (N3)
 
-Every HTTP client the app builds uses connect 10 s / send 30 s / receive 45 s
-timeouts and reads responses as a stream, aborting (and cancelling the
-request) past 2 MiB. At most 20 foods are kept from a model reply, and every
+Every request the app makes goes through one capped fetch: connect 10 s / send 30 s /
+receive 45 s budgets (the browser exposes one wait for the headers, so the longest
+applies), the response read as a stream and aborted past 2 MiB, no redirects followed,
+no cookies, referrer or cache. At most 20 foods are kept from a model reply, and every
 name and quantity hint is cleaned of control characters and capped at 100
 characters — the reply is untrusted text that ends up in the UI and in
 exports. Open Food Facts lookups ask only for the fields the parser reads
-(`fields=`) and carry a descriptive `User-Agent` (app, version, project URL;
-no personal contact; omitted on web, where browsers forbid setting it). The
-project URL comes from `--dart-define=AI_NUTRITION_COACH_PROJECT_URL`; the default is the
-project repository, `https://github.com/mmornati/ai-nutrition-coach` (override it for a fork).
-`AI_NUTRITION_COACH_BUILD=selfhost|release dart run tools/check_release_posture.dart`
-fails only if the URL is empty or `.invalid` (see the release checklist). A
+(`fields=`); browsers forbid setting a `User-Agent`, so none is sent. The project
+URL (the default is the project repository,
+`https://github.com/mmornati/ai-nutrition-coach`; override it for a fork) is a
+build-time setting checked by `node tools/check_project_url.mjs`, which fails
+for a release build only if the URL is empty or `.invalid` (see the release
+checklist); the React app has no identity string yet, so nothing consumes it. A
 transient OFF failure is **not** cached for the rest of the session — only a
 match or a definitive "not found" is.
 
@@ -299,26 +287,22 @@ quoted and long fields are capped.
 
 ## Telemetry off (FR12)
 
-No telemetry is emitted on any rung. The free provider is called
-via the configured adapter without an analytics wrapper. The
-BYOK provider is called without an analytics wrapper. The
-quota counter, the BYOK key store, and the rung config are
-never wrapped in an analytics call.
+No telemetry is emitted on any rung. The BYOK provider is called without an
+analytics wrapper. The BYOK key store and the rung config are never wrapped in
+an analytics call.
 
 Story 4.5 pins this claim with a verification gate:
-`melos run check:telemetry` walks the source tree and asserts no
-unsanctioned path opens a socket. The gate is part of the standard
+`pnpm check:telemetry` walks the TypeScript AST of every shipped file and asserts no
+unsanctioned path opens a connection. The gate is part of the standard
 test suite and the release-gate CI. See
 [`docs/telemetry-posture.md`](./telemetry-posture.md) for the
 full user-facing posture.
 
 ## v2 local-model seam (FR8)
 
-The `local` rung is reserved for v2. The v1 adapter
-(`LocalAiRung`) throws `UnsupportedError` on `recognize`; the
-seam is declared in the type system and provider wiring so a
-future v2 implementation drops in behind the same port without
-touching the core or the UI.
+The `local` rung is reserved for v2. It is declared in the type system and the
+rung registry and cannot be selected, so a future implementation drops in
+behind the same port without touching the core or the UI.
 
 ## Related docs
 

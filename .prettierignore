@@ -1,11 +1,3 @@
-# Flutter / Dart side (untouched by the JS toolchain)
-apps/client
-packages/domain_core
-packages/integrations
-pubspec.lock
-pubspec.yaml
-melos.yaml
-analysis_options.yaml
 # Planning, infra and docs are not formatted by this toolchain
 _bmad
 _bmad-output
@@ -14,6 +6,10 @@ infra
 .impeccable
 # Build output and generated files
 dist
+# Vendored, SHA-256-pinned sqlite3mc wasm build (scripts/fetch_web_sqlite3mc.sh)
+apps/web/public/sqlite3mc
+# Vendored, SHA-256-pinned zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh)
+apps/web/public/zxing
 dist-e2e
 dev-dist
 coverage
@@ -28,4 +24,4 @@ tools
 scripts
 .claude
 .github/workflows/*
-!.github/workflows/web.yml
+!.github/workflows/ci.yml

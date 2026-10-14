@@ -3,22 +3,23 @@ import { useStrings } from '../../i18n';
 import { PlusIcon } from '../primitives';
 
 /**
- * Phone dock (< 1024px): the route slot (the week route) on the left, a square porcelain LOG
- * block on the right, padded for the home indicator. Fixed to the bottom on raised enamel.
+ * Phone dock (< 1024px): holds ONLY the seven-stop week route, padded for the home indicator and
+ * fixed to the bottom on raised enamel. "Log a plate" is a square porcelain floating button
+ * anchored bottom-right above the dock (56px, clear of the home indicator).
  */
 export function Dock({ route, onLog }: { readonly route: ReactNode; readonly onLog: () => void }) {
   const s = useStrings().shell;
   return (
     <section
       aria-label={s.dock}
-      className="bg-enamel-raised border-rule fixed inset-x-0 bottom-0 z-20 grid grid-cols-[1fr_92px] items-stretch border-t-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="bg-enamel-raised border-rule fixed inset-x-0 bottom-0 z-20 border-t-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       <div className="min-w-0">{route}</div>
       <button
         type="button"
         aria-label={s.logAPlate}
         onClick={onLog}
-        className="bg-porcelain text-enamel font-display text-button flex min-h-19 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-none tracking-[0.1em] uppercase"
+        className="bg-porcelain text-enamel font-display text-button fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] flex size-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-none tracking-[0.1em] uppercase shadow-[0_0_0_2px_var(--color-enamel)]"
       >
         <PlusIcon size={20} />
         {s.logShort}

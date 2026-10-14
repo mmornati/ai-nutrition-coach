@@ -14,8 +14,18 @@ async function openGallery(page: Page) {
   return errors;
 }
 
+/** The day-enter fade/slide must be over, or contrast is measured on a half-faded frame. */
+async function settleAnimations(page: Page) {
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every((a) => a.playState === 'finished' || a.effect?.getTiming().iterations === Infinity),
+  );
+}
+
 test('the gallery has zero axe violations', async ({ page }) => {
   const errors = await openGallery(page);
+  await settleAnimations(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   expect(results.violations).toEqual([]);
   expect(errors).toEqual([]);
@@ -27,7 +37,7 @@ test('the gallery has zero axe violations with the capture sheet open', async ({
   const dialog = page.getByRole('dialog', { name: 'Log a plate' });
   await expect(dialog).toBeVisible();
   // Let the slide-up finish so contrast is measured on the settled sheet.
-  await page.waitForTimeout(500);
+  await settleAnimations(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   expect(results.violations).toEqual([]);
 });
@@ -45,7 +55,7 @@ test('the gallery has zero axe violations in every dialog and sheet', async ({ p
   for (const name of openers) {
     await page.getByRole('button', { name, exact: true }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
-    await page.waitForTimeout(500);
+    await settleAnimations(page);
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations, name).toEqual([]);
     await page.keyboard.press('Escape');
@@ -55,14 +65,18 @@ test('the gallery has zero axe violations in every dialog and sheet', async ({ p
 
 test('keyboard: Tab reaches the opener, the capture sheet buttons are in order, Esc returns focus', async ({
   page,
+  browserName,
 }) => {
+  // macOS WebKit does not Tab to buttons by default; Alt+Tab does (Playwright's documented way).
+  const tab = browserName === 'webkit' ? 'Alt+Tab' : 'Tab';
+  const shiftTab = browserName === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab';
   await openGallery(page);
   const opener = page.getByRole('button', { name: 'Open capture sheet' });
 
   // Reach the opener with Tab alone.
   let reached = false;
   for (let i = 0; i < 60 && !reached; i++) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(tab);
     reached = await opener.evaluate((el) => el === document.activeElement);
   }
   expect(reached).toBe(true);
@@ -79,14 +93,14 @@ test('keyboard: Tab reaches the opener, the capture sheet buttons are in order, 
   // Opens on Snapshot; Tab walks Barcode then Type it. Shift+Tab goes back through Snapshot to
   // Close, which comes first in the DOM (title row) and so first in the tab order.
   expect(await active()).toMatch(/^Snapshot/);
-  await page.keyboard.press('Tab');
+  await page.keyboard.press(tab);
   expect(await active()).toMatch(/^Barcode/);
-  await page.keyboard.press('Tab');
+  await page.keyboard.press(tab);
   expect(await active()).toMatch(/^Type it/);
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press(shiftTab);
+  await page.keyboard.press(shiftTab);
   expect(await active()).toMatch(/^Snapshot/);
-  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press(shiftTab);
   expect(await active()).toBe('Close');
 
   // Focus is trapped inside the dialog and visible (the amber 3px outline).

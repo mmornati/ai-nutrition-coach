@@ -1,9 +1,11 @@
-# Story 4.4 — self-host CI smoke test (FR-11 / NFR9).
+# Self-host CI smoke test (FR-11 / NFR9).
 #
 # Runs the `bin/ai-nutrition-coach up` flow end-to-end on every PR. The smoke test
 # (scripts/smoke_self_host.sh) asserts readiness + HTTP behaviour, security
-# headers/CSP on html/js/wasm, a digest-pinned non-root read-only container,
-# serving on a network with no egress, and a third-party-host-free bundle.
+# headers/CSP on html/js/wasm/worker, a digest-pinned (node build stage + nginx)
+# non-root read-only container, every precache-manifest file served byte for
+# byte, serving on a network with no egress, the kill switch, and a
+# third-party-host-free bundle. The image builds with the Vite toolchain only.
 #
 # The job runs on a standard GitHub-hosted runner so the budget is
 # comparable to a self-hoster's first-time experience on commodity
@@ -28,6 +30,8 @@ jobs:
     steps:
       - name: Check out the source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run the self-host smoke test
         run: bash scripts/smoke_self_host.sh

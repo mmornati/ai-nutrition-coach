@@ -1,8 +1,6 @@
-import { lazy, Suspense, useSyncExternalStore } from 'react';
-import { mealSlotForHour, type MealSlot } from '@anc/core';
-import { useStrings } from './i18n';
-import { Header } from './components/shell/Header';
-import { UpdatePrompt } from './components/shell/UpdatePrompt';
+import { lazy, Suspense } from 'react';
+import { AppRoot, type AppRootProps } from './app/AppRoot';
+import { useHash } from './app/router';
 
 // The dev gallery is not part of a release. Both operands are replaced with constants at build
 // time, so the whole conditional (the dynamic import, its chunk and the '#/gallery' route) is
@@ -16,18 +14,9 @@ const gallery =
       }
     : null;
 
-function subscribeToHash(notify: () => void): () => void {
-  window.addEventListener('hashchange', notify);
-  return () => window.removeEventListener('hashchange', notify);
-}
-const readHash = () => window.location.hash;
-
-export function App() {
-  const hash = useSyncExternalStore(subscribeToHash, readHash, () => '');
-  const s = useStrings();
-  const slot: MealSlot = mealSlotForHour(new Date().getHours());
-
-  // Dev gallery: every component with synthetic data. The real routes arrive in later phases.
+/** The app: the dev gallery on `#/gallery` (dev only), otherwise the composition root. */
+export function App(props: AppRootProps) {
+  const hash = useHash();
   if (gallery && hash === gallery.route) {
     return (
       <Suspense fallback={null}>
@@ -35,13 +24,5 @@ export function App() {
       </Suspense>
     );
   }
-
-  return (
-    <>
-      <main className="min-h-dvh" data-meal-slot={slot}>
-        <Header title={s.shell.today} />
-      </main>
-      <UpdatePrompt />
-    </>
-  );
+  return <AppRoot {...props} />;
 }

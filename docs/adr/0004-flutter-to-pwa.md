@@ -1,6 +1,7 @@
 # ADR 0004: Replace the Flutter client with a React PWA
 
 Status: accepted, pending the Phase 0 device spike (iOS Safari + Android Chrome over HTTPS) · 2026-10-13
+Amendment 2026-10-14: `vite-plugin-pwa` was replaced by the hardened `tools/pwa/sw.template.js` plus a node precache-manifest generator (`tools/generate_precache_manifest.mjs`). Why: the plugin's Workbox `generateSW` cannot express SHA-256 verification of every precached body, an always-refetched `index.html`, header-preserving cache entries (the CSP must survive offline) or a waiting-only update. See `docs/pwa.md`.
 Supersedes: AD-2 ("One responsive Flutter codebase for all three targets") and the Flutter-specific parts of AD-8 (at-rest encryption), both in `_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ARCHITECTURE-SPINE.md`. Also retires the PRD's Flutter `[ASSUMPTION]`.
 Numbering note: the older ADR-0001..0003 (mobile cipher, web encrypted store, PWA distribution) live under `_bmad-output/planning-artifacts/architecture/` and are referenced by their full names below; this record continues that numbering as 0004 and is the first in the `docs/adr/` series.
 
@@ -14,7 +15,7 @@ Numbering note: the older ADR-0001..0003 (mobile cipher, web encrypted store, PW
 
 ## Decision
 
-Build the client as a **React 19 + Vite + TypeScript + Tailwind v4 PWA** with `vite-plugin-pwa`, in a **pnpm workspace**:
+Build the client as a **React 19 + Vite + TypeScript + Tailwind v4 PWA** with a hardened, SHA-256-verifying service worker (see the 2026-10-14 amendment below), in a **pnpm workspace**:
 
 - `apps/web`: the PWA (UI, platform adapters, service worker).
 - `packages/core`: the pure TypeScript domain (entities, use-cases, ports, coach taxonomy), ported from `packages/domain_core`. Adapters from `packages/integrations` land in `apps/web` (or a later `packages/adapters`), behind the same ports.

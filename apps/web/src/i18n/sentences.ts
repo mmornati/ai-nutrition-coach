@@ -71,8 +71,13 @@ export const noteSome = (names: readonly string[]): string =>
 export const noteQuietDays = (name: string, days: readonly string[]): string =>
   fill(strings().week.noteQuietDays, { name: capitalise(name), days: joinNames(days) });
 
-export const noteQuietAll = (name: string): string =>
-  fill(strings().week.noteQuietAll, { name: capitalise(name) });
+/** Every line that never ran, in ONE sentence: "Dairy stayed quiet all week." / "A and b were quiet this week." */
+export const noteQuietNever = (names: readonly string[]): string => {
+  const w = strings().week;
+  return names.length === 1
+    ? fill(w.noteQuietAll, { name: capitalise(names[0] ?? '') })
+    : fill(w.noteQuietMany, { names: capitalise(joinNames(names)) });
+};
 
 /** A day as one sentence: "Monday: all four lines." */
 export const daySentence = (day: string, state: string): string =>

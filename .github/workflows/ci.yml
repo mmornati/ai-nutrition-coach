@@ -1,30 +1,22 @@
 # AI Nutrition Coach CI — reproducible build gate (NFR9).
 #
 # Runs on every pull request and push to main. Jobs:
-#   verify  — format check, static analysis (`melos run analyze`), the full
-#             test suite (`melos run test`), then `flutter build web --release`
-#             plus the bundle scans, inside the pinned Flutter container.
-#   apk     — `flutter build apk --debug` on the plain runner (its preinstalled
-#             Android SDK + Gradle). Separate job on purpose: in one container
-#             job the SDK download, Gradle caches and the web build exhausted
-#             the runner's disk ("No space left on device"). Debug only: a
-#             release build needs apps/client/android/key.properties, which CI
-#             deliberately does not have (docs/release-checklist.md).
-#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image
-#             actually builds (it is built from the committed pubspec.lock),
-#             then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
+#   verify  — `pnpm verify`: format check, lint (warnings are errors), typecheck, unit tests
+#             (including the service-worker generator/worker tests and the self-tests of the
+#             gates), the suites re-run under TZ=Europe/Paris, the release-posture / telemetry /
+#             log-hygiene / adults-only / accessibility-floor gates, the scanner self-tests, the
+#             release build (+ precache manifest and sw.js), then the secrets scan and the
+#             third-party host scan of the built bundle.
+#   e2e     — the Playwright suite against the built preview in Chromium AND WebKit (offline
+#             reload, update flow, barcode with a fake camera).
+#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image builds from the
+#             committed lockfile, then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
 #
-# Secret scanning of the git history lives in gitleaks.yml (push, PR, weekly
-# schedule and manual dispatch).
+# Secret scanning of the git history lives in gitleaks.yml. The production image is exercised
+# by self-host-smoke.yml (container hardening) and browser-smoke.yml (WebKit + Chromium).
 #
-# Build output is scanned for key-shaped strings after the web and APK builds
-# (tools/check_no_secrets_in_build.sh): anything compiled in is public (S1).
-#
-# Analyze + test are what the autonomous loop must pass before a story may be
-# marked committed (see _bmad-output/implementation-artifacts/loop-status.yaml).
-#
-# Toolchain: Flutter 3.44.0 pinned by version AND digest. Keep in sync with
-# scripts/flutter_docker.sh, infra/Dockerfile and CONTRIBUTING.md.
+# Toolchain: Node 24 and pnpm 11.14.0 (the root package.json `packageManager`, activated through
+# corepack). Keep in sync with infra/Dockerfile, CONTRIBUTING.md and the other workflows.
 
 name: ci
 
@@ -45,76 +37,40 @@ permissions:
 
 jobs:
   verify:
-    name: Analyze, test, build web
+    name: pnpm verify
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    # Read-only token is enough for checkout + the container's tooling.
+    timeout-minutes: 25
     permissions:
       contents: read
-
-    container:
-      image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
-      options: --user root
-
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Print toolchain
+      - name: Activate pnpm 11.14.0 (corepack)
         run: |
-          flutter --version
-          dart --version
+          corepack enable
+          corepack prepare pnpm@11.14.0 --activate
 
-      - name: Activate melos
-        run: flutter pub global activate melos 8.2.2
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
 
-      - name: Add melos to PATH
-        run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+      - name: Install (frozen lockfile)
+        # A drifting pnpm-lock.yaml must fail CI, not be silently rewritten.
+        run: pnpm install --frozen-lockfile
 
-      - name: Bootstrap workspace
-        run: melos bootstrap
+      - name: Verify (format, lint, types, tests, DST, gates, build, bundle scans)
+        run: pnpm verify
 
-      - name: Enforce the committed lockfile
-        # A drifting pubspec.lock must fail CI, not be silently rewritten.
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git diff --exit-code -- pubspec.lock
+      - name: Release bundle has a service worker and a precache manifest
+        run: test -f apps/web/dist/sw.js && test -f apps/web/dist/precache-manifest.json
 
-      - name: Format check
-        run: melos run format:check
-
-      - name: Static analysis (AD-1 + per-package lints)
-        run: melos run analyze
-
-      - name: Tests (domain_core, integrations, client)
-        run: melos run test
-
-      - name: Tests under a DST zone (TZ=Europe/Paris)
-        run: melos run test:dst
-
-      - name: Build web (release)
-        run: |
-          bash scripts/fetch_web_sqlite.sh
-          bash scripts/fetch_web_zxing.sh
-          (cd apps/client && flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost)
-          # AI Nutrition Coach's own service worker + precache manifest (ADR-0003).
-          dart run tools/generate_precache_manifest.dart apps/client/build/web
-
-      - name: Secrets scan — web bundle (S1)
-        run: |
-          bash tools/check_no_secrets_in_build.sh --self-test
-          bash tools/check_no_secrets_in_build.sh --web-only
-
-      - name: Third-party host scan — web bundle (N5)
-        run: |
-          bash tools/check_no_external_hosts.sh --self-test
-          bash tools/check_no_external_hosts.sh
-
-      - name: Telemetry gate (import-based, N6)
-        run: dart run tools/check_telemetry_claims.dart
-
-  apk:
-    name: Build Android APK (debug)
+  e2e:
+    name: End-to-end (Chromium + WebKit)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -122,29 +78,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Flutter (same pin as the container image)
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: '3.44.0'
-          channel: stable
-          cache: true
+          persist-credentials: false
 
-      - name: Resolve the workspace against the committed lockfile
-        run: flutter pub get --enforce-lockfile
-
-      - name: Android platform 37
-        # flutter_secure_storage 11 compiles against android-37; the runner's
-        # preinstalled SDK may lag, so install it explicitly (licences first).
+      - name: Activate pnpm 11.14.0 (corepack)
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
+          corepack enable
+          corepack prepare pnpm@11.14.0 --activate
 
-      - name: Build APK (debug)
-        run: cd apps/client && flutter build apk --debug
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
 
-      - name: Secrets scan — APK (S1)
-        run: bash tools/check_no_secrets_in_build.sh --apk-only
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (the pinned 1.63 Chromium and WebKit)
+        run: pnpm --filter @anc/web exec playwright install --with-deps chromium webkit
+
+      - name: End-to-end tests (built preview; offline reload and update flow)
+        run: pnpm e2e
+        env:
+          PW_WEBKIT: '1'
 
   docker:
     name: Self-host image builds
@@ -155,6 +112,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build infra/Dockerfile
         run: docker build -f infra/Dockerfile -t ai-nutrition-coach:ci .

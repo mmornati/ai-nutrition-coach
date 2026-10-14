@@ -43,7 +43,7 @@ Please give us the chance to ship a fix before disclosing publicly.
 
 ## Scope
 
-In scope: the app (`apps/client`), the shared packages (`packages/`), the
+In scope: the web app (`apps/web`), the domain core (`packages/core`), the
 self-host image and scripts (`infra/`, `bin/`, `scripts/`), and the CI
 workflows. Of particular interest: anything that sends user data off the
 device without consent, weakens the on-device encryption, exposes a

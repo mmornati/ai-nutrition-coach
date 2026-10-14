@@ -6,6 +6,15 @@
     scrollbar-color: var(--color-rule) var(--color-enamel);
   }
 
+  /* Below lg the dock and the floating Log button (top edge at 9.25rem) sit over the page. The
+     scroll padding makes the browser scroll a focused control clear of them, so keyboard focus is
+     never hidden behind the button (WCAG 2.4.11). */
+  @media (width < 64rem) {
+    html {
+      scroll-padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+    }
+  }
+
   body {
     margin: 0;
     min-height: 100dvh;

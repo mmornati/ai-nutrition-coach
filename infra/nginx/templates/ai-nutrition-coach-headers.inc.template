@@ -6,18 +6,21 @@
 # variable is AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (see docs/self-host.md "CSP").
 #
 # CSP (I4):
-#   script-src 'self' 'wasm-unsafe-eval'  no inline script, no CDN. The Flutter
-#       bootstrap is an external file (apps/client/web/flutter_bootstrap.js);
-#       'wasm-unsafe-eval' is needed for CanvasKit and sqlite3mc (WebAssembly).
-#   style-src 'unsafe-inline'  Flutter's engine injects <style> elements; there
-#       is no nonce on a static host. Inline CSS cannot run script.
-#   base-uri 'self'  Flutter's engine sets the document base URI to the app
-#       origin; 'none' makes that throw a CSP violation (found in the browser
-#       smoke test).
+#   script-src 'self' 'wasm-unsafe-eval'  no inline script, no CDN. The Vite
+#       build ships only external module scripts (and public/boot-guard.js);
+#       'wasm-unsafe-eval' is needed for sqlite3mc and zxing-wasm (WebAssembly).
+#   style-src 'self'  NO 'unsafe-inline': the build ships its CSS as a file and
+#       React's `style={}` props are applied through the CSSOM (element.style),
+#       which style-src does not govern. The e2e suite and the browser smoke fail
+#       on any style-src violation, so adding an inline style is a red build.
+#   base-uri 'none'  the app never sets a <base>.
 #   connect-src  'self' + Open Food Facts (barcode lookups) + the operator's
 #       explicit BYOK AI endpoint(s). NOT `https:`: a blanket https: would be
-#       an exfiltration channel for any injected script.
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://world.openfoodfacts.org ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA}; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" always;
+#       an exfiltration channel for any injected script. This is the ONLY place
+#       connect-src is set: the build's <meta> CSP deliberately carries neither
+#       connect-src nor default-src (a meta and a header CSP are both enforced,
+#       so a meta connect-src could never be widened by the knob above).
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://world.openfoodfacts.org ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA}; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
 add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "no-referrer" always;
 add_header X-Frame-Options "DENY" always;

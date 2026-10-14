@@ -1,9 +1,0 @@
-# gen-l10n config (AD-7). The generated Dart is COMMITTED under lib/l10n (the
-# synthetic package is gone from Flutter). After editing app_en.arb run
-# `flutter gen-l10n` here and commit the result; scripts/verify.sh regenerates
-# it and fails if the committed files were stale.
-arb-dir: lib/l10n
-template-arb-file: app_en.arb
-output-localization-file: app_localizations.dart
-output-class: AppLocalizations
-nullable-getter: false

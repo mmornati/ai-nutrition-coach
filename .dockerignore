@@ -1,13 +1,21 @@
-# Build-context whitelist for the self-host Docker image.
-# Story 4.4 / FR-11 — keeps the build context small + reproducible
-# by excluding anything the web build does not need.
+# Build-context whitelist for the self-host Docker image (infra/Dockerfile).
+# Keeps the context small + reproducible by excluding anything the web build does not need.
 
-# Generated / cached artefacts
-**/.dart_tool/
-**/build/
-**/.pub-cache/
-**/.pub/
-**/ephemeral/
+# Dependencies and build output are produced INSIDE the image from the lockfile.
+**/node_modules/
+**/dist/
+**/dist-e2e/
+**/dev-dist/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/.vite/
+**/*.tsbuildinfo
+
+# The pinned, hash-verified wasm assets are fetched inside the image (cached layer), never taken
+# from the local checkout.
+apps/web/public/sqlite3mc/
+apps/web/public/zxing/
 
 # Editor / OS noise
 **/.idea/
@@ -17,7 +25,6 @@
 
 # VCS metadata (git metadata is not needed in the image)
 **/.git/
-**/.gitignore
 **/.gitattributes
 
 # CI / docs / governance that the runtime does not need
@@ -32,16 +39,12 @@
 !**/.env.example
 .claude/
 
-# Test surface (the production image is `flutter build web --release`).
-# NB: generated `*.g.dart` files (drift's app_database.g.dart) are committed
-# and REQUIRED by the build — never exclude them.
-**/test/
-**/integration_test/
-
-# Self-host smoke test (Story 4.4)
+# Browser smoke and self-host smoke (they run against the built image, not inside it)
 scripts/smoke_self_host.sh
+scripts/webkit_smoke.sh
+tools/webkit_smoke/
 
-# Signing material / machine-local config (Android).
+# Signing material / machine-local config.
 **/key.properties
 **/*.jks
 **/*.keystore

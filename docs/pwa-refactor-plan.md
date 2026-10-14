@@ -1,6 +1,6 @@
 # PWA refactor plan: Flutter → React PWA with the "Food Lines" interface
 
-Status: proposed · 2026-10-13
+Status: complete except: the hosted AI tier (needs a server-side relay), the Tip jar (pending the named reviewer), the project-URL consumer (the React app has no identity string yet), and the accepted gaps (Firefox untested, real-device Safari and Chrome untested, no tab exclusion without the Web Locks API, plaintext exports, one history per shared device, no import, no light theme) · 2026-10-14
 
 ## Why
 
@@ -14,7 +14,7 @@ Known trade-offs vs native Flutter: the web encryption key comes from a passphra
 
 ## Target stack
 
-React 19 + Vite + TypeScript + Tailwind v4 + `vite-plugin-pwa`, pnpm, Vitest + Testing Library, Playwright (e2e + axe). Same family as ai-finance-coach.
+React 19 + Vite + TypeScript + Tailwind v4 + a hardened service worker (`tools/pwa/sw.template.js` with a node precache-manifest generator; `vite-plugin-pwa` was dropped, see ADR 0004), pnpm, Vitest + Testing Library, Playwright (e2e + axe). Same family as ai-finance-coach.
 
 ## Target interface: "Food Lines"
 
@@ -73,7 +73,7 @@ The authoritative per-phase checklists of behaviours to preserve are in [`docs/m
 - ADR-0002 (`_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0002-web-encrypted-store.md`) preferred an IndexedDB file system on the main thread and rejected OPFS plus a worker; the spike must show that `opfs-sahpool` in a dedicated worker supersedes that, and the result is recorded in a follow-up ADR.
 
 ### 1. Scaffold `apps/web` and the JS gates
-- Vite + React 19 + TS + Tailwind v4, `vite-plugin-pwa` (manifest, icons, shell precache with a navigation denylist for `/api`, `/ai`, `/relay`; never cache API/AI responses; update prompt, no auto-reload), Vitest, Playwright (including an offline-reload test).
+- Vite + React 19 + TS + Tailwind v4, a hardened service worker (`tools/pwa/sw.template.js` + node precache-manifest generator instead of `vite-plugin-pwa`, see ADR 0004; static manifest, icons, shell precache with a navigation denylist for `/api`, `/ai`, `/relay`; never cache API/AI responses; update prompt, no auto-reload), Vitest, Playwright (including an offline-reload test).
 - **Design tokens first:** port the table above into Tailwind `@theme` tokens (default palette, radii and shadows removed), self-host Barlow / Barlow Condensed with their OFL licence (no Google Fonts CDN, so it works offline with no third-party calls), caret, scrollbars and focus ring from the palette.
 - **JS gates, written now so every later phase is checked from the start** (done unless marked):
   - [x] Third-party host scan of `apps/web/dist` (`tools/check_no_external_hosts.sh`, with a narrow allow-list for inert React and Workbox strings), in `web.yml`.
@@ -122,6 +122,8 @@ Node build stage → nginx. Most of self-host already exists and is hardened: no
 
 ### 9. Clean up
 Delete `apps/client`, `packages/integrations`, melos and the Flutter toolchain; update README, CONTRIBUTING, the release checklist and `tools/check_*`. The release gates are Dart AST tools wired into `melos run check:release-posture` and `scripts/verify.sh`; each needs a JS/shell equivalent before `apps/client` is deleted (Appendix C of the checklist), otherwise the README trust table loses its proofs. Keep the secrets and external-host scans (shell) and the gitleaks/Trivy/SBOM workflows.
+
+**Done (2026-10-14):** the gates are Node/shell (9A); `apps/client`, `packages/domain_core`, `packages/integrations`, `pubspec.*`, melos, the Dart tools and the Flutter-era scripts are deleted; the workflows run `pnpm verify`, the Playwright suite in Chromium and WebKit, the image build with Trivy, the SBOM, and the smokes; gitleaks, Dependabot and the pre-commit hook are on the JS toolchain.
 
 ## Definition of done for the UI
 - Every screen in the prototype exists in the app at 390px and 1440px with no horizontal scroll.

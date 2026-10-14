@@ -11,7 +11,7 @@
 # cannot remove an inherited published port without `!reset` (compose >= 2.24).
 # Standalone, the guarantee is structural: THIS FILE HAS NO `ports:`. The
 # container is reachable only on the Docker network Traefik shares with it
-# (the self-host smoke test and `self_host_config_test.dart` assert it).
+# (the self-host smoke test and tools/pwa/infra.test.mjs assert it).
 #
 # Assumed: Traefik v3 runs in Docker on this host with the Docker provider
 # (`providers.docker`, `exposedByDefault=false`), on an existing network. Create

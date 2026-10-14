@@ -1,7 +1,6 @@
 # ─────────────────────────────────────────────────────────────
 # AI Nutrition Coach — root .gitignore
-# Stack: Flutter (iOS / Android / web) + Dart pub workspaces +
-#        melos orchestration + drift/sqlite3 + Docker self-host.
+# Stack: React PWA (apps/web) + packages/core, pnpm workspace, Docker self-host.
 # ─────────────────────────────────────────────────────────────
 
 # ── OS / editor / IDE ────────────────────────────────────────
@@ -28,40 +27,6 @@ Thumbs.db
 *.jks
 *.keystore
 **/key.properties
-
-# ── Dart / Flutter ───────────────────────────────────────────
-.dart_tool/
-.packages
-pubspec.lock.bak
-.pub-cache/
-.pub/
-
-# Flutter build output
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-
-# Generated build artifacts (platform scaffolding is checked in on first build)
-android/.gradle/
-android/local.properties
-android/captures/
-android/app/.cxx/
-android/**/GeneratedPluginRegistrant.java
-android/app/**/generated_plugin_registrant.dart
-
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/ephemeral/
-ios/Flutter/flutter_export_environment.sh
-ios/Flutter/Generated.xcconfig
-ios/Flutter/.last_build_id
-ios/**/xcuserdata/
-ios/**/DerivedData/
-ios/**/.generated/
-
-# melos workspace orchestration
-.melos/
-**.g.dart.bak
 
 # Test / coverage
 coverage/
@@ -104,12 +69,6 @@ _bmad/custom/*.user.toml
 *.log
 *.tmp
 *.bak
-# Phase 2B: fetched + SHA-256-verified by scripts/fetch_web_sqlite.sh, never committed.
-apps/client/web/sqlite3mc*.wasm
-
-# ── Web: fetched + SHA-256-verified decoder (scripts/fetch_web_zxing.sh) ──
-apps/client/web/zxing/
-
 # ── Impeccable design tooling (local-only artifacts) ─────────
 .impeccable/review/
 .impeccable/ref/
@@ -123,3 +82,9 @@ playwright-report/
 test-results/
 .vite/
 *.tsbuildinfo
+
+# ── React PWA: fetched + SHA-256-verified SQLite3 Multiple Ciphers wasm (scripts/fetch_web_sqlite3mc.sh) ──
+apps/web/public/sqlite3mc/
+
+# ── React PWA: fetched + SHA-256-verified zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh) ──
+apps/web/public/zxing/
