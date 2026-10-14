@@ -69,6 +69,8 @@ describe('zxing pin', () => {
     const root = JSON.parse(read('../../../../package.json')) as {
       scripts: Record<string, string>;
     };
-    expect(root.scripts['verify']).toContain('fetch_web_zxing_pwa.sh --self-test');
+    // `pnpm verify` reaches the self-test through the root `selftest:scanners` script.
+    expect(root.scripts['verify']).toContain('pnpm selftest:scanners');
+    expect(root.scripts['selftest:scanners']).toContain('fetch_web_zxing_pwa.sh --self-test');
   });
 });

@@ -11,14 +11,25 @@
     "dev": "pnpm --filter @anc/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:dst": "TZ=Europe/Paris REQUIRE_DST=1 pnpm -r --if-present test:dst",
     "e2e": "pnpm --filter @anc/web e2e",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "verify": "pnpm format:check && pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build && node tools/check_accessibility_floor.mjs && scripts/fetch_web_sqlite3mc.sh --self-test && scripts/fetch_web_zxing_pwa.sh --self-test && tools/check_no_dev_store_in_build.sh --self-test && tools/check_no_gallery_in_build.sh && tools/check_no_dev_store_in_build.sh"
+    "check:telemetry": "node tools/check_telemetry_claims.mjs",
+    "check:log-hygiene": "node tools/check_log_hygiene.mjs",
+    "check:adults-only": "node tools/check_adults_only.mjs",
+    "check:release-posture": "node tools/check_release_posture.mjs",
+    "check:a11y": "node tools/check_accessibility_floor.mjs",
+    "gates": "pnpm check:release-posture && pnpm check:telemetry && pnpm check:log-hygiene && pnpm check:adults-only && pnpm check:a11y",
+    "selftest:scanners": "bash tools/check_no_secrets_in_build.sh --self-test && bash tools/check_no_external_hosts.sh --self-test && scripts/fetch_web_sqlite3mc.sh --self-test && scripts/fetch_web_zxing_pwa.sh --self-test && tools/check_no_dev_store_in_build.sh --self-test",
+    "scan:bundle": "bash tools/check_no_secrets_in_build.sh --web-only apps/web/dist && bash tools/check_no_external_hosts.sh apps/web/dist",
+    "guards": "tools/check_no_gallery_in_build.sh && tools/check_no_dev_store_in_build.sh",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:dst && pnpm gates && pnpm selftest:scanners && pnpm build && pnpm scan:bundle && pnpm guards"
   },
   "devDependencies": {
-    "prettier": "3.9.10"
+    "prettier": "3.9.10",
+    "typescript": "5.9.3"
   }
 }

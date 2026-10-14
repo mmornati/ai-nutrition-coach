@@ -287,7 +287,7 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 The self-host image ships with no telemetry (FR-12): the served bundle makes no
 analytics or tracking calls, the server needs no outbound network, and the only
 browser network paths are the ones you enable (barcode lookups, an AI endpoint
-you configure). The import-based telemetry gate pins this claim; see
+you configure). The import-based telemetry gate (`tools/check_telemetry_claims.mjs`) pins this claim; see
 [`docs/telemetry-posture.md`](./telemetry-posture.md).
 
 ## Cross-references

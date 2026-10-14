@@ -52,12 +52,12 @@ so the v2 implementation can land without an architectural change.
 
 ## Static enforcement
 
-- `tools/check_no_under_13_profiles.dart` walks the source tree
+- `tools/check_adults_only.mjs` walks the source tree
   and rejects `under13`, `childProfile`, `minorAccount`,
   `teenAccount`, `parentAccount`, `ageGate`, `birthDate`, and the
   PascalCase variants. The `ManagedOversightSeam` marker is the
   only allowed reference.
-- `melos run check:release-posture` chains the static check
+- `pnpm verify` chains the static check
   alongside the existing telemetry + release-posture checks. A
   regression fails the build.
 

@@ -71,7 +71,7 @@ The gate has two enforcement surfaces:
 2. **Docs-level** — every user-facing privacy / posture claim in
    `docs/ai-tiers.md`, `docs/self-host.md`, `docs/your-data.md`,
    and `docs/telemetry-posture.md` is checked against this list.
-   `melos run check:telemetry` pins the docs-vs-code invariant
+   `pnpm check:telemetry` pins the docs-vs-code invariant
    (Story 4.5).
 
 ## Cross-references

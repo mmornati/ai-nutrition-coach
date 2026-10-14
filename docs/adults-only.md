@@ -27,10 +27,10 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
 
 ## What this means for contributors
 
-- **No `package:local_auth`, `package:face_recognition`, or
+- **No biometric package (`local-auth`, `face-api`, `react-native-biometrics`, ...) or
   equivalent.** The static check
-  (`tools/check_adults_only.dart`) rejects every banned biometric
-  import.
+  (`tools/check_adults_only.mjs`) rejects every banned biometric
+  package and identifier.
 - **No `childProfile`, `under13`, `minorAccount`, `teenAccount`,
   `parentAccount`, `ageGate`, or `birthDate` field.** The check
   rejects every banned under-13 reference.
@@ -41,16 +41,16 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
   `PrivacyGuard` class claimed to assert this at startup, but its check
   always returned `true` (security review F9), so it was removed rather
   than left claiming something it did not do.
-  `tools/check_adults_only.dart` (run by `melos run check:release-posture`)
+  `tools/check_adults_only.mjs` (run by `pnpm verify`; self-tested by `tools/gates/adults-only.test.mjs`)
   and the named-reviewer gate are the enforcement surfaces.
 
 ## How to verify
 
 ```sh
-melos run check:release-posture
+pnpm check:adults-only
 ```
 
-The script chains the adults-only check alongside the existing
+`pnpm verify` runs the adults-only check alongside the
 telemetry + release-posture checks. A regression fails the build.
 
 ## Why this matters

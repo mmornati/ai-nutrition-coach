@@ -76,9 +76,9 @@ named reviewer records the human sign-off.
 
 ## Gate P — Privacy (privacy audit 2026-10-12, [`docs/telemetry-posture.md`](./telemetry-posture.md))
 
-- [ ] `melos run check:release-posture` is green, including `tools/check_log_hygiene.dart`
+- [ ] `melos run check:release-posture` is green, including `tools/check_log_hygiene.mjs`
   (no `print(`; every interpolating `debugPrint` / `log` call reviewed as content-free).
-- [ ] **Project URL.** `AI_NUTRITION_COACH_BUILD=release [AI_NUTRITION_COACH_PROJECT_URL=<override>] dart run tools/check_release_posture.dart --project-url-only`
+- [ ] **Project URL.** `AI_NUTRITION_COACH_BUILD=release [AI_NUTRITION_COACH_PROJECT_URL=<override>] node tools/check_release_posture.mjs --project-url-only`
   is green (the default is the project repository, so this only fails for an empty or `.invalid` override; set the URL for a fork). Build mobile
   releases with the same `--dart-define=AI_NUTRITION_COACH_PROJECT_URL=…`; the container with
   `--build-arg AI_NUTRITION_COACH_PROJECT_URL=… --build-arg AI_NUTRITION_COACH_RELEASE=1` (the build then enforces the rule itself;
@@ -109,7 +109,7 @@ named reviewer records the human sign-off.
 
 ## Gate D — Telemetry (Story 4.5 / FR-12)
 
-- [ ] `melos run check:telemetry` is green (import-based).
+- [ ] `pnpm check:telemetry` is green (import-based).
 - [ ] Only the allow-listed adapters import a network transport; no
   telemetry SDK is declared or imported.
 - [ ] The production `main.dart` imports no network transport.

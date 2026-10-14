@@ -7,15 +7,13 @@
 # key inside `main.dart.js`. This guard makes that class of mistake a red CI
 # run instead of an incident.
 #
-#   tools/check_no_secrets_in_build.sh                scan build/web (+ APK if any)
+#   tools/check_no_secrets_in_build.sh                scan apps/web/dist
 #   tools/check_no_secrets_in_build.sh --web-only     skip the APK lookup
 #   tools/check_no_secrets_in_build.sh --apk-only     scan only the APK(s)
 #   tools/check_no_secrets_in_build.sh --self-test    prove the scanner works
 #   tools/check_no_secrets_in_build.sh <dir|file>...  scan these paths instead
 #
-# Scanned (default): apps/client/build/web/**, and every *.apk under
-# apps/client/build/app/outputs/ (unzipped to a temp dir first — the APK is
-# a zip, its strings are compressed).
+# Scanned (default): apps/web/dist/** (the release bundle).
 #
 # Patterns (extended regex, matched on raw bytes, so JS and wasm are covered):
 #   sk-or-v1-<10+ chars>        OpenRouter key
@@ -180,10 +178,10 @@ if [[ ${#EXPLICIT[@]} -gt 0 ]]; then
   done
 else
   if [[ "$APK_ONLY" -eq 0 ]]; then
-    WEB_DIR="$ROOT/apps/client/build/web"
+    WEB_DIR="$ROOT/apps/web/dist"
     if [[ ! -d "$WEB_DIR" ]]; then
       echo "✗ $WEB_DIR does not exist — build the web bundle first" >&2
-      echo "  (melos run build:web), or pass the paths to scan." >&2
+      echo "  (pnpm build), or pass the paths to scan." >&2
       exit 2
     fi
     echo "▶ scanning $WEB_DIR"

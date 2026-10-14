@@ -11,10 +11,11 @@
     "build": "pnpm run fetch:assets && tsc -b && vite build && pnpm run precache",
     "precache": "node ../../tools/generate_precache_manifest.mjs dist",
     "preview": "vite preview",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -b",
     "test": "pnpm run fetch:assets && vitest run",
-    "e2e": "pnpm run fetch:assets && playwright test"
+    "e2e": "pnpm run fetch:assets && playwright test",
+    "test:dst": "TZ=Europe/Paris vitest run --project dom"
   },
   "dependencies": {
     "@anc/core": "workspace:*",

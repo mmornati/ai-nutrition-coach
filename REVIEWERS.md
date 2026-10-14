@@ -45,8 +45,8 @@ The named reviewer ticks off the banned-everywhere list from
 8. Resolve spinners
 
 A regression on any of these fails the build via the
-`melos run check:release-posture` gate (Story 4.6) + the
-`tools/check_adults_only.dart` static check (Story 5.1).
+`pnpm check:release-posture` gate (Story 4.6) + the
+`tools/check_adults_only.mjs` static check (Story 5.1).
 
 ## Why this role exists
 

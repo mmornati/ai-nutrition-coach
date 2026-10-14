@@ -3,7 +3,7 @@
 // AI Nutrition Coach ships with zero telemetry by default. The privacy
 // posture is architecture, not policy: the only paths that open a
 // socket are user-enabled (the catalog, the AI rung transport, the
-// optional sync transport). The `melos run check:telemetry` gate
+// optional sync transport). The `pnpm check:telemetry` gate
 // pins this invariant end-to-end.
 //
 // This page is the honest answer to *"what does AI Nutrition Coach know
@@ -13,14 +13,16 @@
 ## What is on by default
 
 **Nothing.** No telemetry, no analytics, no error reporting, no
-crash dumps, no usage beacons. The production `main.dart` does not
+crash dumps, no usage beacons. The production `main.tsx` does not
 invoke a network code path at startup. The gate
-(`tools/check_telemetry_claims.dart`, also run by the `no_telemetry` unit
-test) is **import-based**: a Dart file cannot reach the network without
-importing a transport (`package:dio`, `package:http`, `dart:io` sockets,
-`package:web` `fetch`/XHR/WebSocket, ...), so only an explicit allow-list of
-adapter files may, and no analytics / crash-reporting SDK may be declared or
-imported anywhere.
+(`tools/check_telemetry_claims.mjs`, self-tested by
+`tools/gates/telemetry.test.mjs`) is **import-based**: it parses every shipped file of
+`apps/web/src` and `packages/core/src` with the TypeScript compiler API. A file cannot reach the
+network without a transport (`fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`,
+`navigator.sendBeacon`, a `<script>` injected at run time, `import()` of a computed URL, a worker
+whose URL is not a same-origin literal, a network package, the capped-fetch helper), so only an
+explicit allow-list of adapter files may, and no analytics / crash-reporting SDK may be declared
+in any `package.json` or imported anywhere.
 
 ## What is user-enabled
 
@@ -38,7 +40,7 @@ endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
   answer is stored and changeable in Settings → Privacy, and nothing is sent until it
   is "OK"). The request is exactly `GET /api/v2/product/<barcode>?fields=…` with
   `Accept` and (off the web) a `User-Agent`; no `Referer`, no `Cookie`, no
-  identifier (pinned by `off_barcode_source_test.dart`; the browser smoke asserts
+  identifier (pinned by `apps/web/src/catalog/off-barcode-source.test.ts`; the browser smoke asserts
   it on the wire). Open Food Facts also sees the usual internet details any website
   sees (address, time, and on the web the page's origin). The catalog
   is offline-first; the local cache answers most calls without a
@@ -72,8 +74,8 @@ locally (native `BarcodeDetector` or the self-hosted zxing-wasm).
 ## Logs
 
 - **The app** writes nothing to any log that could carry what you logged:
-  `tools/check_log_hygiene.dart` (chained into `melos run check:release-posture`)
-  fails on any `print(` in `lib/` and on any `debugPrint` / `log` call that
+  `tools/check_log_hygiene.mjs` (run by `pnpm verify`)
+  fails on any `console.*` tear-off and on any `console.*` call that
   interpolates or forwards a value, unless the line is marked
   `// log-hygiene: content-free` and interpolates only allow-listed identifiers
   (row / plate / note ids, steps, counts, fixed reasons).
@@ -106,7 +108,7 @@ version of the posture:
   native detector instead of a CDN-hosted fallback (browsers without that API
   — Firefox, desktop Windows/Linux, Safari by default — use manual entry).
   `tools/check_no_external_hosts.sh` scans the built bundle and fails on any
-  host outside a short, justified allow-list (`melos run check:hosts`): inert doc links by host, and
+  host outside a short, justified allow-list (`tools/check_no_external_hosts.sh`): inert doc links by host, and
   the four known engine/scanner default CDN URLs only as exact strings with exact counts.
 - Your data never reaches the server: it is encrypted in your browser.
 - Put TLS in front for other devices (`bin/ai-nutrition-coach up --tls`); AI Nutrition Coach
@@ -115,16 +117,17 @@ version of the posture:
 ## How to verify
 
 ```sh
-melos run check:telemetry   # import-based source gate
-melos run check:hosts       # built-bundle third-party host scan (after build:web)
+pnpm check:telemetry        # import-based source gate
+pnpm verify                 # everything, incl. the built-bundle host scan
 bash scripts/smoke_self_host.sh   # container: headers, CSP, non-root, no egress
 ```
 
-`check:telemetry` parses the source tree with the analyzer (conditional
-imports, re-exports, `part` files and `Image.network` included), asserts only the allow-listed adapters
-import a network transport, rejects telemetry SDKs by name prefix (imports and pubspecs) and
-checks that the user-facing docs are anchored to the gate. It runs in the unit
-tests and in CI, so a regression fails the build.
+`check:telemetry` parses the source tree with the TypeScript compiler API, asserts only the
+allow-listed files use a network transport (and that each allow-list entry still exists and still
+needs what it holds), rejects telemetry SDKs by name prefix (`package.json` files and the resolved
+`pnpm-lock.yaml`) and checks that the user-facing docs are anchored to the gate. Its self-test
+(`tools/gates/telemetry.test.mjs`) proves it fails on violating fixtures. It runs in `pnpm verify`
+and in CI, so a regression fails the build.
 
 ## Cross-references
 

@@ -284,7 +284,7 @@ exports. Open Food Facts lookups ask only for the fields the parser reads
 no personal contact; omitted on web, where browsers forbid setting it). The
 project URL comes from `--dart-define=AI_NUTRITION_COACH_PROJECT_URL`; the default is the
 project repository, `https://github.com/mmornati/ai-nutrition-coach` (override it for a fork).
-`AI_NUTRITION_COACH_BUILD=selfhost|release dart run tools/check_release_posture.dart`
+`AI_NUTRITION_COACH_BUILD=selfhost|release node tools/check_release_posture.mjs --project-url-only`
 fails only if the URL is empty or `.invalid` (see the release checklist). A
 transient OFF failure is **not** cached for the rest of the session — only a
 match or a definitive "not found" is.

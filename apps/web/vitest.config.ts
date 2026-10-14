@@ -14,14 +14,15 @@ export default defineConfig({
     css: false,
     projects: [
       // The build-time tooling and the service worker itself (plain node, no DOM): the precache
-      // generator, the container's render step and the worker's behaviour.
+      // generator, the container's render step and the worker's behaviour, plus the self-tests of
+      // the release-posture gates (tools/check_*.mjs): each must fail on violating fixtures.
       {
         extends: true,
         test: {
           name: 'tools',
           environment: 'node',
-          dir: '../../tools/pwa',
-          include: ['*.test.mjs'],
+          dir: '../../tools',
+          include: ['pwa/*.test.mjs', 'gates/*.test.mjs'],
           testTimeout: 20_000,
         },
       },
