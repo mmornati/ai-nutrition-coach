@@ -1,0 +1,99 @@
+import type { ReactNode } from 'react';
+import { fill, useStrings } from '../../i18n';
+import { BarcodeIcon, CameraIcon, TypeIcon } from '../primitives/icons';
+import { cn } from '../primitives/cn';
+import { Sheet } from './Sheet';
+
+export interface CaptureSheetProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onSnapshot: () => void;
+  readonly onBarcode: () => void;
+  readonly onType: () => void;
+  /** Name of the next meal slot, shown as "Next station: <meal>". */
+  readonly nextMeal?: string;
+}
+
+function Tile({
+  main = false,
+  icon,
+  title,
+  hint,
+  onClick,
+  initialFocus = false,
+}: {
+  main?: boolean;
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  onClick: () => void;
+  initialFocus?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      {...(initialFocus ? { 'data-autofocus': true } : {})}
+      className={cn(
+        'border-porcelain flex cursor-pointer flex-col justify-between gap-2.5 rounded-none border-2 p-3.5 text-left',
+        main ? 'bg-porcelain text-enamel col-span-2 min-h-33' : 'text-porcelain min-h-24',
+      )}
+    >
+      <span className="font-display text-title flex w-full items-center justify-between uppercase">
+        {title}
+        {icon}
+      </span>
+      <span className={cn('text-body-small', !main && 'text-porcelain-dim')}>{hint}</span>
+    </button>
+  );
+}
+
+/**
+ * The three ways to log: Snapshot dominant, Barcode and Type it secondary. Choosing one closes
+ * the sheet and then reports the choice. No monetisation, no pressure copy.
+ */
+export function CaptureSheet({
+  open,
+  onClose,
+  onSnapshot,
+  onBarcode,
+  onType,
+  nextMeal,
+}: CaptureSheetProps) {
+  const s = useStrings().capture;
+  const choose = (action: () => void) => () => {
+    onClose();
+    action();
+  };
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={s.title}
+      subtitle={nextMeal ? fill(s.nextStation, { meal: nextMeal }) : undefined}
+    >
+      <div className="grid grid-cols-2 gap-2.5">
+        <Tile
+          main
+          initialFocus
+          icon={<CameraIcon size={30} />}
+          title={s.snapshot}
+          hint={s.snapshotHint}
+          onClick={choose(onSnapshot)}
+        />
+        <Tile
+          icon={<BarcodeIcon size={24} />}
+          title={s.barcode}
+          hint={s.barcodeHint}
+          onClick={choose(onBarcode)}
+        />
+        <Tile
+          icon={<TypeIcon size={24} />}
+          title={s.type}
+          hint={s.typeHint}
+          onClick={choose(onType)}
+        />
+      </div>
+    </Sheet>
+  );
+}

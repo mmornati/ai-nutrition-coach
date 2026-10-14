@@ -118,6 +118,7 @@ apps/client/web/zxing/
 
 # ── JS workspace (apps/web, packages/core) ───────────────────
 dist/
+dist-e2e/
 playwright-report/
 test-results/
 .vite/
