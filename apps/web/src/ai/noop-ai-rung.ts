@@ -32,13 +32,14 @@ export class UnavailableAiRung implements AiRung {
  * sent and no key is read. Says so with the `notConfigured` cause, not "key missing".
  */
 export class NotConfiguredAiRung implements AiRung {
-  readonly #message: string;
+  readonly #message: () => string;
 
-  constructor(message: string) {
+  /** The wording is read when it is needed, so a later locale switch is followed. */
+  constructor(message: () => string) {
     this.#message = message;
   }
 
   async recognize(): Promise<RecognitionResult> {
-    return recognitionFailure('notConfigured', this.#message);
+    return recognitionFailure('notConfigured', this.#message());
   }
 }

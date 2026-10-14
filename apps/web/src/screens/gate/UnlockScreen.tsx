@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { EraseLocalDataResult } from '@anc/core';
 import type { UnlockOutcome } from '../../storage';
-import { useStrings, type Strings } from '../../i18n';
+import { useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { Button, TextField } from '../../components/primitives';
 import { EraseLocalDataDialog } from '../../components/dialogs';
 import { GateFrame } from './GateFrame';
@@ -43,23 +43,24 @@ export function UnlockScreen({
   const s = all.session;
   const [passphrase, setPassphrase] = useState('');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useMessage();
   const [forgotOpen, setForgotOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const submit = async () => {
     if (busy) return;
     if (passphrase === '') {
-      setMessage(s.wrongPassphrase);
+      setMessage((a) => a.session.wrongPassphrase);
       return;
     }
     setBusy(true);
     setMessage(null);
-    let next: string | null;
+    let next: Message | null;
     try {
-      next = outcomeText(await onUnlock(passphrase), s);
+      const outcome = await onUnlock(passphrase);
+      next = (a) => outcomeText(outcome, a.session);
     } catch {
-      next = s.unavailable;
+      next = (a) => a.session.unavailable;
     } finally {
       setPassphrase('');
     }
@@ -71,12 +72,12 @@ export function UnlockScreen({
     if (!onErase || busy) return;
     setConfirming(false);
     setBusy(true);
-    let next: string | null = null;
+    let next: Message | null = null;
     try {
       const result = await onErase();
-      if (result.kind === 'eraseLocalDataFailure') next = all.erase.failed;
+      if (result.kind === 'eraseLocalDataFailure') next = (a) => a.erase.failed;
     } catch {
-      next = all.erase.failed;
+      next = (a) => a.erase.failed;
     }
     setBusy(false);
     setMessage(next);

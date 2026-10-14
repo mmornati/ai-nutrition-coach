@@ -45,7 +45,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
     }
     setBusy(false);
     setConfirming(false);
-    day.setNotice(removed ? all.today.plateRemoved : all.today.plateRemoveFailed);
+    day.setNotice((a) => (removed ? a.today.plateRemoved : a.today.plateRemoveFailed));
     if (removed) replaceRoute(TODAY_HASH);
   };
 

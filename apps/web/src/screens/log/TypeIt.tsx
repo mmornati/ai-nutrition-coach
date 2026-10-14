@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import type { FoodEntryDraft, RecordPlateResult } from '@anc/core';
-import { fill, useStrings } from '../../i18n';
+import { fill, useMessage, useStrings } from '../../i18n';
 import { Button, GroupMarker, TextField } from '../../components/primitives';
 import { PortionPresets, Sheet } from '../../components/sheets';
 import { useManualEntry } from '../../catalog';
 import type { LogOutcome } from '../../catalog';
-import { useState } from 'react';
 import { useSession } from '../../app/session';
 
 /**
@@ -25,7 +24,7 @@ export function TypeIt({
   const c = s.catalog;
   const { catalog, recordPlate } = useSession();
   const { session, state } = useManualEntry(catalog);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useMessage();
 
   useEffect(() => {
     if (prefill) void session.prefill(prefill);
@@ -41,13 +40,13 @@ export function TypeIt({
         onLogged();
         return;
       case 'needsQuantity':
-        setNote(c.pickQuantity);
+        setNote((a) => a.catalog.pickQuantity);
         return;
       case 'needsName':
-        setNote(c.typeNameFirst);
+        setNote((a) => a.catalog.typeNameFirst);
         return;
       case 'failed':
-        setNote(s.common.logFailed);
+        setNote((a) => a.common.logFailed);
         return;
       case 'busy':
         return;

@@ -8,7 +8,7 @@ import {
 } from '@anc/core';
 import { Button } from '../../components/primitives';
 import { EraseLocalDataDialog } from '../../components/dialogs';
-import { fill, useStrings, type Strings } from '../../i18n';
+import { fill, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { IDLE_MINUTE_CHOICES } from '../../storage';
 import { useDay } from '../../app/day-context';
 import { forgetAcknowledgedBeforeStore } from '../../app/about-ack';
@@ -25,7 +25,7 @@ type ScopeKind = 'visibleDay' | 'week' | 'allHistory';
 
 type Outcome =
   | { readonly kind: 'exported'; readonly filename: string }
-  | { readonly kind: 'text'; readonly text: string };
+  | { readonly kind: 'text'; readonly text: Message };
 
 function failureText(result: RunExportResult & { kind: 'failed' }, s: Strings['export']): string {
   const failure = result.failure;
@@ -68,7 +68,7 @@ export function YourDataScreen({
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [erasing, setErasing] = useState(false);
-  const [eraseMessage, setEraseMessage] = useState<string | null>(null);
+  const [eraseMessage, setEraseMessage] = useMessage();
 
   const scope = (): ExportScope => {
     switch (scopeKind) {
@@ -95,14 +95,14 @@ export function YourDataScreen({
           await refresh();
           break;
         case 'cancelled':
-          setOutcome({ kind: 'text', text: e.cancelled });
+          setOutcome({ kind: 'text', text: (a) => a.export.cancelled });
           break;
         case 'failed':
-          setOutcome({ kind: 'text', text: failureText(result, e) });
+          setOutcome({ kind: 'text', text: (a) => failureText(result, a.export) });
           break;
       }
     } catch {
-      if (session.live()) setOutcome({ kind: 'text', text: e.failedDelivery });
+      if (session.live()) setOutcome({ kind: 'text', text: (a) => a.export.failedDelivery });
     } finally {
       if (session.live()) setBusy(false);
     }
@@ -123,7 +123,7 @@ export function YourDataScreen({
     if (!session.live()) return;
     setErasing(false);
     setConfirming(false);
-    setEraseMessage(all.erase.failed);
+    setEraseMessage((a) => a.erase.failed);
   };
 
   const persistence =
@@ -183,7 +183,7 @@ export function YourDataScreen({
                 <span className="[overflow-wrap:anywhere]">{outcome.filename}</span>
               </>
             ) : (
-              outcome?.text
+              outcome?.text(all)
             )}
           </p>
           {info.loaded && (

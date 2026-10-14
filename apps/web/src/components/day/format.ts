@@ -1,28 +1,41 @@
 import type { EpochMs } from '@anc/core';
+import { currentLocale } from '../../i18n';
+import { perLocale, type Locale } from '../../i18n/locale';
 
-const timeFormat = new Intl.DateTimeFormat('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
-const weekdayLong = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
-const weekdayShort = new Intl.DateTimeFormat('en-GB', { weekday: 'short' });
+const timeFormat = perLocale(
+  (tag) => new Intl.DateTimeFormat(tag, { hour: '2-digit', minute: '2-digit', hour12: false }),
+);
+const weekdayLong = perLocale((tag) => new Intl.DateTimeFormat(tag, { weekday: 'long' }));
+const weekdayShort = perLocale((tag) => new Intl.DateTimeFormat(tag, { weekday: 'short' }));
 
-export const formatTime = (ms: EpochMs): string => timeFormat.format(new Date(ms));
-export const weekdayName = (ms: EpochMs): string => weekdayLong.format(new Date(ms));
-export const weekdayAbbr = (ms: EpochMs): string => weekdayShort.format(new Date(ms));
+export const formatTime = (ms: EpochMs, locale: Locale = currentLocale()): string =>
+  timeFormat(locale).format(new Date(ms));
+export const weekdayName = (ms: EpochMs, locale: Locale = currentLocale()): string =>
+  weekdayLong(locale).format(new Date(ms));
+export const weekdayAbbr = (ms: EpochMs, locale: Locale = currentLocale()): string =>
+  weekdayShort(locale).format(new Date(ms));
 
-const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
-const dayMonthLong = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' });
+const dayMonth = perLocale(
+  (tag) => new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }),
+);
+const dayMonthLong = perLocale(
+  (tag) => new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long' }),
+);
 
 /** "13 Oct". */
-export const formatDayMonth = (ms: EpochMs): string => dayMonth.format(new Date(ms));
+export const formatDayMonth = (ms: EpochMs, locale: Locale = currentLocale()): string =>
+  dayMonth(locale).format(new Date(ms));
 
 /** "7 – 13 October" for a span of days (the week screen's sub-header). */
-export function formatDaySpan(from: EpochMs, to: EpochMs): string {
+export function formatDaySpan(
+  from: EpochMs,
+  to: EpochMs,
+  locale: Locale = currentLocale(),
+): string {
+  const long = dayMonthLong(locale);
   const first = new Date(from);
   const last = new Date(to);
   const startText =
-    first.getMonth() === last.getMonth() ? String(first.getDate()) : dayMonthLong.format(first);
-  return `${startText} – ${dayMonthLong.format(last)}`;
+    first.getMonth() === last.getMonth() ? String(first.getDate()) : long.format(first);
+  return `${startText} – ${long.format(last)}`;
 }

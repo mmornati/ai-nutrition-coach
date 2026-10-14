@@ -22,6 +22,7 @@ import {
   type PlateLog,
 } from '@anc/core';
 import { buildWeekDays, type WeekDayData } from '../components/day';
+import { useMessage, type Message } from '../i18n';
 import { useSession } from './session';
 
 export type PlatesStatus = 'loading' | 'ready' | 'failed';
@@ -38,7 +39,8 @@ export interface DayState {
   readonly days: readonly WeekDayData[];
   /** One calm line shown on Today (a plate was removed, or could not be). */
   readonly notice: string | null;
-  readonly setNotice: (text: string | null) => void;
+  /** Takes a `Message` (worded at display time), so the line follows the locale. */
+  readonly setNotice: (message: Message | null) => void;
   /** When the last plate was logged, for the short-lived "+ log another plate" link. */
   readonly lastLoggedAt: number | null;
   readonly markLogged: () => void;
@@ -83,7 +85,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
   const [chosen, setChosen] = useState<EpochMs | null>(null);
   const [plates, setPlates] = useState<readonly PlateLog[]>([]);
   const [status, setStatus] = useState<PlatesStatus>('loading');
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useMessage();
   const [lastLoggedAt, setLastLoggedAt] = useState<number | null>(null);
   const [durableSeen, setDurableSeen] = useState(false);
 
@@ -135,6 +137,7 @@ export function DayProvider({ children }: { children: ReactNode }) {
       status,
       days,
       notice,
+      setNotice,
       lastLoggedAt,
       markLogged,
       durableSeen,

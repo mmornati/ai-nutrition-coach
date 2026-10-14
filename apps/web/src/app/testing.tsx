@@ -2,7 +2,7 @@
 // bundle. It assembles the REAL controller, store, coach-note store and key/value store over the
 // in-memory engine (the one the dev store uses), so a screen test exercises the same code paths
 // as production without a worker or WebCrypto.
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import {
   databaseFood,
@@ -129,6 +129,8 @@ export async function renderInSession(
     readonly session?: SessionOptions;
     readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
     readonly createCapture?: UsePhotoFlowDeps['createCapture'];
+    /** Wraps the whole tree (e.g. a `LocaleProvider`, which sits above the session at the app root). */
+    readonly wrapper?: ComponentType<{ children: ReactNode }>;
   },
 ) {
   const view = render(
@@ -147,6 +149,7 @@ export async function renderInSession(
         </DayProvider>
       </SessionBoundary>
     </StoreProvider>,
+    options.wrapper ? { wrapper: options.wrapper } : {},
   );
   await waitFor(() => {
     if (view.container.childElementCount === 0) throw new Error('session not built yet');

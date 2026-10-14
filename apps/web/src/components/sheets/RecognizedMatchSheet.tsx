@@ -6,7 +6,7 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
-import { plural, useStrings, type Strings } from '../../i18n';
+import { plural, useMessage, useStrings, type Strings } from '../../i18n';
 import { portionFor } from '../../i18n/sentences';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
@@ -136,7 +136,7 @@ function Body({
   );
   const [choices, setChoices] = useState(() => initialChoices(recognized, extra));
   const [customName, setCustomName] = useState('');
-  const [customMessage, setCustomMessage] = useState<string | undefined>();
+  const [customMessage, setCustomMessage] = useMessage();
   const [submitting, setSubmitting] = useState<'ticked' | 'custom' | null>(null);
   const [failed, setFailed] = useState(false);
   const inFlight = useRef(false);
@@ -191,10 +191,10 @@ function Body({
   const logCustom = async () => {
     const name = customName.trim();
     if (name === '') {
-      setCustomMessage(r.typeNameFirst);
+      setCustomMessage((a) => a.recognized.typeNameFirst);
       return;
     }
-    setCustomMessage(undefined);
+    setCustomMessage(null);
     if (await commit('custom', [{ databaseFood: manualFood(name), quantity: oneServing() }]))
       setCustomName('');
   };
@@ -265,10 +265,10 @@ function Body({
         <TextField
           label={r.customFoodName}
           value={customName}
-          message={customMessage}
+          message={customMessage ?? undefined}
           onChange={(e) => {
             setCustomName(e.target.value);
-            setCustomMessage(undefined);
+            setCustomMessage(null);
           }}
         />
         <Button

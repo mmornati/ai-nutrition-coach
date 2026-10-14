@@ -23,7 +23,7 @@ import {
 } from '../../components/day';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { useStrings } from '../../i18n';
+import { useLocale, useStrings } from '../../i18n';
 import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { useLog } from '../../app/log-context';
 import { hrefs, navigate } from '../../app/router';
@@ -89,6 +89,7 @@ function DurableLine() {
  */
 export function TodayScreen() {
   const all = useStrings();
+  const { locale } = useLocale();
   const s = all.today;
   const { deletePlate, coach, coachInteractions, notes } = useSession();
   const day = useDay();
@@ -151,10 +152,12 @@ export function TodayScreen() {
         );
       })?.id
     : undefined;
+  // `coach` words the question from the current catalogue, so a locale switch must recompute it.
   const hintQuestion = useMemo(() => {
     const r = coach.questionFor({ anchor: 'openPlate', pattern: 'balanced' });
     return r.kind === 'coachFound' ? r.question.text : null;
-  }, [coach]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
+  }, [coach, locale]);
 
   const remove = async () => {
     const plate = removing;
@@ -162,9 +165,11 @@ export function TodayScreen() {
     setBusy(true);
     try {
       const result = await deletePlate(plate.id);
-      day.setNotice(result.kind === 'plateDeleted' ? s.plateRemoved : s.plateRemoveFailed);
+      day.setNotice((a) =>
+        result.kind === 'plateDeleted' ? a.today.plateRemoved : a.today.plateRemoveFailed,
+      );
     } catch {
-      day.setNotice(s.plateRemoveFailed);
+      day.setNotice((a) => a.today.plateRemoveFailed);
     } finally {
       setBusy(false);
       setRemoving(null);
