@@ -10,6 +10,10 @@
 # VARIABLE AI_NUTRITION_COACH_PROJECT_URL to override it; the build FAILS if the
 # override is empty-hosted or `.invalid`.
 
+# Provider switch (docs/ci-migration.md): while the repository variable CI_PROVIDER is
+# `circleci`, every job here is skipped (no runner is requested, no minutes are used) unless the
+# run is started by hand (workflow_dispatch).
+
 name: release-gate
 
 on:
@@ -23,6 +27,7 @@ permissions:
 jobs:
   sbom:
     name: SBOM (self-host image)
+    if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

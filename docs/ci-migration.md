@@ -56,20 +56,36 @@ scheduled trigger, which is also more punctual than GitHub cron.
    workflows to call the same scripts. The CircleCI project is connected
    (GitHub OAuth app, deploy key), and every push builds.
 2. **Prove parity.** Get a green `gates` run, then merge.
-3. **Make GitHub the fallback.** Change the GitHub workflows' triggers to
-   `workflow_dispatch` only. They then stop spending minutes, or showing red
-   crosses, on every push, and stay ready for a manual run.
+3. **Make GitHub the fallback.** Set the repository variable
+   `CI_PROVIDER=circleci` (see "Switching providers"). Every GitHub job then
+   shows as skipped instead of failing, and no minutes are spent.
 4. **Schedule.** Add a CircleCI scheduled trigger for `weekly-gitleaks`
    (Mondays 04:17 UTC, branch `main`). Then drop the `schedule:` block from
    `gitleaks.yml`.
 
 ## Switching providers
 
-- **CircleCI down or out of credits:** run the GitHub workflows from the
-  Actions tab (or `gh workflow run <name> --ref <branch>`).
-- **Back to GitHub as primary:** restore the `push` / `pull_request` triggers in
-  `.github/workflows/`, and in CircleCI either stop building the project
-  (Project Settings → Stop Building) or turn on "Only build pull requests".
+GitHub has no "skip when out of minutes" mode. A workflow whose trigger
+matches always starts, and a job refused for billing is reported as
+**failed**. So every GitHub job carries a guard:
+
+```yaml
+if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
+```
+
+A job whose `if:` is false never asks for a runner. It shows as **skipped**
+and costs nothing.
+
+- **CircleCI primary (current):** the repository variable `CI_PROVIDER` is
+  `circleci`. Set it with
+  `gh variable set CI_PROVIDER --body circleci --repo mmornati/ai-nutrition-coach`.
+- **One GitHub run while CircleCI is down:** start the workflow by hand
+  (Actions tab, or `gh workflow run ci --ref <branch>`). Manual runs ignore the
+  variable.
+- **Back to GitHub as primary:** delete the variable
+  (`gh variable delete CI_PROVIDER --repo mmornati/ai-nutrition-coach`). Then
+  either stop building on CircleCI (Project Settings → Stop Building), or keep
+  both providers running.
 
 ## CircleCI budget
 

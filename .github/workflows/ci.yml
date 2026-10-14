@@ -20,6 +20,10 @@
 # Toolchain: Node 24 and pnpm 11.14.0 (the root package.json `packageManager`, activated through
 # corepack by scripts/ci/pnpm.sh). Keep in sync with infra/Dockerfile and CONTRIBUTING.md.
 
+# Provider switch (docs/ci-migration.md): while the repository variable CI_PROVIDER is
+# `circleci`, every job here is skipped (no runner is requested, no minutes are used) unless the
+# run is started by hand (workflow_dispatch).
+
 name: ci
 
 on:
@@ -27,6 +31,7 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  workflow_dispatch:
 
 # Cancel in-progress runs on the same ref — keeps PR feedback loops fast
 # without burning runner minutes on superseded commits.
@@ -41,6 +46,7 @@ permissions:
 jobs:
   verify:
     name: verify
+    if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -66,6 +72,7 @@ jobs:
 
   e2e:
     name: e2e (Chromium + WebKit)
+    if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
@@ -96,6 +103,7 @@ jobs:
 
   image:
     name: image (build, trivy, self-host smoke, browser smoke)
+    if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
