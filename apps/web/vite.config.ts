@@ -18,7 +18,9 @@ const CSP = [
   "img-src 'self' blob: data:",
   "font-src 'self'",
   "media-src 'self' blob:",
-  "connect-src 'self'",
+  // The Open Food Facts host is the one allowed network host (the barcode lookup, after the
+  // one-time notice); the BYOK AI endpoint is added in phase 6.
+  "connect-src 'self' https://world.openfoodfacts.org",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   "object-src 'none'",
@@ -103,6 +105,7 @@ export default defineConfig({
             input: {
               main: fileURLToPath(new URL('./index.html', import.meta.url)),
               'storage-harness': fileURLToPath(new URL('./storage-harness.html', import.meta.url)),
+              'capture-harness': fileURLToPath(new URL('./capture-harness.html', import.meta.url)),
             },
           },
         }

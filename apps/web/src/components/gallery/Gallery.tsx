@@ -6,6 +6,7 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
+import { CaptureGallerySection } from './CaptureGallerySection';
 import { DayGallerySection } from './DayGallerySection';
 import { StatusChip } from '../day';
 import { ConfirmDialog } from '../dialogs/ConfirmDialog';
@@ -325,6 +326,8 @@ export function Gallery() {
       </Section>
 
       <DayGallerySection />
+
+      <CaptureGallerySection />
 
       <CaptureSheet
         open={overlay === 'capture'}

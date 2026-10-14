@@ -16,6 +16,8 @@ export default tseslint.config(
       'test-results',
       // Vendored, SHA-256-pinned sqlite3mc wasm build (scripts/fetch_web_sqlite3mc.sh).
       'public/sqlite3mc',
+      // Vendored, SHA-256-pinned zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh).
+      'public/zxing',
     ],
   },
   js.configs.recommended,
@@ -34,7 +36,14 @@ export default tseslint.config(
   {
     // i18n-literal gate: user-facing copy lives in src/i18n, never in JSX. Text nodes and the
     // accessible-name attributes are checked; tests, the dev gallery and e2e are exempt.
-    files: ['src/*.tsx', 'src/components/**/*.tsx', 'src/screens/**/*.tsx'],
+    files: [
+      'src/*.tsx',
+      'src/components/**/*.tsx',
+      'src/screens/**/*.tsx',
+      'src/capture/**/*.tsx',
+      'src/barcode/**/*.tsx',
+      'src/catalog/**/*.tsx',
+    ],
     ignores: [
       '**/*.test.tsx',
       'src/main.tsx',

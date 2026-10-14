@@ -16,6 +16,8 @@ infra
 dist
 # Vendored, SHA-256-pinned sqlite3mc wasm build (scripts/fetch_web_sqlite3mc.sh)
 apps/web/public/sqlite3mc
+# Vendored, SHA-256-pinned zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh)
+apps/web/public/zxing
 dist-e2e
 dev-dist
 coverage

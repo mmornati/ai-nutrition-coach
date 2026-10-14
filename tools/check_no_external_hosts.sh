@@ -110,7 +110,9 @@ scan_dir() {
     file="${line%%:*}"
     url="${line#*:}"
     host="${url#*//}"
-    host="${host%%[/:?#]*}"
+    # A host ends at a path/port/query/fragment or at a list separator: a CSP value such as
+    # `connect-src 'self' https://world.openfoodfacts.org; worker-src ...` ends with `;`.
+    host="${host%%[/:?#;,]*}"
     host="${host%.}"
     # Exact, counted allow-list first.
     local matched=0
@@ -200,7 +202,10 @@ self_test() {
   trap 'rm -rf "$tmp"' RETURN
   mkdir -p "$tmp/good" "$tmp/bad"
   printf 'var a="https://world.openfoodfacts.org/api";var b="https://docs.flutter.dev/x";\n' >"$tmp/good/main.dart.js"
+  # The CSP <meta> of the JS build names the one allowed network host, ended by `;`.
+  printf '<meta content="connect-src '"'"'self'"'"' https://world.openfoodfacts.org; worker-src '"'"'self'"'"'">\n' >"$tmp/good/index.html"
   printf 'var a="https://evil.example.com/x.js";\n' >"$tmp/bad/main.dart.js"
+  printf '<meta content="connect-src https://evil.example.com; img-src">\n' >"$tmp/bad/index.html"
   printf 'var f="https://fonts.gstatic.com/s/";var g="//cdn.evil.example/x.js";var w="wss://t.evil.example/s";\n' >"$tmp/bad/flutter_bootstrap.js"
   printf 'import "https://fonts.gstatic.com/s/other.woff2";\n' >"$tmp/bad/lib.mjs"
   # JS build: the known inert strings pass, anything else on the same hosts fails.
