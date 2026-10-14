@@ -3,6 +3,7 @@ import { validateNewPassphrase, type PassphraseIssue, type UnlockOutcome } from 
 import { useStrings, type Strings } from '../../i18n';
 import { Button, TextField } from '../../components/primitives';
 import { GateFrame } from './GateFrame';
+import { unavailableText } from './unavailable-text';
 
 const issueText = (issue: PassphraseIssue, s: Strings['session']): string =>
   issue === 'tooShort' ? s.tooShort : s.tooRepetitive;
@@ -18,9 +19,10 @@ function outcomeText(outcome: UnlockOutcome, s: Strings['session']): string | nu
       return s.inOtherTab;
     case 'newerVersion':
       return s.newerVersion;
+    case 'storeUnavailable':
+      return unavailableText(outcome.reason, s);
     case 'wrongPassphrase':
     case 'throttled':
-    case 'storeUnavailable':
     case 'dataMissing':
       return s.unavailable;
   }

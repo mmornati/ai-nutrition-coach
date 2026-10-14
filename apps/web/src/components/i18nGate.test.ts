@@ -33,6 +33,18 @@ describe('i18n literal gate', () => {
     expect(await messages(code, 'src/App.tsx')).toHaveLength(1);
   });
 
+  it.each([
+    'src/screens/settings/Example.tsx',
+    'src/screens/gate/Example.tsx',
+    'src/app/Example.tsx',
+    'src/ai/Example.tsx',
+    'src/capture/Example.tsx',
+    'src/some-new-folder/Example.tsx',
+  ])('covers %s', async (path) => {
+    const code = 'export const Example = () => <p aria-label="Search foods">Hello there</p>;\n';
+    expect(await messages(code, path)).toHaveLength(2);
+  });
+
   it('does not apply to tests or the gallery', async () => {
     const code = 'export const Example = () => <p>Hello there</p>;\n';
     expect(await messages(code, 'src/components/gallery/Example.tsx')).toEqual([]);

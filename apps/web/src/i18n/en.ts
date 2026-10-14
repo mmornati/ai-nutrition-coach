@@ -224,6 +224,8 @@ export const en = {
       consentExplainer:
         'Before a photo is sent you are asked first. Photos are shrunk and stripped of location and camera details first.',
       consentRevoke: 'Revoke',
+      consentRevokeFor: 'Revoke {host}',
+      consentHosts: 'Services that may receive photos',
       docsHint: 'What this app stores and sends',
       askEveryPhotoLabel: 'Ask before every photo upload',
       askEveryPhotoHelp:
@@ -375,6 +377,8 @@ export const en = {
     wrongPassphrase: 'That passphrase does not open this store.',
     unavailable:
       "This browser can't open the protected store. It needs a secure (https or localhost) page with site storage allowed. Reload to try again.",
+    unavailableInsecure:
+      'AI Nutrition Coach needs a secure page (https:// or localhost) to protect your data. This address is plain http://, so the browser does not allow encryption here. Open the https:// address of this app instead; your data is not affected.',
     throttled: 'Please wait a moment before trying again.',
     inOtherTab:
       'AI Nutrition Coach is open in another tab. Lock or close it there, then try again here.',
@@ -466,35 +470,147 @@ export const en = {
     'depth.followUp.vegRich': 'A protein on the side would complete this plate.',
     'depth.followUp.balanced': 'Nice plate — anything you would change next time?',
   },
+  /** SettingsStrings (coach_strings.dart) and the Settings rows of app_en.arb. */
   settings: {
     aiTier: 'AI tier',
     v2Tag: 'v2',
     v2Spoken: 'coming in version 2',
+    title: 'Settings',
+    backToSettings: 'Settings',
+    rowAi: 'Your AI',
+    rowData: 'Your data',
+    rowDataSubtitle: 'export · lock · erase',
+    rowPrivacy: 'Privacy',
+    rowPrivacySubtitle: 'what is stored · what is sent',
+    rowInstall: 'Install on your phone',
+    rowInstallSubtitle: 'offline · own icon',
+    rowAbout: 'About',
+    rowAboutSubtitle: 'yours to run · open source',
   },
+  /** YourDataStrings (coach_strings.dart) and the Your data lines of app_en.arb. */
+  yourData: {
+    title: 'Your data',
+    /** The unlocked posture of the web build: cipher named truthfully, key from the passphrase. */
+    protection:
+      'Encrypted at rest in this browser (ChaCha20-Poly1305). The key is made from your passphrase, held in memory only while unlocked and never stored — if you forget the passphrase, the data cannot be recovered. Your AI key and settings are kept inside the same encrypted store.',
+    lockHeading: 'Lock',
+    exportHeading: 'Export',
+    eraseLabel: 'Erase local data',
+    eraseExplain:
+      'Removes your history, coach notes, saved AI key and any exports still on this device. Copies you shared or downloaded elsewhere are not affected. There is no other copy of your data, so this cannot be undone — export first if you want to keep one.',
+    eraseButton: 'Erase all local data',
+  },
+  /** ExportStrings (coach_strings.dart) and the export lines of app_en.arb. */
   export: {
-    title: 'Export',
     formatLabel: 'Format',
-    formatCsv: 'Spreadsheet (CSV)',
-    formatJson: 'Data file (JSON)',
-    scopeLabel: 'What to export',
-    scopeVisibleDay: 'This day',
+    formatCsv: 'CSV',
+    formatJson: 'JSON',
+    scopeLabel: 'Scope',
+    scopeVisibleDay: 'Today',
     scopeWeek: 'This week',
-    scopeAllHistory: 'Everything',
+    scopeAllHistory: 'All history',
     action: 'Export',
     working: 'Preparing your file…',
-    done: 'Your file is ready.',
+    exportedLine: 'exported:',
     cancelled: 'Nothing was exported.',
     lastExport: 'Last export: {date}',
     lastExportNever: 'Last export: never',
-    plainFilesNotice:
-      'Exports are plain, unencrypted files. Erasing your data cannot delete a file you have already downloaded or shared.',
-    reminder: 'It has been a while since you saved a copy of your plates.',
-    reminderAction: 'Export',
+    /** ExportStrings.plaintextNote, then the Erase limit (checklist: Erase cannot delete a shared file). */
+    plaintextNote: 'Exports are plain, unencrypted files: keep them somewhere you trust.',
+    eraseLimitNote: 'Erasing your data cannot delete a file you have already downloaded or shared.',
+    reminderStale:
+      'It has been a while since your last export. A copy keeps your history safe if this device or browser ever loses it.',
+    reminderNever:
+      'You have not exported yet. A copy keeps your history safe if this device or browser ever loses it.',
     reminderNotNow: 'Not now',
     failedLocked: 'Unlock first, then export.',
     failedRead: 'Your plates could not be read just now. Nothing was lost; you can try again.',
     failedFormat: 'That file format is not available.',
-    failedDelivery: 'The file could not be saved just now. You can try again.',
+    failedDelivery: 'export failed — try again',
+  },
+  /** Privacy ("What this app stores and sends"), app_en.arb. */
+  privacy: {
+    title: 'What this app stores and sends',
+    intro: 'A plain list. Nothing here is hidden, and nothing about you is collected.',
+    storedHeading: 'Stored on this device, encrypted',
+    storedBody:
+      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked.',
+    leavesHeading: 'What leaves this device, and when',
+    leavesBarcode:
+      'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
+    leavesPhoto:
+      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
+    offToggle: 'Look up barcodes on Open Food Facts',
+    offToggleOn: 'On: a scanned barcode is looked up online.',
+    offToggleOff:
+      'Off: only the offline catalog is used, and an unknown barcode opens manual entry.',
+    offToggleUnasked: 'You will be asked the first time you scan a barcode.',
+    serverHeading: 'What the server you got this app from sees',
+    serverBody:
+      'Nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.',
+    neverHeading: 'Never collected',
+    neverBody:
+      'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.',
+    deleteHeading: 'Deleting your data',
+    deleteBody:
+      'To remove one plate, open it from Today and choose Remove this plate. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.',
+    exportHeading: 'Exporting',
+    exportBody:
+      'Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.',
+    sharedHeading: 'Shared devices',
+    sharedBody:
+      'Everyone who can open AI Nutrition Coach in this browser profile sees the same history; there is no in-app profile or app lock. For separate histories use a separate device or a separate browser profile, each with its own passphrase.',
+    saveFailed: 'Couldn’t save that. Unlock the app and try again.',
+  },
+  /** Install on your phone (app_en.arb, docs/pwa.md). */
+  install: {
+    title: 'Install on your phone',
+    intro:
+      'AI Nutrition Coach runs in your browser. Installing it adds an icon to your home screen and lets it open without a connection once it has loaded.',
+    already: 'AI Nutrition Coach is already installed on this device.',
+    button: 'Install',
+    iosTitle: 'iPhone or iPad',
+    iosSteps:
+      'Open this page in Safari. Tap the Share button, choose “Add to Home Screen”, then tap “Add”.',
+    androidTitle: 'Android',
+    androidSteps:
+      'In Chrome, open the menu (⋮) and choose “Install app” (or “Add to Home screen”). Your browser may also offer an Install button below.',
+    desktopTitle: 'Computer',
+    desktopSteps:
+      'In Chrome or Edge, use the install icon at the right of the address bar, or open the browser menu and choose “Install AI Nutrition Coach”. Other browsers can simply keep using it in a tab.',
+    changesTitle: 'What installing changes',
+    changesOffline:
+      'It opens without a connection once it has loaded once, and shows a calm line when a new version is ready.',
+    changesIcon: 'It gets its own icon and opens without the browser bars.',
+    changesStorage:
+      'On iPhone, Safari may clear a website’s data if you have not visited it for a while; an app added to the Home Screen is not subject to that. The installed app keeps its own separate data, so install it before you start logging.',
+    backupNote:
+      'Your data lives only on this device, so export a copy from Your data now and then.',
+  },
+  /** About (app_en.arb) and ManagedOversightStrings (coach_strings.dart). */
+  aboutScreen: {
+    title: 'About',
+    v2Notice:
+      'Family oversight is a v2 seam — not in v1. Read-only, support-not-surveillance, pending COPPA review.',
+    openSource: 'yours to run · open source',
+    licencesHeading: 'Open-source licences',
+    licenceLink: 'Read the licence',
+    licenceLinkFor: 'Read the licence: {name}',
+    licences: [
+      { id: 'app', name: 'AI Nutrition Coach', licence: 'MIT licence' },
+      {
+        id: 'fonts',
+        name: 'Barlow and Barlow Condensed (fonts)',
+        licence: 'SIL Open Font License 1.1',
+      },
+      {
+        id: 'sqlite',
+        name: 'SQLite3 Multiple Ciphers',
+        licence: 'MIT licence (SQLite itself is in the public domain)',
+      },
+      { id: 'zxing', name: 'zxing-wasm', licence: 'MIT licence' },
+      { id: 'react', name: 'React', licence: 'MIT licence' },
+    ],
   },
   sync: {
     onThisDevice: 'Saved on this device',

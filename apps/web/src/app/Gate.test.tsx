@@ -128,8 +128,11 @@ describe('Gate: returning person', () => {
     act(() => {
       window.location.hash = '#/privacy';
     });
-    // Reachable before the store is open: the public privacy route (part B fills the page).
-    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    // Reachable before the store is open: the public privacy page, with no switch to flip.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'What this app stores and sends' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });
 

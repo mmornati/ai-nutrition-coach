@@ -3,6 +3,7 @@ import type { UnavailableReason } from '../../storage';
 import { useStrings } from '../../i18n';
 import { Button } from '../../components/primitives';
 import { GateFrame } from './GateFrame';
+import { unavailableText } from './unavailable-text';
 
 /**
  * The browser cannot use (or right now cannot read) its storage. It says nothing about the data,
@@ -18,7 +19,7 @@ export function StoreUnavailableScreen({
 }) {
   const s = useStrings();
   const [busy, setBusy] = useState(false);
-  const body = reason === 'inUse' ? s.session.inOtherTab : s.session.unavailable;
+  const body = unavailableText(reason, s.session);
   const retry = async () => {
     if (busy) return;
     setBusy(true);

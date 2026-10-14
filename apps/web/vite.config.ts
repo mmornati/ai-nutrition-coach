@@ -99,7 +99,7 @@ export default defineConfig({
         // App shell + fonts only. API / AI requests are NEVER runtime-cached.
         // Includes the sqlite3mc engine (`sqlite3mc/<version>/sqlite3.mjs` + `sqlite3.wasm`, ~1.5 MB)
         // and the store worker chunk, so the encrypted store works offline.
-        globPatterns: ['**/*.{js,mjs,wasm,css,html,woff2,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,wasm,css,html,woff2,svg,png,webmanifest,txt}'],
         runtimeCaching: [],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/ai\//, /^\/relay\//],

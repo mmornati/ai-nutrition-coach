@@ -47,11 +47,13 @@ function GateContent({ sessionOptions, ...app }: GateProps): ReactNode {
     wasUnlocked.current = unlocked;
   }, [unlocked]);
 
-  const erase = async () => {
-    const result = await eraser.eraseAll();
-    // The device is back to a first run: the notice is shown again.
-    if (result.kind === 'eraseLocalDataSuccess') forgetAcknowledgedBeforeStore();
-    return result;
+  const erase = () => {
+    // The device is going back to a first run, where the notice is shown again. Forgotten BEFORE
+    // the erase: its last step publishes the first-run state, which renders the notice from this
+    // flag before any code after the `await` could run. If the erase fails, nothing is lost: the
+    // answer is also in the store, which the next unlock reads.
+    forgetAcknowledgedBeforeStore();
+    return eraser.eraseAll();
   };
 
   // The privacy page explains the app before anything is unlocked.

@@ -1,38 +1,51 @@
-// PLACEHOLDER for part B: Settings (the departures board) and its sub-screens (Your AI, Your
-// data, Privacy, Install, About). Part A only guarantees the route, the shell around it and the
-// header; `section` is the sub-route (`null` is the list, `privacy` is also reachable while the
-// store is locked, in which case `useSessionOptional()` is null and there is no shell).
-import { Header } from '../../components/shell';
-import { useStrings } from '../../i18n';
-import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
-import { hrefs } from '../../app/router';
-import { useSessionOptional } from '../../app/session';
+// Settings and its sub-screens, by the sub-route of `#/settings/<section>`:
+//
+//   (none)   the departures board           ai       Your AI
+//   data     Your data                      privacy  What this app stores and sends
+//   install  Install on your phone          about    About
+//
+// `#/privacy` is the same Privacy page and is the one screen reachable BEFORE the unlock, when
+// there is no session (and so no shell, no AI services and no Open Food Facts switch). Everything
+// else needs the session. An unknown section is the list: a malformed address never strands anyone.
+import { AiProvider } from '../../ai';
+import { useSessionOptional, type Session } from '../../app/session';
+import { AboutScreen } from './AboutScreen';
+import { InstallScreen } from './InstallScreen';
+import { parseSection, SECTIONS } from './sections';
+import { PrivacyScreen } from './PrivacyScreen';
+import { SettingsList } from './SettingsList';
+import { YourAiScreen } from './YourAiScreen';
+import { YourDataScreen } from './YourDataScreen';
+
+function SessionSection({
+  session,
+  section,
+}: {
+  readonly session: Session;
+  readonly section: string | null;
+}) {
+  const parsed = parseSection(section);
+  const screen = (() => {
+    switch (parsed) {
+      case SECTIONS.ai:
+        return <YourAiScreen />;
+      case SECTIONS.data:
+        return <YourDataScreen />;
+      case SECTIONS.privacy:
+        return <PrivacyScreen />;
+      case SECTIONS.install:
+        return <InstallScreen />;
+      case SECTIONS.about:
+        return <AboutScreen />;
+      case null:
+        return <SettingsList />;
+    }
+  })();
+  return <AiProvider services={session.ai}>{screen}</AiProvider>;
+}
 
 export function SettingsScreen(props: { readonly section: string | null }) {
-  const s = useStrings().shell;
   const session = useSessionOptional();
-  // Part B: render `props.section` (null is the Settings list).
-  void props.section;
-  if (session === null) {
-    return (
-      <main className="mx-auto max-w-3xl">
-        <Header
-          title={s.settings}
-          back={
-            <a
-              href={hrefs.today}
-              className="font-display text-porcelain-dim inline-flex min-h-12 items-center text-nav font-semibold tracking-[0.1em] uppercase"
-            >
-              {s.today}
-            </a>
-          }
-        />
-      </main>
-    );
-  }
-  return (
-    <ScreenFrame current="settings" header={<ScreenHeader title={s.settings} />}>
-      <div />
-    </ScreenFrame>
-  );
+  if (session === null) return <PrivacyScreen />;
+  return <SessionSection session={session} section={props.section} />;
 }

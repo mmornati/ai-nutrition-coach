@@ -41,13 +41,15 @@ export interface ScreenHeaderProps {
   readonly title: string;
   readonly sub?: ReactNode;
   readonly back?: ReactNode;
+  /** Settings screens leave the gear out: they are already there. */
+  readonly hideSettings?: boolean;
 }
 
 /**
  * The header every screen inside the shell uses: the "On this device" chip (no sync transport in
  * v1, so it never says synced), the manual Lock, and the Settings icon on a phone.
  */
-export function ScreenHeader({ title, sub, back }: ScreenHeaderProps) {
+export function ScreenHeader({ title, sub, back, hideSettings = false }: ScreenHeaderProps) {
   const { controller } = useSession();
   return (
     <Header
@@ -56,7 +58,7 @@ export function ScreenHeader({ title, sub, back }: ScreenHeaderProps) {
       {...(back === undefined ? {} : { back })}
       chip={<StatusChip hasTransport={false} />}
       actions={<LockButton unlocked onLock={() => void controller.lock()} />}
-      settingsHref={hrefs.settings}
+      {...(hideSettings ? {} : { settingsHref: hrefs.settings })}
     />
   );
 }

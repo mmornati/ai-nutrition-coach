@@ -46,7 +46,7 @@ const openSheet = async (user: ReturnType<typeof userEvent.setup>) => {
   return screen.findByRole('dialog', { name: s.capture.title });
 };
 
-describe('the capture sheet', () => {
+describe('LogHost: the capture sheet', () => {
   it('opens from the dock and the rail with the three ways to log, Snapshot first', async () => {
     const user = userEvent.setup();
     const bundle = await unlockedBundle();

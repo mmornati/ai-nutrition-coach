@@ -36,15 +36,9 @@ export default tseslint.config(
   {
     // i18n-literal gate: user-facing copy lives in src/i18n, never in JSX. Text nodes and the
     // accessible-name attributes are checked; tests, the dev gallery and e2e are exempt.
-    files: [
-      'src/*.tsx',
-      'src/app/**/*.tsx',
-      'src/components/**/*.tsx',
-      'src/screens/**/*.tsx',
-      'src/capture/**/*.tsx',
-      'src/barcode/**/*.tsx',
-      'src/catalog/**/*.tsx',
-    ],
+    // Every .tsx under src/ (screens, the app root, components, capture, barcode, catalog, the AI
+    // context...): a new folder is covered the day it is created.
+    files: ['src/**/*.tsx'],
     ignores: [
       '**/*.test.tsx',
       'src/main.tsx',

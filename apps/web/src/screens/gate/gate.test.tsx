@@ -1,5 +1,5 @@
 // Ports of create_passphrase_body_test.dart, lock_screen_body_test.dart and key_lost_screen_test.dart.
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
@@ -140,6 +140,14 @@ describe('UnlockScreen', () => {
     render(<UnlockScreen onUnlock={outcome({ kind: 'storeUnavailable', reason: 'storage' })} />);
     await submit('x');
     expect(await screen.findByText(s.session.unavailable)).toBeVisible();
+    cleanup();
+
+    // Plain http:// has its own HTTPS explanation.
+    render(
+      <UnlockScreen onUnlock={outcome({ kind: 'storeUnavailable', reason: 'insecureContext' })} />,
+    );
+    await submit('x');
+    expect(await screen.findByText(s.session.unavailableInsecure)).toBeVisible();
   });
 
   it('open in another tab has its own line and can be retried', async () => {
@@ -299,6 +307,14 @@ describe('StoreUnavailableScreen', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: s.storeUnavailable.retry }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('plain http:// gets its own HTTPS explanation, never "wrong passphrase", and no erase', async () => {
+    render(<StoreUnavailableScreen reason="insecureContext" onRetry={() => Promise.resolve()} />);
+    expect(screen.getByText(s.session.unavailableInsecure)).toBeVisible();
+    expect(s.session.unavailableInsecure).toMatch(/https:\/\/ or localhost/);
+    expect(screen.queryByText(s.session.wrongPassphrase)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   it('has no axe violations', async () => {

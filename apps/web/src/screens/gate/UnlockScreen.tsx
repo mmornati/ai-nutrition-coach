@@ -5,6 +5,7 @@ import { useStrings, type Strings } from '../../i18n';
 import { Button, TextField } from '../../components/primitives';
 import { EraseLocalDataDialog } from '../../components/dialogs';
 import { GateFrame } from './GateFrame';
+import { unavailableText } from './unavailable-text';
 
 function outcomeText(outcome: UnlockOutcome, s: Strings['session']): string | null {
   switch (outcome.kind) {
@@ -17,7 +18,7 @@ function outcomeText(outcome: UnlockOutcome, s: Strings['session']): string | nu
     case 'throttled':
       return s.throttled;
     case 'storeUnavailable':
-      return s.unavailable;
+      return unavailableText(outcome.reason, s);
     case 'inUseElsewhere':
       return s.inOtherTab;
     case 'newerVersion':
