@@ -196,6 +196,35 @@ export const en = {
     v2Tag: 'v2',
     v2Spoken: 'coming in version 2',
   },
+  export: {
+    title: 'Export',
+    formatLabel: 'Format',
+    formatCsv: 'Spreadsheet (CSV)',
+    formatJson: 'Data file (JSON)',
+    scopeLabel: 'What to export',
+    scopeVisibleDay: 'This day',
+    scopeWeek: 'This week',
+    scopeAllHistory: 'Everything',
+    action: 'Export',
+    working: 'Preparing your file…',
+    done: 'Your file is ready.',
+    cancelled: 'Nothing was exported.',
+    lastExport: 'Last export: {date}',
+    lastExportNever: 'Last export: never',
+    plainFilesNotice:
+      'Exports are plain, unencrypted files. Erasing your data cannot delete a file you have already downloaded or shared.',
+    reminder: 'It has been a while since you saved a copy of your plates.',
+    reminderAction: 'Export',
+    reminderNotNow: 'Not now',
+    failedLocked: 'Unlock first, then export.',
+    failedRead: 'Your plates could not be read just now. Nothing was lost; you can try again.',
+    failedFormat: 'That file format is not available.',
+    failedDelivery: 'The file could not be saved just now. You can try again.',
+  },
+  sync: {
+    onThisDevice: 'Saved on this device',
+    noTransport: 'Your plates stay on this device. Nothing is sent anywhere.',
+  },
 } as const;
 
 type Widen<T> = T extends string ? string : { -readonly [K in keyof T]: Widen<T[K]> };
