@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "fetch:sqlite3mc": "bash ../../scripts/fetch_web_sqlite3mc.sh",
-    "dev": "pnpm run fetch:sqlite3mc && vite",
-    "build": "pnpm run fetch:sqlite3mc && tsc -b && vite build",
+    "fetch:zxing": "bash ../../scripts/fetch_web_zxing_pwa.sh",
+    "fetch:assets": "pnpm run fetch:sqlite3mc && pnpm run fetch:zxing",
+    "dev": "pnpm run fetch:assets && vite",
+    "build": "pnpm run fetch:assets && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "test": "pnpm run fetch:sqlite3mc && vitest run",
-    "e2e": "pnpm run fetch:sqlite3mc && playwright test"
+    "test": "pnpm run fetch:assets && vitest run",
+    "e2e": "pnpm run fetch:assets && playwright test"
   },
   "dependencies": {
     "@anc/core": "workspace:*",

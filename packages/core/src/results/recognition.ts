@@ -6,7 +6,11 @@ import type { RecognizedFood } from '../value-types/recognized-food';
  * the causes the BYOK and hosted adapters produce). Plain data: structured-clone safe.
  */
 export type RecognitionFailureCause =
+  | 'keyMissing'
   | 'keyRejected'
+  | 'notConfigured'
+  | 'consentRequired'
+  | 'photoNotSendable'
   | 'network'
   | 'timeout'
   | 'httpError'

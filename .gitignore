@@ -126,3 +126,6 @@ test-results/
 
 # ── React PWA: fetched + SHA-256-verified SQLite3 Multiple Ciphers wasm (scripts/fetch_web_sqlite3mc.sh) ──
 apps/web/public/sqlite3mc/
+
+# ── React PWA: fetched + SHA-256-verified zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh) ──
+apps/web/public/zxing/

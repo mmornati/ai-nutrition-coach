@@ -1,4 +1,8 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+import { ean13Y4m } from './src/barcode/ean13-fixture';
 
 // CI installs the bundled chromium (`playwright install --with-deps chromium`).
 // Locally, PW_CHANNEL=chrome drives the installed Google Chrome instead.
@@ -9,6 +13,14 @@ const channel = process.env['PW_CHANNEL'] === 'chrome' ? 'chrome' : undefined;
 // encrypted-store harness page (VITE_STORAGE_HARNESS=1), so the release build in dist/ stays free
 // of both (tools/check_no_gallery_in_build.sh and tools/check_no_dev_store_in_build.sh guard that).
 const E2E_OUT = 'dist-e2e';
+
+// Chromium's fake camera plays a generated clip of a real EAN-13 (Nutella, 3017620422003), so the
+// capture e2e drives getUserMedia -> decoder -> scan flow end to end without hardware.
+export const FAKE_CAMERA_CODE = '3017620422003';
+const cameraDir = join(tmpdir(), 'anc-e2e-camera');
+mkdirSync(cameraDir, { recursive: true });
+const fakeCameraClip = join(cameraDir, `ean13-${FAKE_CAMERA_CODE}.y4m`);
+writeFileSync(fakeCameraClip, ean13Y4m(FAKE_CAMERA_CODE));
 
 export default defineConfig({
   testDir: './e2e',
@@ -25,7 +37,18 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], ...(channel ? { channel } : {}) },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(channel ? { channel } : {}),
+        permissions: ['camera'],
+        launchOptions: {
+          args: [
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-stream',
+            `--use-file-for-fake-video-capture=${fakeCameraClip}`,
+          ],
+        },
+      },
     },
     ...(process.env['PW_WEBKIT']
       ? [{ name: 'webkit', use: { ...devices['Desktop Safari'] } }]

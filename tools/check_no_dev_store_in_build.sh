@@ -8,7 +8,9 @@
 #     "DEV, not encrypted" banner. In a release build the constant folds to `false` and Rollup drops
 #     the dynamic import and its chunk.
 #   - the encrypted-store test harness page (apps/web/storage-harness.html), a build input only
-#     when VITE_STORAGE_HARNESS=1 (the e2e server builds it into apps/web/dist-e2e).
+#     when VITE_STORAGE_HARNESS=1 (the e2e server builds it into apps/web/dist-e2e);
+#   - the barcode / OFF capture harness page (apps/web/capture-harness.html), built under the same
+#     flag.
 #
 #   tools/check_no_dev_store_in_build.sh          scan apps/web/dist
 #   tools/check_no_dev_store_in_build.sh <dir>     scan <dir> instead (used to prove the guard)
@@ -35,15 +37,19 @@ if [ "${1:-}" = "--self-test" ]; then
       exit 1
     fi
   }
-  mkdir -p "$T/clean/assets" "$T/marker/assets" "$T/flag/assets" "$T/named/assets"
+  mkdir -p "$T/clean/assets" "$T/marker/assets" "$T/flag/assets" "$T/named/assets" "$T/capname/assets" "$T/capmark/assets"
   echo 'console.log("hello");' > "$T/clean/assets/index.js"
   echo 'x="DEV, not encrypted"' > "$T/marker/assets/index.js"
   echo 'x=import.meta.env.VITE_DEV_MEMORY_STORE' > "$T/flag/assets/index.js"
   echo 'ok' > "$T/named/assets/dev-store-abc.js"
+  echo 'ok' > "$T/capname/capture-harness.html"
+  echo 'x=window.__captureHarness' > "$T/capmark/assets/index.js"
   bash "$self" "$T/clean" >/dev/null 2>&1 || { echo "check_no_dev_store_in_build self-test: a clean build was rejected" >&2; exit 1; }
   expect_fail "$T/marker" "the banner copy"
   expect_fail "$T/flag" "the dev flag name"
   expect_fail "$T/named" "a dev-store file name"
+  expect_fail "$T/capname" "a capture-harness file name"
+  expect_fail "$T/capmark" "the capture harness hook"
   expect_fail "$T/missing" "a missing directory"
   echo "check_no_dev_store_in_build: self-test OK"
   exit 0
@@ -58,14 +64,14 @@ fi
 
 fail=0
 
-names="$(find "$DIR" -type f \( -iname '*storage-harness*' -o -iname '*dev-store*' -o -iname '*memory-store*' \) -print)"
+names="$(find "$DIR" -type f \( -iname '*storage-harness*' -o -iname '*capture-harness*' -o -iname '*dev-store*' -o -iname '*memory-store*' \) -print)"
 if [ -n "$names" ]; then
   echo "check_no_dev_store_in_build: dev storage file(s) in the build:" >&2
   echo "$names" >&2
   fail=1
 fi
 
-hits="$(grep -rlE 'DEV, not encrypted|VITE_DEV_MEMORY_STORE|data-dev-store-banner|__harness|storage-harness' "$DIR" || true)"
+hits="$(grep -rlE 'DEV, not encrypted|VITE_DEV_MEMORY_STORE|data-dev-store-banner|__harness|__captureHarness|storage-harness|capture-harness' "$DIR" || true)"
 if [ -n "$hits" ]; then
   echo "check_no_dev_store_in_build: dev store or harness code in the build:" >&2
   echo "$hits" >&2

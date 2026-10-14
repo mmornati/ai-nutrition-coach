@@ -14,8 +14,18 @@ async function openGallery(page: Page) {
   return errors;
 }
 
+/** The day-enter fade/slide must be over, or contrast is measured on a half-faded frame. */
+async function settleAnimations(page: Page) {
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every((a) => a.playState === 'finished' || a.effect?.getTiming().iterations === Infinity),
+  );
+}
+
 test('the gallery has zero axe violations', async ({ page }) => {
   const errors = await openGallery(page);
+  await settleAnimations(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   expect(results.violations).toEqual([]);
   expect(errors).toEqual([]);
@@ -27,7 +37,7 @@ test('the gallery has zero axe violations with the capture sheet open', async ({
   const dialog = page.getByRole('dialog', { name: 'Log a plate' });
   await expect(dialog).toBeVisible();
   // Let the slide-up finish so contrast is measured on the settled sheet.
-  await page.waitForTimeout(500);
+  await settleAnimations(page);
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   expect(results.violations).toEqual([]);
 });
@@ -45,7 +55,7 @@ test('the gallery has zero axe violations in every dialog and sheet', async ({ p
   for (const name of openers) {
     await page.getByRole('button', { name, exact: true }).click();
     await expect(page.locator('dialog[open]')).toBeVisible();
-    await page.waitForTimeout(500);
+    await settleAnimations(page);
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations, name).toEqual([]);
     await page.keyboard.press('Escape');
