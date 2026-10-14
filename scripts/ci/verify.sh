@@ -2,8 +2,8 @@
 # Main gate: `pnpm verify` (format, lint, types, unit tests, DST re-run, posture
 # gates, scanner self-tests, release build, bundle scans, build guards), the
 # release bundle's service worker, and the named-reviewer check. One install
-# covers what GitHub split across ci.yml (verify), release-gate.yml and
-# ndp-review.yml: verify already runs `pnpm gates`.
+# covers what used to be three GitHub workflows (verify, release-gate,
+# ndp-review): verify already runs `pnpm gates`.
 #
 # Toolchain: Node 24 with corepack (pnpm comes from package.json
 # "packageManager").

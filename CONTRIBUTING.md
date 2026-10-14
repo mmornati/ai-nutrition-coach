@@ -108,7 +108,7 @@ egress, and that the bundle has no third-party hosts. Budget is `<5 min` on a st
 | `pnpm check:a11y`                         | Every screen component is exercised by an axe test.                                                                                                                                                                                                              |
 | `pnpm check:release-posture`              | `LICENSE` is MIT; `CONTRIBUTING.md` documents build / test / smoke; the No-Dark-Patterns banned list is unchanged; every row of the README trust table names proof test files that exist and contain a real, un-skipped test; `pnpm verify` still chains every gate; with `AI_NUTRITION_COACH_BUILD=selfhost\|release`, a real `AI_NUTRITION_COACH_PROJECT_URL`. |
 | `pnpm build` then `pnpm scan:bundle`      | Release bundle builds; no key-shaped string and no third-party host in `apps/web/dist`.                                                                                                                                                                          |
-| CI: `self-host-smoke`, `browser-smoke`    | The container smoke and the real-browser smoke of the production image.                                                                                                                                                                                          |
+| CI: `image` job (`scripts/ci/image.sh`)   | The container smoke and the real-browser smoke of the production image.                                                                                                                                                                                          |
 
 A regression on any gate fails the build.
 

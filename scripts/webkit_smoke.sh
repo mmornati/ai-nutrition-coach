@@ -9,7 +9,7 @@
 #   AI_NUTRITION_COACH_SMOKE_IMAGE=ai-nutrition-coach:ci ...  smoke a specific image
 #
 # Opt-in: it is not part of `pnpm verify` (the Playwright image is ~3 GB and `npm ci` needs the
-# network). It runs as its own CI job (.github/workflows/browser-smoke.yml).
+# network). CI runs it against the image it just built (scripts/ci/image.sh).
 #
 # What runs
 #   * the production image (infra/Dockerfile) as the server, with the same hardening flags the

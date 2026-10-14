@@ -26,7 +26,15 @@ executors:
   node:
     docker:
       - image: cimg/node:24.21.0
-    resource_class: medium
+    # vitest is CPU-bound: 4 vCPUs cost twice as much per minute and finish in
+    # about half the time.
+    resource_class: large
+  playwright:
+    docker:
+      # Keep in step with @playwright/test in apps/web/package.json and
+      # PLAYWRIGHT_IMAGE in scripts/webkit_smoke.sh.
+      - image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+    resource_class: large
   vm:
     machine:
       image: ubuntu-2404:current
@@ -56,26 +64,21 @@ jobs:
             - ~/.local/share/pnpm/store
 
   e2e:
-    executor: node
-    # WebKit's encrypted-store unlock tests time out (30 s) on 2 vCPUs; GitHub's
-    # ubuntu-latest runner has 4.
-    resource_class: large
+    executor: playwright
     steps:
       - checkout
+      # Its own key: the image runs as root, so the store lives under /root.
       - restore_cache:
           keys:
-            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
-            - pnpm-v1-
-      - restore_cache:
-          keys:
-            - playwright-v1-{{ checksum "apps/web/package.json" }}
+            - pnpm-root-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-root-v1-
       - run:
           name: Playwright (Chromium + WebKit)
           command: bash scripts/ci/e2e.sh
       - save_cache:
-          key: playwright-v1-{{ checksum "apps/web/package.json" }}
+          key: pnpm-root-v1-{{ checksum "pnpm-lock.yaml" }}
           paths:
-            - ~/.cache/ms-playwright
+            - ~/.local/share/pnpm/store
       - store_artifacts:
           when: always
           path: apps/web/playwright-report

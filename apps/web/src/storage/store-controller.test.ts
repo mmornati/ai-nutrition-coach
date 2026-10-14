@@ -363,6 +363,21 @@ describe('wrong passphrase', () => {
     expect(c2.controller.database()).toBeNull();
   });
 
+  it('an empty passphrase never reaches the KDF but still counts toward the delay', async () => {
+    // WebKit on Linux refuses PBKDF2 with an empty password; that must not read as "unavailable".
+    const c1 = await created();
+    await c1.controller.lock();
+    const c2 = await reloaded();
+    const opensBefore = spy().openCalls;
+    expect((await c2.controller.unlock('')).kind).toBe('wrongPassphrase');
+    expect((await c2.controller.unlock('')).kind).toBe('wrongPassphrase');
+    expect(spy().openCalls).toBe(opensBefore);
+    expect(await c2.controller.unlock(WRONG)).toEqual({
+      kind: 'wrongPassphrase',
+      retryAfterMs: 1000,
+    });
+  });
+
   it('a returning user cannot "create" over an existing store', async () => {
     const c1 = await created();
     await c1.controller.lock();

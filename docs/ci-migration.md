@@ -13,19 +13,23 @@ either provider and switching needs no code change.
 
 ## What runs where
 
-| Gate                                                                    | GitHub workflow                                             | CircleCI job                  |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------- |
-| `pnpm verify` (format, lint, types, tests, DST, gates, build, scans)    | `ci.yml` verify                                             | `verify`                      |
-| release posture, telemetry, named reviewer, project URL on tags         | `release-gate.yml`, `ndp-review.yml`                        | `verify`                      |
-| Playwright e2e, Chromium + WebKit                                       | `ci.yml` e2e                                                | `e2e`                         |
-| image build, trivy, self-host smoke, browser smoke                      | `ci.yml` docker, `self-host-smoke.yml`, `browser-smoke.yml` | `image`                       |
-| full-history secret scan (on push, and weekly)                          | `gitleaks.yml`                                              | `gitleaks`, `weekly-gitleaks` |
-| release image SBOM (v\* tags)                                           | `release-gate.yml` sbom                                     | `sbom`                        |
+Both providers run the same four jobs on every push, pull request and `v*` tag,
+each one a single `scripts/ci/` entry point:
 
-CircleCI runs fewer jobs than GitHub. `release-gate.yml` and `ndp-review.yml`
-each install the workspace again and re-run gates that `pnpm verify` already
-covers; on CircleCI one install covers all three. The three Docker workflows
-each rebuild the image; on CircleCI they share one VM and its layer cache.
+| Job        | Entry point            | What it checks                                                                                                                     | GitHub                  | CircleCI                              |
+| ---------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------- |
+| `verify`   | `verify.sh`            | named reviewer, `pnpm verify` (format, lint, types, tests, DST, posture gates, build, bundle scans, guards), project URL on tags     | `ci.yml`                | `cimg/node`, `large`                  |
+| `e2e`      | `e2e.sh`               | Playwright, Chromium + WebKit                                                                                                      | `ci.yml` (container)    | Playwright image, `large`             |
+| `image`    | `image.sh`             | Dockerfile build (once), trivy, self-host smoke, browser smoke                                                                     | `ci.yml`                | `machine`, `medium`                   |
+| `gitleaks` | `gitleaks.sh`          | full-history secret scan (also weekly)                                                                                             | `gitleaks.yml`          | `gates` + `weekly-gitleaks`           |
+| `sbom`     | `sbom.sh`              | release image SBOM (`v*` tags only)                                                                                                | `release-gate.yml`      | `gates` (tags only)                   |
+
+Before this change, GitHub ran 7 workflows and 9 jobs on each push.
+`release-gate.yml` re-ran the whole of `pnpm verify`, `ndp-review.yml` did a
+second install to re-run `pnpm gates` (already part of `pnpm verify`), and
+three jobs each built the self-host image. e2e downloaded both browsers and
+their OS packages on every run. Now each push runs 4 jobs, the image is built
+once, and e2e starts from the pinned Playwright image.
 
 ## Why not an automatic quota-based switch
 
@@ -47,14 +51,14 @@ scheduled trigger, which is also more punctual than GitHub cron.
 
 ## Migration phases
 
-1. **Add CircleCI next to GitHub (this change).** Add `scripts/ci/*.sh` and
-   `.circleci/config.yml`. The CircleCI project is connected (GitHub OAuth app,
-   deploy key), and every push builds.
+1. **Add CircleCI next to GitHub, with shared entry points (this change).**
+   Add `scripts/ci/*.sh` and `.circleci/config.yml`, and rewrite the GitHub
+   workflows to call the same scripts. The CircleCI project is connected
+   (GitHub OAuth app, deploy key), and every push builds.
 2. **Prove parity.** Get a green `gates` run, then merge.
 3. **Make GitHub the fallback.** Change the GitHub workflows' triggers to
-   `workflow_dispatch` only, and make their steps call `scripts/ci/*.sh`. They
-   then stop spending minutes, or showing red crosses, on every push, and stay
-   ready for a manual run.
+   `workflow_dispatch` only. They then stop spending minutes, or showing red
+   crosses, on every push, and stay ready for a manual run.
 4. **Schedule.** Add a CircleCI scheduled trigger for `weekly-gitleaks`
    (Mondays 04:17 UTC, branch `main`). Then drop the `schedule:` block from
    `gitleaks.yml`.
@@ -71,12 +75,20 @@ scheduled trigger, which is also more punctual than GitHub cron.
 
 The CircleCI Free plan includes a monthly credit allowance. Medium Docker and
 machine executors cost about 10 credits per minute, and `large` costs about 20.
-All jobs run on `medium` except `e2e`, which needs `large`: WebKit's
-encrypted-store tests time out on 2 vCPUs.
-Check the real per-run cost on the project's Insights page after a few runs,
-and compare it with the allowance on the plan page. Two settings stretch the
-allowance:
+`verify` and `e2e` run on `large`. Vitest is CPU-bound, so 4 vCPUs finish in
+about half the time for about the same credits. WebKit's encrypted-store tests
+time out on 2 vCPUs. `image` and `gitleaks` run on `medium`. Check the real
+per-run cost on the project's Insights page after a few runs, and compare it
+with the allowance on the plan page. Two settings stretch the allowance:
 
 - "Auto-cancel redundant workflows" (Project Settings → Advanced) is on.
 - "Only build pull requests" stops branch pushes that have no PR from building;
   `main` and tags always build.
+
+## Pins that move together
+
+- **Playwright:** `@playwright/test` in `apps/web/package.json`, the e2e
+  container image in `ci.yml` and `.circleci/config.yml`, and
+  `PLAYWRIGHT_IMAGE` in `scripts/webkit_smoke.sh`.
+- **trivy and syft:** pinned by digest in `scripts/ci/image.sh` and
+  `scripts/ci/sbom.sh`. Dependabot does not see these pins, so bump them by hand.

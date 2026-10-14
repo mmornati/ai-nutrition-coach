@@ -72,7 +72,7 @@ COPY tools/ tools/
 # keeps the default (the project repository). AI_NUTRITION_COACH_RELEASE=1 makes
 # this a RELEASE build: an empty or `.invalid` URL fails the build. Whatever the
 # value, a URL that is set must be a plain https URL. The release workflow passes
-# both arguments (.github/workflows/release-gate.yml).
+# both arguments (scripts/ci/sbom.sh).
 ARG AI_NUTRITION_COACH_PROJECT_URL=""
 ARG AI_NUTRITION_COACH_RELEASE=0
 RUN if [ "$AI_NUTRITION_COACH_RELEASE" = "1" ]; then \
