@@ -16,7 +16,7 @@ describe('LINES', () => {
   });
 
   it('takes every line name from i18n, spelled once, upper-cased only by CSS', () => {
-    const names = LINES.map((l) => strings().groups[l.nameKey]);
+    const names = LINES.map((l) => strings().groups[l.group]);
     expect(names).toEqual(['Veg & fruit', 'Protein', 'Starch', 'Dairy']);
     for (const n of names) expect(n).not.toBe(n.toUpperCase());
   });

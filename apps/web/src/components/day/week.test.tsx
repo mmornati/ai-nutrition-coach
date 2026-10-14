@@ -283,6 +283,7 @@ describe('DayList and note', () => {
     expect(items[2]).toHaveTextContent('Friday: veg & fruit, protein, starch; dairy quiet');
     expect(items[2]).toHaveTextContent('2 plates');
     expect(items[6]).toHaveTextContent('Today');
+    expect(items[6]).toHaveTextContent('Today: all four lines');
   });
 
   it('pluralises plates', () => {

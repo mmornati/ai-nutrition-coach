@@ -13,7 +13,13 @@ function map(stations: LineMapStation[]) {
       stations={stations}
       renderStation={(s) =>
         s.status === 'logged' ? (
-          <PlateRow plate={lunch} slot="lunch" onOpen={() => {}} onRequestDelete={() => {}} />
+          <PlateRow
+            plate={lunch}
+            slot="lunch"
+            hasTransport={false}
+            onOpen={() => {}}
+            onRequestDelete={() => {}}
+          />
         ) : (
           <OpenStation slot="dinner" resolving={s.status === 'resolving'} />
         )

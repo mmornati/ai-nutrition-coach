@@ -26,7 +26,7 @@ export interface PlateRowProps {
   /** Core per-plate sync rollup. */
   readonly syncStatus?: SyncOpStatusValue | null;
   /** Whether a sync transport exists; without one the chip only says "On this device". */
-  readonly hasTransport?: boolean;
+  readonly hasTransport: boolean;
   /** Tap: open the plate detail. */
   readonly onOpen: (plateId: number) => void;
   /** Press-and-hold (500ms) or the "Remove this plate" action: the parent shows a calm confirm. */
@@ -40,7 +40,7 @@ export function PlateRow({
   plate,
   slot,
   syncStatus = null,
-  hasTransport = false,
+  hasTransport,
   onOpen,
   onRequestDelete,
   children,

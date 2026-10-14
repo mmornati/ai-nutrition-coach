@@ -6,12 +6,12 @@ import { strings } from '../../i18n';
  * Flutter client's `state/log_plate.dart`; when the state layer lands (phase 4/5) they move next
  * to `recordPlate` and these re-export from there.
  */
-export const ONE_SERVING: QuantityRange = {
+export const oneServing = (): QuantityRange => ({
   low: 1,
   high: 1,
   unit: 'serving',
   displayLabel: strings().portion.oneServing,
-};
+});
 
 /** The food for a name the person typed. Its group is unknown (`other`). */
 export function manualFood(name: string): DatabaseFood {
@@ -30,7 +30,7 @@ export function sameQuantity(a: QuantityRange, b: QuantityRange): boolean {
 
 /** The presets to show: the given ones, or the `~1 serving` fallback when there are none. */
 export function effectivePresets(presets: readonly QuantityRange[]): readonly QuantityRange[] {
-  return presets.length > 0 ? presets : [ONE_SERVING];
+  return presets.length > 0 ? presets : [oneServing()];
 }
 
 /** Concatenate preset lists, dropping repeats (first occurrence wins, so order is meaningful). */

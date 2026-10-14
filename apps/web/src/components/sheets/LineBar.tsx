@@ -1,5 +1,5 @@
 import type { FoodGroup } from '@anc/core';
-import { useStrings } from '../../i18n';
+import { fill, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { LineSwatch } from '../primitives/GroupMarker';
 import { LINE_GROUPS } from '../primitives/lines';
@@ -32,8 +32,7 @@ export function LineBar({ present }: { readonly present: readonly FoodGroup[] })
               />
             )}
             <span className="break-words">
-              {s.groups[group]}
-              {!stopped && ` ${s.lineBar.passedSuffix}`}
+              {stopped ? s.groups[group] : fill(s.lineBar.groupPassed, { name: s.groups[group] })}
             </span>
           </li>
         );

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useSyncExternalStore } from 'react';
 import { mealSlotForHour, type MealSlot } from '@anc/core';
+import { useStrings } from './i18n';
 import { Header } from './components/shell/Header';
 import { UpdatePrompt } from './components/shell/UpdatePrompt';
 
@@ -23,6 +24,7 @@ const readHash = () => window.location.hash;
 
 export function App() {
   const hash = useSyncExternalStore(subscribeToHash, readHash, () => '');
+  const s = useStrings();
   const slot: MealSlot = mealSlotForHour(new Date().getHours());
 
   // Dev gallery: every component with synthetic data. The real routes arrive in later phases.
@@ -37,7 +39,7 @@ export function App() {
   return (
     <>
       <main className="min-h-dvh" data-meal-slot={slot}>
-        <Header title="Today" />
+        <Header title={s.shell.today} />
       </main>
       <UpdatePrompt />
     </>

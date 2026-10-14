@@ -51,7 +51,7 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
   return (
     <nav
       aria-label={s.routeLabel}
-      className={`relative flex items-center pr-1.5 pl-3 before:absolute before:top-7.25 before:right-5.5 before:left-6 before:h-1 before:bg-rule before:content-[''] ${className}`}
+      className={`@container relative flex items-center pr-1.5 pl-3 before:absolute before:top-7.25 before:right-5.5 before:left-6 before:h-1 before:bg-rule before:content-[''] ${className}`}
     >
       {days.map((d) => {
         const current = isSameLocalDay(d.date, selected);
@@ -76,7 +76,25 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
                 />
               )}
             </span>
-            <span aria-hidden="true">{d.isToday ? s.today : weekdayAbbr(d.date)[0]}</span>
+            {/* Today's word only where a stop is wide enough for it; otherwise the day's initial
+                (drawn by CSS from data-initial, so the text stays "Today"). Both are hidden from
+                AT: the button's name already says "today". */}
+            <span
+              aria-hidden="true"
+              data-route-label
+              data-initial={weekdayAbbr(d.date).charAt(0)}
+              className={
+                d.isToday
+                  ? 'before:content-[attr(data-initial)] @min-[21rem]:before:content-none'
+                  : undefined
+              }
+            >
+              {d.isToday ? (
+                <span className="hidden @min-[21rem]:inline">{s.today}</span>
+              ) : (
+                weekdayAbbr(d.date).charAt(0)
+              )}
+            </span>
           </button>
         );
       })}

@@ -5,4 +5,4 @@ export { RecognizedMatchSheet, type RecognizedMatchSheetProps } from './Recogniz
 export { PortionPresets, type PortionPresetsProps } from './PortionPresets';
 export { LineBar } from './LineBar';
 export { EntryList, type EntryItem } from './EntryList';
-export { ONE_SERVING, manualFood, effectivePresets } from './foods';
+export { oneServing, manualFood, effectivePresets } from './foods';

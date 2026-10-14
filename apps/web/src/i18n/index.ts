@@ -44,4 +44,9 @@ const listFormat = new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunct
 /** "a", "a and b", "a, b and c". */
 export const joinNames = (names: readonly string[]): string => listFormat.format(names);
 
+const unitFormat = new Intl.ListFormat('en-GB', { style: 'short', type: 'unit' });
+
+/** "a", "a, b", "a, b, c": a plain run of items with no conjunction. */
+export const joinPlain = (names: readonly string[]): string => unitFormat.format(names);
+
 export const capitalise = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

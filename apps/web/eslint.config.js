@@ -24,8 +24,13 @@ export default tseslint.config(
   {
     // i18n-literal gate: user-facing copy lives in src/i18n, never in JSX. Text nodes and the
     // accessible-name attributes are checked; tests, the dev gallery and e2e are exempt.
-    files: ['src/components/**/*.tsx', 'src/screens/**/*.tsx'],
-    ignores: ['**/*.test.tsx', 'src/components/gallery/**', 'src/components/**/testing.tsx'],
+    files: ['src/*.tsx', 'src/components/**/*.tsx', 'src/screens/**/*.tsx'],
+    ignores: [
+      '**/*.test.tsx',
+      'src/main.tsx',
+      'src/components/gallery/**',
+      'src/components/**/testing.tsx',
+    ],
     plugins: { i18next },
     rules: {
       'i18next/no-literal-string': [

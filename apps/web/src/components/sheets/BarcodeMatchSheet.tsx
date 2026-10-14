@@ -3,7 +3,7 @@ import type { FoodEntryDraft, FoodMatch } from '@anc/core';
 import { useStrings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { GroupMarker } from '../primitives/GroupMarker';
-import { effectivePresets, ONE_SERVING } from './foods';
+import { effectivePresets, oneServing } from './foods';
 import { PortionPresets } from './PortionPresets';
 import { Sheet } from './Sheet';
 
@@ -20,7 +20,7 @@ export interface BarcodeMatchSheetProps {
 function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open' | 'onClose'>) {
   const s = useStrings();
   const presets = effectivePresets(match.presets);
-  const [chosen, setChosen] = useState(presets[0] ?? ONE_SERVING);
+  const [chosen, setChosen] = useState(presets[0] ?? oneServing());
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const inFlight = useRef(false);
@@ -44,11 +44,10 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
   return (
     <>
       <PortionPresets presets={presets} value={chosen} onChange={setChosen} />
-      {message && (
-        <p role="status" className="text-body-small text-porcelain-dim">
-          {message}
-        </p>
-      )}
+      {/* Always mounted: a live region is only announced reliably when its text changes. */}
+      <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
+        {message}
+      </p>
       <Button
         fullWidth
         busy={submitting}

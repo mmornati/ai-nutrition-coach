@@ -76,7 +76,7 @@ const LUNCH = plate(2, 13, 12, 55, [
   ['Sourdough slice', 'starch'],
 ]);
 
-/** A week of plates: dairy is missing on Friday and Sunday, Thursday is empty. */
+/** A week of plates: dairy is missing on Friday and Sunday, Thursday is empty, Monday is logged with no line. */
 const WEEK_PLATES: PlateLog[] = [
   plate(20, 7, 12, 0, [
     ['Eggs', 'protein'],
@@ -101,11 +101,8 @@ const WEEK_PLATES: PlateLog[] = [
     ['Potato', 'starch'],
     ['Cheese', 'dairy'],
   ]),
-  plate(24, 12, 13, 0, [
-    ['Beans', 'protein'],
-    ['Carrot', 'vegFruit'],
-    ['Bread', 'starch'],
-  ]),
+  // Logged, but only an "other" food: no line stopped (the solid-core dot, the thin bar).
+  plate(24, 12, 13, 0, [['Chocolate bar', 'other']]),
   BREAKFAST,
   LUNCH,
 ];

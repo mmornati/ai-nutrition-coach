@@ -109,31 +109,70 @@ test('choosing Snapshot closes the sheet and reports the choice', async ({ page 
   await expect(page.getByText('Snapshot chosen')).toBeVisible();
 });
 
-test('200% text on a phone: no horizontal overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await openGallery(page);
-  // CSSOM, not a <style> tag: the release CSP forbids inline styles.
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = '200%';
+for (const width of [390, 1440]) {
+  test(`200% text at ${width}px: no overflow, no overlapping week labels`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openGallery(page);
+    // CSSOM, not a <style> tag: the release CSP forbids inline styles.
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      type Box = { l: number; t: number; r: number; b: number };
+      const visible = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      };
+      const box = (el: Element): Box => {
+        const r = el.getBoundingClientRect();
+        return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+      };
+      const hit = (a: Box, b: Box) =>
+        a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
+      /** Names of every pair of boxes that intersect. */
+      const collisions = (name: string, boxes: Box[]) => {
+        const out: string[] = [];
+        for (let i = 0; i < boxes.length; i++)
+          for (let j = i + 1; j < boxes.length; j++)
+            if (hit(boxes[i]!, boxes[j]!)) out.push(`${name} ${i} x ${j}`);
+        return out;
+      };
+      const group = (sel: string) => [...document.querySelectorAll(sel)].filter(visible).map(box);
+      const route = group('[data-route-label]');
+      const headers = group('[data-week-day-header]');
+      const names = group('[data-line-name]');
+      const stops = [...document.querySelectorAll('[role="img"] svg circle')].map(box);
+      const nameVsStop = names.flatMap((n, i) =>
+        stops.some((s) => hit(n, s)) ? [`line name ${i} x stop`] : [],
+      );
+      return {
+        counts: { route: route.length, headers: headers.length, names: names.length },
+        collisions: [
+          ...collisions('route label', route),
+          ...collisions('day header', headers),
+          ...collisions('line name', names),
+          ...nameVsStop,
+        ],
+        scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
+        innerWidth: window.innerWidth,
+        rootPx: getComputedStyle(document.documentElement).fontSize,
+        offenders: [...document.body.querySelectorAll('*')]
+          .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)
+          .slice(0, 12)
+          .map(
+            (el) =>
+              `${Math.round(el.getBoundingClientRect().left)}-${Math.round(el.getBoundingClientRect().right)} ${el.tagName.toLowerCase()}.${String(el.getAttribute('class') ?? '').slice(0, 60)}`,
+          ),
+      };
+    });
+    expect(m.rootPx).toBe('32px');
+    expect(m.counts).toEqual({ route: 7, headers: 7, names: 4 });
+    expect(m.collisions).toEqual([]);
+    expect(m.offenders).toEqual([]);
+    expect(m.scrollWidth).toBeLessThanOrEqual(m.innerWidth);
   });
-  await page.waitForTimeout(200);
-  const m = await page.evaluate(() => ({
-    scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
-    innerWidth: window.innerWidth,
-    rootPx: getComputedStyle(document.documentElement).fontSize,
-    // Elements poking past the right edge, to name the culprit when this fails.
-    offenders: [...document.body.querySelectorAll('*')]
-      .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)
-      .slice(0, 12)
-      .map(
-        (el) =>
-          `${Math.round(el.getBoundingClientRect().left)}-${Math.round(el.getBoundingClientRect().right)} ${el.tagName.toLowerCase()}.${String(el.getAttribute('class') ?? '').slice(0, 60)}`,
-      ),
-  }));
-  expect(m.rootPx).toBe('32px');
-  expect(m.offenders).toEqual([]);
-  expect(m.scrollWidth).toBeLessThanOrEqual(m.innerWidth);
-});
+}
 
 test('reduced motion: the day-enter fade still runs, with no movement', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });

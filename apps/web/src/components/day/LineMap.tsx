@@ -220,7 +220,7 @@ export function LineLegend({ className = '' }: { readonly className?: string }) 
       {LINES.map((l) => (
         <li key={l.group} className="font-display text-label flex items-center gap-1.5 uppercase">
           <span className={`inline-block h-1.5 w-4 ${l.bg}`} />
-          {groups[l.nameKey]}
+          {groups[l.group]}
         </li>
       ))}
     </ul>

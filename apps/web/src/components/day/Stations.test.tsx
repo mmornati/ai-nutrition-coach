@@ -18,6 +18,7 @@ function row(over: Partial<React.ComponentProps<typeof PlateRow>> = {}) {
   const onRequestDelete = vi.fn();
   const utils = render(
     <PlateRow
+      hasTransport={false}
       plate={plate}
       slot="lunch"
       onOpen={onOpen}

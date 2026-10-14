@@ -29,7 +29,7 @@ export const en = {
   },
   lineBar: {
     label: 'Lines at this station',
-    passedSuffix: '· passed',
+    groupPassed: '{name} · passed',
   },
   entries: {
     label: 'On the plate',
@@ -37,6 +37,7 @@ export const en = {
   portion: {
     label: 'Portion',
     oneServing: '~1 serving',
+    labelFor: '{label}: {name}',
   },
   capture: {
     title: 'Log a plate',
@@ -166,13 +167,18 @@ export const en = {
     noStreaks: 'No streaks, no countdowns, no guilt.',
     routeLabel: 'This week: choose a day',
     today: 'Today',
-    todayWord: 'today',
     stateAllFour: 'all four lines',
     stateNone: 'nothing logged',
     stateLoggedNoLine: 'logged — no food group line',
     stateSome: '{count} of 4 lines',
     plates: { zero: 'No plates', one: '1 plate', other: '{count} plates' },
     networkIntro: 'Week network.',
+    networkDescription: '{intro} {days}',
+    daySentence: '{day}: {state}.',
+    routeStop: '{day}, {state}',
+    routeStopToday: '{day}, {state}, today',
+    noteJoin: '{lead} {detail}',
+    sentences: '{first} {second}',
     dayNothing: 'nothing logged',
     dayLoggedNoLine: 'logged — no food group line',
     dayAll: 'all four lines',

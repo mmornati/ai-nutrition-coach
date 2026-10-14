@@ -6,11 +6,6 @@ export type LineGroup = Exclude<FoodGroup, 'other'>;
 
 export interface LineDef {
   readonly group: LineGroup;
-  /**
-   * Key of the line's name in `strings().groups`. The group id doubles as the i18n key; names are
-   * spelled once ("Veg & fruit") and upper-cased only by CSS.
-   */
-  readonly nameKey: LineGroup;
   /** x position of the line in the 132px day-map lane. */
   readonly x: number;
   /** Literal class strings so Tailwind's scanner sees them. */
@@ -18,7 +13,7 @@ export interface LineDef {
   readonly bg: string;
 }
 
-const DEFS: Readonly<Record<LineGroup, Omit<LineDef, 'group' | 'nameKey'>>> = {
+const DEFS: Readonly<Record<LineGroup, Omit<LineDef, 'group'>>> = {
   vegFruit: { x: 30, stroke: 'stroke-line-veg', bg: 'bg-line-veg' },
   protein: { x: 54, stroke: 'stroke-line-protein', bg: 'bg-line-protein' },
   starch: { x: 78, stroke: 'stroke-line-starch', bg: 'bg-line-starch' },
@@ -30,7 +25,6 @@ const isLine = (g: FoodGroup): g is LineGroup => g !== 'other';
 /** The one list of lines, in map order (core's balance-arc order: veg, protein, starch, dairy). */
 export const LINES: readonly LineDef[] = BALANCE_ARC_GROUPS.filter(isLine).map((group) => ({
   group,
-  nameKey: group,
   ...DEFS[group],
 }));
 

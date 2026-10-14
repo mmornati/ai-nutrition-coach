@@ -246,6 +246,16 @@ describe('BarcodeMatchSheet', () => {
     expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled();
   });
 
+  it('keeps the status region mounted and only changes its text', () => {
+    const props = { open: true, onClose: () => undefined, match, onLog: () => undefined };
+    const { rerender } = render(<BarcodeMatchSheet {...props} />);
+    const region = screen.getByRole('status');
+    expect(region).toBeEmptyDOMElement();
+    rerender(<BarcodeMatchSheet {...props} errorMessage="Couldn’t log it. Try again." />);
+    expect(screen.getByRole('status')).toBe(region);
+    expect(region).toHaveTextContent('Couldn’t log it. Try again.');
+  });
+
   it('a rejected log shows a calm inline line and the button comes back', async () => {
     const onLog = vi.fn(() => Promise.reject(new Error('boom')));
     render(<BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={onLog} />);
@@ -269,6 +279,24 @@ describe('BarcodeMatchSheet', () => {
       <BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={() => undefined} />,
     );
     expect(await axe(baseElement)).toHaveNoViolations();
+  });
+});
+
+describe('RecognizedMatchSheet status region', () => {
+  it('stays mounted and only changes its text', () => {
+    const props = {
+      open: true,
+      onClose: () => undefined,
+      result: { kind: 'recognizedPlate', foods: [] } as RecognitionResult,
+      closestMatches: [] as FoodMatch[],
+      onLog: () => undefined,
+    };
+    const { rerender } = render(<RecognizedMatchSheet {...props} />);
+    const region = screen.getByRole('status');
+    expect(region).toBeEmptyDOMElement();
+    rerender(<RecognizedMatchSheet {...props} errorMessage="Couldn’t log it." />);
+    expect(screen.getByRole('status')).toBe(region);
+    expect(region).toHaveTextContent('Couldn’t log it.');
   });
 });
 

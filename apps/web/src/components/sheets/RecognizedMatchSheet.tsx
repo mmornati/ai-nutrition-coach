@@ -7,11 +7,12 @@ import type {
   RecognitionResult,
 } from '@anc/core';
 import { plural, useStrings, type Strings } from '../../i18n';
+import { portionFor } from '../../i18n/sentences';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { TextField } from '../primitives/TextField';
-import { effectivePresets, manualFood, ONE_SERVING, sameFood, uniqueQuantities } from './foods';
+import { effectivePresets, manualFood, oneServing, sameFood, uniqueQuantities } from './foods';
 import { PortionPresets } from './PortionPresets';
 import { Sheet } from './Sheet';
 
@@ -103,18 +104,18 @@ function buildCandidates(
 /** Defaults for a candidate seen for the first time after the sheet opened: never pre-ticked. */
 const lateChoice = (c: Candidate): Choice => ({
   checked: false,
-  quantity: c.presets[0] ?? ONE_SERVING,
+  quantity: c.presets[0] ?? oneServing(),
 });
 
 function initialChoices(recognized: readonly Candidate[], extra: readonly Candidate[]) {
   const choices: Record<string, Choice> = {};
   for (const c of recognized)
-    choices[c.key] = { checked: true, quantity: c.presets[0] ?? ONE_SERVING };
+    choices[c.key] = { checked: true, quantity: c.presets[0] ?? oneServing() };
   // With nothing recognised, the first catalog match is pre-ticked (same as the Flutter sheet).
   extra.forEach((c, i) => {
     choices[c.key] = {
       checked: recognized.length === 0 && i === 0,
-      quantity: c.presets[0] ?? ONE_SERVING,
+      quantity: c.presets[0] ?? oneServing(),
     };
   });
   return choices;
@@ -183,7 +184,7 @@ function Body({
       'ticked',
       ticked.map((c) => ({
         databaseFood: c.food,
-        quantity: choices[c.key]?.quantity ?? ONE_SERVING,
+        quantity: choices[c.key]?.quantity ?? oneServing(),
       })),
     );
 
@@ -194,7 +195,7 @@ function Body({
       return;
     }
     setCustomMessage(undefined);
-    if (await commit('custom', [{ databaseFood: manualFood(name), quantity: ONE_SERVING }]))
+    if (await commit('custom', [{ databaseFood: manualFood(name), quantity: oneServing() }]))
       setCustomName('');
   };
 
@@ -223,7 +224,7 @@ function Body({
               presets={c.presets}
               value={choice.quantity}
               onChange={(quantity) => update(c.key, { quantity })}
-              label={`${s.portion.label}: ${c.food.displayName}`}
+              label={portionFor(c.food.displayName)}
             />
           </div>
         )}
@@ -246,11 +247,10 @@ function Body({
           <ul className="border-porcelain border-t-2">{extra.map(row)}</ul>
         </section>
       )}
-      {(errorMessage ?? (failed ? s.common.logFailed : undefined)) && (
-        <p role="status" className="text-body-small text-porcelain-dim">
-          {errorMessage ?? s.common.logFailed}
-        </p>
-      )}
+      {/* Always mounted: a live region is only announced reliably when its text changes. */}
+      <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
+        {errorMessage ?? (failed ? s.common.logFailed : undefined)}
+      </p>
       <Button
         fullWidth
         disabled={ticked.length === 0}

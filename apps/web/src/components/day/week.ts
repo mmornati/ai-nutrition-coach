@@ -6,8 +6,11 @@ import {
   lineName,
   lineNames,
   noteQuietAll,
+  joinSentences,
   noteQuietDays,
   noteSome,
+  noteText,
+  routeStop,
   stateSome,
 } from '../../i18n/sentences';
 import { LINE_GROUPS, groupsOfPlate, orderedGroups, type LineGroup } from '../primitives';
@@ -69,8 +72,7 @@ export function dayState(d: WeekDayData): string {
 
 /** Accessible name of a route stop: "<Weekday>, <state>" (plus "today"). */
 export function dayRouteLabel(d: WeekDayData): string {
-  const base = `${weekdayName(d.date)}, ${dayState(d)}`;
-  return d.isToday ? `${base}, ${strings().week.todayWord}` : base;
+  return routeStop(weekdayName(d.date), dayState(d), d.isToday);
 }
 
 /** Text alternative for a whole day: which lines stopped and which were quiet. Never a score. */
@@ -124,8 +126,8 @@ export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
       ),
     );
   }
-  const detail = sentences.slice(0, 2).join(' ');
-  return { lead, detail, text: detail ? `${lead} ${detail}` : lead };
+  const detail = joinSentences(sentences.slice(0, 2));
+  return { lead, detail, text: noteText(lead, detail) };
 }
 
 export const weekNote = (days: readonly WeekDayData[]): string => weekNoteParts(days).text;

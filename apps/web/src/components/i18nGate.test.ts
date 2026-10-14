@@ -28,6 +28,11 @@ describe('i18n literal gate', () => {
     expect(await messages(code, COMPONENT)).toEqual([]);
   });
 
+  it('covers the app root', async () => {
+    const code = 'export const App = () => <h1>Today</h1>;\n';
+    expect(await messages(code, 'src/App.tsx')).toHaveLength(1);
+  });
+
   it('does not apply to tests or the gallery', async () => {
     const code = 'export const Example = () => <p>Hello there</p>;\n';
     expect(await messages(code, 'src/components/gallery/Example.tsx')).toEqual([]);
