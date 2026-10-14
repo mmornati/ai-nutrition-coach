@@ -1,10 +1,18 @@
 import { useEffect, useRef } from 'react';
 import type { PointerEvent, ReactNode } from 'react';
 import type { MealSlot, PlateLog, SyncOpStatusValue } from '@anc/core';
+import { useStrings } from '../../i18n';
+import {
+  lineNames,
+  passedThrough,
+  removePlateFor,
+  dismissHint,
+  slotName,
+  stationLabel,
+} from '../../i18n/sentences';
+import { Button, groupsOfPlate, passedGroups } from '../primitives';
 import { formatTime } from './format';
-import { groupsOfPlate, passedGroups } from './lines';
 import { StatusChip } from './StatusChip';
-import { dayStrings } from './strings';
 
 const HOLD_MS = 500;
 const MOVE_TOLERANCE = 10;
@@ -34,9 +42,10 @@ export function PlateRow({
   onRequestDelete,
   children,
 }: PlateRowProps) {
+  const s = useStrings().day;
   const present = groupsOfPlate(plate);
   const passed = passedGroups(present);
-  const meal = dayStrings.slotName(slot);
+  const meal = slotName(slot);
   const time = formatTime(plate.loggedAtUtc);
   const summary = plate.entries.map((e) => e.databaseFood.displayName).join(', ');
 
@@ -68,10 +77,10 @@ export function PlateRow({
 
   const stopsText =
     present.length === 4
-      ? dayStrings.allStopped
+      ? s.allStopped
       : present.length === 0
-        ? dayStrings.noneStopped
-        : dayStrings.passedThrough(passed.map(dayStrings.lineName));
+        ? s.noneStopped
+        : passedThrough(lineNames(passed));
 
   return (
     <>
@@ -89,11 +98,11 @@ export function PlateRow({
       <button
         type="button"
         data-testid={`open-plate-${plate.id}`}
-        aria-label={dayStrings.stationLabel({
+        aria-label={stationLabel({
           meal,
           time,
-          present: present.map(dayStrings.lineName),
-          passed: passed.map(dayStrings.lineName),
+          present: lineNames(present),
+          passed: lineNames(passed),
         })}
         className="absolute inset-0 min-h-12 w-full cursor-pointer touch-manipulation bg-transparent select-none"
         onPointerDown={onPointerDown}
@@ -114,13 +123,13 @@ export function PlateRow({
           onOpen(plate.id);
         }}
       />
-      <button
-        type="button"
+      <Button
+        variant="framed-enamel"
         onClick={() => onRequestDelete(plate.id)}
-        className="font-display text-button border-porcelain bg-enamel text-porcelain sr-only z-20 border-2 px-3 uppercase focus:not-sr-only focus:absolute focus:top-2 focus:right-0 focus:min-h-12"
+        className="sr-only z-20 focus:not-sr-only focus:absolute focus:top-2 focus:right-0"
       >
-        {dayStrings.removePlateFor(meal, time)}
-      </button>
+        {removePlateFor(meal, time)}
+      </Button>
       {children}
     </>
   );
@@ -137,7 +146,8 @@ export interface OpenStationProps {
 
 /** An open station: dashed, quiet. A hint is a single tap target, never sure / ask later. */
 export function OpenStation({ slot, hint, onDismissHint, resolving = false }: OpenStationProps) {
-  const meal = dayStrings.slotName(slot);
+  const s = useStrings().day;
+  const meal = slotName(slot);
   return (
     <>
       <h2 data-station-anchor className={NAME_CLASS}>
@@ -148,21 +158,19 @@ export function OpenStation({ slot, hint, onDismissHint, resolving = false }: Op
           role="status"
           className="font-display text-line-starch mt-1.5 text-[15px] font-semibold tracking-[0.1em]"
         >
-          {dayStrings.reading}
+          {s.reading}
         </p>
       ) : hint ? (
         <button
           type="button"
           onClick={onDismissHint}
-          aria-label={dayStrings.dismissHint(hint)}
+          aria-label={dismissHint(hint)}
           className="text-porcelain-dim mt-1.5 min-h-12 max-w-[34ch] cursor-pointer bg-transparent py-1 text-left text-[15.5px]"
         >
           {hint}
         </button>
       ) : (
-        <p className="text-porcelain-dim mt-1.5 max-w-[34ch] text-[15.5px]">
-          {dayStrings.openQuietPlace}
-        </p>
+        <p className="text-porcelain-dim mt-1.5 max-w-[34ch] text-[15.5px]">{s.openQuietPlace}</p>
       )}
     </>
   );

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenStation, PlateRow } from './Stations';
-import { dayStrings } from './strings';
+import { strings } from '../../i18n';
 import { makePlate } from './testing';
 
 // jsdom may lack PointerEvent; a MouseEvent subclass carries the coordinates and button.
@@ -107,7 +107,7 @@ describe('OpenStation', () => {
   it('carries the approved copy verbatim when there is no hint', () => {
     render(<OpenStation slot="dinner" />);
     expect(screen.getByText('An open, quiet place.')).toBeInTheDocument();
-    expect(dayStrings.openQuietPlace).toBe('An open, quiet place.');
+    expect(strings().day.openQuietPlace).toBe('An open, quiet place.');
   });
 
   it('shows a hint with no sure / ask-later buttons; tapping dismisses it', async () => {

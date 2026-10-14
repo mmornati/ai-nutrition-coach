@@ -1,8 +1,17 @@
 import { addCalendarDays, isSameLocalDay, startOfLocalDay } from '@anc/core';
 import type { EpochMs, PlateLog } from '@anc/core';
+import { strings } from '../../i18n';
+import {
+  dayDetail,
+  lineName,
+  lineNames,
+  noteQuietAll,
+  noteQuietDays,
+  noteSome,
+  stateSome,
+} from '../../i18n/sentences';
+import { LINE_GROUPS, groupsOfPlate, orderedGroups, type LineGroup } from '../primitives';
 import { weekdayName } from './format';
-import { LINE_GROUPS, groupsOfPlate, orderedGroups } from './lines';
-import { dayStrings, type LineGroup } from './strings';
 
 /** One day of the week, as the route, the network and the list draw it. */
 export interface WeekDayData {
@@ -33,25 +42,25 @@ export const isFullDay = (d: WeekDayData): boolean => d.groups.length === LINE_G
 
 /** "all four lines", "3 of 4 lines", "nothing logged". */
 export function dayState(d: WeekDayData): string {
-  if (isFullDay(d)) return dayStrings.stateAllFour;
-  if (d.groups.length === 0) return dayStrings.stateNone;
-  return dayStrings.stateSome(d.groups.length);
+  const w = strings().week;
+  if (isFullDay(d)) return w.stateAllFour;
+  if (d.groups.length === 0) return w.stateNone;
+  return stateSome(d.groups.length);
 }
 
 /** Accessible name of a route stop: "<Weekday>, <state>" (plus "today"). */
 export function dayRouteLabel(d: WeekDayData): string {
   const base = `${weekdayName(d.date)}, ${dayState(d)}`;
-  return d.isToday ? `${base}, ${dayStrings.todayWord}` : base;
+  return d.isToday ? `${base}, ${strings().week.todayWord}` : base;
 }
-
-const names = (groups: readonly LineGroup[]): string[] => groups.map(dayStrings.lineName);
 
 /** Text alternative for a whole day: which lines stopped and which were quiet. Never a score. */
 export function describeDay(d: WeekDayData): string {
-  if (d.groups.length === 0) return dayStrings.dayNothing;
-  if (isFullDay(d)) return dayStrings.dayAll;
+  const w = strings().week;
+  if (d.groups.length === 0) return w.dayNothing;
+  if (isFullDay(d)) return w.dayAll;
   const quiet = LINE_GROUPS.filter((g) => !d.groups.includes(g));
-  return `${names(d.groups).join(', ')}; ${dayStrings.dayQuiet(names(quiet))}`;
+  return dayDetail(lineNames(d.groups), lineNames(quiet));
 }
 
 export interface WeekNote {
@@ -67,13 +76,13 @@ export interface WeekNote {
  * on a day that had plates. Today is still in progress, so it never counts as quiet.
  */
 export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
+  const w = strings().week;
   const logged = days.filter((d) => d.plateCount > 0 || d.groups.length > 0);
   if (logged.length === 0) {
-    return { lead: dayStrings.noteNone, detail: '', text: dayStrings.noteNone };
+    return { lead: w.noteNone, detail: '', text: w.noteNone };
   }
   const ran = LINE_GROUPS.filter((g) => days.some((d) => d.groups.includes(g)));
-  const lead =
-    ran.length === LINE_GROUPS.length ? dayStrings.noteAllRan : dayStrings.noteSome(names(ran));
+  const lead = ran.length === LINE_GROUPS.length ? w.noteAllRan : noteSome(lineNames(ran));
 
   const sentences: string[] = [];
   const quiet = LINE_GROUPS.map((g) => ({
@@ -82,15 +91,15 @@ export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
   }));
   // Lines that never ran first, then the ones with the most quiet days; at most two sentences.
   for (const g of LINE_GROUPS.filter((x) => !ran.includes(x))) {
-    sentences.push(dayStrings.noteQuietAll(dayStrings.lineName(g)));
+    sentences.push(noteQuietAll(lineName(g)));
   }
   const partial = quiet
     .filter((q) => ran.includes(q.g) && q.onDays.length > 0)
     .sort((a, b) => b.onDays.length - a.onDays.length);
   for (const q of partial) {
     sentences.push(
-      dayStrings.noteQuietDays(
-        dayStrings.lineName(q.g),
+      noteQuietDays(
+        lineName(q.g),
         q.onDays.map((d) => weekdayName(d.date)),
       ),
     );

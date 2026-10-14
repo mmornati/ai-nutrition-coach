@@ -41,6 +41,14 @@ describe('LineMap', () => {
     expect(lines).toEqual(['vegFruit', 'protein', 'starch', 'dairy']);
   });
 
+  it('derives the stopped lines from a plate when given one', () => {
+    const { container } = render(map([{ id: 'l', status: 'logged', plate: lunch }]));
+    const stops = Array.from(container.querySelectorAll('[data-stop]')).map((c) =>
+      c.getAttribute('data-stop'),
+    );
+    expect(stops).toEqual(['l:vegFruit', 'l:protein', 'l:starch']);
+  });
+
   it('puts a stop dot only on the lines that stop; the others pass through', () => {
     const { container } = render(map([logged]));
     const stops = Array.from(container.querySelectorAll('[data-stop]')).map((c) =>
@@ -74,7 +82,7 @@ describe('LineMap', () => {
     render(map([logged]));
     const btn = screen.getByRole('button', { name: /Open Lunch/ });
     const name = btn.getAttribute('aria-label') ?? '';
-    expect(name).toMatch(/veg and fruit, protein and starch stopped/);
+    expect(name).toMatch(/veg & fruit, protein and starch stopped/);
     expect(name).toMatch(/Dairy passed through/);
     expect(name).not.toMatch(/\d+ of 4|\bscore\b/i);
   });

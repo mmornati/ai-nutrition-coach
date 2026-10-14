@@ -21,3 +21,27 @@ export function useStrings(): Strings {
 export function strings(): Strings {
   return active;
 }
+
+export interface PluralForms {
+  readonly zero?: string;
+  readonly one: string;
+  readonly other: string;
+}
+
+const pluralRules = new Intl.PluralRules('en');
+
+/** Pick the form for `count` (an explicit `zero` wins at 0), then fill `{count}`. */
+export function plural(forms: PluralForms, count: number): string {
+  const template =
+    count === 0 && forms.zero !== undefined
+      ? forms.zero
+      : forms[pluralRules.select(count) === 'one' ? 'one' : 'other'];
+  return fill(template, { count });
+}
+
+const listFormat = new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' });
+
+/** "a", "a and b", "a, b and c". */
+export const joinNames = (names: readonly string[]): string => listFormat.format(names);
+
+export const capitalise = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

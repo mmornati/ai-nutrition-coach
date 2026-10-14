@@ -5,13 +5,15 @@ export type ButtonVariant =
   | 'solid-porcelain' // primary on enamel
   | 'outline-porcelain' // secondary on enamel
   | 'solid-enamel' // primary inside a porcelain card
-  | 'ghost-enamel'; // secondary inside a porcelain card
+  | 'ghost-enamel' // secondary inside a porcelain card
+  | 'framed-enamel'; // enamel-filled with a porcelain frame (a control floating over the map)
 
 const VARIANT: Record<ButtonVariant, string> = {
   'solid-porcelain': 'bg-porcelain text-enamel border-porcelain',
   'outline-porcelain': 'bg-transparent text-porcelain border-porcelain',
   'solid-enamel': 'bg-enamel text-porcelain border-enamel',
   'ghost-enamel': 'bg-transparent text-enamel border-enamel',
+  'framed-enamel': 'bg-enamel text-porcelain border-porcelain',
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {

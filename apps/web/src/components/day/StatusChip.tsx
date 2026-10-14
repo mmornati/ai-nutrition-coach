@@ -1,5 +1,7 @@
 import type { SyncOpStatusValue } from '@anc/core';
-import { dayStrings } from './strings';
+import { useStrings } from '../../i18n';
+import { chipAnnouncement } from '../../i18n/sentences';
+import { Chip, cn } from '../primitives';
 
 export type ChipState = 'onDevice' | 'pending' | 'synced' | 'retryLater';
 
@@ -27,29 +29,27 @@ const DOT: Readonly<Record<ChipState, string>> = {
 export interface StatusChipProps {
   /** Core per-plate sync rollup; omit or null for "on this device". */
   readonly status?: SyncOpStatusValue | null;
-  readonly className?: string;
+  readonly className?: string | undefined;
 }
 
 /**
  * Where a plate's data lives. Not a button, never red. The visible label is hidden from
  * assistive tech and a polite live region announces the state, including later changes.
  */
-export function StatusChip({ status = null, className = '' }: StatusChipProps) {
+export function StatusChip({ status = null, className }: StatusChipProps) {
   const state = chipStateFor(status);
-  const label = dayStrings.chip[state];
+  const label = useStrings().chip[state];
   return (
-    <span
+    <Chip
       data-chip-state={state}
-      className={`font-display text-label border-porcelain text-porcelain inline-flex min-h-9 items-center gap-[7px] border-2 px-2.5 py-1.5 font-bold whitespace-nowrap uppercase ${className}`}
+      dot
+      dotClassName={DOT[state]}
+      className={cn('text-porcelain', className)}
     >
-      <span
-        aria-hidden="true"
-        className={`inline-block h-[9px] w-[9px] rounded-full ${DOT[state]}`}
-      />
       <span aria-hidden="true">{label}</span>
       <span aria-live="polite" role="status" className="sr-only">
-        {dayStrings.chipAnnouncement(label)}
+        {chipAnnouncement(label)}
       </span>
-    </span>
+    </Chip>
   );
 }

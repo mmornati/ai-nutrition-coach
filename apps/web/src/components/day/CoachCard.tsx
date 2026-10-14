@@ -1,8 +1,6 @@
 import './day.css';
-import { dayStrings } from './strings';
-
-const ACTION =
-  'font-display text-button inline-flex min-h-12 items-center justify-center border-2 px-[18px] uppercase';
+import { useStrings } from '../../i18n';
+import { Button } from '../primitives';
 
 export interface CoachCardProps {
   readonly question: string;
@@ -16,10 +14,11 @@ export interface CoachCardProps {
 
 /** The one inverted surface: a porcelain card with one question and two plain choices. */
 export function CoachCard({ question, title, onSure, onAskLater, className = '' }: CoachCardProps) {
+  const s = useStrings().coach;
   return (
     <div
       role="group"
-      aria-label={dayStrings.coachGroup}
+      aria-label={s.group}
       className={`day-enter bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
     >
       {title ? (
@@ -29,20 +28,12 @@ export function CoachCard({ question, title, onSure, onAskLater, className = '' 
       ) : null}
       <p className="text-body">{question}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onSure}
-          className={`${ACTION} bg-enamel text-porcelain border-enamel`}
-        >
-          {dayStrings.sure}
-        </button>
-        <button
-          type="button"
-          onClick={onAskLater}
-          className={`${ACTION} text-enamel border-enamel bg-transparent`}
-        >
-          {dayStrings.askLater}
-        </button>
+        <Button variant="solid-enamel" onClick={onSure}>
+          {s.sure}
+        </Button>
+        <Button variant="ghost-enamel" onClick={onAskLater}>
+          {s.askLater}
+        </Button>
       </div>
     </div>
   );
@@ -58,21 +49,18 @@ export interface DepthPanelProps {
 
 /** What opens on Sure: the follow-up and Close. No "unavailable" message when empty. */
 export function DepthPanel({ followUp, onClose, className = '' }: DepthPanelProps) {
+  const s = useStrings().coach;
   return (
     <div
       role="group"
-      aria-label={dayStrings.depthGroup}
+      aria-label={s.depthGroup}
       className={`day-enter bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
     >
       {followUp ? <p className="text-body">{followUp}</p> : null}
       <div className={followUp ? 'mt-3' : ''}>
-        <button
-          type="button"
-          onClick={onClose}
-          className={`${ACTION} bg-enamel text-porcelain border-enamel`}
-        >
-          {dayStrings.close}
-        </button>
+        <Button variant="solid-enamel" onClick={onClose}>
+          {s.close}
+        </Button>
       </div>
     </div>
   );

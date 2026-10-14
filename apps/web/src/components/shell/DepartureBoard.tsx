@@ -22,7 +22,7 @@ export function DepartureBoard({
   className?: string;
 }) {
   return (
-    <ul className={cn('mx-5 mt-2', className)}>
+    <ul className={cn('mt-2', className)}>
       {rows.map((row) => (
         <li key={row.id}>
           <button

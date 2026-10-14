@@ -7,9 +7,10 @@ import { buildWeekDays, dayRouteLabel, weekNote, weekNoteParts } from './week';
 import type { WeekDayData } from './week';
 import { DayList, WeekNetwork, WeekNoteText, weekNetworkDescription } from './WeekNetwork';
 import { WeekRoute } from './WeekRoute';
-import { dayStrings } from './strings';
+import { strings } from '../../i18n';
+import { platesCount } from '../../i18n/sentences';
 import { makePlate } from './testing';
-import type { LineGroup } from './strings';
+import type { LineGroup } from '../primitives';
 
 const ALL: LineGroup[] = ['vegFruit', 'protein', 'starch', 'dairy'];
 const NO_DAIRY: LineGroup[] = ['vegFruit', 'protein', 'starch'];
@@ -51,7 +52,7 @@ describe('weekNote', () => {
   it('handles a line that never ran', () => {
     const none = WEEK.map((d) => ({ ...d, groups: NO_DAIRY }));
     expect(weekNote(none)).toBe(
-      'Veg and fruit, protein and starch ran this week. Dairy stayed quiet all week.',
+      'Veg & fruit, protein and starch ran this week. Dairy stayed quiet all week.',
     );
   });
 
@@ -114,7 +115,7 @@ describe('WeekRoute', () => {
 
   it('renders seven stop buttons named "<Weekday>, <state>"', () => {
     route();
-    const nav = screen.getByRole('navigation', { name: dayStrings.routeLabel });
+    const nav = screen.getByRole('navigation', { name: strings().week.routeLabel });
     const buttons = within(nav).getAllByRole('button');
     expect(buttons).toHaveLength(7);
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
@@ -172,7 +173,7 @@ describe('WeekNetwork', () => {
     const img = screen.getByRole('img');
     const label = img.getAttribute('aria-label') ?? '';
     expect(label).toBe(weekNetworkDescription(WEEK));
-    expect(label).toContain('Friday: veg and fruit, protein, starch; dairy quiet.');
+    expect(label).toContain('Friday: veg & fruit, protein, starch; dairy quiet.');
     expect(label).toContain('Today: all four lines.');
     expect(label).not.toMatch(/\d/);
   });
@@ -197,18 +198,18 @@ describe('DayList and note', () => {
     render(<DayList days={WEEK} />);
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(7);
-    expect(items[2]).toHaveTextContent('Friday: veg and fruit, protein, starch; dairy quiet');
+    expect(items[2]).toHaveTextContent('Friday: veg & fruit, protein, starch; dairy quiet');
     expect(items[2]).toHaveTextContent('2 plates');
     expect(items[6]).toHaveTextContent('Today');
   });
 
   it('pluralises plates', () => {
-    expect(dayStrings.plates(0)).toBe('No plates');
-    expect(dayStrings.plates(1)).toBe('1 plate');
+    expect(platesCount(0)).toBe('No plates');
+    expect(platesCount(1)).toBe('1 plate');
   });
 
   it('keeps the negative guarantee string', () => {
-    expect(dayStrings.noStreaks).toBe('No streaks, no countdowns, no guilt.');
+    expect(strings().week.noStreaks).toBe('No streaks, no countdowns, no guilt.');
   });
 
   it('has no axe violations', async () => {

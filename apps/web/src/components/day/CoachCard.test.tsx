@@ -19,7 +19,7 @@ describe('CoachCard', () => {
     for (const name of ['Sure', 'Ask later']) {
       const btn = screen.getByRole('button', { name });
       expect(btn.className).toContain('min-h-12');
-      expect(btn.className).not.toMatch(/rounded/);
+      expect(btn.className).toContain('rounded-none');
     }
   });
 

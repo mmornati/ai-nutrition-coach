@@ -1,19 +1,25 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { FoodGroup } from '@anc/core';
+import type { FoodGroup, PlateLog } from '@anc/core';
 import './day.css';
-import { LINES, orderedGroups } from './lines';
+import { useStrings } from '../../i18n';
+import { LINES, groupsOfPlate, lineDef, orderedGroups } from '../primitives';
 import { usePrefersReducedMotion } from './hooks';
-import { dayStrings } from './strings';
 
 export type StationStatus = 'logged' | 'open' | 'resolving';
 
 export interface LineMapStation {
   readonly id: string;
   readonly status: StationStatus;
-  /** Groups that stopped here. Ignored unless `status` is `logged`. */
-  readonly groups: readonly FoodGroup[];
+  /** The logged plate; its stopped lines are derived from it. Preferred over `groups`. */
+  readonly plate?: PlateLog;
+  /** Groups that stopped here, when there is no plate to derive them from. */
+  readonly groups?: readonly FoodGroup[];
 }
+
+/** Groups that stopped at a station, in line order. Ignored unless `status` is `logged`. */
+const stoppedGroups = (s: LineMapStation) =>
+  s.plate ? groupsOfPlate(s.plate) : orderedGroups(s.groups ?? []);
 
 export interface LineMapProps {
   readonly stations: readonly LineMapStation[];
@@ -47,6 +53,7 @@ const sameGeometry = (a: Geometry, b: Geometry): boolean =>
  * The SVG is decorative: each station row carries its own accessible name.
  */
 export function LineMap({ stations, renderStation, className = '' }: LineMapProps) {
+  const copy = useStrings().day;
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -93,8 +100,14 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
     const ro = new ResizeObserver(measure);
     ro.observe(container);
     for (const row of Array.from(list.children)) ro.observe(row);
-    void document.fonts?.ready?.then(measure);
-    return () => ro.disconnect();
+    let disposed = false;
+    void document.fonts?.ready?.then(() => {
+      if (!disposed) measure();
+    });
+    return () => {
+      disposed = true;
+      ro.disconnect();
+    };
   }, [count, statusKey]);
 
   const { ys, height } = geometry;
@@ -160,9 +173,8 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
           if (s.status !== 'logged') return null;
           const y = ys[i] ?? 0;
           const drawing = arriving && arrived.includes(s.id);
-          return orderedGroups(s.groups).map((g, n) => {
-            const line = LINES.find((l) => l.group === g);
-            if (!line) return null;
+          return stoppedGroups(s).map((g, n) => {
+            const line = lineDef(g);
             return (
               <circle
                 key={`${s.id}-${g}`}
@@ -180,7 +192,7 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
       </svg>
       <ol
         ref={listRef}
-        aria-label={dayStrings.mapDescription}
+        aria-label={copy.mapDescription}
         className="m-0 ml-[132px] flex list-none flex-col p-0"
       >
         {stations.map((s) => (
@@ -199,6 +211,7 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
 
 /** Text legend for the four lines: colour is never the only signal. */
 export function LineLegend({ className = '' }: { readonly className?: string }) {
+  const { groups } = useStrings();
   return (
     <ul
       aria-hidden="true"
@@ -207,7 +220,7 @@ export function LineLegend({ className = '' }: { readonly className?: string }) 
       {LINES.map((l) => (
         <li key={l.group} className="font-display text-label flex items-center gap-1.5 uppercase">
           <span className={`inline-block h-1.5 w-4 ${l.bg}`} />
-          {dayStrings.lineLegend[l.group]}
+          {groups[l.nameKey]}
         </li>
       ))}
     </ul>

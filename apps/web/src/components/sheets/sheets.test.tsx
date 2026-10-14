@@ -463,7 +463,7 @@ describe('PortionPresets, LineBar, EntryList', () => {
     const { container } = render(<LineBar present={['vegFruit', 'protein']} />);
     const cells = screen.getAllByRole('listitem');
     expect(cells).toHaveLength(4);
-    expect(cells[0]).toHaveTextContent('Veg & Fruit');
+    expect(cells[0]).toHaveTextContent('Veg & fruit');
     expect(cells[0]).not.toHaveTextContent('passed');
     expect(cells[2]).toHaveTextContent('Starch · passed');
     expect(cells[3]).toHaveTextContent('Dairy · passed');

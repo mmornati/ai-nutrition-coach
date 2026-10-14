@@ -1,17 +1,11 @@
 import { useRef } from 'react';
-import { LINES } from './lines';
+import { strings, useStrings } from '../../i18n';
+import { dayDescription, platesCount } from '../../i18n/sentences';
+import { LINES } from '../primitives';
 import { useElementWidth } from './hooks';
 import { weekdayAbbr, weekdayName } from './format';
 import { describeDay } from './week';
 import type { WeekDayData } from './week';
-import { dayStrings } from './strings';
-
-const SHORT_LINE_LABEL: Record<string, string> = {
-  vegFruit: 'VEG·FRUIT',
-  protein: 'PROTEIN',
-  starch: 'STARCH',
-  dairy: 'DAIRY',
-};
 
 export interface WeekNetworkProps {
   /** Seven days, oldest first, ending today. */
@@ -22,18 +16,20 @@ export interface WeekNetworkProps {
 
 /** Text alternative: every day, by line name. */
 export function weekNetworkDescription(days: readonly WeekDayData[]): string {
-  return `${dayStrings.networkIntro} ${days
-    .map((d) => `${d.isToday ? dayStrings.today : weekdayName(d.date)}: ${describeDay(d)}.`)
+  const w = strings().week;
+  return `${w.networkIntro} ${days
+    .map((d) => `${dayDescription(d.isToday ? w.today : weekdayName(d.date), describeDay(d))}.`)
     .join(' ')}`;
 }
 
 /** Four lines across seven days: a stop where the line served the day, a dashed hollow where not. */
 export function WeekNetwork({ days, compact = false, className = '' }: WeekNetworkProps) {
+  const { week: w, groups } = useStrings();
   const ref = useRef<HTMLDivElement>(null);
   const measured = useElementWidth(ref, 360);
   const W = Math.min(Math.max(measured, 320), 680);
   const H = compact ? 300 : 320;
-  const padL = W < 480 ? 72 : 84;
+  const padL = W < 480 ? 84 : 92;
   const top = 36;
   const gap = (H - top - 30) / 3;
   const colW = (W - padL - 24) / 6;
@@ -57,7 +53,7 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
             textAnchor="middle"
             className={`font-display text-[16px] font-bold tracking-[1.5px] uppercase ${d.isToday ? 'fill-line-starch' : 'fill-signal-muted'}`}
           >
-            {(d.isToday ? dayStrings.today : weekdayAbbr(d.date)).toUpperCase()}
+            {d.isToday ? w.today : weekdayAbbr(d.date)}
           </text>
         ))}
         {LINES.map((l, j) => {
@@ -69,9 +65,9 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
               <text
                 x={0}
                 y={y + 5}
-                className="font-display fill-porcelain-dim text-[14px] font-semibold tracking-[1px]"
+                className="font-display fill-porcelain-dim text-[14px] font-semibold tracking-[1px] uppercase"
               >
-                {SHORT_LINE_LABEL[l.group]}
+                {groups[l.nameKey]}
               </text>
               <path d={`M${x0} ${y} H${x1}`} className={l.stroke} strokeWidth={7} fill="none" />
               <path
@@ -131,6 +127,7 @@ export interface DayListProps {
 
 /** Day by day: four line segments (dashed when the line was absent) and the plate count. */
 export function DayList({ days, className = '' }: DayListProps) {
+  const w = useStrings().week;
   return (
     <ul className={`border-porcelain m-0 list-none border-t-2 p-0 ${className}`}>
       {days.map((d) => (
@@ -139,7 +136,7 @@ export function DayList({ days, className = '' }: DayListProps) {
           className="border-rule grid min-h-14 grid-cols-[64px_1fr_auto] items-center gap-3 border-b"
         >
           <span className="font-display text-[20px] font-bold tracking-[0.06em] uppercase">
-            {d.isToday ? dayStrings.today : weekdayAbbr(d.date)}
+            {d.isToday ? w.today : weekdayAbbr(d.date)}
           </span>
           <span className="flex gap-1">
             {LINES.map((l) => (
@@ -149,9 +146,9 @@ export function DayList({ days, className = '' }: DayListProps) {
                 className={`block h-1.5 w-7 ${d.groups.includes(l.group) ? l.bg : 'border-rule border-[1.5px] border-dashed'}`}
               />
             ))}
-            <span className="sr-only">{`${weekdayName(d.date)}: ${describeDay(d)}`}</span>
+            <span className="sr-only">{dayDescription(weekdayName(d.date), describeDay(d))}</span>
           </span>
-          <span className="text-signal-muted text-[14.5px]">{dayStrings.plates(d.plateCount)}</span>
+          <span className="text-signal-muted text-[14.5px]">{platesCount(d.plateCount)}</span>
         </li>
       ))}
     </ul>
@@ -175,7 +172,6 @@ export function WeekNoteText({ lead, detail, className = '' }: WeekNoteTextProps
 }
 
 export function NoStreaksLine({ className = '' }: { readonly className?: string }) {
-  return (
-    <p className={`text-signal-muted m-0 text-[14.5px] ${className}`}>{dayStrings.noStreaks}</p>
-  );
+  const w = useStrings().week;
+  return <p className={`text-signal-muted m-0 text-[14.5px] ${className}`}>{w.noStreaks}</p>;
 }

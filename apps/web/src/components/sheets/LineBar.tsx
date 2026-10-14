@@ -2,8 +2,7 @@ import type { FoodGroup } from '@anc/core';
 import { useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { LineSwatch } from '../primitives/GroupMarker';
-
-const LINES = ['vegFruit', 'protein', 'starch', 'dairy'] as const satisfies readonly FoodGroup[];
+import { LINE_GROUPS } from '../primitives/lines';
 
 /**
  * Four cells in a 2px porcelain frame, one per line. A line that stopped shows its swatch and
@@ -13,7 +12,7 @@ export function LineBar({ present }: { readonly present: readonly FoodGroup[] })
   const s = useStrings();
   return (
     <ul aria-label={s.lineBar.label} className="border-porcelain grid grid-cols-4 border-2">
-      {LINES.map((group, i) => {
+      {LINE_GROUPS.map((group, i) => {
         const stopped = present.includes(group);
         return (
           <li

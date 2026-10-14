@@ -6,7 +6,7 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
-import { fill, useStrings, type Strings } from '../../i18n';
+import { fill, plural, useStrings, type Strings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
@@ -50,9 +50,7 @@ function describe(
     case 'recognizedPlate':
       if (result.foods.length === 0) return { title: r.nothingMatched, subtitle: r.pickOrType };
       return {
-        title: fill(result.foods.length === 1 ? r.lookedLike.one : r.lookedLike.other, {
-          count: result.foods.length,
-        }),
+        title: plural(r.lookedLike, result.foods.length),
         subtitle: r.tickHint,
       };
     case 'noMatch':
@@ -206,6 +204,20 @@ function Body({
           <ul className="border-porcelain border-t-2">{extra.map(row)}</ul>
         </section>
       )}
+      {errorMessage && (
+        <p role="status" className="text-body-small text-porcelain-dim">
+          {errorMessage}
+        </p>
+      )}
+      <Button
+        fullWidth
+        disabled={ticked.length === 0}
+        busy={submitting}
+        busyLabel={s.common.logging}
+        onClick={() => void logTicked()}
+      >
+        {s.common.log}
+      </Button>
       <div className="flex flex-col gap-2">
         <TextField
           label={r.customFoodName}
@@ -226,20 +238,6 @@ function Body({
           {r.logCustomFood}
         </Button>
       </div>
-      {errorMessage && (
-        <p role="status" className="text-body-small text-porcelain-dim">
-          {errorMessage}
-        </p>
-      )}
-      <Button
-        fullWidth
-        disabled={ticked.length === 0}
-        busy={submitting}
-        busyLabel={s.common.logging}
-        onClick={() => void logTicked()}
-      >
-        {s.common.log}
-      </Button>
     </>
   );
 }

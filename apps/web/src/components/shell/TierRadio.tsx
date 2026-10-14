@@ -29,11 +29,7 @@ export function TierRadio({
   const s = useStrings().settings;
   const name = useId();
   return (
-    <div
-      role="radiogroup"
-      aria-label={label ?? s.aiTier}
-      className="mx-5 mt-3.5 flex flex-col gap-2.5"
-    >
+    <div role="radiogroup" aria-label={label ?? s.aiTier} className="mt-3.5 flex flex-col gap-2.5">
       {tiers.map((tier) => (
         // eslint-disable-next-line jsx-a11y/label-has-associated-control -- the input is nested; the text sits in nested spans the rule cannot see.
         <label

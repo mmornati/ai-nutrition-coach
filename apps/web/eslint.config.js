@@ -3,10 +3,11 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
+import i18next from 'eslint-plugin-i18next';
 import { telemetryMessage, telemetryPatterns } from '../../eslint.restrictions.js';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'playwright-report', 'test-results'] },
+  { ignores: ['dist', 'dist-e2e', 'dev-dist', 'playwright-report', 'test-results'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   jsxA11y.flatConfigs.recommended,
@@ -17,6 +18,25 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         { patterns: [{ group: telemetryPatterns, message: telemetryMessage }] },
+      ],
+    },
+  },
+  {
+    // i18n-literal gate: user-facing copy lives in src/i18n, never in JSX. Text nodes and the
+    // accessible-name attributes are checked; tests, the dev gallery and e2e are exempt.
+    files: ['src/components/**/*.tsx', 'src/screens/**/*.tsx'],
+    ignores: ['**/*.test.tsx', 'src/components/gallery/**', 'src/components/**/testing.tsx'],
+    plugins: { i18next },
+    rules: {
+      'i18next/no-literal-string': [
+        'error',
+        {
+          mode: 'jsx-only',
+          'jsx-attributes': {
+            include: ['aria-label', 'aria-description', 'title', 'alt', 'placeholder'],
+          },
+          words: { exclude: ['^[\\s\\d.,:;·•–—/|&()+\\-×…]*$'] },
+        },
       ],
     },
   },

@@ -1,15 +1,42 @@
 import { useState } from 'react';
 import { databaseFood, localTime, plateLog } from '@anc/core';
 import type { FoodGroup, MealSlot, PlateLog } from '@anc/core';
-import { CoachCard, DepthPanel } from './CoachCard';
-import { LineLegend, LineMap } from './LineMap';
-import type { LineMapStation } from './LineMap';
-import { OpenStation, PlateRow } from './Stations';
-import { StatusChip } from './StatusChip';
-import { dayStrings } from './strings';
-import { buildWeekDays, weekNoteParts } from './week';
-import { DayList, NoStreaksLine, WeekNetwork, WeekNoteText } from './WeekNetwork';
-import { WeekRoute } from './WeekRoute';
+import { Button } from '../primitives';
+import {
+  CoachCard,
+  DayList,
+  DepthPanel,
+  LineLegend,
+  LineMap,
+  NoStreaksLine,
+  OpenStation,
+  PlateRow,
+  StatusChip,
+  WeekNetwork,
+  WeekNoteText,
+  WeekRoute,
+  buildWeekDays,
+  weekNoteParts,
+} from '../day';
+import type { LineMapStation } from '../day';
+
+/** Gallery-only copy: the dev page is not shipped, so it stays out of the i18n catalogue. */
+const g = {
+  title: 'Day and week',
+  lineMap: 'Line map',
+  resolve: 'Resolve the plate',
+  reset: 'Reset',
+  chips: 'Status chips',
+  coach: 'Coach card and depth panel',
+  week: 'Week route, network and list',
+  networkTitle: 'This week’s network',
+  dayByDay: 'Day by day',
+  openHint: 'Greens would round out dinner. Want a 10-second idea?',
+  coachQuestion: 'Two colours of veg and a lentil protein. Want to know why lentils count twice?',
+  followUp:
+    'Lentils are a legume: they bring plant protein and fibre, so this plate stops on both the green and the red line.',
+  lastDelete: 'Delete requested for plate',
+} as const;
 
 const TODAY = localTime(2026, 10, 13, 20, 0);
 
@@ -107,12 +134,10 @@ export function DayGallerySection() {
     ['Rice', 'starch'],
   ]);
   const stations: LineMapStation[] = [
-    { id: 'b', status: 'logged', groups: BREAKFAST.entries.map((e) => e.databaseFood.foodGroup) },
-    { id: 'l', status: 'logged', groups: LUNCH.entries.map((e) => e.databaseFood.foodGroup) },
-    resolved
-      ? { id: 'd', status: 'logged', groups: dinner.entries.map((e) => e.databaseFood.foodGroup) }
-      : { id: 'd', status: 'resolving', groups: [] },
-    { id: 'o', status: 'open', groups: [] },
+    { id: 'b', status: 'logged', plate: BREAKFAST },
+    { id: 'l', status: 'logged', plate: LUNCH },
+    resolved ? { id: 'd', status: 'logged', plate: dinner } : { id: 'd', status: 'resolving' },
+    { id: 'o', status: 'open' },
   ];
   const slotFor: Record<string, [MealSlot, PlateLog | null]> = {
     b: ['breakfast', BREAKFAST],
@@ -123,7 +148,6 @@ export function DayGallerySection() {
 
   const days = buildWeekDays(WEEK_PLATES, TODAY);
   const note = weekNoteParts(days);
-  const g = dayStrings.gallery;
 
   return (
     <section aria-label={g.title} className="px-4 pb-12">
@@ -131,25 +155,20 @@ export function DayGallerySection() {
 
       <Block title={g.lineMap}>
         <div className="mb-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setResolved(true)}
-            className="font-display text-button border-porcelain min-h-12 border-2 px-[18px] uppercase"
-          >
+          <Button variant="outline-porcelain" onClick={() => setResolved(true)}>
             {g.resolve}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="outline-porcelain"
             onClick={() => {
               setResolved(false);
               setCoachGone(false);
               setCoachOpen(false);
               setHintGone(false);
             }}
-            className="font-display text-button border-control min-h-12 border-2 px-[18px] uppercase"
           >
             {g.reset}
-          </button>
+          </Button>
         </div>
         <LineLegend />
         <LineMap
@@ -221,13 +240,11 @@ export function DayGallerySection() {
           <WeekRoute days={days} selected={selected} onSelectDay={setSelected} />
         </div>
         <NoStreaksLine className="mb-4" />
-        <h4 className="font-display text-section text-signal-muted uppercase">
-          {dayStrings.networkTitle}
-        </h4>
+        <h4 className="font-display text-section text-signal-muted uppercase">{g.networkTitle}</h4>
         <WeekNetwork days={days} />
         <WeekNoteText lead={note.lead} detail={note.detail} className="mt-4" />
         <h4 className="font-display text-section text-signal-muted mt-6 mb-2 uppercase">
-          {dayStrings.dayByDay}
+          {g.dayByDay}
         </h4>
         <DayList days={days} />
       </Block>

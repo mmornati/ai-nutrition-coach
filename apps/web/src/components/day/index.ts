@@ -26,14 +26,3 @@ export {
   weekNoteParts,
 } from './week';
 export type { WeekDayData, WeekNote } from './week';
-export {
-  LINES,
-  LINE_GROUPS,
-  groupsOfPlate,
-  groupsOfEntries,
-  orderedGroups,
-  passedGroups,
-} from './lines';
-export { dayStrings } from './strings';
-export type { LineGroup } from './strings';
-export { DayGallerySection } from './DayGallerySection';

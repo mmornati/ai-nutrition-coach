@@ -7,3 +7,13 @@ export { TextField, type TextFieldProps } from './TextField';
 export { Checkbox, type CheckboxProps } from './Checkbox';
 export * from './icons';
 export { cn } from './cn';
+export {
+  LINES,
+  LINE_GROUPS,
+  groupsOfEntries,
+  groupsOfPlate,
+  lineDef,
+  orderedGroups,
+  passedGroups,
+} from './lines';
+export type { LineDef, LineGroup } from './lines';

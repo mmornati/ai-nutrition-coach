@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from './cn';
 import { VisuallyHidden } from './VisuallyHidden';
 
@@ -9,20 +9,24 @@ import { VisuallyHidden } from './VisuallyHidden';
 export function Chip({
   children,
   dot = false,
+  dotClassName = 'bg-line-veg',
   className,
-}: {
+  ...rest
+}: Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
   readonly children: ReactNode;
   readonly dot?: boolean;
-  readonly className?: string;
+  /** Replaces the dot's fill (the default is the on-device green). */
+  readonly dotClassName?: string;
 }) {
   return (
     <span
+      {...rest}
       className={cn(
         'font-display text-label inline-flex min-h-9 items-center gap-[7px] border-2 border-porcelain px-2.5 py-1.5 font-bold whitespace-nowrap uppercase',
         className,
       )}
     >
-      {dot && <span aria-hidden="true" className="bg-line-veg size-[9px] rounded-full" />}
+      {dot && <span aria-hidden="true" className={cn('size-[9px] rounded-full', dotClassName)} />}
       {children}
     </span>
   );

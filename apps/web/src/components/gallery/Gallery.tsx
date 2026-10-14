@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ComponentType, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type {
   DatabaseFood,
   FoodEntryDraft,
@@ -6,6 +6,7 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
+import { DayGallerySection } from './DayGallerySection';
 import { ConfirmDialog } from '../dialogs/ConfirmDialog';
 import { EraseLocalDataDialog } from '../dialogs/EraseLocalDataDialog';
 import { OffLookupNotice } from '../dialogs/OffLookupNotice';
@@ -41,19 +42,7 @@ import {
   UpdatePrompt,
 } from '../shell';
 
-/*
- * Dev gallery (route: #/gallery). Every component in its states with synthetic data.
- *
- * NOTE: the day components (LineMap, stations, coach card, status chip, week route) are built
- * separately and exported from ../day as `DayGallerySection`. It is loaded lazily and only if
- * that module exists, so this page (and the build) works with or without it.
- */
-type DaySection = ComponentType;
-const dayModules = import.meta.glob<{ DayGallerySection: DaySection }>('../day/index.ts');
-const loadDay = dayModules['../day/index.ts'];
-const DayGallerySection = loadDay
-  ? lazy(async () => ({ default: (await loadDay()).DayGallerySection }))
-  : null;
+/* Dev gallery (route: #/gallery). Every component in its states with synthetic data. */
 
 const food = (name: string, ref: string, foodGroup: DatabaseFood['foodGroup']): DatabaseFood => ({
   sourceRef: ref,
@@ -283,7 +272,6 @@ export function Gallery() {
 
       <Section title="Settings board">
         <DepartureBoard
-          className="mx-0"
           rows={[
             {
               id: 'ai',
@@ -342,11 +330,7 @@ export function Gallery() {
         </div>
       </Section>
 
-      {DayGallerySection && (
-        <Suspense fallback={null}>
-          <DayGallerySection />
-        </Suspense>
-      )}
+      <DayGallerySection />
 
       <CaptureSheet
         open={overlay === 'capture'}

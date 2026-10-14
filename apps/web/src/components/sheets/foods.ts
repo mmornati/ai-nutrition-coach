@@ -1,4 +1,5 @@
 import { databaseFood, type DatabaseFood, type QuantityRange } from '@anc/core';
+import { strings } from '../../i18n';
 
 /**
  * Small log-time helpers the sheets share. They mirror `kOneServing` / `manualFood` from the
@@ -9,7 +10,7 @@ export const ONE_SERVING: QuantityRange = {
   low: 1,
   high: 1,
   unit: 'serving',
-  displayLabel: '~1 serving',
+  displayLabel: strings().portion.oneServing,
 };
 
 /** The food for a name the person typed. Its group is unknown (`other`). */
