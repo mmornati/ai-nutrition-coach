@@ -10,6 +10,7 @@ import type { PhotoDigest } from './types';
 export class PhotoUploadPermit {
   readonly #digest: PhotoDigest;
   #grant: { host: string; digest: string } | null = null;
+  #closed = false;
 
   constructor(digest: PhotoDigest) {
     this.#digest = digest;
@@ -18,6 +19,7 @@ export class PhotoUploadPermit {
   /** The person agreed to send `bytes` to `host`. */
   async grant(args: { host: string; bytes: Uint8Array }): Promise<void> {
     const digest = await this.#digest(args.bytes);
+    if (this.#closed) return;
     this.#grant = { host: args.host.toLowerCase(), digest };
   }
 
@@ -42,6 +44,12 @@ export class PhotoUploadPermit {
 
   /** Drops an unspent permit (the photo was not sent after all). */
   revoke(): void {
+    this.#grant = null;
+  }
+
+  /** The session ended: drops any permit and ignores a grant still being computed. */
+  close(): void {
+    this.#closed = true;
     this.#grant = null;
   }
 

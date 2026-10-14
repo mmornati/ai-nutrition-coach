@@ -51,7 +51,7 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
   return (
     <nav
       aria-label={s.routeLabel}
-      className={`@container relative flex items-center pr-1.5 pl-3 before:absolute before:top-7.25 before:right-5.5 before:left-6 before:h-1 before:bg-rule before:content-[''] ${className}`}
+      className={`@container relative flex items-center before:absolute before:top-7.25 before:right-[calc(100%/14)] before:left-[calc(100%/14)] before:h-1 before:bg-rule before:content-[''] ${className}`}
     >
       {days.map((d) => {
         const current = isSameLocalDay(d.date, selected);
@@ -62,7 +62,7 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
             aria-label={dayRouteLabel(d)}
             aria-current={current ? 'true' : undefined}
             onClick={() => onSelectDay(d.date)}
-            className={`font-display relative flex min-h-19 min-w-0 flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-5 text-tag font-semibold tracking-[0.08em] uppercase ${current ? 'text-porcelain' : 'text-signal-muted'}`}
+            className={`font-display relative flex min-h-19 min-w-[48px] flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-5 text-tag font-semibold tracking-[0.08em] uppercase ${current ? 'text-porcelain' : 'text-signal-muted'}`}
           >
             <span
               aria-hidden="true"

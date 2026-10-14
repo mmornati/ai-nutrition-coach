@@ -63,6 +63,15 @@ describe('AppShell', () => {
     ).toEqual(['Today', 'Week', 'Settings']);
   });
 
+  it('on a phone the dock holds only the route; Log a plate is a floating 56px button above it', () => {
+    renderShell();
+    const dock = screen.getByRole('region', { name: 'Week and log' });
+    const fab = within(dock).getByRole('button', { name: 'Log a plate' });
+    expect(fab).toHaveClass('fixed', 'size-14');
+    expect(fab.className).toContain('safe-area-inset-bottom');
+    expect(screen.getByRole('main').className).toContain('safe-area-inset-bottom');
+  });
+
   it('the rail marks the current destination and shows the local status and footmark', () => {
     renderShell();
     const nav = screen.getByRole('navigation', { name: 'Main' });
@@ -153,7 +162,13 @@ describe('TierRadio', () => {
   const tiers: Tier[] = [
     { id: 'none', title: 'No AI', description: 'Log by barcode.' },
     { id: 'free', title: 'Free quota', description: 'Hosted model.' },
-    { id: 'local', title: 'Local model', description: 'Not available yet.', disabled: true },
+    {
+      id: 'local',
+      title: 'Local model',
+      description: 'Not available yet.',
+      disabled: true,
+      versionTag: true,
+    },
   ];
   function Controlled({ onChange }: { onChange?: (id: string) => void }) {
     const [value, setValue] = useState('free');
@@ -176,8 +191,23 @@ describe('TierRadio', () => {
     expect(screen.getByRole('radio', { name: /Free quota/ })).toBeChecked();
     const local = screen.getByRole('radio', { name: /Local model/ });
     expect(local).toBeDisabled();
-    expect(screen.getByText('v2')).toBeInTheDocument();
-    expect(screen.getByText('coming in version 2')).toBeInTheDocument();
+    expect(screen.getByText('Not in v1')).toBeInTheDocument();
+    expect(screen.getByText('not in version 1')).toBeInTheDocument();
+  });
+
+  it('a disabled tier without versionTag has no version tag', () => {
+    render(
+      <TierRadio
+        tiers={[
+          { id: 'hosted', title: 'Hosted', description: 'Not available yet.', disabled: true },
+        ]}
+        value=""
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /Hosted/ })).toBeDisabled();
+    expect(screen.queryByText('Not in v1')).not.toBeInTheDocument();
+    expect(screen.queryByText(/version/)).not.toBeInTheDocument();
   });
 
   it('choosing a tier selects it; arrow keys move between enabled tiers; disabled is skipped', async () => {

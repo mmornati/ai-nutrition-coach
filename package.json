@@ -16,7 +16,7 @@
     "typecheck": "pnpm -r typecheck",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "verify": "pnpm format:check && pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build && scripts/fetch_web_sqlite3mc.sh --self-test && scripts/fetch_web_zxing_pwa.sh --self-test && tools/check_no_dev_store_in_build.sh --self-test && tools/check_no_gallery_in_build.sh && tools/check_no_dev_store_in_build.sh"
+    "verify": "pnpm format:check && pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build && node tools/check_accessibility_floor.mjs && scripts/fetch_web_sqlite3mc.sh --self-test && scripts/fetch_web_zxing_pwa.sh --self-test && tools/check_no_dev_store_in_build.sh --self-test && tools/check_no_gallery_in_build.sh && tools/check_no_dev_store_in_build.sh"
   },
   "devDependencies": {
     "prettier": "3.9.10"

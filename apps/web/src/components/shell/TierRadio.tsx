@@ -6,8 +6,10 @@ export interface Tier {
   readonly id: string;
   readonly title: string;
   readonly description: string;
-  /** An unavailable tier: drawn at 0.75 opacity with a "v2" tag, and cannot be chosen. */
+  /** An unavailable tier: drawn at 0.75 opacity, and cannot be chosen. */
   readonly disabled?: boolean;
+  /** Adds the "Not in v1" tag. Only for a tier that is out of scope for version 1, not one that is merely unavailable yet. */
+  readonly versionTag?: boolean;
 }
 
 /**
@@ -59,7 +61,7 @@ export function TierRadio({
           <span>
             <span className="font-display text-title block uppercase">
               {tier.title}
-              {tier.disabled && <VersionTag spoken={s.v2Spoken}>{s.v2Tag}</VersionTag>}
+              {tier.versionTag === true && <VersionTag spoken={s.v2Spoken}>{s.v2Tag}</VersionTag>}
             </span>
             <span className="text-porcelain-dim mt-0.5 block text-aside">{tier.description}</span>
           </span>

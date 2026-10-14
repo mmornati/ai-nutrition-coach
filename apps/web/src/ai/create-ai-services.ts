@@ -30,6 +30,8 @@ export interface CreateAiServicesOptions {
   /** Phase 5's SHA-256 photo digest, which binds a one-shot permit to one photo. */
   readonly photoDigest: PhotoDigest;
   readonly fetch?: FetchLike;
+  /** Aborts every request the AI services make (the session ended). */
+  readonly signal?: AbortSignal;
 }
 
 /** Wires the settings, key store, permit, live rung and Your AI actions over the encrypted `kv`. */
@@ -43,6 +45,7 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
       sanitizePhoto: options.sanitizePhoto,
       classifyFoodGroup: options.classifyFoodGroup,
       fetch: options.fetch,
+      signal: options.signal,
     });
   return {
     settings,

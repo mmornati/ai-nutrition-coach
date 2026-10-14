@@ -4,6 +4,45 @@ The floor is **measured by widget tests**, not by grepping for the word
 `Semantics`. (An earlier checker passed any file that merely contained
 `Semantics(`; it measured nothing and was replaced.)
 
+## The web app (`apps/web`)
+
+The React PWA replaces the Flutter screens, and its floor is measured like this:
+
+- **Dark only.** The Food Lines world has one theme, midnight enamel with porcelain ink
+  (`DESIGN.md`); no light theme exists, so there is one contrast context to measure, not two. If a
+  light variant is ever added, every check below must run in both.
+- **Per screen, with axe.** Every screen component under `apps/web/src/screens/**` needs a test
+  that renders it, calls `axe()` (vitest-axe) and asserts `toHaveNoViolations()`.
+  `tools/check_accessibility_floor.mjs` (run by `pnpm verify`) enumerates the exported components
+  there and fails when one has no such test (skipped tests, comments and a test that never mentions
+  the component do not count). Layout helpers that only ever render inside a screen are listed in
+  the script with the screen that hosts them; a stale entry fails. The script is itself tested
+  (`apps/web/src/a11y-floor-gate.test.ts`).
+- **In a real browser.** jsdom has no layout, so axe cannot compute colour contrast or target size
+  there. `apps/web/e2e/journey.spec.ts` runs `@axe-core/playwright` (WCAG 2.0/2.1/2.2 A and AA,
+  which include contrast) on every settings screen at 390 px and 1440 px, and the gallery spec does
+  so for the components. Both run in Chromium and WebKit.
+- **Reflow and text size.** The same journey spec checks every settings screen for horizontal
+  scroll at 390 px and 1440 px and at 200 % text (the root font size doubled; all type is `rem`).
+- **Targets and names.** Touch targets are at least 48 px (the primitives set `min-h-12`); on a
+  phone the dock holds only the seven-stop week route (each stop is at least 48 px wide) and "Log a
+  plate" floats above it as a 56 px square. `apps/web/e2e/targets.spec.ts` measures every
+  interactive element on Today, Week, Plate, the capture sheet and Unlock at 390 px and 1440 px
+  (an inline link inside a sentence is the only exemption). Every control has an accessible name,
+  and state (a chosen option, a switch, a disabled tier) is carried by a tick or text, never by
+  colour alone.
+- **i18n.** `apps/web/eslint.config.js` runs `i18next/no-literal-string` in mode `all` over every
+  `.tsx` under `src/` (tests, `main.tsx` and the dev gallery excepted): JSX text, ternary and
+  template children, `aria-label={'...'}`, the text of any prop on a custom component, and a
+  string handed to a state setter all fail. A lower-case token (a union member, an id) and
+  strings inside `cn()` are not copy. The copy lives in `src/i18n/en.ts`;
+  `src/components/i18nGate.test.ts` proves each case.
+
+Still not measured automatically: keyboard order beyond the dialogs and sheets, and real screen
+readers (VoiceOver, TalkBack).
+
+The sections below describe the Flutter floor, which stays until the app is removed (plan phase 9).
+
 ## What is measured
 
 `apps/client/test/a11y/screen_guidelines_test.dart` pumps every screen under
@@ -19,12 +58,12 @@ silently go unmeasured. Each one
 must satisfy all four of Flutter's own guidelines
 (`apps/client/test/a11y/a11y_helpers.dart`):
 
-| Guideline | Asserts |
-| --------- | ------- |
-| `androidTapTargetGuideline` | every tappable node is at least 48 × 48 dp |
-| `iOSTapTargetGuideline` | every tappable node is at least 44 × 44 pt |
-| `labeledTapTargetGuideline` | every tappable node has a screen-reader label |
-| `textContrastGuideline` | text meets WCAG contrast (4.5:1, 3:1 for large text) against what is behind it |
+| Guideline                   | Asserts                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `androidTapTargetGuideline` | every tappable node is at least 48 × 48 dp                                     |
+| `iOSTapTargetGuideline`     | every tappable node is at least 44 × 44 pt                                     |
+| `labeledTapTargetGuideline` | every tappable node has a screen-reader label                                  |
+| `textContrastGuideline`     | text meets WCAG contrast (4.5:1, 3:1 for large text) against what is behind it |
 
 `tools/check_accessibility_floor.dart` (run by `melos run check:a11y` and
 chained into `melos run check:release-posture`) parses the code with the
@@ -40,7 +79,7 @@ fills keep the sage), a plate row whose quantity and sync chip overflowed a
 phone-width screen, and the coach whisper's two pills overflowing the row's text
 column.
 
-## What is *not* measured
+## What is _not_ measured
 
 The guidelines cannot see everything. Not covered by an automated check, and
 so not claimed as verified:

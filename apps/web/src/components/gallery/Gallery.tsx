@@ -308,6 +308,7 @@ export function Gallery() {
               title: 'Local model',
               description: 'A vision model on your own hardware. Not available yet.',
               disabled: true,
+              versionTag: true,
             },
           ]}
           value={tier}

@@ -50,8 +50,24 @@ export default defineConfig({
         },
       },
     },
+    // WebKit's persistent contexts share one site-data store (OPFS, IndexedDB, localStorage) for the
+    // origin, whatever their profile directory, so two WebKit tests that use the real store at the
+    // same time wipe each other's data. The journey therefore runs in its own project, after
+    // everything else, never beside the other store specs. (Chromium profiles are isolated.)
     ...(process.env['PW_WEBKIT']
-      ? [{ name: 'webkit', use: { ...devices['Desktop Safari'] } }]
+      ? [
+          {
+            name: 'webkit',
+            testIgnore: /journey\.spec\.ts/,
+            use: { ...devices['Desktop Safari'] },
+          },
+          {
+            name: 'webkit-journey',
+            testMatch: /journey\.spec\.ts/,
+            dependencies: ['webkit'],
+            use: { ...devices['Desktop Safari'] },
+          },
+        ]
       : []),
   ],
 });
