@@ -156,6 +156,23 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('is described by its body text', () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Sure?"
+        body={<p>Calm words</p>}
+        confirmLabel="Do it"
+        dismissLabel="Not now"
+        onConfirm={() => undefined}
+        onDismiss={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('alertdialog', { name: 'Sure?' })).toHaveAccessibleDescription(
+      'Calm words',
+    );
+  });
+
   it('both buttons are the same size class', () => {
     render(
       <ConfirmDialog
@@ -282,6 +299,13 @@ describe('PhotoConsentDialog', () => {
     );
     expect(screen.getByRole('button', { name: 'Send this photo' })).toBeInTheDocument();
     expect(screen.getByText(/You are asked before every photo/)).toBeInTheDocument();
+  });
+
+  it('is described by its body text', () => {
+    render(
+      <PhotoConsentDialog open host={host} onAllow={() => undefined} onDecline={() => undefined} />,
+    );
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(new RegExp(`${host}`));
   });
 
   it('declining is the default focus, Esc declines, and the scrim does not answer', async () => {

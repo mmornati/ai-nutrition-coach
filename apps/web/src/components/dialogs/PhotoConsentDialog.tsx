@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { fill, useStrings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { Dialog } from './Dialog';
@@ -33,6 +34,7 @@ export function PhotoConsentDialog({
 }: PhotoConsentDialogProps) {
   const s = useStrings().consent;
   const vars = { host };
+  const bodyId = useId();
   return (
     <Dialog
       open={open}
@@ -40,8 +42,9 @@ export function PhotoConsentDialog({
       title={fill(s.title, vars)}
       scrimDismiss={false}
       role="alertdialog"
+      describedBy={bodyId}
     >
-      <div className="text-body flex flex-col gap-3">
+      <div id={bodyId} className="text-body flex flex-col gap-3">
         <p>{s.whatIsSent}</p>
         <p>{fill(onWeb ? s.alsoVisibleWeb : s.alsoVisible, vars)}</p>
         <p>{fill(s.retention, vars)}</p>

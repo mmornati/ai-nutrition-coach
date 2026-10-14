@@ -27,19 +27,19 @@ export interface RailProps {
 export function Rail({ current, hrefs, onLog }: RailProps) {
   const s = useStrings().shell;
   return (
-    <aside className="border-rule hidden w-60 shrink-0 flex-col border-r-2 px-[18px] py-6 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:overflow-y-auto">
+    <aside className="border-rule hidden w-60 shrink-0 flex-col border-r-2 px-4.5 py-6 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:overflow-y-auto">
       <div className="font-display text-title border-rule flex items-center gap-2.5 border-b-2 pb-5 tracking-[0.06em] uppercase">
         <BrandMark />
         {s.brand}
       </div>
-      <nav aria-label={s.mainNav} className="mt-[18px] flex flex-col gap-0.5">
+      <nav aria-label={s.mainNav} className="mt-4.5 flex flex-col gap-0.5">
         {ITEMS.map(({ route, icon }) => (
           <a
             key={route}
             href={hrefs[route]}
             aria-current={route === current ? 'page' : undefined}
             className={cn(
-              'font-display relative flex min-h-[52px] items-center gap-3 px-2.5 text-[18px] font-semibold tracking-[0.1em] uppercase',
+              'font-display relative flex min-h-13 items-center gap-3 px-2.5 text-nav font-semibold tracking-[0.1em] uppercase',
               route === current
                 ? 'text-porcelain after:bg-line-starch after:absolute after:bottom-1.5 after:left-2.5 after:h-1 after:w-16'
                 : 'text-porcelain-dim',
@@ -50,16 +50,16 @@ export function Rail({ current, hrefs, onLog }: RailProps) {
           </a>
         ))}
       </nav>
-      <Button className="mt-[22px]" fullWidth icon={<PlusIcon size={20} />} onClick={onLog}>
+      <Button className="mt-5.5" fullWidth icon={<PlusIcon size={20} />} onClick={onLog}>
         {s.logAPlate}
       </Button>
-      <div className="border-rule text-porcelain-dim mt-auto border-t-2 pt-4 text-[14.5px]">
+      <div className="border-rule text-porcelain-dim mt-auto border-t-2 pt-4 text-meta">
         <p className="font-display text-porcelain mb-1 flex items-center gap-2 font-bold tracking-[0.1em] uppercase">
-          <span aria-hidden="true" className="bg-line-veg size-[9px] rounded-full" />
+          <span aria-hidden="true" className="bg-line-veg size-2.25 rounded-full" />
           {s.storage}
         </p>
         <p>{s.storageNote}</p>
-        <p className="font-display text-signal-muted mt-3.5 text-[14px] tracking-[0.1em] uppercase">
+        <p className="font-display text-signal-muted mt-3.5 text-small tracking-[0.1em] uppercase">
           {s.footmark}
         </p>
       </div>

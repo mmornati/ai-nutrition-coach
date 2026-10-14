@@ -19,10 +19,10 @@ export function CoachCard({ question, title, onSure, onAskLater, className = '' 
     <div
       role="group"
       aria-label={s.group}
-      className={`day-enter bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
+      className={`day-enter on-porcelain bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
     >
       {title ? (
-        <p className="font-display mb-1 text-[15px] font-bold tracking-[0.12em] uppercase">
+        <p className="font-display mb-1 text-aside font-bold tracking-[0.12em] uppercase">
           {title}
         </p>
       ) : null}
@@ -54,7 +54,7 @@ export function DepthPanel({ followUp, onClose, className = '' }: DepthPanelProp
     <div
       role="group"
       aria-label={s.depthGroup}
-      className={`day-enter bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
+      className={`day-enter on-porcelain bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
     >
       {followUp ? <p className="text-body">{followUp}</p> : null}
       <div className={followUp ? 'mt-3' : ''}>

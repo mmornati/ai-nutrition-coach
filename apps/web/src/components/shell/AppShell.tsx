@@ -41,7 +41,7 @@ export function AppShell({
       <Rail current={current} hrefs={hrefs} onLog={onLog} />
       <div className="flex min-w-0 flex-1 flex-col">
         {header}
-        <main className="flex-1 pb-[110px] lg:pb-16">{children}</main>
+        <main className="flex-1 pb-27.5 lg:pb-16">{children}</main>
         {banner && <div className="order-first">{banner}</div>}
       </div>
       <Dock route={route} onLog={onLog} />

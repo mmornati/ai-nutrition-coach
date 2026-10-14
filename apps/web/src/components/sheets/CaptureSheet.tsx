@@ -36,7 +36,7 @@ function Tile({
       {...(initialFocus ? { 'data-autofocus': true } : {})}
       className={cn(
         'border-porcelain flex cursor-pointer flex-col justify-between gap-2.5 rounded-none border-2 p-3.5 text-left',
-        main ? 'bg-porcelain text-enamel col-span-2 min-h-[132px]' : 'text-porcelain min-h-24',
+        main ? 'bg-porcelain text-enamel col-span-2 min-h-33' : 'text-porcelain min-h-24',
       )}
     >
       <span className="font-display text-title flex w-full items-center justify-between uppercase">

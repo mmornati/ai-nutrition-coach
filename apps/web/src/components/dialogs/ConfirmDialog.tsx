@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button } from '../primitives/Button';
 import { Dialog } from './Dialog';
 
@@ -29,9 +29,12 @@ export function ConfirmDialog({
   onDismiss,
   busy = false,
 }: ConfirmDialogProps) {
+  const bodyId = useId();
   return (
-    <Dialog open={open} onClose={onDismiss} title={title} role="alertdialog">
-      <div className="text-body">{body}</div>
+    <Dialog open={open} onClose={onDismiss} title={title} role="alertdialog" describedBy={bodyId}>
+      <div id={bodyId} className="text-body">
+        {body}
+      </div>
       <div className="flex gap-3">
         <Button variant="solid-porcelain" className="flex-1" data-autofocus onClick={onDismiss}>
           {dismissLabel}

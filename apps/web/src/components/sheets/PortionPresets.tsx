@@ -34,7 +34,7 @@ export function PortionPresets({
             aria-pressed={selected}
             onClick={() => onChange(preset)}
             className={cn(
-              'font-display quantity min-h-12 min-w-12 cursor-pointer rounded-none border-2 px-3.5 text-[16px] font-semibold tracking-[0.05em]',
+              'font-display quantity min-h-12 min-w-12 cursor-pointer rounded-none border-2 px-3.5 text-ui font-semibold tracking-[0.05em]',
               selected
                 ? 'border-porcelain bg-porcelain text-enamel'
                 : cn(

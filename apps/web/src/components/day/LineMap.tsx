@@ -199,7 +199,7 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
           <li
             key={s.id}
             data-station-row={s.id}
-            className="relative min-h-30 pt-[18px] pb-[22px] lg:min-h-35"
+            className="relative min-h-30 pt-4.5 pb-5.5 lg:min-h-35"
           >
             {renderStation(s)}
           </li>

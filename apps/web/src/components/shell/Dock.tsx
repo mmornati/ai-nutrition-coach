@@ -18,7 +18,7 @@ export function Dock({ route, onLog }: { readonly route: ReactNode; readonly onL
         type="button"
         aria-label={s.logAPlate}
         onClick={onLog}
-        className="bg-porcelain text-enamel font-display text-button flex min-h-[76px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-none tracking-[0.1em] uppercase"
+        className="bg-porcelain text-enamel font-display text-button flex min-h-19 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-none tracking-[0.1em] uppercase"
       >
         <PlusIcon size={20} />
         {s.logShort}

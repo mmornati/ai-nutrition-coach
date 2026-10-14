@@ -35,7 +35,7 @@ export function TierRadio({
         <label
           key={tier.id}
           className={[
-            'group grid w-full grid-cols-[28px_1fr] gap-3 border-2 p-3.5 text-left',
+            'group grid w-full grid-cols-[1.75rem_1fr] gap-3 border-2 p-3.5 text-left',
             'border-control has-[:checked]:border-porcelain',
             'has-[:focus-visible]:outline-line-starch has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2',
             tier.disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
@@ -61,7 +61,7 @@ export function TierRadio({
               {tier.title}
               {tier.disabled && <VersionTag spoken={s.v2Spoken}>{s.v2Tag}</VersionTag>}
             </span>
-            <span className="text-porcelain-dim mt-0.5 block text-[15px]">{tier.description}</span>
+            <span className="text-porcelain-dim mt-0.5 block text-aside">{tier.description}</span>
           </span>
         </label>
       ))}

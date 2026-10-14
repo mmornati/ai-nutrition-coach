@@ -144,7 +144,7 @@ describe('DepartureBoard', () => {
     expect(row).toHaveTextContent('Free quota');
     await userEvent.click(row);
     expect(onSelect).toHaveBeenCalled();
-    expect(row).toHaveClass('min-h-[68px]');
+    expect(row).toHaveClass('min-h-17');
     expect(await axe(container)).toHaveNoViolations();
   });
 });

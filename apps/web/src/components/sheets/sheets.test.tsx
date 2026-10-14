@@ -79,7 +79,7 @@ describe('CaptureSheet', () => {
     render(<CaptureHarness />);
     await userEvent.click(screen.getByRole('button', { name: 'Log a plate' }));
     const snapshot = screen.getByRole('button', { name: /^Snapshot/ });
-    expect(snapshot).toHaveClass('bg-porcelain', 'col-span-2', 'min-h-[132px]');
+    expect(snapshot).toHaveClass('bg-porcelain', 'col-span-2', 'min-h-33');
     for (const name of [/^Barcode/, /^Type it/]) {
       const tile = screen.getByRole('button', { name });
       expect(tile).not.toHaveClass('bg-porcelain');
@@ -160,6 +160,15 @@ describe('BarcodeMatchSheet', () => {
     expect(screen.getByRole('dialog', { name: 'Nutella' })).toBeInTheDocument();
     expect(screen.getByText('Other')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log' })).toBeInTheDocument();
+  });
+
+  it('opens focused on the title (read first), not on Close', () => {
+    render(
+      <BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={() => undefined} />,
+    );
+    const title = screen.getByRole('heading', { name: 'Nutella' });
+    expect(title).toHaveFocus();
+    expect(title).toHaveAttribute('tabindex', '-1');
   });
 
   it('preset chips are >= 48px and the first is the default', () => {
@@ -275,6 +284,19 @@ describe('RecognizedMatchSheet', () => {
     { food: APPLE, confidence: 0.4, presets: [range(1, 2, 'piece', '~1-2 pieces')] },
     { food: RICE, confidence: 0.3, presets: [range(3, 4, 'fist', '~3-4 fists')] },
   ];
+
+  it('opens focused on the title (read first), not on Close', () => {
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={recognized}
+        closestMatches={closest}
+        onLog={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Looks like 2 foods' })).toHaveFocus();
+  });
 
   it('lists recognized foods, all ticked, with group markers and a portion each', () => {
     render(

@@ -51,7 +51,7 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
             x={x(i)}
             y={20}
             textAnchor="middle"
-            className={`font-display text-[16px] font-bold tracking-[1.5px] uppercase ${d.isToday ? 'fill-line-starch' : 'fill-signal-muted'}`}
+            className={`font-display text-ui font-bold tracking-[1.5px] uppercase ${d.isToday ? 'fill-line-starch' : 'fill-signal-muted'}`}
           >
             {d.isToday ? w.today : weekdayAbbr(d.date)}
           </text>
@@ -77,7 +77,7 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
               <text
                 x={0}
                 y={y + 5}
-                className="font-display fill-porcelain-dim text-[14px] font-semibold tracking-[1px] uppercase"
+                className="font-display fill-porcelain-dim text-small font-semibold tracking-[1px] uppercase"
               >
                 {groups[l.nameKey]}
               </text>
@@ -145,9 +145,12 @@ export function DayList({ days, className = '' }: DayListProps) {
       {days.map((d) => (
         <li
           key={d.date}
-          className="border-rule grid min-h-14 grid-cols-[64px_1fr_auto] items-center gap-3 border-b"
+          className="border-rule grid min-h-14 grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 border-b"
         >
-          <span className="font-display text-[20px] font-bold tracking-[0.06em] uppercase">
+          {/* First child: an absolutely positioned sr-only box is placed at its static position,
+              and anywhere else it would sit past the right edge and add page scroll. */}
+          <span className="sr-only">{dayDescription(weekdayName(d.date), describeDay(d))}</span>
+          <span className="font-display text-subtitle font-bold tracking-[0.06em] uppercase">
             {d.isToday ? w.today : weekdayAbbr(d.date)}
           </span>
           <span className="flex gap-1">
@@ -155,12 +158,11 @@ export function DayList({ days, className = '' }: DayListProps) {
               <i
                 key={l.group}
                 aria-hidden="true"
-                className={`block h-1.5 w-7 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-rule border-[1.5px] border-dashed'}`}
+                className={`block h-1.5 w-7 min-w-0 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-signal-muted border-[1.5px] border-dashed'}`}
               />
             ))}
-            <span className="sr-only">{dayDescription(weekdayName(d.date), describeDay(d))}</span>
           </span>
-          <span className="text-signal-muted text-[14.5px]">{platesCount(d.plateCount)}</span>
+          <span className="text-signal-muted text-meta">{platesCount(d.plateCount)}</span>
         </li>
       ))}
     </ul>
@@ -176,7 +178,7 @@ export interface WeekNoteTextProps {
 /** The observation paragraph: bold lead, quiet detail, held to 40ch. */
 export function WeekNoteText({ lead, detail, className = '' }: WeekNoteTextProps) {
   return (
-    <p className={`text-porcelain-dim m-0 max-w-[40ch] text-[17px] ${className}`}>
+    <p className={`text-porcelain-dim m-0 max-w-[40ch] text-lead ${className}`}>
       <b className="text-porcelain font-semibold">{lead}</b>
       {detail ? ` ${detail}` : null}
     </p>
@@ -185,5 +187,5 @@ export function WeekNoteText({ lead, detail, className = '' }: WeekNoteTextProps
 
 export function NoStreaksLine({ className = '' }: { readonly className?: string }) {
   const w = useStrings().week;
-  return <p className={`text-signal-muted m-0 text-[14.5px] ${className}`}>{w.noStreaks}</p>;
+  return <p className={`text-signal-muted m-0 text-meta ${className}`}>{w.noStreaks}</p>;
 }

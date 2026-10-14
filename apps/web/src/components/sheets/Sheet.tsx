@@ -9,6 +9,8 @@ export interface SheetProps {
   readonly onClose: () => void;
   readonly title: string;
   readonly subtitle?: ReactNode;
+  /** Initial focus on the title so it is read first (match sheets). */
+  readonly focusTitle?: boolean;
   readonly children: ReactNode;
 }
 
@@ -16,7 +18,14 @@ export interface SheetProps {
  * Raised-enamel sheet with a 4px porcelain top rule: a bottom sheet on phones and a centred
  * 560px dialog from 1024px. Built on the native `<dialog>` (see Dialog).
  */
-export function Sheet({ open, onClose, title, subtitle, children }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  subtitle,
+  focusTitle = false,
+  children,
+}: SheetProps) {
   const s = useStrings();
   return (
     <Dialog
@@ -25,6 +34,7 @@ export function Sheet({ open, onClose, title, subtitle, children }: SheetProps) 
       title={title}
       titleClassName="text-headline"
       variant="sheet"
+      focusTitle={focusTitle}
       headerAction={
         <IconButton label={s.common.close} raised onClick={onClose} className="-mt-1 -mr-1">
           <CloseIcon />

@@ -29,7 +29,7 @@ export function TextField({ label, message, ...input }: TextFieldProps) {
           id={id}
           type="text"
           aria-describedby={message ? messageId : undefined}
-          className="placeholder:text-signal-muted min-w-0 flex-1 bg-transparent px-3.5 text-[17px] outline-none"
+          className="placeholder:text-signal-muted min-w-0 flex-1 bg-transparent px-3.5 text-lead outline-none"
           {...input}
         />
       </div>

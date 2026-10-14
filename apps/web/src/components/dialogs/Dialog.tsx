@@ -21,16 +21,20 @@ export interface DialogProps {
   /** Whether a click on the scrim dismisses. Default true. */
   readonly scrimDismiss?: boolean;
   readonly role?: 'dialog' | 'alertdialog';
+  /** Id of the element holding the body text, so the dialog is announced with its description. */
+  readonly describedBy?: string;
+  /** Initial focus lands on the title (tabIndex -1) so it is read first, not on a control. */
+  readonly focusTitle?: boolean;
   readonly children: ReactNode;
 }
 
 const VARIANT = {
   dialog:
-    'm-auto w-[calc(100%-2rem)] max-w-[480px] max-h-[calc(100dvh-2rem)] border-2 border-t-4 border-porcelain',
+    'm-auto w-[calc(100%-2rem)] max-w-120 max-h-[calc(100dvh-2rem)] border-2 border-t-4 border-porcelain',
   sheet: [
     'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] border-x-0 border-b-0 border-t-4 border-porcelain',
     'translate-y-0 transition-transform duration-[350ms] ease-line starting:open:translate-y-full',
-    'lg:m-auto lg:w-[560px] lg:max-h-[calc(100dvh-4rem)] lg:border-2 lg:border-t-4 lg:starting:open:translate-y-0',
+    'lg:m-auto lg:w-140 lg:max-h-[calc(100dvh-4rem)] lg:border-2 lg:border-t-4 lg:starting:open:translate-y-0',
   ].join(' '),
 } as const;
 
@@ -52,6 +56,8 @@ export function Dialog({
   escDismiss = true,
   scrimDismiss = true,
   role,
+  describedBy,
+  focusTitle = false,
   children,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -91,6 +97,7 @@ export function Dialog({
       ref={ref}
       role={role}
       aria-labelledby={open ? titleId : undefined}
+      aria-describedby={open ? describedBy : undefined}
       onCancel={(e) => {
         // Keep React state the single source of truth: never let the browser close it for us.
         e.preventDefault();
@@ -108,7 +115,12 @@ export function Dialog({
           <div className="flex items-start justify-between gap-3">
             <h2
               id={titleId}
-              className={cn('font-display uppercase', titleClassName ?? 'text-title')}
+              {...(focusTitle ? { tabIndex: -1, 'data-autofocus': true } : {})}
+              className={cn(
+                'font-display uppercase',
+                focusTitle && 'outline-none',
+                titleClassName ?? 'text-title',
+              )}
             >
               {title}
             </h2>

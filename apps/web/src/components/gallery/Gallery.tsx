@@ -125,9 +125,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 /** Fake page content for the dock slot. */
 function RouteSlot() {
   return (
-    <p className="text-signal-muted flex min-h-[76px] items-center px-4 text-[14px]">
-      Week route slot
-    </p>
+    <p className="text-signal-muted flex min-h-19 items-center px-4 text-small">Week route slot</p>
   );
 }
 
@@ -215,11 +213,7 @@ export function Gallery() {
         </div>
         <div className="flex flex-wrap items-center gap-4" role="list" aria-label="Icon set">
           {Object.entries(ICONS).map(([name, Icon]) => (
-            <span
-              key={name}
-              role="listitem"
-              className="flex flex-col items-center gap-1 text-[12px]"
-            >
+            <span key={name} role="listitem" className="flex flex-col items-center gap-1 text-fine">
               <Icon size={28} />
               {name}
             </span>

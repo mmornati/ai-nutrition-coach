@@ -207,7 +207,7 @@ function Body({
           checked={choice.checked}
           onChange={(e) => update(c.key, { checked: e.target.checked })}
         >
-          <span className="block text-[17px]">{c.food.displayName}</span>
+          <span className="block text-lead">{c.food.displayName}</span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <GroupMarker group={c.food.foodGroup} />
             {c.confidence !== undefined && (
@@ -306,7 +306,7 @@ export function RecognizedMatchSheet({
   const s = useStrings();
   const { title, subtitle } = describe(result, s);
   return (
-    <Sheet open={open} onClose={onClose} title={title} subtitle={subtitle}>
+    <Sheet open={open} onClose={onClose} title={title} subtitle={subtitle} focusTitle>
       <Body
         result={result}
         closestMatches={closestMatches}

@@ -17,7 +17,7 @@ export function EntryList({ entries }: { readonly entries: readonly EntryItem[] 
     <ul aria-label={s.entries.label} className="border-porcelain border-t-2">
       {entries.map((entry) => (
         <li key={entry.id} className="border-rule border-b py-3">
-          <div className="flex items-baseline justify-between gap-3 text-[17px]">
+          <div className="flex items-baseline justify-between gap-3 text-lead">
             <span className="min-w-0">{entry.name}</span>
             <span className="font-display quantity text-quantity font-semibold whitespace-nowrap">
               {entry.quantity}

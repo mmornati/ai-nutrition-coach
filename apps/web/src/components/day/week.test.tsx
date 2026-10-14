@@ -201,15 +201,38 @@ describe('WeekRoute', () => {
     expect(visible).toEqual(['W', 'T', 'F', 'S', 'S', 'M', 'Today']);
   });
 
-  it('marks only the selected day aria-current="date" and selecting calls back', async () => {
+  it('marks only the selected day aria-current="true" and selecting calls back', async () => {
     const onSelect = route(localTime(2026, 10, 11));
     const current = screen
       .getAllByRole('button')
-      .filter((b) => b.getAttribute('aria-current') === 'date');
+      .filter((b) => b.getAttribute('aria-current') === 'true');
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveAccessibleName(/^Sunday/);
+    // One pattern: nothing uses aria-current="date" and today is named, not aria-current.
+    expect(document.querySelector('[aria-current="date"]')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: /^Friday/ }));
     expect(onSelect).toHaveBeenCalledWith(WEEK[2]?.date);
+  });
+
+  it('today keeps "today" in its name whether or not it is the selection', () => {
+    route(WEEK[2]?.date);
+    const today = screen.getByRole('button', { name: /^Tuesday/ });
+    expect(today).toHaveAccessibleName('Tuesday, all four lines, today');
+    expect(today).not.toHaveAttribute('aria-current');
+    route(TODAY);
+    expect(screen.getAllByRole('button', { name: /^Tuesday/ }).at(-1)).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+  });
+
+  it('draws an empty day dashed, unlike partial (hollow) and logged-without-line', () => {
+    const mixed = [day(-6, ALL), day(-5, [], 0), day(-4, [], 1), ...WEEK.slice(3)];
+    render(<WeekRoute days={mixed} selected={TODAY} onSelectDay={() => {}} />);
+    const dot = (name: RegExp) => screen.getByRole('button', { name }).firstElementChild;
+    expect(dot(/^Thursday/)).toHaveClass('border-dashed');
+    expect(dot(/^Friday/)).not.toHaveClass('border-dashed');
+    expect(dot(/^Wednesday/)?.className).not.toContain('border-dashed');
   });
 
   it('full days are filled and partial days hollow; today is amber', () => {

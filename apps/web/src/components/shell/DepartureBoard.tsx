@@ -28,14 +28,14 @@ export function DepartureBoard({
           <button
             type="button"
             onClick={row.onSelect}
-            className="border-rule grid min-h-[68px] w-full cursor-pointer grid-cols-[24px_1fr_auto_20px] items-center gap-3.5 border-b py-2 text-left"
+            className="border-rule flex min-h-17 w-full cursor-pointer flex-wrap items-center gap-x-3.5 gap-y-1 border-b py-2 text-left"
           >
             <LineSwatch group={row.line} />
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1 basis-32">
               <span className="font-display text-title block uppercase">{row.title}</span>
-              <span className="text-signal-muted text-[14.5px]">{row.subtitle}</span>
+              <span className="text-signal-muted text-meta">{row.subtitle}</span>
             </span>
-            <span className="font-display text-porcelain-dim text-[15px] font-semibold tracking-[0.06em] uppercase">
+            <span className="font-display text-porcelain-dim text-aside font-semibold tracking-[0.06em] uppercase">
               {row.status}
             </span>
             <ChevronIcon size={18} />

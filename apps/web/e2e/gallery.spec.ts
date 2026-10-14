@@ -108,3 +108,47 @@ test('choosing Snapshot closes the sheet and reports the choice', async ({ page 
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Snapshot chosen')).toBeVisible();
 });
+
+test('200% text on a phone: no horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openGallery(page);
+  // CSSOM, not a <style> tag: the release CSP forbids inline styles.
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  await page.waitForTimeout(200);
+  const m = await page.evaluate(() => ({
+    scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
+    innerWidth: window.innerWidth,
+    rootPx: getComputedStyle(document.documentElement).fontSize,
+    // Elements poking past the right edge, to name the culprit when this fails.
+    offenders: [...document.body.querySelectorAll('*')]
+      .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)
+      .slice(0, 12)
+      .map(
+        (el) =>
+          `${Math.round(el.getBoundingClientRect().left)}-${Math.round(el.getBoundingClientRect().right)} ${el.tagName.toLowerCase()}.${String(el.getAttribute('class') ?? '').slice(0, 60)}`,
+      ),
+  }));
+  expect(m.rootPx).toBe('32px');
+  expect(m.offenders).toEqual([]);
+  expect(m.scrollWidth).toBeLessThanOrEqual(m.innerWidth);
+});
+
+test('reduced motion: the day-enter fade still runs, with no movement', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openGallery(page);
+  const enter = page.locator('.day-enter').first();
+  await expect(enter).toBeVisible();
+  const a = await enter.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { name: s.animationName, duration: s.animationDuration };
+  });
+  expect(a).toEqual({ name: 'day-fade', duration: '0.2s' });
+  // Everything else stays reduced.
+  const other = await page.evaluate(() => {
+    const el = document.querySelector('.day-ring-draw, .day-stopdot, button');
+    return el ? getComputedStyle(el).transitionDuration : '';
+  });
+  expect(other).toMatch(/^0\.00*1s$|^1e-05s$|^0s$/);
+});

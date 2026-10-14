@@ -46,6 +46,11 @@ describe('CoachCard', () => {
     expect(screen.getByRole('group', { name: 'Coach question' })).toHaveClass('day-enter');
   });
 
+  it('is a porcelain surface: focus rings switch to enamel (amber is 1.84:1 on porcelain)', () => {
+    render(<CoachCard question={Q} onSure={() => {}} onAskLater={() => {}} />);
+    expect(screen.getByRole('group', { name: 'Coach question' })).toHaveClass('on-porcelain');
+  });
+
   it('announces the question inside a named group', () => {
     render(<CoachCard question={Q} onSure={() => {}} onAskLater={() => {}} />);
     expect(screen.getByRole('group', { name: 'Coach question' })).toHaveTextContent(Q);

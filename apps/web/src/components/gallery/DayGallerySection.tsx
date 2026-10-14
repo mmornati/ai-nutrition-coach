@@ -209,7 +209,7 @@ export function DayGallerySection() {
             );
           }}
         />
-        <p role="status" className="text-signal-muted mt-2 text-[14.5px]">
+        <p role="status" className="text-signal-muted mt-2 text-meta">
           {last}
         </p>
       </Block>

@@ -18,7 +18,7 @@ const HOLD_MS = 500;
 const MOVE_TOLERANCE = 10;
 
 const NAME_CLASS =
-  'font-display text-headline lg:text-headline-desktop m-0 flex items-center gap-2.5 uppercase';
+  'font-display text-headline lg:text-headline-desktop m-0 flex flex-wrap items-center gap-x-2.5 [overflow-wrap:anywhere] uppercase';
 
 export interface PlateRowProps {
   readonly plate: PlateLog;
@@ -89,12 +89,12 @@ export function PlateRow({
     <>
       <h2 data-station-anchor className={NAME_CLASS}>
         {meal}
-        <span className="font-display text-signal-muted text-[15px] font-semibold tracking-[0.06em]">
+        <span className="font-display text-signal-muted text-aside font-semibold tracking-[0.06em]">
           {time}
         </span>
       </h2>
       <p className="text-signal-muted text-body-small mt-1">{summary}</p>
-      <p className="text-porcelain-dim mt-1.5 text-[14.5px]">{stopsText}</p>
+      <p className="text-porcelain-dim mt-1.5 text-meta">{stopsText}</p>
       <div className="mt-2">
         <StatusChip hasTransport={hasTransport} status={syncStatus} />
       </div>
@@ -159,7 +159,7 @@ export function OpenStation({ slot, hint, onDismissHint, resolving = false }: Op
       {resolving ? (
         <p
           role="status"
-          className="font-display text-line-starch mt-1.5 text-[15px] font-semibold tracking-[0.1em]"
+          className="font-display text-line-starch mt-1.5 text-aside font-semibold tracking-[0.1em]"
         >
           {s.reading}
         </p>
@@ -168,12 +168,12 @@ export function OpenStation({ slot, hint, onDismissHint, resolving = false }: Op
           type="button"
           onClick={onDismissHint}
           aria-label={dismissHint(hint)}
-          className="text-porcelain-dim mt-1.5 min-h-12 max-w-[34ch] cursor-pointer bg-transparent py-1 text-left text-[15.5px]"
+          className="text-porcelain-dim mt-1.5 min-h-12 max-w-[34ch] cursor-pointer bg-transparent py-1 text-left text-hint"
         >
           {hint}
         </button>
       ) : (
-        <p className="text-porcelain-dim mt-1.5 max-w-[34ch] text-[15.5px]">{s.openQuietPlace}</p>
+        <p className="text-porcelain-dim mt-1.5 max-w-[34ch] text-hint">{s.openQuietPlace}</p>
       )}
     </>
   );

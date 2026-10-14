@@ -74,6 +74,7 @@ export function BarcodeMatchSheet({
       open={open}
       onClose={onClose}
       title={match.food.displayName}
+      focusTitle
       subtitle={<GroupMarker group={match.food.foodGroup} />}
     >
       <Body match={match} onLog={onLog} errorMessage={errorMessage} />

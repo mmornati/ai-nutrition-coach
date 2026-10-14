@@ -78,56 +78,69 @@
   --font-body: 'Barlow', system-ui, sans-serif;
 
   /* Type scale: size + weight + line-height + letter-spacing, from the DESIGN.md frontmatter. */
-  --text-display: 44px;
+  --text-display: 2.75rem;
   --text-display--font-weight: 700;
   --text-display--line-height: 0.95;
   --text-display--letter-spacing: 0.01em;
-  --text-headline: 28px;
+  --text-headline: 1.75rem;
   --text-headline--font-weight: 700;
   --text-headline--line-height: 1;
   --text-headline--letter-spacing: 0.03em;
-  --text-title: 22px;
+  --text-title: 1.375rem;
   --text-title--font-weight: 700;
   --text-title--line-height: 1.1;
   --text-title--letter-spacing: 0.05em;
-  --text-section: 17px;
+  --text-section: 1.0625rem;
   --text-section--font-weight: 700;
   --text-section--line-height: 1.2;
   --text-section--letter-spacing: 0.12em;
-  --text-button: 16px;
+  --text-button: 1rem;
   --text-button--font-weight: 700;
   --text-button--line-height: 1;
   --text-button--letter-spacing: 0.08em;
-  --text-label: 14px;
+  --text-label: 0.875rem;
   --text-label--font-weight: 600;
   --text-label--line-height: 1.2;
   --text-label--letter-spacing: 0.06em;
-  --text-quantity: 19px;
+  --text-quantity: 1.1875rem;
   --text-quantity--font-weight: 600;
   --text-quantity--line-height: 1.2;
   --text-quantity--letter-spacing: 0.03em;
-  --text-body: 16px;
+  --text-body: 1rem;
   --text-body--font-weight: 400;
   --text-body--line-height: 1.45;
-  --text-body-small: 15px;
+  --text-body-small: 0.9375rem;
   --text-body-small--font-weight: 400;
   --text-body-small--line-height: 1.45;
 
+  /* Size-only steps for text that carries its own weight, tracking and leading. All rem so the
+     whole interface scales with the browser's text size (WCAG 1.4.4). */
+  --text-fine: 0.75rem;
+  --text-tag: 0.8125rem;
+  --text-small: 0.875rem;
+  --text-meta: 0.90625rem;
+  --text-aside: 0.9375rem;
+  --text-hint: 0.96875rem;
+  --text-ui: 1rem;
+  --text-lead: 1.0625rem;
+  --text-nav: 1.125rem;
+  --text-subtitle: 1.25rem;
+
   /* Desktop (>= 1024px) sizes; use as `lg:text-display-desktop`. */
-  --text-display-desktop: 64px;
+  --text-display-desktop: 4rem;
   --text-display-desktop--font-weight: 700;
   --text-display-desktop--line-height: 0.95;
   --text-display-desktop--letter-spacing: 0.01em;
-  --text-headline-desktop: 34px;
+  --text-headline-desktop: 2.125rem;
   --text-headline-desktop--font-weight: 700;
   --text-headline-desktop--line-height: 1;
   --text-headline-desktop--letter-spacing: 0.03em;
 
-  --radius-station: 14px;
+  --radius-station: 0.875rem;
 
-  --spacing-gutter: 20px;
-  --spacing-gutter-desktop: 28px;
-  --spacing-column-gap: 36px;
+  --spacing-gutter: 1.25rem;
+  --spacing-gutter-desktop: 1.75rem;
+  --spacing-column-gap: 2.25rem;
 
   --ease-line: cubic-bezier(0.16, 1, 0.3, 1);
 }

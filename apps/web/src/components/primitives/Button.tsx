@@ -59,7 +59,7 @@ export function Button({
         onClick?.(e);
       }}
       className={cn(
-        'font-display text-button inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-2.5 rounded-none border-2 px-[18px] uppercase',
+        'font-display text-button inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-2.5 rounded-none border-2 px-4.5 uppercase',
         'disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-60',
         'aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:opacity-60',
         VARIANT[variant],
