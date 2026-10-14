@@ -48,8 +48,14 @@ describe('PlateRow', () => {
   });
 
   it('renders a status chip from the sync status', () => {
+    row({ syncStatus: 'failed', hasTransport: true });
+    expect(screen.getByText('Retry later')).toBeInTheDocument();
+  });
+
+  it('without a transport the chip only says "On this device"', () => {
     row({ syncStatus: 'failed' });
-    expect(screen.getByText('Retry later', { selector: '[aria-hidden]' })).toBeInTheDocument();
+    expect(screen.getByText('On this device')).toBeInTheDocument();
+    expect(screen.queryByText('Retry later')).not.toBeInTheDocument();
   });
 
   it('the screen-reader action "Remove this plate" requests the delete', async () => {

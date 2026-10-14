@@ -215,7 +215,8 @@ describe('BarcodeMatchSheet', () => {
     render(<BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={onLog} />);
     await userEvent.click(screen.getByRole('button', { name: 'Log' }));
     const busy = screen.getByRole('button', { name: 'Logging…' });
-    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute('aria-disabled', 'true');
+    expect(busy).toHaveFocus();
     await userEvent.click(busy);
     expect(onLog).toHaveBeenCalledTimes(1);
     finish();
@@ -234,6 +235,24 @@ describe('BarcodeMatchSheet', () => {
     );
     expect(screen.getByRole('status')).toHaveTextContent('Couldn’t log it. Try again.');
     expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled();
+  });
+
+  it('a rejected log shows a calm inline line and the button comes back', async () => {
+    const onLog = vi.fn(() => Promise.reject(new Error('boom')));
+    render(<BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={onLog} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Log' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/did not save/);
+    expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled();
+  });
+
+  it('double-clicking Log commits once', async () => {
+    let finish: () => void = () => undefined;
+    const onLog = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    render(<BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={onLog} />);
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Log' }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    finish();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled());
   });
 
   it('has no axe violations', async () => {
@@ -273,7 +292,8 @@ describe('RecognizedMatchSheet', () => {
     expect(salmon).toBeChecked();
     expect(rice).toBeChecked();
     expect(screen.getByText('Protein')).toBeInTheDocument();
-    expect(screen.getByText('90% sure')).toBeInTheDocument();
+    expect(screen.getAllByText('likely')).toHaveLength(2);
+    expect(screen.queryByText(/%|sure/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '~1 fillet' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -414,12 +434,96 @@ describe('RecognizedMatchSheet', () => {
       />,
     );
     await userEvent.click(screen.getByRole('button', { name: 'Log' }));
-    const busy = screen.getAllByRole('button', { name: 'Logging…' });
-    expect(busy.length).toBeGreaterThan(0);
-    for (const b of busy) expect(b).toBeDisabled();
+    // Only the clicked button says "Logging…" and keeps focus; the other is merely inert.
+    const busy = screen.getByRole('button', { name: 'Logging…' });
+    expect(busy).toHaveFocus();
+    expect(busy).toHaveAttribute('aria-disabled', 'true');
+    const other = screen.getByRole('button', { name: 'Log custom food' });
+    expect(other).toHaveAttribute('aria-disabled', 'true');
+    expect(other).not.toHaveAttribute('aria-busy');
+    await userEvent.click(other);
+    await userEvent.click(busy);
     finish();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled());
     expect(onLog).toHaveBeenCalledTimes(1);
+  });
+
+  it('double-clicking Log commits once', async () => {
+    let finish: () => void = () => undefined;
+    const onLog = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={recognized}
+        closestMatches={[]}
+        onLog={onLog}
+      />,
+    );
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Log' }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    finish();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled());
+  });
+
+  it('a failed log shows a calm line and stays usable', async () => {
+    const onLog = vi.fn(() => Promise.reject(new Error('boom')));
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={recognized}
+        closestMatches={[]}
+        onLog={onLog}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Log' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/did not save/);
+    expect(screen.getByRole('button', { name: 'Log' })).toBeEnabled();
+  });
+
+  it('maps confidence to calm words, never a number', () => {
+    const mixed: RecognitionResult = {
+      kind: 'recognizedPlate',
+      foods: [
+        { databaseFood: SALMON, confidence: 0.75, quantity: range(1, 1, 'fillet', '~1 fillet') },
+        { databaseFood: RICE, confidence: 0.74, quantity: range(1, 1, 'fist', '~1 fist') },
+      ],
+    };
+    const { baseElement } = render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={mixed}
+        closestMatches={[]}
+        onLog={() => undefined}
+      />,
+    );
+    expect(screen.getAllByText('likely')).toHaveLength(1);
+    expect(screen.getAllByText('maybe')).toHaveLength(1);
+    expect(baseElement.textContent).not.toMatch(/\d+\s*%/);
+  });
+
+  it('picks up matches that arrive late, keeping ticks and adding newcomers unticked', async () => {
+    const props = { open: true, onClose: () => undefined, onLog: () => undefined };
+    const none: RecognitionResult = { kind: 'noMatch' };
+    const { rerender } = render(
+      <RecognizedMatchSheet {...props} result={none} closestMatches={[closest[0]!]} />,
+    );
+    // Nothing recognised: the first match is pre-ticked; the person unticks it and ticks nothing else.
+    expect(screen.getByRole('checkbox', { name: /Apple/ })).toBeChecked();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Apple/ }));
+    expect(screen.getByRole('checkbox', { name: /Apple/ })).not.toBeChecked();
+
+    rerender(<RecognizedMatchSheet {...props} result={none} closestMatches={closest} />);
+    expect(screen.getByRole('checkbox', { name: /Rice/ })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Apple/ })).not.toBeChecked();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Rice/ }));
+
+    rerender(<RecognizedMatchSheet {...props} result={recognized} closestMatches={closest} />);
+    expect(screen.getByRole('checkbox', { name: /Salmon/ })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Rice/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Apple/ })).not.toBeChecked();
   });
 
   it('has no axe violations (recognized and empty)', async () => {

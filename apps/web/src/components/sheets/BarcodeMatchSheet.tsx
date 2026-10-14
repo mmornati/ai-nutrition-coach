@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FoodEntryDraft, FoodMatch } from '@anc/core';
 import { useStrings } from '../../i18n';
 import { Button } from '../primitives/Button';
@@ -22,23 +22,31 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
   const presets = effectivePresets(match.presets);
   const [chosen, setChosen] = useState(presets[0] ?? ONE_SERVING);
   const [submitting, setSubmitting] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const inFlight = useRef(false);
 
   const submit = async () => {
-    if (submitting) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSubmitting(true);
+    setFailed(false);
     try {
       await onLog({ databaseFood: match.food, quantity: chosen });
+    } catch {
+      setFailed(true);
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   };
+  const message = errorMessage ?? (failed ? s.common.logFailed : undefined);
 
   return (
     <>
       <PortionPresets presets={presets} value={chosen} onChange={setChosen} />
-      {errorMessage && (
+      {message && (
         <p role="status" className="text-body-small text-porcelain-dim">
-          {errorMessage}
+          {message}
         </p>
       )}
       <Button

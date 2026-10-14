@@ -8,3 +8,4 @@ export { TierRadio, type Tier } from './TierRadio';
 export { UpdateBanner } from './UpdateBanner';
 export { UpdatePrompt } from './UpdatePrompt';
 export { LockButton } from './LockButton';
+export { SyncAnnouncer, type SyncAnnouncerProps } from './SyncAnnouncer';

@@ -8,7 +8,7 @@ export interface HeaderProps {
   readonly sub?: ReactNode;
   /** A back link above the title (detail screens). */
   readonly back?: ReactNode;
-  /** The status chip slot (the "Local" chip), right of the title. */
+  /** The status chip slot (the "On this device" chip), right of the title. */
   readonly chip?: ReactNode;
   /** Extra actions beside the chip (e.g. the lock button). */
   readonly actions?: ReactNode;

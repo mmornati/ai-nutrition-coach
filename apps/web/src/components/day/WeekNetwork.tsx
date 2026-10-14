@@ -4,7 +4,7 @@ import { dayDescription, platesCount } from '../../i18n/sentences';
 import { LINES } from '../primitives';
 import { useElementWidth } from './hooks';
 import { weekdayAbbr, weekdayName } from './format';
-import { describeDay } from './week';
+import { dayKind, describeDay } from './week';
 import type { WeekDayData } from './week';
 
 export interface WeekNetworkProps {
@@ -56,6 +56,18 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
             {d.isToday ? w.today : weekdayAbbr(d.date)}
           </text>
         ))}
+        {days.map((d, i) =>
+          dayKind(d) === 'loggedNoLine' ? (
+            <path
+              key={`l-${d.date}`}
+              data-logged-no-line
+              d={`M${x(i)} ${top + 10} V${top + 3 * gap + 10}`}
+              className="stroke-porcelain"
+              strokeWidth={2}
+              fill="none"
+            />
+          ) : null,
+        )}
         {LINES.map((l, j) => {
           const y = top + j * gap + 10;
           const x0 = x(0);
@@ -143,7 +155,7 @@ export function DayList({ days, className = '' }: DayListProps) {
               <i
                 key={l.group}
                 aria-hidden="true"
-                className={`block h-1.5 w-7 ${d.groups.includes(l.group) ? l.bg : 'border-rule border-[1.5px] border-dashed'}`}
+                className={`block h-1.5 w-7 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-rule border-[1.5px] border-dashed'}`}
               />
             ))}
             <span className="sr-only">{dayDescription(weekdayName(d.date), describeDay(d))}</span>

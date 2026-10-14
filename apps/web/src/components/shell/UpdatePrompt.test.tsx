@@ -52,9 +52,9 @@ describe('UpdatePrompt', () => {
     needRefresh = true;
     render(<UpdatePrompt />);
     await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reload' })).toHaveAttribute('aria-disabled', 'true');
     await act(() => vi.advanceTimersByTimeAsync(13_000));
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Reload' })).not.toHaveAttribute('aria-disabled');
     await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
     expect(update).toHaveBeenCalledTimes(2);
   });

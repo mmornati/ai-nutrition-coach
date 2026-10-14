@@ -3,7 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { localTime } from '@anc/core';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
-import { buildWeekDays, dayRouteLabel, weekNote, weekNoteParts } from './week';
+import {
+  buildWeekDays,
+  dayKind,
+  dayRouteLabel,
+  describeDay,
+  weekNote,
+  weekNoteParts,
+} from './week';
 import type { WeekDayData } from './week';
 import { DayList, WeekNetwork, WeekNoteText, weekNetworkDescription } from './WeekNetwork';
 import { WeekRoute } from './WeekRoute';
@@ -104,6 +111,58 @@ describe('buildWeekDays', () => {
     expect(days[6]).toMatchObject({ isToday: true, plateCount: 1 });
     expect(days[4]).toMatchObject({ plateCount: 2, groups: ['protein', 'dairy'] });
     expect(days[0]).toMatchObject({ plateCount: 0, groups: [] });
+  });
+});
+
+describe('logged, no line stopped', () => {
+  // A day with only an "other" plate: logged (>= 1 plate), but no food group line.
+  const LOGGED_NONE = day(-4, [], 1);
+  const EMPTY = day(-4, [], 0);
+  const WEEK_MIXED = [day(-6, ALL), day(-5, [], 0), LOGGED_NONE, ...WEEK.slice(3)];
+
+  it('buildWeekDays keeps an other-only day as logged with no lines', () => {
+    const days = buildWeekDays([makePlate(1, 9, 0, ['other'], 11)], TODAY);
+    expect(days[4]).toMatchObject({ plateCount: 1, groups: [] });
+    expect(dayKind(days[4]!)).toBe('loggedNoLine');
+    expect(dayKind(days[0]!)).toBe('empty');
+  });
+
+  it('is worded distinctly from an empty day, calmly', () => {
+    expect(dayRouteLabel(LOGGED_NONE)).toBe('Friday, logged — no food group line');
+    expect(dayRouteLabel(EMPTY)).toBe('Friday, nothing logged');
+    expect(describeDay(LOGGED_NONE)).toBe('logged — no food group line');
+    expect(describeDay(EMPTY)).toBe('nothing logged');
+  });
+
+  it('the route draws it unlike an empty day, and announces it distinctly', () => {
+    const week = WEEK_MIXED;
+    render(<WeekRoute days={week} selected={TODAY} onSelectDay={() => {}} />);
+    const logged = screen.getByRole('button', { name: /^Friday/ });
+    const empty = screen.getByRole('button', { name: /^Thursday/ });
+    expect(logged).toHaveAccessibleName('Friday, logged — no food group line');
+    expect(empty).toHaveAccessibleName('Thursday, nothing logged');
+    expect(
+      logged.querySelector('[data-day-kind="loggedNoLine"] [data-logged-core]'),
+    ).not.toBeNull();
+    expect(empty.querySelector('[data-day-kind="empty"]')).not.toBeNull();
+    expect(empty.querySelector('[data-logged-core]')).toBeNull();
+  });
+
+  it('the network marks it with a spine an empty day lacks, and describes it', () => {
+    const week = WEEK_MIXED;
+    const { container } = render(<WeekNetwork days={week} />);
+    expect(container.querySelectorAll('[data-logged-no-line]')).toHaveLength(1);
+    const label = screen.getByRole('img').getAttribute('aria-label') ?? '';
+    expect(label).toContain('Friday: logged — no food group line.');
+    expect(label).toContain('Thursday: nothing logged.');
+  });
+
+  it('the day list tells them apart in words', () => {
+    render(<DayList days={[day(-6, [], 0), day(-5, [], 1), ...WEEK.slice(2)]} />);
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('nothing logged');
+    expect(items[1]).toHaveTextContent('logged — no food group line');
+    expect(items[1]).toHaveTextContent('1 plate');
   });
 });
 

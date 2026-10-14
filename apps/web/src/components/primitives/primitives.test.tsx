@@ -55,11 +55,44 @@ describe('Button', () => {
       </Button>,
     );
     const button = screen.getByRole('button', { name: 'Logging…' });
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAttribute('aria-busy', 'true');
     expect(container.querySelector('svg, [role="progressbar"]')).toBeNull();
     await userEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('busy keeps focus (aria-disabled, not disabled) and ignores clicks', async () => {
+    const onClick = vi.fn();
+    const { rerender } = render(<Button onClick={onClick}>Log</Button>);
+    await userEvent.click(screen.getByRole('button', { name: 'Log' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    const button = screen.getByRole('button', { name: 'Log' });
+    expect(button).toHaveFocus();
+    rerender(
+      <Button busy busyLabel="Logging…" onClick={onClick}>
+        Log
+      </Button>,
+    );
+    const busy = screen.getByRole('button', { name: 'Logging…' });
+    expect(busy).not.toBeDisabled();
+    expect(busy).toHaveFocus();
+    await userEvent.click(busy);
+    await userEvent.keyboard('{Enter}');
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('aria-disabled alone also ignores clicks, without busy semantics', async () => {
+    const onClick = vi.fn();
+    render(
+      <Button aria-disabled onClick={onClick}>
+        Log
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Log' });
+    await userEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(button).not.toHaveAttribute('aria-busy');
   });
 
   it('has no axe violations in any state', async () => {

@@ -7,6 +7,7 @@ import type {
   RecognitionResult,
 } from '@anc/core';
 import { DayGallerySection } from './DayGallerySection';
+import { StatusChip } from '../day';
 import { ConfirmDialog } from '../dialogs/ConfirmDialog';
 import { EraseLocalDataDialog } from '../dialogs/EraseLocalDataDialog';
 import { OffLookupNotice } from '../dialogs/OffLookupNotice';
@@ -14,7 +15,6 @@ import { PhotoConsentDialog } from '../dialogs/PhotoConsentDialog';
 import { RemovePlateDialog } from '../dialogs/RemovePlateDialog';
 import {
   Button,
-  Chip,
   GroupMarker,
   ICONS,
   IconButton,
@@ -159,7 +159,7 @@ export function Gallery() {
         <Header
           title="Gallery"
           sub="Every component, synthetic data"
-          chip={<Chip dot>Local</Chip>}
+          chip={<StatusChip hasTransport={false} />}
           settingsHref="#/settings"
         />
       }
@@ -207,7 +207,7 @@ export function Gallery() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Chip dot>Local</Chip>
+          <StatusChip hasTransport={false} />
           <span className="font-display text-title uppercase">
             Local model
             <VersionTag spoken="coming in version 2">v2</VersionTag>

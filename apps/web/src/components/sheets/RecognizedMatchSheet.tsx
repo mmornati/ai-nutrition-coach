@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type {
   DatabaseFood,
   FoodEntryDraft,
@@ -6,7 +6,7 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
-import { fill, plural, useStrings, type Strings } from '../../i18n';
+import { plural, useStrings, type Strings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
@@ -36,6 +36,9 @@ interface Candidate {
   readonly confidence?: number;
 }
 
+/** Calm words for how sure the recognition was. Never a number. */
+const LIKELY_AT = 0.75;
+
 interface Choice {
   readonly checked: boolean;
   readonly quantity: QuantityRange;
@@ -62,16 +65,26 @@ function describe(
   }
 }
 
+/** Stable identity of a food across re-renders (and late-arriving results). */
+const foodKey = (f: DatabaseFood): string => `${f.source}:${f.sourceRef}`;
+
 /** Recognised foods first (all ticked), then catalog matches that are not already listed. */
 function buildCandidates(
   result: RecognitionResult,
   closest: readonly FoodMatch[],
 ): { recognized: Candidate[]; extra: Candidate[] } {
   const recognizedFoods = result.kind === 'recognizedPlate' ? result.foods : [];
-  const recognized = recognizedFoods.map((rec, i): Candidate => {
+  const seen = new Set<string>();
+  const unique = (key: string): string => {
+    let k = key;
+    for (let n = 2; seen.has(k); n++) k = `${key}#${n}`;
+    seen.add(k);
+    return k;
+  };
+  const recognized = recognizedFoods.map((rec): Candidate => {
     const catalog = closest.find((m) => sameFood(m.food, rec.databaseFood));
     return {
-      key: `r${i}`,
+      key: unique(foodKey(rec.databaseFood)),
       food: rec.databaseFood,
       presets: uniqueQuantities([rec.quantity], catalog?.presets ?? []),
       confidence: rec.confidence,
@@ -79,13 +92,19 @@ function buildCandidates(
   });
   const extra = closest
     .filter((m) => !recognizedFoods.some((rec) => sameFood(rec.databaseFood, m.food)))
-    .map((m, i): Candidate => ({
-      key: `c${i}`,
+    .map((m): Candidate => ({
+      key: unique(foodKey(m.food)),
       food: m.food,
       presets: effectivePresets(m.presets),
     }));
   return { recognized, extra };
 }
+
+/** Defaults for a candidate seen for the first time after the sheet opened: never pre-ticked. */
+const lateChoice = (c: Candidate): Choice => ({
+  checked: false,
+  quantity: c.presets[0] ?? ONE_SERVING,
+});
 
 function initialChoices(recognized: readonly Candidate[], extra: readonly Candidate[]) {
   const choices: Record<string, Choice> = {};
@@ -109,13 +128,28 @@ function Body({
 }: Omit<RecognizedMatchSheetProps, 'open' | 'onClose'>) {
   const s = useStrings();
   const r = s.recognized;
-  const [{ recognized, extra }] = useState(() => buildCandidates(result, closestMatches));
+  // Derived, so a result or catalog matches that arrive after the sheet opened are picked up.
+  const { recognized, extra } = useMemo(
+    () => buildCandidates(result, closestMatches),
+    [result, closestMatches],
+  );
   const [choices, setChoices] = useState(() => initialChoices(recognized, extra));
   const [customName, setCustomName] = useState('');
   const [customMessage, setCustomMessage] = useState<string | undefined>();
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<'ticked' | 'custom' | null>(null);
+  const [failed, setFailed] = useState(false);
+  const inFlight = useRef(false);
 
   const all = [...recognized, ...extra];
+
+  // Reconcile by food: keep what the person ticked or changed, add new candidates unticked.
+  const newcomers = all.filter((c) => !(c.key in choices));
+  if (newcomers.length > 0) {
+    setChoices((prev) => ({
+      ...Object.fromEntries(newcomers.map((c) => [c.key, lateChoice(c)])),
+      ...prev,
+    }));
+  }
   const ticked = all.filter((c) => choices[c.key]?.checked);
 
   const update = (key: string, patch: Partial<Choice>) =>
@@ -124,21 +158,29 @@ function Body({
       return current ? { ...prev, [key]: { ...current, ...patch } } : prev;
     });
 
-  const commit = async (drafts: readonly FoodEntryDraft[]): Promise<boolean> => {
-    if (submitting) return false;
-    setSubmitting(true);
+  const commit = async (
+    which: 'ticked' | 'custom',
+    drafts: readonly FoodEntryDraft[],
+  ): Promise<boolean> => {
+    if (inFlight.current) return false;
+    inFlight.current = true;
+    setSubmitting(which);
+    setFailed(false);
     try {
       await onLog(drafts);
       return true;
     } catch {
+      setFailed(true);
       return false;
     } finally {
-      setSubmitting(false);
+      inFlight.current = false;
+      setSubmitting(null);
     }
   };
 
   const logTicked = () =>
     commit(
+      'ticked',
       ticked.map((c) => ({
         databaseFood: c.food,
         quantity: choices[c.key]?.quantity ?? ONE_SERVING,
@@ -152,7 +194,7 @@ function Body({
       return;
     }
     setCustomMessage(undefined);
-    if (await commit([{ databaseFood: manualFood(name), quantity: ONE_SERVING }]))
+    if (await commit('custom', [{ databaseFood: manualFood(name), quantity: ONE_SERVING }]))
       setCustomName('');
   };
 
@@ -170,7 +212,7 @@ function Body({
             <GroupMarker group={c.food.foodGroup} />
             {c.confidence !== undefined && (
               <span className="text-body-small text-signal-muted">
-                {fill(r.confidence, { percent: Math.round(c.confidence * 100) })}
+                {c.confidence >= LIKELY_AT ? r.confidenceLikely : r.confidenceMaybe}
               </span>
             )}
           </span>
@@ -204,15 +246,16 @@ function Body({
           <ul className="border-porcelain border-t-2">{extra.map(row)}</ul>
         </section>
       )}
-      {errorMessage && (
+      {(errorMessage ?? (failed ? s.common.logFailed : undefined)) && (
         <p role="status" className="text-body-small text-porcelain-dim">
-          {errorMessage}
+          {errorMessage ?? s.common.logFailed}
         </p>
       )}
       <Button
         fullWidth
         disabled={ticked.length === 0}
-        busy={submitting}
+        busy={submitting === 'ticked'}
+        aria-disabled={submitting === 'custom' ? true : undefined}
         busyLabel={s.common.logging}
         onClick={() => void logTicked()}
       >
@@ -231,7 +274,8 @@ function Body({
         <Button
           variant="outline-porcelain"
           fullWidth
-          busy={submitting}
+          busy={submitting === 'custom'}
+          aria-disabled={submitting === 'ticked' ? true : undefined}
           busyLabel={s.common.logging}
           onClick={() => void logCustom()}
         >

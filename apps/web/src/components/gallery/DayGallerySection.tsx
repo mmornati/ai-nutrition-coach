@@ -180,6 +180,7 @@ export function DayGallerySection() {
                 <PlateRow
                   plate={p}
                   slot={slot}
+                  hasTransport
                   syncStatus={s.id === 'b' ? 'synced' : s.id === 'l' ? 'pending' : null}
                   onOpen={(id) => setLast(`open ${id}`)}
                   onRequestDelete={(id) => setLast(`${g.lastDelete} ${id}`)}
@@ -215,10 +216,10 @@ export function DayGallerySection() {
 
       <Block title={g.chips}>
         <div className="flex flex-wrap gap-3">
-          <StatusChip />
-          <StatusChip status="pending" />
-          <StatusChip status="synced" />
-          <StatusChip status="failed" />
+          <StatusChip hasTransport={false} />
+          <StatusChip hasTransport status="pending" />
+          <StatusChip hasTransport status="synced" />
+          <StatusChip hasTransport status="failed" />
         </div>
       </Block>
 

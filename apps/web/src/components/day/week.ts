@@ -40,11 +40,30 @@ export function buildWeekDays(plates: Iterable<PlateLog>, today: EpochMs): WeekD
 
 export const isFullDay = (d: WeekDayData): boolean => d.groups.length === LINE_GROUPS.length;
 
-/** "all four lines", "3 of 4 lines", "nothing logged". */
+/** Nothing logged at all: no plates. */
+export const isEmptyDay = (d: WeekDayData): boolean => d.plateCount === 0 && d.groups.length === 0;
+
+/**
+ * Logged, but no food group line stopped (e.g. only an "other" food). A day counts as logged
+ * when it has at least one plate, so this is NOT the same as an empty day.
+ */
+export const isLoggedNoLine = (d: WeekDayData): boolean =>
+  d.plateCount > 0 && d.groups.length === 0;
+
+export type DayKind = 'empty' | 'loggedNoLine' | 'partial' | 'full';
+
+export function dayKind(d: WeekDayData): DayKind {
+  if (isEmptyDay(d)) return 'empty';
+  if (isLoggedNoLine(d)) return 'loggedNoLine';
+  return isFullDay(d) ? 'full' : 'partial';
+}
+
+/** "all four lines", "3 of 4 lines", "logged — no food group line", "nothing logged". */
 export function dayState(d: WeekDayData): string {
   const w = strings().week;
+  if (isEmptyDay(d)) return w.stateNone;
+  if (isLoggedNoLine(d)) return w.stateLoggedNoLine;
   if (isFullDay(d)) return w.stateAllFour;
-  if (d.groups.length === 0) return w.stateNone;
   return stateSome(d.groups.length);
 }
 
@@ -57,7 +76,8 @@ export function dayRouteLabel(d: WeekDayData): string {
 /** Text alternative for a whole day: which lines stopped and which were quiet. Never a score. */
 export function describeDay(d: WeekDayData): string {
   const w = strings().week;
-  if (d.groups.length === 0) return w.dayNothing;
+  if (isEmptyDay(d)) return w.dayNothing;
+  if (isLoggedNoLine(d)) return w.dayLoggedNoLine;
   if (isFullDay(d)) return w.dayAll;
   const quiet = LINE_GROUPS.filter((g) => !d.groups.includes(g));
   return dayDetail(lineNames(d.groups), lineNames(quiet));

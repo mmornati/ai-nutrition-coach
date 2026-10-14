@@ -10,6 +10,7 @@ import { LockButton } from './LockButton';
 import { TierRadio, type Tier } from './TierRadio';
 import { UpdateBanner } from './UpdateBanner';
 import { Chip } from '../primitives';
+import { strings } from '../../i18n';
 
 describe('AppShell', () => {
   const renderShell = (onLog = vi.fn()) =>
@@ -19,7 +20,7 @@ describe('AppShell', () => {
           <Header
             title="Tuesday"
             sub="13 Oct"
-            chip={<Chip dot>Local</Chip>}
+            chip={<Chip dot>{strings().chip.onDevice}</Chip>}
             settingsHref="#/settings"
           />
         }
@@ -30,6 +31,21 @@ describe('AppShell', () => {
         <p>content</p>
       </AppShell>,
     );
+
+  it('mounts one page-level sync announcer only when given sync counts', () => {
+    const { rerender } = render(
+      <AppShell onLog={() => undefined}>
+        <p>content</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    rerender(
+      <AppShell onLog={() => undefined} sync={{ pending: 1, retryLater: 0 }}>
+        <p>content</p>
+      </AppShell>,
+    );
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
 
   it('has header, main, the dock (route slot + LOG) and the desktop rail', () => {
     renderShell();
@@ -90,7 +106,7 @@ describe('Header', () => {
       <Header
         title="Tuesday"
         sub="13 Oct · 3 lines running"
-        chip={<Chip dot>Local</Chip>}
+        chip={<Chip dot>{strings().chip.onDevice}</Chip>}
         settingsHref="#/settings"
       />,
     );
@@ -99,7 +115,7 @@ describe('Header', () => {
       'uppercase',
     );
     expect(screen.getByText('13 Oct · 3 lines running')).toBeInTheDocument();
-    expect(screen.getByText('Local')).toBeInTheDocument();
+    expect(screen.getAllByText('On this device').length).toBeGreaterThan(0);
     const settings = screen.getByRole('link', { name: 'Settings' });
     expect(settings).toHaveAttribute('href', '#/settings');
     expect(settings.parentElement).toHaveClass('lg:hidden');

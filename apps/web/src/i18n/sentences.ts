@@ -44,8 +44,13 @@ export const removePlateFor = (meal: string, time: string): string =>
 
 export const dismissHint = (hint: string): string => fill(strings().day.dismissHint, { hint });
 
-export const chipAnnouncement = (label: string): string =>
-  fill(strings().chip.announcement, { label });
+/** Aggregate sync announcement: retry-later first (it needs attention), then waiting, then done. */
+export function syncAnnouncement(pending: number, retryLater: number): string {
+  const c = strings().chip;
+  if (retryLater > 0) return plural(c.retryLaterPlates, retryLater);
+  if (pending > 0) return plural(c.waiting, pending);
+  return c.allSynced;
+}
 
 export const platesCount = (n: number): string => plural(strings().week.plates, n);
 

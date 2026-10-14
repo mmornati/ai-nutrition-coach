@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { DEFAULT_ROUTE_HREFS, Rail, type ShellRoute } from './Rail';
 import { Dock } from './Dock';
+import { SyncAnnouncer, type SyncAnnouncerProps } from './SyncAnnouncer';
 
 export interface AppShellProps {
   /** A `<Header>`; sits above the main content. */
@@ -16,6 +17,8 @@ export interface AppShellProps {
    * screen readers, and pinned to the top visually with CSS `order`.
    */
   readonly banner?: ReactNode;
+  /** Aggregate sync counts for the page-level announcer; omit when there is no sync transport. */
+  readonly sync?: Pick<SyncAnnouncerProps, 'pending' | 'retryLater'>;
   readonly children: ReactNode;
 }
 
@@ -30,6 +33,7 @@ export function AppShell({
   hrefs = DEFAULT_ROUTE_HREFS,
   onLog,
   banner,
+  sync,
   children,
 }: AppShellProps) {
   return (
@@ -41,6 +45,7 @@ export function AppShell({
         {banner && <div className="order-first">{banner}</div>}
       </div>
       <Dock route={route} onLog={onLog} />
+      {sync && <SyncAnnouncer pending={sync.pending} retryLater={sync.retryLater} />}
     </div>
   );
 }

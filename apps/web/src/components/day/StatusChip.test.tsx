@@ -15,9 +15,25 @@ describe('chipStateFor', () => {
 
 describe('StatusChip', () => {
   it('says only "On this device" with no status, never pending or synced', () => {
-    const { container } = render(<StatusChip />);
+    const { container } = render(<StatusChip hasTransport />);
     expect(container).toHaveTextContent('On this device');
     expect(container).not.toHaveTextContent(/pending|synced/i);
+  });
+
+  it('without a transport it is "On this device" whatever the status says', () => {
+    const { container } = render(
+      <>
+        <StatusChip hasTransport={false} status="pending" />
+        <StatusChip hasTransport={false} status="synced" />
+        <StatusChip hasTransport={false} status="failed" />
+      </>,
+    );
+    const chips = Array.from(container.querySelectorAll('[data-chip-state]'));
+    expect(chips).toHaveLength(3);
+    for (const c of chips) {
+      expect(c).toHaveAttribute('data-chip-state', 'onDevice');
+      expect(c).toHaveTextContent('On this device');
+    }
   });
 
   it.each([
@@ -25,33 +41,42 @@ describe('StatusChip', () => {
     ['synced', 'Synced'],
     ['failed', 'Retry later'],
   ] as const)('shows %s as "%s"', (status, text) => {
-    render(<StatusChip status={status} />);
-    expect(screen.getByRole('status')).toHaveTextContent(`Status: ${text}`);
+    const { container } = render(<StatusChip hasTransport status={status} />);
+    expect(container).toHaveTextContent(text);
+  });
+
+  it('is plain static text: no live region of its own', () => {
+    const { container } = render(<StatusChip hasTransport status="pending" />);
+    expect(container.querySelector('[role="status"], [aria-live]')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')?.textContent).toBe('');
+  });
+
+  it('pending is a solid hollow ring; only retry later is dashed', () => {
+    const { container } = render(
+      <>
+        <StatusChip hasTransport status="pending" />
+        <StatusChip hasTransport status="failed" />
+      </>,
+    );
+    const dots = Array.from(container.querySelectorAll('[aria-hidden="true"]'));
+    expect(dots[0]).toHaveClass('border-solid', 'border-porcelain');
+    expect(dots[0]).not.toHaveClass('border-dashed');
+    expect(dots[1]).toHaveClass('border-dashed');
   });
 
   it('is not a button and never red', () => {
-    const { container } = render(<StatusChip status="failed" />);
+    const { container } = render(<StatusChip hasTransport status="failed" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(container.innerHTML).not.toMatch(/line-protein|red/);
-  });
-
-  it('announces changes politely', () => {
-    const { rerender } = render(<StatusChip status="pending" />);
-    const live = screen.getByRole('status');
-    expect(live).toHaveAttribute('aria-live', 'polite');
-    expect(live).toHaveClass('sr-only');
-    rerender(<StatusChip status="synced" />);
-    expect(screen.getByRole('status')).toBe(live);
-    expect(live).toHaveTextContent('Status: Synced');
   });
 
   it('has no axe violations in any state', async () => {
     const { container } = render(
       <>
-        <StatusChip />
-        <StatusChip status="pending" />
-        <StatusChip status="synced" />
-        <StatusChip status="failed" />
+        <StatusChip hasTransport={false} />
+        <StatusChip hasTransport status="pending" />
+        <StatusChip hasTransport status="synced" />
+        <StatusChip hasTransport status="failed" />
       </>,
     );
     expect(await axe(container)).toHaveNoViolations();

@@ -18,7 +18,7 @@ const VARIANT: Record<ButtonVariant, string> = {
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   readonly variant?: ButtonVariant;
-  /** Work is in flight: the button is inert and says so to assistive tech. No spinner, ever. */
+  /** Work is in flight: the button ignores clicks, keeps focus and says so to assistive tech. No spinner, ever. */
   readonly busy?: boolean;
   /** Replaces the label while `busy` (e.g. "Logging…"). */
   readonly busyLabel?: string;
@@ -38,16 +38,30 @@ export function Button({
   className,
   type = 'button',
   children,
+  onClick,
+  'aria-disabled': ariaDisabled,
   ...rest
 }: ButtonProps) {
+  // Busy (and "inert while another action runs") keeps the button focusable: aria-disabled and
+  // swallowed clicks, never `disabled`, so focus is not thrown away when work starts.
+  const inert = busy || ariaDisabled === true || ariaDisabled === 'true';
   return (
     <button
       type={type}
-      disabled={disabled || busy}
+      disabled={disabled}
+      aria-disabled={inert || undefined}
       aria-busy={busy || undefined}
+      onClick={(e) => {
+        if (inert) {
+          e.preventDefault();
+          return;
+        }
+        onClick?.(e);
+      }}
       className={cn(
         'font-display text-button inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-2.5 rounded-none border-2 px-[18px] uppercase',
         'disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-60',
+        'aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:opacity-60',
         VARIANT[variant],
         fullWidth && 'w-full',
         className,
