@@ -10,7 +10,8 @@ import {
 } from '@anc/core';
 import { CameraNotice } from './CameraNotice';
 import { PhotoCapture } from './PhotoCapture';
-import { PhotoUploadPermit } from './photo-digest';
+import { PhotoUploadPermit } from '../ai/photo-upload-permit';
+import { photoDigest } from './photo-digest';
 import { usePhotoFlow, type UsePhotoFlowDeps } from './usePhotoFlow';
 import { jpegWithExif } from './testing';
 
@@ -73,7 +74,7 @@ describe('usePhotoFlow', () => {
       hasHostConsent: () => false,
       askConsent: async () => true,
       grantHostConsent: async () => undefined,
-      permit: new PhotoUploadPermit(),
+      permit: new PhotoUploadPermit(photoDigest),
       catalog,
       createCapture: () => ({ capture: async () => photo }),
       ...over,

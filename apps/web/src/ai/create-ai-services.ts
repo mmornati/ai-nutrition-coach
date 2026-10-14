@@ -6,7 +6,8 @@ import { KvByokKeyStore, type ByokKeyStore } from './byok-key-store';
 import { OpenAiCompatibleByokProvider } from './openai-compatible-provider';
 import { PhotoUploadPermit } from './photo-upload-permit';
 import { createLiveAiRung } from './rung-registry';
-import type { ClassifyFoodGroup, FetchLike, PhotoDigest, PhotoSanitizer } from './types';
+import type { FetchLike } from '../net/capped-fetch';
+import type { ClassifyFoodGroup, PhotoDigest, PhotoSanitizer } from './types';
 import { YourAi } from './your-ai';
 
 /** Everything the AI screens and the capture flow share for one unlocked session. */

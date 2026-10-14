@@ -32,7 +32,9 @@ export function CameraView({
   readonly onTypeInstead: (code?: string) => void;
   readonly onScanAgain: () => void;
 }) {
-  const s = useStrings().barcode;
+  const all = useStrings();
+  const s = all.barcode;
+  const cam = all.camera;
   const scanning = state.kind === 'scanning';
   const lookup = scanning ? state.lookup : null;
 
@@ -59,16 +61,16 @@ export function CameraView({
       )}
       {state.kind === 'denied' && (
         <CameraNotice
-          title={s.deniedTitle}
-          body={s.deniedBody}
+          title={cam.deniedTitle}
+          body={cam.deniedBody}
           actionLabel={s.typeManually}
           onAction={() => onTypeInstead()}
         />
       )}
       {state.kind === 'unavailable' && (
         <CameraNotice
-          title={s.unavailableTitle}
-          body={s.unavailableBody}
+          title={cam.unavailableTitle}
+          body={cam.unavailableBody}
           actionLabel={s.typeManually}
           onAction={() => onTypeInstead()}
         />

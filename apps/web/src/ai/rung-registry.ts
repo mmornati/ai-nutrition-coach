@@ -4,7 +4,8 @@ import { validateByokEndpoint } from './byok-endpoint';
 import { ByokAiRung } from './byok-ai-rung';
 import { HostBoundByokKeyStore, type ByokKeyStore } from './byok-key-store';
 import { ConsentGatedAiRung } from './consent-gated-ai-rung';
-import { NoopAiRung, UnavailableAiRung } from './noop-ai-rung';
+import { strings } from '../i18n';
+import { NoopAiRung, NotConfiguredAiRung, UnavailableAiRung } from './noop-ai-rung';
 import type { PhotoUploadPermit } from './photo-upload-permit';
 import type { ByokProvider } from './types';
 
@@ -38,19 +39,27 @@ export function buildAiRung(settings: AiSettings, deps: AiRungDeps): AiRung {
       return new NoopAiRung();
     case 'byok': {
       const host = photoUploadHost(settings);
+      if (host === null) {
+        // Endpoint unset or invalid: nothing can be sent, no key is read. Say "not configured".
+        const t = strings().ai.failure;
+        return new NotConfiguredAiRung(
+          settings.byokEndpointUrl.trim() === '' || settings.byokModel.trim() === ''
+            ? t.endpointNotSet
+            : t.endpointInvalid,
+        );
+      }
       // The stored key is only released for the host it was entered for.
       const byok = new ByokAiRung({
         keyStore: new HostBoundByokKeyStore({
           inner: deps.keyStore,
           boundHost: settings.byokKeyHost,
-          endpointHost: host ?? '',
+          endpointHost: host,
         }),
         provider: deps.createProvider({
           endpointUrl: settings.byokEndpointUrl,
           model: settings.byokModel,
         }),
       });
-      if (host === null) return byok; // endpoint invalid: no key is released, nothing is sent
       return new ConsentGatedAiRung({
         inner: byok,
         hasConsent: () => deps.getSettings().hasConsentFor(host),

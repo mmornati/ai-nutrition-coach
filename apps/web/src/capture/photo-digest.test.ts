@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { photoDigest, PhotoUploadPermit } from './photo-digest';
+import { PhotoUploadPermit } from '../ai/photo-upload-permit';
+import { photoDigest } from './photo-digest';
 import { codes, jpegWithExif } from './testing';
 
 describe('photoDigest', () => {
@@ -24,19 +25,19 @@ describe('photoDigest', () => {
   });
 });
 
-describe('PhotoUploadPermit', () => {
+describe('the ONE PhotoUploadPermit (src/ai) over the real SHA-256 digest', () => {
   const photo = jpegWithExif();
   const other = Uint8Array.from([...photo, 0]);
 
   it('is spent once for the exact photo and host', async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     await permit.grant({ host: 'API.Example.com', bytes: photo });
     expect(await permit.consume({ host: 'api.example.com', bytes: photo })).toBe(true);
     expect(await permit.consume({ host: 'api.example.com', bytes: photo })).toBe(false);
   });
 
   it('a different photo or host is refused and leaves the permit unspent', async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     await permit.grant({ host: 'a.example', bytes: photo });
     expect(await permit.consume({ host: 'a.example', bytes: other })).toBe(false);
     expect(await permit.consume({ host: 'b.example', bytes: photo })).toBe(false);
@@ -44,7 +45,7 @@ describe('PhotoUploadPermit', () => {
   });
 
   it('nothing granted, or revoked, is never spendable', async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     expect(await permit.consume({ host: 'a.example', bytes: photo })).toBe(false);
     await permit.grant({ host: 'a.example', bytes: photo });
     permit.revoke();
@@ -52,7 +53,7 @@ describe('PhotoUploadPermit', () => {
   });
 
   it('two concurrent spends: exactly one wins', async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     await permit.grant({ host: 'a.example', bytes: photo });
     const results = await Promise.all([
       permit.consume({ host: 'a.example', bytes: photo }),
@@ -62,7 +63,7 @@ describe('PhotoUploadPermit', () => {
   });
 
   it('a new grant replaces the old one (a retake)', async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     await permit.grant({ host: 'a.example', bytes: photo });
     await permit.grant({ host: 'a.example', bytes: other });
     expect(await permit.consume({ host: 'a.example', bytes: photo })).toBe(false);
@@ -70,6 +71,6 @@ describe('PhotoUploadPermit', () => {
   });
 
   it('toString never prints anything', () => {
-    expect(String(new PhotoUploadPermit())).toBe('PhotoUploadPermit()');
+    expect(String(new PhotoUploadPermit(photoDigest))).toBe('PhotoUploadPermit()');
   });
 });

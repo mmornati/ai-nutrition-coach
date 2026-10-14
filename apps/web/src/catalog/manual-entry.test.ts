@@ -19,6 +19,8 @@ import {
 import { OfflineFirstFoodCatalog } from './offline-first-catalog';
 import { ManualEntrySession, type CommitPlate } from './manual-entry';
 
+const allow = async (): Promise<boolean> => true;
+
 const salmon: FoodMatch = {
   food: databaseFood({
     sourceRef: 'seed:salmon',
@@ -220,7 +222,7 @@ describe('ManualEntrySession', () => {
   });
 
   it('notifies subscribers and works against the real offline-first catalog', async () => {
-    const s = new ManualEntrySession(new OfflineFirstFoodCatalog());
+    const s = new ManualEntrySession(new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }));
     const seen: string[] = [];
     const off = s.subscribe(() => seen.push(s.state.catalogStatus));
     await s.updateQuery('salm');

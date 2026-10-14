@@ -28,7 +28,8 @@ describe('ByokAiRung', () => {
     const { provider, rung: r } = rung(new InMemoryByokKeyStore(), { kind: 'noMatch' });
     const result = await r.recognize(bytes);
     expect(result).toMatchObject({ kind: 'recognitionFailure', cause: 'keyMissing' });
-    expect((result as { message: string }).message).toContain('byok key missing');
+    expect((result as { message: string }).message).toContain('your own key is missing');
+    expect((result as { message: string }).message).not.toMatch(/byok/i);
     expect(provider.calls).toBe(0);
   });
 
@@ -54,7 +55,7 @@ describe('ByokAiRung', () => {
     const { rung: r } = rung(store, { kind: 'keyRejected' });
     const result = await r.recognize(bytes);
     expect(result).toMatchObject({ kind: 'recognitionFailure', cause: 'keyRejected' });
-    expect((result as { message: string }).message).toContain('byok key rejected');
+    expect((result as { message: string }).message).toContain('your own key was rejected');
     expect(await store.read()).toBe('sk-test');
   });
 

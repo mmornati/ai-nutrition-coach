@@ -99,7 +99,9 @@ test('the reader and wasm are immutable-versioned files that the service worker 
 
 test('the fake camera plays a barcode clip: getUserMedia -> zxing -> scan flow -> OFF match', async ({
   page,
+  browserName,
 }) => {
+  test.skip(browserName !== 'chromium', 'fake media stream is Chromium-only');
   const seen = await mockOff(page);
   const errors = await openHarness(page);
 

@@ -13,7 +13,8 @@ import {
   type FoodMatch,
   type RecognitionResult,
 } from '@anc/core';
-import { PhotoUploadPermit } from './photo-digest';
+import { PhotoUploadPermit } from '../ai/photo-upload-permit';
+import { photoDigest } from './photo-digest';
 import { runPhotoFlow, type PhotoFlowDeps, type PhotoFlowState } from './photo-flow';
 import { closestMatches, MAX_CLOSEST_MATCHES } from './closest-matches';
 import { jpegWithExif } from './testing';
@@ -51,7 +52,7 @@ function setup(over: Partial<PhotoFlowDeps> = {}) {
     hasHostConsent: () => false,
     askConsent: async () => true,
     grantHostConsent: async () => undefined,
-    permit: new PhotoUploadPermit(),
+    permit: new PhotoUploadPermit(photoDigest),
     catalog,
     onState: (s) => states.push(s),
     ...over,
@@ -114,7 +115,7 @@ describe('runPhotoFlow', () => {
 
   it('ask-every-photo: a yes grants a one-shot permit for THIS photo and stores no host consent', async () => {
     const grantHostConsent = vi.fn(async () => undefined);
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     let spentDuringRecognize: boolean | undefined;
     const photo = jpegWithExif();
     const { deps } = setup({
@@ -193,6 +194,8 @@ describe('runPhotoFlow', () => {
     });
     const final = await runPhotoFlow(deps);
     expect(final).toMatchObject({ kind: 'ready', result: { kind: 'recognitionFailure' } });
+    // A typed cause only: no English string baked into the flow.
+    expect(final.kind === 'ready' && 'message' in final.result).toBe(false);
   });
 
   it('only a publishing flow that is still wanted publishes (a retake supersedes the first)', async () => {
@@ -211,7 +214,7 @@ describe('runPhotoFlow', () => {
   });
 
   it("a superseded run does not revoke the newer run's permit", async () => {
-    const permit = new PhotoUploadPermit();
+    const permit = new PhotoUploadPermit(photoDigest);
     const photo = jpegWithExif();
     await permit.grant({ host: 'api.example.com', bytes: photo });
     const { deps } = setup({

@@ -10,7 +10,7 @@
  *  - a barcode already resolved in this process is answered from its own LRU (64 entries; separate
  *    from the 32-entry search LRU, because the keys live in different domains and the working sets
  *    differ), with no request;
- *  - `onlineLookupAllowed` is asked right before a barcode would leave the device. The app passes a
+ *  - `onlineLookupAllowed` (required) is asked right before a barcode would leave the device. The app passes a
  *    check of the person's answer to the one-time Open Food Facts notice, which is `false` until
  *    they have said OK and stays `false` when they chose "Don't look up online". A `false` (or a
  *    gate that throws) sends nothing and reports the barcode as not found, so the manual path
@@ -49,8 +49,11 @@ export interface OfflineFirstFoodCatalogOptions {
   readonly searchCacheCapacity?: number;
   readonly barcodeCacheCapacity?: number;
   readonly offSource?: OffBarcodeSource;
-  /** `undefined` means "always" (tests, and builds with no notice). */
-  readonly onlineLookupAllowed?: () => Promise<boolean>;
+  /**
+   * REQUIRED: there is no default that sends. The app passes a check of the person's answer to the
+   * one-time Open Food Facts notice. Tests that want the lookup pass `async () => true`.
+   */
+  readonly onlineLookupAllowed: () => Promise<boolean>;
 }
 
 const seedRef = (seed: SeedFood): string => `seed:${seed.displayName.toLowerCase()}`;
@@ -86,9 +89,9 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   private readonly searchCache: LruCache<string, readonly FoodMatch[]>;
   private readonly barcodeCache: LruCache<string, CatalogResult>;
   private readonly offSource: OffBarcodeSource;
-  private readonly onlineLookupAllowed: (() => Promise<boolean>) | undefined;
+  private readonly onlineLookupAllowed: () => Promise<boolean>;
 
-  constructor(options: OfflineFirstFoodCatalogOptions = {}) {
+  constructor(options: OfflineFirstFoodCatalogOptions) {
     this.seeds = Object.freeze([...(options.seeds ?? seedFoods)]);
     this.searchCache = new LruCache(options.searchCacheCapacity ?? SEARCH_CACHE_CAPACITY);
     this.barcodeCache = new LruCache(options.barcodeCacheCapacity ?? BARCODE_CACHE_CAPACITY);
@@ -150,16 +153,15 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       const cached = this.barcodeCache.get(trimmed);
       if (cached !== undefined) return cached;
 
-      const gate = this.onlineLookupAllowed;
-      if (gate !== undefined) {
-        let allowed: boolean;
-        try {
-          allowed = await gate();
-        } catch {
-          allowed = false; // fail closed: nothing is sent
-        }
-        if (!allowed) return notFound(trimmed);
+      // Only an explicit `true` lets the barcode leave the device; anything else (a `false`, a
+      // throw, a missing gate from untyped code) is closed.
+      let allowed = false;
+      try {
+        allowed = (await this.onlineLookupAllowed()) === true;
+      } catch {
+        allowed = false; // fail closed: nothing is sent
       }
+      if (!allowed) return notFound(trimmed);
 
       const result = await this.offSource.lookup(trimmed);
       let resolved: CatalogResult;

@@ -1,7 +1,8 @@
-// Test support for the AI module: a scriptable fetch, a stub sanitiser, digest and classifier.
-import { err, ok, type FoodGroup, type RecognizedFood } from '@anc/core';
+// Test support for the AI module: a scriptable fetch, a stub sanitiser (Phase 5's result shape), digest and classifier.
+import type { FoodGroup, RecognizedFood } from '@anc/core';
 import type { KeyValueStore } from '../storage/key-value-store';
-import type { FetchLike, PhotoDigest, PhotoSanitizer, ClassifyFoodGroup } from './types';
+import type { FetchLike } from '../net/capped-fetch';
+import type { PhotoDigest, PhotoSanitizer, ClassifyFoodGroup } from './types';
 
 /** Long enough to show a hint; shaped like a real key so leaks are easy to grep for. */
 export const TEST_KEY = 'sk-or-v1-supersecretkey1234567890abcd';
@@ -38,7 +39,7 @@ export class FakeFetch {
     return r;
   }
 
-  fetch: FetchLike = async (url, init) => {
+  fetch: FetchLike = async (url, init = {}) => {
     const headers: Record<string, string> = {};
     new Headers(init.headers).forEach((v, k) => {
       headers[k] = v;
@@ -94,9 +95,11 @@ export const photoBytes = (...tail: number[]): Uint8Array =>
 
 /** Accepts JPEG and PNG-looking bytes (labelled with their type), refuses anything else. */
 export const stubSanitizer: PhotoSanitizer = (bytes) => {
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) return ok({ mime: 'image/jpeg', bytes });
-  if (bytes[0] === 0x89 && bytes[1] === 0x50) return ok({ mime: 'image/png', bytes });
-  return err({ kind: 'unrecognised' });
+  if (bytes[0] === 0xff && bytes[1] === 0xd8)
+    return { kind: 'sanitized', mime: 'image/jpeg', bytes };
+  if (bytes[0] === 0x89 && bytes[1] === 0x50)
+    return { kind: 'sanitized', mime: 'image/png', bytes };
+  return { kind: 'unsendable', reason: 'unrecognisedFormat' };
 };
 
 /** A deterministic stand-in for SHA-256: distinct bytes give distinct digests. */

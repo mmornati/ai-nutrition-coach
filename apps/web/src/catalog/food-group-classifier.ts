@@ -25,9 +25,13 @@ import type { FoodGroup } from '@anc/core';
 /**
  * Classify `descriptors` (OFF category tags, or a single food name). The first descriptor that
  * classifies wins, after the two override passes.
+ *
+ * Takes a `readonly string[]`, NOT an `Iterable<string>`: a bare string is an iterable of
+ * characters, so `classifyFoodGroup('egg')` would compile and classify `e`, `g`, `g`. To classify
+ * one food name use {@link classifyFoodByName}.
  */
-export function classifyFoodGroup(descriptors: Iterable<string>): FoodGroup {
-  const normalized = Array.from(descriptors, tokens);
+export function classifyFoodGroup(descriptors: readonly string[]): FoodGroup {
+  const normalized = descriptors.map((d) => tokens(d));
   for (const t of normalized) if (isNutButter(t)) return 'protein';
   for (const t of normalized) if (isPlantMilk(t)) return 'dairy';
   for (const t of normalized) {
@@ -35,6 +39,11 @@ export function classifyFoodGroup(descriptors: Iterable<string>): FoodGroup {
     if (group !== 'other') return group;
   }
   return 'other';
+}
+
+/** Classify ONE food name (the AI fallback's `ClassifyFoodGroup`). */
+export function classifyFoodByName(name: string): FoodGroup {
+  return classifyFoodGroup([name]);
 }
 
 function tokens(raw: string): string[] {

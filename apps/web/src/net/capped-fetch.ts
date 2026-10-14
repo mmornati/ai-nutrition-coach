@@ -51,6 +51,11 @@ export interface CappedFetchOptions {
   readonly headersTimeoutMs?: number;
   /** Overall body-read budget. Defaults to {@link BODY_READ_TIMEOUT_MS}. */
   readonly bodyTimeoutMs?: number;
+  /**
+   * Longest wait for the NEXT chunk of the body (a stalled stream). Default: none; the overall
+   * {@link bodyTimeoutMs} still applies.
+   */
+  readonly idleTimeoutMs?: number;
   /** Which statuses have their body read (others are cancelled unread). Default: 2xx. */
   readonly readBodyWhen?: (status: number) => boolean;
   /** An outer cancel (e.g. the screen went away). */
@@ -140,8 +145,9 @@ export async function cappedFetch(
       controller.abort();
     }, bodyTimeoutMs);
 
-    const body = await readCapped(response, maxBytes, controller);
+    const body = await readCapped(response, maxBytes, controller, options.idleTimeoutMs);
     if (body === 'tooLarge') return fail('tooLarge');
+    if (body === 'idle') return fail('timeout');
     if (body === 'failed') return fail(timedOut ? 'timeout' : 'network');
     return { kind: 'response', status: response.status, headers: response.headers, body };
   } finally {
@@ -154,7 +160,8 @@ async function readCapped(
   response: Response,
   maxBytes: number,
   controller: AbortController,
-): Promise<Uint8Array | 'tooLarge' | 'failed'> {
+  idleTimeoutMs: number | undefined,
+): Promise<Uint8Array | 'tooLarge' | 'idle' | 'failed'> {
   const stream = response.body;
   if (!stream) return new Uint8Array(0);
   const reader = stream.getReader();
@@ -162,7 +169,13 @@ async function readCapped(
   let total = 0;
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const next = await readChunk(reader, idleTimeoutMs);
+      if (next === 'idle') {
+        controller.abort();
+        void reader.cancel().catch(() => undefined);
+        return 'idle';
+      }
+      const { done, value } = next;
       if (done) break;
       total += value.byteLength;
       if (total > maxBytes) {
@@ -184,6 +197,26 @@ async function readCapped(
     offset += chunk.byteLength;
   }
   return out;
+}
+
+const IDLE = Symbol('idle');
+
+/** One `reader.read()`, or `'idle'` when no chunk arrives within `idleTimeoutMs`. */
+async function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleTimeoutMs: number | undefined,
+): Promise<ReadableStreamReadResult<Uint8Array> | 'idle'> {
+  if (idleTimeoutMs === undefined) return reader.read();
+  let id: ReturnType<typeof setTimeout> | undefined;
+  const idle = new Promise<typeof IDLE>((resolve) => {
+    id = setTimeout(() => resolve(IDLE), idleTimeoutMs);
+  });
+  try {
+    const next = await Promise.race([reader.read(), idle]);
+    return next === IDLE ? 'idle' : next;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 /** UTF-8 + JSON decode. `undefined` when the body is not valid JSON (never throws). */

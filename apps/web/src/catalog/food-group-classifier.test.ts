@@ -1,7 +1,7 @@
 // `classifyFoodGroup`: OFF category tags and food names. Ported one-to-one from
 // packages/integrations/test/food_group_classifier_test.dart.
 import { describe, expect, it } from 'vitest';
-import { classifyFoodGroup } from './food-group-classifier';
+import { classifyFoodByName, classifyFoodGroup } from './food-group-classifier';
 import { seedFoods } from './seed-foods';
 
 describe('the reported misclassifications', () => {
@@ -77,4 +77,21 @@ it('every seeded food classifies to its own group by name (or other)', () => {
       `${seed.displayName}: seed ${seed.foodGroup}, guessed ${guessed}`,
     ).toBe(true);
   }
+});
+
+describe('classifyFoodByName (the one-name adapter)', () => {
+  it('classifies a whole name', () => {
+    expect(classifyFoodByName('egg')).toBe('protein');
+    expect(classifyFoodByName('rice')).toBe('starch');
+    expect(classifyFoodByName('milk')).toBe('dairy');
+    expect(classifyFoodByName('peanut butter')).toBe('protein');
+  });
+
+  it('a bare string cannot be passed to classifyFoodGroup (it would classify characters)', () => {
+    const misuse = (): unknown =>
+      // @ts-expect-error a string is an iterable of characters: the parameter is a readonly string[]
+      classifyFoodGroup('egg');
+    expect(typeof misuse).toBe('function'); // compile-time check only; never called
+    expect(classifyFoodGroup(['egg'])).toBe(classifyFoodByName('egg'));
+  });
 });

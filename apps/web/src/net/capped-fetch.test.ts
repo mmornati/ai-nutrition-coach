@@ -134,6 +134,31 @@ describe('cappedFetch', () => {
     expect(f.aborted).toBeGreaterThanOrEqual(1);
   });
 
+  it('a stalled stream ends at the idle timeout, well before the overall budget', async () => {
+    vi.useFakeTimers();
+    const f = new FakeFetch();
+    f.stallBody = true;
+    const p = cappedFetch('https://example.test/x', { fetchImpl: f.fetch, idleTimeoutMs: 5_000 });
+    await vi.advanceTimersByTimeAsync(5_001);
+    expect(await p).toEqual({ kind: 'failure', reason: 'timeout' });
+    expect(f.aborted).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a POST sends exactly the body and headers it is given', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = { ok: 1 };
+    const r = await cappedFetch('https://example.test/x', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"a":1}',
+      fetchImpl: f.fetch,
+    });
+    expect(r.kind).toBe('response');
+    expect(f.last.init.method).toBe('POST');
+    expect(f.last.init.body).toBe('{"a":1}');
+    expect(f.last.init.headers).toEqual({ 'Content-Type': 'application/json' });
+  });
+
   it('an outer abort cancels the request', async () => {
     const f = new FakeFetch();
     f.hang = true;

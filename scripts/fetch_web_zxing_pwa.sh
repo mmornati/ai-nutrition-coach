@@ -78,6 +78,19 @@ check_pins() {
   fi
 }
 
+# Fails closed (exit 1, nothing extracted, nothing written) unless the downloaded tarball matches
+# the pinned SHA-256.
+check_tarball() {
+  local actual
+  actual="$(sha256_of "$1")"
+  if [[ "$actual" != "$ZXING_TARBALL_SHA256" ]]; then
+    echo "✗ zxing-wasm tarball checksum mismatch" >&2
+    echo "  expected $ZXING_TARBALL_SHA256" >&2
+    echo "  actual   $actual" >&2
+    exit 1
+  fi
+}
+
 # Offline self-test of check_pins (run by `pnpm verify`).
 if [[ "${1:-}" == "--self-test" ]]; then
   ST="$(mktemp -d)"
@@ -100,6 +113,13 @@ if [[ "${1:-}" == "--self-test" ]]; then
     check_pins newreader newwasm' 2>/dev/null)" && fail_test "a repin mismatch must exit non-zero"
   [[ "$printed" == *'ZXING_READER_PATCHED_SHA256="newreader"'* ]] || fail_test "repin must print the new hashes"
   [[ ! -e "$OUT" ]] || fail_test "a repin mismatch must remove the output directory"
+  # tarball mismatch: fails closed and leaves any output untouched / unwritten
+  echo "not the pinned tarball" > "$ST/zxing.tgz"
+  if ( check_tarball "$ST/zxing.tgz" ) >/dev/null 2>&1; then fail_test "a tarball mismatch must fail"; fi
+  [[ ! -e "$ST/package" ]] || fail_test "a tarball mismatch must extract nothing"
+  # a tarball that does hash to the pin passes (stub the pin to this file's own hash)
+  ( ZXING_TARBALL_SHA256="$(sha256_of "$ST/zxing.tgz")"; check_tarball "$ST/zxing.tgz" ) >/dev/null 2>&1 \
+    || fail_test "a matching tarball must pass"
   echo "✓ fetch_web_zxing_pwa self-test OK"
   exit 0
 fi
@@ -123,13 +143,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 curl --fail --silent --show-error --location --retry 3 --output "$TMP/zxing.tgz" "$URL"
 
-ACTUAL="$(sha256_of "$TMP/zxing.tgz")"
-if [[ "$ACTUAL" != "$ZXING_TARBALL_SHA256" ]]; then
-  echo "✗ zxing-wasm tarball checksum mismatch" >&2
-  echo "  expected $ZXING_TARBALL_SHA256" >&2
-  echo "  actual   $ACTUAL" >&2
-  exit 1
-fi
+check_tarball "$TMP/zxing.tgz"
 
 tar -xzf "$TMP/zxing.tgz" -C "$TMP" \
   package/dist/iife/reader/index.js package/dist/reader/zxing_reader.wasm package/LICENSE

@@ -5,23 +5,10 @@ import { AiSettingsController } from './ai-settings-controller';
 import { InMemoryAiSettingsStore } from './ai-settings-store';
 import { InMemoryByokKeyStore } from './byok-key-store';
 import { ConsentGatedAiRung } from './consent-gated-ai-rung';
-import {
-  photoConsentRequest,
-  recognizeWithConsent,
-  type PhotoConsentRequest,
-} from './photo-consent';
+import { photoFlowConsentDeps } from './photo-consent';
 import { PhotoUploadPermit } from './photo-upload-permit';
-import { createLiveAiRung, photoUploadHost } from './rung-registry';
-import {
-  FakeFetch,
-  TEST_KEY,
-  chatReply,
-  photoBytes,
-  stubClassify,
-  stubDigest,
-  stubSanitizer,
-} from './testing';
-import { OpenAiCompatibleByokProvider } from './openai-compatible-provider';
+import { createLiveAiRung } from './rung-registry';
+import { TEST_KEY, photoBytes, stubDigest } from './testing';
 
 class RecordingRung implements AiRung {
   calls: Uint8Array[] = [];
@@ -148,171 +135,23 @@ describe('ConsentGatedAiRung (per-photo mode, the default)', () => {
   });
 });
 
-describe('photoConsentRequest', () => {
-  const byok = (extra: Partial<ConstructorParameters<typeof AiSettings>[0]> = {}) =>
-    new AiSettings({
-      rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
-      byokEndpointUrl: 'https://api.example.com/v1',
-      byokModel: 'm',
-      ...extra,
-    });
-
-  it('No AI never asks (nothing leaves the device)', () => {
-    expect(photoConsentRequest(AiSettings.defaults)).toBeNull();
-    expect(photoUploadHost(AiSettings.defaults)).toBeNull();
+describe('the rung guards itself', () => {
+  const byokSettings = new AiSettings({
+    rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
+    byokEndpointUrl: 'https://api.example.com/v1',
+    byokModel: 'm',
+    byokKeyHost: host,
   });
 
-  it('an invalid BYOK endpoint sends nothing, so it asks nothing', () => {
-    expect(photoConsentRequest(byok({ byokEndpointUrl: 'http://example.com' }))).toBeNull();
-  });
-
-  it('by default EVERY photo asks, even for a host agreed before', () => {
-    expect(photoConsentRequest(byok())).toEqual({ host, perPhoto: true });
-    expect(photoConsentRequest(byok({ photoConsentHosts: [host] }))).toEqual({
-      host,
-      perPhoto: true,
-    });
-  });
-
-  it('with "ask before every photo" off, the host is asked once', () => {
-    expect(photoConsentRequest(byok({ askBeforeEveryPhoto: false }))).toEqual({
-      host,
-      perPhoto: false,
-    });
-    expect(
-      photoConsentRequest(byok({ askBeforeEveryPhoto: false, photoConsentHosts: [host] })),
-    ).toBeNull();
-  });
-});
-
-describe('recognizeWithConsent', () => {
-  function setup(settings: AiSettings) {
+  it('refuses when something reaches it without a permit', async () => {
     const controller = new AiSettingsController({
-      store: new InMemoryAiSettingsStore(settings),
-      initial: settings,
+      store: new InMemoryAiSettingsStore(byokSettings),
+      initial: byokSettings,
     });
-    const permit = new PhotoUploadPermit(stubDigest);
-    const fake = new FakeFetch();
-    fake.jsonBody = chatReply('[{"name":"Apple","quantityHint":"1 piece"}]');
     const rung = createLiveAiRung({
       getSettings: controller.getSnapshot,
       keyStore: new InMemoryByokKeyStore(TEST_KEY),
-      permit,
-      createProvider: (args) =>
-        new OpenAiCompatibleByokProvider({
-          ...args,
-          sanitizePhoto: stubSanitizer,
-          classifyFoodGroup: stubClassify,
-          fetch: fake.fetch,
-        }),
-    });
-    const asked: PhotoConsentRequest[] = [];
-    const run = (answer: boolean, bytes = photoBytes(1)) =>
-      recognizeWithConsent({
-        photoBytes: bytes,
-        settings: controller.getSnapshot,
-        controller,
-        permit,
-        rung,
-        ask: async (r) => {
-          asked.push(r);
-          return answer;
-        },
-      });
-    return { controller, permit, fake, asked, run };
-  }
-  const byokSettings = (extra: ConstructorParameters<typeof AiSettings>[0] = {}) =>
-    new AiSettings({
-      rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
-      byokEndpointUrl: 'https://api.example.com/v1',
-      byokModel: 'm',
-      byokKeyHost: host,
-      ...extra,
-    });
-
-  it('per-photo yes sends that photo only and remembers nothing', async () => {
-    const t = setup(byokSettings());
-    const out = await t.run(true);
-    expect(out.consented).toBe(true);
-    expect(out.result.kind).toBe('recognizedPlate');
-    expect(t.fake.requests).toHaveLength(1);
-    expect(t.controller.getSnapshot().photoConsentHosts.size).toBe(0);
-    // A second photo asks all over again, and the permit is spent.
-    expect(await t.permit.consume({ host, bytes: photoBytes(1) })).toBe(false);
-    await t.run(true, photoBytes(2));
-    expect(t.asked).toHaveLength(2);
-  });
-
-  it('"Not now": the rung is never reached, nothing is stored, the no-AI core takes over', async () => {
-    const t = setup(byokSettings());
-    const out = await t.run(false);
-    expect(out).toEqual({ result: recognizedPlate([]), consented: false });
-    expect(t.fake.requests).toHaveLength(0);
-    expect(t.controller.getSnapshot().photoConsentHosts.size).toBe(0);
-  });
-
-  it('per-host mode: the first yes is remembered, the second photo is not asked', async () => {
-    const t = setup(byokSettings({ askBeforeEveryPhoto: false }));
-    await t.run(true);
-    expect(t.controller.getSnapshot().hasConsentFor(host)).toBe(true);
-    expect(t.fake.requests).toHaveLength(1);
-    await t.run(true, photoBytes(7));
-    expect(t.asked).toHaveLength(1);
-    expect(t.fake.requests).toHaveLength(2);
-  });
-
-  it('if the per-host consent cannot be saved the photo is NOT sent', async () => {
-    const store = new InMemoryAiSettingsStore();
-    store.write = async () => {
-      throw new Error('locked');
-    };
-    const initial = byokSettings({ askBeforeEveryPhoto: false });
-    const controller = new AiSettingsController({ store, initial });
-    const t = setup(initial);
-    const out = await recognizeWithConsent({
-      photoBytes: photoBytes(1),
-      settings: controller.getSnapshot,
-      controller,
-      permit: t.permit,
-      rung: createLiveAiRung({
-        getSettings: controller.getSnapshot,
-        keyStore: new InMemoryByokKeyStore(TEST_KEY),
-        permit: t.permit,
-        createProvider: () => ({
-          recognize: async () => {
-            throw new Error('must not be called');
-          },
-        }),
-      }),
-      ask: async () => true,
-    });
-    expect(out.consented).toBe(false);
-    expect(out.result).toEqual(recognizedPlate([]));
-    expect(controller.getSnapshot().hasConsentFor(host)).toBe(false);
-  });
-
-  it('a throwing dialog fails closed', async () => {
-    const t = setup(byokSettings());
-    const out = await recognizeWithConsent({
-      photoBytes: photoBytes(1),
-      settings: t.controller.getSnapshot,
-      controller: t.controller,
-      permit: t.permit,
-      rung: { recognize: async () => recognizedPlate([]) },
-      ask: async () => {
-        throw new Error('dialog crashed');
-      },
-    });
-    expect(out.consented).toBe(false);
-    expect(t.fake.requests).toHaveLength(0);
-  });
-
-  it('the rung refuses by itself when something else reaches it without a permit', async () => {
-    const t = setup(byokSettings());
-    const rung = createLiveAiRung({
-      getSettings: t.controller.getSnapshot,
-      keyStore: new InMemoryByokKeyStore(TEST_KEY),
-      permit: t.permit,
+      permit: new PhotoUploadPermit(stubDigest),
       createProvider: () => ({
         recognize: async () => {
           throw new Error('must not be called');
@@ -322,25 +161,16 @@ describe('recognizeWithConsent', () => {
     expect(await rung.recognize(photoBytes(1))).toMatchObject({ cause: 'consentRequired' });
   });
 
-  it('No AI never asks and never touches the network', async () => {
-    const t = setup(AiSettings.defaults);
-    const out = await t.run(true);
-    expect(t.asked).toHaveLength(0);
-    expect(out.result).toEqual(recognizedPlate([]));
-    expect(t.fake.requests).toHaveLength(0);
-  });
-
-  it('an unspent permit never outlives the photo', async () => {
-    const t = setup(byokSettings());
-    // Even when the rung is never reached, the permit is revoked afterwards.
-    await recognizeWithConsent({
-      photoBytes: photoA,
-      settings: t.controller.getSnapshot,
-      controller: t.controller,
-      permit: t.permit,
-      rung: { recognize: async () => recognizedPlate([]) },
-      ask: async () => true,
+  it('photoFlowConsentDeps reads the live settings', async () => {
+    const controller = new AiSettingsController({
+      store: new InMemoryAiSettingsStore(byokSettings),
+      initial: byokSettings,
     });
-    expect(await t.permit.consume({ host, bytes: photoA })).toBe(false);
+    const deps = photoFlowConsentDeps(controller);
+    expect(deps.uploadHost()).toBe(host);
+    expect(deps.askBeforeEveryPhoto()).toBe(true);
+    expect(deps.hasHostConsent(host)).toBe(false);
+    await deps.grantHostConsent(host);
+    expect(deps.hasHostConsent(host)).toBe(true);
   });
 });

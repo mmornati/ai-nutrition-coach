@@ -14,7 +14,10 @@
  *  - JPEG: drop APP1 (EXIF/XMP), APP2 unless it is an ICC profile (MPF), APP3..APP13 (meta,
  *    IPTC) and COM segments, including those between progressive scans, and everything after
  *    EOI; pixel data is copied untouched.
+ *    APP0 (JFIF), APP14 (Adobe colour transform) and APP15 are KEPT, as in the Dart spec: APP14
+ *    decides how the pixels decode, and neither carries position or device data.
  *  - PNG: drop `eXIf`, `tEXt`, `zTXt`, `iTXt`, `tIME` chunks.
+ *    Unknown ancillary chunks are KEPT too (the Dart spec drops only the five named here).
  *  - WebP: drop the `EXIF` and `XMP ` chunks, clear their VP8X flags, fix the RIFF size.
  *  - HEIC / HEIF: the metadata lives inside the container's `meta` box with absolute offsets;
  *    stripping it safely needs a real ISO BMFF writer. Fail CLOSED: refuse to send it.

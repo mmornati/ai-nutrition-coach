@@ -13,6 +13,8 @@ import {
 import { OfflineFirstFoodCatalog } from './offline-first-catalog';
 import { seedFoods } from './seed-foods';
 
+const allow = async (): Promise<boolean> => true;
+
 function ranked(result: CatalogResult) {
   if (result.kind !== 'rankedMatches')
     throw new Error(`expected rankedMatches, got ${result.kind}`);
@@ -59,30 +61,37 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('HAPPY_PATH: partial query "salm" surfaces Salmon ranked first', async () => {
-    const matches = ranked(await new OfflineFirstFoodCatalog().search('salm'));
+    const matches = ranked(
+      await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('salm'),
+    );
     expect(matches[0]?.food.displayName).toBe('Salmon');
   });
 
   it('EMPTY_QUERY returns empty rankedMatches (never notFound); so does whitespace', async () => {
-    const catalog = new OfflineFirstFoodCatalog();
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     expect(ranked(await catalog.search(''))).toEqual([]);
     expect(ranked(await catalog.search('   '))).toEqual([]);
   });
 
   it('NO_MATCH returns a typed notFound with the (normalised) query', async () => {
-    expect(await new OfflineFirstFoodCatalog().search('zxqwer')).toEqual({
+    expect(
+      await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('zxqwer'),
+    ).toEqual({
       kind: 'notFound',
       query: 'zxqwer',
     });
   });
 
   it('RANKED_ORDER: exact > prefix > substring > token-overlap', async () => {
-    const matches = ranked(await new OfflineFirstFoodCatalog().search('apple'));
+    const matches = ranked(
+      await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('apple'),
+    );
     expect(matches[0]?.food.displayName).toBe('Apple');
     for (let i = 1; i < matches.length; i++) {
       expect(matches[i - 1]!.confidence).toBeGreaterThanOrEqual(matches[i]!.confidence);
     }
     const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
       seeds: [
         { displayName: 'Big Apple Pie', foodGroup: 'other', presets: seedFoods[0]!.presets },
         { displayName: 'Apple', foodGroup: 'vegFruit', presets: seedFoods[0]!.presets },
@@ -101,6 +110,7 @@ describe('OfflineFirstFoodCatalog', () => {
 
   it('token overlap scores 0.4 x the fraction of query words found as whole words', async () => {
     const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
       seeds: [{ displayName: 'Sweet Potato', foodGroup: 'starch', presets: seedFoods[0]!.presets }],
     });
     // Not a substring of the name as a whole, but both words are whole tokens of it.
@@ -111,18 +121,22 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('case-insensitive matching: "SALM" matches Salmon', async () => {
-    const matches = ranked(await new OfflineFirstFoodCatalog().search('SALM'));
+    const matches = ranked(
+      await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('SALM'),
+    );
     expect(matches.some((m) => m.food.displayName === 'Salmon')).toBe(true);
   });
 
   it('LIMIT: the limit parameter caps the returned matches', async () => {
     expect(
-      ranked(await new OfflineFirstFoodCatalog().search('a', { limit: 3 })).length,
+      ranked(
+        await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('a', { limit: 3 }),
+      ).length,
     ).toBeLessThanOrEqual(3);
   });
 
   it('OFFLINE_HIT: a repeat query is replayed from the cache in the same order', async () => {
-    const catalog = new OfflineFirstFoodCatalog();
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     const first = ranked(await catalog.search('rice')).map((m) => m.food.displayName);
     expect(catalog.cachedQueries).toBe(1);
     const second = ranked(await catalog.search('rice')).map((m) => m.food.displayName);
@@ -130,7 +144,7 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('the cache key is case-folded and trimmed', async () => {
-    const catalog = new OfflineFirstFoodCatalog();
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     await catalog.search('rice');
     expect(catalog.cachedQueries).toBe(1);
     await catalog.search('  RICE  ');
@@ -138,7 +152,9 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('a FoodMatch carries the food, a confidence and the honest presets', async () => {
-    const matches = ranked(await new OfflineFirstFoodCatalog().search('salmon'));
+    const matches = ranked(
+      await new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).search('salmon'),
+    );
     const salmon = matches.find((m) => m.food.displayName === 'Salmon')!;
     expect(salmon.confidence).toBeGreaterThanOrEqual(0);
     expect(salmon.confidence).toBeLessThanOrEqual(1);
@@ -149,7 +165,7 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('seeded foods are source "seed" (not Open Food Facts) with sourceRef seed:<name>', async () => {
-    const catalog = new OfflineFirstFoodCatalog();
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     const first = ranked(await catalog.search('apple'))[0]!;
     expect(first.food.source).toBe('seed');
     const byRef = await catalog.lookupBySourceRef('seed:apple');
@@ -160,7 +176,7 @@ describe('OfflineFirstFoodCatalog', () => {
   });
 
   it('a small-limit search does not shadow a later larger-limit one', async () => {
-    const catalog = new OfflineFirstFoodCatalog();
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     expect(ranked(await catalog.search('e', { limit: 2 }))).toHaveLength(2);
     expect(ranked(await catalog.search('e', { limit: 10 })).length).toBeGreaterThan(2);
     expect(ranked(await catalog.search('e', { limit: 2 }))).toHaveLength(2);
@@ -170,6 +186,7 @@ describe('OfflineFirstFoodCatalog', () => {
   it('the search path makes no network call', async () => {
     const f = new FakeFetch();
     const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
       offSource: createOffBarcodeSource({ fetchImpl: f.fetch }),
     });
     await catalog.search('rice');
@@ -180,6 +197,7 @@ describe('OfflineFirstFoodCatalog', () => {
   it('search failures are typed catalogFailure, never a thrown error', async () => {
     // A ranker that throws:
     const bad = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
       seeds: [{ displayName: 'x', foodGroup: 'other', presets: [] }],
     });
     (bad as unknown as { rank: () => never }).rank = () => {
@@ -196,7 +214,10 @@ describe('OfflineFirstFoodCatalog', () => {
 describe('OfflineFirstFoodCatalog.lookupByBarcode', () => {
   const setup = () => {
     const off = new FakeOffSource();
-    return { off, catalog: new OfflineFirstFoodCatalog({ offSource: off }) };
+    return {
+      off,
+      catalog: new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow, offSource: off }),
+    };
   };
 
   it('HAPPY_PATH_KNOWN: resolves to a single match with the OFF name and the barcode as sourceRef', async () => {
@@ -289,6 +310,7 @@ describe('OfflineFirstFoodCatalog.lookupByBarcode', () => {
 
   it('a source that throws is a typed catalogFailure, never a thrown error', async () => {
     const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
       offSource: {
         lookup: async () => {
           throw new Error('adapter bug');
@@ -317,6 +339,24 @@ describe('online lookup gate (privacy audit PV7)', () => {
     allowed = true;
     expect((await catalog.lookupByBarcode('111')).kind).toBe('rankedMatches');
     expect(off.totalCalls).toBe(1);
+  });
+
+  it('there is no open default: a missing or non-true gate sends NOTHING', async () => {
+    const off = new FakeOffSource();
+    off.setMatch('111', 'Jam', []);
+    // Untyped callers: no gate at all, and a gate that answers something other than `true`.
+    const missing = new OfflineFirstFoodCatalog({ offSource: off } as unknown as {
+      onlineLookupAllowed: () => Promise<boolean>;
+    });
+    expect((await missing.lookupByBarcode('111')).kind).toBe('notFound');
+    for (const answer of [undefined, null, 'allowed', 1, 'true']) {
+      const odd = new OfflineFirstFoodCatalog({
+        offSource: off,
+        onlineLookupAllowed: (async () => answer) as unknown as () => Promise<boolean>,
+      });
+      expect((await odd.lookupByBarcode('111')).kind, String(answer)).toBe('notFound');
+    }
+    expect(off.totalCalls).toBe(0);
   });
 
   it('a gate that throws fails closed', async () => {
@@ -363,12 +403,12 @@ describe('online lookup gate (privacy audit PV7)', () => {
 
 describe('two separate LRU caches (search 32, barcode 64)', () => {
   it('default capacities', () => {
-    expect(new OfflineFirstFoodCatalog().cacheCapacity).toBe(32);
+    expect(new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow }).cacheCapacity).toBe(32);
   });
 
   it('the search cache holds 32 and evicts the oldest; the barcode cache is separate and holds 64', async () => {
     const off = new FakeOffSource();
-    const catalog = new OfflineFirstFoodCatalog({ offSource: off });
+    const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow, offSource: off });
     // 16 queries x 3 limits = 48 distinct cache keys, all matching something: only 32 are kept.
     const queries = [
       'a',
@@ -406,7 +446,11 @@ describe('two separate LRU caches (search 32, barcode 64)', () => {
 
   it('a barcode read promotes it, so it survives eviction', async () => {
     const off = new FakeOffSource();
-    const catalog = new OfflineFirstFoodCatalog({ offSource: off, barcodeCacheCapacity: 2 });
+    const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
+      offSource: off,
+      barcodeCacheCapacity: 2,
+    });
     off.setMatch('a', 'A', []);
     off.setMatch('b', 'B', []);
     off.setMatch('c', 'C', []);

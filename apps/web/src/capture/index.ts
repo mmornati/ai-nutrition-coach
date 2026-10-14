@@ -1,5 +1,6 @@
-// Phase 5 capture. Phase 6 (AI) imports the sanitizer and the digest/permit from here and the
-// food-group classifier from `../catalog`; this directory imports nothing from `src/ai`.
+// Phase 5 capture. Phase 6 (AI) imports the sanitizer and the digest from here and the food-group
+// classifier from `../catalog`. The one upload permit and consent-gated rung live in `src/ai`;
+// `runPhotoFlow` is the one consent orchestrator.
 export {
   detectPhotoFormat,
   sanitizePhotoForUpload,
@@ -11,7 +12,7 @@ export {
   type PhotoSanitizeResult,
   type UnsendablePhotoReason,
 } from './photo-sanitizer';
-export { photoDigest, PhotoUploadPermit } from './photo-digest';
+export { photoDigest } from './photo-digest';
 export {
   downscalePhoto,
   fitWithin,

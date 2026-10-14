@@ -27,7 +27,7 @@ import {
   type RecognitionResult,
 } from '@anc/core';
 import { closestMatches } from './closest-matches';
-import type { PhotoUploadPermit } from './photo-digest';
+import type { PhotoUploadPermit } from '../ai/photo-upload-permit';
 import type { PhotoCapture } from './photo-capture';
 
 /** What the screen renders. `denied` = cancelled, denied or unreadable (one calm path). */
@@ -139,7 +139,7 @@ export async function runPhotoFlow(deps: PhotoFlowDeps): Promise<PhotoFlowState>
     // failure line, never on an endless resolving state. A "not now" never reaches the rung.
     recognition = consented ? await deps.getRung().recognize(bytes) : recognizedPlate([]);
   } catch {
-    recognition = recognitionFailure('unknown', 'recognize threw');
+    recognition = recognitionFailure('unknown');
   } finally {
     // An unspent one-shot permit must not outlive this photo.
     if (deps.isSuperseded?.() !== true) deps.permit.revoke();

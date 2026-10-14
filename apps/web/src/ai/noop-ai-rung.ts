@@ -26,3 +26,19 @@ export class UnavailableAiRung implements AiRung {
     return recognitionFailure('unsupported', strings().ai.failure.unavailableRung);
   }
 }
+
+/**
+ * BYOK is selected but the endpoint (or model) is missing or does not validate: nothing can be
+ * sent and no key is read. Says so with the `notConfigured` cause, not "key missing".
+ */
+export class NotConfiguredAiRung implements AiRung {
+  readonly #message: string;
+
+  constructor(message: string) {
+    this.#message = message;
+  }
+
+  async recognize(): Promise<RecognitionResult> {
+    return recognitionFailure('notConfigured', this.#message);
+  }
+}

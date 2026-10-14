@@ -14,20 +14,28 @@ import { strings, fill } from '../i18n';
 import { validateByokEndpoint, type ByokEndpointProblem } from './byok-endpoint';
 import {
   PING_RECEIVE_TIMEOUT_MS,
-  RequestFailedError,
-  RequestTimeoutError,
-  ResponseTooLargeError,
-  postJson,
-  type PostResult,
-} from './capped-post';
+  RECEIVE_TIMEOUT_MS,
+  cappedFetch,
+  parseJsonBody,
+  type FetchLike,
+} from '../net/capped-fetch';
 import { parseRateLimitReset } from './rate-limit-reset';
-import type {
-  ByokOutcome,
-  ByokProvider,
-  ClassifyFoodGroup,
-  FetchLike,
-  PhotoSanitizer,
-} from './types';
+import type { ByokOutcome, ByokProvider, ClassifyFoodGroup, PhotoSanitizer } from './types';
+
+/** The status reported for a redirect (never followed): the browser hides the real one. */
+const REDIRECT_STATUS = 302;
+
+/** The request produced no usable reply. Internal: mapped to a calm `ByokOutcome` below. */
+class ResponseTooLargeError extends Error {}
+class RequestTimeoutError extends Error {}
+class RequestFailedError extends Error {}
+
+interface PostResult {
+  readonly status: number;
+  readonly headers: Headers;
+  /** The parsed body of a 2xx reply; `undefined` for other statuses or an unparsable body. */
+  readonly json: unknown;
+}
 
 /** At most this many foods are kept from one model response. */
 export const MAX_RECOGNIZED_FOODS = 20;
@@ -130,23 +138,46 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
     return this.#opts.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
-  #post(
+  /**
+   * One JSON POST through the shared capped fetch (2 MiB cap, bounded waits, no redirects, no
+   * cookies / referrer / cache). The idle timeout is the receive timeout: a stalled stream ends.
+   */
+  async #post(
     url: string,
     body: unknown,
     apiKey: string,
     receiveTimeoutMs: number | undefined,
   ): Promise<PostResult> {
-    return postJson(
-      url,
-      body,
+    const receiveMs = receiveTimeoutMs ?? RECEIVE_TIMEOUT_MS;
+    const r = await cappedFetch(url, {
+      method: 'POST',
       // Exactly these two headers. The browser adds its own User-Agent and Origin.
-      { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
-      {
-        fetch: this.#fetch(),
-        receiveTimeoutMs,
-        bodyReadTimeoutMs: this.#opts.bodyReadTimeoutMs,
-      },
-    );
+      headers: { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      headersTimeoutMs: receiveMs,
+      idleTimeoutMs: receiveMs,
+      ...(this.#opts.bodyReadTimeoutMs === undefined
+        ? {}
+        : { bodyTimeoutMs: this.#opts.bodyReadTimeoutMs }),
+      fetchImpl: this.#fetch(),
+    });
+    if (r.kind === 'failure') {
+      switch (r.reason) {
+        case 'redirect':
+          return { status: REDIRECT_STATUS, headers: new Headers(), json: undefined };
+        case 'tooLarge':
+          throw new ResponseTooLargeError();
+        case 'timeout':
+          throw new RequestTimeoutError();
+        case 'network':
+          throw new RequestFailedError();
+      }
+    }
+    return {
+      status: r.status,
+      headers: r.headers,
+      json: r.body.byteLength === 0 ? undefined : parseJsonBody(r.body),
+    };
   }
 
   async recognize(args: { photoBytes: Uint8Array; apiKey: string }): Promise<ByokOutcome> {
@@ -166,7 +197,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
     } catch {
       return failure('photoNotSendable', t.photoNotSendable);
     }
-    if (!photo.ok) return failure('photoNotSendable', t.photoNotSendable);
+    if (photo.kind !== 'sanitized') return failure('photoNotSendable', t.photoNotSendable);
 
     const body = {
       model,
@@ -177,7 +208,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
             { type: 'text', text: RECOGNITION_PROMPT },
             {
               type: 'image_url',
-              image_url: { url: `data:${photo.value.mime};base64,${base64(photo.value.bytes)}` },
+              image_url: { url: `data:${photo.mime};base64,${base64(photo.bytes)}` },
             },
           ],
         },

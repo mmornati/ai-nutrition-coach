@@ -119,6 +119,35 @@ describe('the live rung', () => {
     expect(fake.requests).toHaveLength(0);
   });
 
+  it('an unset or invalid endpoint is "not configured", not "key missing", and sends nothing', async () => {
+    for (const endpoint of ['', 'http://example.com/v1', 'not a url']) {
+      const fake = new FakeFetch();
+      const settings = new AiSettings({
+        rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
+        byokEndpointUrl: endpoint,
+        byokModel: 'm',
+        byokKeyHost: 'api.example.com',
+      });
+      const rung = buildAiRung(settings, {
+        getSettings: () => settings,
+        keyStore: new InMemoryByokKeyStore(TEST_KEY),
+        permit: new PhotoUploadPermit(stubDigest),
+        createProvider: (a) =>
+          new OpenAiCompatibleByokProvider({
+            ...a,
+            sanitizePhoto: stubSanitizer,
+            classifyFoodGroup: stubClassify,
+            fetch: fake.fetch,
+          }),
+      });
+      expect(await rung.recognize(photoBytes(1)), endpoint).toMatchObject({
+        kind: 'recognitionFailure',
+        cause: 'notConfigured',
+      });
+      expect(fake.requests, endpoint).toHaveLength(0);
+    }
+  });
+
   it('the hosted and local rungs make no request', async () => {
     for (const kind of ['hostedQuota', 'local'] as const) {
       const fake = new FakeFetch();

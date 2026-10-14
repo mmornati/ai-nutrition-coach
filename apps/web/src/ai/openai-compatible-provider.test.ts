@@ -4,6 +4,7 @@ import {
   RECOGNITION_PROMPT,
   type ByokConnectionResult,
 } from './openai-compatible-provider';
+import { classifyFoodByName } from '../catalog';
 import type { ByokOutcome } from './types';
 import {
   FakeFetch,
@@ -508,5 +509,33 @@ describe('testConnection', () => {
     const g = new FakeFetch();
     g.error = new TypeError(`Failed to fetch ${TEST_KEY}`);
     expect(JSON.stringify(await test(g))).not.toContain('sk-');
+  });
+});
+
+describe('the catalog classifier wired as the AI fallback (no group from the model)', () => {
+  it('classifies the whole NAME through the adapter, not its characters', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = chatReply(
+      JSON.stringify([
+        { name: 'egg', quantityHint: '2' },
+        { name: 'rice', quantityHint: '1 cup' },
+        { name: 'milk', quantityHint: '1 glass' },
+        { name: 'peanut butter', quantityHint: '1 tbsp', group: 'not-a-group' },
+      ]),
+    );
+    const p = new OpenAiCompatibleByokProvider({
+      endpointUrl: 'https://api.example.com/v1',
+      model: 'vision-1',
+      sanitizePhoto: stubSanitizer,
+      classifyFoodGroup: classifyFoodByName,
+      fetch: f.fetch,
+    });
+    const foods = recognizedFoods(await recognize(p));
+    expect(foods.map((x) => [x.databaseFood.displayName, x.databaseFood.foodGroup])).toEqual([
+      ['egg', 'protein'],
+      ['rice', 'starch'],
+      ['milk', 'dairy'],
+      ['peanut butter', 'protein'],
+    ]);
   });
 });

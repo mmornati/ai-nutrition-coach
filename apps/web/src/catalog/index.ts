@@ -1,4 +1,4 @@
-export { classifyFoodGroup } from './food-group-classifier';
+export { classifyFoodGroup, classifyFoodByName } from './food-group-classifier';
 export { LruCache } from './lru-cache';
 export { seedFoods, type SeedFood } from './seed-foods';
 export {

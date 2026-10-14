@@ -39,6 +39,13 @@ export const en = {
     oneServing: '~1 serving',
     labelFor: '{label}: {name}',
   },
+  /** Shared by the photo capture and the barcode scanner: one calm camera-problem copy. */
+  camera: {
+    deniedTitle: 'Camera denied — type it instead',
+    deniedBody: 'You can still log a plate from the manual entry screen.',
+    unavailableTitle: 'Camera unavailable — type it instead',
+    unavailableBody: "We couldn't start the camera. Manual entry still works.",
+  },
   capture: {
     title: 'Log a plate',
     nextStation: 'Next station: {meal}',
@@ -56,10 +63,6 @@ export const en = {
     reading: 'Reading your plate…',
     retake: 'Retake',
     typeManually: 'Type it manually',
-    deniedTitle: 'Camera denied — type it instead',
-    deniedBody: 'You can still log a plate from the manual entry screen.',
-    unavailableTitle: 'Camera unavailable — type it instead',
-    unavailableBody: "We couldn't start the camera. Manual entry still works.",
     noFoodsMatched: 'No foods matched — pick one below.',
     foundFoods: { one: 'Found 1 food on this plate.', other: 'Found {count} foods on this plate.' },
     nothingOnPlate: 'Nothing on this plate — pick one below.',
@@ -79,10 +82,6 @@ export const en = {
     scanAgain: 'Scan again',
     typeManually: 'Type it manually',
     searchUnavailable: "Search isn't available right now.",
-    deniedTitle: 'Camera denied — type it instead',
-    deniedBody: 'You can still log a plate from the manual entry screen.',
-    unavailableTitle: 'Camera unavailable — type it instead',
-    unavailableBody: "We couldn't start the camera. Manual entry still works.",
     unsupportedTitle: "Scanning isn't available in this browser — type it instead",
     unsupportedBody:
       "This browser can't read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.",
@@ -231,8 +230,8 @@ export const en = {
     },
     /** Messages carried by a failed recognition (ported from the Dart rung and provider). */
     failure: {
-      keyMissing: 'byok key missing — open Settings → Your AI to enter your key',
-      keyRejected: 'byok key rejected by provider — check the key in Settings → Your AI',
+      keyMissing: 'your own key is missing — open Settings → Your AI to enter it',
+      keyRejected: 'your own key was rejected by the service — check it in Settings → Your AI',
       consentRequired: 'photo upload has not been agreed yet — see Settings → Your AI',
       endpointNotSet: 'The BYOK endpoint or model is not set — open Settings → Your AI.',
       endpointInvalid: 'The BYOK endpoint is not valid — open Settings → Your AI.',
