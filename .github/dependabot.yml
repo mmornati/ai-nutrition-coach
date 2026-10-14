@@ -2,18 +2,24 @@
 # still goes through the full CI gate and the named-reviewer sign-off.
 version: 2
 updates:
-  # Dart pub workspace: the root pubspec owns pubspec.lock and each member
-  # has its own constraints. `directories` (with globs) is supported for pub,
-  # so one entry and one grouped PR cover the whole workspace.
-  - package-ecosystem: pub
-    directories:
-      - /
-      - /apps/client
-      - /packages/*
+  # JavaScript workspace: one pnpm lockfile at the root covers apps/web and
+  # packages/core, so one entry and one grouped PR cover all of it.
+  - package-ecosystem: npm
+    directory: /
     schedule:
       interval: weekly
     groups:
-      pub:
+      npm:
+        patterns: ['*']
+
+  # The browser-smoke harness (tools/webkit_smoke) has its own package-lock.json
+  # and runs inside the pinned Playwright image.
+  - package-ecosystem: npm
+    directory: /tools/webkit_smoke
+    schedule:
+      interval: weekly
+    groups:
+      webkit-smoke:
         patterns: ['*']
 
   # Actions are pinned by commit SHA (with a version comment); Dependabot
@@ -26,25 +32,21 @@ updates:
       actions:
         patterns: ['*']
 
-  # Container base images are pinned by digest. Version bumps of the Flutter
-  # toolchain image are deliberately NOT proposed here: a toolchain bump must
-  # update every pin together, by hand:
-  #   scripts/flutter_docker.sh (FLUTTER_VERSION + digest), infra/Dockerfile,
-  #   .github/workflows/ci.yml (container image), the subosito/flutter-action
-  #   `flutter-version` in ndp-review.yml and release-gate.yml, and
-  #   CONTRIBUTING.md. Digest refreshes of the current tag still arrive.
+  # Container base images are pinned by digest (node build stage, nginx-unprivileged
+  # serve stage). Version bumps and digest refreshes arrive as one grouped PR;
+  # the self-host smoke test and the browser smoke prove the new image before merge.
   - package-ecosystem: docker
     directory: /infra
     schedule:
       interval: weekly
-    ignore:
-      - dependency-name: ghcr.io/cirruslabs/flutter
-        update-types:
-          - version-update:semver-major
-          - version-update:semver-minor
-          - version-update:semver-patch
+    groups:
+      docker:
+        patterns: ['*']
 
   - package-ecosystem: docker-compose
     directory: /infra
     schedule:
       interval: weekly
+    groups:
+      docker-compose:
+        patterns: ['*']

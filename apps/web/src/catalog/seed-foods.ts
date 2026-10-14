@@ -1,5 +1,5 @@
 /**
- * Seeded food list for `OfflineFirstFoodCatalog` (port of `seed_foods.dart`).
+ * Seeded food list for `OfflineFirstFoodCatalog` (port of the earlier client).
  *
  * Ships with the app: no network call, no OFF / USDA fetch. 30+ curated, offline-safe entries
  * across the four balance-arc groups plus a handful of `other` entries. Each entry carries a

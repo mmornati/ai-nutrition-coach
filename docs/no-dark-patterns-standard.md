@@ -44,9 +44,8 @@ authority for the gate.
 ## Gate frequency
 
 - **Every PR that touches user-facing copy** — a PR that touches
-  a file under `apps/client/lib/widgets/`, `apps/client/lib/screens/`,
-  `apps/client/lib/l10n/app_en.arb`,
-  `packages/integrations/lib/src/l10n/coach_strings.dart`, or any
+  a file under `apps/web/src/components/`, `apps/web/src/screens/`,
+  `apps/web/src/i18n/`, `packages/core/src/coach/`, or any
   user-visible string in the docs requires a named-reviewer
   sign-off against this list.
 - **Every release tag** — the release checklist
@@ -59,11 +58,10 @@ authority for the gate.
 The gate has two enforcement surfaces:
 
 1. **Code-level** — every user-facing string is keyed: UI copy in
-   `apps/client/lib/l10n/app_en.arb` (`melos run check:i18n` rejects a
-   literal handed straight to `Text(` / `tooltip:` / `label:` / ...), coach
-   copy in `packages/integrations/lib/src/l10n/coach_strings.dart`. The
-   banned widgets and words are pinned by
-   `packages/integrations/test/no_dark_patterns_test.dart`.
+   `apps/web/src/i18n/en.ts` (`pnpm lint` rejects a string literal handed
+   straight to JSX text, `aria-label`, `title`, `placeholder`, ...), coach
+   copy keyed in `packages/core/src/coach`. The banned components and words
+   are pinned by `apps/web/src/no-dark-patterns.test.ts`.
    The key stores are the single source of truth; a new
    string is a new key, and the named-reviewer tick is required
    for the PR that introduces the key. The `en*` value in the

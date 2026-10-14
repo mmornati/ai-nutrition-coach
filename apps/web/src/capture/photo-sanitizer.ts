@@ -1,6 +1,6 @@
 /**
  * What leaves the device when a photo is sent to an AI endpoint (N1). Byte-level port of
- * `packages/integrations/lib/src/ai/photo_sanitizer.dart`.
+ * the earlier client.
  *
  * Two guarantees, enforced HERE, at the single egress point, not left to the browser:
  *
@@ -14,10 +14,10 @@
  *  - JPEG: drop APP1 (EXIF/XMP), APP2 unless it is an ICC profile (MPF), APP3..APP13 (meta,
  *    IPTC) and COM segments, including those between progressive scans, and everything after
  *    EOI; pixel data is copied untouched.
- *    APP0 (JFIF), APP14 (Adobe colour transform) and APP15 are KEPT, as in the Dart spec: APP14
+ *    APP0 (JFIF), APP14 (Adobe colour transform) and APP15 are KEPT, as in the earlier spec: APP14
  *    decides how the pixels decode, and neither carries position or device data.
  *  - PNG: drop `eXIf`, `tEXt`, `zTXt`, `iTXt`, `tIME` chunks.
- *    Unknown ancillary chunks are KEPT too (the Dart spec drops only the five named here).
+ *    Unknown ancillary chunks are KEPT too (the earlier spec drops only the five named here).
  *  - WebP: drop the `EXIF` and `XMP ` chunks, clear their VP8X flags, fix the RIFF size.
  *  - HEIC / HEIF: the metadata lives inside the container's `meta` box with absolute offsets;
  *    stripping it safely needs a real ISO BMFF writer. Fail CLOSED: refuse to send it.
@@ -130,7 +130,7 @@ export function sanitizePhotoForUpload(bytes: Uint8Array): PhotoSanitizeResult {
   };
 }
 
-/** Growable byte sink (the Dart `BytesBuilder`). */
+/** Growable byte sink (the earlier `BytesBuilder`). */
 class ByteSink {
   private readonly parts: Uint8Array[] = [];
   private size = 0;

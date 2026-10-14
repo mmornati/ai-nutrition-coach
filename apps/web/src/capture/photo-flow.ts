@@ -1,6 +1,6 @@
 /**
  * The photo flow's logic, free of React: capture -> (consent check) -> `AiRung.recognize` ->
- * resolving state -> match sheet (port of the state machine in `capture_photo_screen.dart`).
+ * resolving state -> match sheet (port of the state machine in the earlier client).
  *
  * Privacy (N1 / N10): the photo bytes live in a local variable of `runPhotoFlow` only. They are
  * never put in a state, a store or a module variable; there is no "last photo". The one-shot

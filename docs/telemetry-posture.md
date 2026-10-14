@@ -39,7 +39,7 @@ endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
   account). Only the barcode is sent."*, with *OK* / *Don't look up online*; the
   answer is stored and changeable in Settings → Privacy, and nothing is sent until it
   is "OK"). The request is exactly `GET /api/v2/product/<barcode>?fields=…` with
-  `Accept` and (off the web) a `User-Agent`; no `Referer`, no `Cookie`, no
+  `Accept`; no `Referer`, no `Cookie`, no
   identifier (pinned by `apps/web/src/catalog/off-barcode-source.test.ts`; the browser smoke asserts
   it on the wire). Open Food Facts also sees the usual internet details any website
   sees (address, time, and on the web the page's origin). The catalog
@@ -57,19 +57,13 @@ endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
   `LocalOnlySyncAdapter` — it opens zero sockets; a real relay
   drops in behind the same `SyncAdapter` port in v1.1.
 
-## Android barcode scanning (ML Kit) — unverified
+## Barcode scanning
 
-On Android, `mobile_scanner` decodes barcodes with **Google ML Kit**, which is bundled
-in the app. ML Kit may report usage / performance metrics to Google (its Firebase
-transport). **We have not verified whether it does** in this build, so no claim either
-way is made here or in the app beyond "may … not verified yet" (the privacy page says
-so on Android). Settling it is a release gate: capture the traffic of an Android build
-during a scan and record the result in
-[`docs/release-checklist.md`](./release-checklist.md) (Gate P). If metrics do leave
-the device the options are the unbundled model with the Firebase / datatransport
-opt-outs, or a pure-Dart decoder; the scanner is deliberately not changed here.
-iOS uses Apple's Vision framework through the same plugin; the web build decodes
-locally (native `BarcodeDetector` or the self-hosted zxing-wasm).
+Scanning is decoded entirely on your device: the browser's native `BarcodeDetector` where it
+exists, otherwise the self-hosted zxing-wasm decoder served from your own origin. No camera
+frame is ever sent anywhere, and no third-party scanning library or SDK is bundled. Only the
+decoded barcode digits go to Open Food Facts, and only after you said yes to the one-time
+notice.
 
 ## Logs
 
@@ -102,14 +96,12 @@ version of the posture:
   still boots and serves, that an outbound request from it fails, and that its
   rendered nginx config contains no `proxy_pass` / `resolver`. (That shows the
   server is self-contained; it is not a packet capture.)
-- The **bundle loads nothing from a third party**: CanvasKit and fonts are
-  served from your own origin (`--no-web-resources-cdn`, bundled Roboto, local
-  glyph-fallback path), and the web barcode scanner is pinned to the browser's
-  native detector instead of a CDN-hosted fallback (browsers without that API
-  — Firefox, desktop Windows/Linux, Safari by default — use manual entry).
-  `tools/check_no_external_hosts.sh` scans the built bundle and fails on any
-  host outside a short, justified allow-list (`tools/check_no_external_hosts.sh`): inert doc links by host, and
-  the four known engine/scanner default CDN URLs only as exact strings with exact counts.
+- The **bundle loads nothing from a third party**: fonts (Barlow) and the wasm assets
+  (the SQLite3 Multiple Ciphers engine and the zxing-wasm decoder) are served from your own
+  origin, and the barcode fallback decoder is served from the same origin instead of a CDN.
+  `tools/check_no_external_hosts.sh` scans the built bundle and fails on any host outside a
+  short, justified allow-list: Open Food Facts as the one network host, and inert
+  documentation or namespace strings that are never fetched.
 - Your data never reaches the server: it is encrypted in your browser.
 - Put TLS in front for other devices (`bin/ai-nutrition-coach up --tls`); AI Nutrition Coach
   itself does not phone home.
@@ -136,7 +128,7 @@ and in CI, so a regression fails the build.
 - [`docs/self-host.md`](./self-host.md) — the one-command self-host
   install.
 - [`docs/your-data.md`](./your-data.md) — the protection posture
-  on web vs mobile.
+  in the browser.
 - [`docs/no-dark-patterns-standard.md`](./no-dark-patterns-standard.md)
   — the named-reviewer gate (Story 4.6 / FR-15).
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the contributor path

@@ -11,7 +11,7 @@ import {
 } from '../src/index';
 import { FakeCoach, FakeCoachNoteStore, FakeStore, q, utc } from './helpers';
 
-// The Dart stubs threw "not used" on any call: the empty-entries / failure paths must never
+// The earlier stubs threw "not used" on any call: the empty-entries / failure paths must never
 // reach the coach or note store.
 const untouchedCoach = {
   questionFor: () => {

@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/about_screen_test.dart.
+// Port of the earlier client.
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';

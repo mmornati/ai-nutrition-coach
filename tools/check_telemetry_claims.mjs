@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Telemetry gate, ported from tools/check_telemetry_claims.dart + telemetry_scan.dart (FR-12).
+// Telemetry gate, ported from the earlier gate script (FR-12).
 //
 //   node tools/check_telemetry_claims.mjs
 //

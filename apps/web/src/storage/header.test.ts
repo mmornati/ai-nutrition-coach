@@ -1,4 +1,4 @@
-// Port of web_store_meta_test.dart.
+// Port of the earlier client.
 import { describe, expect, it } from 'vitest';
 import { base64UrlEncode } from './bytes';
 import { STORE_FORMAT_VERSION } from './constants';
@@ -34,7 +34,7 @@ describe('the store header', () => {
     expect(parsed.salt).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 
-  it('accepts a padded base64url salt too (the Flutter spelling)', () => {
+  it('accepts a padded base64url salt too (the earlier spelling)', () => {
     const padded = base64UrlEncode(salt()) + '==';
     const raw = JSON.stringify({
       v: 1,

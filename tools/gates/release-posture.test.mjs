@@ -60,7 +60,7 @@ describe('README trust table', () => {
     ['a missing file', '| a promise | here | `a/gone.test.ts` |', 'does not exist'],
     ['a file with no test', '| a promise | here | `a/empty.test.ts` |', 'contains no un-skipped test'],
     ['a file with only a skipped test', '| a promise | here | `a/skipped.test.ts` |', 'contains no un-skipped test'],
-    ['a Dart proof', '| a promise | here | `a/x_test.dart` |', 'is not a *.test.*'],
+    ['a non-test proof', '| a promise | here | `a/x_helper.js` |', 'is not a *.test.*'],
     ['a non-test file', '| a promise | here | `a/helper.ts` |', 'is not a *.test.*'],
     ['one good and one missing proof', '| a promise | here | `a/x.test.ts`, `a/missing.test.ts` |', 'does not exist'],
   ])('fails on %s', (_n, row, expected) => {

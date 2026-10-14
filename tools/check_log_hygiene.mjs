@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Log hygiene gate, ported from tools/check_log_hygiene.dart (privacy audit, proposed check 3).
+// Log hygiene gate, ported from the earlier gate script (privacy audit, proposed check 3).
 //
 // AI Nutrition Coach must never write what the user logged (food names, barcodes, photos,
 // endpoints, keys) to a console. This reads every shipped file from the TypeScript AST and fails on:

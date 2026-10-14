@@ -1,6 +1,6 @@
 /**
  * A SHA-256 fingerprint of the photo bytes, used only to bind a one-shot upload permit to the
- * exact photo the person said yes to (never sent, never stored). Port of `photo_digest.dart`.
+ * exact photo the person said yes to (never sent, never stored). Port of the earlier client.
  * It is injected into the ONE permit, `PhotoUploadPermit` in `src/ai` (`new PhotoUploadPermit(photoDigest)`).
  */
 

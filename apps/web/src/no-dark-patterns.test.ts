@@ -1,6 +1,6 @@
 // Pins the code-level half of the No-Dark-Patterns Standard (docs/no-dark-patterns-standard.md):
 // the banned-everywhere patterns do not appear in shipped UI code. The named-reviewer sign-off
-// covers copy; this covers what a parser can prove. (Port of no_dark_patterns_test.dart.)
+// covers copy; this covers what a parser can prove. (Port of the earlier client.)
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';

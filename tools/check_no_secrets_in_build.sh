@@ -2,14 +2,12 @@
 # ───────────────────────────────────────────────────────────────────────────
 # Fail if a secret-shaped string is present in a BUILD ARTIFACT (S1).
 #
-# Everything compiled into a web bundle or an APK is public: anyone who can
-# download the app can read it. The security review found a real OpenRouter
-# key inside `main.dart.js`. This guard makes that class of mistake a red CI
-# run instead of an incident.
+# Everything compiled into the web bundle is public: anyone who can load the
+# app can read it. The security review of an earlier build found a real
+# OpenRouter key inside a compiled bundle. This guard makes that class of
+# mistake a red CI run instead of an incident.
 #
 #   tools/check_no_secrets_in_build.sh                scan apps/web/dist
-#   tools/check_no_secrets_in_build.sh --web-only     skip the APK lookup
-#   tools/check_no_secrets_in_build.sh --apk-only     scan only the APK(s)
 #   tools/check_no_secrets_in_build.sh --self-test    prove the scanner works
 #   tools/check_no_secrets_in_build.sh <dir|file>...  scan these paths instead
 #
@@ -84,21 +82,6 @@ scan_path() {
   done
 }
 
-scan_apk() {
-  local apk="$1" tmp
-  if ! command -v unzip >/dev/null 2>&1; then
-    echo "✗ found $apk but 'unzip' is not installed; cannot scan it." >&2
-    HITS=$((HITS + 1))
-    return
-  fi
-  tmp="$(mktemp -d)"
-  # shellcheck disable=SC2064
-  trap "rm -rf '$tmp'" RETURN
-  unzip -q -o "$apk" -d "$tmp"
-  echo "▶ scanning $apk"
-  scan_path "$tmp"
-}
-
 self_test() {
   local tmp bad_ok=1
   tmp="$(mktemp -d)"
@@ -106,7 +89,7 @@ self_test() {
   mkdir -p "$tmp/clean" "$tmp/dirty"
   # Clean: code that merely MENTIONS the shapes must pass.
   printf '%s\n' 'var h="Bearer "+k;var q="task-queue desk-lamp sk- gsk_ xai- hf_ ghp_";var a="AIza";' \
-    >"$tmp/clean/main.dart.js"
+    >"$tmp/clean/main.js"
   # Dirty: one planted value per pattern (assembled at runtime so this very
   # file never contains a literal key for gitleaks to flag).
   local planted=(
@@ -124,7 +107,7 @@ self_test() {
   local v n=0
   for v in "${planted[@]}"; do
     n=$((n + 1))
-    printf 'x%s="%s"\n' "$n" "$v" >>"$tmp/dirty/main.dart.js"
+    printf 'x%s="%s"\n' "$n" "$v" >>"$tmp/dirty/main.js"
   done
 
   HITS=0
@@ -156,15 +139,11 @@ self_test() {
   echo "✓ secrets scanner self-test passed"
 }
 
-WEB_ONLY=0
-APK_ONLY=0
 EXPLICIT=()
 for arg in "$@"; do
   case "$arg" in
     --self-test) self_test; exit $? ;;
-    --web-only) WEB_ONLY=1 ;;
-    --apk-only) APK_ONLY=1 ;;
-    -h|--help) sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}"; exit 0 ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
     *) EXPLICIT+=("$arg") ;;
   esac
@@ -177,35 +156,19 @@ if [[ ${#EXPLICIT[@]} -gt 0 ]]; then
     scan_path "$path"
   done
 else
-  if [[ "$APK_ONLY" -eq 0 ]]; then
-    WEB_DIR="$ROOT/apps/web/dist"
-    if [[ ! -d "$WEB_DIR" ]]; then
-      echo "✗ $WEB_DIR does not exist — build the web bundle first" >&2
-      echo "  (pnpm build), or pass the paths to scan." >&2
-      exit 2
-    fi
-    echo "▶ scanning $WEB_DIR"
-    scan_path "$WEB_DIR"
+  WEB_DIR="$ROOT/apps/web/dist"
+  if [[ ! -d "$WEB_DIR" ]]; then
+    echo "✗ $WEB_DIR does not exist — build the web bundle first" >&2
+    echo "  (pnpm build), or pass the paths to scan." >&2
+    exit 2
   fi
-
-  if [[ "$WEB_ONLY" -eq 0 ]]; then
-    APK_COUNT=0
-    if [[ -d "$ROOT/apps/client/build/app/outputs" ]]; then
-      while IFS= read -r apk; do
-        [[ -n "$apk" ]] && { scan_apk "$apk"; APK_COUNT=$((APK_COUNT + 1)); }
-      done < <(find "$ROOT/apps/client/build/app/outputs" -name '*.apk' -type f)
-    fi
-    if [[ "$APK_ONLY" -eq 1 && "$APK_COUNT" -eq 0 ]]; then
-      echo "✗ no APK under apps/client/build/app/outputs — build it first" >&2
-      echo "  (cd apps/client && flutter build apk --debug)." >&2
-      exit 2
-    fi
-  fi
+  echo "▶ scanning $WEB_DIR"
+  scan_path "$WEB_DIR"
 fi
 
 if [[ "$HITS" -ne 0 ]]; then
   echo "✗ $HITS secret-shaped string(s) in build output. Anything compiled in" >&2
-  echo "  is public: remove the --dart-define / constant, rotate the key, and" >&2
+  echo "  is public: remove the constant / build variable, rotate the key, and" >&2
   echo "  rebuild. (Values are intentionally not printed.)" >&2
   exit 1
 fi

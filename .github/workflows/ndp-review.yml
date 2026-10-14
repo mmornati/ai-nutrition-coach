@@ -1,12 +1,12 @@
-# Story 5.3 — NDP-review CI workflow (FR-15 / NFR-3 / AD-7).
+# NDP-review CI workflow (FR-15 / NFR-3 / AD-7).
 #
 # Runs the named-reviewer gate on every PR + every tag:
 #   * Asserts REVIEWERS.md exists at HEAD and records the named
 #     reviewer.
 #   * Asserts .github/CODEOWNERS exists at HEAD and pins the
 #     right paths.
-#   * Runs `melos run check:release-posture` (chained: release
-#     posture + adults-only + under-13 profiles).
+#   * Runs the posture gates with node (release posture, adults-only,
+#     telemetry, log hygiene, accessibility floor).
 #
 # A regression on any check fails the build. The named reviewer
 # signs off every PR that touches user-facing copy.
@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Check out the source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Assert REVIEWERS.md + CODEOWNERS are at HEAD
         run: |
@@ -49,20 +51,23 @@ jobs:
           done
           echo 'ndp-review: REVIEWERS.md + CODEOWNERS at HEAD.'
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      - name: Activate pnpm 11.14.0 (corepack)
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.14.0 --activate
+
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          flutter-version: '3.44.0'
-          channel: stable
+          node-version: 24
+          cache: pnpm
 
-      - name: Install melos
-        run: dart pub global activate melos 8.2.2
+      - name: Install (frozen lockfile)
+        # The gates parse the sources with the repo's pinned TypeScript.
+        run: pnpm install --frozen-lockfile
 
-      - name: Bootstrap the workspace
-        run: melos bootstrap
-
-      - name: Run the NDP gate (Story 4.6 + 5.1 + 5.2)
-        run: melos run check:release-posture
+      - name: Run the posture gates (release posture, telemetry, log hygiene, adults-only, accessibility floor)
+        run: pnpm gates
 
       - name: Gate summary
         if: success()

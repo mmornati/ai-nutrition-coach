@@ -1,4 +1,4 @@
-// Port of store_error_mapping_test.dart (the mapper part): typed failures, no cause text.
+// Port of the earlier client (the mapper part): typed failures, no cause text.
 import { describe, expect, it } from 'vitest';
 import {
   classifyOpenError,

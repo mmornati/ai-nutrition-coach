@@ -5,7 +5,7 @@ import type { PhotoSource } from './photo-capture';
 /**
  * The photo-capture input wrapper: "Take a photo" (the camera on a phone) and "Choose a photo"
  * (the file picker). Each button is a user gesture, which is what lets the browser open a picker
- * (so the picker cannot open by itself on mount, unlike the Flutter screen).
+ * (so the picker cannot open by itself on mount, unlike the earlier screen).
  *
  * This component carries no photo: it only reports which source the person chose. The bytes come
  * back through `usePhotoFlow` into a local variable of the flow and are kept nowhere.

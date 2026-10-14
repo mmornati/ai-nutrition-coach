@@ -1,4 +1,4 @@
-// Schema version 1 (a new schema: there is no migration chain from the Flutter app).
+// Schema version 1 (a new schema: there is no migration chain from the earlier app).
 //
 // Tables:
 //   plate_log         one row per logged meal

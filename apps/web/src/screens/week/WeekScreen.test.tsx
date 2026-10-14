@@ -1,4 +1,4 @@
-// Port of week_strip_test.dart's behaviour: seven days, tapping a day selects it, no streaks and
+// Port of the earlier client's behaviour: seven days, tapping a day selects it, no streaks and
 // no week report score.
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -33,6 +33,9 @@ async function openWeek() {
   window.location.hash = '#/week';
   const view = await renderUnlockedApp(bundle);
   await screen.findByRole('heading', { level: 1, name: 'This week' });
+  // The heading renders before the week's plates have been read from the store; every assertion
+  // below depends on them, so wait for the seeded day to show up (a slow, loaded run needs this).
+  await screen.findByRole('button', { name: /Tuesday: all four lines/ }, { timeout: 5000 });
   return { bundle, ...view };
 }
 
@@ -41,8 +44,10 @@ describe('WeekScreen', () => {
     await openWeek();
     expect(screen.getByText('8 – 14 October')).toBeVisible();
     const network = screen.getByRole('img');
-    expect(network.getAttribute('aria-label')).toMatch(/Week network\./);
-    expect(network.getAttribute('aria-label')).toMatch(/Tuesday: all four lines\./);
+    await waitFor(() => {
+      expect(network.getAttribute('aria-label')).toMatch(/Week network\./);
+      expect(network.getAttribute('aria-label')).toMatch(/Tuesday: all four lines\./);
+    });
     const list = screen.getByRole('button', { name: /Today/ }).closest('ul') as HTMLElement;
     expect(within(list).getAllByRole('listitem')).toHaveLength(7);
   });

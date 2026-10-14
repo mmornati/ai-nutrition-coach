@@ -1,7 +1,7 @@
 // The first journey on the REAL encrypted store (sqlite3mc in the OPFS worker, Web Locks, the
 // production CSP), through the real screens: first run -> About -> create passphrase -> Today
 // (empty) -> log a plate by Type it -> it is on the line map -> lock -> unlock -> still there.
-// Port of apps/client/test/e2e/real_app_test.dart.
+// Port of the earlier client.
 //
 // The Settings half of the journey (part B): Your data (export), lock, Your AI (own key), Erase,
 // and every settings screen at 390/1440 and 200% text with real-browser axe.

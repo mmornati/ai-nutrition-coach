@@ -1,6 +1,6 @@
 // Names and limits of the encrypted web store (docs/adr/0005-web-encrypted-store.md). Everything
 // persisted in the browser uses the `anc.pwa.` / `anc_pwa` / `anc-pwa` prefixes, which can never
-// collide with the old Flutter web build (`ai_nutrition_coach*`) on a shared origin: the eraser
+// collide with the earlier web build (`ai_nutrition_coach*`) on a shared origin: the eraser
 // and the sweeps only ever touch the new names.
 
 /** localStorage: the non-secret store header (salt + KDF parameters). */

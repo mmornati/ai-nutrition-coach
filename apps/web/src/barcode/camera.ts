@@ -1,6 +1,6 @@
 /**
  * Camera permission with three calm states, never a nag. Port of the `CameraPermission` port and
- * the `PermissionHandlerCameraPermission` mapping in `scanner_adapters.dart`:
+ * the `PermissionHandlerCameraPermission` mapping in the earlier client:
  *
  *  - `granted`      a live stream;
  *  - `denied`       the person (or the browser policy) said no;

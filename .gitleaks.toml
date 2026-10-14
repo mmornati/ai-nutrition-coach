@@ -1,30 +1,37 @@
 # gitleaks configuration — extends the default ruleset and allow-lists the
-# known non-secrets that trip `generic-api-key`:
+# known non-secrets that trip `generic-api-key`. Every entry is an EXACT string
+# (no character classes, no wildcards), so a real key committed anywhere,
+# including into a test file, is still caught:
 #
-#   * test fixtures shaped like provider keys (`sk-test-…`, `sk-keyforA-…`,
-#     `sk-or-v1-SECRETMATERIAL-…`) — deliberately key-shaped so the redaction
-#     and "key never leaks" tests exercise the real code paths;
-#   * the secure-storage alias *names* (`ai_nutrition_coach_db_key_v1`,
-#     `openplate_byok_key_v1`, …) — identifiers, not values.
+#   * test fixtures shaped like provider keys. They are deliberately key-shaped
+#     so the redaction and "key never leaks" tests exercise the real code paths:
+#       - current: the unit and e2e tests of apps/web (BYOK key fixtures);
+#       - history only: fixtures of the replaced native client, still present
+#         in earlier commits that the full-history scan reads;
+#   * the storage alias *names* of the replaced client (`ai_nutrition_coach_db_key_v1`,
+#     `ai_nutrition_coach_byok_key_v1`) — identifiers, not values; they exist in
+#     history only. The PWA's own storage names (`anc.pwa.*`) do not trip any rule,
+#     so they need no entry.
 #
-# Keep this list narrow: match the exact fixture shapes, never whole paths,
-# so a real key committed into a test file is still caught.
 # `tools/check_no_secrets_in_build.sh` separately scans build output.
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Key-shaped test fixtures and secure-storage alias names"
+description = "Exact key-shaped test fixtures and storage alias names"
 regexTarget = "match"
 regexes = [
-  # Test fixtures (apps/client/test, packages/*/test).
-  '''sk-test-[0-9a-f]{10,16}''',
-  '''sk-test-[A-Za-z0-9]{8,16}''',
+  # Current fixtures (apps/web/src/**/*.test.*, apps/web/e2e).
+  '''sk-test-abcdef123456''',
+  '''sk-or-v1-SECRETMATERIAL-9f3a''',
+  '''sk-live-marker-1234567890''',
+  # Fixtures that exist in git history only.
+  '''sk-test-0123456789abcd''',
   '''sk-abc123456789''',
-  '''sk-keyfor[A-Z]-[A-Za-z0-9]{8,16}''',
-  '''sk-or-v1-SECRETMATERIAL-[0-9a-f]{4}''',
-  '''sk-secret-must-not-leak''',
-  # Secure-storage alias identifiers (lib code), current and legacy names.
-  '''(ai_nutrition_coach|openplate)_(db_key|byok_key|rung_config|quota|settings|kv)[a-z0-9_]*_v[0-9]+''',
+  '''sk-keyforA-abcdef123456''',
+  '''sk-keyforB-abcdef123456''',
+  # Alias identifiers of the replaced client (history only).
+  '''ai_nutrition_coach_db_key_v1''',
+  '''ai_nutrition_coach_byok_key_v1''',
 ]

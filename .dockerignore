@@ -17,16 +17,6 @@
 apps/web/public/sqlite3mc/
 apps/web/public/zxing/
 
-# The Flutter app and its toolchain are not part of the web image any more.
-apps/client/
-packages/domain_core/
-packages/integrations/
-**/.dart_tool/
-**/build/
-**/.pub-cache/
-**/.pub/
-**/ephemeral/
-
 # Editor / OS noise
 **/.idea/
 **/.vscode/

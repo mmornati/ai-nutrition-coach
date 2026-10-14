@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Adults-only + no-under-13 gates, ported from tools/check_adults_only.dart and
-// tools/check_no_under_13_profiles.dart (FR-13 / FR-14 / NFR-4, docs/adults-only.md).
+// Adults-only + no-under-13 gates, ported from the earlier gates (FR-13 / FR-14 / NFR-4, docs/adults-only.md).
 //
 // v1 ships adults-only paths. This reads every shipped file (apps/web/src, packages/core/src,
 // apps/web/index.html and the service workers) from the TypeScript AST and rejects

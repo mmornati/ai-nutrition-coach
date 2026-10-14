@@ -20,7 +20,7 @@ file does not exist, is not a `*.test.*` / `*.spec.*` file, or contains no real,
 test. Unit tests (`apps/web/src`, `packages/core/test`) and the gate self-tests
 (`tools/gates`, `tools/pwa`) run in `pnpm verify`; the Playwright specs (`apps/web/e2e`,
 Chromium and WebKit) run in CI via `pnpm e2e`, and `tools/webkit_smoke/smoke.spec.mjs` is the
-opt-in smoke of the production image (`scripts/webkit_smoke.sh`).
+smoke of the production image (`scripts/webkit_smoke.sh`, the `browser-smoke` workflow).
 
 | Promise | Where it lives | Proof |
 | ------- | -------------- | ----- |
@@ -38,9 +38,8 @@ opt-in smoke of the production image (`scripts/webkit_smoke.sh`).
 | No-Dark-Patterns Standard (no streaks, badges, countdowns, spinners, red) | FR-15 — [`docs/no-dark-patterns-standard.md`](./docs/no-dark-patterns-standard.md) | `apps/web/src/no-dark-patterns.test.ts`, `tools/gates/release-posture.test.mjs` |
 | Every screen meets the accessibility floor (axe: names, roles, contrast, target size) in jsdom and in a real browser | NFR-7 — [`docs/accessibility.md`](./docs/accessibility.md) | `apps/web/src/a11y-floor-gate.test.ts`, `apps/web/src/screens/today/TodayScreen.test.tsx`, `apps/web/e2e/gallery.spec.ts` |
 
-What is *not* proven yet (the production-image browser smoke is opt-in, not run on every change;
-real-device Safari and Firefox are untested) is listed in
-`_bmad-output/review/security-and-quality-review-2026-10-01.md`.
+What is *not* proven yet (real-device Safari and Chrome, Firefox) is listed under "Known accepted
+gaps" below and in `_bmad-output/review/security-and-quality-review-2026-10-01.md`.
 
 ## Quickstart
 
@@ -66,16 +65,28 @@ network is unsupported (the web store needs https or localhost). See
 
 ### Build from source
 
+Needs Node 24 and pnpm 11.14.0 (`corepack enable`); Docker only for the image and the smokes.
+
 ```sh
-melos bootstrap   # or: scripts/flutter_docker.sh melos bootstrap (pinned Flutter 3.44.0)
-bash scripts/fetch_web_sqlite.sh   # the web store's sqlite3mc-3.5.1.wasm, SHA-256 verified (not committed)
-bash scripts/fetch_web_zxing.sh    # the self-hosted barcode decoder (Safari/iOS), SHA-256 verified (not committed)
-cd apps/client
-flutter build web --release --pwa-strategy=none --no-web-resources-cdn --dart-define=AI_NUTRITION_COACH_BUILD=selfhost
-cd ../.. && dart run tools/generate_precache_manifest.dart apps/client/build/web   # sw.js + precache manifest
+pnpm install                 # the workspace: apps/web (React PWA) + packages/core
+pnpm dev                     # Vite dev server (first fetches the pinned, SHA-256-verified wasm assets)
+pnpm verify                  # the one gate: format, lint, types, tests, DST re-run, posture gates, build, bundle scans
+pnpm e2e                     # Playwright against the built preview (PW_WEBKIT=1 adds WebKit)
+docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .   # the production image (nginx, non-root, read-only)
 ```
 
-(`melos run build:web` does all of it, and the secrets / third-party-host scans.)
+`pnpm build` writes the release bundle to `apps/web/dist` with `sw.js` and
+`precache-manifest.json`. The sqlite3mc and zxing wasm assets are fetched by
+`scripts/fetch_web_sqlite3mc.sh` and `scripts/fetch_web_zxing_pwa.sh` (never committed).
+
+### Known accepted gaps
+
+Stated, not hidden (details in [`docs/migration/parity-checklist.md`](./docs/migration/parity-checklist.md)):
+Firefox is untested; Safari and Chrome are proved with Playwright's WebKit and Chromium, not on real
+devices; without the Web Locks API there is no tab exclusion (two tabs can open the same store);
+exports are plaintext files you hold; devices shared by several people see one history; there is no
+import; the hosted AI tier is not built (you bring your own key); the Tip jar is pending the named
+reviewer; there is no light theme.
 
 ## Contributing
 
@@ -87,19 +98,16 @@ expectations. The release posture is enforced by
 ## Where things live
 
 ```
-apps/client/             one Flutter responsive codebase (iOS + Android + web)
-packages/domain_core/    pure-Dart domain (no Flutter/SQLite/HTTP imports)
-packages/integrations/   adapters (drift store, OFF/USDA, AI rungs, sync, export)
+apps/web/                the React PWA (Vite, Vitest, Playwright)
+packages/core/           pure-TypeScript domain core (no React / DOM / storage / network imports)
 infra/                   Docker + nginx (+ Caddy TLS profile, Traefik compose) self-host definition
 docs/                    user-facing docs (pwa, your-data, self-host, ai-tiers,
                          telemetry-posture, no-dark-patterns-standard)
 _bmad-output/            planning / implementation artifacts, NOT product docs
                          (see _bmad-output/README.md)
-tools/                   repo-level gates (check_telemetry_claims,
-                         check_release_posture, check_accessibility_floor,
-                         check_i18n_literals, ...)
-pubspec.yaml             workspace + the `melos:` scripts block (single source)
-scripts/                 flutter_docker.sh (pinned toolchain), smoke, local web
+tools/                   repo-level gates (check_telemetry_claims, check_release_posture,
+                         check_accessibility_floor, ...) and their self-tests (tools/gates, tools/pwa)
+scripts/                 verify.sh (wrapper for pnpm verify), fetch_*, smokes, local web
 ```
 
 ## License

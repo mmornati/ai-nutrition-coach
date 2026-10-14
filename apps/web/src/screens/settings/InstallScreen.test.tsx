@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/install_screen_test.dart: platform-first steps, the calm
+// Port of the earlier client: platform-first steps, the calm
 // Install button only when the browser offered one, what installing changes.
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

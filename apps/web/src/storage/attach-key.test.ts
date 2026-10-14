@@ -1,4 +1,4 @@
-// Port of sqlite_key_attach_test.dart: the ONE place the key is attached, against a recording
+// Port of the earlier client: the ONE place the key is attached, against a recording
 // double so every statement and its order is visible.
 import { describe, expect, it } from 'vitest';
 import { attachKeyAndVerify } from './attach-key';

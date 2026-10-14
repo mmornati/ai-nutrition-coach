@@ -1,5 +1,5 @@
 // N1: what leaves the device: real MIME type, metadata removed, refuse when that cannot be
-// guaranteed. Ported one-to-one from packages/integrations/test/photo_sanitizer_test.dart.
+// guaranteed. Ported one-to-one from the earlier client.
 import { describe, expect, it } from 'vitest';
 import { detectPhotoFormat, sanitizePhotoForUpload, PHOTO_MIME } from './photo-sanitizer';
 import { codes, contains, heic, jpegWithExif, png, webp } from './testing';

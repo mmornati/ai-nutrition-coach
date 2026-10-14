@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/settings_screen_test.dart: the departures board, its rows and
+// Port of the earlier client: the departures board, its rows and
 // where each one goes. No tip jar (it needs the named reviewer's decision first).
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

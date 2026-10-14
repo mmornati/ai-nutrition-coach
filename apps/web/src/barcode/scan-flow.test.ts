@@ -1,7 +1,7 @@
 // The scan flow: decoded code -> lookupByBarcode -> single match / not found (code prefilled) /
 // calm failure; the scanner pauses while a result is shown and resumes after; the one-time Open
-// Food Facts notice. Ported from apps/client/test/screens/capture_barcode_screen_test.dart (the
-// I/O matrix) and the PV7 rules in capture_barcode_screen.dart.
+// Food Facts notice. Ported from the earlier client (the
+// I/O matrix) and the PV7 rules in the earlier client.
 import { describe, expect, it, vi } from 'vitest';
 import { catalogFailure, databaseFood, notFound, rankedMatches, type FoodMatch } from '@anc/core';
 import { PrivacyPrefs } from '../catalog/privacy-prefs';

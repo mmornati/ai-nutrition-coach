@@ -33,8 +33,8 @@ the privacy-law review is complete is a regulatory risk that v1
 does not accept.
 
 The architecture carries the seam forward via a marker
-(`ManagedOversightSeam` in
-`packages/domain_core/lib/src/value_types/managed_oversight_seam.dart`)
+(`ManagedOversightSeam` in `packages/core/src/value-types`, pinned by
+`packages/core/test/managed-oversight-seam.test.ts`)
 so the v2 implementation can land without an architectural change.
 
 ## What this means for v1 copy
@@ -42,7 +42,7 @@ so the v2 implementation can land without an architectural change.
 - **The Settings → About sub-screen renders a single calm line:**
   *"Family oversight is a v2 seam — not in v1. Read-only,
   support-not-surveillance, pending COPPA review."* The copy is
-  keyed in `ManagedOversightStrings` (in `coach_strings.dart`).
+  keyed in `apps/web/src/i18n/en.ts`.
 - **No "coming soon", no countdown, no celebratory pop-up.** The
   FR-15 ban list applies to v2 seam copy as much as to anything
   else — the seam is documented plainly, not promoted.

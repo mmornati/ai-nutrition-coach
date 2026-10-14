@@ -39,7 +39,7 @@ describe('App', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  // locale_test.dart: the locale resolves to English for ANY browser locale, and a malformed
+  // the earlier client: the locale resolves to English for ANY browser locale, and a malformed
   // `navigator.languages` tag never stops the app.
   it.each([
     ['a POSIX tag', ['C.UTF-8', 'en_US.UTF-8']],
@@ -62,7 +62,7 @@ describe('App', () => {
     }
   });
 
-  // update_banner.dart: the update line appears above every screen, only while an update is
+  // the earlier client: the update line appears above every screen, only while an update is
   // waiting and not dismissed.
   it('shows the update line above the first-run screens and Today, until it is dismissed', async () => {
     const user = userEvent.setup();

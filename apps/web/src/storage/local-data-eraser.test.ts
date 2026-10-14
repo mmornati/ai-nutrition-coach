@@ -1,4 +1,4 @@
-// Port of local_data_eraser_test.dart: "Erase all local data" closes the store, deletes every
+// Port of the earlier client: "Erase all local data" closes the store, deletes every
 // persisted byte (database pages, the IndexedDB header copy, the localStorage header), returns to
 // first run, and names failures; the steps are independent and best-effort.
 import { createEraseLocalData, eraseResultEquals, ERASE_SUCCESS } from '@anc/core';
@@ -56,7 +56,7 @@ describe('WebLocalDataEraser', () => {
     bundle.dispose();
   });
 
-  it('deletes only the new app names: the old Flutter web build on the same origin is left alone', async () => {
+  it('deletes only the new app names: the earlier web build on the same origin is left alone', async () => {
     const bundle = await unlockedStore();
     stack.storage.write('ai_nutrition_coach.web.store.meta', 'old header');
     stack.storage.write('ai_nutrition_coach.web.lock.idleMinutes', '30');

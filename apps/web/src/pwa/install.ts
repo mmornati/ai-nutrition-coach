@@ -1,5 +1,5 @@
 // Install help seams (docs/pwa.md, "Install on phones"). Port of the install half of
-// packages/integrations/lib/src/pwa/pwa_platform.dart.
+// Ported from the earlier client.
 //
 // Calm by construction: nothing here ever opens a prompt by itself. `beforeinstallprompt` is
 // captured early (the browser fires it once, before any screen exists) and only used when the

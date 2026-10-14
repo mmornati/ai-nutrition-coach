@@ -1,5 +1,5 @@
 // The self-host configuration, pinned (port of the Phase 4 / Phase 8 parts of
-// packages/integrations/test/self_host_config_test.dart). The container itself is exercised by
+// the earlier client). The container itself is exercised by
 // scripts/smoke_self_host.sh; these are the cheap static pins that run in `pnpm verify`.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -38,11 +38,10 @@ describe('images', () => {
     expect(froms[1]).toMatch(/^nginxinc\/nginx-unprivileged:/);
   });
 
-  it('the build stage uses the repo pnpm, a strict lockfile and no Flutter', () => {
+  it('the build stage uses the repo pnpm, and a strict lockfile', () => {
     const pm = /"packageManager": "pnpm@([0-9.]+)"/.exec(read('package.json'))[1];
     expect(dockerfile).toContain(`corepack prepare pnpm@${pm} --activate`);
     expect(dockerfile).toContain('pnpm install --frozen-lockfile');
-    expect(dockerfile).not.toMatch(/flutter|dart|melos/i);
   });
 
   it('fetches the two pinned wasm assets BEFORE the sources are copied', () => {

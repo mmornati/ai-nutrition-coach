@@ -1,6 +1,6 @@
-// Ported from apps/client/test/photo_capture_permission_test.dart: a camera that is denied or
+// Ported from the earlier client: a camera that is denied or
 // cancelled is the calm `null` path and never reaches the codec; a granted one returns bytes.
-// Plus the downscale rules (<= 1024 x 1024, quality 80) the Dart adapter delegated to image_picker.
+// Plus the downscale rules (<= 1024 x 1024, quality 80) the earlier adapter delegated to image_picker.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFilePhotoCapture, pickPhotoFile } from './photo-capture';
 import {

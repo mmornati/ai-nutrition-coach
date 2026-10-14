@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/your_data_screen_test.dart and your_data_pwa_test.dart: the
+// Port of the earlier client: the
 // honest protection line, the durable-storage line, export (plaintext note, last export, the one
 // quiet suggestion), the lock controls and the confirmed erase.
 import { screen, waitFor, within } from '@testing-library/react';

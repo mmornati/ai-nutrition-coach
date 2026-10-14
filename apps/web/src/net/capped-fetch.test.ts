@@ -1,5 +1,5 @@
 // Network hygiene for every client (N3): 2 MiB cap, bounded waits, no redirects, no ambient
-// credentials. Port of the behaviour of capped_response.dart and the off/openai provider tests.
+// credentials. Port of the behaviour of the earlier client and the off/openai provider tests.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BODY_READ_TIMEOUT_MS,

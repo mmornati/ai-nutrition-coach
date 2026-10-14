@@ -1,5 +1,5 @@
 // The precache-manifest generator, the build-id render step and the kill switch
-// (port of packages/integrations/test/precache_manifest_test.dart). Run by vitest (project
+// (port of the earlier client). Run by vitest (project
 // `tools` in apps/web/vitest.config.ts). The worker's own behaviour is in sw.behaviour.test.mjs.
 import { spawnSync } from 'node:child_process';
 import {

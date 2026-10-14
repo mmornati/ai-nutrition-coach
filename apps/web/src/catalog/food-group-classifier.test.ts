@@ -1,5 +1,5 @@
 // `classifyFoodGroup`: OFF category tags and food names. Ported one-to-one from
-// packages/integrations/test/food_group_classifier_test.dart.
+// Ported from the earlier client.
 import { describe, expect, it } from 'vitest';
 import { classifyFoodByName, classifyFoodGroup } from './food-group-classifier';
 import { seedFoods } from './seed-foods';

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release-posture gate, ported from tools/check_release_posture.dart (Story 4.6, Phase 7).
+// Release-posture gate, ported from the earlier gate script (Story 4.6, Phase 7).
 //
 //   node tools/check_release_posture.mjs                    everything below
 //   node tools/check_release_posture.mjs --project-url-only just the project-URL rule (see

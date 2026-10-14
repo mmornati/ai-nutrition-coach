@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// The project-URL build rule (privacy audit PV11), ported from
-// `tools/check_release_posture.dart --project-url-only`.
+// The project-URL build rule (privacy audit PV11), ported from the earlier release-posture gate.
 //
 // The project URL is a BUILD-TIME setting (AI_NUTRITION_COACH_PROJECT_URL; default: the project
 // repository). It identifies the project to Open Food Facts and goes into the app identity string

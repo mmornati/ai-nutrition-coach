@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/your_ai_screen_test.dart (and settings_screen_test.dart's
+// Port of the earlier client (and the earlier client's
 // Your AI row): the rungs, the key form that never shows the key back, endpoint validation,
 // Test connection, Remove key, and the consented hosts.
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';

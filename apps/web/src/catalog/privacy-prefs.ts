@@ -1,6 +1,6 @@
 /**
  * The user's answers to the one-time privacy notices, kept in the ENCRYPTED key/value table. Port
- * of `packages/integrations/lib/src/privacy/privacy_prefs.dart`.
+ * of the earlier client.
  *
  *  - "About this app": shown once before the first Day Board, dismissed once.
  *  - "Barcodes are looked up on Open Food Facts": shown the first time a barcode is about to leave

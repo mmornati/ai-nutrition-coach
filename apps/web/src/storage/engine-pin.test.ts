@@ -1,4 +1,4 @@
-// Port of web_wasm_pin_test.dart: the engine the app loads is the engine the fetch script pins.
+// Port of the earlier client: the engine the app loads is the engine the fetch script pins.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

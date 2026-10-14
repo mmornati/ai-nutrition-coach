@@ -1,6 +1,6 @@
 /**
  * `OffBarcodeSource`: the network seam for barcode lookups (port of
- * `packages/integrations/lib/src/catalog/off_barcode_source.dart`).
+ * the earlier client).
  *
  * Reads the public Open Food Facts product endpoint. No API key is needed; the endpoint is open
  * and rate-limited by source IP, which is fine for the calm, single-scan cadence of the camera.
@@ -12,7 +12,7 @@
  *
  * and nothing else: no Referer (`referrerPolicy: no-referrer`), no Cookie (`credentials: omit`),
  * no Authorization, no identifier. A browser does not let a page set `User-Agent`, so it is
- * omitted (the Dart client sent a descriptive one). The browser itself adds `Origin` to a
+ * omitted (the earlier client sent a descriptive one). The browser itself adds `Origin` to a
  * cross-origin request, which the privacy page says.
  *
  * Typed result, three observable outcomes:

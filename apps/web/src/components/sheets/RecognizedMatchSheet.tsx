@@ -111,7 +111,7 @@ function initialChoices(recognized: readonly Candidate[], extra: readonly Candid
   const choices: Record<string, Choice> = {};
   for (const c of recognized)
     choices[c.key] = { checked: true, quantity: c.presets[0] ?? oneServing() };
-  // With nothing recognised, the first catalog match is pre-ticked (same as the Flutter sheet).
+  // With nothing recognised, the first catalog match is pre-ticked (same as the earlier sheet).
   extra.forEach((c, i) => {
     choices[c.key] = {
       checked: recognized.length === 0 && i === 0,
@@ -290,7 +290,7 @@ function Body({
  * The photo (or no-AI) result: what was recognised, the closest catalog matches and a custom
  * food field.
  *
- * Design decision (the Flutter sheet logged one food per plate, a known gap): every recognised
+ * Design decision (the earlier sheet logged one food per plate, a known gap): every recognised
  * food is a tick box, all ticked by default, and `Log` records all ticked foods as ONE plate with
  * one portion each. Closest matches are extra, unticked rows (the first one is pre-ticked only
  * when nothing was recognised). `Log custom food` stays a separate one-food action.

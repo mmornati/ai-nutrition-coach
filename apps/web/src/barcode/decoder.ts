@@ -2,7 +2,7 @@
  * The barcode decoder: the browser's native `BarcodeDetector` where it exists and can read retail
  * codes, otherwise the self-hosted `zxing-wasm` reader; if neither can start the caller shows
  * "Scanning isn't available in this browser, type it instead" (port of
- * `barcode_detector_support_web.dart` and the `mobile_scanner` web reader selection).
+ * the earlier client and the `mobile_scanner` web reader selection).
  *
  * Everything runs on the device: the camera frame is decoded locally and only the resulting
  * barcode string ever leaves it (and only to Open Food Facts, and only after the person said OK).
@@ -10,7 +10,7 @@
  */
 import { ZXING_READER_PATH } from './zxing-pin';
 
-/** Retail codes only: the same four the Dart scanner was configured with. */
+/** Retail codes only: the same four the earlier scanner was configured with. */
 export const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'] as const;
 export const ZXING_FORMATS = ['EAN13', 'EAN8', 'UPCA', 'UPCE'] as const;
 

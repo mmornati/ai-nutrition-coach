@@ -46,8 +46,7 @@ your history ([ADR-0005](./adr/0005-web-encrypted-store.md)). The CSP is strict
 The app is a Vite build (`apps/web`). Vite names its JS and CSS by content hash
 (`assets/index-<hash>.js`), so the **build id is a hash of the file list and their SHA-256s**:
 any change to a shipped file changes the bytes of `sw.js`, which is exactly what makes a browser
-run its update check. After `vite build`, `tools/generate_precache_manifest.mjs` (a node port of
-the Flutter-era Dart generator) writes two files into `apps/web/dist`:
+run its update check. After `vite build`, `tools/generate_precache_manifest.mjs` writes two files into `apps/web/dist`:
 
 - `precache-manifest.json` — `{ buildId, files: [ { url, sha256, size } ] }` for every file in
   the bundle except source maps and dotfiles: `index.html`, `boot-guard.js`, the hashed JS/CSS
@@ -59,8 +58,8 @@ the Flutter-era Dart generator) writes two files into `apps/web/dist`:
 - `sw.js` — `tools/pwa/sw.template.js` with the build id baked in. (`AI_NUTRITION_COACH_BUILD_ID=...`
   or `--build-id` forces an id, e.g. to test the banner.)
 
-The worker is the hardened one from the Flutter build, **unchanged in behaviour**: only its
-manifest is regenerated for Vite's output, and `vite-plugin-pwa`/Workbox is not used (the plugin's
+The worker is hand-written and hardened (`tools/pwa/sw.template.js`); its
+manifest is generated for Vite's output, and `vite-plugin-pwa`/Workbox is not used (the plugin's
 `generateSW` could not express the SHA-256 verification, the always-refetched `index.html`, the
 header-preserving cache entries or the waiting-only update; the generator and the template are
 ~350 lines and are covered by `tools/pwa/*.test.mjs`, which executes the worker against a fake
@@ -186,7 +185,8 @@ docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .
 ```
 
 Icons: the SVG sources are in `tools/icons/`; the PNGs in `apps/web/public/icons/` are committed (the
-192 px maskable icon is the 512 px one scaled down).
+192 px maskable icon is the 512 px one scaled down). The generator that drew them was removed with
+the earlier client; to change the icon, edit the SVGs and re-render the PNGs with any SVG rasteriser.
 
 ## Run locally
 

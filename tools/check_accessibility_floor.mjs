@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Accessibility floor gate (port of tools/check_accessibility_floor.dart; plan phase 9 gate).
+// Accessibility floor gate (port of the earlier gate script; plan phase 9 gate).
 //
 // Every screen component under apps/web/src/screens/** must be exercised by a test that runs axe
 // (vitest-axe: accessible names, roles, contrast where jsdom can compute it) and asserts no

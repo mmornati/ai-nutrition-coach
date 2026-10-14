@@ -1,4 +1,4 @@
-// Ports of create_passphrase_body_test.dart, lock_screen_body_test.dart and key_lost_screen_test.dart.
+// Ports of the earlier client.
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';

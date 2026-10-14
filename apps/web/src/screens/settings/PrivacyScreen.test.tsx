@@ -1,4 +1,4 @@
-// Port of apps/client/test/screens/privacy_screen_test.dart, plus the web rule: the page is
+// Port of the earlier client, plus the web rule: the page is
 // reachable BEFORE the unlock (no session), where it has no Open Food Facts switch.
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -67,10 +67,10 @@ describe('PrivacyScreen: before the unlock', () => {
 });
 
 describe('PrivacyScreen: unlocked', () => {
-  it('has no Android scanner note (the web build has no ML Kit) and describes removing a plate from Today', async () => {
+  it('has no native scanner note and describes removing a plate from Today', async () => {
     const bundle = await unlockedBundle();
     await renderInSession(<PrivacyScreen />, { bundle });
-    expect(document.body.textContent).not.toContain('ML Kit');
+    expect(document.body.textContent).not.toMatch(/scanner|Android/i);
     expect(screen.getByText(/open it from Today and choose Remove this plate/)).toBeVisible();
   });
 

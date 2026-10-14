@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // tools/generate_precache_manifest.mjs — the build step that turns the Vite release bundle into an
-// offline-capable one (ADR-0003). A node port of the Flutter-era generator.
+// offline-capable one (ADR-0003). A node port of the earlier generator.
 //
 //   node tools/generate_precache_manifest.mjs [<web-dir>] [--build-id <id>]
 //

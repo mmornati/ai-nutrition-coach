@@ -1,5 +1,5 @@
 /**
- * Tiny in-memory LRU cache (NFR5, offline replay). Port of `lru_cache.dart`.
+ * Tiny in-memory LRU cache (NFR5, offline replay). Port of the earlier client.
  *
  * Used by `OfflineFirstFoodCatalog` to remember the ranked list of the last N queries (and the
  * last N barcodes) so a previously-seen lookup resolves without re-running. Every `get` and `put`

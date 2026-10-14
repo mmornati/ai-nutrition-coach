@@ -10,7 +10,7 @@ describe('StoreFailure', () => {
     expect(storeFailureCategory(storeFailure('secureKey'))).toBe('encryptedStore');
   });
 
-  // The Dart "exactly one field set" asserts are enforced by the type now: a failure carries
+  // The earlier "exactly one field set" asserts are enforced by the type now: a failure carries
   // exactly one `reason`. These pin the three categories instead.
   it.each<[StoreFailureReason, string]>([
     ['unsupportedPlatform', 'platform'],

@@ -13,9 +13,8 @@ every release tag.
   - Records the durable sign-off in the PR thread + the release
     checklist (`docs/release-checklist.md`, Gate C).
   - Reviews every PR that touches user-facing copy
-    (`packages/integrations/lib/src/l10n/coach_strings.dart`,
-    `apps/client/lib/widgets/`, `apps/client/lib/screens/`,
-    `docs/`).
+    (`apps/web/src/i18n/`, `apps/web/src/components/`,
+    `apps/web/src/screens/`, `docs/`).
   - Records the gate frequency on every release tag.
 
 > The named reviewer is a single GitHub handle in v1. A rotating

@@ -1,4 +1,4 @@
-// Port of web_store_controller_test.dart: the create / unlock / lock / erase logic against REAL
+// Port of the earlier client: the create / unlock / lock / erase logic against REAL
 // sqlite3mc encryption through the production worker protocol, with an in-memory file system
 // standing in for OPFS, an in-memory map for localStorage and the IndexedDB header copy, and an
 // in-memory stand-in for the Web Lock. "Reloading the page" is building a new controller over the
@@ -946,7 +946,7 @@ describe('a plain InMemoryMetaStorage is what the header lives in', () => {
     expect(new InMemoryMetaStorage().ownedKeys()).toEqual([]);
   });
 
-  it('every browser storage name is new-app only, so it can never collide with the Flutter build', () => {
+  it('every browser storage name is new-app only, so it can never collide with the earlier build', () => {
     expect(STORE_META_KEY).toMatch(/^anc\.pwa\./);
     expect(LOCK_IDLE_MINUTES_KEY).toMatch(/^anc\.pwa\./);
     expect(STORAGE_KEY_PREFIX).toBe('anc.pwa.');
