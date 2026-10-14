@@ -13,6 +13,7 @@ directory and assumes only the toolchain named in its header.
 | `image.sh`      | Docker daemon (a VM)                       | `image`                               |
 | `sbom.sh`       | Docker daemon                              | `sbom` (v\* tags)                     |
 | `gitleaks.sh`   | Docker daemon, full clone                  | `gitleaks`                            |
+| `provider.sh`   | GitHub CLI                                 | switches the primary provider (`pnpm ci:provider`) |
 | `pnpm.sh`       | sourced: puts the pinned pnpm on PATH      | —                                     |
 
 A proof script named in the README trust table counts as run by CI when a

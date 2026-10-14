@@ -76,16 +76,22 @@ if: vars.CI_PROVIDER != 'circleci' || github.event_name == 'workflow_dispatch'
 A job whose `if:` is false never asks for a runner. It shows as **skipped**
 and costs nothing.
 
-- **CircleCI primary (current):** the repository variable `CI_PROVIDER` is
-  `circleci`. Set it with
-  `gh variable set CI_PROVIDER --body circleci --repo mmornati/ai-nutrition-coach`.
-- **One GitHub run while CircleCI is down:** start the workflow by hand
+Switch with `pnpm ci:provider` (`scripts/ci/provider.sh`, which needs the
+GitHub CLI):
+
+```bash
+pnpm ci:provider            # which provider is primary now
+pnpm ci:provider circleci   # CircleCI primary: GitHub jobs are skipped (current)
+pnpm ci:provider github     # GitHub primary: GitHub jobs run again
+```
+
+- `circleci` sets the repository variable `CI_PROVIDER=circleci`, and `github`
+  deletes it.
+- **One GitHub run while CircleCI is primary:** start the workflow by hand
   (Actions tab, or `gh workflow run ci --ref <branch>`). Manual runs ignore the
   variable.
-- **Back to GitHub as primary:** delete the variable
-  (`gh variable delete CI_PROVIDER --repo mmornati/ai-nutrition-coach`). Then
-  either stop building on CircleCI (Project Settings → Stop Building), or keep
-  both providers running.
+- **CircleCI keeps building** whichever provider is primary. To stop it after
+  switching to GitHub, use CircleCI Project Settings → Advanced.
 
 ## CircleCI budget
 
