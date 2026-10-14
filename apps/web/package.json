@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "fetch:sqlite3mc": "bash ../../scripts/fetch_web_sqlite3mc.sh",
+    "dev": "pnpm run fetch:sqlite3mc && vite",
+    "build": "pnpm run fetch:sqlite3mc && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "test": "vitest run",
-    "e2e": "playwright test"
+    "test": "pnpm run fetch:sqlite3mc && vitest run",
+    "e2e": "pnpm run fetch:sqlite3mc && playwright test"
   },
   "dependencies": {
     "@anc/core": "workspace:*",

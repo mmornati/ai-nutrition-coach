@@ -14,6 +14,8 @@ infra
 .impeccable
 # Build output and generated files
 dist
+# Vendored, SHA-256-pinned sqlite3mc wasm build (scripts/fetch_web_sqlite3mc.sh)
+apps/web/public/sqlite3mc
 dist-e2e
 dev-dist
 coverage

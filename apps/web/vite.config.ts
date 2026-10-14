@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -42,6 +43,11 @@ function cspPlugin(): Plugin {
   };
 }
 
+// The encrypted-store test harness (storage-harness.html) is a dev/e2e page: it is a build input
+// only when VITE_STORAGE_HARNESS=1 (the e2e server), never in a release build. See
+// tools/check_no_dev_store_in_build.sh.
+const harness = process.env['VITE_STORAGE_HARNESS'] === '1';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -74,7 +80,9 @@ export default defineConfig({
       },
       workbox: {
         // App shell + fonts only. API / AI requests are NEVER runtime-cached.
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,webmanifest}'],
+        // Includes the sqlite3mc engine (`sqlite3mc/<version>/sqlite3.mjs` + `sqlite3.wasm`, ~1.5 MB)
+        // and the store worker chunk, so the encrypted store works offline.
+        globPatterns: ['**/*.{js,mjs,wasm,css,html,woff2,svg,png,webmanifest}'],
         runtimeCaching: [],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/ai\//, /^\/relay\//],
@@ -84,5 +92,20 @@ export default defineConfig({
       },
     }),
   ],
-  build: { target: 'es2023', sourcemap: false },
+  // The store worker is a module worker (it dynamically imports the versioned engine).
+  worker: { format: 'es' },
+  build: {
+    target: 'es2023',
+    sourcemap: false,
+    ...(harness
+      ? {
+          rollupOptions: {
+            input: {
+              main: fileURLToPath(new URL('./index.html', import.meta.url)),
+              'storage-harness': fileURLToPath(new URL('./storage-harness.html', import.meta.url)),
+            },
+          },
+        }
+      : {}),
+  },
 });

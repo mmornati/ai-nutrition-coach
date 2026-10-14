@@ -7,7 +7,17 @@ import i18next from 'eslint-plugin-i18next';
 import { telemetryMessage, telemetryPatterns } from '../../eslint.restrictions.js';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dist-e2e', 'dev-dist', 'playwright-report', 'test-results'] },
+  {
+    ignores: [
+      'dist',
+      'dist-e2e',
+      'dev-dist',
+      'playwright-report',
+      'test-results',
+      // Vendored, SHA-256-pinned sqlite3mc wasm build (scripts/fetch_web_sqlite3mc.sh).
+      'public/sqlite3mc',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   jsxA11y.flatConfigs.recommended,
