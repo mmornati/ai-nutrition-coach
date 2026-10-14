@@ -6,13 +6,24 @@
 // The no-telemetry invariant, enforced from the PARSED program (TypeScript compiler API), not
 // from call-site strings:
 //
-//   1. No shipped file (apps/web/src, packages/core/src, the service workers) uses a network
-//      transport unless it is in the explicit adapter allow-list below: `fetch` (bare or via
-//      globalThis/window/self), XMLHttpRequest, WebSocket, EventSource, WebTransport,
-//      RTCPeerConnection, importScripts, navigator.sendBeacon, a network package import, a value
-//      import of the capped-fetch helper, `<script>` injection (createElement('script'), JSX
-//      <script>), import() of anything but a literal module path, and a Worker/SharedWorker
-//      whose URL is not `new URL('<relative literal>', import.meta.url)`.
+//   1. No shipped file (apps/web/src, packages/core/src, apps/web/public/*.js, the service
+//      workers) uses a network transport unless it is in the explicit allow-list below (by file AND
+//      kind). The words fetch, XMLHttpRequest, WebSocket, EventSource, WebTransport,
+//      RTCPeerConnection, importScripts and sendBeacon are findings as ANY non-type identifier
+//      (property names, `{ fetch: f } = g` binding names) or string (also `'fe' + 'tch'`);
+//      Reflect.get/apply/construct (and Object.getOwnPropertyDescriptor/entries/...) on the global
+//      object, navigator or an alias; computed access on them; aliasing the global object; a
+//      network package import; a value import of the capped-fetch helper; `<script>` injection;
+//      import() of anything but a literal module path; eval / Function / setTimeout(string);
+//      window.open and location changes to non-relative URLs; a service worker registered from a
+//      non-literal; image / element beacons (`new Image().src`, createElement('img'|'iframe'|
+//      'link'|'form'|...) + src/href/action/data set to anything but a '/x', './x', data: or blob:
+//      literal or an object URL, the same for JSX <img|iframe|link|form|audio|video|source|object|
+//      embed>, setAttribute, CSS url(), HTML sinks); and any Worker / SharedWorker that is not
+//      `new Worker(new URL('<relative literal>', import.meta.url))`, reached by alias or not.
+//      Kinds: network | script | dynamic-import | navigation | element-url | global-alias are
+//      allow-listable; telemetry, worker and eval never are. A shipped file may not import a
+//      path under test/, testing/, __tests__/, e2e/, harness/ or dist/ (they are not scanned).
 //   2. No analytics / crash-reporting SDK (matched by PREFIX, never allow-listable) is imported or
 //      declared in any package.json, nor resolved in pnpm-lock.yaml.
 //   3. Network packages are declared nowhere: the adapters use the platform `fetch` through the
@@ -27,23 +38,27 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  GLOBAL_OBJECTS,
   declaredDependencies,
+  globalRefs,
   inTypePosition,
-  isReference,
+  isSafeUrlExpr,
   lineOf,
+  nonShippedImports,
   packageJsonFiles,
   parse,
   rel,
   shippedFiles,
+  staticText,
   stringValue,
   ts,
+  unwrap,
   walkNodes,
 } from './gates/shared.mjs';
 
 /**
  * Files allowed a capability. Each is a user-initiated or same-origin path, documented in
- * docs/telemetry-posture.md. `kinds`: network | script | dynamic-import.
+ * docs/telemetry-posture.md. `kinds`: network | script | dynamic-import | navigation | element-url |
+ * global-alias (telemetry, worker and eval can never be allowed).
  */
 export const ALLOW_LIST = {
   // The size-capped response helper: the ONE place the app calls `fetch` for the two adapters.
@@ -54,13 +69,26 @@ export const ALLOW_LIST = {
   'apps/web/src/ai/openai-compatible-provider.ts': { kinds: ['network'], reason: 'BYOK AI endpoint' },
   // The service worker precaches OUR files (same-origin GET) and never intercepts anything else.
   'tools/pwa/sw.template.js': { kinds: ['network'], reason: 'same-origin precache (sw.behaviour.test.mjs)' },
-  // The self-hosted zxing reader: a <script> from our own origin (script-src 'self' enforces it).
-  'apps/web/src/barcode/decoder.ts': { kinds: ['script'], reason: 'self-hosted zxing reader' },
+  // The self-hosted zxing reader: a <script> from our own origin (script-src 'self' enforces it),
+  // src = the fixed ZXING_READER_PATH default; `env = globalThis` is the injectable test seam.
+  'apps/web/src/barcode/decoder.ts': {
+    kinds: ['script', 'element-url', 'global-alias'],
+    reason: 'self-hosted zxing reader (same-origin script src, globalThis as the injected env)',
+  },
   // The pinned sqlite3mc engine file the fetch script wrote, loaded in the store worker.
   'apps/web/src/storage/worker/store.worker.ts': {
-    kinds: ['dynamic-import'],
-    reason: 'same-origin pinned sqlite3mc module',
+    kinds: ['dynamic-import', 'global-alias'],
+    reason: 'same-origin pinned sqlite3mc module; `self` retyped as the worker scope',
   },
+  // Router: the history fallback `location.replace(<route hash>)` - a '#/...' fragment, never a URL.
+  'apps/web/src/app/router.ts': { kinds: ['navigation'], reason: 'fragment-only route replace' },
+  // The injectable `fetch` seam (a FetchLike handed down to the two adapters): the word is a
+  // property name here and nothing is called; the adapters above are the only callers.
+  'apps/web/src/app/session.tsx': { kinds: ['network'], reason: 'passes the injected FetchLike option by name' },
+  'apps/web/src/ai/create-ai-services.ts': { kinds: ['network'], reason: 'passes the injected FetchLike option by name' },
+  // Test-support fakes (never call the platform fetch; only expose a scriptable `fetch` property).
+  'apps/web/src/net/testing.ts': { kinds: ['network'], reason: 'scriptable fake fetch for tests' },
+  'apps/web/src/ai/testing.ts': { kinds: ['network'], reason: 'scriptable fake fetch for tests' },
 };
 
 /** Exact names of network-transport packages. */
@@ -112,15 +140,64 @@ export function packageNameOf(spec) {
   return spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
 }
 
+/** URL-bearing attributes / properties: assigning one a non-same-origin value can issue a request. */
+const URL_PROPS = new Set(['src', 'srcset', 'href', 'poster', 'formaction']);
+/** Only URL-bearing on an element created from one of ELEMENT_TAGS (`data`, `action`, `ping` are common names elsewhere). */
+const TAGGED_URL_PROPS = new Set(['action', 'data', 'ping']);
+const URL_ATTRS_JSX = new Set(['src', 'srcset', 'href', 'poster', 'formaction', 'action', 'data', 'ping']);
+/** Elements that load or submit to a URL by themselves. */
+const ELEMENT_TAGS = new Set([
+  'img', 'iframe', 'link', 'form', 'audio', 'video', 'source', 'script', 'object', 'embed', 'image', 'use', 'track', 'input',
+]);
+const JSX_TAGS = new Set(['img', 'iframe', 'link', 'form', 'audio', 'video', 'source', 'object', 'embed', 'image', 'use', 'track']);
+const NET_NAMES = new Set([...NET_GLOBALS, 'sendBeacon']);
+const EVAL_NAMES = new Set(['eval', 'Function']);
+const WORKER_NAMES = new Set(['Worker', 'SharedWorker']);
+const HTML_SINKS = new Set(['innerHTML', 'outerHTML', 'srcdoc']);
+const REFLECT_READS = new Set(['get', 'apply', 'construct', 'getOwnPropertyDescriptor', 'getOwnPropertyDescriptors', 'entries', 'values', 'keys', 'getOwnPropertyNames', 'fromEntries']);
+
+/** Kinds no allow-list entry can grant. */
+const NEVER_ALLOWED = new Set(['telemetry', 'worker', 'eval']);
+
+const lower = (s) => s.toLowerCase();
+
 /**
- * Findings in one file. `kind` of each: telemetry | network | script | dynamic-import | worker.
- * With `allow` (a list of kinds) matching findings are dropped; `telemetry` and `worker` can
- * never be allowed.
+ * Findings in one file. `kind` of each: telemetry | network | script | dynamic-import | worker |
+ * eval | navigation | element-url | global-alias. With `allow` (a list of kinds) matching findings
+ * are dropped; `telemetry`, `worker` and `eval` can never be allowed.
  */
 export function scanSource(path, text, { allow = [] } = {}) {
   const sf = parse(path, text);
   const found = [];
   const add = (node, kind, message) => found.push({ path, line: lineOf(sf, node), kind, message });
+  const refs = globalRefs(sf);
+  const safe = (expr) => isSafeUrlExpr(expr, sf);
+
+  // Variables holding an element created from a URL-loading tag (`const i = document.createElement('img')`, `new Image()`).
+  const elementVars = new Map();
+  const elementTagOf = (expr) => {
+    const e = unwrap(expr);
+    if (!e) return undefined;
+    if (ts.isNewExpression(e) && ts.isIdentifier(e.expression)) {
+      if (e.expression.text === 'Image') return 'img';
+      if (e.expression.text === 'Audio') return 'audio';
+    }
+    if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression)) {
+      const m = e.expression.name.text;
+      if (m === 'createElement' || m === 'createElementNS') {
+        const tag = stringValue(e.arguments[m === 'createElementNS' ? 1 : 0]);
+        return tag !== undefined ? lower(tag) : undefined;
+      }
+    }
+    if (ts.isIdentifier(e)) return elementVars.get(e.text);
+    return undefined;
+  };
+  walkNodes(sf, (n) => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) {
+      const tag = elementTagOf(n.initializer);
+      if (tag) elementVars.set(n.name.text, tag);
+    }
+  });
 
   const checkModule = (node, spec, { typeOnly = false } = {}) => {
     const pkg = packageNameOf(spec);
@@ -131,6 +208,36 @@ export function scanSource(path, text, { allow = [] } = {}) {
     if (typeOnly) return;
     if (pkg && isNetworkPackage(pkg)) add(node, 'network', `network package import: ${spec}`);
     else if (CAPPED_FETCH.test(spec)) add(node, 'network', `import of the capped-fetch network helper: ${spec}`);
+  };
+
+  /** The object a property-access / element-access names, and its key (undefined when computed). */
+  const memberKey = (m) => (ts.isPropertyAccessExpression(m) ? m.name.text : stringValue(m.argumentExpression));
+  const isMember = (n) => ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n);
+  const isLocation = (e) => {
+    const x = unwrap(e);
+    if (!x) return false;
+    if (ts.isIdentifier(x)) return x.text === 'location';
+    return isMember(x) && memberKey(x) === 'location' && (refs.kindOf(x.expression) === 'g' || (ts.isIdentifier(unwrap(x.expression)) && unwrap(x.expression).text === 'document'));
+  };
+  const isStringish = (e) => {
+    const x = unwrap(e);
+    return !!x && (ts.isStringLiteral(x) || ts.isNoSubstitutionTemplateLiteral(x) || ts.isTemplateExpression(x) || (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.PlusToken));
+  };
+  const sameOriginWorkerUrl = (a) =>
+    !!a &&
+    ts.isNewExpression(a) &&
+    ts.isIdentifier(a.expression) &&
+    a.expression.text === 'URL' &&
+    a.arguments?.length === 2 &&
+    stringValue(a.arguments[0]) !== undefined &&
+    !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(stringValue(a.arguments[0])) &&
+    ts.isPropertyAccessExpression(a.arguments[1]) &&
+    a.arguments[1].name.text === 'url' &&
+    ts.isMetaProperty(a.arguments[1].expression);
+  const checkUrlProp = (node, key, value, tag, what) => {
+    const k = lower(key);
+    if (!(URL_PROPS.has(k) || (tag && TAGGED_URL_PROPS.has(k)))) return;
+    if (!safe(value)) add(node, 'element-url', `${what} "${key}" is set to a value that is not a same-origin literal (/x, ./x, data:, blob:) - this can issue a request`);
   };
 
   walkNodes(sf, (node) => {
@@ -151,9 +258,9 @@ export function scanSource(path, text, { allow = [] } = {}) {
       if (ts.isStringLiteral(e)) checkModule(node, e.text, { typeOnly: node.isTypeOnly });
     }
 
-    // --- calls: require(), import(), createElement('script'), sendBeacon -------------------
+    // --- calls ------------------------------------------------------------------------------
     if (ts.isCallExpression(node)) {
-      const callee = node.expression;
+      const callee = unwrap(node.expression);
       const arg0 = node.arguments[0];
       if (ts.isIdentifier(callee) && callee.text === 'require') {
         const v = stringValue(arg0);
@@ -165,72 +272,173 @@ export function scanSource(path, text, { allow = [] } = {}) {
         else if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(v) && !v.startsWith('node:')) {
           add(node, 'dynamic-import', `import() of an absolute URL: ${v}`);
         } else checkModule(node, v);
-      } else if (
-        ts.isPropertyAccessExpression(callee) &&
-        (callee.name.text === 'createElement' || callee.name.text === 'createElementNS')
-      ) {
-        const tag = stringValue(node.arguments[callee.name.text === 'createElementNS' ? 1 : 0]);
-        if (tag === undefined) add(node, 'script', `${callee.name.text}() with a computed tag could create a <script>`);
-        else if (tag.toLowerCase() === 'script') add(node, 'script', 'dynamic <script> injection');
+      }
+      if (isMember(callee)) {
+        const method = memberKey(callee);
+        const recv = unwrap(callee.expression);
+        if (method === 'createElement' || method === 'createElementNS') {
+          const tag = stringValue(node.arguments[method === 'createElementNS' ? 1 : 0]);
+          if (tag === undefined) add(node, 'script', `${method}() with a computed tag could create a <script>`);
+          else if (lower(tag) === 'script') add(node, 'script', 'dynamic <script> injection');
+          // React.createElement('img', { src }) and friends.
+          if (tag !== undefined && ELEMENT_TAGS.has(lower(tag)) && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
+            for (const p of node.arguments[1].properties) {
+              if (ts.isSpreadAssignment(p)) add(p, 'element-url', `createElement('${tag}', {...spread}) can set a URL attribute`);
+              else if (p.name) {
+                const key = ts.isIdentifier(p.name) || ts.isStringLiteral(p.name) ? p.name.text : undefined;
+                if (key) checkUrlProp(p, key, ts.isPropertyAssignment(p) ? p.initializer : p.name, true, `createElement('${tag}')`);
+              }
+            }
+          }
+        } else if (method === 'setAttribute' || method === 'setAttributeNS') {
+          const keyNode = node.arguments[method === 'setAttributeNS' ? 1 : 0];
+          const valNode = node.arguments[method === 'setAttributeNS' ? 2 : 1];
+          const key = stringValue(keyNode);
+          if (key === undefined) add(node, 'element-url', `${method}() with a computed attribute name could set a URL`);
+          else if (valNode) checkUrlProp(node, key, valNode, !!elementTagOf(recv) && ELEMENT_TAGS.has(elementTagOf(recv)), 'setAttribute');
+        } else if (method === 'insertAdjacentHTML') {
+          const v = stringValue(node.arguments[1]);
+          if (v === undefined || v.includes('<')) add(node, 'element-url', 'insertAdjacentHTML with markup can load URLs');
+        } else if (method === 'write' || method === 'writeln') {
+          if (ts.isIdentifier(recv) && recv.text === 'document') add(node, 'element-url', 'document.write can load URLs');
+        } else if (method === 'open' && refs.kindOf(recv) === 'g') {
+          add(node, 'navigation', 'window.open');
+        } else if ((method === 'assign' || method === 'replace') && isLocation(recv)) {
+          if (!node.arguments[0] || !safe(node.arguments[0])) add(node, 'navigation', `location.${method}() of a URL that is not a same-origin literal`);
+        } else if (method === 'register' && node.arguments[0]) {
+          if (!safe(node.arguments[0])) add(node, 'worker', 'register() of a script URL that is not a same-origin literal (service worker)');
+        } else if (method === 'constructor') {
+          add(node, 'eval', '.constructor(...) call can build a Function from a string');
+        } else if (method === 'setProperty' && node.arguments[1] && /url\(|image-set\(|@import/i.test(staticText(node.arguments[1]))) {
+          add(node, 'element-url', 'a CSS url() value can load a resource');
+        } else if (
+          (recv && ts.isIdentifier(recv) && recv.text === 'Reflect' && REFLECT_READS.has(method)) ||
+          (recv && ts.isIdentifier(recv) && recv.text === 'Object' && REFLECT_READS.has(method) && method !== 'get' && method !== 'apply' && method !== 'construct')
+        ) {
+          if (node.arguments.some((a) => refs.kindOf(a) !== undefined)) {
+            add(node, 'network', `${recv.text}.${method}() on the global object or navigator can reach any network API`);
+          }
+        }
+        // Object.assign(element, { src: ... }) sets properties like an assignment does.
+        if (method === 'assign' && ts.isIdentifier(recv) && recv.text === 'Object' && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
+          const tag = elementTagOf(node.arguments[0]);
+          for (const p of node.arguments[1].properties) {
+            if (ts.isSpreadAssignment(p)) {
+              if (tag) add(p, 'element-url', 'Object.assign(<element>, {...spread}) can set a URL property');
+            } else if (p.name && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) {
+              checkUrlProp(p, p.name.text, ts.isPropertyAssignment(p) ? p.initializer : p.name, !!tag && ELEMENT_TAGS.has(tag), 'Object.assign');
+            }
+          }
+        }
+      }
+      // setTimeout("code") / setInterval("code") evaluate a string.
+      const fn = ts.isIdentifier(callee) ? callee.text : isMember(callee) && refs.kindOf(callee.expression) === 'g' ? memberKey(callee) : undefined;
+      if ((fn === 'setTimeout' || fn === 'setInterval') && node.arguments[0] && isStringish(node.arguments[0])) {
+        add(node, 'eval', `${fn}() of a string evaluates code`);
       }
     }
+    if (ts.isNewExpression(node)) {
+      const callee = unwrap(node.expression);
+      if (ts.isIdentifier(callee) && (callee.text === 'Image' || callee.text === 'Audio') && node.arguments?.[0] && !safe(node.arguments[0])) {
+        add(node, 'element-url', `new ${callee.text}(<url>) with a value that is not a same-origin literal`);
+      }
+      if (ts.isIdentifier(callee) && callee.text === 'Function') add(node, 'eval', 'new Function(...) builds code from a string');
+    }
+
+    // --- assignments to URL-bearing properties, location, HTML sinks, CSS -----------------
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment) {
+      const left = unwrap(node.left);
+      if (isMember(left)) {
+        const key = memberKey(left);
+        const recv = unwrap(left.expression);
+        if (key === undefined) {
+          if (elementTagOf(recv) || isLocation(recv)) add(node, 'element-url', 'assignment to a computed property of an element / location could set a URL');
+        } else {
+          const tag = elementTagOf(recv);
+          if (isLocation(recv)) {
+            if (['href', 'host', 'hostname', 'protocol', 'origin', 'port'].includes(key) && !safe(node.right)) {
+              add(node, 'navigation', `location.${key} assigned a URL that is not a same-origin literal`);
+            }
+          } else {
+            checkUrlProp(node, key, node.right, !!tag && ELEMENT_TAGS.has(tag), 'property');
+          }
+          if (HTML_SINKS.has(key)) {
+            const v = stringValue(node.right);
+            if (v === undefined || v.includes('<')) add(node, 'element-url', `${key} assigned markup / a non-constant string can load URLs`);
+          }
+          if (key === 'cssText' || (ts.isPropertyAccessExpression(recv) && recv.name.text === 'style')) {
+            if (/url\(|image-set\(|@import/i.test(staticText(node.right))) add(node, 'element-url', 'a CSS url() value can load a resource');
+          }
+        }
+      } else if (ts.isIdentifier(left) && left.text === 'location' && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        if (!safe(node.right)) add(node, 'navigation', 'location assigned a URL that is not a same-origin literal');
+      }
+      if (node.operatorToken.kind === ts.SyntaxKind.EqualsToken && refs.kindOf(node.right) === 'g') {
+        add(node, 'global-alias', 'the global object is aliased by an assignment');
+      }
+    }
+    if (ts.isVariableDeclaration(node) && node.initializer && refs.kindOf(node.initializer) === 'g' && !inTypePosition(node)) {
+      add(node, 'global-alias', 'the global object is aliased by a declaration');
+    }
+
+    // --- JSX ---------------------------------------------------------------------------------
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       if (ts.isIdentifier(node.tagName) && node.tagName.text === 'script') add(node, 'script', '<script> element in JSX');
-    }
-
-    // --- sendBeacon, and network globals reached through the global object -----------------
-    if (ts.isPropertyAccessExpression(node) && !inTypePosition(node)) {
-      const name = node.name.text;
-      if (name === 'sendBeacon') add(node, 'network', 'navigator.sendBeacon');
-      else if (
-        NET_GLOBALS.has(name) &&
-        ts.isIdentifier(node.expression) &&
-        GLOBAL_OBJECTS.has(node.expression.text)
-      ) {
-        add(node, 'network', `${node.expression.text}.${name}`);
+      if (ts.isIdentifier(node.tagName) && JSX_TAGS.has(node.tagName.text)) {
+        for (const attr of node.attributes.properties) {
+          if (ts.isJsxSpreadAttribute(attr)) {
+            add(attr, 'element-url', `<${node.tagName.text} {...spread}> can set a URL attribute`);
+            continue;
+          }
+          const name = ts.isIdentifier(attr.name) ? attr.name.text : attr.name.getText(sf);
+          if (!URL_ATTRS_JSX.has(lower(name))) continue;
+          const init = attr.initializer;
+          const value = init && ts.isJsxExpression(init) ? init.expression : init;
+          if (!value || !safe(value)) {
+            add(attr, 'element-url', `<${node.tagName.text} ${name}> is not a same-origin string literal (/x, ./x, data:, blob:) - this can issue a request`);
+          }
+        }
       }
     }
-    if (ts.isElementAccessExpression(node) && !inTypePosition(node)) {
-      const key = stringValue(node.argumentExpression);
-      if (key === 'sendBeacon' || (key !== undefined && NET_GLOBALS.has(key) && ts.isIdentifier(node.expression) && GLOBAL_OBJECTS.has(node.expression.text))) {
-        add(node, 'network', `["${key}"] access`);
-      } else if (key === undefined && ts.isIdentifier(node.expression) && GLOBAL_OBJECTS.has(node.expression.text)) {
-        add(node, 'network', `computed access on ${node.expression.text} can reach any network global`);
-      }
+    if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.name.text === 'dangerouslySetInnerHTML') {
+      add(node, 'element-url', 'dangerouslySetInnerHTML can inject markup that loads URLs');
     }
 
-    // --- bare references to network globals ------------------------------------------------
-    if (ts.isIdentifier(node) && NET_GLOBALS.has(node.text) && isReference(node)) {
+    // --- names: network APIs, eval, Worker --------------------------------------------------
+    if (ts.isIdentifier(node) && !inTypePosition(node)) {
+      const name = node.text;
       const p = node.parent;
-      const viaGlobalObject = ts.isPropertyAccessExpression(p) && p.name === node;
-      if (!viaGlobalObject) add(node, 'network', `use of the ${node.text} global`);
+      if (NET_NAMES.has(name)) add(node, 'network', `use of "${name}"`);
+      if (name === 'Reflect' && !(ts.isPropertyAccessExpression(p) && p.expression === node)) {
+        add(node, 'network', 'Reflect is used as a value (alias): call Reflect.<method> directly so its target can be checked');
+      }
+      if (EVAL_NAMES.has(name)) add(node, 'eval', `use of "${name}"`);
+      if (WORKER_NAMES.has(name)) {
+        const asCallee = ts.isNewExpression(p) && p.expression === node ? p : ts.isPropertyAccessExpression(p) && p.name === node && ts.isNewExpression(p.parent) && p.parent.expression === p ? p.parent : undefined;
+        if (!asCallee) add(node, 'worker', `${name} referenced other than as new ${name}(new URL('<relative literal>', import.meta.url))`);
+        else if (!sameOriginWorkerUrl(asCallee.arguments?.[0])) {
+          add(node, 'worker', `${name} of a URL that is not new URL('<relative literal>', import.meta.url)`);
+        }
+      }
+    }
+    const str = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node) || (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)
+      ? stringValue(node)
+      : undefined;
+    if (str !== undefined && !inTypePosition(node) && !(ts.isStringLiteral(node) && (ts.isImportDeclaration(node.parent) || ts.isExportDeclaration(node.parent) || ts.isExternalModuleReference(node.parent)))) {
+      if (NET_NAMES.has(str)) add(node, 'network', `string "${str}" names a network API`);
+      if (EVAL_NAMES.has(str)) add(node, 'eval', `string "${str}" names a code evaluator`);
+      if (WORKER_NAMES.has(str)) add(node, 'worker', `string "${str}" reaches the Worker constructor by name`);
     }
 
-    // --- Worker / SharedWorker -------------------------------------------------------------
-    if (
-      (ts.isNewExpression(node) || ts.isCallExpression(node)) &&
-      ts.isIdentifier(node.expression) &&
-      (node.expression.text === 'Worker' || node.expression.text === 'SharedWorker')
-    ) {
-      const a = node.arguments?.[0];
-      const sameOrigin =
-        a &&
-        ts.isNewExpression(a) &&
-        ts.isIdentifier(a.expression) &&
-        a.expression.text === 'URL' &&
-        a.arguments?.length === 2 &&
-        stringValue(a.arguments[0]) !== undefined &&
-        !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(stringValue(a.arguments[0])) &&
-        ts.isPropertyAccessExpression(a.arguments[1]) &&
-        a.arguments[1].name.text === 'url' &&
-        ts.isMetaProperty(a.arguments[1].expression);
-      if (!sameOrigin) {
-        add(node, 'worker', `${node.expression.text} of a URL that is not new URL('<relative literal>', import.meta.url)`);
+    // --- computed access on the global object / navigator ----------------------------------
+    if (ts.isElementAccessExpression(node) && !inTypePosition(node)) {
+      if (refs.kindOf(node.expression) !== undefined && stringValue(node.argumentExpression) === undefined) {
+        add(node, 'network', 'computed access on the global object / navigator can reach any network API');
       }
     }
   });
 
-  return found.filter((f) => f.kind === 'telemetry' || f.kind === 'worker' || !allow.includes(f.kind));
+  return found.filter((f) => NEVER_ALLOWED.has(f.kind) || f.kind === 'telemetry' || !allow.includes(f.kind));
 }
 
 /** pnpm-lock package names (`name@version:` keys under packages/snapshots). */
@@ -312,6 +520,7 @@ export function checkDocAnchors(root) {
 export function runGate(root = process.cwd()) {
   const failures = [
     ...scanRepo(root).map((f) => `${f.path}:${f.line}: ${f.message}`),
+    ...nonShippedImports(root).map((f) => `${f.path}:${f.line}: ${f.message}`),
     ...checkDocAnchors(root),
   ];
   return failures;

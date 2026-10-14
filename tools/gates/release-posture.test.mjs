@@ -79,6 +79,35 @@ describe('README trust table', () => {
     expect(checkTrustTable(makeTree({ 'README.md': '## Trust posture\n\n| A | B |\n| - | - |\n| x | y |\n' }))).toEqual(['README trust table has no "Proof" column']);
     expect(checkTrustTable(makeTree({}))).toEqual(['README.md is missing']);
   });
+  describe('a shell script as proof', () => {
+    const base = (extra = {}) => ({
+      'README.md': README('| p | a | `a/x.test.ts`, `scripts/egress.sh` |'),
+      'a/x.test.ts': GOOD_TEST,
+      'scripts/egress.sh': '#!/bin/sh\n',
+      '.github/workflows/smoke.yml': 'jobs:\n  s:\n    steps:\n      - run: bash scripts/egress.sh\n',
+      ...extra,
+    });
+    it('passes beside a real test when it exists and a workflow invokes it', () => {
+      expect(checkTrustTable(makeTree(base()))).toEqual([]);
+    });
+    it('fails when no workflow invokes it', () => {
+      const root = makeTree(base({ '.github/workflows/smoke.yml': 'jobs: {}\n' }));
+      expect(checkTrustTable(root).join('\n')).toContain('not invoked by any workflow');
+    });
+    it('fails when it does not exist', () => {
+      const files = base();
+      delete files['scripts/egress.sh'];
+      expect(checkTrustTable(makeTree(files)).join('\n')).toContain('proof script does not exist');
+    });
+    it('fails when the only proof is a script (a script alone is not a test)', () => {
+      const root = makeTree(base({ 'README.md': README('| p | a | `scripts/egress.sh` |') }));
+      expect(checkTrustTable(root).join('\n')).toContain('a script alone is not a test');
+    });
+    it('a script outside scripts/ and tools/ is not accepted', () => {
+      const root = makeTree(base({ 'README.md': README('| p | a | `a/x.test.ts`, `other/egress.sh` |'), 'other/egress.sh': 'x' }));
+      expect(checkTrustTable(root).join('\n')).toContain('is not a *.test.*');
+    });
+  });
   it('checks EVERY row, not just the first', () => {
     const root = makeTree({ 'README.md': README('| one | a | `a/x.test.ts` |\n| two | a | |'), 'a/x.test.ts': GOOD_TEST });
     expect(checkTrustTable(root)).toHaveLength(1);
@@ -105,6 +134,19 @@ describe('verify wiring', () => {
     const reduced = VERIFY_MUST_RUN.filter(([, f]) => f !== fragment).map(([, f]) => f).join(' && ');
     const failures = checkVerifyWiring(makeTree(pkgs(reduced)));
     expect(failures.join('\n')).toContain(what);
+  });
+  it.each([
+    ['|| true', 'pnpm check:telemetry || true'],
+    ['; true', 'pnpm check:telemetry; true'],
+    ['|| exit 0', 'pnpm check:telemetry || exit 0'],
+    ['|| :', 'pnpm check:telemetry || :'],
+    ['|| echo', 'pnpm check:telemetry || echo skipped'],
+    [';exit 0', 'pnpm check:telemetry ;exit 0'],
+  ])('fails when a gate is followed by %s (directly or inside a sub-script)', (_n, tail) => {
+    const direct = checkVerifyWiring(makeTree(pkgs(`${FULL} && ${tail}`)));
+    expect(direct.join('\n')).toContain('swallows a failure');
+    const viaScript = checkVerifyWiring(makeTree(pkgs(`${FULL} && pnpm gates`, { gates: tail })));
+    expect(viaScript.join('\n')).toContain('swallows a failure');
   });
   it('fails when lint tolerates warnings, or there is no verify script', () => {
     expect(checkVerifyWiring(makeTree(pkgs(FULL, {}, 'eslint .'))).join()).toContain('--max-warnings 0');

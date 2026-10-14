@@ -17,7 +17,7 @@
 //   6. `pnpm verify` still chains every gate (so a gate cannot be dropped silently), and the
 //      workspace `lint` scripts treat warnings as errors;
 //   7. the project-URL rule for release builds.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkProjectUrl } from './check_project_url.mjs';
@@ -69,6 +69,17 @@ export const VERIFY_MUST_RUN = [
 ];
 
 const PROOF_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+/** A shell script may stand beside the tests as proof (e.g. the container egress test) when CI really runs it. */
+const PROOF_SCRIPT = /^(?:scripts|tools)\/[A-Za-z0-9_./-]+\.sh$/;
+
+/** Workflow files (.github/workflows/*.yml) as text, for "is this script invoked by CI". */
+function workflowTexts(root) {
+  const dir = join(root, '.github/workflows');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((n) => /\.ya?ml$/.test(n))
+    .map((n) => readFileSync(join(dir, n), 'utf8'));
+}
 const TEST_ROOTS = new Set(['test', 'it']);
 const SKIPPING = new Set(['skip', 'todo', 'fixme', 'skipIf']);
 const SUITE_ROOTS = new Set(['describe', 'suite']);
@@ -151,6 +162,7 @@ export function checkTrustTable(root) {
   const proofCol = cells(table[0]).findIndex((h) => h.toLowerCase() === 'proof');
   if (proofCol < 0) return ['README trust table has no "Proof" column'];
   const failures = [];
+  const workflows = workflowTexts(root);
   for (const row of table.slice(2)) {
     const c = cells(row);
     const promise = c[0] ?? row;
@@ -161,7 +173,13 @@ export function checkTrustTable(root) {
       failures.push(`trust row has no proof test: "${label}"`);
       continue;
     }
+    let tests = 0;
     for (const path of paths) {
+      if (PROOF_SCRIPT.test(path)) {
+        if (!existsSync(join(root, path))) failures.push(`proof script does not exist: ${path} ("${label}")`);
+        else if (!workflows.some((w) => w.includes(path))) failures.push(`proof script is not invoked by any workflow: ${path} ("${label}")`);
+        continue;
+      }
       if (!PROOF_FILE.test(path)) {
         failures.push(`proof "${path}" is not a *.test.* / *.spec.* file ("${label}")`);
         continue;
@@ -169,6 +187,10 @@ export function checkTrustTable(root) {
       const file = join(root, path);
       if (!existsSync(file)) failures.push(`proof file does not exist: ${path} ("${label}")`);
       else if (!hasRealTest(readFileSync(file, 'utf8'), path)) failures.push(`proof file contains no un-skipped test: ${path} ("${label}")`);
+      else tests++;
+    }
+    if (tests === 0 && !failures.some((f) => f.includes(`("${label}")`))) {
+      failures.push(`trust row has no proof test (a script alone is not a test): "${label}"`);
     }
   }
   return failures;
@@ -197,6 +219,9 @@ export function checkVerifyWiring(root) {
   const pkg = readJson('package.json');
   if (!pkg?.scripts?.verify) return ['package.json has no "verify" script'];
   const verify = expandScript(pkg.scripts, 'verify');
+  // A gate that cannot fail is no gate: verify must be a plain `&&` chain.
+  const swallow = verify.match(/\|\|\s*(?:true|:|exit\s+0|echo\b)|;\s*(?:true|:|exit\s+0)\b|\|\|/);
+  if (swallow) failures.push(`pnpm verify swallows a failure ("${swallow[0].trim()}"): every step must be chained with && and be allowed to fail`);
   for (const [what, fragment] of VERIFY_MUST_RUN) {
     if (!verify.includes(fragment)) failures.push(`pnpm verify no longer runs the ${what} (${fragment})`);
   }

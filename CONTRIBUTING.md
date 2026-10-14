@@ -49,6 +49,7 @@ Optional pre-commit guard: `ln -sf ../../scripts/git-hooks/pre-commit .git/hooks
 ```sh
 pnpm test          # Vitest in apps/web (dom, storage and tools projects) and packages/core
 pnpm test:dst      # the same suites re-run under TZ=Europe/Paris with REQUIRE_DST=1
+pnpm --filter @anc/web exec playwright install chromium webkit   # once; or PW_CHANNEL=chrome to drive your installed Chrome
 pnpm e2e           # Playwright against the built preview (Chromium; PW_WEBKIT=1 adds WebKit)
 ```
 

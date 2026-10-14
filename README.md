@@ -17,7 +17,9 @@ optional sync to your own infrastructure, zero telemetry by default.
 Every promise below names the test that proves it (`Proof`).
 `pnpm check:release-posture` (part of `pnpm verify`) fails if a row has no proof, if a named
 file does not exist, is not a `*.test.*` / `*.spec.*` file, or contains no real, un-skipped
-test. Unit tests (`apps/web/src`, `packages/core/test`) and the gate self-tests
+test. A shell script may stand beside the tests (the container egress test
+`scripts/smoke_self_host.sh`, which the `self-host-smoke` workflow runs) only if it exists and a
+workflow invokes it. Unit tests (`apps/web/src`, `packages/core/test`) and the gate self-tests
 (`tools/gates`, `tools/pwa`) run in `pnpm verify`; the Playwright specs (`apps/web/e2e`,
 Chromium and WebKit) run in CI via `pnpm e2e`, and `tools/webkit_smoke/smoke.spec.mjs` is the
 smoke of the production image (`scripts/webkit_smoke.sh`, the `browser-smoke` workflow).
@@ -28,7 +30,7 @@ smoke of the production image (`scripts/webkit_smoke.sh`, the `browser-smoke` wo
 | Exporter: CSV/JSON offline, no account | AD-9 | `apps/web/src/export/csv-exporter.test.ts`, `apps/web/src/export/json-exporter.test.ts`, `apps/web/src/export/web-export-destination.test.ts` |
 | Sync is a seam only: in-memory outbox, no transport yet; the UI says "on this device", never "synced" | AD-6 | `apps/web/src/sync/sync.test.ts`, `packages/core/test/sync.test.ts`, `apps/web/src/components/day/StatusChip.test.tsx` |
 | Photos sent to your AI endpoint are metadata-stripped, consent is per host (and per photo by default), the key is bound to its host | N1 — [`docs/ai-tiers.md`](./docs/ai-tiers.md) | `apps/web/src/capture/photo-sanitizer.test.ts`, `apps/web/src/ai/consent.test.ts`, `apps/web/src/ai/ai-settings.test.ts`, `apps/web/src/ai/byok-ai-rung.test.ts` |
-| One-command self-host: hardened static container, strict CSP, no outbound need | FR-11 — [`docs/self-host.md`](./docs/self-host.md) | `tools/pwa/infra.test.mjs`, `apps/web/e2e/csp.spec.ts` |
+| One-command self-host: hardened static container, strict CSP, no outbound need | FR-11 — [`docs/self-host.md`](./docs/self-host.md) | `tools/pwa/infra.test.mjs`, `apps/web/e2e/csp.spec.ts`, `scripts/smoke_self_host.sh` |
 | Installable, offline-capable web app: our own service worker precaches a checksummed manifest, never intercepts cross-origin or non-GET requests, never caches at run time, and waits for you to tap *Reload* before a new version takes over. The worker is executed by `sw.behaviour.test.mjs` and, in real browsers, by `e2e/pwa.spec.ts`; the production-image run is the opt-in `scripts/webkit_smoke.sh` | ADR-0003 — [`docs/pwa.md`](./docs/pwa.md) | `tools/pwa/precache.test.mjs`, `tools/pwa/sw.behaviour.test.mjs`, `apps/web/src/pwa/app-update.test.ts`, `apps/web/src/components/shell/UpdatePrompt.test.tsx`, `apps/web/e2e/pwa.spec.ts` |
 | The AI key and settings live inside the encrypted store, never in `localStorage`; the last-export date and the quiet export suggestion are encrypted too | ADR-0003 — [`docs/ai-tiers.md`](./docs/ai-tiers.md), [`docs/your-data.md`](./docs/your-data.md) | `apps/web/src/storage/store-controller.test.ts`, `apps/web/src/ai/ai-settings.test.ts`, `apps/web/src/screens/settings/YourDataScreen.test.tsx` |
 | Per-plate delete & privacy page: remove one plate (and its coach note) after a calm confirm, reachable by screen reader too; a one-time "About this app" notice and a one-time Open Food Facts notice, both kept in the encrypted store; an in-app page saying what is stored and sent; photos ask before **every** upload by default | PV1 / PV5 / PV7 — [`docs/your-data.md`](./docs/your-data.md) | `packages/core/test/delete-plate.test.ts`, `apps/web/src/screens/plate/PlateScreen.test.tsx`, `apps/web/src/screens/settings/PrivacyScreen.test.tsx`, `apps/web/src/screens/about/AboutNotice.test.tsx`, `apps/web/src/catalog/privacy-prefs.test.ts`, `apps/web/src/ai/consent.test.ts` |
@@ -71,6 +73,7 @@ Needs Node 24 and pnpm 11.14.0 (`corepack enable`); Docker only for the image an
 pnpm install                 # the workspace: apps/web (React PWA) + packages/core
 pnpm dev                     # Vite dev server (first fetches the pinned, SHA-256-verified wasm assets)
 pnpm verify                  # the one gate: format, lint, types, tests, DST re-run, posture gates, build, bundle scans
+pnpm --filter @anc/web exec playwright install chromium webkit   # once: the Playwright browsers (or use PW_CHANNEL=chrome for your installed Chrome)
 pnpm e2e                     # Playwright against the built preview (PW_WEBKIT=1 adds WebKit)
 docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .   # the production image (nginx, non-root, read-only)
 ```

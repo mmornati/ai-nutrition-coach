@@ -19,8 +19,11 @@ invoke a network code path at startup. The gate
 `tools/gates/telemetry.test.mjs`) is **import-based**: it parses every shipped file of
 `apps/web/src` and `packages/core/src` with the TypeScript compiler API. A file cannot reach the
 network without a transport (`fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`,
-`navigator.sendBeacon`, a `<script>` injected at run time, `import()` of a computed URL, a worker
-whose URL is not a same-origin literal, a network package, the capped-fetch helper), so only an
+`navigator.sendBeacon` — the word itself is a finding as an identifier, property name or string, however
+it is reached through `Reflect`, an alias of `globalThis`, or `eval` —, a `<script>` injected at run time,
+`import()` of a computed URL, a worker whose URL is not a same-origin literal, an image / iframe / link /
+form element whose URL is not a same-origin literal, `window.open`, a network package, the capped-fetch
+helper), so only an
 explicit allow-list of adapter files may, and no analytics / crash-reporting SDK may be declared
 in any `package.json` or imported anywhere.
 

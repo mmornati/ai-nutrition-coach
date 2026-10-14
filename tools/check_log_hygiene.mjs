@@ -20,7 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GLOBAL_OBJECTS, inTypePosition, isReference, lineOf, parse, shippedFiles, stringValue, ts, walkNodes } from './gates/shared.mjs';
+import { globalRefs, inTypePosition, isReference, lineOf, parse, shippedFiles, stringValue, ts, unwrap, walkNodes } from './gates/shared.mjs';
 
 /** The comment that marks a log call as reviewed. */
 export const CONTENT_FREE_MARKER = 'log-hygiene: content-free';
@@ -35,29 +35,37 @@ export const ALLOWED_LOG_IDENTIFIERS = new Set([
   'statusCode',
 ]);
 
-function isConsole(node) {
+const memberKey = (m) => (ts.isPropertyAccessExpression(m) ? m.name.text : stringValue(m.argumentExpression));
+const isMember = (n) => ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n);
+
+/** `console`, or `<global object / alias>.console` / `['console']`. */
+function isConsole(node, refs) {
   if (ts.isIdentifier(node) && node.text === 'console') return isReference(node);
-  return (
-    ts.isPropertyAccessExpression(node) &&
-    node.name.text === 'console' &&
-    ts.isIdentifier(node.expression) &&
-    GLOBAL_OBJECTS.has(node.expression.text)
-  );
+  return isMember(node) && memberKey(node) === 'console' && refs.kindOf(node.expression) === 'g';
 }
 
-function isStdStream(node) {
-  return (
-    ts.isPropertyAccessExpression(node) &&
-    (node.name.text === 'stdout' || node.name.text === 'stderr') &&
-    ts.isIdentifier(node.expression) &&
-    node.expression.text === 'process'
-  );
+/** `process.stdout` / `process.stderr` / `process['stdout']` (also through the global object). */
+function isStdStream(node, refs) {
+  if (!isMember(node)) return false;
+  const key = memberKey(node);
+  if (key !== 'stdout' && key !== 'stderr') return false;
+  const recv = unwrap(node.expression);
+  if (ts.isIdentifier(recv)) return recv.text === 'process';
+  return isMember(recv) && memberKey(recv) === 'process' && refs.kindOf(recv.expression) === 'g';
 }
 
-/** Every Identifier (and private name) text in an expression: `warning.step` yields warning, step. */
+/**
+ * Every Identifier (and private name) text in an expression: `warning.step` yields warning, step.
+ * An element access names its member by a string (`id['foodName']` yields foodName) or hides it
+ * (`id[key]` yields "[computed]"), so neither slips past the allow-list.
+ */
 function identifiersIn(node, out) {
   walkNodes(node, (n) => {
     if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n)) out.add(n.text);
+    else if (ts.isElementAccessExpression(n)) {
+      const key = stringValue(n.argumentExpression);
+      out.add(key === undefined ? '[computed]' : key);
+    }
   });
 }
 
@@ -65,6 +73,7 @@ function identifiersIn(node, out) {
 export function scanSource(path, text) {
   const sf = parse(path, text);
   const lines = text.split('\n');
+  const refs = globalRefs(sf);
   const findings = [];
   const add = (node, message) => findings.push({ path, line: lineOf(sf, node), message });
 
@@ -107,32 +116,39 @@ export function scanSource(path, text) {
 
   walkNodes(sf, (node) => {
     if (inTypePosition(node)) return;
+    // reportError(x): the global error reporter prints what it is given to the console.
+    if (ts.isCallExpression(node)) {
+      const callee = unwrap(node.expression);
+      if ((ts.isIdentifier(callee) && callee.text === 'reportError') || (isMember(callee) && memberKey(callee) === 'reportError' && refs.kindOf(callee.expression) === 'g')) {
+        checkCall(node, 'reportError');
+      }
+      // Reflect.get(globalThis, 'console') / Reflect.get(g, k) hands the console to the caller unchecked.
+      if (isMember(callee) && ts.isIdentifier(unwrap(callee.expression)) && unwrap(callee.expression).text === 'Reflect') {
+        if (node.arguments.some((a) => refs.kindOf(a) !== undefined || stringValue(a) === 'console')) {
+          add(node, `Reflect.${memberKey(callee)}() on the global object can reach console without the call being checked`);
+        }
+      }
+    }
     // process.stdout.write(...) and friends.
-    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && isStdStream(node.expression.expression)) {
-      checkCall(node, `process.${node.expression.expression.name.text}.${node.expression.name.text}`);
+    if (ts.isCallExpression(node) && isMember(unwrap(node.expression)) && isStdStream(unwrap(unwrap(node.expression).expression), refs)) {
+      const target = unwrap(node.expression);
+      checkCall(node, `process.${memberKey(unwrap(target.expression))}.${memberKey(target) ?? '[computed]'}`);
       return;
     }
-    if (isStdStream(node)) {
+    if (isStdStream(node, refs)) {
       const p = node.parent;
-      const isCallTarget =
-        ts.isPropertyAccessExpression(p) && p.expression === node && ts.isCallExpression(p.parent) && p.parent.expression === p;
-      if (!isCallTarget) add(node, `${node.name.text} is used as a value (tear-off); call write directly so the argument can be checked`);
+      const isCallTarget = isMember(p) && p.expression === node && ts.isCallExpression(p.parent) && p.parent.expression === p;
+      if (!isCallTarget) add(node, `${memberKey(node)} is used as a value (tear-off); call write directly so the argument can be checked`);
       return;
     }
-    if (!isConsole(node)) return;
+    if (!isConsole(node, refs)) return;
     const p = node.parent;
-    if (
-      (ts.isPropertyAccessExpression(p) || ts.isElementAccessExpression(p)) &&
-      p.expression === node &&
-      ts.isCallExpression(p.parent) &&
-      p.parent.expression === p
-    ) {
+    if (isMember(p) && p.expression === node && ts.isCallExpression(p.parent) && p.parent.expression === p) {
       if (ts.isElementAccessExpression(p) && stringValue(p.argumentExpression) === undefined) {
         add(node, 'console[<computed>](...) hides which method is called');
         return;
       }
-      const method = ts.isPropertyAccessExpression(p) ? p.name.text : stringValue(p.argumentExpression);
-      checkCall(p.parent, `console.${method}`);
+      checkCall(p.parent, `console.${memberKey(p)}`);
       return;
     }
     add(node, 'console is used as a value (tear-off, alias or destructuring); call console.<method>(...) directly so the argument can be checked');

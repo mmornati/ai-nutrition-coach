@@ -14,8 +14,8 @@
 # Allow-lists, each entry justified (re-derived from the React bundle; a new
 # host in the bundle fails until a person has looked at it):
 #   NETWORK     hosts the app is meant to contact (user-initiated).
-#   INERT       hosts of strings that are never fetched (hint text).
-#   INERT_URLS  exact never-fetched URL literals inside React / the pinned wasm engine.
+#   INERT_URLS  exact never-fetched URL literals: the UI placeholder hint, React and the pinned
+#               wasm engine. Whole hosts are never allowed, only these exact strings.
 # Matched: http(s)://, ws(s):// and protocol-relative //host.tld in .js .mjs
 # .html .json .css .webmanifest.
 # ───────────────────────────────────────────────────────────────────────────
@@ -27,17 +27,14 @@ export LC_ALL
 
 # User-initiated network use (documented in docs/telemetry-posture.md).
 NETWORK_HOSTS=(world.openfoodfacts.org)
-# Never fetched: UI placeholder hints.
-#   openrouter.ai  BYOK endpoint placeholder text; contacted only if the user
-#                  configures it.
-INERT_HOSTS=(openrouter.ai)
 # JS/React build (apps/web/dist). Inert string constants, never loaded from the network;
 # allowed as EXACT URLs (or a fixed path prefix), not as whole hosts, so any other URL on
 # these hosts still fails:
 #   w3.org namespace URIs   XML namespace identifiers React DOM passes to
 #                           createElementNS / setAttributeNS (svg, xlink, MathML, xml).
 #   react.dev/errors        the production error-decoder message React prints; text only.
-#   bit.ly/wb-precache      a documentation link inside a Workbox warning string.
+#   openrouter.ai/api/v1    the BYOK endpoint placeholder text (en.ts); contacted only if the user
+#                           configures an endpoint, and then through the capped-fetch helper.
 #   emscripten.org, sqlite.org   licence-header comment and a documentation link inside the pinned
 #                           sqlite3mc wasm build (public/sqlite3mc/<version>/sqlite3.mjs, fetched by
 #                           scripts/fetch_web_sqlite3mc.sh); text only, never requested. The
@@ -46,10 +43,9 @@ INERT_HOSTS=(openrouter.ai)
 INERT_URLS=(
   "http://www.w3.org/2000/svg"
   "http://www.w3.org/1999/xlink"
-  "http://www.w3.org/1999/xhtml"
   "http://www.w3.org/1998/Math/MathML"
   "http://www.w3.org/XML/1998/namespace"
-  "https://bit.ly/wb-precache"
+  "https://openrouter.ai/api/v1"
   "https://emscripten.org:"
   "https://emscripten.org/docs/introducing_emscripten/emscripten_license.html"
   "https://sqlite.org:"
@@ -88,7 +84,7 @@ scan_dir() {
       [[ "$url" == "$p"* ]] && matched=1
     done
     [[ "$matched" -eq 1 ]] && continue
-    if in_list "$host" "${NETWORK_HOSTS[@]}" "${INERT_HOSTS[@]}"; then continue; fi
+    if in_list "$host" "${NETWORK_HOSTS[@]}"; then continue; fi
     printf '  ✗ %s references third-party URL %s\n' "$file" "$url" >&2
     HITS=$((HITS + 1))
   done < <(cd "$dir" && grep -rEao \
@@ -106,22 +102,22 @@ self_test() {
   # The CSP <meta> of the build names the one allowed network host, ended by `;`.
   printf '<meta content="connect-src '"'"'self'"'"' https://world.openfoodfacts.org; worker-src '"'"'self'"'"'">\n' >"$tmp/good/index.html"
   # The known inert strings pass.
-  printf 'var n="http://www.w3.org/2000/svg";var e="https://react.dev/errors/418";var w="https://bit.ly/wb-precache";var h="https://openrouter.ai/api/v1";\n' >"$tmp/good/index.js"
+  printf 'var n="http://www.w3.org/2000/svg";var e="https://react.dev/errors/418";var h="https://openrouter.ai/api/v1";\n' >"$tmp/good/index.js"
   # Anything else fails: another host, a CSP naming one, a CDN script, a websocket, a
   # protocol-relative URL, an import from a CDN, another URL on an inert host.
   printf 'var a="https://evil.example.com/x.js";\n' >"$tmp/bad/main.js"
   printf '<meta content="connect-src https://evil.example.com; img-src">\n' >"$tmp/bad/index.html"
   printf 'var g="//cdn.evil.example/x.js";var w="wss://t.evil.example/s";\n' >"$tmp/bad/boot.js"
   printf 'import "https://fonts.gstatic.com/s/other.woff2";\n' >"$tmp/bad/lib.mjs"
-  printf 'var x="https://react.dev/other";var y="http://www.w3.org/evil";var z="https://bit.ly/other";\n' >"$tmp/bad/index.js"
+  printf 'var x="https://react.dev/other";var y="http://www.w3.org/evil";var z="https://bit.ly/wb-precache";var q="https://openrouter.ai/api/v1/other";var r="http://www.w3.org/1999/xhtml";\n' >"$tmp/bad/index.js"
   scan_dir "$tmp/good"
   if [[ "$HITS" -ne 0 ]]; then
     echo "self-test FAILED: false positive" >&2
     rc=1
   fi
   scan_dir "$tmp/bad" 2>/dev/null
-  if [[ "$HITS" -lt 8 ]]; then
-    echo "self-test FAILED: expected >=8 detections, got $HITS" >&2
+  if [[ "$HITS" -lt 10 ]]; then
+    echo "self-test FAILED: expected >=10 detections, got $HITS" >&2
     rc=1
   fi
   [[ "$rc" -eq 0 ]] && echo "✓ external-host scanner self-test passed"

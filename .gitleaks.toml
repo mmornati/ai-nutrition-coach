@@ -1,6 +1,6 @@
 # gitleaks configuration — extends the default ruleset and allow-lists the
-# known non-secrets that trip `generic-api-key`. Every entry is an EXACT string
-# (no character classes, no wildcards), so a real key committed anywhere,
+# known non-secrets that trip `generic-api-key`. Every entry is an EXACT string, anchored
+# ^...$ against the secret itself (no character classes, no wildcards), so a real key committed anywhere,
 # including into a test file, is still caught:
 #
 #   * test fixtures shaped like provider keys. They are deliberately key-shaped
@@ -20,18 +20,18 @@ useDefault = true
 
 [allowlist]
 description = "Exact key-shaped test fixtures and storage alias names"
-regexTarget = "match"
+regexTarget = "secret"
 regexes = [
   # Current fixtures (apps/web/src/**/*.test.*, apps/web/e2e).
-  '''sk-test-abcdef123456''',
-  '''sk-or-v1-SECRETMATERIAL-9f3a''',
-  '''sk-live-marker-1234567890''',
+  '''^sk-test-abcdef123456$''',
+  '''^sk-or-v1-SECRETMATERIAL-9f3a$''',
+  '''^sk-live-marker-1234567890$''',
   # Fixtures that exist in git history only.
-  '''sk-test-0123456789abcd''',
-  '''sk-abc123456789''',
-  '''sk-keyforA-abcdef123456''',
-  '''sk-keyforB-abcdef123456''',
+  '''^sk-test-0123456789abcd$''',
+  '''^sk-abc123456789$''',
+  '''^sk-keyforA-abcdef123456$''',
+  '''^sk-keyforB-abcdef123456$''',
   # Alias identifiers of the replaced client (history only).
-  '''ai_nutrition_coach_db_key_v1''',
-  '''ai_nutrition_coach_byok_key_v1''',
+  '''^ai_nutrition_coach_db_key_v1$''',
+  '''^ai_nutrition_coach_byok_key_v1$''',
 ]

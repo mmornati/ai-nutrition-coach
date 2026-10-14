@@ -30,6 +30,23 @@ describe('adults-only gate: fails on', () => {
     expect(scan('export const A = () => <p>Sign in with FaceID</p>;', 'apps/web/src/a.tsx')).toHaveLength(1);
     expect(scan("import { x } from 'expo-local-authentication/face_detection';").length).toBeGreaterThan(0);
   });
+  it.each([
+    ['a plural (the last banned word is a prefix of the source word)', 'const childProfiles = [];'],
+    ['a plural of minorAccount', 'const minorAccounts = 1;'],
+    ['a suffixed ageGate', 'const myAgeGated = true;'],
+    ['birthDates', 'const birthDates = [];'],
+    ['a snake_case plural', 'const parent_accounts = 1;'],
+    ['a lower-case run-together term', 'const birthdate = 1; '],
+    ['a run-together plural', 'const childprofiles = 1;'],
+    ['a regular-expression literal', 'const r = /birthDate/;'],
+    ['a regular expression naming a spaced term', 'const r = /age gate/i;'],
+    ['a constant concatenation', "const k = 'age' + 'Gate';"],
+    ['a template with a constant', 'const k = `${"child"}Profile`;'],
+    ['a unicode-escaped identifier', 'const \\u0061geGate = 1;'],
+    ['a biometric prefix', 'const faceDetectionResult = [];'],
+  ])('%s', (_n, code) => {
+    expect(scan(code).length).toBeGreaterThan(0);
+  });
   it('a property key and a type', () => {
     expect(scan('const o = { childProfile: 1 };')).toHaveLength(1);
     expect(scan('type T = { under13: boolean };')).toHaveLength(1);
@@ -52,6 +69,7 @@ describe('adults-only gate: passes on', () => {
     expect(scan("export interface ManagedOversightSeam { readonly kind: 'managedOversightSeam' }")).toEqual([]);
     expect(scan('const messageGate = 1; const storageGate = 2; const parent = 3; const birth = 4;')).toEqual([]);
     expect(scan('const faceCount = 1; const touch = 2;')).toEqual([]);
+    expect(scan('const messageGates = 1; const storagegate = 2; const childhood = 3; const parented = 4; const minorChange = 5;')).toEqual([]);
   });
   it('word matching', () => {
     expect(words('FaceID')).toEqual(['face', 'id']);

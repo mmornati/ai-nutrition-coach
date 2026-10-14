@@ -13,14 +13,15 @@
 // COMMENTS are never looked at (the AST has none), so documenting the ban is fine. Identifiers,
 // string literals, template text, JSX text and module specifiers are matched word-wise and
 // case-insensitively (`ageGate`, `AgeGate`, `age_gate`, `"age gate"` all match; `messageGate` does
-// not). The only allowed marker is `ManagedOversightSeam` (packages/core, v2 seam: a type, no
+// not), the last banned word as a PREFIX of the source word (`childProfiles`, `myAgeGated` match),
+// and regular-expression literals are read too. The only allowed marker is `ManagedOversightSeam` (packages/core, v2 seam: a type, no
 // behaviour); no file is exempt, so the seam file is scanned like any other.
 //
 //   node tools/check_adults_only.mjs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { declaredDependencies, lineOf, packageJsonFiles, parse, shippedFiles, ts, walkNodes } from './gates/shared.mjs';
+import { declaredDependencies, lineOf, packageJsonFiles, parse, shippedFiles, stringValue, ts, walkNodes } from './gates/shared.mjs';
 
 export const BANNED_BIOMETRIC = [
   'LocalAuthentication', 'FaceID', 'TouchID', 'face_detection', 'voice_print', 'biometric_auth', 'face_recognition',
@@ -49,13 +50,18 @@ export function words(text) {
     .map((w) => w.toLowerCase());
 }
 
-const bannedTerms = (list, group) => list.map((term) => ({ term, group, words: words(term) }));
+const bannedTerms = (list, group) => list.map((term) => ({ term, group, words: words(term), compact: words(term).join('') }));
 const TERMS = [...bannedTerms(BANNED_BIOMETRIC, 'biometric'), ...bannedTerms(BANNED_UNDER_13, 'under-13 profile')];
 
+/**
+ * `needle` occurs in `haystack` as consecutive words, the LAST one as a PREFIX of the source word
+ * (the old substring match: `childProfiles`, `minorAccounts`, `myAgeGated`, `birthDates` all hit).
+ */
 function hasSequence(haystack, needle) {
+  const last = needle.length - 1;
   outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
-    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
-    return true;
+    for (let j = 0; j < last; j++) if (haystack[i + j] !== needle[j]) continue outer;
+    if (haystack[i + last].startsWith(needle[last])) return true;
   }
   return false;
 }
@@ -63,7 +69,8 @@ function hasSequence(haystack, needle) {
 /** The banned terms a piece of text mentions. */
 export function bannedIn(text) {
   const w = words(text.replaceAll(SEAM_MARKER, ''));
-  return TERMS.filter((t) => hasSequence(w, t.words));
+  // Also a single source word that starts with the whole term run together: `birthdate`, `agegate`.
+  return TERMS.filter((t) => hasSequence(w, t.words) || w.some((x) => x.startsWith(t.compact)));
 }
 
 /** Findings `{path, line, group, message}` in one source file. */
@@ -88,6 +95,12 @@ export function scanSource(path, text) {
     else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) check(n, n.text);
     else if (ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) check(n, n.text);
     else if (ts.isJsxText(n)) check(n, n.text);
+    else if (ts.isRegularExpressionLiteral(n)) check(n, n.text);
+    else if (ts.isBinaryExpression(n) || ts.isTemplateExpression(n)) {
+      // 'age' + 'Gate' folds to a constant: read the folded text too.
+      const folded = stringValue(n);
+      if (folded !== undefined) check(n, folded);
+    }
   });
   return findings;
 }
