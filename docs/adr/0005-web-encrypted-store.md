@@ -27,7 +27,7 @@ ADR-0002 shipped an encrypted store in the Flutter web build: sqlite3mc compiled
 
 ## What was verified, in which browser
 
-| Check | Chromium (Google Chrome, `PW_CHANNEL=chrome`) | WebKit (Playwright 1.64 build, macOS) |
+| Check | Chromium (Google Chrome, `PW_CHANNEL=chrome`) | WebKit (Playwright 1.63 build, macOS) |
 |---|---|---|
 | sqlite3mc 2.5.1 loads in a module worker under the production CSP, `opfs-sahpool` installs, `multipleciphers-opfs-sahpool` VFS works | pass | pass |
 | create, write, lock; wrong passphrase refused with every OPFS byte unchanged (SHA-256 of each file); right passphrase reads | pass | pass |

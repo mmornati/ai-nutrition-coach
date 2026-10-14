@@ -329,7 +329,7 @@ test('offline: the wasm engine and the worker are precached, so the store works 
   await page.reload();
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 
-  const precache = await page.evaluate(async () => (await fetch('/sw.js')).text());
+  const precache = await page.evaluate(async () => (await fetch('/precache-manifest.json')).text());
   expect(precache).toContain('sqlite3mc/2.5.1/sqlite3.wasm');
   expect(precache).toContain('sqlite3mc/2.5.1/sqlite3.mjs');
   expect(precache).toMatch(/store\.worker-[\w-]+\.js/);

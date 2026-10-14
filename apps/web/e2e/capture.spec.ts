@@ -92,7 +92,7 @@ test('the reader and wasm are immutable-versioned files that the service worker 
   const wasm = await request.get('/zxing/3.1.1/zxing_reader.wasm');
   expect(wasm.ok()).toBe(true);
   expect(wasm.headers()['content-type']).toContain('application/wasm');
-  const sw = await (await request.get('/sw.js')).text();
+  const sw = await (await request.get('/precache-manifest.json')).text();
   expect(sw).toContain('zxing/3.1.1/reader.js');
   expect(sw).toContain('zxing/3.1.1/zxing_reader.wasm');
 });

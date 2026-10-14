@@ -100,7 +100,7 @@ validate_access_log() {
   esac
 }
 
-# AI_NUTRITION_COACH_PROJECT_URL is compiled into the image (a --dart-define): a plain
+# AI_NUTRITION_COACH_PROJECT_URL is a build-time setting of the image (a --build-arg): a plain
 # https URL only. Empty is fine (the default is the project repository).
 validate_project_url() {
   [ -z "${AI_NUTRITION_COACH_PROJECT_URL:-}" ] && return 0

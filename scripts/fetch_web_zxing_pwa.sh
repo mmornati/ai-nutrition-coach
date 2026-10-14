@@ -27,7 +27,7 @@
 # `immutable` forever and an upgrade gets a new URL. `ZXING_VERSION` in
 # apps/web/src/barcode/zxing-pin.ts must match (a unit test enforces it and that the pins are
 # well-formed). Other versions in the output directory are removed so a stale decoder is never
-# shipped. vite-plugin-pwa precaches the .js and .wasm so scanning works offline.
+# shipped. The precache manifest generator (tools/generate_precache_manifest.mjs) lists the .js and .wasm so scanning works offline.
 #
 # To re-pin: set ZXING_WASM_VERSION, download the npm tarball, review the release, `shasum -a 256`
 # it into ZXING_TARBALL_SHA256, then run the script once with ZXING_ALLOW_REPIN=1 to print the new

@@ -1,7 +1,7 @@
 # AI Nutrition Coach — self-host (Story 4.4 / FR-11 / AD-2 / NFR9)
 
-AI Nutrition Coach is yours to run. The self-host build is the same `apps/client`
-Flutter web build the mobile apps ship. The container is a **static web
+AI Nutrition Coach is yours to run. The self-host build is the `apps/web` React
+PWA (a Vite build). The container is a **static web
 server**: it serves the app and nothing else. It stores no data, makes no
 outbound calls and runs as a non-root user on a read-only filesystem.
 
@@ -22,10 +22,11 @@ can reach it.
 ## Reaching it from other devices: HTTPS is required
 
 > **Plain HTTP over a network is unsupported.** AI Nutrition Coach's encrypted web
-> store needs the browser's WebCrypto API, which browsers only expose on a
+> store needs the browser's WebCrypto API (`crypto.subtle`), which browsers only expose on a
 > *secure context*: `https://…` or `http://localhost`. Opened over
 > `http://192.168.x.y:8080/` the app reports the store as unavailable instead
-> of running unprotected (and the camera is blocked too). Plain HTTP would
+> of running unprotected; the camera (barcode, photo) is blocked too, and the service worker
+> (offline use, the update line) cannot register. Plain HTTP would
 > also let anyone on the network rewrite the JavaScript and read your
 > passphrase. Do not expose the plain-HTTP port with `AI_NUTRITION_COACH_BIND=0.0.0.0`
 > unless something in front of it terminates TLS.
@@ -69,9 +70,9 @@ docker network and proxy to `http://ai-nutrition-coach:8080` (the compose servic
 ## Where your data lives
 
 **In your browser, not on the server.** Your history is stored encrypted
-(ChaCha20 via SQLite3MultipleCiphers) in the browser's IndexedDB for the
-site's origin, keyed from your passphrase (see
-[`docs/your-data.md`](./your-data.md), ADR-0002). Consequences:
+(ChaCha20-Poly1305 via SQLite3 Multiple Ciphers) in the browser's origin-private file
+storage (OPFS) for the site's origin, keyed from your passphrase (see
+[`docs/your-data.md`](./your-data.md), [ADR-0005](./adr/0005-web-encrypted-store.md)). Consequences:
 
 - There is no volume to mount and nothing on the server to back up.
   (`--with-persist` and the old `/data` volume never stored anything and were
@@ -117,36 +118,38 @@ anonymiser, so this is a `map` of the address rendered at start by
 `infra/nginx/docker-entrypoint.d/10-render-access-log.sh`. `full` keeps the whole client
 address (for a firewall or allow-list problem; turn it off again). The logs go to the
 container's stdout, rotated by Docker (`json-file`, 10 MB × 3). `scripts/smoke_self_host.sh`
-asserts all of this on a real container, and `self_host_config_test.dart` pins it in the
+asserts all of this on a real container, and `tools/pwa/infra.test.mjs` (part of `pnpm verify`) pins it in the
 config. Behind Traefik the client address nginx sees is Traefik's; Traefik's own access log
 is the one to look at: see [`docs/pwa.md`](./pwa.md#logs-behind-traefik).
 
 ### The project URL
 
-The Open Food Facts `User-Agent` of mobile builds (and the app's identity) contains a
-project URL: `--dart-define=AI_NUTRITION_COACH_PROJECT_URL=https://…` (for the container build:
-`docker build --build-arg AI_NUTRITION_COACH_PROJECT_URL=https://… -f infra/Dockerfile .`). The
-default is the project repository, `https://github.com/mmornati/ai-nutrition-coach`; set the variable only to point at a fork.
-`AI_NUTRITION_COACH_BUILD=release AI_NUTRITION_COACH_PROJECT_URL=… dart run tools/check_release_posture.dart --project-url-only`
-fails only if the URL is empty or `.invalid` for a `selfhost` / `release` build. It is **enforced** for release images:
-`docker build --build-arg AI_NUTRITION_COACH_RELEASE=1 --build-arg AI_NUTRITION_COACH_PROJECT_URL=…` runs it before the web build, and
-`.github/workflows/release-gate.yml` does so for tags, taking the URL from the repository **variable**
-`AI_NUTRITION_COACH_PROJECT_URL` (optional override, under Settings → Secrets and variables → Actions → Variables; left unset, the
-default above is used). A URL that is set must be a plain `https://` URL (no spaces or quotes); `bin/ai-nutrition-coach`, `build:web` and the
-image build all refuse anything else. Browsers forbid setting `User-Agent`, so the web bundle never sends it.
+The project URL identifies this deployment to Open Food Facts (browsers forbid setting a `User-Agent`, so the web
+bundle never sends it; it is reserved for the app identity string). It is a **build-time** setting: for the
+container build, `docker build --build-arg AI_NUTRITION_COACH_PROJECT_URL=https://… -f infra/Dockerfile .`. The
+default is the project repository, `https://github.com/mmornati/ai-nutrition-coach`; set the variable only to point
+at a fork. `AI_NUTRITION_COACH_BUILD=release AI_NUTRITION_COACH_PROJECT_URL=… node tools/check_project_url.mjs`
+fails only if the URL is empty or `.invalid` for a `selfhost` / `release` build. It is **enforced** for release
+images: `docker build --build-arg AI_NUTRITION_COACH_RELEASE=1 --build-arg AI_NUTRITION_COACH_PROJECT_URL=…` runs
+it before the web build, and `.github/workflows/release-gate.yml` does so for tags, taking the URL from the
+repository **variable** `AI_NUTRITION_COACH_PROJECT_URL` (optional override, under Settings → Secrets and variables
+→ Actions → Variables; left unset, the default above is used). A URL that is set must be a plain `https://` URL
+(no spaces or quotes); `bin/ai-nutrition-coach` and the image build refuse anything else.
 
 ### Content-Security-Policy and your AI endpoint
 
-The app ships a strict CSP: `script-src 'self' 'wasm-unsafe-eval'` (no inline
-script, no CDN; the WebAssembly flag is for CanvasKit and the encrypted store),
-`default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`,
-`form-action 'none'`, and
+The app ships a strict CSP, set by nginx on every response: `script-src 'self' 'wasm-unsafe-eval'` (no inline
+script, no CDN; the WebAssembly flag is for the encrypted store's SQLite and the barcode decoder),
+`style-src 'self'` (no inline style either: the build ships its CSS as a file and React applies its
+`style` props through the CSSOM), `default-src 'self'`, `object-src 'none'`, `base-uri 'none'`,
+`frame-ancestors 'none'`, `form-action 'none'`, and
 
 ```
 connect-src 'self' https://world.openfoodfacts.org <AI_NUTRITION_COACH_CONNECT_SRC_EXTRA>
 ```
 
-Browser requests the app itself makes are limited to this list: barcode lookups
+This header is the **only** place `connect-src` is set (the `<meta>` CSP in `index.html` deliberately has none, so
+this variable can widen it). Browser requests the app itself makes are limited to this list: barcode lookups
 at Open Food Facts, and whatever AI endpoint **you** configure. This variable is
 **the place to allow your BYOK endpoint** (it works the same behind Caddy, Traefik or
 plain `up`). **If you use
@@ -181,15 +184,26 @@ serves HTTP/1.1 and HTTP/2 only (HTTP/3 would need `443/udp`), and hides
 
 `bin/ai-nutrition-coach` and `infra/docker-compose.yml` run the image (nginx-unprivileged,
 uid 101, port 8080) with `--read-only`, a small `tmpfs` on `/tmp` (the only place
-nginx writes), `--cap-drop ALL` and `no-new-privileges`. Every response carries
-`nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a
-`Permissions-Policy` that allows only the camera for the app's own origin,
-COOP/CORP `same-origin` and the CSP; the server version is hidden. Caching:
-`index.html`, the loader, `main.dart.js`, CanvasKit and the manifest are
-revalidated (`no-cache`) so upgrades take effect immediately — that includes
-`sw.js` and `precache-manifest.json`, the installed app's way of learning that a new
-version exists ([`docs/pwa.md`](./pwa.md)); only the versioned `sqlite3mc-<ver>.wasm`
-and `zxing/<ver>/` decoder are `immutable`.
+nginx writes), `--cap-drop ALL` and `no-new-privileges`. Every response, including worker and wasm
+responses and nginx's own error pages, carries `nosniff`, `Referrer-Policy: no-referrer`,
+`X-Frame-Options: DENY`, a `Permissions-Policy` that allows only the camera for the app's own origin,
+COOP/CORP `same-origin` and the CSP; the server version is hidden. Caching follows Vite's output:
+`index.html`, `boot-guard.js`, `manifest.webmanifest`, `sw.js` and `precache-manifest.json` are revalidated
+(`no-cache`) so upgrades take effect immediately (`sw.js` and the precache manifest are the installed app's way of
+learning that a new version exists, [`docs/pwa.md`](./pwa.md)); Vite's content-hashed `assets/*` and the
+versioned `sqlite3mc/<ver>/` engine and `zxing/<ver>/` decoder are `immutable`; fonts, icons and licence texts
+(unhashed names) are cached five minutes and revalidated. A missing file is a real 404, never the app shell;
+only a path without a file extension (a route) falls back to `index.html`.
+
+### Updating, and the kill switch
+
+Deploy a new image and restart; installed apps show a calm "A new version is ready" line
+([`docs/pwa.md`](./pwa.md#updating)). **Changing `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restarting is also
+a new version** (the service-worker build id covers the rendered headers). If a bad build gets stuck on
+phones, start the container with `AI_NUTRITION_COACH_SW_KILL=1`: it serves a worker that deletes every cache
+and reloads each open window once, without touching your data
+([`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). The container refuses to start
+if the bundle has no `sw.js` / precache manifest.
 
 ### Camera and barcode scanning
 
@@ -197,19 +211,15 @@ Scanning is decoded entirely on the device. The browser's native `BarcodeDetecto
 used where it exists (Chrome on Android, macOS and ChromeOS; Edge/Opera on macOS). Everywhere
 else — **Safari/iOS, Firefox, Chrome/Edge on Windows and Linux** — the app uses a
 **zxing-wasm decoder served from your own origin** (`zxing/<version>/`, fetched at build time by
-`scripts/fetch_web_zxing.sh`, SHA-256 verified): nothing is downloaded from a third party and
+`scripts/fetch_web_zxing_pwa.sh`, SHA-256 verified): nothing is downloaded from a third party and
 the camera never leaves the device. Only if the decoder cannot start does the scanner say
-"Scanning isn't available in this browser" and offer manual entry. The Android and iOS apps use the
-platform scanners and are not affected.
+"Scanning isn't available in this browser" and offer manual entry. The camera needs HTTPS (see above).
 
 ### Fonts
 
-Roboto is bundled and the engine's fallback-font path points at your own origin
-(one Noto Sans Symbols file ships there). Glyphs outside those (emoji, CJK and
-other scripts) render as missing-glyph boxes instead of being fetched from a
-CDN; add the corresponding woff2 files under `apps/client/web/fallback-fonts/`
-if you need them. Font licences (Apache-2.0 / SIL OFL) are listed under
-Settings → About → Open-source licences.
+Barlow is bundled (`fonts/`, SIL OFL) and served from your own origin. A glyph it lacks (emoji, CJK and
+other scripts) falls back to the system font; nothing is fetched from a CDN. Font and library licences are
+listed under Settings → About.
 
 ## Verifying a build
 
@@ -217,12 +227,16 @@ Settings → About → Open-source licences.
 bash scripts/smoke_self_host.sh      # builds via bin/ai-nutrition-coach and asserts:
 ```
 
-- digest-pinned base images (`nginxinc/nginx-unprivileged`, `caddy`);
+- digest-pinned base images (the `node` build stage, `nginxinc/nginx-unprivileged`, `caddy`), strict-lockfile
+  install, no Flutter in the Dockerfile;
 - readiness (polling, no fixed sleep), HTTP 200, SPA deep links, 404 for missing
   assets, 405 for `POST`;
-- `sqlite3mc-<ver>.wasm` served as `application/wasm`, `immutable`;
-- CSP and the other headers on html, js and wasm responses; no version in
-  `Server`; no `'unsafe-inline'` script, no blanket `https:`;
+- `sqlite3mc/<ver>/sqlite3.wasm` served as `application/wasm`, `immutable`; `.mjs` as `text/javascript`; Vite's
+  hashed `assets/*` `immutable`; a missing file is a 404;
+- CSP and the other headers on html, js, css, worker, wasm, manifest and icon responses; no version in
+  `Server`; no `'unsafe-inline'` (script or style), no blanket `https:`;
+- every file of `precache-manifest.json` is served with exactly the SHA-256 it lists, and the boot-critical
+  files (document, boot guard, store worker, sqlite3mc, zxing) are listed;
 - container is non-root, read-only, capabilities dropped, no-new-privileges;
 - the container boots and serves on a docker `--internal` network with no
   outbound route (and a deliberate outbound request there fails), i.e. the
@@ -235,16 +249,19 @@ bash scripts/smoke_self_host.sh      # builds via bin/ai-nutrition-coach and ass
 - hostile `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` / `AI_NUTRITION_COACH_DOMAIN` values are rejected;
 - the Traefik compose renders with **no published port**, the expected labels (HSTS-only middleware),
   optional overlays and refusals of hostile Traefik settings; `sw.js`, `precache-manifest.json` and
-  `manifest.json` are `no-cache` and agree on the build id; the zxing decoder is served and `immutable`;
+  `manifest.webmanifest` are `no-cache` and agree on the build id; the zxing decoder is served and `immutable`;
+  the kill switch serves the kill worker;
 - a name collision is reported clearly; compose binds loopback by default;
 - the shipped bundle references no third-party host
-  (`tools/check_no_external_hosts.sh`: no `gstatic.com`, `googleapis.com`,
-  CDNs; CanvasKit and fonts are served from your origin).
+  (`tools/check_no_external_hosts.sh`: no CDN; the engine, decoder and fonts are served from your origin).
+
+`bash scripts/webkit_smoke.sh` then drives the same image in WebKit and Chromium
+([`docs/pwa.md`](./pwa.md#browser-smoke-webkit-and-chromium)).
 
 ## Where things live
 
 ```
-infra/Dockerfile               multi-stage: Flutter 3.44.0 (digest) → nginx-unprivileged (digest)
+infra/Dockerfile               multi-stage: node 24 LTS alpine (digest) + pnpm → nginx-unprivileged (digest)
 infra/nginx/nginx.conf         main config (everything writable lives in /tmp)
 infra/nginx/templates/         vhost + shared security-header include (envsubst at start)
 infra/docker-compose.yml       hardened app service + opt-in `tls` profile (Caddy)
@@ -252,7 +269,9 @@ infra/docker-compose.traefik*.yml  behind your Traefik: no published port (+ cer
 infra/traefik/                 file-provider example for a Traefik running on the host
 infra/Caddyfile                automatic HTTPS + HSTS for $AI_NUTRITION_COACH_DOMAIN
 bin/ai-nutrition-coach                  the one-command affordance
-scripts/smoke_self_host.sh     CI / local smoke test
+scripts/smoke_self_host.sh     CI / local smoke test of the image
+scripts/webkit_smoke.sh        real-browser smoke of the image (WebKit + Chromium)
+tools/generate_precache_manifest.mjs  sw.js + precache-manifest.json for the Vite bundle
 tools/check_no_external_hosts.sh  built-bundle third-party host scan
 ```
 
@@ -268,7 +287,7 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 The self-host image ships with no telemetry (FR-12): the served bundle makes no
 analytics or tracking calls, the server needs no outbound network, and the only
 browser network paths are the ones you enable (barcode lookups, an AI endpoint
-you configure). `melos run check:telemetry` pins this claim; see
+you configure). The import-based telemetry gate pins this claim; see
 [`docs/telemetry-posture.md`](./telemetry-posture.md).
 
 ## Cross-references

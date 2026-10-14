@@ -1,5 +1,8 @@
-# React PWA (apps/web + packages/core) gate: lint, typecheck, unit tests, build, e2e,
-# third-party host scan and secrets scan of the built bundle.
+# React PWA (apps/web + packages/core) gate: format, lint, typecheck, unit tests (incl. the
+# service-worker generator and worker tests), build (+ precache manifest and sw.js), e2e in
+# Chromium AND WebKit (offline reload, update flow), third-party host scan and secrets scan of the
+# built bundle. The production image is built and smoked by self-host-smoke.yml and
+# browser-smoke.yml.
 name: web
 
 on:
@@ -30,9 +33,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
       - name: Install Playwright browser
-        run: pnpm --filter @anc/web exec playwright install --with-deps chromium
-      - name: End-to-end tests (built preview, incl. offline reload)
+        run: pnpm --filter @anc/web exec playwright install --with-deps chromium webkit
+      - name: End-to-end tests (built preview, Chromium + WebKit; offline reload and update flow)
         run: pnpm --filter @anc/web e2e
+        env:
+          PW_WEBKIT: '1'
+      - name: Release bundle has a service worker and a precache manifest
+        run: test -f apps/web/dist/sw.js && test -f apps/web/dist/precache-manifest.json
       - name: Third-party host scan
         run: bash tools/check_no_external_hosts.sh apps/web/dist
       - name: Secrets scan

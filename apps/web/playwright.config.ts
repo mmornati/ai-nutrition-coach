@@ -29,7 +29,7 @@ export default defineConfig({
   reporter: process.env['CI'] ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: 'http://localhost:4173', trace: 'on-first-retry' },
   webServer: {
-    command: `pnpm exec tsc -b && VITE_GALLERY=1 VITE_STORAGE_HARNESS=1 pnpm exec vite build --outDir ${E2E_OUT} --emptyOutDir && pnpm exec vite preview --outDir ${E2E_OUT} --port 4173 --strictPort`,
+    command: `pnpm exec tsc -b && VITE_GALLERY=1 VITE_STORAGE_HARNESS=1 pnpm exec vite build --outDir ${E2E_OUT} --emptyOutDir && node ../../tools/generate_precache_manifest.mjs ${E2E_OUT} && pnpm exec vite preview --outDir ${E2E_OUT} --port 4173 --strictPort`,
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env['CI'],
     timeout: 120_000,

@@ -22,7 +22,15 @@ test('built app loads with the right title and no console errors', async ({ page
 test('the app shell still renders offline after the service worker is ready', async ({
   page,
   context,
+  browserName,
 }) => {
+  // Playwright 1.63's WebKit build fails a reload under `setOffline(true)` when a service worker
+  // controls the page ("WebKit encountered an internal error"; fixed in the 1.64 build). WebKit's
+  // offline reload is still covered by e2e/pwa.spec.ts, which takes the origin away instead.
+  test.skip(
+    browserName === 'webkit',
+    'setOffline + service-worker reload is broken in WebKit 1.63',
+  );
   await page.goto('/');
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
