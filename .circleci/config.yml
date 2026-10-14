@@ -1,38 +1,28 @@
-# AI Nutrition Coach CI on CircleCI — the same gates as .github/workflows/,
-# through the same entry points (scripts/ci/*.sh). Why two providers, and how
-# to switch between them: docs/ci-migration.md.
+# AI Nutrition Coach CI on CircleCI. It runs the same gates as .github/workflows/
+# through the same entry points (scripts/ci/*.sh). docs/ci-migration.md explains
+# why there are two providers and how to switch between them.
 #
 # Workflows:
 #   gates   — every push to any branch, and v* tags. Jobs:
-#     flutter-verify  format, analyze, test (+ DST), telemetry, release posture,
-#                     named-reviewer check, release web build + bundle scans.
-#                     (GitHub: ci.yml verify + release-gate.yml + ndp-review.yml,
-#                     deduplicated into one bootstrap.)
-#     flutter-apk     debug APK + its secrets scan (ci.yml apk).
-#     web             React PWA verify + e2e + bundle scans (web.yml).
-#     image           Dockerfile build, trivy, self-host smoke, browser smoke
-#                     (ci.yml docker + self-host-smoke.yml + browser-smoke.yml),
-#                     on one VM so the layer cache is shared.
-#     gitleaks        full-history secret scan (gitleaks.yml).
-#     sbom            release image SBOM — v* tags only (release-gate.yml sbom).
-#   weekly-gitleaks — a scheduled trigger (project settings → Triggers) named
-#                     "weekly-gitleaks"; runs only the history scan.
+#     verify    pnpm verify (format, lint, types, tests, DST, posture gates,
+#               scanner self-tests, build, bundle scans, guards), service-worker
+#               check, named-reviewer check. (GitHub: ci.yml verify +
+#               release-gate.yml + ndp-review.yml, which all re-ran the same
+#               gates; here they share one install.)
+#     e2e       Playwright, Chromium + WebKit (ci.yml e2e).
+#     image     Dockerfile build, trivy, self-host smoke, browser smoke
+#               (ci.yml docker + self-host-smoke.yml + browser-smoke.yml),
+#               on one VM so the layer cache is shared.
+#     gitleaks  full-history secret scan (gitleaks.yml).
+#     sbom      release image SBOM, v* tags only (release-gate.yml sbom).
+#   weekly-gitleaks — a scheduled trigger (Project Settings → Triggers) that
+#                     runs only the history scan.
 #
-# Toolchain pins: keep the Flutter image in step with scripts/flutter_docker.sh,
-# infra/Dockerfile and .github/workflows/ci.yml.
-#
-# Project settings this file relies on (CircleCI UI):
-#   * "Only build pull requests" OFF, so pushes to main build too (or ON to
-#     save credits — main is then built only through PR merges).
-#   * Optional env var AI_NUTRITION_COACH_PROJECT_URL (release tag builds).
+# Optional project env var: AI_NUTRITION_COACH_PROJECT_URL (release tag builds).
 
 version: 2.1
 
 executors:
-  flutter:
-    docker:
-      - image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
-    resource_class: large
   node:
     docker:
       - image: cimg/node:24.21.0
@@ -49,44 +39,7 @@ release_tags: &release_tags
       only: /^v.*/
 
 jobs:
-  flutter-verify:
-    executor: flutter
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - pub-v1-{{ checksum "pubspec.lock" }}
-            - pub-v1-
-      - run:
-          name: Flutter gate
-          command: CI_TAG="${CIRCLE_TAG:-}" bash scripts/ci/flutter_verify.sh
-      - save_cache:
-          key: pub-v1-{{ checksum "pubspec.lock" }}
-          paths:
-            - ~/.pub-cache
-
-  flutter-apk:
-    executor: flutter
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - pub-v1-{{ checksum "pubspec.lock" }}
-            - pub-v1-
-      - restore_cache:
-          keys:
-            - gradle-v1-{{ checksum "apps/client/android/build.gradle.kts" }}
-            - gradle-v1-
-      - run:
-          name: Build APK (debug) + secrets scan
-          command: bash scripts/ci/flutter_apk.sh
-      - save_cache:
-          key: gradle-v1-{{ checksum "apps/client/android/build.gradle.kts" }}
-          paths:
-            - ~/.gradle/caches
-            - ~/.gradle/wrapper
-
-  web:
+  verify:
     executor: node
     steps:
       - checkout
@@ -95,12 +48,30 @@ jobs:
             - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
             - pnpm-v1-
       - run:
-          name: React PWA gate
-          command: bash scripts/ci/web_verify.sh
+          name: pnpm verify + release posture + named reviewer
+          command: CI_TAG="${CIRCLE_TAG:-}" bash scripts/ci/verify.sh
       - save_cache:
           key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
           paths:
             - ~/.local/share/pnpm/store
+
+  e2e:
+    executor: node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+      - restore_cache:
+          keys:
+            - playwright-v1-{{ checksum "apps/web/package.json" }}
+      - run:
+          name: Playwright (Chromium + WebKit)
+          command: bash scripts/ci/e2e.sh
+      - save_cache:
+          key: playwright-v1-{{ checksum "apps/web/package.json" }}
+          paths:
             - ~/.cache/ms-playwright
       - store_artifacts:
           when: always
@@ -141,11 +112,9 @@ workflows:
       not:
         equal: [scheduled_pipeline, << pipeline.trigger_source >>]
     jobs:
-      - flutter-verify:
+      - verify:
           <<: *release_tags
-      - flutter-apk:
-          <<: *release_tags
-      - web:
+      - e2e:
           <<: *release_tags
       - image:
           <<: *release_tags

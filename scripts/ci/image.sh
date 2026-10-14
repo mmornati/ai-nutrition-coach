@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Self-host image gates, sharing one Docker daemon so the layer cache from the
 # first build makes the later builds near-free:
-#   1. infra/Dockerfile builds (from the committed pubspec.lock);
+#   1. infra/Dockerfile builds;
 #   2. trivy: fail on fixable HIGH/CRITICAL (B6);
 #   3. self-host smoke (scripts/smoke_self_host.sh, FR-11);
 #   4. WebKit + Chromium browser smoke of that image (scripts/webkit_smoke.sh).
@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
-# Keep in step with the trivy version Dependabot proposes for the GitHub action.
+# Bump together with aquasecurity/trivy-action in .github/workflows/ci.yml.
 TRIVY_IMAGE="aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
 IMAGE="ai-nutrition-coach:ci"
 

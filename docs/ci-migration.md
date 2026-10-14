@@ -13,21 +13,19 @@ either provider and switching needs no code change.
 
 ## What runs where
 
-| Gate                                                 | GitHub workflow                     | CircleCI job     |
-| ---------------------------------------------------- | ----------------------------------- | ---------------- |
-| format, analyze, test, DST, web build + scans        | `ci.yml` verify                     | `flutter-verify` |
-| release posture, telemetry, named reviewer           | `release-gate.yml`, `ndp-review.yml`| `flutter-verify` |
-| debug APK + secrets scan                             | `ci.yml` apk                        | `flutter-apk`    |
-| React PWA verify + e2e + scans                       | `web.yml`                           | `web`            |
-| image build, trivy, self-host smoke, browser smoke   | `ci.yml` docker, `self-host-smoke.yml`, `browser-smoke.yml` | `image` |
-| full-history secret scan (push + weekly)             | `gitleaks.yml`                      | `gitleaks`, `weekly-gitleaks` |
-| release image SBOM (v\* tags)                        | `release-gate.yml` sbom             | `sbom`           |
+| Gate                                                                    | GitHub workflow                                             | CircleCI job                  |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------- |
+| `pnpm verify` (format, lint, types, tests, DST, gates, build, scans)    | `ci.yml` verify                                             | `verify`                      |
+| release posture, telemetry, named reviewer, project URL on tags         | `release-gate.yml`, `ndp-review.yml`                        | `verify`                      |
+| Playwright e2e, Chromium + WebKit                                       | `ci.yml` e2e                                                | `e2e`                         |
+| image build, trivy, self-host smoke, browser smoke                      | `ci.yml` docker, `self-host-smoke.yml`, `browser-smoke.yml` | `image`                       |
+| full-history secret scan (on push, and weekly)                          | `gitleaks.yml`                                              | `gitleaks`, `weekly-gitleaks` |
+| release image SBOM (v\* tags)                                           | `release-gate.yml` sbom                                     | `sbom`                        |
 
-CircleCI runs fewer, larger jobs than GitHub did. The three Flutter workflows
-each bootstrapped melos and re-ran analyze + test; on CircleCI they share one
-bootstrap. The three Docker workflows each rebuilt the image; on CircleCI they
-share one VM and its layer cache. That cuts a full run from roughly 80 to
-roughly 45 billed minutes.
+CircleCI runs fewer jobs than GitHub. `release-gate.yml` and `ndp-review.yml`
+each install the workspace again and re-run gates that `pnpm verify` already
+covers; on CircleCI one install covers all three. The three Docker workflows
+each rebuild the image; on CircleCI they share one VM and its layer cache.
 
 ## Why not an automatic quota-based switch
 
@@ -50,23 +48,16 @@ scheduled trigger, which is also more punctual than GitHub cron.
 ## Migration phases
 
 1. **Add CircleCI next to GitHub (this change).** Add `scripts/ci/*.sh` and
-   `.circleci/config.yml`, then connect the project in CircleCI (GitHub App
-   integration). Builds start on push.
-2. **Prove parity.** Get a green CircleCI pipeline on this branch, then merge.
-   The open `migration/phase-*` branches get CircleCI once they rebase onto
-   `main`. Phase 8 changes `web.yml`, `browser-smoke.yml` and
-   `self-host-smoke.yml`; port those changes to `scripts/ci/` when it lands.
+   `.circleci/config.yml`. The CircleCI project is connected (GitHub OAuth app,
+   deploy key), and every push builds.
+2. **Prove parity.** Get a green `gates` run, then merge.
 3. **Make GitHub the fallback.** Change the GitHub workflows' triggers to
    `workflow_dispatch` only, and make their steps call `scripts/ci/*.sh`. They
    then stop spending minutes, or showing red crosses, on every push, and stay
-   ready for a manual run. Doing this after the stacked migration branches merge
-   avoids merge conflicts on the workflow files.
-4. **Schedule.** Add a CircleCI scheduled trigger named `weekly-gitleaks`
+   ready for a manual run.
+4. **Schedule.** Add a CircleCI scheduled trigger for `weekly-gitleaks`
    (Mondays 04:17 UTC, branch `main`). Then drop the `schedule:` block from
    `gitleaks.yml`.
-5. **Clean up after the Flutter removal.** When the React migration deletes
-   `apps/client`, delete `flutter-verify` and `flutter-apk` with it. The
-   `release-gate` and `ndp-review` checks then move into the web job.
 
 ## Switching providers
 
@@ -79,11 +70,11 @@ scheduled trigger, which is also more punctual than GitHub cron.
 ## CircleCI budget
 
 The CircleCI Free plan includes a monthly credit allowance. Medium Docker and
-machine executors cost about 10 credits per minute, and a large Docker executor
-costs about 20. The Flutter jobs use `large`: the web build needs the memory. A
-full `gates` run costs roughly 600–700 credits, so check the allowance on the
-plan page before you open many PRs in one month. Ways to stretch it:
+machine executors cost about 10 credits per minute. All jobs run on `medium`.
+Check the real per-run cost on the project's Insights page after a few runs,
+and compare it with the allowance on the plan page. Two settings stretch the
+allowance:
 
-- Turn on "Auto-cancel redundant workflows" (Project Settings → Advanced).
-- Turn on "Only build pull requests", so branch pushes without a PR, apart from
-  `main`, do not build.
+- "Auto-cancel redundant workflows" (Project Settings → Advanced) is on.
+- "Only build pull requests" stops branch pushes that have no PR from building;
+  `main` and tags always build.
