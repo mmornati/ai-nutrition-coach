@@ -10,10 +10,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
-    "test": "vitest run && pnpm run test:dst",
-    "test:dst": "TZ=Europe/Paris REQUIRE_DST=1 vitest run test/calendar-day.test.ts",
+    "test": "vitest run",
+    "test:dst": "TZ=Europe/Paris REQUIRE_DST=1 vitest run",
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {

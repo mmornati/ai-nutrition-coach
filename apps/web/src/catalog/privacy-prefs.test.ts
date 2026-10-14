@@ -1,4 +1,4 @@
-// The Open Food Facts answer (PV7) in the encrypted kv. Ported from privacy_prefs_test.dart.
+// The Open Food Facts answer (PV7) in the encrypted kv. Ported from the earlier client.
 import { describe, expect, it } from 'vitest';
 import { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from '../storage/key-value-store';
 import { offLookupGate, PrivacyPrefs } from './privacy-prefs';

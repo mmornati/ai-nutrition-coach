@@ -1,4 +1,4 @@
-// Port of day_board_screen_test.dart (and its F3 / a11y siblings) and plate_delete_test.dart.
+// Port of the earlier client (and its F3 / a11y siblings) and the earlier client.
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -194,7 +194,7 @@ describe('TodayScreen: the day as a map', () => {
   });
 });
 
-describe('TodayScreen: removing a plate (plate_delete_test.dart)', () => {
+describe('TodayScreen: removing a plate (the earlier client)', () => {
   async function setup() {
     const bundle = await unlockedBundle();
     const porridge = await seedPlate(bundle, at(8, 0), [['Porridge', 'starch']]);

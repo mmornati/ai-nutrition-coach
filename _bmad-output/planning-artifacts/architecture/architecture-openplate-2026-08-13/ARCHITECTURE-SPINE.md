@@ -37,7 +37,7 @@ infra/                    # Docker/nginx self-host definition for the web build
 - **Prevents:** the divergence where mobile and web apps grow two independent domain models and rule sets.
 - **Rule:** Domain entities, use-cases, and the coach model live in `packages/domain_core`, a pure-Dart package with **no Flutter, SQLite, or HTTP imports**. `apps/client` and `packages/integrations` may depend on it; it depends on nothing. UI code never imports drift/dio/mobile_scanner directly — only through ports.
 
-### AD-2 — One responsive Flutter codebase for all three targets [ADOPTED]
+### AD-2 — One responsive Flutter codebase for all three targets [SUPERSEDED by ADR 0004 (docs/adr/0004-flutter-to-pwa.md): the product is the React PWA in apps/web + packages/core]
 
 - **Binds:** PRD §4.5, FR-11, FR-12; UJ-1..UJ-5.
 - **Prevents:** building the self-host web client and the mobile apps as separate apps with separate logic paths.
@@ -73,7 +73,7 @@ infra/                    # Docker/nginx self-host definition for the web build
 - **Prevents:** hardcoded ad-hoc coach strings and tone drift that break the No-Dark-Patterns gate.
 - **Rule:** Every user-facing coach string (whispers, notes, quota notices) is a keyed, localized template in the key store, with no string interpolation in widgets. The No-Dark-Patterns Standard is a QA checklist gate in CI/review (FR-15 consequence); a named reviewer owns the pass.
 
-### AD-8 — At-rest encryption is honest and platform-aware
+### AD-8 — At-rest encryption is honest and platform-aware [SUPERSEDED by ADR 0005 (docs/adr/0005-web-encrypted-store.md): web-only encrypted store on SQLite3 Multiple Ciphers in a worker on OPFS]
 
 - **Binds:** FR-9, FR-7 (key storage), UJ-3.
 - **Prevents:** overclaiming "cannot be breached" on web, where OS keystores don't exist.

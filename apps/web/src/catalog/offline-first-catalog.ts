@@ -1,5 +1,5 @@
 /**
- * `OfflineFirstFoodCatalog`: the `FoodCatalog` adapter (port of `offline_first_food_catalog.dart`).
+ * `OfflineFirstFoodCatalog`: the `FoodCatalog` adapter (port of the earlier client).
  *
  * Searches an in-memory seeded list of common foods (curated, shipped with the app, source `seed`)
  * with a small LRU cache for offline replay (NFR5). The ranking is plain string matching,

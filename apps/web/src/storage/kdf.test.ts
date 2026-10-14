@@ -1,4 +1,4 @@
-// Port of web_kdf_test.dart. The production KDF is WebCrypto's PBKDF2; these are the published
+// Port of the earlier client. The production KDF is WebCrypto's PBKDF2; these are the published
 // PBKDF2-HMAC-SHA256 vectors (the RFC 6070 inputs with SHA-256, cross-checked against Python's
 // hashlib.pbkdf2_hmac), so a wrong construction cannot hide behind a self-consistent test.
 import { afterEach, describe, expect, it, vi } from 'vitest';

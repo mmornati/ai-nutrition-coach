@@ -1,4 +1,4 @@
-// The store contract suite (port of packages/integrations/test/_support/store_contract.dart and
+// The store contract suite (port of the earlier client and
 // its cascade / stream / key-value tests).
 //
 // It is run against EVERY implementation: the real encrypted store (the production SQL engine and

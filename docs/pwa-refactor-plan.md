@@ -1,6 +1,6 @@
 # PWA refactor plan: Flutter → React PWA with the "Food Lines" interface
 
-Status: proposed · 2026-10-13
+Status: complete except: the hosted AI tier (needs a server-side relay), the Tip jar (pending the named reviewer), the project-URL consumer (the React app has no identity string yet), and the accepted gaps (Firefox untested, real-device Safari and Chrome untested, no tab exclusion without the Web Locks API, plaintext exports, one history per shared device, no import, no light theme) · 2026-10-14
 
 ## Why
 
@@ -122,6 +122,8 @@ Node build stage → nginx. Most of self-host already exists and is hardened: no
 
 ### 9. Clean up
 Delete `apps/client`, `packages/integrations`, melos and the Flutter toolchain; update README, CONTRIBUTING, the release checklist and `tools/check_*`. The release gates are Dart AST tools wired into `melos run check:release-posture` and `scripts/verify.sh`; each needs a JS/shell equivalent before `apps/client` is deleted (Appendix C of the checklist), otherwise the README trust table loses its proofs. Keep the secrets and external-host scans (shell) and the gitleaks/Trivy/SBOM workflows.
+
+**Done (2026-10-14):** the gates are Node/shell (9A); `apps/client`, `packages/domain_core`, `packages/integrations`, `pubspec.*`, melos, the Dart tools and the Flutter-era scripts are deleted; the workflows run `pnpm verify`, the Playwright suite in Chromium and WebKit, the image build with Trivy, the SBOM, and the smokes; gitleaks, Dependabot and the pre-commit hook are on the JS toolchain.
 
 ## Definition of done for the UI
 - Every screen in the prototype exists in the app at 390px and 1440px with no horizontal scroll.

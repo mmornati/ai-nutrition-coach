@@ -1,6 +1,6 @@
 /**
  * Downscale a captured photo BEFORE anything else sees it: at most 1024 x 1024, JPEG quality 80
- * (the Dart `ImagePicker` call used `maxWidth: 1024, maxHeight: 1024, imageQuality: 80`). This
+ * (the earlier `ImagePicker` call used `maxWidth: 1024, maxHeight: 1024, imageQuality: 80`). This
  * reduces what is uploaded; it is NOT relied on to drop metadata (a canvas re-encode may or may
  * not, and nothing documents it), so `sanitizePhotoForUpload` strips explicitly at the point of
  * upload.

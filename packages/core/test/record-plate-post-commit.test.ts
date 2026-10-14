@@ -139,7 +139,7 @@ describe('post-commit guards (F7)', () => {
 });
 
 describe('every throw is absorbed; warnings reach the sink', () => {
-  // The Dart version let an `Error` (a programming bug) propagate and absorbed only `Exception`s.
+  // The earlier version let an `Error` (a programming bug) propagate and absorbed only `Exception`s.
   // JavaScript has no such split, and the contract is that a committed plate is never reported
   // as a failure (the user would log it twice), so everything thrown becomes a warning.
   it('a non-Error throw from a post-commit step is a warning, not a failure', async () => {

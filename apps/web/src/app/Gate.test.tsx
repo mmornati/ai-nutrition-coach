@@ -1,4 +1,4 @@
-// Ports of unlock_gate_test.dart and about_gate_test.dart: what the app shows first, from the
+// Ports from the earlier client: what the app shows first, from the
 // store's state, and that the unlocked session is built and thrown away with the unlock.
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

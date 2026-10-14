@@ -1,8 +1,8 @@
 /**
  * The manual-entry session: text field -> ranked matches -> honest quantity preset chips (the first
  * preset is the default) -> Log through `RecordPlate`; a no-match path shows a custom food form
- * (`source: manual`). Port of `apps/client/lib/state/manual_entry_provider.dart` and the logic of
- * `manual_entry_screen.dart`, free of React so it is unit-tested directly; `useManualEntry` binds it
+ * (`source: manual`). Port of the earlier client and the logic of
+ * the earlier client, free of React so it is unit-tested directly; `useManualEntry` binds it
  * to a component.
  *
  * Ephemeral: the session is UI-local and forgets everything on `clear()`. It never throws across

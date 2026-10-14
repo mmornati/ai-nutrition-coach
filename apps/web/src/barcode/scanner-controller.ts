@@ -1,8 +1,8 @@
 /**
  * The scan session: decoder + camera + scan flow, free of React (the logic of
- * `capture_barcode_screen.dart`'s state). `useBarcodeScanner` binds it to a component.
+ * the earlier client's state). `useBarcodeScanner` binds it to a component.
  *
- * Order (the Dart screen's): if no local decoder can start, say so and NEVER ask for the camera;
+ * Order (the earlier screen's): if no local decoder can start, say so and NEVER ask for the camera;
  * otherwise request the camera once. Three calm camera states:
  *
  *   scanning                         a live preview, a quiet "move closer or steady" hint

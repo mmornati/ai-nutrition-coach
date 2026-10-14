@@ -1,6 +1,6 @@
 /**
  * The scan flow's logic, free of the camera and React (port of the flow in
- * `capture_barcode_screen.dart`): decoded code -> `FoodCatalog.lookupByBarcode` ->
+ * the earlier client): decoded code -> `FoodCatalog.lookupByBarcode` ->
  *
  *  - a single match opens the match sheet;
  *  - not found shows "Not found, type it manually" with the scanned code prefilled;

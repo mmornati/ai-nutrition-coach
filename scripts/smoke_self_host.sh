@@ -5,8 +5,7 @@
 #
 # Builds the image through `bin/ai-nutrition-coach up` (so the real run flags are what
 # is tested) and asserts:
-#   * the base images are digest-pinned (node build stage, nginx-unprivileged, Caddy) and the
-#     image no longer builds Flutter;
+#   * the base images are digest-pinned (node build stage, nginx-unprivileged, Caddy);
 #   * readiness (a poll loop, no fixed sleep) and HTTP 200 for the app shell,
 #     SPA deep links, a 404 for a missing asset and 405 for POST;
 #   * the versioned sqlite3mc wasm is served as application/wasm and immutable, Vite's hashed
@@ -75,7 +74,6 @@ grep -Eq '^FROM nginxinc/nginx-unprivileged:[0-9][^ @]*@sha256:[0-9a-f]{64}' inf
 ! grep -Eq '^FROM nginx:' infra/Dockerfile || fail 40 "root nginx base image still referenced"
 grep -Eq '^FROM node:[0-9][^ @]*@sha256:[0-9a-f]{64} AS build' infra/Dockerfile \
   || fail 40 "build stage is not a node image pinned by version and digest (infra/Dockerfile)"
-! grep -qi 'flutter\|dart' infra/Dockerfile || fail 40 "infra/Dockerfile still builds Flutter / Dart"
 grep -q 'pnpm install --frozen-lockfile' infra/Dockerfile || fail 40 "the build stage does not install strictly from the lockfile"
 pm="$(sed -n 's/.*"packageManager": "pnpm@\([0-9.]*\)".*/\1/p' package.json)"
 grep -q "corepack prepare pnpm@$pm " infra/Dockerfile || fail 40 "infra/Dockerfile does not pin pnpm@$pm (package.json packageManager)"

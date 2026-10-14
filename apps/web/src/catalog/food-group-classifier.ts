@@ -1,6 +1,6 @@
 /**
  * Best-effort `FoodGroup` classification from descriptive text. Port of
- * `packages/integrations/lib/src/catalog/food_group_classifier.dart`.
+ * the earlier client.
  *
  * Used in two places, which is why it lives on its own:
  *  - the barcode path classifies Open Food Facts `categories_tags` (`en:almond-milks`, ...);

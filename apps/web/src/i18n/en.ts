@@ -3,7 +3,7 @@
  * The full l10n system (locale switching, plurals, extraction) arrives in phase 7; until then
  * every user-visible sentence lives here so no JSX carries a string literal of its own.
  *
- * Sources: apps/client/lib/l10n/app_en.arb and packages/integrations/lib/src/l10n/coach_strings.dart.
+ * Sources: the earlier client's message catalogue and coach strings.
  * Placeholders use `{name}` and are filled with `fill()`.
  */
 export const en = {
@@ -55,7 +55,7 @@ export const en = {
     barcodeHint: 'Packaged food',
     type: 'Type it',
     typeHint: 'Works offline',
-    // Phase 5: photo capture (apps/client capture_photo_screen.dart).
+    // Phase 5: photo capture (the earlier client).
     snapTitle: 'Snap a plate',
     takePhoto: 'Take a photo',
     choosePhoto: 'Choose a photo',
@@ -137,7 +137,7 @@ export const en = {
     learnMore: 'What this app stores and sends',
   },
   ai: {
-    /** AiRungStrings (coach_strings.dart). The quota lines belong to the deferred hosted tier. */
+    /** AiRungStrings (the earlier client). The quota lines belong to the deferred hosted tier. */
     rung: {
       freeModelRemaining: 'free model — {N} calls left today',
       freeModelResetAt: 'free model — resets at {time}',
@@ -151,7 +151,7 @@ export const en = {
       quotaStatusHeading: 'When the free quota runs out',
       manualFallbackHint: 'You can still pick a closest match or type it manually.',
     },
-    /** ByokStrings (coach_strings.dart). */
+    /** ByokStrings (the earlier client). */
     byok: {
       title: 'Your AI',
       label: 'your key',
@@ -164,7 +164,7 @@ export const en = {
       statusQuotaExhausted: 'your key — quota done',
       previousRungHint: 'removing this key returns to {previousRungLabel}',
     },
-    /** YourAiStrings (coach_strings.dart). The photo consent dialog copy is `consent` above. */
+    /** YourAiStrings (the earlier client). The photo consent dialog copy is `consent` above. */
     yourAi: {
       title: 'Your AI',
       intro:
@@ -231,7 +231,7 @@ export const en = {
       askEveryPhotoHelp:
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
     },
-    /** Messages carried by a failed recognition (ported from the Dart rung and provider). */
+    /** Messages carried by a failed recognition (ported from the earlier rung and provider). */
     failure: {
       keyMissing: 'your own key is missing — open Settings → Your AI to enter it',
       keyRejected: 'your own key was rejected by the service — check it in Settings → Your AI',
@@ -370,7 +370,7 @@ export const en = {
     ok: 'Got it',
     privacyLink: 'What this app stores and sends',
   },
-  /** WebSessionStrings (coach_strings.dart): create passphrase, unlock, lock. */
+  /** WebSessionStrings (the earlier client): create passphrase, unlock, lock. */
   session: {
     label: 'Unlock your store',
     placeholder: 'Passphrase',
@@ -409,7 +409,7 @@ export const en = {
     title: "Your store can't open right now",
     retry: 'Try again',
   },
-  /** KeyLostStrings (coach_strings.dart): the only way forward is the confirmed erase. */
+  /** KeyLostStrings (the earlier client): the only way forward is the confirmed erase. */
   keyLost: {
     /** `enWebStoreUnreadableStrings`: the web store is incomplete or unreadable (the one the PWA shows). */
     unreadable: {
@@ -435,7 +435,7 @@ export const en = {
     persisted: 'Storage: protected from automatic clean-up.',
     notPersisted: 'Storage: the browser may clear this data if space runs low — export regularly.',
   },
-  /** Today (day_board_screen.dart, app_en.arb). */
+  /** Today (the earlier client, app_en.arb). */
   today: {
     today: 'Today',
     yesterday: 'Yesterday',
@@ -451,7 +451,7 @@ export const en = {
   plate: {
     removeAction: 'Remove this plate',
   },
-  /** The coach question key store (coach_strings.dart): 3 anchors x 6 patterns, verbatim. */
+  /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   coachQuestions: {
     'post.resolve.vegLight': 'A handful of greens would round this plate out.',
     'post.resolve.proteinHeavy': 'A small bowl of greens or roasted veg would lighten this up.',
@@ -472,7 +472,7 @@ export const en = {
     'depth.followUp.vegRich': 'A protein on the side would complete this plate.',
     'depth.followUp.balanced': 'Nice plate — anything you would change next time?',
   },
-  /** SettingsStrings (coach_strings.dart) and the Settings rows of app_en.arb. */
+  /** SettingsStrings (the earlier client) and the Settings rows of app_en.arb. */
   settings: {
     aiTier: 'AI tier',
     v2Tag: 'Not in v1',
@@ -489,7 +489,7 @@ export const en = {
     rowAbout: 'About',
     rowAboutSubtitle: 'yours to run · open source',
   },
-  /** YourDataStrings (coach_strings.dart) and the Your data lines of app_en.arb. */
+  /** YourDataStrings (the earlier client) and the Your data lines of app_en.arb. */
   yourData: {
     title: 'Your data',
     /** The unlocked posture of the web build: cipher named truthfully, key from the passphrase. */
@@ -502,7 +502,7 @@ export const en = {
       'Removes your history, coach notes, saved AI key and any exports still on this device. Copies you shared or downloaded elsewhere are not affected. There is no other copy of your data, so this cannot be undone — export first if you want to keep one.',
     eraseButton: 'Erase all local data',
   },
-  /** ExportStrings (coach_strings.dart) and the export lines of app_en.arb. */
+  /** ExportStrings (the earlier client) and the export lines of app_en.arb. */
   export: {
     formatLabel: 'Format',
     formatCsv: 'CSV',
@@ -589,7 +589,7 @@ export const en = {
     backupNote:
       'Your data lives only on this device, so export a copy from Your data now and then.',
   },
-  /** About (app_en.arb) and ManagedOversightStrings (coach_strings.dart). */
+  /** About (app_en.arb) and ManagedOversightStrings (the earlier client). */
   aboutScreen: {
     title: 'About',
     v2Notice:

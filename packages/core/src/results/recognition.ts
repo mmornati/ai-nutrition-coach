@@ -2,7 +2,7 @@ import type { EpochMs } from '../common';
 import type { RecognizedFood } from '../value-types/recognized-food';
 
 /**
- * Why recognition failed (the Dart `RecognitionFailure.cause` was an untyped object; these are
+ * Why recognition failed (the earlier `RecognitionFailure.cause` was an untyped object; these are
  * the causes the BYOK and hosted adapters produce). Plain data: structured-clone safe.
  */
 export type RecognitionFailureCause =

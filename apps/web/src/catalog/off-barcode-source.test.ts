@@ -1,6 +1,6 @@
 // `OffBarcodeSource` network hygiene (N3): request shape, timeouts, response-size cap, capped
-// parsed text. Ported from packages/integrations/test/off_barcode_source_test.dart plus the
-// response-parsing cases of offline_first_food_catalog_test.dart ("OffBarcodeSource (dio wrapper)").
+// parsed text. Ported from the earlier client plus the
+// response-parsing cases of the earlier client ("OffBarcodeSource (dio wrapper)").
 import { describe, expect, it } from 'vitest';
 import { FakeFetch } from '../net/testing';
 import {

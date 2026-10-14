@@ -1,4 +1,4 @@
-/** Byte fixtures for the capture tests (ported from the Dart test support). Test-only. */
+/** Byte fixtures for the capture tests (ported from the earlier test support). Test-only. */
 
 export const codes = (s: string): number[] => Array.from(s, (c) => c.charCodeAt(0));
 

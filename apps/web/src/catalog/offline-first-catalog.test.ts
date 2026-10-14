@@ -1,6 +1,6 @@
 // `OfflineFirstFoodCatalog`: search path, barcode path, online-lookup gate, LRU caches. Ported
-// one-to-one from packages/integrations/test/offline_first_food_catalog_test.dart and
-// catalog_f10_test.dart.
+// one-to-one from the earlier client and
+// Ported from the earlier client.
 import { describe, expect, it } from 'vitest';
 import type { CatalogResult, FoodGroup } from '@anc/core';
 import { FakeFetch } from '../net/testing';

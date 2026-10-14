@@ -1,6 +1,6 @@
 // The self-hosted barcode decoder (ADR-0003): the path the app asks for, the version the fetch
-// script pins, and the pins themselves must agree and be real SHA-256 values. Ported from
-// apps/client/test/state/web_zxing_pin_test.dart. It reads the fetch script from disk.
+// script pins, and the pins themselves must agree and be real SHA-256 values. It reads the fetch
+// script from disk.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -32,18 +32,9 @@ describe('zxing pin', () => {
     expect(script).toContain('set -euo pipefail');
   });
 
-  it('the three pins are the SAME as the Flutter build (the SPEC): tarball, patched reader, wasm', () => {
-    const flutter = read('../../../../scripts/fetch_web_zxing.sh');
-    for (const name of [
-      'ZXING_WASM_VERSION',
-      'ZXING_TARBALL_SHA256',
-      'ZXING_READER_PATCHED_SHA256',
-      'ZXING_WASM_SHA256',
-    ]) {
-      expect(new RegExp(`${name}="([^"]+)"`).exec(flutter)![1], name).toBe(pin(name));
-    }
+  it('the three pins are the reviewed ones: tarball, patched reader, wasm', () => {
     expect(pin('ZXING_TARBALL_SHA256')).toMatch(/^294f1c96/);
-    expect(pin('ZXING_READER_PATCHED_SHA256')).toMatch(/^a82be6b3/);
+    expect(pin('ZXING_READER_PATCHED_SHA256')).toMatch(/^45979f4d/);
     expect(pin('ZXING_WASM_SHA256')).toMatch(/^6a858c01/);
   });
 
@@ -69,6 +60,8 @@ describe('zxing pin', () => {
     const root = JSON.parse(read('../../../../package.json')) as {
       scripts: Record<string, string>;
     };
-    expect(root.scripts['verify']).toContain('fetch_web_zxing_pwa.sh --self-test');
+    // `pnpm verify` reaches the self-test through the root `selftest:scanners` script.
+    expect(root.scripts['verify']).toContain('pnpm selftest:scanners');
+    expect(root.scripts['selftest:scanners']).toContain('fetch_web_zxing_pwa.sh --self-test');
   });
 });

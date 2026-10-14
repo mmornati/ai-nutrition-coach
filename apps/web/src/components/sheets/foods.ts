@@ -3,7 +3,7 @@ import { strings } from '../../i18n';
 
 /**
  * Small log-time helpers the sheets share. They mirror `kOneServing` / `manualFood` from the
- * Flutter client's `state/log_plate.dart`; when the state layer lands (phase 4/5) they move next
+ * earlier client's plate-logging state; when the state layer lands (phase 4/5) they move next
  * to `recordPlate` and these re-export from there.
  */
 export const oneServing = (): QuantityRange => ({

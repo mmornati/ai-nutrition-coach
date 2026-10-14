@@ -1,6 +1,6 @@
 // Manual entry: text field -> ranked matches -> honest quantity preset chips (first preset default)
 // -> Log through RecordPlate; no-match shows the custom food form (source: manual). Ported from
-// apps/client/test/screens/manual_entry_screen_test.dart (the logic cases; widget cases live with
+// the earlier client (the logic cases; widget cases live with
 // the Phase 7 screen).
 import { describe, expect, it, vi } from 'vitest';
 import {

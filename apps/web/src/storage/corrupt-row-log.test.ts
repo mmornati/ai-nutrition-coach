@@ -1,4 +1,4 @@
-// Port of corrupt_row_log_test.dart.
+// Port of the earlier client.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { corruptRowsSkipped, reportCorruptRow, resetCorruptRowCounter } from './corrupt-row-log';
 

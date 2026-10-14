@@ -17,10 +17,8 @@
 #   apps/web/public/zxing/<version>/zxing_reader.wasm  unmodified
 #   apps/web/public/zxing/<version>/LICENSE            MIT, zxing-wasm
 #
-# This is the same decoder, from the same npm tarball, with the same three pins as the Flutter web
-# build (scripts/fetch_web_zxing.sh, the SPEC for this migration): the tarball, the patched reader
-# and the wasm. The one text edit and its header are byte-identical to that script, so the pins are
-# shared (the header text is covered by ZXING_READER_PATCHED_SHA256; do not reword it).
+# Three things are pinned: the npm tarball, the patched reader and the wasm. The header text the
+# patch writes is covered by ZXING_READER_PATCHED_SHA256; rewording it is a deliberate re-pin.
 #
 # The output is NOT committed (apps/web/public/zxing/ is git-ignored); `pnpm dev|build|test|e2e`
 # run this script first. The directory name carries the version, so nginx can cache it
@@ -39,7 +37,7 @@ set -euo pipefail
 
 ZXING_WASM_VERSION="3.1.1"
 ZXING_TARBALL_SHA256="294f1c96be94f8f59d44ddcb0c4703d68ea67ecd7fd478de88a179ed5a65e0ab"
-ZXING_READER_PATCHED_SHA256="a82be6b3daddbee473d308ca4ce87f210be2dce984051ac86c4500a952e4b2ef"
+ZXING_READER_PATCHED_SHA256="45979f4d900be333ec95661e831df3ce1dcf588359bb20514fbace23e2e8b23d"
 ZXING_WASM_SHA256="6a858c01e076bab3a1bd413e4f2cf5e5e45f819a0d9441d83c66993bc48ed38f"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -162,11 +160,11 @@ if text.count(old) != 1:
 text = text.replace(old, new)
 if "jsdelivr" in text:
     sys.exit("✗ a CDN host remains in the patched zxing-wasm reader")
-# NOTE: this header text is covered by ZXING_READER_PATCHED_SHA256 and is byte-identical to the
-# Flutter script's (shared pins); changing it is a deliberate re-pin (see "To re-pin" above).
+# NOTE: this header text is covered by ZXING_READER_PATCHED_SHA256; changing it is a deliberate
+# re-pin (see "To re-pin" above).
 header = ("/* zxing-wasm %s (MIT, see LICENSE) - self-hosted by AI Nutrition Coach: the wasm "
           "path points at this directory instead of a CDN. Patched by "
-          "scripts/fetch_web_zxing.sh. */\n" % version)
+          "scripts/fetch_web_zxing_pwa.sh. */\n" % version)
 open(dst, "w", encoding="utf-8", newline="\n").write(header + text)
 PY
 

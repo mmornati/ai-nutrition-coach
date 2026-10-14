@@ -1,5 +1,5 @@
 // The photo flow: capture -> consent -> AiRung.recognize -> resolving -> match sheet; "Not now"
-// drops the photo; closest matches. Logic ported from apps/client capture_photo_screen.dart and its
+// drops the photo; closest matches. Logic ported from the earlier client and its
 // test (the consent / permit parts).
 import { describe, expect, it, vi } from 'vitest';
 import {

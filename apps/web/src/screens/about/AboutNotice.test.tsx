@@ -4,7 +4,7 @@ import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { AboutNotice } from './AboutNotice';
 
-describe('AboutNotice (about_gate_test.dart: the copy is calm and honest)', () => {
+describe('AboutNotice (the earlier client: the copy is calm and honest)', () => {
   it('says what the app is, what AI does and where the plates stay', () => {
     render(<AboutNotice onDismiss={() => undefined} />);
     expect(screen.getByRole('heading', { level: 1, name: 'About this app' })).toBeVisible();

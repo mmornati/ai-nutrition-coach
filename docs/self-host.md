@@ -228,7 +228,7 @@ bash scripts/smoke_self_host.sh      # builds via bin/ai-nutrition-coach and ass
 ```
 
 - digest-pinned base images (the `node` build stage, `nginxinc/nginx-unprivileged`, `caddy`), strict-lockfile
-  install, no Flutter in the Dockerfile;
+  install;
 - readiness (polling, no fixed sleep), HTTP 200, SPA deep links, 404 for missing
   assets, 405 for `POST`;
 - `sqlite3mc/<ver>/sqlite3.wasm` served as `application/wasm`, `immutable`; `.mjs` as `text/javascript`; Vite's
@@ -287,13 +287,13 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 The self-host image ships with no telemetry (FR-12): the served bundle makes no
 analytics or tracking calls, the server needs no outbound network, and the only
 browser network paths are the ones you enable (barcode lookups, an AI endpoint
-you configure). The import-based telemetry gate pins this claim; see
+you configure). The import-based telemetry gate (`tools/check_telemetry_claims.mjs`) pins this claim; see
 [`docs/telemetry-posture.md`](./telemetry-posture.md).
 
 ## Cross-references
 
 - [`docs/pwa.md`](./pwa.md) — the installable web app: build, run, Traefik, install, update, troubleshooting.
-- [`docs/your-data.md`](./your-data.md) — the protection posture on web vs mobile.
+- [`docs/your-data.md`](./your-data.md) — the protection posture of the encrypted browser store.
 - [`docs/ai-tiers.md`](./ai-tiers.md) — the AI rung surface.
 - [`docs/telemetry-posture.md`](./telemetry-posture.md) — the network surface.
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the contributor path.

@@ -1,13 +1,12 @@
 /**
- * Bounded network reads for every client in the app (port of `packages/integrations/lib/src/net/
- * capped_response.dart`, N3). A hostile or broken endpoint must not be able to make the app buffer
+ * Bounded network reads for every client in the app (N3). A hostile or broken endpoint must not be able to make the app buffer
  * an unbounded body or hold a request open forever, and a redirect must never carry a request to
  * a host nobody agreed to.
  *
  *  - the body is streamed and the read is aborted (the request too) the moment 2 MiB is crossed;
  *    an over-long `Content-Length` is refused before reading;
  *  - the wait for response headers is bounded (the browser has no separate connect / send /
- *    receive timeouts, so the Dart 10 s / 30 s / 45 s trio collapses to the longest, 45 s) and so
+ *    receive timeouts, so the earlier 10 s / 30 s / 45 s trio collapses to the longest, 45 s) and so
  *    is the overall body read (60 s: a server dribbling one byte at a time cannot hold it open);
  *  - redirects are never followed (`redirect: 'manual'`); a 3xx is a failure;
  *  - requests carry no cookies and no referrer (`credentials: 'omit'`, `referrerPolicy:
@@ -19,7 +18,7 @@
 /** Default ceiling for any response body: 2 MiB. One OFF product or a chat completion is a few KiB. */
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
-/** The Dart client's connect / send / receive timeouts. A browser exposes one wait for headers. */
+/** The earlier client's connect / send / receive timeouts. A browser exposes one wait for headers. */
 export const CONNECT_TIMEOUT_MS = 10_000;
 export const SEND_TIMEOUT_MS = 30_000;
 export const RECEIVE_TIMEOUT_MS = 45_000;

@@ -153,7 +153,7 @@ describe('LocalOnlySyncAdapter', () => {
   });
 });
 
-// Port of record_plate_sync_op_test.dart: the local commit lands first; the enqueue is a separate
+// Port of the earlier client: the local commit lands first; the enqueue is a separate
 // best-effort write after it.
 describe('RecordPlate + RecordSyncOp', () => {
   const draftEntry: FoodEntryDraft = {

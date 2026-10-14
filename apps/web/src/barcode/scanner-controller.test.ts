@@ -1,5 +1,5 @@
 // The scan session: decoder check -> camera permission -> scanning; three calm states; camera
-// lifecycle. Ported from apps/client/test/screens/capture_barcode_screen_test.dart ("no local
+// lifecycle. Ported from the earlier client ("no local
 // barcode detector", "camera lifecycle (F10)", PERMISSION_DENIED, CAMERA_INIT_FAILURE).
 import { describe, expect, it, vi } from 'vitest';
 import { databaseFood, rankedMatches, type FoodMatch } from '@anc/core';

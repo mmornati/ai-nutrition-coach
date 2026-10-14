@@ -1,7 +1,7 @@
 // The service worker's behaviour, executed for real (node:vm) against an in-memory CacheStorage,
-// a scripted network and Node's WebCrypto. Port + extension of the Dart template pins in
-// packages/integrations/test/precache_manifest_test.dart: the worker is the hardened one from the
-// Flutter build, unchanged, so these are the same promises.
+// a scripted network and Node's WebCrypto. Port + extension of the earlier template pins in
+// the earlier client: the worker is the hardened one from the
+// earlier build, unchanged, so these are the same promises.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
