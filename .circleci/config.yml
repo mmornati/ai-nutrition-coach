@@ -1,0 +1,165 @@
+# AI Nutrition Coach CI on CircleCI — the same gates as .github/workflows/,
+# through the same entry points (scripts/ci/*.sh). Why two providers, and how
+# to switch between them: docs/ci-migration.md.
+#
+# Workflows:
+#   gates   — every push to any branch, and v* tags. Jobs:
+#     flutter-verify  format, analyze, test (+ DST), telemetry, release posture,
+#                     named-reviewer check, release web build + bundle scans.
+#                     (GitHub: ci.yml verify + release-gate.yml + ndp-review.yml,
+#                     deduplicated into one bootstrap.)
+#     flutter-apk     debug APK + its secrets scan (ci.yml apk).
+#     web             React PWA verify + e2e + bundle scans (web.yml).
+#     image           Dockerfile build, trivy, self-host smoke, browser smoke
+#                     (ci.yml docker + self-host-smoke.yml + browser-smoke.yml),
+#                     on one VM so the layer cache is shared.
+#     gitleaks        full-history secret scan (gitleaks.yml).
+#     sbom            release image SBOM — v* tags only (release-gate.yml sbom).
+#   weekly-gitleaks — a scheduled trigger (project settings → Triggers) named
+#                     "weekly-gitleaks"; runs only the history scan.
+#
+# Toolchain pins: keep the Flutter image in step with scripts/flutter_docker.sh,
+# infra/Dockerfile and .github/workflows/ci.yml.
+#
+# Project settings this file relies on (CircleCI UI):
+#   * "Only build pull requests" OFF, so pushes to main build too (or ON to
+#     save credits — main is then built only through PR merges).
+#   * Optional env var AI_NUTRITION_COACH_PROJECT_URL (release tag builds).
+
+version: 2.1
+
+executors:
+  flutter:
+    docker:
+      - image: ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
+    resource_class: large
+  node:
+    docker:
+      - image: cimg/node:24.21.0
+    resource_class: medium
+  vm:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+
+# Tag builds only run jobs that opt in with a tag filter.
+release_tags: &release_tags
+  filters:
+    tags:
+      only: /^v.*/
+
+jobs:
+  flutter-verify:
+    executor: flutter
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pub-v1-{{ checksum "pubspec.lock" }}
+            - pub-v1-
+      - run:
+          name: Flutter gate
+          command: CI_TAG="${CIRCLE_TAG:-}" bash scripts/ci/flutter_verify.sh
+      - save_cache:
+          key: pub-v1-{{ checksum "pubspec.lock" }}
+          paths:
+            - ~/.pub-cache
+
+  flutter-apk:
+    executor: flutter
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pub-v1-{{ checksum "pubspec.lock" }}
+            - pub-v1-
+      - restore_cache:
+          keys:
+            - gradle-v1-{{ checksum "apps/client/android/build.gradle.kts" }}
+            - gradle-v1-
+      - run:
+          name: Build APK (debug) + secrets scan
+          command: bash scripts/ci/flutter_apk.sh
+      - save_cache:
+          key: gradle-v1-{{ checksum "apps/client/android/build.gradle.kts" }}
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+
+  web:
+    executor: node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+      - run:
+          name: React PWA gate
+          command: bash scripts/ci/web_verify.sh
+      - save_cache:
+          key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+            - ~/.cache/ms-playwright
+      - store_artifacts:
+          when: always
+          path: apps/web/playwright-report
+          destination: playwright-report
+
+  image:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: Image build, trivy, self-host smoke, browser smoke
+          command: bash scripts/ci/image.sh
+          no_output_timeout: 30m
+
+  gitleaks:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: gitleaks (full history)
+          command: bash scripts/ci/gitleaks.sh
+
+  sbom:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: SBOM of the release image
+          command: bash scripts/ci/sbom.sh
+      - store_artifacts:
+          path: ai-nutrition-coach-image.spdx.json
+          destination: ai-nutrition-coach-image-sbom/ai-nutrition-coach-image.spdx.json
+
+workflows:
+  gates:
+    when:
+      not:
+        equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+    jobs:
+      - flutter-verify:
+          <<: *release_tags
+      - flutter-apk:
+          <<: *release_tags
+      - web:
+          <<: *release_tags
+      - image:
+          <<: *release_tags
+      - gitleaks:
+          <<: *release_tags
+      - sbom:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+
+  weekly-gitleaks:
+    when:
+      equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+    jobs:
+      - gitleaks
