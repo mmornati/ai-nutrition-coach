@@ -95,7 +95,7 @@ RUN dart run melos run build:web \
 # Pinned by digest so the production image is byte-stable across rebuilds
 # (tag 1.30.5-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
 # in sync).
-FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3f855442398edc1d05591e2b98981dcbbd20b1e AS serve
+FROM nginxinc/nginx-unprivileged:1.31.5-alpine@sha256:19c132c9ab02d3b783f478743dafc7a7f42e27aa7d2bdcbec1bb1128ca8f2a07 AS serve
 
 # The base image already runs as uid 101 (`nginx`) and listens on 8080; no
 # user juggling is needed (the previous `useradd ... || true` never worked).
