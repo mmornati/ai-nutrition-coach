@@ -1,0 +1,140 @@
+# AI Nutrition Coach CI on CircleCI. It runs the same gates as .github/workflows/
+# through the same entry points (scripts/ci/*.sh). docs/ci-migration.md explains
+# why there are two providers and how to switch between them.
+#
+# Workflows:
+#   gates   — every push to any branch, and v* tags. Jobs:
+#     verify    pnpm verify (format, lint, types, tests, DST, posture gates,
+#               scanner self-tests, build, bundle scans, guards), service-worker
+#               check, named-reviewer check. (GitHub: ci.yml verify +
+#               release-gate.yml + ndp-review.yml, which all re-ran the same
+#               gates; here they share one install.)
+#     e2e       Playwright, Chromium + WebKit (ci.yml e2e).
+#     image     Dockerfile build, trivy, self-host smoke, browser smoke
+#               (ci.yml docker + self-host-smoke.yml + browser-smoke.yml),
+#               on one VM so the layer cache is shared.
+#     gitleaks  full-history secret scan (gitleaks.yml).
+#     sbom      release image SBOM, v* tags only (release-gate.yml sbom).
+#   weekly-gitleaks — a scheduled trigger (Project Settings → Triggers) that
+#                     runs only the history scan.
+#
+# Optional project env var: AI_NUTRITION_COACH_PROJECT_URL (release tag builds).
+
+version: 2.1
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:24.21.0
+    # vitest is CPU-bound: 4 vCPUs cost twice as much per minute and finish in
+    # about half the time.
+    resource_class: large
+  playwright:
+    docker:
+      # Keep in step with @playwright/test in apps/web/package.json and
+      # PLAYWRIGHT_IMAGE in scripts/webkit_smoke.sh.
+      - image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+    resource_class: large
+  vm:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+
+# Tag builds only run jobs that opt in with a tag filter.
+release_tags: &release_tags
+  filters:
+    tags:
+      only: /^v.*/
+
+jobs:
+  verify:
+    executor: node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+      - run:
+          name: pnpm verify + release posture + named reviewer
+          command: CI_TAG="${CIRCLE_TAG:-}" bash scripts/ci/verify.sh
+      - save_cache:
+          key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+
+  e2e:
+    executor: playwright
+    steps:
+      - checkout
+      # Its own key: the image runs as root, so the store lives under /root.
+      - restore_cache:
+          keys:
+            - pnpm-root-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-root-v1-
+      - run:
+          name: Playwright (Chromium + WebKit)
+          command: bash scripts/ci/e2e.sh
+      - save_cache:
+          key: pnpm-root-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+      - store_artifacts:
+          when: always
+          path: apps/web/playwright-report
+          destination: playwright-report
+
+  image:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: Image build, trivy, self-host smoke, browser smoke
+          command: bash scripts/ci/image.sh
+          no_output_timeout: 30m
+
+  gitleaks:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: gitleaks (full history)
+          command: bash scripts/ci/gitleaks.sh
+
+  sbom:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: SBOM of the release image
+          command: bash scripts/ci/sbom.sh
+      - store_artifacts:
+          path: ai-nutrition-coach-image.spdx.json
+          destination: ai-nutrition-coach-image-sbom/ai-nutrition-coach-image.spdx.json
+
+workflows:
+  gates:
+    when:
+      not:
+        equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+    jobs:
+      - verify:
+          <<: *release_tags
+      - e2e:
+          <<: *release_tags
+      - image:
+          <<: *release_tags
+      - gitleaks:
+          <<: *release_tags
+      - sbom:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+
+  weekly-gitleaks:
+    when:
+      equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+    jobs:
+      - gitleaks

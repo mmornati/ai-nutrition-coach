@@ -131,7 +131,7 @@ default is the project repository, `https://github.com/mmornati/ai-nutrition-coa
 at a fork. `AI_NUTRITION_COACH_BUILD=release AI_NUTRITION_COACH_PROJECT_URL=… node tools/check_project_url.mjs`
 fails only if the URL is empty or `.invalid` for a `selfhost` / `release` build. It is **enforced** for release
 images: `docker build --build-arg AI_NUTRITION_COACH_RELEASE=1 --build-arg AI_NUTRITION_COACH_PROJECT_URL=…` runs
-it before the web build, and `.github/workflows/release-gate.yml` does so for tags, taking the URL from the
+it before the web build, and CI (`scripts/ci/sbom.sh`, from `.github/workflows/release-gate.yml`) does so for tags, taking the URL from the
 repository **variable** `AI_NUTRITION_COACH_PROJECT_URL` (optional override, under Settings → Secrets and variables
 → Actions → Variables; left unset, the default above is used). A URL that is set must be a plain `https://` URL
 (no spaces or quotes); `bin/ai-nutrition-coach` and the image build refuse anything else.

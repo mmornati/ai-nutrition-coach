@@ -2,8 +2,10 @@
 
 The release pipeline is intentionally lightweight. Every tagged
 release runs this checklist end-to-end; a tag cannot ship until
-the durable sign-offs are recorded. The CI workflow
-`.github/workflows/release-gate.yml` automates the gating; the
+the durable sign-offs are recorded. CI automates the gating: on a
+`v*` tag, `.github/workflows/ci.yml` (and the CircleCI `gates` workflow)
+runs every gate including the project-URL rule, and
+`.github/workflows/release-gate.yml` builds the release image's SBOM. The
 named reviewer records the human sign-off.
 
 ## Gate A — Build
@@ -80,7 +82,7 @@ named reviewer records the human sign-off.
 - [ ] **Project URL.** `AI_NUTRITION_COACH_BUILD=release [AI_NUTRITION_COACH_PROJECT_URL=<override>] node tools/check_project_url.mjs`
   is green (the default is the project repository, so this only fails for an empty or `.invalid` override; set the URL for a fork).
   Build the container with `--build-arg AI_NUTRITION_COACH_PROJECT_URL=… --build-arg AI_NUTRITION_COACH_RELEASE=1`
-  (the build then enforces the rule itself; `.github/workflows/release-gate.yml` does this from the repository variable
+  (the build then enforces the rule itself; `scripts/ci/sbom.sh` does this in CI from the repository variable
   `AI_NUTRITION_COACH_PROJECT_URL`).
 - [ ] **Consent copy.** Open Your AI with a key set, take a photo: the dialog says what is sent, what the host also
   sees, that it may keep requests, what is not sent, and links to the in-app privacy page. **Ask before every photo
@@ -113,8 +115,9 @@ named reviewer records the human sign-off.
 
 - [ ] The version tag (`vX.Y.Z`) is created from `main`.
 - [ ] The release notes enumerate the closed stories (Epic 1-5).
-- [ ] The CI workflow `.github/workflows/release-gate.yml` is
-  green on the tag commit.
+- [ ] CI is green on the tag commit: `.github/workflows/ci.yml` and
+  `.github/workflows/release-gate.yml` (SBOM), or the CircleCI `gates`
+  workflow (see `docs/ci-migration.md`).
 
 ## Known accepted gaps (v1)
 

@@ -94,6 +94,34 @@ describe('README trust table', () => {
       const root = makeTree(base({ '.github/workflows/smoke.yml': 'jobs: {}\n' }));
       expect(checkTrustTable(root).join('\n')).toContain('not invoked by any workflow');
     });
+    it('passes when a workflow calls a scripts/ci entry point that runs it', () => {
+      const root = makeTree(
+        base({
+          '.github/workflows/smoke.yml': 'jobs:\n  s:\n    steps:\n      - run: bash scripts/ci/image.sh\n',
+          'scripts/ci/image.sh': '#!/bin/sh\nbash scripts/egress.sh\n',
+        }),
+      );
+      expect(checkTrustTable(root)).toEqual([]);
+    });
+    it('passes when only the CircleCI config reaches it', () => {
+      const root = makeTree(
+        base({
+          '.github/workflows/smoke.yml': 'jobs: {}\n',
+          '.circleci/config.yml': 'jobs:\n  s:\n    steps:\n      - run: bash scripts/ci/image.sh\n',
+          'scripts/ci/image.sh': '#!/bin/sh\nbash scripts/egress.sh\n',
+        }),
+      );
+      expect(checkTrustTable(root)).toEqual([]);
+    });
+    it('fails when the entry point that runs it is not called by CI', () => {
+      const root = makeTree(
+        base({
+          '.github/workflows/smoke.yml': 'jobs: {}\n',
+          'scripts/ci/image.sh': '#!/bin/sh\nbash scripts/egress.sh\n',
+        }),
+      );
+      expect(checkTrustTable(root).join('\n')).toContain('not invoked by any workflow');
+    });
     it('fails when it does not exist', () => {
       const files = base();
       delete files['scripts/egress.sh'];

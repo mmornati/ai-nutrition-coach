@@ -72,13 +72,28 @@ const PROOF_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 /** A shell script may stand beside the tests as proof (e.g. the container egress test) when CI really runs it. */
 const PROOF_SCRIPT = /^(?:scripts|tools)\/[A-Za-z0-9_./-]+\.sh$/;
 
-/** Workflow files (.github/workflows/*.yml) as text, for "is this script invoked by CI". */
+/** A CI entry point (docs/ci-migration.md): the workflows of both providers call these scripts. */
+const CI_ENTRY_POINT = /scripts\/ci\/[A-Za-z0-9_.-]+\.sh/g;
+
+/**
+ * What CI runs, as text, for "is this script invoked by CI": the GitHub workflows
+ * (.github/workflows/*.yml), the CircleCI config, and every scripts/ci/*.sh entry point one of them
+ * calls (one level: an entry point that nothing calls does not count).
+ */
 function workflowTexts(root) {
   const dir = join(root, '.github/workflows');
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((n) => /\.ya?ml$/.test(n))
-    .map((n) => readFileSync(join(dir, n), 'utf8'));
+  const texts = existsSync(dir)
+    ? readdirSync(dir)
+        .filter((n) => /\.ya?ml$/.test(n))
+        .map((n) => readFileSync(join(dir, n), 'utf8'))
+    : [];
+  const circleci = join(root, '.circleci/config.yml');
+  if (existsSync(circleci)) texts.push(readFileSync(circleci, 'utf8'));
+  const entryPoints = new Set(texts.flatMap((t) => t.match(CI_ENTRY_POINT) ?? []));
+  for (const path of entryPoints) {
+    if (existsSync(join(root, path))) texts.push(readFileSync(join(root, path), 'utf8'));
+  }
+  return texts;
 }
 const TEST_ROOTS = new Set(['test', 'it']);
 const SKIPPING = new Set(['skip', 'todo', 'fixme', 'skipIf']);

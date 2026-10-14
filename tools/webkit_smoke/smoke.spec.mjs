@@ -1,6 +1,6 @@
 // AI Nutrition Coach: browser smoke of the PRODUCTION IMAGE (nginx + the release build), in WebKit
 // and Chromium, over http://localhost (a secure context). Real selectors, the real encrypted store.
-// Opt-in (scripts/webkit_smoke.sh, .github/workflows/browser-smoke.yml). It checks what the unit
+// Opt-in (scripts/webkit_smoke.sh; CI runs it from scripts/ci/image.sh). It checks what the unit
 // tests and the preview-server e2e cannot: the real server's headers and CSP in a real browser.
 //
 //   1. the page loads, the web manifest + icons are valid, the service worker registers, takes
