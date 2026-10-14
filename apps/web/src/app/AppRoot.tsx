@@ -7,6 +7,7 @@ import { createAppStore } from '../storage/create-app-store';
 import { Gate, type GateProps } from './Gate';
 import { UpdatePrompt } from '../components/shell';
 import { LocaleProvider } from '../i18n/LocaleProvider';
+import { browserLocaleHint } from '../i18n/locale-hint';
 import { resolveLocale } from '../i18n/locale';
 
 export interface AppRootProps extends GateProps {
@@ -36,9 +37,10 @@ export function AppRoot({ createBundle = createAppStore, ...gate }: AppRootProps
     };
   }, [createBundle]);
 
-  // Phase B feeds the stored preference and localStorage hint in here, and re-resolves after unlock.
+  // Before the unlock only the plaintext hint is readable (the preference is in the encrypted
+  // store); the session re-resolves from the stored preference once it is open.
   const [initialLocale] = useState(() =>
-    resolveLocale(null, null, navigator.languages, navigator.language),
+    resolveLocale(null, browserLocaleHint().read(), navigator.languages, navigator.language),
   );
 
   return (

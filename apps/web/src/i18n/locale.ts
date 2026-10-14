@@ -8,6 +8,12 @@ export const DEFAULT_LOCALE: Locale = 'en';
 /** The BCP 47 tag handed to `Intl` for each locale (en keeps the British formats used so far). */
 const INTL_TAGS: Readonly<Record<Locale, string>> = { en: 'en-GB', fr: 'fr-FR' };
 
+/**
+ * Each language named in itself (an endonym), whatever the page language is. Not catalogue copy:
+ * it must not be translated, and the picker tags each name with its own `lang`.
+ */
+export const LOCALE_ENDONYMS: Readonly<Record<Locale, string>> = { en: 'English', fr: 'Français' };
+
 export const intlTag = (locale: Locale): string => INTL_TAGS[locale];
 
 /** The supported locale a language tag asks for (any `fr*` primary subtag is French), else `null`. */

@@ -10,7 +10,7 @@
 //
 // The unlocked branch is the ONLY place decrypted state exists; leaving it (lock, idle, hidden,
 // erase) unmounts it. See session.tsx.
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { StoreProvider, useStoreBundle, useStoreSnapshot } from './store-context';
 import { AboutGate, AboutGateBeforeStore } from './AboutGate';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
@@ -21,6 +21,9 @@ import { CreatePassphraseScreen } from '../screens/gate/CreatePassphraseScreen';
 import { LostStoreScreen } from '../screens/gate/LostStoreScreen';
 import { StoreUnavailableScreen } from '../screens/gate/StoreUnavailableScreen';
 import { UnlockScreen } from '../screens/gate/UnlockScreen';
+import { setCurrentLocale } from '../i18n';
+import { browserLocaleHint } from '../i18n/locale-hint';
+import { resolveLocale } from '../i18n/locale';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import type { StoreBundle } from '../storage';
 
@@ -55,6 +58,18 @@ function GateContent({ sessionOptions, ...app }: GateProps): ReactNode {
     forgetAcknowledgedBeforeStore();
     return eraser.eraseAll();
   };
+
+  // A first run (nothing stored, or back there after an erase from the gate or from Your data):
+  // there is no choice to honour, so the screens follow the browser, and a stale hint (left by a
+  // browser that evicted the store, or an erase that could not remove it) is cleared, not shown.
+  // A layout effect, so the first-run screen never paints in the stale language.
+  const firstRun = snapshot.status === 'needsPassphraseCreation';
+  useLayoutEffect(() => {
+    if (firstRun) {
+      browserLocaleHint().write(null);
+      setCurrentLocale(resolveLocale(null, null, navigator.languages, navigator.language));
+    }
+  }, [firstRun]);
 
   // The privacy page explains the app before anything is unlocked.
   if (!unlocked && isPrivacyRoute(route)) return <SettingsScreen section="privacy" />;

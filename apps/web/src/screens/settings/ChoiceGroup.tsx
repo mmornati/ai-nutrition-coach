@@ -4,6 +4,8 @@ import { CheckIcon } from '../../components/primitives';
 export interface Choice<T extends string> {
   readonly value: T;
   readonly label: string;
+  /** BCP 47 tag of the label when it is in another language than the page (screen readers). */
+  readonly lang?: string;
 }
 
 /**
@@ -49,7 +51,11 @@ export function ChoiceGroup<T extends string>({
               ].join(' ')}
             >
               <CheckIcon size={16} />
-              {choice.label}
+              {choice.lang === undefined ? (
+                choice.label
+              ) : (
+                <span lang={choice.lang}>{choice.label}</span>
+              )}
             </span>
           </label>
         ))}

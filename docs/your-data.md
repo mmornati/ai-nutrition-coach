@@ -74,6 +74,22 @@ What this means in practice:
   passphrase-derived key, deleted by *Erase all local data*, never in
   `localStorage` or `sessionStorage`.
 
+## Your language
+
+*Settings → Language* offers *Match my device* (the default; the app follows your
+browser's language), *English* and *Français*. The choice is kept in the encrypted
+store (`ui.locale`), so it travels with the rest of your data and is deleted by
+*Erase all local data*.
+
+The screens before the unlock (create passphrase, unlock, lost store) cannot read
+the encrypted store, so a pick is also written as a **plain note in `localStorage`**
+(`anc.pwa.locale`, value `en` or `fr`). It reveals only the language you chose,
+nothing about your plates. It is removed when you go back to *Match my device*, and
+*Erase all local data* removes it with every other key the app owns; after an erase
+the app follows the browser's language again. If the browser refuses
+`localStorage`, the gate simply follows the browser. The language preference is not
+part of an export (exports cover plates only).
+
 ## The privacy page and the first-run notice
 
 *Settings → Privacy* ("What this app stores and sends") is the in-app privacy
@@ -126,7 +142,7 @@ button. In the browser they are a download (or the system share sheet where the
 browser offers Web Share); the app does not keep them and cannot delete them
 later. *Erase all local data* cannot reach a file you downloaded or shared
 (Chrome saves to Downloads without asking, and Downloads may sync to a cloud).
-Exports cover plates only: coach notes, AI settings and these notices are not
+Exports cover plates only: coach notes, AI settings, the language and these notices are not
 exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).
 

@@ -3,6 +3,7 @@ export const SECTIONS = {
   ai: 'ai',
   data: 'data',
   privacy: 'privacy',
+  language: 'language',
   install: 'install',
   about: 'about',
 } as const;

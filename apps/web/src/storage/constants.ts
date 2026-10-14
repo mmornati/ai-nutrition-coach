@@ -9,6 +9,13 @@ export const STORE_META_KEY = 'anc.pwa.store.meta';
 /** localStorage: the idle auto-lock choice, in minutes. */
 export const LOCK_IDLE_MINUTES_KEY = 'anc.pwa.lock.idleMinutes';
 
+/**
+ * localStorage: the plaintext language hint (`en` | `fr`), so the screens before the unlock speak
+ * the chosen language. The preference itself is in the encrypted store (`KV_KEYS.uiLocale`); this
+ * only mirrors it. Under the owned prefix, so the eraser's sweep removes it.
+ */
+export const LOCALE_HINT_KEY = 'anc.pwa.locale';
+
 /** Every localStorage key this app owns starts with this; the eraser sweeps by it. */
 export const STORAGE_KEY_PREFIX = 'anc.pwa.';
 

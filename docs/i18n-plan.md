@@ -31,13 +31,15 @@ What is still hard-wired to English:
 
 1. **Where the preference lives ("profile").** There is no account: the profile is the encrypted
    local store. The language is a new `kv` row, `KV_KEYS.uiLocale` (`'en' | 'fr'`), so it is
-   encrypted, travels with export/sync, and is wiped by "Erase all local data".
+   encrypted and wiped by "Erase all local data". It is NOT part of the JSON export, which is a
+   strict plates envelope.
 2. **Before unlock.** The gate screens (create passphrase, unlock, lost store, unavailable) render
    before the `kv` table can be read. They use, in order: a plaintext localStorage hint
-   `anc.locale` (written whenever the preference changes, removed by erase), else the browser
+   `anc.pwa.locale` (written whenever the preference changes, swept by erase with the other `anc.pwa.` keys), else the browser
    (`navigator.languages`: the first entry we support wins, so `['de-DE', 'fr-FR']` → `fr`; any `fr*` tag → `fr`; `navigator.language` is used when the list is empty; nothing supported → `en`). The hint reveals only
    "this browser prefers French"; that is acceptable and is documented in `docs/your-data.md`.
-   Malformed tags must still never break boot (parity-checklist rule).
+   Malformed tags must still never break boot (parity-checklist rule). On a first run (no store
+   yet) the hint is ignored and cleared: a stale one left by an evicted store must not show.
 3. **Default.** Until the person picks one, the app follows the browser ("Match my device"). Picking
    a language pins it. Settings offers: Match my device / English / Français.
 4. **No i18n library.** Keep the in-house typed catalogue (small bundle, no CSP or external-host
@@ -71,11 +73,13 @@ Each phase is one PR, green on `pnpm verify`.
 
 - `KV_KEYS.uiLocale` + a small `LocalePrefs` store (same pattern as `PrivacyPrefs`: unreadable →
   default, write failure → keep in memory and retry).
-- localStorage hint written alongside; `local-data-eraser` removes it.
+- localStorage hint `anc.pwa.locale` written alongside; `local-data-eraser` removes it (it sweeps
+  the `anc.pwa.` prefix). A locked or unreadable store is "unknown", not "absent": it changes
+  neither the hint nor the language.
 - Settings: a "Language" row (reuse `ChoiceGroup`) under the existing settings list, with
   "Match my device" first. Labels for each language are written in that language ("Français",
   "English") and tagged with `lang` for screen readers.
-- Include the preference in the JSON export; CSV unaffected.
+- The preference is not in the JSON export (a strict plates envelope); CSV unaffected.
 - e2e: pick French, lock, reload → gate is in French; unlock → app in French; erase → back to browser
   default.
 

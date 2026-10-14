@@ -484,10 +484,20 @@ export const en = {
     rowDataSubtitle: 'export · lock · erase',
     rowPrivacy: 'Privacy',
     rowPrivacySubtitle: 'what is stored · what is sent',
+    rowLanguage: 'Language',
+    rowLanguageSubtitle: 'match your device · or choose',
     rowInstall: 'Install on your phone',
     rowInstallSubtitle: 'offline · own icon',
     rowAbout: 'About',
     rowAboutSubtitle: 'yours to run · open source',
+  },
+  language: {
+    title: 'Language',
+    groupLabel: 'App language',
+    matchDevice: 'Match my device',
+    explain:
+      'The app follows your browser’s language until you pick one. Your pick is kept with your data on this device.',
+    note: 'The chosen language is also kept as a plain note in this browser, so the screens before the unlock can use it. It reveals only the language.',
   },
   /** YourDataStrings (the earlier client) and the Your data lines of app_en.arb. */
   yourData: {
@@ -536,7 +546,7 @@ export const en = {
     intro: 'A plain list. Nothing here is hidden, and nothing about you is collected.',
     storedHeading: 'Stored on this device, encrypted',
     storedBody:
-      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked.',
+      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked. The one exception is your chosen language, which is also kept as a plain note on this device so the unlock screen can use it; it reveals nothing else.',
     leavesHeading: 'What leaves this device, and when',
     leavesBarcode:
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
