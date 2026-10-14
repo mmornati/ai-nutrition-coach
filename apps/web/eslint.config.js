@@ -38,6 +38,7 @@ export default tseslint.config(
     // accessible-name attributes are checked; tests, the dev gallery and e2e are exempt.
     files: [
       'src/*.tsx',
+      'src/app/**/*.tsx',
       'src/components/**/*.tsx',
       'src/screens/**/*.tsx',
       'src/capture/**/*.tsx',
@@ -49,6 +50,7 @@ export default tseslint.config(
       'src/main.tsx',
       'src/components/gallery/**',
       'src/components/**/testing.tsx',
+      'src/app/testing.tsx',
     ],
     plugins: { i18next },
     rules: {

@@ -99,11 +99,16 @@ export function Dialog({
       aria-labelledby={open ? titleId : undefined}
       aria-describedby={open ? describedBy : undefined}
       onCancel={(e) => {
+        // `cancel` and `close` bubble through React's tree: a dialog nested inside this one (the
+        // barcode match sheet inside the scanner sheet) must not dismiss its parent too.
+        if (e.target !== e.currentTarget) return;
         // Keep React state the single source of truth: never let the browser close it for us.
         e.preventDefault();
         if (escDismiss) dismiss();
       }}
-      onClose={dismiss}
+      onClose={(e) => {
+        if (e.target === e.currentTarget) dismiss();
+      }}
       onClick={onClick}
       className={cn(
         'bg-enamel-raised text-porcelain rounded-none p-0 backdrop:bg-scrim',

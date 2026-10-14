@@ -1,3 +1,4 @@
+import type { EpochMs } from '@anc/core';
 import { useRef } from 'react';
 import { strings, useStrings } from '../../i18n';
 import { dayDescription, daySentence, networkDescription, platesCount } from '../../i18n/sentences';
@@ -184,39 +185,58 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
 
 export interface DayListProps {
   readonly days: readonly WeekDayData[];
+  /** When given, every day is a button that selects it (the week screen). Otherwise rows are plain. */
+  readonly onSelectDay?: (date: EpochMs) => void;
   readonly className?: string;
 }
 
 /** Day by day: four line segments (dashed when the line was absent) and the plate count. */
-export function DayList({ days, className = '' }: DayListProps) {
+export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
   const w = useStrings().week;
   return (
     <ul className={`border-porcelain m-0 list-none border-t-2 p-0 ${className}`}>
-      {days.map((d) => (
-        <li
-          key={d.date}
-          className="border-rule grid min-h-14 grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 border-b"
-        >
-          {/* First child: an absolutely positioned sr-only box is placed at its static position,
-              and anywhere else it would sit past the right edge and add page scroll. */}
-          <span className="sr-only">
-            {dayDescription(d.isToday ? w.today : weekdayName(d.date), describeDay(d))}
-          </span>
-          <span className="font-display text-subtitle font-bold tracking-[0.06em] uppercase">
-            {d.isToday ? w.today : weekdayAbbr(d.date)}
-          </span>
-          <span className="flex gap-1">
-            {LINES.map((l) => (
-              <i
-                key={l.group}
-                aria-hidden="true"
-                className={`block h-1.5 w-7 min-w-0 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-signal-muted border-[1.5px] border-dashed'}`}
-              />
-            ))}
-          </span>
-          <span className="text-signal-muted text-meta">{platesCount(d.plateCount)}</span>
-        </li>
-      ))}
+      {days.map((d) => {
+        const row = (
+          <>
+            {/* First child: an absolutely positioned sr-only box is placed at its static position,
+                and anywhere else it would sit past the right edge and add page scroll. */}
+            <span className="sr-only">
+              {dayDescription(d.isToday ? w.today : weekdayName(d.date), describeDay(d))}
+            </span>
+            <span className="font-display text-subtitle font-bold tracking-[0.06em] uppercase">
+              {d.isToday ? w.today : weekdayAbbr(d.date)}
+            </span>
+            <span className="flex gap-1">
+              {LINES.map((l) => (
+                <i
+                  key={l.group}
+                  aria-hidden="true"
+                  className={`block h-1.5 w-7 min-w-0 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-signal-muted border-[1.5px] border-dashed'}`}
+                />
+              ))}
+            </span>
+            <span className="text-signal-muted text-meta">{platesCount(d.plateCount)}</span>
+          </>
+        );
+        return (
+          <li key={d.date} className="border-rule border-b">
+            {onSelectDay ? (
+              <button
+                type="button"
+                aria-current={d.isToday ? 'date' : undefined}
+                onClick={() => onSelectDay(d.date)}
+                className="grid min-h-14 w-full cursor-pointer grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 bg-transparent text-left"
+              >
+                {row}
+              </button>
+            ) : (
+              <div className="grid min-h-14 w-full grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3">
+                {row}
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

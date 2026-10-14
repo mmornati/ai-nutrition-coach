@@ -123,6 +123,30 @@ describe('Dialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('a dialog nested in another one dismisses only itself (cancel and close bubble in React)', async () => {
+    const outerClose = vi.fn();
+    function Nested() {
+      const [inner, setInner] = useState(false);
+      return (
+        <Dialog open onClose={outerClose} title="Outer">
+          <button type="button" onClick={() => setInner(true)}>
+            Open inner
+          </button>
+          <Dialog open={inner} onClose={() => setInner(false)} title="Inner">
+            <p>Inner body</p>
+          </Dialog>
+        </Dialog>
+      );
+    }
+    render(<Nested />);
+    await userEvent.click(screen.getByRole('button', { name: 'Open inner' }));
+    expect(screen.getByRole('dialog', { name: 'Inner' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByText('Inner body')).not.toBeInTheDocument());
+    expect(outerClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Outer' })).toBeInTheDocument();
+  });
+
   it('has no axe violations when open', async () => {
     const { baseElement } = render(
       <Dialog open onClose={() => undefined} title="Hello">

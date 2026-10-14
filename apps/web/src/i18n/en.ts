@@ -87,6 +87,7 @@ export const en = {
       "This browser can't read barcodes on your device, and AI Nutrition Coach never sends camera images elsewhere. Manual entry still works.",
   },
   catalog: {
+    title: 'Add a food',
     searchLabel: 'Food search',
     typeHint: 'Type a food name. We will rank the matches for you.',
     customHint: 'Type the food name to add it manually.',
@@ -252,6 +253,9 @@ export const en = {
     body: 'Your plates, coach notes, saved AI key and exports still on this device will be deleted for good. Copies you shared or downloaded elsewhere are not affected.',
     confirm: 'Erase',
     keep: 'Keep my data',
+    done: 'All local data was erased. Close and reopen AI Nutrition Coach to start fresh.',
+    failed:
+      "Some data could not be erased. Please try again, or clear the app's storage in your device settings.",
   },
   offNotice: {
     title: 'Barcode lookups',
@@ -325,6 +329,8 @@ export const en = {
     retryLaterPlates: { one: '1 plate will retry later', other: '{count} plates will retry later' },
   },
   week: {
+    title: 'This week',
+    dayByDay: 'Day by day',
     noStreaks: 'No streaks, no countdowns, no guilt.',
     routeLabel: 'This week: choose a day',
     today: 'Today',
@@ -351,6 +357,114 @@ export const en = {
     noteSome: '{names} ran this week.',
     noteQuietDays: '{name} was quiet on {days}.',
     noteQuietAll: '{name} stayed quiet all week.',
+  },
+  /** AboutNoticeScreen (app_en.arb): the one-time notice before the first passphrase screen. */
+  about: {
+    title: 'About this app',
+    adults: 'AI Nutrition Coach is designed for adults.',
+    ai: 'Photo recognition is off by default. If you turn it on, a photo is sent to a service you choose, and only after you say yes.',
+    local: 'Your plates stay on this device, encrypted. There are no accounts and no analytics.',
+    ok: 'Got it',
+    privacyLink: 'What this app stores and sends',
+  },
+  /** WebSessionStrings (coach_strings.dart): create passphrase, unlock, lock. */
+  session: {
+    label: 'Unlock your store',
+    placeholder: 'Passphrase',
+    unlock: 'Unlock',
+    wrongPassphrase: 'That passphrase does not open this store.',
+    unavailable:
+      "This browser can't open the protected store. It needs a secure (https or localhost) page with site storage allowed. Reload to try again.",
+    throttled: 'Please wait a moment before trying again.',
+    inOtherTab:
+      'AI Nutrition Coach is open in another tab. Lock or close it there, then try again here.',
+    newerVersion:
+      'This data was opened by a newer version of AI Nutrition Coach. Nothing is lost: reload the page to update, then unlock again.',
+    forgot: 'Forgot your passphrase?',
+    forgotBody:
+      'It cannot be recovered: your history is encrypted with a key made from your passphrase, and nobody else has a copy. You can erase it and start over.',
+    forgotAction: 'Erase and start over',
+    createTitle: 'Protect your history',
+    createExplain:
+      'Choose a passphrase. It encrypts everything AI Nutrition Coach saves in this browser, and you enter it each time you open the app.',
+    createWarning:
+      'If you forget it, your data cannot be recovered — not by us, not by anyone. There is no reset link.',
+    createPassphraseLabel: 'Passphrase',
+    createConfirmLabel: 'Confirm passphrase',
+    createAction: 'Create and unlock',
+    tooShort: 'Use at least 10 characters.',
+    tooRepetitive: 'Use a few different characters.',
+    mismatch: "The two passphrases don't match.",
+    lockAction: 'Lock',
+    lockAfterLabel: 'Lock automatically after',
+    lockAfterOptions: ['5 minutes', '15 minutes', '30 minutes', '1 hour'],
+  },
+  /** The browser cannot use its storage right now. Phase 4 state; the title and button are new. */
+  storeUnavailable: {
+    title: "Your store can't open right now",
+    retry: 'Try again',
+  },
+  /** KeyLostStrings (coach_strings.dart): the only way forward is the confirmed erase. */
+  keyLost: {
+    /** `enWebStoreUnreadableStrings`: the web store is incomplete or unreadable (the one the PWA shows). */
+    unreadable: {
+      title: "Your saved history can't be found",
+      body: 'The protected store in this browser is incomplete or unreadable — for example after clearing site data. Reloading sometimes fixes it. If it does not, you can erase what is left and start over.',
+      action: 'Erase local data and start over',
+    },
+    /** `enKeyLostStrings`. */
+    lost: {
+      title: "Your history can't be opened",
+      body: 'This device no longer has the key that protects your saved history, so it cannot be read. This can happen after restoring from a backup or resetting the device. You can erase the unreadable data and start over.',
+      action: 'Erase local data and start over',
+    },
+    /** `enStoreOpenFailedStrings`. */
+    openFailed: {
+      title: "Your history can't be opened right now",
+      body: 'The protected store on this device could not be opened. Closing and reopening AI Nutrition Coach sometimes fixes this. If it keeps happening, you can erase the unreadable data and start over — this removes everything saved on this device.',
+      action: 'Erase local data and start over',
+    },
+  },
+  /** The durable-storage answer, shown once and quietly on Today after create or unlock. */
+  durable: {
+    persisted: 'Storage: protected from automatic clean-up.',
+    notPersisted: 'Storage: the browser may clear this data if space runs low — export regularly.',
+  },
+  /** Today (day_board_screen.dart, app_en.arb). */
+  today: {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    historyCannotLoad: "History can't load right now.",
+    logAnother: 'Log another plate',
+    logAnotherLink: '+ log another plate',
+    plateRemoved: 'Plate removed.',
+    plateRemoveFailed: 'Couldn’t remove it. Try again.',
+    networkHeading: 'This week’s network',
+  },
+  /** The Plate screen. */
+  plate: {
+    removeAction: 'Remove this plate',
+  },
+  /** The coach question key store (coach_strings.dart): 3 anchors x 6 patterns, verbatim. */
+  coachQuestions: {
+    'post.resolve.vegLight': 'A handful of greens would round this plate out.',
+    'post.resolve.proteinHeavy': 'A small bowl of greens or roasted veg would lighten this up.',
+    'post.resolve.starchHeavy': 'Some veg on the side would balance this nicely.',
+    'post.resolve.dairyLight': 'If you have a bit of dairy around, it would round this off.',
+    'post.resolve.vegRich': 'A protein on the side would complete this plate.',
+    'post.resolve.balanced': 'Nice plate — anything you would change next time?',
+    'openPlate.vegLight': 'Greens would round this plate out.',
+    'openPlate.proteinHeavy': 'A handful of greens or veg would lighten this up.',
+    'openPlate.starchHeavy': 'Some veg on the side would balance this nicely.',
+    'openPlate.dairyLight': 'A bit of dairy would round this off if you have some.',
+    'openPlate.vegRich': 'A protein on the side would complete this plate.',
+    'openPlate.balanced': 'A calm, varied plate — anything you want to add?',
+    'depth.followUp.vegLight': 'A handful of greens would round this plate out.',
+    'depth.followUp.proteinHeavy': 'A small bowl of greens or roasted veg would lighten this up.',
+    'depth.followUp.starchHeavy': 'Some veg on the side would balance this nicely.',
+    'depth.followUp.dairyLight': 'If you have a bit of dairy around, it would round this off.',
+    'depth.followUp.vegRich': 'A protein on the side would complete this plate.',
+    'depth.followUp.balanced': 'Nice plate — anything you would change next time?',
   },
   settings: {
     aiTier: 'AI tier',
@@ -388,7 +502,11 @@ export const en = {
   },
 } as const;
 
-type Widen<T> = T extends string ? string : { -readonly [K in keyof T]: Widen<T[K]> };
+type Widen<T> = T extends string
+  ? string
+  : T extends readonly (infer U)[]
+    ? readonly Widen<U>[]
+    : { -readonly [K in keyof T]: Widen<T[K]> };
 
 /** The shape every locale must satisfy. */
 export type Strings = Widen<typeof en>;

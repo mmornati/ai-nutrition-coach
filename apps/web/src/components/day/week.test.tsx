@@ -286,6 +286,16 @@ describe('DayList and note', () => {
     expect(items[6]).toHaveTextContent('Today: all four lines');
   });
 
+  it('with onSelectDay every day is a button that selects it', async () => {
+    const onSelectDay = vi.fn();
+    render(<DayList days={WEEK} onSelectDay={onSelectDay} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(7);
+    expect(buttons[6]).toHaveAttribute('aria-current', 'date');
+    await userEvent.click(buttons[2] as HTMLElement);
+    expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(WEEK[2]?.date);
+  });
+
   it('pluralises plates', () => {
     expect(platesCount(0)).toBe('No plates');
     expect(platesCount(1)).toBe('1 plate');
