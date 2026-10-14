@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createWebExportDestination, type WebExportEnv } from './web-export-destination';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createWebExportDestination,
+  REVOKE_OBJECT_URL_DELAY_MS,
+  type WebExportEnv,
+} from './web-export-destination';
 
 const input = {
   filename: '2026-08-16-ai-nutrition-coach.csv',
@@ -47,8 +51,22 @@ describe('createWebExportDestination', () => {
     expect(t.created[0]?.type).toBe('text/csv;charset=utf-8');
     expect(t.clicks[0]?.download).toBe(input.filename);
     expect(t.clicks[0]?.getAttribute('href')).toBe('blob:test');
-    expect(t.revoked).toEqual(['blob:test']);
     expect(document.querySelector('a[download]')).toBeNull();
+  });
+
+  describe('the object URL', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('is revoked only after a delay, never in the same tick as the click', async () => {
+      const t = env(undefined);
+      await createWebExportDestination(t.env).write(input);
+      expect(t.revoked).toEqual([]);
+      await vi.advanceTimersByTimeAsync(REVOKE_OBJECT_URL_DELAY_MS - 1);
+      expect(t.revoked).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(t.revoked).toEqual(['blob:test']);
+    });
   });
 
   it('uses the Web Share API with a file when the browser can share it', async () => {

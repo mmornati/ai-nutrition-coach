@@ -3,6 +3,5 @@ export * from './export-destination';
 export * from './export-history';
 export * from './export-reminder';
 export * from './json-exporter';
-export * from './key-value';
 export * from './run-export';
 export * from './web-export-destination';

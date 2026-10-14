@@ -3,7 +3,7 @@
 // file handles, and plain HTTP has no WebCrypto. Without the probe those cases would surface as a
 // "store lost" screen (the header-less inspection fails) instead of the calm, honest "this browser
 // cannot keep private data here" line. It never reports a wrong passphrase, and writes nothing
-// that survives (a temporary file is created and removed).
+// that survives (a temporary file is created and removed in a `finally`, best effort).
 
 import { isSecureCryptoAvailable } from './kdf';
 import type { UnavailableReason } from './errors';
@@ -20,7 +20,7 @@ export interface ProbeDeps {
   readonly root?: () => Promise<RootLike>;
 }
 
-const PROBE_FILE = '.ai_nutrition_coach_probe';
+const PROBE_FILE = '.anc_pwa_probe';
 
 export async function probeStorageAvailability(deps: ProbeDeps = {}): Promise<StorageAvailability> {
   if (!(deps.secure ?? isSecureCryptoAvailable)()) return 'insecureContext';
@@ -33,12 +33,24 @@ export async function probeStorageAvailability(deps: ProbeDeps = {}): Promise<St
       }
       return storage.getDirectory() as unknown as Promise<RootLike>;
     });
+  let root: RootLike | null = null;
+  let created = false;
   try {
-    const root = await getRoot();
+    root = await getRoot();
     await root.getFileHandle(PROBE_FILE, { create: true });
-    await root.removeEntry(PROBE_FILE);
+    created = true;
     return 'ok';
   } catch {
     return 'noOpfs';
+  } finally {
+    // Best effort: a probe file that cannot be removed does not mean the store cannot run, and
+    // the next probe reuses (and retries removing) the same name, so nothing accumulates.
+    if (created && root) {
+      try {
+        await root.removeEntry(PROBE_FILE);
+      } catch {
+        // ignore
+      }
+    }
   }
 }

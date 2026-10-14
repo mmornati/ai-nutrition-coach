@@ -17,6 +17,7 @@ import {
 } from '@anc/core';
 import { describe, expect, it } from 'vitest';
 import { InMemorySyncQueue } from './in-memory-sync-queue';
+import { scopeSyncQueueToSession } from './session-scope';
 import { localOnlySyncAdapter } from './local-only-sync-adapter';
 
 const op = (opId: string, plateLogId = 1): SyncOp =>
@@ -193,5 +194,59 @@ describe('RecordPlate + RecordSyncOp', () => {
     const watch = watchState(queue);
     await tick();
     expect(watch.seen[0]).toEqual({ pending: 0, synced: 0, failed: 0 });
+  });
+});
+
+describe('the outbox is scoped to the unlocked session', () => {
+  it('clear() empties the queue and tells the observers', async () => {
+    const q = new InMemorySyncQueue();
+    await q.enqueue(op('a', 1));
+    await q.enqueue(op('b', 2));
+    const state = watchState(q);
+    const plates = watchPlates(q);
+    await tick();
+    q.clear();
+    expect(await q.pending()).toEqual([]);
+    expect(state.seen.at(-1)).toEqual({ pending: 0, synced: 0, failed: 0 });
+    expect(plates.seen.at(-1)).toEqual([]);
+    // Still usable, and the same opId is new again.
+    expect((await q.enqueue(op('a', 1))).kind).toBe('enqueued');
+  });
+
+  it('is cleared on every unlocked -> not-unlocked transition and when an erase begins, not otherwise', async () => {
+    let status = 'locked';
+    const listeners = new Set<() => void>();
+    const source = {
+      subscribe: (l: () => void) => {
+        listeners.add(l);
+        return () => void listeners.delete(l);
+      },
+      getSnapshot: () => ({ status }),
+    };
+    const move = (next: string) => {
+      status = next;
+      for (const l of [...listeners]) l();
+    };
+    const queue = new InMemorySyncQueue();
+    const stop = scopeSyncQueueToSession(source, queue);
+
+    move('unlocked');
+    await queue.enqueue(op('a'));
+    move('unlocked'); // a snapshot change that is not a transition
+    expect(await queue.pending()).toHaveLength(1);
+    move('locked');
+    expect(await queue.pending()).toEqual([]);
+
+    // Erase from a locked store clears whatever is there, too.
+    await queue.enqueue(op('b'));
+    move('erasing');
+    expect(await queue.pending()).toEqual([]);
+
+    // Not scoped any more after unsubscribing.
+    stop();
+    move('unlocked');
+    await queue.enqueue(op('c'));
+    move('locked');
+    expect(await queue.pending()).toHaveLength(1);
   });
 });

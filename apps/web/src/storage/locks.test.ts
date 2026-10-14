@@ -27,8 +27,8 @@ describe('the Web Locks store lock', () => {
   it('uses the documented lock name with ifAvailable', async () => {
     const manager = new FakeLockManager();
     const handle = await new WebLocksStoreLock(manager).tryAcquire();
-    expect(manager.requested).toEqual([{ name: 'ai-nutrition-coach-store', ifAvailable: true }]);
-    expect(STORE_LOCK_NAME).toBe('ai-nutrition-coach-store');
+    expect(manager.requested).toEqual([{ name: 'anc-pwa-store', ifAvailable: true }]);
+    expect(STORE_LOCK_NAME).toBe('anc-pwa-store');
     handle?.release();
   });
 

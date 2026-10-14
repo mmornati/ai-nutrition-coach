@@ -54,6 +54,26 @@ describe('production parameters', () => {
     expect(DEFAULT_KDF_PARAMS).toEqual({ name: 'pbkdf2-hmac-sha256', iterations: 600_000 });
   });
 
+  it('wipes its copy of the passphrase once the key material is imported', async () => {
+    const seen: Uint8Array[] = [];
+    const real = globalThis.crypto.subtle;
+    const importKey = real.importKey.bind(real);
+    vi.spyOn(real, 'importKey').mockImplementation(((...args: Parameters<typeof importKey>) => {
+      seen.push(args[1] as Uint8Array);
+      return importKey(...args);
+    }) as typeof real.importKey);
+    const passphrase = utf8('correct horse');
+    await deriveKeyWithWebCrypto(passphrase, utf8('salt'), {
+      name: KDF_PBKDF2_SHA256,
+      iterations: 1,
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.every((b) => b === 0)).toBe(true);
+    // The caller's own buffer is the caller's to wipe.
+    expect(passphrase.some((b) => b !== 0)).toBe(true);
+    vi.restoreAllMocks();
+  });
+
   it('refuses an unknown KDF name', async () => {
     await expect(
       deriveKeyWithWebCrypto(utf8('p'), utf8('s'), { name: 'md5', iterations: 600_000 }),

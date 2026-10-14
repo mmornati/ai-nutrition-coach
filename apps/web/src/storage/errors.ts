@@ -43,7 +43,13 @@ export type UnavailableReason =
   /** The wasm engine could not be loaded (asset missing, blocked). */
   | 'engineMissing'
   /** Anything else the browser storage refused (blocked IndexedDB, quota, ...). */
-  | 'storage';
+  | 'storage'
+  /** localStorage or IndexedDB refused a READ (blocked cookies, a locked-down profile). */
+  | 'storageRefused'
+  /** The browser failed for a reason that may pass (WebKit "unknown transient reason"). */
+  | 'transient'
+  /** Another tab's worker holds the store's files right now. */
+  | 'inUse';
 
 export class StoreUnavailableError extends Error {
   readonly reason: UnavailableReason;
@@ -69,6 +75,17 @@ export class KeyValueStoreLocked extends Error {
   constructor() {
     super('KeyValueStoreLocked()');
     this.name = 'KeyValueStoreLocked';
+  }
+}
+
+/**
+ * The worker session is gone (locked, closed, or the worker died). Operations on it answer the
+ * same typed `webSessionKey` failure as a locked store, never a generic `storeOperation`.
+ */
+export class SessionClosedError extends Error {
+  constructor() {
+    super('SessionClosedError()');
+    this.name = 'SessionClosedError';
   }
 }
 
@@ -141,6 +158,7 @@ export function isProgrammingError(error: unknown): boolean {
  * A key or cipher problem is distinct from a generic storage error.
  */
 export function mapStoreError(error: unknown): StoreFailure {
+  if (error instanceof SessionClosedError) return LOCKED_FAILURE;
   if (error instanceof StoreOpenError) return storeFailure('secureKey');
   if (error instanceof SqliteCodeError) {
     return error.code === SQLITE_NOTADB || error.code === SQLITE_AUTH

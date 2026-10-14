@@ -4,7 +4,7 @@ import { createCsvExporter } from './csv-exporter';
 import type { ExportDeliveryOutcome, ExportDestination } from './export-destination';
 import { createExportHistory } from './export-history';
 import { createJsonExporter } from './json-exporter';
-import { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from './key-value';
+import { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from '../storage/key-value-store';
 import { createRunExport, exportFilename } from './run-export';
 import { FakeStore, entry, plate } from './testing';
 
@@ -28,10 +28,15 @@ function setup(
   };
   const data = new Map<string, string>();
   const kv: KeyValueStore = {
-    get: (k) => Promise.resolve(data.get(k) ?? null),
-    set: (k, v) => {
+    read: (k) => Promise.resolve(data.get(k) ?? null),
+    write: (k, v) => {
       if (opts.locked) return Promise.reject(new KeyValueStoreLocked());
       data.set(k, v);
+      return Promise.resolve();
+    },
+    delete: (k) => {
+      if (opts.locked) return Promise.reject(new KeyValueStoreLocked());
+      data.delete(k);
       return Promise.resolve();
     },
   };

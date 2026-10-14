@@ -23,10 +23,19 @@ describe('probeStorageAvailability', () => {
   it('is ok when a temporary file can be created, and it removes it again', async () => {
     const r = root();
     expect(await probeStorageAvailability({ secure: () => true, root: r.root })).toBe('ok');
-    expect(r.calls).toEqual([
-      'create .ai_nutrition_coach_probe',
-      'remove .ai_nutrition_coach_probe',
-    ]);
+    expect(r.calls).toEqual(['create .anc_pwa_probe', 'remove .anc_pwa_probe']);
+  });
+
+  it('a probe file that cannot be removed does not make the store unavailable', async () => {
+    const r = root({ remove: () => Promise.reject(new DOMException('busy', 'InvalidStateError')) });
+    expect(await probeStorageAvailability({ secure: () => true, root: r.root })).toBe('ok');
+    expect(r.calls).toHaveLength(2);
+  });
+
+  it('a failed creation leaves nothing to remove and never tries', async () => {
+    const r = root({ create: () => Promise.reject(new DOMException('x', 'UnknownError')) });
+    await probeStorageAvailability({ secure: () => true, root: r.root });
+    expect(r.calls).toEqual(['create .anc_pwa_probe']);
   });
 
   it('plain HTTP (no WebCrypto) is reported as such, touching nothing', async () => {

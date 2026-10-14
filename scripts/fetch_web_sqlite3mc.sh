@@ -30,7 +30,11 @@
 # To re-pin: change SQLITE3MC_VERSION / SQLITE3MC_SQLITE_VERSION, download the new zip, review
 # the release, compare its hash with the release's SHA256SUMS file, `shasum -a 256` it into
 # SQLITE3MC_ZIP_SHA256, then run the script once with SQLITE3MC_ALLOW_REPIN=1 to print the new
-# file pins and update them. Re-pinning is a conscious change reviewed in a pull request.
+# file pins and update them. In that mode the script ALWAYS exits non-zero when the files do not
+# match the current pins (and removes any output directory), so a human has to update the pins
+# before a build can pass; re-pinning is a conscious change reviewed in a pull request.
+#
+#   scripts/fetch_web_sqlite3mc.sh --self-test   offline check of the pin-mismatch handling
 # ───────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -54,6 +58,54 @@ sha256_of() {
     shasum -a 256 "$1" | cut -d' ' -f1
   fi
 }
+
+# Compare the extracted files' hashes with the pins. A mismatch always fails; with
+# SQLITE3MC_ALLOW_REPIN=1 it first prints the new hashes (for the human to paste into the pins)
+# and removes $OUT, so nothing unverified can be served.
+check_pins() {
+  local mjs="$1" wasm="$2"
+  if [[ "${SQLITE3MC_ALLOW_REPIN:-0}" == "1" ]]; then
+    echo "  SQLITE3MC_MJS_SHA256=\"$mjs\""
+    echo "  SQLITE3MC_WASM_SHA256=\"$wasm\""
+  fi
+  if [[ "$mjs" != "$SQLITE3MC_MJS_SHA256" || "$wasm" != "$SQLITE3MC_WASM_SHA256" ]]; then
+    if [[ "${SQLITE3MC_ALLOW_REPIN:-0}" == "1" ]]; then
+      rm -rf "$OUT"
+      echo "✗ SQLITE3MC_ALLOW_REPIN=1: the files differ from the current pins. Update the pins above" >&2
+      echo "  in this script (and review the release), then run it again without the flag." >&2
+      exit 1
+    fi
+    echo "✗ sqlite3mc sqlite3.mjs / sqlite3.wasm checksum mismatch after extraction" >&2
+    echo "  mjs  expected $SQLITE3MC_MJS_SHA256 actual $mjs" >&2
+    echo "  wasm expected $SQLITE3MC_WASM_SHA256 actual $wasm" >&2
+    exit 1
+  fi
+}
+
+# Offline self-test of check_pins (run by `pnpm verify`).
+if [[ "${1:-}" == "--self-test" ]]; then
+  ST="$(mktemp -d)"
+  trap 'rm -rf "$ST"' EXIT
+  fail_test() { echo "✗ fetch_web_sqlite3mc self-test: $1" >&2; exit 1; }
+  OUT="$ST/out"
+  mkdir -p "$OUT"; echo x > "$OUT/sqlite3.mjs"
+  # matching pins: passes, output kept
+  ( check_pins "$SQLITE3MC_MJS_SHA256" "$SQLITE3MC_WASM_SHA256" ) >/dev/null 2>&1 \
+    || fail_test "matching pins must pass"
+  [[ -d "$OUT" ]] || fail_test "matching pins must keep the output"
+  # mismatch: fails
+  if ( check_pins "bad" "$SQLITE3MC_WASM_SHA256" ) >/dev/null 2>&1; then fail_test "a mismatch must fail"; fi
+  # mismatch in repin mode: prints the hashes, removes the output and STILL fails
+  printed="$(SQLITE3MC_ALLOW_REPIN=1 bash -c '
+    set -uo pipefail
+    SQLITE3MC_MJS_SHA256='"$SQLITE3MC_MJS_SHA256"'; SQLITE3MC_WASM_SHA256='"$SQLITE3MC_WASM_SHA256"'; OUT='"$OUT"'
+    '"$(declare -f check_pins)"'
+    check_pins newmjs newwasm' 2>/dev/null)" && fail_test "a repin mismatch must exit non-zero"
+  [[ "$printed" == *'SQLITE3MC_MJS_SHA256="newmjs"'* ]] || fail_test "repin must print the new hashes"
+  [[ ! -e "$OUT" ]] || fail_test "a repin mismatch must remove the output directory"
+  echo "✓ fetch_web_sqlite3mc self-test OK"
+  exit 0
+fi
 
 # Drop other versions so a stale engine is never shipped.
 if [[ -d "$OUT_BASE" ]]; then
@@ -90,17 +142,7 @@ unzip -q -j "$TMP/sqlite3mc.zip" \
 
 MJS="$(sha256_of "$TMP/x/sqlite3.mjs")"
 WASM="$(sha256_of "$TMP/x/sqlite3.wasm")"
-if [[ "${SQLITE3MC_ALLOW_REPIN:-0}" == "1" ]]; then
-  echo "  SQLITE3MC_MJS_SHA256=\"$MJS\""
-  echo "  SQLITE3MC_WASM_SHA256=\"$WASM\""
-fi
-if [[ "$MJS" != "$SQLITE3MC_MJS_SHA256" || "$WASM" != "$SQLITE3MC_WASM_SHA256" ]]; then
-  [[ "${SQLITE3MC_ALLOW_REPIN:-0}" == "1" ]] && exit 0
-  echo "✗ sqlite3mc sqlite3.mjs / sqlite3.wasm checksum mismatch after extraction" >&2
-  echo "  mjs  expected $SQLITE3MC_MJS_SHA256 actual $MJS" >&2
-  echo "  wasm expected $SQLITE3MC_WASM_SHA256 actual $WASM" >&2
-  exit 1
-fi
+check_pins "$MJS" "$WASM"
 
 mkdir -p "$OUT"
 cp "$TMP/x/sqlite3.mjs" "$OUT/sqlite3.mjs"

@@ -32,7 +32,7 @@ async function unlockedStore(): Promise<StoreBundle> {
     ],
   });
   stack.storage.write(LOCK_IDLE_MINUTES_KEY, '30');
-  stack.storage.write('ai_nutrition_coach.web.leftover', 'x');
+  stack.storage.write('anc.pwa.web.leftover', 'x');
   stack.storage.write('someone.else', 'keep');
   return bundle;
 }
@@ -53,6 +53,17 @@ describe('WebLocalDataEraser', () => {
     expect(bundle.controller.database()).toBeNull();
     expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
     expect(stack.lock.isHeld).toBe(false);
+    bundle.dispose();
+  });
+
+  it('deletes only the new app names: the old Flutter web build on the same origin is left alone', async () => {
+    const bundle = await unlockedStore();
+    stack.storage.write('ai_nutrition_coach.web.store.meta', 'old header');
+    stack.storage.write('ai_nutrition_coach.web.lock.idleMinutes', '30');
+    expect((await bundle.eraser.eraseAll()).kind).toBe('eraseLocalDataSuccess');
+    expect(stack.storage.read('ai_nutrition_coach.web.store.meta')).toBe('old header');
+    expect(stack.storage.read('ai_nutrition_coach.web.lock.idleMinutes')).toBe('30');
+    expect(stack.storage.read(STORE_META_KEY)).toBeNull();
     bundle.dispose();
   });
 
@@ -81,7 +92,7 @@ describe('WebLocalDataEraser', () => {
       eraseResultEquals(result, { kind: 'eraseLocalDataFailure', failedSteps: ['databaseFiles'] }),
     ).toBe(true);
     // The independent step still ran.
-    expect(stack.storage.read('ai_nutrition_coach.web.leftover')).toBeNull();
+    expect(stack.storage.read('anc.pwa.web.leftover')).toBeNull();
     // Data first, then header: a half-finished erase leaves a database that is still recoverable.
     expect(await memfsFileExists(stack.filename)).toBe(true);
     expect(stack.headerCopy.value).not.toBeNull();

@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { STORE_OP_NAMES } from './ops';
 import { OPFS_POOL_DIRECTORY } from './constants';
-import { StoreOperationError, StoreUnavailableError } from './errors';
+import { SessionClosedError, StoreUnavailableError } from './errors';
 import { InMemoryHeaderCopy } from './header-copy';
 import {
   OpfsPoolDirectory,
@@ -65,6 +65,31 @@ describe('WorkerSession', () => {
     await expect(pending).rejects.toMatchObject({ reason: 'engineMissing' });
   });
 
+  it('a worker error kills the session: terminated, later requests are session-closed, the owner is told', async () => {
+    const port = new FakePort();
+    port.auto = null;
+    const session = new WorkerSession(() => port);
+    const lost = vi.fn();
+    session.onLost = lost;
+    port.onerror?.(new Event('error'));
+    port.onerror?.(new Event('error')); // only once
+    expect(session.isDead).toBe(true);
+    expect(port.terminated).toBe(true);
+    expect(lost).toHaveBeenCalledTimes(1);
+    await expect(session.request((id) => ({ id, type: 'close' }))).rejects.toBeInstanceOf(
+      SessionClosedError,
+    );
+  });
+
+  it('a deliberate terminate does not report a lost worker', () => {
+    const port = new FakePort();
+    const session = new WorkerSession(() => port);
+    const lost = vi.fn();
+    session.onLost = lost;
+    session.terminate();
+    expect(lost).not.toHaveBeenCalled();
+  });
+
   it('terminate stops the worker, rejects what is pending and refuses new requests', async () => {
     const port = new FakePort();
     port.auto = null;
@@ -73,9 +98,9 @@ describe('WorkerSession', () => {
     session.terminate();
     session.terminate(); // idempotent
     expect(port.terminated).toBe(true);
-    await expect(pending).rejects.toBeInstanceOf(StoreOperationError);
+    await expect(pending).rejects.toBeInstanceOf(SessionClosedError);
     await expect(session.request((id) => ({ id, type: 'close' }))).rejects.toBeInstanceOf(
-      StoreOperationError,
+      SessionClosedError,
     );
   });
 
@@ -223,10 +248,16 @@ type Tree = { [name: string]: Tree | number };
 
 function fakeDirectory(
   tree: Tree,
-  hooks: { removeError?: () => unknown } = {},
+  hooks: {
+    removeError?: () => unknown;
+    getDirectoryError?: () => unknown;
+    getFileError?: () => unknown;
+  } = {},
 ): DirectoryHandleLike {
   const make = (node: Tree): DirectoryHandleLike => ({
     getDirectoryHandle: async (name) => {
+      const refusal = hooks.getDirectoryError?.();
+      if (refusal !== undefined) throw refusal;
       const child = node[name];
       if (child === undefined || typeof child === 'number') {
         throw new DOMException('not found', 'NotFoundError');
@@ -243,7 +274,15 @@ function fakeDirectory(
       for (const [name, child] of Object.entries(node)) {
         const handle: EntryHandleLike =
           typeof child === 'number'
-            ? { kind: 'file', getFile: () => Promise.resolve({ size: child }) }
+            ? {
+                kind: 'file',
+                getFile: () => {
+                  const refusal = hooks.getFileError?.();
+                  return refusal === undefined
+                    ? Promise.resolve({ size: child })
+                    : Promise.reject(refusal);
+                },
+              }
             : { kind: 'directory', entries: () => make(child).entries() };
         yield [name, handle] as [string, EntryHandleLike];
       }
@@ -254,6 +293,24 @@ function fakeDirectory(
 
 describe('OpfsPoolDirectory', () => {
   const sleep = () => Promise.resolve();
+
+  it('a failure to inspect is a typed, retryable "unavailable", never "no store" and never a raw throw', async () => {
+    const tree: Tree = { [OPFS_POOL_DIRECTORY]: { x: 9000 } };
+    const transient = fakeDirectory(tree, {
+      getDirectoryError: () => new DOMException('unknown transient reason', 'UnknownError'),
+    });
+    await expect(
+      new OpfsPoolDirectory(() => Promise.resolve(transient), { sleep }).exists(),
+    ).rejects.toMatchObject({ name: 'StoreUnavailableError', reason: 'transient' });
+
+    // Another tab's worker holds the files: getFile fails with an InvalidState/NoModification error.
+    const busy = fakeDirectory(tree, {
+      getFileError: () => new DOMException('held', 'NoModificationAllowedError'),
+    });
+    await expect(
+      new OpfsPoolDirectory(() => Promise.resolve(busy), { sleep }).exists(),
+    ).rejects.toMatchObject({ name: 'StoreUnavailableError', reason: 'inUse' });
+  });
 
   it('there is no store when the pool directory does not exist', async () => {
     const dir = new OpfsPoolDirectory(() => Promise.resolve(fakeDirectory({})), { sleep });

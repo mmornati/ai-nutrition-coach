@@ -105,9 +105,7 @@ test('the key never reaches any browser storage and the header is the documented
   await initialize(page);
   await create(page);
   await page.evaluate(() => window.__harness.kv.write('ai.byokKey', 'sk-live-marker-1234567890'));
-  const header = await page.evaluate(() =>
-    localStorage.getItem('ai_nutrition_coach.web.store.meta'),
-  );
+  const header = await page.evaluate(() => localStorage.getItem('anc.pwa.store.meta'));
   const parsed = JSON.parse(header ?? '{}') as Record<string, unknown>;
   expect(parsed).toMatchObject({
     v: 1,
@@ -125,7 +123,7 @@ test('the key never reaches any browser storage and the header is the documented
   const copy = await page.evaluate(
     () =>
       new Promise<string | null>((resolve, reject) => {
-        const req = indexedDB.open('ai_nutrition_coach_header_v1');
+        const req = indexedDB.open('anc_pwa_header_v1');
         req.onerror = () => reject(new Error('open failed'));
         req.onsuccess = () => {
           const get = req.result.transaction('kv').objectStore('kv').get('header');
@@ -189,8 +187,8 @@ test('erase removes every byte: OPFS, the IndexedDB header copy and the localSto
   await lock(page);
   const before = await page.evaluate(() => window.__harness.everythingPersisted());
   expect(before.opfsRoot.length).toBeGreaterThan(0);
-  expect(before.indexedDb).toContain('ai_nutrition_coach_header_v1');
-  expect(before.localStorage).toContain('ai_nutrition_coach.web.store.meta');
+  expect(before.indexedDb).toContain('anc_pwa_header_v1');
+  expect(before.localStorage).toContain('anc.pwa.store.meta');
 
   expect(await page.evaluate(() => window.__harness.eraser.eraseAll())).toEqual({
     kind: 'eraseLocalDataSuccess',

@@ -15,6 +15,13 @@ function defaultEnv(): WebExportEnv {
   };
 }
 
+/**
+ * The object URL must outlive the click: some browsers (notably Safari and iOS) start the
+ * download asynchronously and would read a revoked blob. Revoking after a generous delay still
+ * frees the memory.
+ */
+export const REVOKE_OBJECT_URL_DELAY_MS = 60_000;
+
 function download(env: WebExportEnv, blob: Blob, filename: string): void {
   const href = env.url.createObjectURL(blob);
   const anchor = env.document.createElement('a');
@@ -24,7 +31,7 @@ function download(env: WebExportEnv, blob: Blob, filename: string): void {
   env.document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  env.url.revokeObjectURL(href);
+  setTimeout(() => env.url.revokeObjectURL(href), REVOKE_OBJECT_URL_DELAY_MS);
 }
 
 /**

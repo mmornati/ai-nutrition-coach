@@ -9,6 +9,7 @@ import { DATABASE_FILENAME } from '../constants';
 import { attachKeyAndVerify } from '../attach-key';
 import { SQLITE_NOTADB, StoreOpenError, StoreUnavailableError } from '../errors';
 import {
+  KDF_MAX_ITERATIONS,
   KDF_MIN_ITERATIONS,
   KDF_PBKDF2_SHA256,
   SESSION_KEY_BYTES,
@@ -81,8 +82,12 @@ export class StoreEngine {
     try {
       if (this.ops) throw new StoreOpenError('invalidKey');
       const floor = this.deps.minIterations ?? KDF_MIN_ITERATIONS;
-      if (request.kdf.name !== KDF_PBKDF2_SHA256 || request.kdf.iterations < floor) {
-        // A downgraded parameter set is refused here too, not only when the header is parsed.
+      if (
+        request.kdf.name !== KDF_PBKDF2_SHA256 ||
+        request.kdf.iterations < floor ||
+        request.kdf.iterations > KDF_MAX_ITERATIONS
+      ) {
+        // A downgraded (or absurdly expensive) parameter set is refused here too, not only when the header is parsed.
         throw new StoreOpenError('invalidKey');
       }
       const sqlite3 = await this.loadEngine(request.engineUrl);

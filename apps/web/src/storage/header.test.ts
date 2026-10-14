@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { base64UrlEncode } from './bytes';
 import { STORE_FORMAT_VERSION } from './constants';
 import { createStoreMeta, encodeStoreMeta, parseStoreMeta, PASSPHRASE_ENCODING } from './header';
-import { DEFAULT_KDF_PARAMS, KDF_ITERATIONS, KDF_PBKDF2_SHA256 } from './kdf';
+import { DEFAULT_KDF_PARAMS, KDF_ITERATIONS, KDF_MAX_ITERATIONS, KDF_PBKDF2_SHA256 } from './kdf';
 
 const salt = (length = 16) => Uint8Array.from({ length }, (_, i) => i + 1);
 
@@ -62,6 +62,7 @@ describe('the store header', () => {
     ['an unknown KDF', JSON.stringify({ ...good, kdf: 'md5' })],
     ['a short salt', JSON.stringify({ ...good, salt: base64UrlEncode(salt(4)) })],
     ['downgraded iterations', JSON.stringify({ ...good, iter: 1000 })],
+    ['an absurdly expensive iteration count', JSON.stringify({ ...good, iter: 10_000_001 })],
     ['fractional iterations', JSON.stringify({ ...good, iter: 600_000.5 })],
     ['a string iteration count', JSON.stringify({ ...good, iter: '600000' })],
     ['a different passphrase encoding', JSON.stringify({ ...good, pw: 'utf8' })],
@@ -70,6 +71,11 @@ describe('the store header', () => {
     ['a truncated document', '{"v":1'],
   ])('refuses %s', (_name, raw) => {
     expect(parseStoreMeta(raw)).toEqual({ kind: 'invalid' });
+  });
+
+  it('accepts the upper bound itself', () => {
+    const top = JSON.stringify({ ...good, iter: KDF_MAX_ITERATIONS });
+    expect(parseStoreMeta(top).kind).toBe('present');
   });
 
   it('honours an injected floor (tests use a cheap one)', () => {

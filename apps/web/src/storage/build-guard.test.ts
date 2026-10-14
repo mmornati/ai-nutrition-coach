@@ -53,7 +53,7 @@ describe('a production bundle of createAppStore()', () => {
     const { names, code } = await productionBundle();
     expect(code).toContain('sqlite3mc/');
     expect(code).toContain('WorkerStoreBackend');
-    expect(code).toContain('ai-nutrition-coach-store');
+    expect(code).toContain('anc-pwa-store');
     expect(names.some((n) => /store\.worker/.test(n))).toBe(true);
   }, 60_000);
 });

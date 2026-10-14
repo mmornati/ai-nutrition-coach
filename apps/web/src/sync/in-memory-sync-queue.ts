@@ -79,6 +79,17 @@ export class InMemorySyncQueue implements SyncQueue {
     return this.mark(opId, 'failed');
   }
 
+  /**
+   * Drops every op and tells the observers (an empty queue). Called when the unlocked session
+   * ends (lock) and on erase: the outbox never outlives the session it belongs to
+   * (see `scopeSyncQueueToSession`). Subscriptions stay.
+   */
+  clear(): void {
+    this.byOpId.clear();
+    this.byPlate.clear();
+    this.emit();
+  }
+
   /** Stops every subscription. */
   dispose(): void {
     this.stateObservers.clear();

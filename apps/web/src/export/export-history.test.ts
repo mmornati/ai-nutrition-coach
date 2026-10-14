@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { createExportHistory } from './export-history';
 import { createExportReminder } from './export-reminder';
-import { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from './key-value';
+import { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from '../storage/key-value-store';
 
 class MemoryKv implements KeyValueStore {
   readonly data = new Map<string, string>();
   locked = false;
-  get(key: string): Promise<string | null> {
+  read(key: string): Promise<string | null> {
     return Promise.resolve(this.locked ? null : (this.data.get(key) ?? null));
   }
-  set(key: string, value: string): Promise<void> {
+  write(key: string, value: string): Promise<void> {
     if (this.locked) return Promise.reject(new KeyValueStoreLocked());
     this.data.set(key, value);
+    return Promise.resolve();
+  }
+  delete(key: string): Promise<void> {
+    if (this.locked) return Promise.reject(new KeyValueStoreLocked());
+    this.data.delete(key);
     return Promise.resolve();
   }
 }
@@ -43,13 +48,39 @@ describe('ExportHistory', () => {
 
   it('a throwing read or unparsable value reads as unknown', async () => {
     const throwing: KeyValueStore = {
-      get: () => Promise.reject(new Error('boom')),
-      set: () => Promise.reject(new Error('boom')),
+      read: () => Promise.reject(new Error('boom')),
+      write: () => Promise.reject(new Error('boom')),
+      delete: () => Promise.reject(new Error('boom')),
     };
     expect(await createExportHistory(throwing).lastExportAt()).toBeUndefined();
     const kv = new MemoryKv();
     kv.data.set(KV_KEYS.exportLastAtUtc, 'not a date');
     expect(await createExportHistory(kv).lastExportAt()).toBeUndefined();
+  });
+
+  it('serialises read-modify-write: concurrent records cannot let an older date win', async () => {
+    // A store whose reads are slow: without the mutex both calls would read "nothing" and the
+    // later write (the OLDER date) would win.
+    class SlowKv extends MemoryKv {
+      override async read(key: string): Promise<string | null> {
+        const value = await super.read(key);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return value;
+      }
+      override async write(key: string, value: string): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await super.write(key, value);
+      }
+    }
+    const kv = new SlowKv();
+    const h = createExportHistory(kv);
+    await Promise.all([h.record(T + DAY), h.record(T)]);
+    expect(await h.lastExportAt()).toBe(T + DAY);
+    // And the same in the other order.
+    const kv2 = new SlowKv();
+    const h2 = createExportHistory(kv2);
+    await Promise.all([h2.record(T), h2.record(T + DAY)]);
+    expect(await h2.lastExportAt()).toBe(T + DAY);
   });
 
   it('keeps only the dates: exactly the two keys, no counter', async () => {

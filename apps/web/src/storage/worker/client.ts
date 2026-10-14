@@ -5,7 +5,12 @@
 // handles (so another tab can take over) and frees the wasm heap the key lived in.
 
 import { OPFS_POOL_DIRECTORY } from '../constants';
-import { fromWireError, StoreOperationError, StoreUnavailableError } from '../errors';
+import {
+  fromWireError,
+  SessionClosedError,
+  StoreOperationError,
+  StoreUnavailableError,
+} from '../errors';
 import type { HeaderCopyStore } from '../header-copy';
 import { STORE_OP_NAMES, type StoreDb, type StoreOpName } from '../ops';
 import type { OpenRequest, StoreBackend } from '../backend';
@@ -30,6 +35,11 @@ export class WorkerSession {
   private readonly pending = new Map<number, Pending>();
   private nextId = 1;
   private dead = false;
+  /**
+   * Called once when the worker dies on its own (a load failure, a crash, an unreadable message).
+   * Not called for a deliberate `terminate`.
+   */
+  onLost: (() => void) | null = null;
 
   constructor(factory: WorkerFactory) {
     this.port = factory();
@@ -41,15 +51,16 @@ export class WorkerSession {
       if (response.ok) entry.resolve(response.result);
       else entry.reject(fromWireError(response.error));
     };
-    // A worker that fails to load (blocked by CSP, script missing) is an unusable store, never a
-    // wrong passphrase.
-    const failAll = () => this.failAll(new StoreUnavailableError('engineMissing'));
-    this.port.onerror = failAll;
-    this.port.onmessageerror = failAll;
+    // A worker that fails to load (blocked by CSP, script missing) or dies later is an unusable
+    // store, never a wrong passphrase. Either way the session is dead for good: later requests
+    // answer `SessionClosedError` (the locked failure) and the owner is told to lock.
+    const lost = () => this.lose(new StoreUnavailableError('engineMissing'));
+    this.port.onerror = lost;
+    this.port.onmessageerror = lost;
   }
 
   request(build: (id: number) => WorkerRequest, transfer: Transferable[] = []): Promise<unknown> {
-    if (this.dead) return Promise.reject(new StoreOperationError());
+    if (this.dead) return Promise.reject(new SessionClosedError());
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -62,12 +73,29 @@ export class WorkerSession {
     });
   }
 
+  get isDead(): boolean {
+    return this.dead;
+  }
+
   terminate(): void {
     if (this.dead) return;
     this.dead = true;
     this.port.onmessage = null;
     this.port.terminate();
-    this.failAll(new StoreOperationError());
+    this.failAll(new SessionClosedError());
+  }
+
+  private lose(error: Error): void {
+    if (this.dead) return;
+    this.dead = true;
+    this.port.onmessage = null;
+    try {
+      this.port.terminate();
+    } catch {
+      // Already gone.
+    }
+    this.failAll(error);
+    this.onLost?.();
   }
 
   private failAll(error: Error): void {
@@ -115,6 +143,10 @@ const isStillLocked = (e: unknown) =>
   e instanceof DOMException &&
   (e.name === 'NoModificationAllowedError' || e.name === 'InvalidStateError');
 
+function inspectionFailure(error: unknown): StoreUnavailableError {
+  return new StoreUnavailableError(isStillLocked(error) ? 'inUse' : 'transient');
+}
+
 export class OpfsPoolDirectory implements PoolDirectory {
   constructor(
     private readonly root: () => Promise<DirectoryHandleLike> = () =>
@@ -137,14 +169,21 @@ export class OpfsPoolDirectory implements PoolDirectory {
    * died mid-create) is therefore a first run, not an orphan.
    */
   async exists(): Promise<boolean> {
+    // A failure to INSPECT is never "no store" and never "lost": it is a typed, retryable
+    // `StoreUnavailableError` (another tab's worker holds the files, or the browser failed for a
+    // reason that may pass).
     let dir: DirectoryHandleLike;
     try {
       dir = await (await this.root()).getDirectoryHandle(this.name);
     } catch (error) {
       if (isNotFound(error)) return false;
-      throw error;
+      throw inspectionFailure(error);
     }
-    return hasDataFile(dir);
+    try {
+      return await hasDataFile(dir);
+    } catch (error) {
+      throw inspectionFailure(error);
+    }
   }
 
   async remove(): Promise<void> {
@@ -193,8 +232,13 @@ export interface WorkerBackendOptions {
 
 export class WorkerStoreBackend implements StoreBackend {
   private session: WorkerSession | null = null;
+  private lostListener: (() => void) | null = null;
 
   constructor(private readonly options: WorkerBackendOptions) {}
+
+  onSessionLost(listener: () => void): void {
+    this.lostListener = listener;
+  }
 
   exists(): Promise<boolean> {
     return this.options.pool.exists();
@@ -231,6 +275,10 @@ export class WorkerStoreBackend implements StoreBackend {
       throw error;
     }
     this.session = session;
+    session.onLost = () => {
+      if (this.session === session) this.session = null;
+      this.lostListener?.();
+    };
     return remoteStoreDb(session, () => this.closeSession());
   }
 

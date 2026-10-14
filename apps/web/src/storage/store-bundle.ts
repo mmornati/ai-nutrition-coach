@@ -6,6 +6,7 @@ import type { CoachNoteStore, EncryptedStore, LocalDataEraser } from '@anc/core'
 import { attachAutoLock } from './auto-lock';
 import type { StoreBackend } from './backend';
 import { ChangeBus } from './change-bus';
+import { STORE_WORKER_NAME } from './constants';
 import { engineBasePath } from './engine-pin';
 import { IndexedDbHeaderCopy } from './header-copy';
 import { DatabaseKeyValueStore, type KeyValueStore } from './key-value-store';
@@ -63,7 +64,7 @@ export function createBrowserStoreBundle(overrides: Partial<AssembleOptions> = {
     workerFactory: () =>
       new Worker(new URL('./worker/store.worker.ts', import.meta.url), {
         type: 'module',
-        name: 'ai-nutrition-coach-store',
+        name: STORE_WORKER_NAME,
       }) as unknown as WorkerPort,
     headerCopy: new IndexedDbHeaderCopy(),
     pool: new OpfsPoolDirectory(),

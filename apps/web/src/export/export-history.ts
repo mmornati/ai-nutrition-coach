@@ -1,5 +1,6 @@
 import type { EpochMs } from '@anc/core';
-import { KV_KEYS, type KeyValueStore } from './key-value';
+import { AsyncMutex } from '../storage/async-mutex';
+import { KV_KEYS, type KeyValueStore } from '../storage/key-value-store';
 
 function parseInstant(raw: string | null): EpochMs | undefined {
   if (raw === null) return undefined;
@@ -23,18 +24,24 @@ export interface ExportHistory {
 export function createExportHistory(kv: KeyValueStore): ExportHistory {
   const read = async (key: string): Promise<EpochMs | undefined> => {
     try {
-      return parseInstant(await kv.get(key));
+      return parseInstant(await kv.read(key));
     } catch {
       return undefined;
     }
   };
-  const write = async (key: string, at: EpochMs): Promise<void> => {
-    try {
-      await kv.set(key, new Date(at).toISOString());
-    } catch {
-      // The file was written; only the reminder date is lost.
-    }
-  };
+  // Recording is read-modify-write (a date never moves backwards), over a store with no
+  // cross-call transactions: two exports finishing together must not let the older date win.
+  const mutex = new AsyncMutex();
+  const write = (key: string, at: EpochMs): Promise<void> =>
+    mutex.synchronized(async () => {
+      try {
+        const current = parseInstant(await kv.read(key));
+        if (current !== undefined && current >= at) return;
+        await kv.write(key, new Date(at).toISOString());
+      } catch {
+        // The file was written; only the reminder date is lost.
+      }
+    });
   return {
     lastExportAt: () => read(KV_KEYS.exportLastAtUtc),
     record: (at) => write(KV_KEYS.exportLastAtUtc, at),

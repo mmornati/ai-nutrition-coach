@@ -2,8 +2,15 @@
 //
 //   checking -> needsPassphraseCreation --createStore--> unlocked
 //            -> locked                  --unlock-------> unlocked
-//            -> needsReset (header unreadable / data missing) -> erase
-//   unlocked --lock / idle / page hidden--> locked
+//            -> unavailable (browser storage cannot be used or read right now) -> retry
+//            -> needsReset (header corrupt / data orphaned or missing) -> erase
+//   unlocked --lock / idle / page hidden / worker died--> locked
+//
+// `unavailable` and `needsReset` are different things and never share an exit: a READ that fails
+// (localStorage throws, IndexedDB blocked, OPFS in a transient state or held by another tab) says
+// nothing about the data, so it only ever offers "try again". Only content that is positively
+// bad (a corrupt header, database bytes with no header, a header whose data is gone) reaches
+// `needsReset`, whose one exit is the explicit erase.
 //
 // It owns the three things that must never drift apart: the persisted header (salt + KDF
 // parameters + format version), the keyed database (through the injected `StoreBackend`) and the
@@ -16,7 +23,8 @@
 //     wrong passphrase can never open the store: sqlite3mc's page decryption fails, so there is no
 //     "any passphrase works" path and nothing is written.
 //   - The header is written only after a creation succeeded; a returning user whose data is gone
-//     gets `needsReset`, never a fresh empty store.
+//     gets `needsReset`, never a fresh empty store. A store that cannot be INSPECTED is
+//     `unavailable`, never `needsReset` and never a first run.
 //   - `lock` flips the status and drops the database handle BEFORE awaiting the close, so the UI
 //     never shows data after a lock; closing terminates the worker (frees the key's wasm heap).
 //     The docs never claim forensic erasure from RAM.
@@ -32,7 +40,7 @@ import {
 import type { StoreBackend } from './backend';
 import { wipe } from './bytes';
 import { requestDurableStorage, type DurableStorage } from './durable-storage';
-import { classifyOpenError, type UnavailableReason } from './errors';
+import { classifyOpenError, StoreUnavailableError, type UnavailableReason } from './errors';
 import {
   createStoreMeta,
   encodeStoreMeta,
@@ -57,6 +65,7 @@ import {
   type PassphraseIssue,
 } from './passphrase';
 import type { StoreSource } from './store-source';
+import { probeStorageAvailability, type StorageAvailability } from './storage-probe';
 
 /** Where the store is in its lifecycle. */
 export type StoreStatus =
@@ -68,7 +77,16 @@ export type StoreStatus =
   | 'locked'
   /** Key verified, database open. */
   | 'unlocked'
-  /** The header is unreadable or the data is gone; the only way forward is the explicit erase. */
+  /**
+   * The browser cannot use (or right now cannot read) its storage: no OPFS, plain HTTP, a refused
+   * localStorage / IndexedDB read, an OPFS hiccup, another tab holding the files. Says nothing
+   * about the data. The way forward is `retry()`; erase is NOT offered.
+   */
+  | 'unavailable'
+  /**
+   * The header is corrupt, or database bytes exist with no header, or the header's data is gone;
+   * the only way forward is the explicit erase.
+   */
   | 'needsReset'
   /** An erase is in progress. */
   | 'erasing';
@@ -97,6 +115,8 @@ export type UnlockOutcome =
 export interface StoreSnapshot {
   readonly status: StoreStatus;
   readonly idleMinutes: number;
+  /** Why the status is `unavailable`; `null` in every other status. */
+  readonly unavailableReason: UnavailableReason | null;
   /** The browser's answer to the one-time durable-storage request. */
   readonly durable: DurableStorage | 'unknown';
 }
@@ -114,6 +134,11 @@ export interface StoreControllerDeps {
   /** Defaults to WebCrypto being present (a secure context). */
   readonly isSecureContext?: () => boolean;
   readonly requestDurable?: () => Promise<DurableStorage>;
+  /**
+   * Can this browser run the store at all? `initialize` asks first. Defaults to the real OPFS
+   * probe (honouring `isSecureContext`); tests and the in-memory dev store pass `'ok'`.
+   */
+  readonly probe?: () => Promise<StorageAvailability>;
 }
 
 function clampIdleMinutes(minutes: number): number {
@@ -137,8 +162,10 @@ export class StoreController implements StoreSource {
   private readonly hiddenLockMs: number;
   private readonly secure: () => boolean;
   private readonly askDurable: () => Promise<DurableStorage>;
+  private readonly probe: () => Promise<StorageAvailability>;
 
   private status: StoreStatus = 'checking';
+  private unavailableReason: UnavailableReason | null = null;
   private meta: StoreMeta | null = null;
   private db: StoreDb | null = null;
   private lockHandle: StoreLockHandle | null = null;
@@ -171,6 +198,11 @@ export class StoreController implements StoreSource {
     this.idleMinutes = clampIdleMinutes(deps.idleMinutes ?? DEFAULT_IDLE_MINUTES);
     this.secure = deps.isSecureContext ?? isSecureCryptoAvailable;
     this.askDurable = deps.requestDurable ?? (() => requestDurableStorage());
+    this.probe = deps.probe ?? (() => probeStorageAvailability({ secure: this.secure }));
+    // A worker that dies on its own while unlocked locks the store (typed locked failures).
+    this.backend.onSessionLost?.(() => {
+      if (this.status === 'unlocked') void this.lock();
+    });
     this.snapshot = this.makeSnapshot();
   }
 
@@ -202,6 +234,7 @@ export class StoreController implements StoreSource {
     return Object.freeze({
       status: this.status,
       idleMinutes: this.idleMinutes,
+      unavailableReason: this.unavailableReason,
       durable: this.durable,
     });
   }
@@ -215,22 +248,42 @@ export class StoreController implements StoreSource {
   // ── lifecycle ────────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Read the persisted header and settle the status. Safe to call again (e.g. after an erase): it
-   * re-derives everything from storage.
+   * Read the persisted header and settle the status. Safe to call again (e.g. after an erase or a
+   * retry): it re-derives everything from storage. It runs the availability probe itself first.
    */
   async initialize(): Promise<void> {
     await this.teardown();
+    if (this.status === 'unavailable') {
+      // A retry: show the checking state again rather than the stale reason.
+      this.status = 'checking';
+      this.unavailableReason = null;
+      this.notify();
+    }
+    const availability = await this.safeProbe();
+    if (availability !== 'ok') {
+      this.settleUnavailable(availability);
+      return;
+    }
     let read: StoreMetaRead;
     try {
       const minutes = Number.parseInt(this.storage.read(LOCK_IDLE_MINUTES_KEY) ?? '', 10);
       if (Number.isFinite(minutes) && minutes > 0) this.idleMinutes = clampIdleMinutes(minutes);
       read = parseStoreMeta(this.storage.read(STORE_META_KEY), this.minIterations);
-      if (read.kind === 'absent') read = await this.recoverMissingHeader();
     } catch {
-      // Storage refused a read. Do NOT treat that as "first run": the create flow must never run
-      // over data it cannot see.
-      read = { kind: 'invalid' };
+      // Storage refused a read. Not a first run (the create flow must never run over data it
+      // cannot see) and not a lost store either: the data is untouched, so only "try again".
+      this.settleUnavailable('storageRefused');
+      return;
     }
+    if (read.kind === 'absent') {
+      try {
+        read = await this.recoverMissingHeader();
+      } catch (error) {
+        this.settleUnavailable(error instanceof StoreUnavailableError ? error.reason : 'transient');
+        return;
+      }
+    }
+    this.unavailableReason = null;
     switch (read.kind) {
       case 'absent':
         this.meta = null;
@@ -248,21 +301,62 @@ export class StoreController implements StoreSource {
     this.notify();
   }
 
+  /** The probe must never throw: anything unexpected is a browser that cannot run the store. */
+  private async safeProbe(): Promise<StorageAvailability> {
+    try {
+      return await this.probe();
+    } catch {
+      return 'noOpfs';
+    }
+  }
+
+  private settleUnavailable(reason: UnavailableReason): void {
+    this.meta = null;
+    this.status = 'unavailable';
+    this.unavailableReason = reason;
+    this.notify();
+  }
+
+  /**
+   * Leave `unavailable`: look at the storage again. A no-op in any other status (a retry must
+   * never disturb an unlocked store).
+   */
+  async retry(): Promise<void> {
+    if (this.status !== 'unavailable') return;
+    await this.initialize();
+  }
+
   /**
    * No header in localStorage: recover it from the copy kept beside the data; and if data exists
    * with no header at all, refuse to treat it as a first run (that would wipe a store the user may
-   * still be able to recover).
+   * still be able to recover). A storage failure along the way throws `StoreUnavailableError`
+   * (retryable); it is never reported as "no header" or as lost data.
    */
   private async recoverMissingHeader(): Promise<StoreMetaRead> {
-    const copy = await this.backend.readHeaderCopy();
+    let copy: string | null;
+    try {
+      copy = await this.backend.readHeaderCopy();
+    } catch {
+      throw new StoreUnavailableError('storageRefused');
+    }
     if (copy !== null) {
       const parsed = parseStoreMeta(copy, this.minIterations);
-      if (parsed.kind === 'present')
-        this.storage.write(STORE_META_KEY, encodeStoreMeta(parsed.meta));
+      if (parsed.kind === 'present') {
+        try {
+          this.storage.write(STORE_META_KEY, encodeStoreMeta(parsed.meta));
+        } catch {
+          throw new StoreUnavailableError('storageRefused');
+        }
+      }
       return parsed;
     }
-    if (await this.backend.exists()) return { kind: 'invalid' };
-    return { kind: 'absent' };
+    let exists: boolean;
+    try {
+      exists = await this.backend.exists();
+    } catch (error) {
+      throw error instanceof StoreUnavailableError ? error : new StoreUnavailableError('transient');
+    }
+    return exists ? { kind: 'invalid' } : { kind: 'absent' };
   }
 
   /**
@@ -270,6 +364,7 @@ export class StoreController implements StoreSource {
    * only then persist the header.
    */
   async createStore(passphrase: string): Promise<UnlockOutcome> {
+    if (this.status === 'unavailable') return this.unavailableOutcome();
     if (this.status !== 'needsPassphraseCreation') {
       return { kind: 'storeUnavailable', reason: 'storage' };
     }
@@ -339,6 +434,7 @@ export class StoreController implements StoreSource {
   /** Returning-user flow. */
   async unlock(passphrase: string): Promise<UnlockOutcome> {
     const meta = this.meta;
+    if (this.status === 'unavailable') return this.unavailableOutcome();
     if (this.status !== 'locked' || !meta) return { kind: 'storeUnavailable', reason: 'storage' };
     const now = this.clock();
     if (this.blockedUntil !== null && now < this.blockedUntil) {
@@ -385,6 +481,10 @@ export class StoreController implements StoreSource {
       wipe(bytes);
       this.busy = false;
     }
+  }
+
+  private unavailableOutcome(): UnlockOutcome {
+    return { kind: 'storeUnavailable', reason: this.unavailableReason ?? 'storage' };
   }
 
   private unavailableFrom(error: unknown): UnlockOutcome {
@@ -559,13 +659,25 @@ export class StoreController implements StoreSource {
     this.releaseLock();
   }
 
+  /**
+   * Same order as `lock`: the worker is closed FIRST and the tab lock is released only after the
+   * close settled, so another tab can never open files this tab's worker still holds.
+   */
   dispose(): void {
     this.disposed = true;
     this.clearTimers();
-    this.releaseLock();
     const db = this.db;
     this.db = null;
-    if (db) void db.close().catch(() => undefined);
+    const handle = this.lockHandle;
+    this.lockHandle = null;
+    if (db) {
+      void db
+        .close()
+        .catch(() => undefined)
+        .finally(() => handle?.release());
+    } else {
+      handle?.release();
+    }
     this.listeners.clear();
   }
 

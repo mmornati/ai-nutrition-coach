@@ -33,6 +33,8 @@ export function createDevMemoryStoreBundle(): StoreBundle {
     lock: new InMemoryStoreLock(),
     // The dev store has no WebCrypto requirement: it never derives a key.
     isSecureContext: () => true,
+    // No OPFS involved: nothing to probe.
+    probe: () => Promise.resolve('ok'),
     autoLock: false,
   });
 }

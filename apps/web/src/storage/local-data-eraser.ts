@@ -5,7 +5,7 @@
 //                      journals), the IndexedDB header copy and the localStorage header, in that
 //                      order (data before header, so a half-finished erase never leaves a
 //                      database that looks recoverable);
-//   3. secureStorage   sweep any other `ai_nutrition_coach.*` localStorage leftovers (but never the
+//   3. secureStorage   sweep any other `anc.pwa.*` localStorage leftovers (but never the
 //                      header while the database could not be deleted);
 //   4. exportFiles     nothing to do: exports are browser downloads the app never keeps (and
 //                      Erase cannot delete a file already downloaded or shared).

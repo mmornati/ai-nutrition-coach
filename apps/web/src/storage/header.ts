@@ -15,7 +15,13 @@
 
 import { STORE_FORMAT_VERSION } from './constants';
 import { base64UrlDecode, base64UrlEncode } from './bytes';
-import { KDF_MIN_ITERATIONS, KDF_PBKDF2_SHA256, STORE_SALT_BYTES, type KdfParams } from './kdf';
+import {
+  KDF_MAX_ITERATIONS,
+  KDF_MIN_ITERATIONS,
+  KDF_PBKDF2_SHA256,
+  STORE_SALT_BYTES,
+  type KdfParams,
+} from './kdf';
 
 /** Passphrase encoding recorded in the header: NFC, then UTF-8. */
 export const PASSPHRASE_ENCODING = 'nfc-utf8';
@@ -73,6 +79,7 @@ export function parseStoreMeta(
     !Number.isInteger(iter) ||
     o['pw'] !== PASSPHRASE_ENCODING ||
     iter < minIterations ||
+    iter > KDF_MAX_ITERATIONS ||
     typeof salt !== 'string'
   ) {
     return INVALID;

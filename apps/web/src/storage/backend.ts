@@ -33,4 +33,9 @@ export interface StoreBackend {
   open(request: OpenRequest): Promise<StoreDb>;
   /** Delete every persisted byte: database pages, journals and the header copy. */
   erase(): Promise<void>;
+  /**
+   * Optional: registers the one listener told when the open session dies on its own (the worker
+   * crashed). The controller locks when it fires.
+   */
+  onSessionLost?(listener: () => void): void;
 }

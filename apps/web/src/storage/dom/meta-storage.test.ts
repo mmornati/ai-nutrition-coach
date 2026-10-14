@@ -11,22 +11,19 @@ afterEach(() => {
 describe('browserMetaStorage', () => {
   it('reads, writes and removes', () => {
     const storage = browserMetaStorage();
-    expect(storage.read('ai_nutrition_coach.a')).toBeNull();
-    storage.write('ai_nutrition_coach.a', '1');
-    expect(storage.read('ai_nutrition_coach.a')).toBe('1');
-    storage.remove('ai_nutrition_coach.a');
-    expect(storage.read('ai_nutrition_coach.a')).toBeNull();
+    expect(storage.read('anc.pwa.a')).toBeNull();
+    storage.write('anc.pwa.a', '1');
+    expect(storage.read('anc.pwa.a')).toBe('1');
+    storage.remove('anc.pwa.a');
+    expect(storage.read('anc.pwa.a')).toBeNull();
   });
 
   it('lists only the keys this app owns', () => {
     const storage = browserMetaStorage();
-    storage.write('ai_nutrition_coach.web.store.meta', 'm');
-    storage.write('ai_nutrition_coach.other', 'o');
+    storage.write('anc.pwa.store.meta', 'm');
+    storage.write('anc.pwa.other', 'o');
     storage.write('someone.else', 'x');
-    expect(storage.ownedKeys().sort()).toEqual([
-      'ai_nutrition_coach.other',
-      'ai_nutrition_coach.web.store.meta',
-    ]);
+    expect(storage.ownedKeys().sort()).toEqual(['anc.pwa.other', 'anc.pwa.store.meta']);
   });
 
   it('THROWS when the browser refuses storage', () => {

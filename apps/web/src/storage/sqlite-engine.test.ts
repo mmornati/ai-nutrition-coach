@@ -219,6 +219,15 @@ describe('parameters are enforced inside the engine too', () => {
     expect(await memfsFileExists(file)).toBe(false);
   });
 
+  it('refuses an absurdly expensive iteration count before touching any file', async () => {
+    const file = newFile();
+    const engine = engineFor(file);
+    expect(
+      await reasonOf(open(engine, { kdf: { name: 'pbkdf2-hmac-sha256', iterations: 10_000_001 } })),
+    ).toBe('invalidKey');
+    expect(await memfsFileExists(file)).toBe(false);
+  });
+
   it('refuses an unknown KDF', async () => {
     expect(
       await reasonOf(open(engineFor(newFile()), { kdf: { name: 'md5', iterations: 1000 } })),
@@ -548,7 +557,7 @@ describe('SQL behaviour', () => {
     });
   });
 
-  it('the default database file name is under the ai_nutrition_coach prefix', () => {
-    expect(DATABASE_FILENAME).toContain('ai_nutrition_coach');
+  it('the default database file name is under the anc_pwa prefix', () => {
+    expect(DATABASE_FILENAME).toContain('anc_pwa');
   });
 });

@@ -12,6 +12,7 @@
 //   - `crypto.subtle` is undefined outside a secure context (plain HTTP); that is reported as
 //     "unavailable", never as a wrong passphrase.
 
+import { wipe } from './bytes';
 import { StoreUnavailableError } from './errors';
 
 export const KDF_PBKDF2_SHA256 = 'pbkdf2-hmac-sha256';
@@ -21,6 +22,12 @@ export const KDF_ITERATIONS = 600_000;
 
 /** Lowest iteration count a stored header may carry. A header below it is refused. */
 export const KDF_MIN_ITERATIONS = 600_000;
+
+/**
+ * Highest iteration count a stored header may carry. A tampered header asking for billions of
+ * iterations would freeze the worker (a denial of service on unlock); one above it is refused.
+ */
+export const KDF_MAX_ITERATIONS = 10_000_000;
 
 /** Per-store random salt length in bytes. */
 export const STORE_SALT_BYTES = 16;
@@ -50,9 +57,13 @@ export const deriveKeyWithWebCrypto: DeriveKey = async (passphrase, salt, params
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw new StoreUnavailableError('insecureContext');
   // Copies: WebCrypto wants plain ArrayBuffer-backed views, and the caller wipes its own.
-  const keyMaterial = await subtle.importKey('raw', new Uint8Array(passphrase), 'PBKDF2', false, [
-    'deriveBits',
-  ]);
+  const copy = new Uint8Array(passphrase);
+  let keyMaterial: CryptoKey;
+  try {
+    keyMaterial = await subtle.importKey('raw', copy, 'PBKDF2', false, ['deriveBits']);
+  } finally {
+    wipe(copy);
+  }
   const bits = await subtle.deriveBits(
     { name: 'PBKDF2', hash: 'SHA-256', salt: new Uint8Array(salt), iterations: params.iterations },
     keyMaterial,

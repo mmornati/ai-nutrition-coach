@@ -12,6 +12,8 @@
 #
 #   tools/check_no_dev_store_in_build.sh          scan apps/web/dist
 #   tools/check_no_dev_store_in_build.sh <dir>     scan <dir> instead (used to prove the guard)
+#   tools/check_no_dev_store_in_build.sh --self-test   prove the guard itself: a fake dist with a
+#                                                  forbidden marker (or file name) must FAIL, a clean one must pass
 #
 # Fails when, anywhere under the directory:
 #   - a file name contains "storage-harness" or "dev-store" (a lazy chunk is named after its module), or
@@ -22,6 +24,31 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ "${1:-}" = "--self-test" ]; then
+  T="$(mktemp -d)"
+  trap 'rm -rf "$T"' EXIT
+  self="${BASH_SOURCE[0]}"
+  expect_fail() {
+    if bash "$self" "$1" >/dev/null 2>&1; then
+      echo "check_no_dev_store_in_build self-test: $2 was NOT detected" >&2
+      exit 1
+    fi
+  }
+  mkdir -p "$T/clean/assets" "$T/marker/assets" "$T/flag/assets" "$T/named/assets"
+  echo 'console.log("hello");' > "$T/clean/assets/index.js"
+  echo 'x="DEV, not encrypted"' > "$T/marker/assets/index.js"
+  echo 'x=import.meta.env.VITE_DEV_MEMORY_STORE' > "$T/flag/assets/index.js"
+  echo 'ok' > "$T/named/assets/dev-store-abc.js"
+  bash "$self" "$T/clean" >/dev/null 2>&1 || { echo "check_no_dev_store_in_build self-test: a clean build was rejected" >&2; exit 1; }
+  expect_fail "$T/marker" "the banner copy"
+  expect_fail "$T/flag" "the dev flag name"
+  expect_fail "$T/named" "a dev-store file name"
+  expect_fail "$T/missing" "a missing directory"
+  echo "check_no_dev_store_in_build: self-test OK"
+  exit 0
+fi
+
 DIR="${1:-$ROOT/apps/web/dist}"
 
 if [ ! -d "$DIR" ]; then
