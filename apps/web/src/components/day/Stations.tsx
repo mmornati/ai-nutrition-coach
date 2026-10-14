@@ -1,0 +1,169 @@
+import { useEffect, useRef } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
+import type { MealSlot, PlateLog, SyncOpStatusValue } from '@anc/core';
+import { formatTime } from './format';
+import { groupsOfPlate, passedGroups } from './lines';
+import { StatusChip } from './StatusChip';
+import { dayStrings } from './strings';
+
+const HOLD_MS = 500;
+const MOVE_TOLERANCE = 10;
+
+const NAME_CLASS =
+  'font-display text-headline lg:text-headline-desktop m-0 flex items-center gap-2.5 uppercase';
+
+export interface PlateRowProps {
+  readonly plate: PlateLog;
+  readonly slot: MealSlot;
+  /** Core per-plate sync rollup. */
+  readonly syncStatus?: SyncOpStatusValue | null;
+  /** Tap: open the plate detail. */
+  readonly onOpen: (plateId: number) => void;
+  /** Press-and-hold (500ms) or the "Remove this plate" action: the parent shows a calm confirm. */
+  readonly onRequestDelete: (plateId: number) => void;
+  /** Coach card or depth panel, rendered under the row. */
+  readonly children?: ReactNode;
+}
+
+/** A logged station: name, time, entries, which lines passed through, status. */
+export function PlateRow({
+  plate,
+  slot,
+  syncStatus = null,
+  onOpen,
+  onRequestDelete,
+  children,
+}: PlateRowProps) {
+  const present = groupsOfPlate(plate);
+  const passed = passedGroups(present);
+  const meal = dayStrings.slotName(slot);
+  const time = formatTime(plate.loggedAtUtc);
+  const summary = plate.entries.map((e) => e.databaseFood.displayName).join(', ');
+
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const held = useRef(false);
+
+  const cancel = () => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+    origin.current = null;
+  };
+  useEffect(() => cancel, []);
+
+  const onPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    if (e.button > 0) return;
+    held.current = false;
+    origin.current = { x: e.clientX, y: e.clientY };
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      held.current = true;
+      onRequestDelete(plate.id);
+    }, HOLD_MS);
+  };
+  const onPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    const o = origin.current;
+    if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > MOVE_TOLERANCE) cancel();
+  };
+
+  const stopsText =
+    present.length === 4
+      ? dayStrings.allStopped
+      : present.length === 0
+        ? dayStrings.noneStopped
+        : dayStrings.passedThrough(passed.map(dayStrings.lineName));
+
+  return (
+    <>
+      <h2 data-station-anchor className={NAME_CLASS}>
+        {meal}
+        <span className="font-display text-signal-muted text-[15px] font-semibold tracking-[0.06em]">
+          {time}
+        </span>
+      </h2>
+      <p className="text-signal-muted text-body-small mt-1">{summary}</p>
+      <p className="text-porcelain-dim mt-1.5 text-[14.5px]">{stopsText}</p>
+      <div className="mt-2">
+        <StatusChip status={syncStatus} />
+      </div>
+      <button
+        type="button"
+        data-testid={`open-plate-${plate.id}`}
+        aria-label={dayStrings.stationLabel({
+          meal,
+          time,
+          present: present.map(dayStrings.lineName),
+          passed: passed.map(dayStrings.lineName),
+        })}
+        className="absolute inset-0 min-h-12 w-full cursor-pointer touch-manipulation bg-transparent select-none"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={cancel}
+        onPointerLeave={cancel}
+        onPointerCancel={cancel}
+        onContextMenu={(e) => {
+          if (held.current || timer.current !== null) e.preventDefault();
+        }}
+        onClick={(e) => {
+          if (held.current) {
+            // The hold already opened the confirm; swallow the click that follows release.
+            held.current = false;
+            e.preventDefault();
+            return;
+          }
+          onOpen(plate.id);
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => onRequestDelete(plate.id)}
+        className="font-display text-button border-porcelain bg-enamel text-porcelain sr-only z-20 border-2 px-3 uppercase focus:not-sr-only focus:absolute focus:top-2 focus:right-0 focus:min-h-12"
+      >
+        {dayStrings.removePlateFor(meal, time)}
+      </button>
+      {children}
+    </>
+  );
+}
+
+export interface OpenStationProps {
+  readonly slot: MealSlot;
+  /** A coach hint for this open slot. Tapping it dismisses it durably (the parent persists). */
+  readonly hint?: string | null;
+  readonly onDismissHint?: () => void;
+  /** A plate is being read: dashed station plus a static line, no spinner. */
+  readonly resolving?: boolean;
+}
+
+/** An open station: dashed, quiet. A hint is a single tap target, never sure / ask later. */
+export function OpenStation({ slot, hint, onDismissHint, resolving = false }: OpenStationProps) {
+  const meal = dayStrings.slotName(slot);
+  return (
+    <>
+      <h2 data-station-anchor className={NAME_CLASS}>
+        {meal}
+      </h2>
+      {resolving ? (
+        <p
+          role="status"
+          className="font-display text-line-starch mt-1.5 text-[15px] font-semibold tracking-[0.1em]"
+        >
+          {dayStrings.reading}
+        </p>
+      ) : hint ? (
+        <button
+          type="button"
+          onClick={onDismissHint}
+          aria-label={dayStrings.dismissHint(hint)}
+          className="text-porcelain-dim mt-1.5 min-h-12 max-w-[34ch] cursor-pointer bg-transparent py-1 text-left text-[15.5px]"
+        >
+          {hint}
+        </button>
+      ) : (
+        <p className="text-porcelain-dim mt-1.5 max-w-[34ch] text-[15.5px]">
+          {dayStrings.openQuietPlace}
+        </p>
+      )}
+    </>
+  );
+}

@@ -1,0 +1,122 @@
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from 'react';
+import { cn } from '../primitives/cn';
+
+export interface DialogProps {
+  readonly open: boolean;
+  /**
+   * Called for every dismissal the person makes: Esc, a scrim click (unless `scrimDismiss` is
+   * false) or the browser closing the dialog itself. The parent decides what dismissing means and
+   * flips `open`; the dialog never closes itself, so state has one source of truth.
+   */
+  readonly onClose: () => void;
+  /** The visible, labelling heading. */
+  readonly title: string;
+  readonly titleClassName?: string;
+  /** Rendered beside the title (e.g. a close button). */
+  readonly headerAction?: ReactNode;
+  /** `sheet` is a bottom sheet on phones and a centred dialog from 1024px. */
+  readonly variant?: 'dialog' | 'sheet';
+  /** Whether Esc dismisses. Default true. */
+  readonly escDismiss?: boolean;
+  /** Whether a click on the scrim dismisses. Default true. */
+  readonly scrimDismiss?: boolean;
+  readonly role?: 'dialog' | 'alertdialog';
+  readonly children: ReactNode;
+}
+
+const VARIANT = {
+  dialog:
+    'm-auto w-[calc(100%-2rem)] max-w-[480px] max-h-[calc(100dvh-2rem)] border-2 border-t-4 border-porcelain',
+  sheet: [
+    'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] border-x-0 border-b-0 border-t-4 border-porcelain',
+    'translate-y-0 transition-transform duration-[350ms] ease-line starting:open:translate-y-full',
+    'lg:m-auto lg:w-[560px] lg:max-h-[calc(100dvh-4rem)] lg:border-2 lg:border-t-4 lg:starting:open:translate-y-0',
+  ].join(' '),
+} as const;
+
+/**
+ * An accessible modal built on the native `<dialog>`: `showModal()` gives the focus trap, the
+ * inert page behind it, Esc and the top layer. This wrapper adds what the platform does not
+ * guarantee everywhere: focus returns to the opener, `data-autofocus` picks the initial focus
+ * (the safe choice, never a destructive one) and the scrim dismisses when allowed.
+ *
+ * Content is mounted only while open, so a reopened dialog always starts from a clean state.
+ */
+export function Dialog({
+  open,
+  onClose,
+  title,
+  titleClassName,
+  headerAction,
+  variant = 'dialog',
+  escDismiss = true,
+  scrimDismiss = true,
+  role,
+  children,
+}: DialogProps) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const openRef = useRef(open);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    openRef.current = open;
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!el.open) el.showModal();
+    el.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    return () => {
+      if (el.open) el.close();
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [open]);
+
+  const dismiss = () => {
+    if (openRef.current) onCloseRef.current();
+  };
+
+  // A click whose target is the <dialog> itself landed on the backdrop: the content wrapper
+  // below fills the whole box, so nothing inside it can be the target.
+  const onClick = (e: MouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget && scrimDismiss) dismiss();
+  };
+
+  return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- backdrop click is a pointer convenience; Esc and the buttons are the keyboard paths.
+    <dialog
+      ref={ref}
+      role={role}
+      aria-labelledby={open ? titleId : undefined}
+      onCancel={(e) => {
+        // Keep React state the single source of truth: never let the browser close it for us.
+        e.preventDefault();
+        if (escDismiss) dismiss();
+      }}
+      onClose={dismiss}
+      onClick={onClick}
+      className={cn(
+        'bg-enamel-raised text-porcelain rounded-none p-0 backdrop:bg-scrim',
+        VARIANT[variant],
+      )}
+    >
+      {open && (
+        <div className="flex flex-col gap-4 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:p-7">
+          <div className="flex items-start justify-between gap-3">
+            <h2
+              id={titleId}
+              className={cn('font-display uppercase', titleClassName ?? 'text-title')}
+            >
+              {title}
+            </h2>
+            {headerAction}
+          </div>
+          {children}
+        </div>
+      )}
+    </dialog>
+  );
+}

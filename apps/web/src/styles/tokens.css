@@ -64,6 +64,8 @@
   --color-control: #5b6c9c;
   /* Control edge on raised-enamel surfaces (sheet, dock): 3.3:1 on #15244B, 3.7:1 on #0E1A3A. */
   --color-control-raised: #6474a6;
+  /* Dark scrim behind sheets and dialogs (60% of #050a19, DESIGN.md Capture Sheet). */
+  --color-scrim: rgb(5 10 25 / 0.6);
   --color-porcelain: #f3f1ea;
   --color-porcelain-dim: #c9cfe0;
   --color-signal-muted: #a3afcf;
