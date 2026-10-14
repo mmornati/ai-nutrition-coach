@@ -123,3 +123,6 @@ playwright-report/
 test-results/
 .vite/
 *.tsbuildinfo
+
+# ── React PWA: fetched + SHA-256-verified SQLite3 Multiple Ciphers wasm (scripts/fetch_web_sqlite3mc.sh) ──
+apps/web/public/sqlite3mc/

@@ -52,6 +52,11 @@ INERT_HOSTS=(
 #                           createElementNS / setAttributeNS (svg, xlink, MathML, xml).
 #   react.dev/errors        the production error-decoder message React prints; text only.
 #   bit.ly/wb-precache      a documentation link inside a Workbox warning string.
+#   emscripten.org, sqlite.org   licence-header comment and a documentation link inside the pinned
+#                           sqlite3mc wasm build (public/sqlite3mc/<version>/sqlite3.mjs, fetched by
+#                           scripts/fetch_web_sqlite3mc.sh); text only, never requested. The
+#                           trailing-colon forms are how the scanner sees "https://sqlite.org:" in
+#                           the licence prose.
 INERT_URLS=(
   "http://www.w3.org/2000/svg"
   "http://www.w3.org/1999/xlink"
@@ -59,6 +64,10 @@ INERT_URLS=(
   "http://www.w3.org/1998/Math/MathML"
   "http://www.w3.org/XML/1998/namespace"
   "https://bit.ly/wb-precache"
+  "https://emscripten.org:"
+  "https://emscripten.org/docs/introducing_emscripten/emscripten_license.html"
+  "https://sqlite.org:"
+  "https://sqlite.org/wasm/doc/trunk/persistence.md#coop-coep"
 )
 INERT_URL_PREFIXES=(
   "https://react.dev/errors/"
