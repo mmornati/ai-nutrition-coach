@@ -164,6 +164,8 @@ export async function renderUnlockedApp(
     readonly session?: SessionOptions;
     readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
     readonly createCapture?: UsePhotoFlowDeps['createCapture'];
+    /** Wraps the whole tree (e.g. a `LocaleProvider`, which sits above the session at the app root). */
+    readonly wrapper?: ComponentType<{ children: ReactNode }>;
   } = {},
 ) {
   const view = render(
@@ -175,6 +177,7 @@ export async function renderUnlockedApp(
         />
       </SessionBoundary>
     </StoreProvider>,
+    options.wrapper ? { wrapper: options.wrapper } : {},
   );
   await waitFor(() => {
     if (view.container.childElementCount === 0) throw new Error('session not built yet');

@@ -4,7 +4,8 @@
  * every user-visible sentence lives here so no JSX carries a string literal of its own.
  *
  * Sources: the earlier client's message catalogue and coach strings.
- * Placeholders use `{name}` and are filled with `fill()`.
+ * Placeholders use `{name}` and are filled with `fill()`. A plural's `one` form uses `{count}` too,
+ * not a literal 1: other languages pick `one` for other numbers (French uses it for 0 and 1).
  */
 export const en = {
   common: {
@@ -64,7 +65,10 @@ export const en = {
     retake: 'Retake',
     typeManually: 'Type it manually',
     noFoodsMatched: 'No foods matched — pick one below.',
-    foundFoods: { one: 'Found 1 food on this plate.', other: 'Found {count} foods on this plate.' },
+    foundFoods: {
+      one: 'Found {count} food on this plate.',
+      other: 'Found {count} foods on this plate.',
+    },
     nothingOnPlate: 'Nothing on this plate — pick one below.',
     searchUnavailablePick: "Search isn't available right now. Pick a closest match below.",
   },
@@ -103,7 +107,7 @@ export const en = {
     groupLabel: 'Food group',
   },
   recognized: {
-    lookedLike: { one: 'Looks like 1 food', other: 'Looks like {count} foods' },
+    lookedLike: { one: 'Looks like {count} food', other: 'Looks like {count} foods' },
     tickHint: 'All are ticked. Untick anything that is not on the plate.',
     nothingMatched: 'Nothing matched',
     nothingOnPlate: 'Nothing on this plate',
@@ -326,8 +330,11 @@ export const en = {
     retryLater: 'Retry later',
     /** Page-level sync announcements (aggregate, never per plate). */
     allSynced: 'All plates synced',
-    waiting: { one: '1 plate waiting to sync', other: '{count} plates waiting to sync' },
-    retryLaterPlates: { one: '1 plate will retry later', other: '{count} plates will retry later' },
+    waiting: { one: '{count} plate waiting to sync', other: '{count} plates waiting to sync' },
+    retryLaterPlates: {
+      one: '{count} plate will retry later',
+      other: '{count} plates will retry later',
+    },
   },
   week: {
     title: 'This week',
@@ -339,7 +346,7 @@ export const en = {
     stateNone: 'nothing logged',
     stateLoggedNoLine: 'logged — no food group line',
     stateSome: '{count} of 4 lines',
-    plates: { zero: 'No plates', one: '1 plate', other: '{count} plates' },
+    plates: { zero: 'No plates', one: '{count} plate', other: '{count} plates' },
     networkIntro: 'Week network.',
     networkDescription: '{intro} {days}',
     daySentence: '{day}: {state}.',

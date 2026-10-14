@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { LocaleProvider } from './LocaleProvider';
 import { currentLocale, joinNames, plural, setCurrentLocale, useLocale, useStrings } from './index';
@@ -16,6 +16,8 @@ function Probe() {
 }
 
 afterEach(() => {
+  // Unmount first: resetting the module locale under a mounted provider re-renders it outside act().
+  cleanup();
   setCurrentLocale(DEFAULT_LOCALE);
   document.documentElement.lang = '';
 });
@@ -43,8 +45,7 @@ describe('LocaleProvider', () => {
     expect(screen.getByRole('button').dataset.locale).toBe('fr');
     expect(document.documentElement.lang).toBe('fr');
     expect(currentLocale()).toBe('fr');
-    // No French copy yet: the catalogue falls back to English.
-    expect(screen.getByRole('button').textContent).toBe('Close');
+    expect(screen.getByRole('button').textContent).toBe('Fermer');
   });
 
   it('makes the non-hook helpers follow the locale', () => {

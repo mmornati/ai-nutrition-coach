@@ -54,14 +54,36 @@ export async function unlock(page: Page, passphrase = PASSPHRASE): Promise<void>
   await page.getByRole('button', { name: 'Unlock' }).click();
 }
 
+/** The words of the lock screen and Today, for an unlock in another language (English default). */
+export interface UnlockWords {
+  /** The lock screen's heading. */
+  readonly gate?: string;
+  /** The passphrase field's label. */
+  readonly label?: string;
+  /** The unlock button's name. */
+  readonly button?: string;
+  /** Today's heading, the sign of a finished unlock. */
+  readonly heading?: string;
+}
+
 /**
  * Unlock after a reload. The page that was reloaded may still be letting go of the tab lock for a
  * moment, in which case the screen says (calmly) that the app is open in another tab: try again.
  */
-export async function unlockAfterReload(page: Page): Promise<void> {
-  const today = page.getByRole('heading', { level: 1, name: 'Today' });
+export async function unlockAfterReload(
+  page: Page,
+  {
+    heading = 'Today',
+    label = 'Passphrase',
+    button = 'Unlock',
+    gate = 'Unlock your store',
+  }: UnlockWords = {},
+): Promise<void> {
+  const today = page.getByRole('heading', { level: 1, name: heading });
   for (let attempt = 0; attempt < 8; attempt++) {
-    await unlock(page);
+    await expect(page.getByRole('heading', { level: 1, name: gate })).toBeVisible();
+    await page.getByLabel(label, { exact: true }).fill(PASSPHRASE);
+    await page.getByRole('button', { name: button, exact: button !== 'Unlock' }).click();
     try {
       await expect(today).toBeVisible({ timeout: 8_000 });
       return;

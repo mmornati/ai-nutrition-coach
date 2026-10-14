@@ -17,6 +17,12 @@ every release tag.
     `apps/web/src/screens/`, `docs/`).
   - Records the gate frequency on every release tag.
 
+- **French copy tone reviewer** — @TODO-native-French-speaker (to be named by the lead maintainer)
+  - A native French speaker who reviews every change to `apps/web/src/i18n/fr.ts` for tone
+    (calm, non-judgmental, « vous », no pressure vocabulary) and for faithfulness of the consent,
+    privacy, About and erase copy to the English source.
+  - Signs off alongside the lead maintainer; French copy does not ship without both.
+
 > The named reviewer is a single GitHub handle in v1. A rotating
 > panel is a v1.1 follow-up — until then the lead maintainer is
 > the sole sign-off authority. The handle is pinned in

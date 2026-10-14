@@ -1,36 +1,21 @@
 import '@testing-library/jest-dom/vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, getDefaultNormalizer, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testing';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
+import { fr } from '../../i18n/fr';
 import { setCurrentLocale, useLocale } from '../../i18n';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { TodayScreen } from './TodayScreen';
-
-// A stand-in French catalogue: the real one lands in Phase C. Only the copy under test differs.
-vi.mock('../../i18n/catalogues', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../i18n/catalogues')>();
-  const { en } = await import('../../i18n/en');
-  const fr = {
-    ...en,
-    coachQuestions: {
-      ...en.coachQuestions,
-      'openPlate.balanced': 'Une assiette variée : un ajout ?',
-    },
-    today: { ...en.today, plateRemoved: 'Assiette retirée.' },
-  };
-  return {
-    ...original,
-    catalogueFor: (locale: string) => (locale === 'fr' ? fr : en),
-  };
-});
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 12, 10) });
 });
 afterEach(() => {
+  // Unmount first: resetting the module locale under a mounted provider re-renders it outside act().
+  cleanup();
   vi.useRealTimers();
   setCurrentLocale(DEFAULT_LOCALE);
   document.documentElement.lang = '';
@@ -69,7 +54,12 @@ describe('TodayScreen follows the locale without a remount', () => {
     await user.click(screen.getByRole('button', { name: 'to-fr' }));
 
     await waitFor(() =>
-      expect(screen.getByText('Une assiette variée : un ajout ?')).toBeInTheDocument(),
+      // Keep French narrow no-break spaces as they are (the default normalizer folds them).
+      expect(
+        screen.getByText(fr.coachQuestions['openPlate.balanced'], {
+          normalizer: getDefaultNormalizer({ collapseWhitespace: false }),
+        }),
+      ).toBeInTheDocument(),
     );
     expect(screen.queryByText(/A calm, varied plate/)).not.toBeInTheDocument();
   });
@@ -87,6 +77,27 @@ describe('TodayScreen follows the locale without a remount', () => {
     await act(async () => {
       setCurrentLocale('fr');
     });
-    expect(await screen.findByText('Assiette retirée.')).toBeVisible();
+    expect(await screen.findByText(fr.today.plateRemoved)).toBeVisible();
+  });
+
+  it('a coach note stored in English is shown in the current language (looked up by its key)', async () => {
+    const bundle = await unlockedBundle();
+    const plate = await seedPlate(bundle, at(12, 0), [['Chicken', 'protein']]);
+    await bundle.notes.append({
+      id: 0,
+      plateLogId: plate.id,
+      anchor: 'postResolve',
+      questionKey: 'post.resolve.proteinHeavy',
+      text: 'A small bowl of greens or roasted veg would lighten this up.',
+      generatedAt: Date.now(),
+    });
+    await renderInSession(ui, { bundle, wrapper });
+    expect(await screen.findByText(/greens or roasted veg/)).toBeVisible();
+
+    await act(async () => {
+      setCurrentLocale('fr');
+    });
+    expect(await screen.findByText(fr.coachQuestions['post.resolve.proteinHeavy'])).toBeVisible();
+    expect(screen.queryByText(/greens or roasted veg/)).not.toBeInTheDocument();
   });
 });

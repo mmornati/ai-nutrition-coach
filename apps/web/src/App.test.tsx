@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { forgetAcknowledgedBeforeStore } from './app/about-ack';
 import { memoryBundle } from './app/testing';
+import { fr } from './i18n/fr';
 
 // One controllable update signal for the whole file.
 const sw = vi.hoisted(() => ({ needRefresh: false }));
@@ -39,15 +40,15 @@ describe('App', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  // the earlier client: the locale resolves to English for ANY browser locale, and a malformed
-  // `navigator.languages` tag never stops the app.
+  // the earlier client: the locale resolves to English for any browser locale we do not speak, and
+  // a malformed `navigator.languages` tag never stops the app.
   it.each([
     ['a POSIX tag', ['C.UTF-8', 'en_US.UTF-8']],
     ['an empty tag', ['']],
     ['garbage', ['zz-@@-??', 'x']],
-    ['another language', ['fr-FR', 'ja']],
+    ['another language', ['ja', 'de-DE']],
     ['no languages at all', []],
-  ])('is English whatever the browser locale is (%s)', async (_name, languages) => {
+  ])('is English for a browser locale it does not speak (%s)', async (_name, languages) => {
     const spy = vi.spyOn(window.navigator, 'languages', 'get').mockReturnValue(languages);
     const lang = vi.spyOn(window.navigator, 'language', 'get').mockReturnValue(languages[0] ?? '');
     try {
@@ -59,6 +60,20 @@ describe('App', () => {
     } finally {
       spy.mockRestore();
       lang.mockRestore();
+    }
+  });
+
+  it('speaks French on a first run in a French browser', async () => {
+    const spy = vi.spyOn(window.navigator, 'languages', 'get').mockReturnValue(['fr-FR', 'en']);
+    try {
+      firstRun();
+      expect(
+        await screen.findByRole('heading', { level: 1, name: fr.about.title }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: fr.about.ok })).toBeInTheDocument();
+      expect(document.documentElement.lang).toBe('fr');
+    } finally {
+      spy.mockRestore();
     }
   });
 

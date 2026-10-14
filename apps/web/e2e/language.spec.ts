@@ -1,7 +1,6 @@
 // The language choice on the REAL encrypted store: pick Français in Settings, reload -> the gate
 // is already French (the plaintext hint; html[lang]), unlock -> still French (the stored
-// preference), erase -> back to the browser's language and the hint is gone. The French
-// catalogue does not exist yet, so this asserts on html[lang] and the hint, not on French copy.
+// preference), erase -> back to the browser's language and the hint is gone.
 import { expect, test } from './persistent';
 import { createStore, freshStart, unlockAfterReload } from './flows';
 
@@ -23,28 +22,36 @@ test('pick Français -> reload (gate) -> unlock -> erase -> back to the browser 
   await expect(page.getByRole('radio', { name: 'Match my device' })).toBeChecked();
   await page.getByText('Français', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+  await expect(page.getByRole('heading', { level: 1, name: 'Langue' })).toBeVisible();
   expect(await page.evaluate((k) => localStorage.getItem(k), HINT_KEY)).toBe('fr');
 
-  // Reload from Today (unlockAfterReload waits for it; the address would otherwise be kept).
+  // Reload from Today (the address would otherwise be kept).
   await page.evaluate(() => (window.location.hash = '#/'));
-  await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Aujourd’hui' })).toBeVisible();
 
-  // Reload: the gate screen (before any decryption) already carries the chosen language.
+  // Reload: the gate screen (before any decryption) already speaks the chosen language.
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Unlock your store' })).toBeVisible();
+  const gate = page.getByRole('heading', { level: 1, name: 'Déverrouiller votre coffre' });
+  await expect(gate).toBeVisible();
   expect(await htmlLang(page)).toBe('fr');
 
-  // Unlock: the stored preference is applied and still French.
-  await unlockAfterReload(page);
+  // Unlock: the stored preference is applied and still French. (The reloaded page may still be
+  // letting go of the tab lock for a moment: unlockAfterReload tries again.)
+  await unlockAfterReload(page, {
+    gate: 'Déverrouiller votre coffre',
+    label: 'Phrase secrète',
+    button: 'Déverrouiller',
+    heading: 'Aujourd’hui',
+  });
   expect(await htmlLang(page)).toBe('fr');
   await page.evaluate(() => (window.location.hash = '#/settings/language'));
   await expect(page.getByRole('radio', { name: 'Français' })).toBeChecked();
 
   // Erase all local data: first run, the browser's language again, and no hint left behind.
   await page.evaluate(() => (window.location.hash = '#/settings/data'));
-  await page.getByRole('button', { name: 'Erase all local data' }).click();
-  const dialog = page.getByRole('alertdialog', { name: 'Erase everything on this device?' });
-  await dialog.getByRole('button', { name: 'Erase' }).click();
+  await page.getByRole('button', { name: 'Effacer toutes les données locales' }).click();
+  const dialog = page.getByRole('alertdialog', { name: /^Tout effacer sur cet appareil/ });
+  await dialog.getByRole('button', { name: 'Effacer', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'About this app' })).toBeVisible({
     timeout: 30_000,
   });

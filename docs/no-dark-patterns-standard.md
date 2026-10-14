@@ -58,10 +58,13 @@ authority for the gate.
 The gate has two enforcement surfaces:
 
 1. **Code-level** — every user-facing string is keyed: UI copy in
-   `apps/web/src/i18n/en.ts` (`pnpm lint` rejects a string literal handed
+   `apps/web/src/i18n/en.ts` and its French twin `apps/web/src/i18n/fr.ts`
+   (`pnpm lint` rejects a string literal handed
    straight to JSX text, `aria-label`, `title`, `placeholder`, ...), coach
    copy keyed in `packages/core/src/coach`. The banned components and words
-   are pinned by `apps/web/src/no-dark-patterns.test.ts`.
+   are pinned by `apps/web/src/no-dark-patterns.test.ts`; the French
+   catalogue has its own banned-vocabulary test in
+   `apps/web/src/i18n/fr.test.ts`.
    The key stores are the single source of truth; a new
    string is a new key, and the named-reviewer tick is required
    for the PR that introduces the key. The `en*` value in the

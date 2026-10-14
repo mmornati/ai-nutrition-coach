@@ -23,7 +23,7 @@ import {
 } from '../../components/day';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { useLocale, useStrings } from '../../i18n';
+import { capitalise, useLocale, useStrings } from '../../i18n';
 import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { useLog } from '../../app/log-context';
 import { hrefs, navigate } from '../../app/router';
@@ -105,7 +105,7 @@ export function TodayScreen() {
     ? s.today
     : isSameLocalDay(day.selected, addCalendarDays(day.today, -1))
       ? s.yesterday
-      : weekdayName(day.selected);
+      : capitalise(weekdayName(day.selected)); // French weekdays are lower-case
 
   const board = useMemo(
     () => classifyForDate(day.plates, day.selected),

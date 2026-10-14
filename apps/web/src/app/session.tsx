@@ -77,8 +77,10 @@ export interface SessionOptions {
 }
 
 /** The v1 template coach reads its questions from the typed copy catalogue by key. */
-const coachLookup = (key: string): string | undefined =>
-  (strings().coachQuestions as Readonly<Record<string, string>>)[key];
+const coachLookup = (key: string): string | undefined => {
+  const questions = strings().coachQuestions as Readonly<Record<string, string>>;
+  return Object.hasOwn(questions, key) ? questions[key] : undefined;
+};
 
 export async function createSession(
   bundle: StoreBundle,

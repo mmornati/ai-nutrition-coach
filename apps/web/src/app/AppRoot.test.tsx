@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setCurrentLocale } from '../i18n';
 import { DEFAULT_LOCALE } from '../i18n/locale';
+import { fr } from '../i18n/fr';
 import { KV_KEYS } from '../storage';
 import { LOCALE_HINT_KEY } from '../storage/constants';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
@@ -45,13 +46,13 @@ describe('AppRoot: language', () => {
     const bundle = await lockedWithStoredLanguage();
     window.localStorage.setItem(LOCALE_HINT_KEY, 'fr');
     render(<AppRoot createBundle={() => Promise.resolve(bundle)} />);
-    await screen.findByRole('heading', { level: 1, name: 'Unlock your store' });
+    await screen.findByRole('heading', { level: 1, name: fr.session.label });
     expect(document.documentElement.lang).toBe('fr');
 
     window.localStorage.setItem(LOCALE_HINT_KEY, 'en'); // a stale hint
-    await user.type(screen.getByLabelText('Passphrase'), PASSPHRASE);
-    await user.click(screen.getByRole('button', { name: 'Unlock' }));
-    await screen.findByRole('heading', { level: 1, name: 'Today' });
+    await user.type(screen.getByLabelText(fr.session.placeholder), PASSPHRASE);
+    await user.click(screen.getByRole('button', { name: fr.session.unlock }));
+    await screen.findByRole('heading', { level: 1, name: fr.today.today });
     expect(document.documentElement.lang).toBe('fr');
     expect(window.localStorage.getItem(LOCALE_HINT_KEY)).toBe('fr'); // refreshed
   });
@@ -60,7 +61,7 @@ describe('AppRoot: language', () => {
     const bundle = await lockedWithStoredLanguage();
     window.localStorage.setItem(LOCALE_HINT_KEY, 'fr');
     render(<AppRoot createBundle={() => Promise.resolve(bundle)} />);
-    await screen.findByRole('heading', { level: 1, name: 'Unlock your store' });
+    await screen.findByRole('heading', { level: 1, name: fr.session.label });
     expect(document.documentElement.lang).toBe('fr');
 
     // The hint is left for the erase path itself: the sweep and the gate's re-resolve together.
