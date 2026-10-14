@@ -1,0 +1,21 @@
+// The AI tiers: settings, the rung registry, BYOK, and the consent gate. Phase 7 wires
+// `createAiServices` after the unlock and renders Your AI over `useYourAi`.
+export * from './ai-context';
+export * from './ai-settings';
+export * from './ai-settings-controller';
+export * from './ai-settings-store';
+export * from './byok-ai-rung';
+export * from './byok-endpoint';
+export * from './byok-key-store';
+export * from './consent-gated-ai-rung';
+export * from './copy';
+export * from './create-ai-services';
+export * from './noop-ai-rung';
+export * from './openai-compatible-provider';
+export * from './photo-consent';
+export * from './photo-upload-permit';
+export * from './rate-limit-reset';
+export * from './rung-registry';
+export * from './rungs';
+export * from './types';
+export * from './your-ai';
