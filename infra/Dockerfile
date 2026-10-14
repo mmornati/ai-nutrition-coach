@@ -42,6 +42,16 @@ RUN corepack enable && corepack prepare pnpm@11.14.0 --activate
 
 WORKDIR /work
 
+# The encrypted store's sqlite3mc engine (js + wasm) and the zxing-wasm barcode
+# decoder, fetched and SHA-256-verified by the pinned scripts. Done before
+# `pnpm install` and before the sources are copied (the scripts need no node_modules), so the
+# downloads stay cached layers across dependency and source changes. The build re-runs them
+# (idempotent: no download when the output already matches the pins).
+COPY scripts/fetch_web_sqlite3mc.sh scripts/fetch_web_zxing_pwa.sh scripts/
+RUN mkdir -p apps/web/public \
+ && bash scripts/fetch_web_sqlite3mc.sh \
+ && bash scripts/fetch_web_zxing_pwa.sh
+
 # Resolve the workspace first, from the manifests + lockfile only, so the
 # dependency layer is cached until a manifest changes. `--frozen-lockfile`
 # refuses to install if pnpm-lock.yaml is missing or out of date.
@@ -49,15 +59,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/core/package.json packages/core/package.json
 RUN pnpm install --frozen-lockfile
-
-# The encrypted store's sqlite3mc engine (js + wasm) and the zxing-wasm barcode
-# decoder, fetched and SHA-256-verified by the pinned scripts. Done before the
-# sources are copied so the downloads are cached layers. The build re-runs them
-# (idempotent: no download when the output already matches the pins).
-COPY scripts/fetch_web_sqlite3mc.sh scripts/fetch_web_zxing_pwa.sh scripts/
-RUN mkdir -p apps/web/public \
- && bash scripts/fetch_web_sqlite3mc.sh \
- && bash scripts/fetch_web_zxing_pwa.sh
 
 # .gitignore: Tailwind's source scanner honours it (it must not pick class-like words out of the
 # git-ignored fetched wasm/JS under apps/web/public, or the CSS would differ from a local build).
@@ -74,7 +75,6 @@ COPY tools/ tools/
 # both arguments (.github/workflows/release-gate.yml).
 ARG AI_NUTRITION_COACH_PROJECT_URL=""
 ARG AI_NUTRITION_COACH_RELEASE=0
-ENV AI_NUTRITION_COACH_PROJECT_URL=${AI_NUTRITION_COACH_PROJECT_URL}
 RUN if [ "$AI_NUTRITION_COACH_RELEASE" = "1" ]; then \
       AI_NUTRITION_COACH_BUILD=selfhost node tools/check_project_url.mjs; \
     else \

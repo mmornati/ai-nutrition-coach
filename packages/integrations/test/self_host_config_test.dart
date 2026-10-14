@@ -120,10 +120,9 @@ void main() {
   });
 
   test('the image build fails on a leaked secret or a third-party host', () {
-    expect(dockerfile, contains('melos run build:web'));
-    final pubspec = _read('pubspec.yaml');
-    expect(pubspec, contains('check_no_secrets_in_build.sh --web-only'));
-    expect(pubspec, contains('check_no_external_hosts.sh'));
+    expect(dockerfile, contains('pnpm --filter @anc/web build'));
+    expect(dockerfile, contains('bash tools/check_no_secrets_in_build.sh'));
+    expect(dockerfile, contains('bash tools/check_no_external_hosts.sh'));
   });
 
   group('access log (privacy audit PV9)', () {
@@ -323,7 +322,7 @@ void main() {
         final block = RegExp(
           r'location ~ \^/\(([^)]*)\)\$ \{\n(?:.*\n)*?\s*add_header Cache-Control "no-cache";',
         ).allMatches(vhost).map((m) => m.group(1)!).join('|');
-        expect(block, contains(r'manifest\.json'));
+        expect(block, contains(r'manifest\.webmanifest'));
         expect(block, contains(r'index\.html'));
       },
     );

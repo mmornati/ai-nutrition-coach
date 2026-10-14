@@ -20,6 +20,23 @@ export const test = base.extend({
   page: async ({ context }, provide) => {
     const page = context.pages()[0] ?? (await context.newPage());
     const violations: string[] = [];
+    // Primary detector: the browser's own `securitypolicyviolation` event, reported through an
+    // exposed binding (independent of console wording, which differs between engines).
+    await context.exposeBinding(
+      '__ancReportCspViolation',
+      (_source, directive: string, blocked: string) => {
+        if (!directive.startsWith('connect-src'))
+          violations.push(`${directive} blocked ${blocked}`);
+      },
+    );
+    await context.addInitScript(() => {
+      window.addEventListener('securitypolicyviolation', (e) => {
+        const report = (window as unknown as Record<string, (d: string, b: string) => void>)
+          .__ancReportCspViolation;
+        report?.(e.violatedDirective, e.blockedURI || e.sample || '');
+      });
+    });
+    // Secondary: console wording (also catches violations raised in workers).
     page.on('console', (m) => {
       const text = m.text();
       if (/Content Security Policy|Refused to/i.test(text) && !/connect-src/i.test(text)) {

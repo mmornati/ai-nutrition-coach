@@ -20,9 +20,10 @@ test.describe.configure({ mode: 'serial' });
 
 let server: TestServer;
 let base = '';
+let port = 0;
 
 test.beforeAll(async ({ browserName }) => {
-  const port = browserName === 'chromium' ? 4175 : 4176;
+  port = browserName === 'chromium' ? 4175 : 4176;
   server = await serveBundle(DIST, port);
   base = server.origin;
 });
@@ -67,7 +68,6 @@ async function controlled(page: Page): Promise<void> {
 
 test('registers, takes control and precaches exactly the manifest; offline reload keeps the data', async ({
   page,
-  context,
 }) => {
   test.setTimeout(150_000);
   server.setBuildId('e2e-a');
@@ -83,12 +83,15 @@ test('registers, takes control and precaches exactly the manifest; offline reloa
   expect(await cacheNames(page)).toEqual([`${CACHE_PREFIX}e2e-a`]);
   expect(await cachedUrls(page, `${CACHE_PREFIX}e2e-a`)).toEqual(m.files.map((f) => f.url).sort());
 
-  await context.setOffline(true);
+  // Offline = the origin is really gone (not `context.setOffline`, which Playwright 1.63's WebKit
+  // cannot combine with a page reload under a service worker): only the worker can answer now.
+  await server.close();
   await page.reload();
   await unlockAfterReload(page);
   await expect(plates(page)).toHaveCount(1);
   await expect(page.getByText('Salmon')).toBeVisible();
-  await context.setOffline(false);
+  // Bring the origin back for the next test (same port, so the same origin).
+  server = await serveBundle(DIST, port);
 });
 
 test('update: new build id -> waits -> banner -> Reload once -> old caches deleted -> data intact', async ({

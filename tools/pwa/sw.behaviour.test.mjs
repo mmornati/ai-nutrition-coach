@@ -110,7 +110,7 @@ function makeWorker({ buildId = 'b2', files, manifest, caches = new FakeCaches()
 }
 
 const FILES = {
-  'index.html': { body: '<html>v2</html>', headers: { 'content-security-policy': "default-src 'self'", 'content-encoding': 'gzip', 'content-length': '999', 'set-cookie': 'a=b', 'x-frame-options': 'DENY' } },
+  'index.html': { body: '<html>v2</html>', headers: { 'content-security-policy': "default-src 'self'", 'content-encoding': 'gzip', 'content-length': '999', 'set-cookie': 'a=b', vary: 'Accept-Encoding', 'x-frame-options': 'DENY' } },
   'assets/index-1.js': { body: 'console.log(1)' },
   'sqlite3mc/2.5.1/sqlite3.wasm': { body: 'wasm-bytes' },
 };
@@ -133,7 +133,7 @@ describe('install', () => {
     const cached = await w.caches.stores.get('ai-nutrition-coach-precache-b2').match(`${ORIGIN}/index.html`);
     expect(cached.headers.get('content-security-policy')).toBe("default-src 'self'");
     expect(cached.headers.get('x-frame-options')).toBe('DENY');
-    for (const dropped of ['content-encoding', 'set-cookie']) expect(cached.headers.get(dropped)).toBeNull();
+    for (const dropped of ['content-encoding', 'set-cookie', 'vary']) expect(cached.headers.get(dropped)).toBeNull();
     expect(cached.headers.get('content-length')).not.toBe('999');
     expect(cached.headers.get('x-ai-nutrition-coach-sha256')).toBe(sha('<html>v2</html>'));
     expect(await cached.text()).toBe('<html>v2</html>');

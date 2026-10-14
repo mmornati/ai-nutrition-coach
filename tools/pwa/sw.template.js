@@ -33,12 +33,20 @@ const CACHE_NAME = CACHE_PREFIX + BUILD_ID;
 const HASH_HEADER = 'x-ai-nutrition-coach-sha256';
 const MANIFEST = 'precache-manifest.json';
 // Headers describing the wire encoding of the body (the cache stores the
-// decoded bytes) or that must never be replayed from a cache.
-const DROPPED_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie']);
+// decoded bytes), that must never be replayed from a cache, or that are meaningless for the stored
+// entry: it is a single decoded, hash-verified body, so `Vary` (production nginx sends
+// `Vary: Accept-Encoding`) describes a negotiation that no longer exists.
+const DROPPED_HEADERS = new Set([
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'set-cookie',
+  'vary',
+]);
 
-// Vite emits `<script type="module" crossorigin>`, so the browser's requests are CORS requests
-// carrying an `Origin` header; a cached response whose `Vary` names a request header (a server or
-// CDN adding `Vary: Origin`, say) would never match them and the app would not boot offline. The
+// Entries written by older builds may still carry a `Vary` header (`Vary: Origin` or
+// `Accept-Encoding`): Vite emits `<script type="module" crossorigin>`, so the browser's requests are
+// CORS requests carrying an `Origin` header and such an entry would never match them offline. The
 // precache is keyed by exact URL and verified by hash, so `Vary` is ignored on every lookup.
 const MATCH_OPTIONS = { ignoreVary: true };
 

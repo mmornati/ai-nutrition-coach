@@ -10,7 +10,7 @@ Installable PWA, mobile-first, also used on desktop browsers. Not distributed th
 
 ## Stack
 
-React 19 + Vite + TypeScript + Tailwind v4 + vite-plugin-pwa, matching the maintainer's ai-finance-coach frontend. Replaces the earlier Flutter client (see the PWA refactor plan in `docs/pwa-refactor-plan.md`).
+React 19 + Vite + TypeScript + Tailwind v4 + a hardened hand-written service worker (no `vite-plugin-pwa`), matching the maintainer's ai-finance-coach frontend. Replaces the earlier Flutter client (see the PWA refactor plan in `docs/pwa-refactor-plan.md`).
 
 ## Users
 
