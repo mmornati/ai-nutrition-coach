@@ -57,6 +57,9 @@ jobs:
 
   e2e:
     executor: node
+    # WebKit's encrypted-store unlock tests time out (30 s) on 2 vCPUs; GitHub's
+    # ubuntu-latest runner has 4.
+    resource_class: large
     steps:
       - checkout
       - restore_cache:

@@ -70,7 +70,9 @@ scheduled trigger, which is also more punctual than GitHub cron.
 ## CircleCI budget
 
 The CircleCI Free plan includes a monthly credit allowance. Medium Docker and
-machine executors cost about 10 credits per minute. All jobs run on `medium`.
+machine executors cost about 10 credits per minute, and `large` costs about 20.
+All jobs run on `medium` except `e2e`, which needs `large`: WebKit's
+encrypted-store tests time out on 2 vCPUs.
 Check the real per-run cost on the project's Insights page after a few runs,
 and compare it with the allowance on the plan page. Two settings stretch the
 allowance:
