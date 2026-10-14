@@ -6,11 +6,14 @@
  * `{model, messages, max_tokens, temperature}` with one user message of two parts (the fixed
  * prompt, the image data URL), and the headers are only `Authorization` and `Content-Type`. The
  * key is sent in the `Authorization: Bearer` header ONLY: never in a URL, a body, a log or an
- * error, and `toString` is redacted. Nothing about the person is added (no date, id, locale,
- * name, history). A new field has to be argued in the diff and in docs/ai-tiers.md.
+ * error, and `toString` is redacted. Nothing about the person is added (no date, id, name,
+ * history). The one thing that follows the person is the language: the fixed prompt is one of two
+ * templates (English, French) that asks for the food names in that language; no free text goes in.
+ * A new field has to be argued in the diff and in docs/ai-tiers.md.
  */
 import { parseFoodGroup, type EpochMs, type FoodGroup, type RecognizedFood } from '@anc/core';
-import { strings, fill } from '../i18n';
+import { currentLocale, strings, fill } from '../i18n';
+import type { Locale } from '../i18n/locale';
 import { validateByokEndpoint, type ByokEndpointProblem } from './byok-endpoint';
 import {
   PING_RECEIVE_TIMEOUT_MS,
@@ -44,15 +47,36 @@ export const MAX_FOOD_TEXT_LENGTH = 100;
 export const RECOGNITION_MAX_TOKENS = 800;
 export const RECOGNITION_TEMPERATURE = 0.2;
 
-/** The fixed instruction every photo request carries. */
-export const RECOGNITION_PROMPT =
-  'Look at the plate in the photo. Return a JSON array of the foods you see. For each food, ' +
-  'return an object with three string fields: `name` (the food name, plain English), ' +
-  '`quantityHint` (an honest quantity range the user could commit to, e.g. "1 piece", ' +
-  '"about 2 fists", "~1 cup") and `group` (the food group, EXACTLY one of: `vegFruit`, ' +
-  '`protein`, `starch`, `dairy`, `other` — `other` for oils, sweets, drinks and mixed dishes ' +
-  'that fit none of the four). Return an empty array `[]` if the plate is empty or the photo ' +
-  'is unreadable. Return ONLY the JSON array — no prose, no markdown fences, no commentary.';
+/**
+ * The fixed instruction every photo request carries: one template per language, never built from
+ * anything the person typed. The `name` is asked for in the person's language and so is the
+ * quantity hint; the `group` identifiers are the closed English enum in both, because the reply is
+ * validated against it.
+ */
+export const RECOGNITION_PROMPTS: Readonly<Record<Locale, string>> = {
+  en:
+    'Look at the plate in the photo. Return a JSON array of the foods you see. For each food, ' +
+    'return an object with three string fields: `name` (the food name, plain English), ' +
+    '`quantityHint` (an honest quantity range the user could commit to, e.g. "1 piece", ' +
+    '"about 2 fists", "~1 cup") and `group` (the food group, EXACTLY one of: `vegFruit`, ' +
+    '`protein`, `starch`, `dairy`, `other` — `other` for oils, sweets, drinks and mixed dishes ' +
+    'that fit none of the four). Return an empty array `[]` if the plate is empty or the photo ' +
+    'is unreadable. Return ONLY the JSON array — no prose, no markdown fences, no commentary.',
+  fr:
+    'Regardez l’assiette sur la photo. Renvoyez un tableau JSON des aliments que vous voyez. Pour ' +
+    'chaque aliment, renvoyez un objet avec trois champs texte : `name` (le nom de l’aliment, ' +
+    'en français courant), `quantityHint` (une estimation honnête de la quantité, en ' +
+    'français, que la personne peut confirmer, par ' +
+    'ex. « 1 pièce », « environ 2 poings », « ~1 tasse ») et `group` (le groupe alimentaire, ' +
+    'EXACTEMENT l’un de : `vegFruit`, `protein`, `starch`, `dairy`, `other` — ces ' +
+    'identifiants restent en anglais ; `other` pour les huiles, les sucreries, les boissons et ' +
+    'les plats composés qui n’entrent dans aucun des quatre). Renvoyez un tableau vide `[]` si ' +
+    'l’assiette est vide ou la photo illisible. Renvoyez UNIQUEMENT le tableau JSON — pas de ' +
+    'prose, pas de bloc de code markdown, pas de commentaire.',
+};
+
+/** The English template (the default, and the one the request tests pin). */
+export const RECOGNITION_PROMPT = RECOGNITION_PROMPTS.en;
 
 /** The result of "Test connection". Calm, typed, and free of any key material. */
 export type ByokConnectionResult =
@@ -87,6 +111,8 @@ export interface OpenAiCompatibleProviderOptions {
   readonly bodyReadTimeoutMs?: number;
   /** Aborts an in-flight request (the session ended). */
   readonly signal?: AbortSignal | undefined;
+  /** The language to ask the answer in, read when the request is built. Default: the app's. */
+  readonly locale?: (() => Locale) | undefined;
 }
 
 function base64(bytes: Uint8Array): string {
@@ -208,7 +234,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         {
           role: 'user',
           content: [
-            { type: 'text', text: RECOGNITION_PROMPT },
+            { type: 'text', text: RECOGNITION_PROMPTS[(this.#opts.locale ?? currentLocale)()] },
             {
               type: 'image_url',
               image_url: { url: `data:${photo.mime};base64,${base64(photo.bytes)}` },

@@ -215,8 +215,8 @@ A photo is the most personal thing AI Nutrition Coach can send anywhere, so:
    host in the same screen. Either way the dialog names the host verbatim and says
    exactly what is sent and seen:
    - *Sent:* the photo (shrunk, with its location and camera details removed), a
-     fixed instruction asking which foods are on the plate, and the model name you
-     chose.
+     fixed instruction asking which foods are on the plate and in which language to
+     answer (English or French, the app language), and the model name you chose.
    - *Also visible to the host*, as on any request: your internet address and your
      device or app type (on the web: your browser type and the address of the site
      you are using, via the `Origin` header).
@@ -256,7 +256,13 @@ A photo is the most personal thing AI Nutrition Coach can send anywhere, so:
 field: the body is exactly `{model, messages, max_tokens, temperature}` with one user
 message of two parts (the fixed prompt, the image data URL); the headers the app sets are only
 `Authorization` and `Content-Type`. The browser adds its own `User-Agent` and an `Origin` header,
-which the consent dialog and the privacy page say; no date, id, locale or name is in it. The connection test sends a one-token `ping`. Nothing is
+which the consent dialog and the privacy page say; no date, id or name is in it.
+The one thing that follows the person is the **language**: the fixed instruction is one of two
+templates, English or French (`RECOGNITION_PROMPTS`, chosen from the app language when the request
+is built), which ask for each food's `name` and `quantityHint` in that language. The `group` values
+stay the English identifiers the reply is checked against. No free text from the person goes into
+either template, and there is no locale field. The consent dialog and the privacy page say so. The
+connection test sends a one-token `ping`. Nothing is
 sent about the person: no name, no history, no other plates, no coach notes.
 
 ## Network hygiene (N3)

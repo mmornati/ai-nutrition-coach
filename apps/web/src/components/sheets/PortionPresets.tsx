@@ -1,5 +1,6 @@
 import type { QuantityRange } from '@anc/core';
-import { useStrings } from '../../i18n';
+import { quantityLabel } from '../../catalog';
+import { useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { effectivePresets, sameQuantity } from './foods';
 
@@ -22,6 +23,7 @@ export function PortionPresets({
   raised = true,
 }: PortionPresetsProps) {
   const s = useStrings();
+  const { locale } = useLocale();
   const shown = effectivePresets(presets);
   return (
     <div role="group" aria-label={label ?? s.portion.label} className="flex flex-wrap gap-2">
@@ -43,7 +45,7 @@ export function PortionPresets({
                   ),
             )}
           >
-            {preset.displayLabel}
+            {quantityLabel(preset, locale)}
           </button>
         );
       })}

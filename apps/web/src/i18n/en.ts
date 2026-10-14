@@ -40,6 +40,61 @@ export const en = {
     oneServing: '~1 serving',
     labelFor: '{label}: {name}',
   },
+  /**
+   * The seed foods and the units their portions are counted in. `names` is keyed by the stable id
+   * in `catalog/seed-foods.ts`; a unit's forms are the bare word (the number is added by
+   * `quantityLabel`), picked by the plural rule of the upper end of the range.
+   */
+  foods: {
+    names: {
+      apple: 'Apple',
+      banana: 'Banana',
+      orange: 'Orange',
+      spinach: 'Spinach',
+      broccoli: 'Broccoli',
+      carrot: 'Carrot',
+      tomato: 'Tomato',
+      avocado: 'Avocado',
+      strawberries: 'Strawberries',
+      salmon: 'Salmon',
+      chickenBreast: 'Chicken Breast',
+      eggs: 'Eggs',
+      tofu: 'Tofu',
+      beef: 'Beef',
+      tuna: 'Tuna',
+      lentils: 'Lentils',
+      chickpeas: 'Chickpeas',
+      rice: 'Rice',
+      pasta: 'Pasta',
+      bread: 'Bread',
+      potato: 'Potato',
+      quinoa: 'Quinoa',
+      oats: 'Oats',
+      sweetPotato: 'Sweet Potato',
+      tortilla: 'Tortilla',
+      yogurt: 'Yogurt',
+      milk: 'Milk',
+      cheese: 'Cheese',
+      cottageCheese: 'Cottage Cheese',
+      butter: 'Butter',
+      greekYogurt: 'Greek Yogurt',
+      kefir: 'Kefir',
+      mixedNuts: 'Mixed Nuts',
+      oliveOil: 'Olive Oil',
+      darkChocolate: 'Dark Chocolate',
+    },
+    units: {
+      piece: { one: 'piece', other: 'pieces' },
+      cup: { one: 'cup', other: 'cups' },
+      fist: { one: 'fist', other: 'fists' },
+      can: { one: 'can', other: 'cans' },
+      slice: { one: 'slice', other: 'slices' },
+      tbsp: { one: 'tbsp', other: 'tbsp' },
+      handful: { one: 'handful', other: 'handfuls' },
+      square: { one: 'square', other: 'squares' },
+      serving: { one: 'serving', other: 'servings' },
+    },
+  },
   /** Shared by the photo capture and the barcode scanner: one calm camera-problem copy. */
   camera: {
     deniedTitle: 'Camera denied — type it instead',
@@ -126,7 +181,7 @@ export const en = {
   consent: {
     title: 'Send this photo to {host}?',
     whatIsSent:
-      'What is sent: the photo, shrunk, with its location and camera details removed, a fixed instruction asking which foods are on the plate, and the model name you chose. AI Nutrition Coach does not run that service and never sees the photo.',
+      'What is sent: the photo, shrunk, with its location and camera details removed, a fixed instruction asking which foods are on the plate and in which language to answer (English or French, the app language), and the model name you chose. AI Nutrition Coach does not run that service and never sees the photo.',
     alsoVisible:
       'Also visible to {host}: your internet address and your device or app type, as with any website.',
     alsoVisibleWeb:
@@ -558,7 +613,7 @@ export const en = {
     leavesBarcode:
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
     leavesPhoto:
-      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
+      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction (which also says in which language to answer, the app language) and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:

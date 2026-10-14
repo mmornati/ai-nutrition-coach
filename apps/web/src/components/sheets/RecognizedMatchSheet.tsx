@@ -6,7 +6,8 @@ import type {
   QuantityRange,
   RecognitionResult,
 } from '@anc/core';
-import { plural, useMessage, useStrings, type Strings } from '../../i18n';
+import { foodName } from '../../catalog';
+import { plural, useLocale, useMessage, useStrings, type Strings } from '../../i18n';
 import { portionFor } from '../../i18n/sentences';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
@@ -128,6 +129,7 @@ function Body({
   errorMessage,
 }: Omit<RecognizedMatchSheetProps, 'open' | 'onClose'>) {
   const s = useStrings();
+  const { locale } = useLocale();
   const r = s.recognized;
   // Derived, so a result or catalog matches that arrive after the sheet opened are picked up.
   const { recognized, extra } = useMemo(
@@ -208,7 +210,7 @@ function Body({
           checked={choice.checked}
           onChange={(e) => update(c.key, { checked: e.target.checked })}
         >
-          <span className="block text-lead">{c.food.displayName}</span>
+          <span className="block text-lead">{foodName(c.food, locale)}</span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <GroupMarker group={c.food.foodGroup} />
             {c.confidence !== undefined && (
@@ -224,7 +226,7 @@ function Body({
               presets={c.presets}
               value={choice.quantity}
               onChange={(quantity) => update(c.key, { quantity })}
-              label={portionFor(c.food.displayName)}
+              label={portionFor(foodName(c.food, locale))}
             />
           </div>
         )}

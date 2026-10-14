@@ -35,6 +35,10 @@ import {
   type FoodCatalog,
   type FoodMatch,
 } from '@anc/core';
+import { currentLocale } from '../i18n';
+import type { Locale } from '../i18n/locale';
+import { foldText } from './fold';
+import { seedName, seedPresets } from './food-display';
 import { classifyFoodGroup } from './food-group-classifier';
 import { LruCache } from './lru-cache';
 import { createOffBarcodeSource, type OffBarcodeSource } from './off-barcode-source';
@@ -50,18 +54,25 @@ export interface OfflineFirstFoodCatalogOptions {
   readonly barcodeCacheCapacity?: number;
   readonly offSource?: OffBarcodeSource;
   /**
+   * The language names, portion labels and Open Food Facts names are worded in, asked at call time
+   * (so a language switch takes effect on the next search). Defaults to the app's current one.
+   */
+  readonly locale?: () => Locale;
+  /** A seed's display name in a language. Defaults to the catalogue's (tests pass their own). */
+  readonly nameOf?: (seed: SeedFood, locale: Locale) => string;
+  /**
    * REQUIRED: there is no default that sends. The app passes a check of the person's answer to the
    * one-time Open Food Facts notice. Tests that want the lookup pass `async () => true`.
    */
   readonly onlineLookupAllowed: () => Promise<boolean>;
 }
 
-const seedRef = (seed: SeedFood): string => `seed:${seed.displayName.toLowerCase()}`;
-
-function toDatabaseFood(seed: SeedFood): DatabaseFood {
+function toDatabaseFood(seed: SeedFood, displayName: string): DatabaseFood {
   return databaseFood({
-    sourceRef: seedRef(seed),
-    displayName: seed.displayName,
+    sourceRef: seed.sourceRef,
+    // The text is kept with the plate (exports stay readable); the plate itself is shown from the
+    // catalogue's name for `sourceRef`, so a later language switch still reads right.
+    displayName,
     // A curated entry shipped in the app, not an Open Food Facts product.
     source: 'seed',
     foodGroup: seed.foodGroup,
@@ -69,8 +80,9 @@ function toDatabaseFood(seed: SeedFood): DatabaseFood {
 }
 
 /**
- * Score a seed name against the query. 0 when there is no match:
- * exact 1.0, prefix 0.8, substring 0.6, token overlap 0.4 x overlap fraction (whole words).
+ * Score a seed name against the query (both already folded: lower-case, no accents). 0 when there
+ * is no match: exact 1.0, prefix 0.8, substring 0.6, token overlap 0.4 x overlap fraction (whole
+ * words).
  */
 function score(query: string, name: string): number {
   if (name === query) return 1.0;
@@ -90,6 +102,10 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   private readonly barcodeCache: LruCache<string, CatalogResult>;
   private readonly offSource: OffBarcodeSource;
   private readonly onlineLookupAllowed: () => Promise<boolean>;
+  private readonly locale: () => Locale;
+  private readonly nameOf: (seed: SeedFood, locale: Locale) => string;
+  /** Display name and folded name per seed, per locale; built lazily (seeds and `nameOf` are fixed). */
+  private readonly folded = new Map<Locale, readonly { name: string; folded: string }[]>();
 
   constructor(options: OfflineFirstFoodCatalogOptions) {
     this.seeds = Object.freeze([...(options.seeds ?? seedFoods)]);
@@ -97,6 +113,8 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     this.barcodeCache = new LruCache(options.barcodeCacheCapacity ?? BARCODE_CACHE_CAPACITY);
     this.offSource = options.offSource ?? createOffBarcodeSource();
     this.onlineLookupAllowed = options.onlineLookupAllowed;
+    this.locale = options.locale ?? currentLocale;
+    this.nameOf = options.nameOf ?? seedName;
   }
 
   /** Forgets every remembered query and barcode (the session ended). */
@@ -120,17 +138,19 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     try {
       const limit = options?.limit ?? DEFAULT_LIMIT;
       const normalized = query.trim().toLowerCase();
+      const locale = this.locale();
       // An empty query is an empty list; a not-found here would push the person into the manual
       // path on the very first keystroke.
       if (normalized.length === 0) return rankedMatches([]);
 
       // The key includes `limit`: the cached list is bounded by the limit it was written with, so
-      // a later call with a larger limit must not be served the shorter list.
-      const cacheKey = `${normalized}\u0000${limit}`;
+      // a later call with a larger limit must not be served the shorter list. It includes the
+      // language too: the cached foods carry their names and portion labels in it.
+      const cacheKey = `${locale}\u0000${normalized}\u0000${limit}`;
       const cached = this.searchCache.get(cacheKey);
       if (cached !== undefined) return rankedMatches(cached);
 
-      const trimmed = this.rank(normalized).slice(0, Math.max(0, limit));
+      const trimmed = this.rank(foldText(normalized), locale).slice(0, Math.max(0, limit));
       if (trimmed.length === 0) return notFound(normalized);
       this.searchCache.put(cacheKey, trimmed);
       return rankedMatches(trimmed);
@@ -141,8 +161,9 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
 
   async lookupBySourceRef(sourceRef: string): Promise<DatabaseFood | null> {
     const needle = sourceRef.toLowerCase();
+    const locale = this.locale();
     for (const seed of this.seeds) {
-      if (seedRef(seed) === needle) return toDatabaseFood(seed);
+      if (seed.sourceRef === needle) return toDatabaseFood(seed, this.nameOf(seed, locale));
     }
     return null;
   }
@@ -156,7 +177,10 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       const trimmed = code.trim();
       if (trimmed.length === 0) return notFound('');
 
-      const cached = this.barcodeCache.get(trimmed);
+      // The name is the product's in the person's language, so the language is part of the key.
+      const locale = this.locale();
+      const cacheKey = `${locale}:${trimmed}`;
+      const cached = this.barcodeCache.get(cacheKey);
       if (cached !== undefined) return cached;
 
       // Only an explicit `true` lets the barcode leave the device; anything else (a `false`, a
@@ -169,7 +193,7 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       }
       if (!allowed) return notFound(trimmed);
 
-      const result = await this.offSource.lookup(trimmed);
+      const result = await this.offSource.lookup(trimmed, { locale });
       let resolved: CatalogResult;
       switch (result.kind) {
         case 'match':
@@ -186,7 +210,7 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       }
 
       // Only a definitive answer is remembered; the next scan after a failure retries.
-      if (resolved.kind !== 'catalogFailure') this.barcodeCache.put(trimmed, resolved);
+      if (resolved.kind !== 'catalogFailure') this.barcodeCache.put(cacheKey, resolved);
       return resolved;
     } catch (error) {
       return catalogFailure('unknown', describe(error));
@@ -194,16 +218,40 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   }
 
   /**
-   * Rank every seed whose name matches. Stable within a tier: the iteration order is the declared
-   * order in `seed-foods.ts`, which is balanced across food groups. Tests rely on this.
+   * Rank every seed whose name matches, in the current language's name or the English one (so
+   * "pomme" and "apple" both find the apple), ignoring case and accents. Stable within a tier: the
+   * iteration order is the declared order in `seed-foods.ts`, which is balanced across food
+   * groups. Tests rely on this.
    */
-  private rank(query: string): FoodMatch[] {
+  private foldedNames(locale: Locale): readonly { name: string; folded: string }[] {
+    let list = this.folded.get(locale);
+    if (list === undefined) {
+      list = this.seeds.map((seed) => {
+        const name = this.nameOf(seed, locale);
+        return { name, folded: foldText(name) };
+      });
+      this.folded.set(locale, list);
+    }
+    return list;
+  }
+
+  private rank(query: string, locale: Locale): FoodMatch[] {
     const scored: { match: FoodMatch; score: number }[] = [];
-    for (const seed of this.seeds) {
-      const s = score(query, seed.displayName.toLowerCase());
+    const names = this.foldedNames(locale);
+    const english = locale === 'en' ? null : this.foldedNames('en');
+    for (const [i, seed] of this.seeds.entries()) {
+      const { name, folded } = names[i] as { name: string; folded: string };
+      const s = Math.max(
+        score(query, folded),
+        english === null ? 0 : score(query, (english[i] as { folded: string }).folded),
+      );
       if (s > 0) {
         scored.push({
-          match: { food: toDatabaseFood(seed), confidence: s, presets: seed.presets },
+          match: {
+            food: toDatabaseFood(seed, name),
+            confidence: s,
+            presets: seedPresets(seed, locale),
+          },
           score: s,
         });
       }

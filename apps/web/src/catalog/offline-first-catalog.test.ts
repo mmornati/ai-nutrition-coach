@@ -11,9 +11,24 @@ import {
   type OffBarcodeSource,
 } from './off-barcode-source';
 import { OfflineFirstFoodCatalog } from './offline-first-catalog';
-import { seedFoods } from './seed-foods';
+import { en } from '../i18n/en';
+import { fr } from '../i18n/fr';
+import { seedName } from './food-display';
+import { seedFoods, seedForRef, type SeedFood } from './seed-foods';
 
 const allow = async (): Promise<boolean> => true;
+
+/** A seed of the test's own: its id is its name, so `nameOf: (s) => s.id` reads it back. */
+const custom = (name: string, foodGroup: FoodGroup): SeedFood => ({
+  id: name,
+  sourceRef: `seed:${name.toLowerCase()}`,
+  foodGroup,
+  presets: seedFoods[0]!.presets,
+});
+const idAsName = { nameOf: (s: SeedFood) => s.id };
+
+const inFrench = () =>
+  new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow, locale: () => 'fr' });
 
 function ranked(result: CatalogResult) {
   if (result.kind !== 'rankedMatches')
@@ -26,6 +41,7 @@ class FakeOffSource implements OffBarcodeSource {
   private readonly responses = new Map<string, OffBarcodeResult>();
   private readonly counts = new Map<string, number>();
   totalCalls = 0;
+  locales: (string | undefined)[] = [];
 
   callCount(barcode: string): number {
     return this.counts.get(barcode) ?? 0;
@@ -39,8 +55,9 @@ class FakeOffSource implements OffBarcodeSource {
   setFailure(barcode: string, message: string): void {
     this.responses.set(barcode, { kind: 'failure', barcode, reason: 'httpError', message });
   }
-  async lookup(barcode: string): Promise<OffBarcodeResult> {
+  async lookup(barcode: string, options?: { locale?: string }): Promise<OffBarcodeResult> {
     this.totalCalls++;
+    this.locales.push(options?.locale);
     this.counts.set(barcode, this.callCount(barcode) + 1);
     return this.responses.get(barcode) ?? { kind: 'notFound', barcode };
   }
@@ -54,10 +71,32 @@ describe('OfflineFirstFoodCatalog', () => {
       expect(groups.has(g), g).toBe(true);
     }
     for (const s of seedFoods) {
-      expect(s.presets.length, s.displayName).toBeGreaterThan(0);
-      for (const p of s.presets) expect(p.displayLabel.startsWith('~'), s.displayName).toBe(true);
+      expect(s.presets.length, s.id).toBeGreaterThan(0);
     }
-    expect(new Set(seedFoods.map((s) => s.displayName.toLowerCase())).size).toBe(seedFoods.length);
+    expect(new Set(seedFoods.map((s) => s.id)).size).toBe(seedFoods.length);
+    expect(new Set(seedFoods.map((s) => seedName(s, 'en').toLowerCase())).size).toBe(
+      seedFoods.length,
+    );
+  });
+
+  it('every seed has a name in each catalogue, and every catalogue name is a seed', () => {
+    const ids = seedFoods.map((s) => s.id).sort();
+    expect(Object.keys(en.foods.names).sort()).toEqual(ids);
+    expect(Object.keys(fr.foods.names).sort()).toEqual(ids);
+  });
+
+  it('sourceRef is frozen as seed:<English name, lower-cased>, so stored plates keep resolving', () => {
+    for (const s of seedFoods) {
+      expect(s.sourceRef, s.id).toBe(
+        `seed:${en.foods.names[s.id as keyof typeof en.foods.names].toLowerCase()}`,
+      );
+      expect(seedForRef(s.sourceRef)).toBe(s);
+    }
+    // The refs written before the ids existed, including the multi-word ones.
+    expect(seedForRef('seed:chicken breast')?.id).toBe('chickenBreast');
+    expect(seedForRef('seed:sweet potato')?.id).toBe('sweetPotato');
+    expect(seedForRef('SEED:Apple')?.id).toBe('apple');
+    expect(seedForRef('seed:unknown')).toBeUndefined();
   });
 
   it('HAPPY_PATH: partial query "salm" surfaces Salmon ranked first', async () => {
@@ -92,11 +131,12 @@ describe('OfflineFirstFoodCatalog', () => {
     }
     const catalog = new OfflineFirstFoodCatalog({
       onlineLookupAllowed: allow,
+      ...idAsName,
       seeds: [
-        { displayName: 'Big Apple Pie', foodGroup: 'other', presets: seedFoods[0]!.presets },
-        { displayName: 'Apple', foodGroup: 'vegFruit', presets: seedFoods[0]!.presets },
-        { displayName: 'Apple Sauce', foodGroup: 'other', presets: seedFoods[0]!.presets },
-        { displayName: 'Red Apple Pie', foodGroup: 'other', presets: seedFoods[0]!.presets },
+        custom('Big Apple Pie', 'other'),
+        custom('Apple', 'vegFruit'),
+        custom('Apple Sauce', 'other'),
+        custom('Red Apple Pie', 'other'),
       ],
     });
     const out = ranked(await catalog.search('apple'));
@@ -111,7 +151,8 @@ describe('OfflineFirstFoodCatalog', () => {
   it('token overlap scores 0.4 x the fraction of query words found as whole words', async () => {
     const catalog = new OfflineFirstFoodCatalog({
       onlineLookupAllowed: allow,
-      seeds: [{ displayName: 'Sweet Potato', foodGroup: 'starch', presets: seedFoods[0]!.presets }],
+      ...idAsName,
+      seeds: [custom('Sweet Potato', 'starch')],
     });
     // Not a substring of the name as a whole, but both words are whole tokens of it.
     const out = ranked(await catalog.search('potato sweet'));
@@ -175,6 +216,13 @@ describe('OfflineFirstFoodCatalog', () => {
     expect(await catalog.lookupBySourceRef('seed:nothing')).toBeNull();
   });
 
+  it('a stored seed ref resolves to the name in the current language', async () => {
+    expect(await inFrench().lookupBySourceRef('seed:chicken breast')).toMatchObject({
+      sourceRef: 'seed:chicken breast',
+      displayName: 'Filet de poulet',
+    });
+  });
+
   it('a small-limit search does not shadow a later larger-limit one', async () => {
     const catalog = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow });
     expect(ranked(await catalog.search('e', { limit: 2 }))).toHaveLength(2);
@@ -198,7 +246,7 @@ describe('OfflineFirstFoodCatalog', () => {
     // A ranker that throws:
     const bad = new OfflineFirstFoodCatalog({
       onlineLookupAllowed: allow,
-      seeds: [{ displayName: 'x', foodGroup: 'other', presets: [] }],
+      seeds: [{ id: 'x', sourceRef: 'seed:x', foodGroup: 'other', presets: [] }],
     });
     (bad as unknown as { rank: () => never }).rank = () => {
       throw new Error('boom');
@@ -208,6 +256,91 @@ describe('OfflineFirstFoodCatalog', () => {
       reason: 'unknown',
       message: 'boom',
     });
+  });
+});
+
+describe('OfflineFirstFoodCatalog in French', () => {
+  const names = async (catalog: OfflineFirstFoodCatalog, query: string) =>
+    ranked(await catalog.search(query)).map((m) => m.food.displayName);
+
+  it('finds a food by its French name, whatever the case or accents', async () => {
+    const catalog = inFrench();
+    expect((await names(catalog, 'pomme'))[0]).toBe('Pomme');
+    expect((await names(catalog, 'Pomme'))[0]).toBe('Pomme');
+    expect((await names(catalog, 'POMME'))[0]).toBe('Pomme');
+    expect(await names(catalog, 'epinards')).toEqual(['Épinards']);
+    expect(await names(catalog, 'Épinards')).toEqual(['Épinards']);
+    expect(await names(catalog, 'EPINARDS')).toEqual(['Épinards']);
+    expect(await names(catalog, 'oeufs')).toEqual(['Œufs']);
+    expect(await names(catalog, 'boeuf')).toEqual(['Bœuf']);
+    expect(await names(catalog, 'kefir')).toEqual(['Kéfir']);
+    expect(await names(catalog, 'pates')).toEqual(['Pâtes']);
+  });
+
+  it('also finds it by its English name, shown in French', async () => {
+    const catalog = inFrench();
+    expect((await names(catalog, 'apple'))[0]).toBe('Pomme');
+    expect(await names(catalog, 'spinach')).toEqual(['Épinards']);
+    expect((await names(catalog, 'SALM'))[0]).toBe('Saumon');
+  });
+
+  it('ranks the French name the way English names are ranked', async () => {
+    const out = ranked(await inFrench().search('pomme'));
+    expect(out.map((m) => [m.food.displayName, m.confidence])).toEqual([
+      ['Pomme', 1.0],
+      ['Pomme de terre', 0.8],
+    ]);
+  });
+
+  it('English is unchanged: a French word finds nothing there', async () => {
+    const english = new OfflineFirstFoodCatalog({ onlineLookupAllowed: allow, locale: () => 'en' });
+    expect(await english.search('pomme')).toEqual({ kind: 'notFound', query: 'pomme' });
+    expect((await names(english, 'apple'))[0]).toBe('Apple');
+  });
+
+  it('keeps the frozen English sourceRef and words the presets in French', async () => {
+    const [chicken] = ranked(await inFrench().search('poulet'));
+    expect(chicken!.food).toMatchObject({
+      sourceRef: 'seed:chicken breast',
+      displayName: 'Filet de poulet',
+      source: 'seed',
+    });
+    expect(chicken!.presets.map((p) => p.displayLabel)).toEqual(['~1 poing']);
+    const [salmon] = ranked(await inFrench().search('saumon'));
+    expect(salmon!.presets.map((p) => p.displayLabel)).toEqual(['~1 poing', '~1,5 poing']);
+    const [spinach] = ranked(await inFrench().search('epinards'));
+    expect(spinach!.presets.map((p) => p.displayLabel)).toEqual(['~1–2 tasses']);
+  });
+
+  it('the search cache is per language', async () => {
+    let locale: 'en' | 'fr' = 'en';
+    const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
+      locale: () => locale,
+    });
+    expect(await names(catalog, 'rice')).toEqual(['Rice']);
+    locale = 'fr';
+    expect(await names(catalog, 'rice')).toEqual(['Riz']);
+    expect(catalog.cachedQueries).toBe(2);
+    locale = 'en';
+    expect(await names(catalog, 'rice')).toEqual(['Rice']);
+  });
+
+  it('asks the barcode source for the language, and caches the answer per language', async () => {
+    const off = new FakeOffSource();
+    off.setMatch('123', 'Chocolat', []);
+    let locale: 'en' | 'fr' = 'fr';
+    const catalog = new OfflineFirstFoodCatalog({
+      onlineLookupAllowed: allow,
+      offSource: off,
+      locale: () => locale,
+    });
+    await catalog.lookupByBarcode('123');
+    await catalog.lookupByBarcode('123');
+    expect(off.locales).toEqual(['fr']);
+    locale = 'en';
+    await catalog.lookupByBarcode('123');
+    expect(off.locales).toEqual(['fr', 'en']);
   });
 });
 

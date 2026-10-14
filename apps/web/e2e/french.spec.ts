@@ -158,6 +158,10 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   await expect(page.getByRole('button', { name: 'Noter une autre assiette' })).toBeVisible();
   // The coach note was written while the app spoke English: it is shown in French now.
   await expect(page.getByRole('group', { name: 'Question du coach' })).toContainText('légumes');
+  // The salmon was logged in English: its plate reads "Saumon" now (the ref is frozen, the name
+  // follows the language), and no English food name is left on the screen.
+  await expect(page.getByText('Saumon', { exact: true })).toBeVisible();
+  await expect(page.getByText('Salmon')).toHaveCount(0);
   expect(await undersizedTargets(page), 'Today targets at 320px').toEqual([]);
 
   // The capture sheet and the Type it sheet.
@@ -170,8 +174,13 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   expect(await undersizedTargets(page), 'capture sheet targets at 320px').toEqual([]);
   await sheet.getByRole('button', { name: /^Saisir/ }).click();
   const typeIt = page.getByRole('dialog', { name: 'Ajouter un aliment' });
+  // The English name finds it too; the French one is what is shown.
   await typeIt.getByLabel('Recherche d’aliment').fill('salm');
-  await expect(typeIt.getByRole('button', { name: /^Salmon, Protéines/ })).toBeVisible();
+  await expect(typeIt.getByRole('button', { name: /^Saumon, Protéines/ })).toBeVisible();
+  await typeIt.getByLabel('Recherche d’aliment').fill('épinards');
+  await typeIt.getByRole('button', { name: /^Épinards, Fruits & légumes/ }).click();
+  await expect(typeIt.getByRole('button', { name: '~1–2 tasses' })).toBeVisible();
+  await expect(page.getByText('Spinach')).toHaveCount(0);
   await checkScreen(page, 'type-it sheet at 320px');
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
@@ -182,6 +191,11 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
     .first()
     .click({ position: { x: 12, y: 12 } });
   await expect(page.getByRole('button', { name: 'Retirer cette assiette' })).toBeVisible();
+  // Name and portion are worded from the catalogue (salmon is logged as "~1 fist").
+  const entry = page.getByRole('list', { name: 'Dans l’assiette' }).getByRole('listitem');
+  await expect(entry).toContainText('Saumon');
+  await expect(entry).toContainText('~1 poing');
+  await expect(page.getByText('fist')).toHaveCount(0);
   // The coach card arrives once its note is read, then fades in: measure after it has settled.
   await expect(page.getByRole('group', { name: 'Question du coach' })).toBeVisible();
   await checkScreen(page, 'plate screen at 320px');

@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { ERASE_SUCCESS } from '@anc/core';
+import { ERASE_SUCCESS, type QuantityRange } from '@anc/core';
 import { currentLocale, setCurrentLocale } from '../i18n';
 import { fr } from '../i18n/fr';
 import { DEFAULT_LOCALE } from '../i18n/locale';
@@ -18,7 +18,14 @@ import { CreatePassphraseScreen } from '../screens/gate/CreatePassphraseScreen';
 import { LostStoreScreen } from '../screens/gate/LostStoreScreen';
 import { StoreUnavailableScreen } from '../screens/gate/StoreUnavailableScreen';
 import { UnlockScreen } from '../screens/gate/UnlockScreen';
-import { at, renderUnlockedApp, seedPlate, unlockedBundle } from './testing';
+import { at, renderUnlockedApp, seedFoodPlate, seedPlate, unlockedBundle } from './testing';
+
+const range = (low: number, high: number, unit: string, displayLabel: string): QuantityRange => ({
+  low,
+  high,
+  unit,
+  displayLabel,
+});
 
 const French = ({ children }: { children: ReactNode }) => (
   <LocaleProvider initial="fr">{children}</LocaleProvider>
@@ -113,6 +120,81 @@ describe('the app in French', () => {
   ])('Settings %s', async (hash, title) => {
     await openInFrench(hash);
     await h1(title);
+    await expectFrenchOnly();
+  });
+});
+
+describe('food names and portions in French', () => {
+  /** Plates logged while the app spoke English: the stored text is English, the refs are frozen. */
+  async function openWithSeedPlate(hash: (plateId: number) => string) {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiLocale, 'fr');
+    const plate = await seedFoodPlate(bundle, at(8, 0), [
+      ['seed:salmon', 'Salmon', 'protein', range(1.5, 1.5, 'fist', '~1.5 fists')],
+      ['seed:spinach', 'Spinach', 'vegFruit', range(1, 2, 'cup', '~1–2 cups')],
+      ['seed:chicken breast', 'Chicken Breast', 'protein', range(1, 1, 'fist', '~1 fist')],
+      // Not a seed food: a model's name and free-text hint stay exactly as logged.
+      [
+        'byok-m-Porridge',
+        'Porridge maison',
+        'starch',
+        range(1, 1, 'environ 2 bols', 'environ 2 bols'),
+      ],
+    ]);
+    window.location.hash = hash(plate.id);
+    const view = await renderUnlockedApp(bundle, { wrapper: French });
+    return { bundle, plate, ...view };
+  }
+
+  it('Today names a plate of seed foods in French, and keeps anything else as logged', async () => {
+    await openWithSeedPlate(() => '#/');
+    await h1(fr.today.today);
+    await screen.findByText('Saumon, Épinards, Filet de poulet, Porridge maison');
+    await expectFrenchOnly();
+  });
+
+  it('the plate screen words the names and the portions in French', async () => {
+    await openWithSeedPlate((id) => `#/plate/${id}`);
+    const list = await screen.findByRole('list', { name: fr.entries.label });
+    const rows = within(list)
+      .getAllByRole('listitem')
+      .map((li) => [...li.querySelectorAll('span')].slice(0, 2).map((e) => e.textContent));
+    expect(rows).toEqual([
+      ['Saumon', '~1,5 poing'],
+      ['Épinards', '~1–2 tasses'],
+      ['Filet de poulet', '~1 poing'],
+      ['Porridge maison', 'environ 2 bols'],
+    ]);
+    await expectFrenchOnly();
+  });
+
+  it('Type it finds foods by their French or English name and offers French portions', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await openInFrench('#/');
+    await h1(fr.today.today);
+    await user.click(screen.getAllByRole('button', { name: fr.shell.logAPlate })[0] as HTMLElement);
+    const sheet = await screen.findByRole('dialog', { name: fr.capture.title });
+    await user.click(
+      within(sheet).getByRole('button', { name: new RegExp(`^${fr.capture.type}`) }),
+    );
+    const typeIt = await screen.findByRole('dialog', { name: fr.catalog.title });
+    const search = within(typeIt).getByLabelText(fr.catalog.searchLabel);
+
+    await user.type(search, 'epinards');
+    const spinach = await within(typeIt).findByRole('button', { name: /^Épinards, / });
+    await user.click(spinach);
+    const portions = within(typeIt).getByRole('group', { name: fr.portion.label });
+    expect(
+      within(portions)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['~1–2 tasses']);
+    await expectFrenchOnly();
+
+    await user.clear(search);
+    await user.type(search, 'apple');
+    expect(await within(typeIt).findByRole('button', { name: /^Pomme, / })).toBeVisible();
+    expect(within(typeIt).queryByText('Apple')).toBeNull();
     await expectFrenchOnly();
   });
 });

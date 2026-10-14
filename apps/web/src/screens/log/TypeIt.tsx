@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import type { FoodEntryDraft, RecordPlateResult } from '@anc/core';
-import { fill, useMessage, useStrings } from '../../i18n';
+import { fill, useLocale, useMessage, useStrings } from '../../i18n';
 import { Button, GroupMarker, TextField } from '../../components/primitives';
 import { PortionPresets, Sheet } from '../../components/sheets';
-import { useManualEntry } from '../../catalog';
+import { foodName, useManualEntry } from '../../catalog';
 import type { LogOutcome } from '../../catalog';
 import { useSession } from '../../app/session';
 
@@ -22,6 +22,7 @@ export function TypeIt({
 }) {
   const s = useStrings();
   const c = s.catalog;
+  const { locale } = useLocale();
   const { catalog, recordPlate } = useSession();
   const { session, state } = useManualEntry(catalog);
   const [note, setNote] = useMessage();
@@ -88,7 +89,7 @@ export function TypeIt({
                   type="button"
                   aria-pressed={isSelected}
                   aria-label={fill(c.matchLabel, {
-                    name: match.food.displayName,
+                    name: foodName(match.food, locale),
                     group: s.groups[match.food.foodGroup],
                     presets: match.presets.length,
                   })}
@@ -96,7 +97,7 @@ export function TypeIt({
                   className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 bg-transparent py-2 text-left"
                 >
                   <span className="min-w-0">
-                    <span className="block text-lead">{match.food.displayName}</span>
+                    <span className="block text-lead">{foodName(match.food, locale)}</span>
                     <GroupMarker group={match.food.foodGroup} className="mt-1" />
                   </span>
                   <span

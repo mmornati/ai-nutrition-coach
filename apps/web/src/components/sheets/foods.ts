@@ -1,4 +1,5 @@
 import { databaseFood, type DatabaseFood, type QuantityRange } from '@anc/core';
+import { isKnownUnit } from '../../catalog';
 import { strings } from '../../i18n';
 
 /**
@@ -22,9 +23,17 @@ export function manualFood(name: string): DatabaseFood {
   });
 }
 
+/**
+ * The same portion. For a unit the catalogue words, the label is only a rendering of
+ * `(low, high, unit)` (a plate logged in another language says the same), so it is not compared;
+ * for a free-text unit the stored label is all there is.
+ */
 export function sameQuantity(a: QuantityRange, b: QuantityRange): boolean {
   return (
-    a.low === b.low && a.high === b.high && a.unit === b.unit && a.displayLabel === b.displayLabel
+    a.low === b.low &&
+    a.high === b.high &&
+    a.unit === b.unit &&
+    (isKnownUnit(a.unit) || a.displayLabel === b.displayLabel)
   );
 }
 

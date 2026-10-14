@@ -97,6 +97,23 @@ export function draft(
   };
 }
 
+/** A plate of seed foods, as the type-it flow logs them: their frozen `seed:` ref and their text. */
+export async function seedFoodPlate(
+  bundle: StoreBundle,
+  when: number,
+  foods: readonly (readonly [string, string, FoodGroup, QuantityRange])[],
+): Promise<PlateLog> {
+  const result = await bundle.store.recordPlate({
+    entries: foods.map(([sourceRef, displayName, foodGroup, quantity]) => ({
+      databaseFood: databaseFood({ sourceRef, displayName, source: 'seed', foodGroup }),
+      quantity,
+    })),
+    loggedAtUtc: when,
+  });
+  if (result.kind !== 'recordPlateSuccess') throw new Error('could not seed a plate');
+  return result.plateLog;
+}
+
 /** Today at `hour:minute` local, plus `dayOffset` days. */
 export function at(hour: number, minute = 0, dayOffset = 0): number {
   const d = new Date();

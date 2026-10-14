@@ -146,6 +146,8 @@ Exports cover plates only: coach notes, AI settings, the language and these noti
 exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).
 
+Food names are stored in the language they were logged in, so an export can mix languages; the stable `sourceRef` identifies built-in foods.
+
 ## Shared devices
 
 There is one store per browser profile, and no profiles inside the app: everyone

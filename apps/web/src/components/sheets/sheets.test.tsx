@@ -16,6 +16,8 @@ import { EntryList } from './EntryList';
 import { LineBar } from './LineBar';
 import { PortionPresets } from './PortionPresets';
 import { RecognizedMatchSheet } from './RecognizedMatchSheet';
+import { sameQuantity, uniqueQuantities } from './foods';
+import { LocaleProvider } from '../../i18n/LocaleProvider';
 
 const food = (
   displayName: string,
@@ -305,12 +307,12 @@ describe('RecognizedMatchSheet', () => {
     kind: 'recognizedPlate',
     foods: [
       { databaseFood: SALMON, confidence: 0.9, quantity: range(1, 1, 'fillet', '~1 fillet') },
-      { databaseFood: RICE, confidence: 0.8, quantity: range(1, 2, 'fist', '~1-2 fists') },
+      { databaseFood: RICE, confidence: 0.8, quantity: range(1, 2, 'fist', '~1–2 fists') },
     ],
   };
   const closest: FoodMatch[] = [
-    { food: APPLE, confidence: 0.4, presets: [range(1, 2, 'piece', '~1-2 pieces')] },
-    { food: RICE, confidence: 0.3, presets: [range(3, 4, 'fist', '~3-4 fists')] },
+    { food: APPLE, confidence: 0.4, presets: [range(1, 2, 'piece', '~1–2 pieces')] },
+    { food: RICE, confidence: 0.3, presets: [range(3, 4, 'fist', '~3–4 fists')] },
   ];
 
   it('opens focused on the title (read first), not on Close', () => {
@@ -364,7 +366,7 @@ describe('RecognizedMatchSheet', () => {
     expect(screen.getByRole('checkbox', { name: /Apple/ })).not.toBeChecked();
     expect(screen.getAllByRole('checkbox', { name: /Rice/ })).toHaveLength(1);
     // The recognized Rice row also offers the catalog presets for the same food.
-    expect(screen.getByRole('button', { name: '~3-4 fists' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '~3–4 fists' })).toBeInTheDocument();
   });
 
   it('Log records every ticked food as ONE plate, with each food’s chosen portion', async () => {
@@ -378,15 +380,15 @@ describe('RecognizedMatchSheet', () => {
         onLog={onLog}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: '~3-4 fists' }));
+    await userEvent.click(screen.getByRole('button', { name: '~3–4 fists' }));
     await userEvent.click(screen.getByRole('checkbox', { name: /Apple/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Log' }));
     expect(onLog).toHaveBeenCalledTimes(1);
     const drafts = onLog.mock.calls[0]?.[0] as FoodEntryDraft[];
     expect(drafts.map((d) => [d.databaseFood.displayName, d.quantity.displayLabel])).toEqual([
       ['Salmon', '~1 fillet'],
-      ['Rice', '~3-4 fists'],
-      ['Apple', '~1-2 pieces'],
+      ['Rice', '~3–4 fists'],
+      ['Apple', '~1–2 pieces'],
     ]);
   });
 
@@ -603,14 +605,48 @@ describe('RecognizedMatchSheet', () => {
 
 describe('PortionPresets, LineBar, EntryList', () => {
   it('PortionPresets marks the selected chip with aria-pressed and reports changes', async () => {
-    const presets = [range(1, 2, 'piece', '~1-2 pieces'), range(3, 4, 'piece', '~3-4 pieces')];
+    const presets = [range(1, 2, 'piece', '~1–2 pieces'), range(3, 4, 'piece', '~3–4 pieces')];
     const onChange = vi.fn();
     render(
       <PortionPresets presets={presets} value={presets[0] as QuantityRange} onChange={onChange} />,
     );
     expect(screen.getByRole('group', { name: 'Portion' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '~3-4 pieces' }));
+    await userEvent.click(screen.getByRole('button', { name: '~3–4 pieces' }));
     expect(onChange).toHaveBeenCalledWith(presets[1]);
+  });
+
+  it('PortionPresets words a known unit in the current language, from the numbers', () => {
+    const presets = [range(1, 2, 'cup', '~1–2 cups'), range(1.5, 1.5, 'fist', '~1.5 fists')];
+    render(
+      <LocaleProvider initial="fr">
+        <PortionPresets presets={presets} value={presets[0] as QuantityRange} onChange={vi.fn()} />
+      </LocaleProvider>,
+    );
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      '~1–2 tasses',
+      '~1,5 poing',
+    ]);
+  });
+
+  it('PortionPresets keeps the stored label of a free-text unit', () => {
+    const presets = [range(1, 1, 'about 2 fists', 'about 2 fists')];
+    render(
+      <LocaleProvider initial="fr">
+        <PortionPresets presets={presets} value={presets[0] as QuantityRange} onChange={vi.fn()} />
+      </LocaleProvider>,
+    );
+    expect(screen.getByRole('button')).toHaveTextContent('about 2 fists');
+  });
+
+  it('the same portion logged in another language is not a second chip', () => {
+    const french = range(1, 2, 'cup', '~1–2 tasses');
+    const english = range(1, 2, 'cup', '~1–2 cups');
+    expect(sameQuantity(french, english)).toBe(true);
+    expect(uniqueQuantities([english], [french])).toEqual([english]);
+    // A free-text unit is told apart by its label.
+    expect(sameQuantity(range(1, 1, 'a bowl', 'a bowl'), range(1, 1, 'a bowl', 'one bowl'))).toBe(
+      false,
+    );
   });
 
   it('LineBar draws four cells; an absent line is dashed with "passed" in text', () => {
@@ -631,7 +667,7 @@ describe('PortionPresets, LineBar, EntryList', () => {
       <EntryList
         entries={[
           { id: '1', name: 'Salmon', quantity: '~1 fillet', group: 'protein' },
-          { id: '2', name: 'Rice', quantity: '~1-2 fists', group: 'starch' },
+          { id: '2', name: 'Rice', quantity: '~1–2 fists', group: 'starch' },
         ]}
       />,
     );
