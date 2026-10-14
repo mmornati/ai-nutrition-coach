@@ -16,11 +16,13 @@ export const LOCALE_ENDONYMS: Readonly<Record<Locale, string>> = { en: 'English'
 
 export const intlTag = (locale: Locale): string => INTL_TAGS[locale];
 
-/** The supported locale a language tag asks for (any `fr*` primary subtag is French), else `null`. */
+/** The supported locale a language tag asks for (its primary subtag, exactly, e.g. `fr-CA` is `fr`), else `null`.
+ * The default locale is never returned here: it is the fallback, not a match. */
 function fromTag(tag: unknown): Locale | null {
   if (typeof tag !== 'string') return null;
   const primary = tag.trim().toLowerCase().split(/[-_]/, 1)[0];
-  return primary === 'fr' ? 'fr' : null;
+  // The default is what we fall back to anyway, so an `en` entry never outranks a later `fr`.
+  return SUPPORTED_LOCALES.find((l) => l !== DEFAULT_LOCALE && l === primary) ?? null;
 }
 
 export const isLocale = (value: unknown): value is Locale =>

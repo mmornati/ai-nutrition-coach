@@ -129,6 +129,50 @@ cannot test belongs in the review document's "remaining items", not in the table
   never written in a `.tsx` file; `pnpm lint` fails on a string literal handed to JSX text,
   `aria-label`, `title`, `placeholder`, `alt` or a setter. Coach copy stays keyed.
 
+## Adding a language
+
+Everything lives behind `apps/web/src/i18n` plus a few data files; no screen or component changes.
+Replace `xx` with the new language code. The compiler and the tests name what you missed.
+
+1. **Register the code** in `i18n/locale.ts`: add it to the `Locale` type, `SUPPORTED_LOCALES`,
+   `LOCALE_ENDONYMS` (the language named in itself, never translated) and the `INTL_TAGS` behind
+   `intlTag`. Teach `fromTag` in the same file which primary subtags mean the new language (today
+   it matches the primary subtag exactly against `SUPPORTED_LOCALES`, so a registered code is already recognised).
+2. **Copy the catalogue.** Copy `i18n/en.ts` to `i18n/xx.ts`, typed `Strings`, translate every
+   value, and register it in `i18n/catalogues.ts` (`satisfies Record<Locale, Strings>`: `tsc` fails
+   on a missing locale, key or extra key). Add it to the parity test (`i18n/fr.test.ts` is the
+   model): same key paths, same `{placeholders}`, same plural forms.
+3. **Typography and vocabulary tests.** Add a per-language test like the `fr typography` block in
+   `fr.test.ts` (that language's spacing before punctuation, quotes, apostrophe, ellipsis, no
+   exclamation marks) and run the banned pressure vocabulary list against the new catalogue.
+4. **Food names.** Translate `foods.names` (one entry per seed id in `catalog/seed-foods.ts`) and
+   `foods.units` in `xx.ts`. Search folds accents and also matches the English name.
+5. **Classifier keywords.** Add the language's food words to the shared lists in
+   `catalog/food-group-classifier.ts` (one list for every language; Open Food Facts `xx:` tag
+   prefixes are stripped) and extend `food-group-classifier.test.ts`, including false friends.
+   `food-group-classifier.test.ts` checks every seed food's name in each locale.
+6. **AI recognition prompt.** Add a fixed template to `RECOGNITION_PROMPTS` in
+   `ai/openai-compatible-provider.ts` (name and quantity in the language; the `group` enum stays
+   English). Never build it from user text.
+7. **Open Food Facts.** Add the language's `product_name_xx` field to `NAME_FIELDS` and to `OFF_FIELDS` (the
+   `fields=` list) in `catalog/off-barcode-source.ts`; the request-shape test pins the list.
+   `tools/webkit_smoke/smoke.spec.mjs` pins its own copy of `OFF_FIELDS`, kept in sync by a test in
+   `off-barcode-source.test.ts`: update both.
+8. **Shell.** Add the code to `SUPPORTED` (and the tag check) in `apps/web/public/boot-guard.js`,
+   which sets `<html lang>` before the app runs; `src/pwa/boot-guard.test.ts` fails if the list or
+   the `anc.pwa.locale` key drifts from the TypeScript. The manifest stays English (`docs/pwa.md`).
+9. **Tone review.** A named native-speaker reviewer for the language is listed in
+   [`REVIEWERS.md`](./REVIEWERS.md) and signs off on `xx.ts` against the
+   [No-Dark-Patterns standard](./docs/no-dark-patterns-standard.md), alongside the lead
+   maintainer. The copy does not ship without it.
+10. **Plurals and sentence assembly.** `PluralForms` supports `zero`/`one`/`other` only, and
+    `plural()` maps every other CLDR category to `other`; a language that needs `few`/`many`
+    (Polish, Russian, Arabic) must extend `PluralForms` and `plural()` first. `i18n/sentences.ts`
+    lower-cases line names mid-sentence and capitalises the first letter, which suits English and
+    French but not, for example, German nouns: give such a language its own assembly.
+11. **Check the layout.** Longer languages stress the dock, chips and sheet buttons at 320 px; run
+    the axe and a11y-floor checks (`pnpm check:a11y`, the Playwright specs) in the new locale.
+
 ## Contribution expectations
 
 - **One PR per change.** Bundled changes are hard to review and

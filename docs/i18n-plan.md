@@ -1,31 +1,51 @@
 # Multi-language plan: English + French
 
 Goal: ship the PWA in English and French, with the language chosen per person and kept with their
-data. Structure stays ready for a third language without code changes outside `src/i18n`.
+data. A third language touches `src/i18n` plus `catalog/`, `ai/` and `public/boot-guard.js` (see
+`CONTRIBUTING.md`, "Adding a language"); no screen or component changes.
 
-## Where we start
+## Status: done
 
-The groundwork is already in place, so this is "add a second catalogue and a switch", not a rewrite:
+All five phases are implemented (A: locale plumbing, B: preference, C: French catalogue, D: food
+data and AI, E: shell and docs). What was hard-wired to English at the start, and where it went:
 
-- Every user-facing string lives in a typed catalogue, `apps/web/src/i18n/en.ts` (~630 lines), read
-  through `useStrings()` / `strings()` with `{name}` placeholders (`fill`) and plural forms (`plural`).
-- An ESLint gate (`eslint-plugin-i18next` + `no-restricted-syntax`, proven by
-  `src/components/i18nGate.test.ts`) fails any literal copy in JSX, aria attributes, setters or
-  display objects.
-- Sentence assembly is isolated in `src/i18n/sentences.ts`.
-
-What is still hard-wired to English:
-
-| Place | What |
+| Place | Now |
 | --- | --- |
-| `src/i18n/index.ts` | `active = en`; `Intl.PluralRules('en')`, `Intl.ListFormat('en-GB')` built once at module load |
-| `src/components/day/format.ts`, `src/screens/settings/format.ts` | `Intl.DateTimeFormat('en-GB', …)` module constants |
-| `index.html`, `public/manifest.webmanifest`, `public/boot-guard.js` | `lang="en"`, English name/description, any boot-time fallback text |
-| `src/catalog/seed-foods.ts` | 38 offline foods with English `displayName` and `~1 piece` style labels |
-| `src/catalog/food-group-classifier.ts` | English keyword list (a French food name classifies as `other`) |
-| `src/ai/openai-compatible-provider.ts` | `RECOGNITION_PROMPT` asks for the name "in plain English" |
-| `src/catalog/off-barcode-source.ts` | prefers `product_name`, then `product_name_en`; no French field |
-| Persisted plates | `FoodEntry` stores the display name and the preset `displayLabel` as text |
+| `src/i18n/index.ts` | Current locale held by `LocaleProvider`; `Intl` objects cached per locale (`perLocale`) |
+| `src/components/day/format.ts`, `src/screens/settings/format.ts` | Locale-aware date formatters |
+| `index.html` | Static `lang="en"` default; `public/boot-guard.js` sets `<html lang>` before the app bundle runs, `LocaleProvider` keeps it current |
+| `public/manifest.webmanifest` | One manifest, `lang: en`, unchanged brand name (`docs/pwa.md`) |
+| `public/boot-guard.js` | Has no user-facing text, so nothing to translate |
+| `src/catalog/seed-foods.ts` | Stable ids; names/units live in `foods.*` of each catalogue |
+| `src/catalog/food-group-classifier.ts` | One shared keyword list covering English and French |
+| `src/ai/openai-compatible-provider.ts` | `RECOGNITION_PROMPTS`: a fixed template per locale |
+| `src/catalog/off-barcode-source.ts` | `NAME_FIELDS` per locale; requests `product_name_fr` |
+| Persisted plates | Still store the text they were logged with; seed foods re-derive from `sourceRef` |
+
+## Decisions taken during implementation
+
+- The hint key is `anc.pwa.locale` (`LOCALE_HINT_KEY`), swept by erase with the other `anc.pwa.` keys.
+- The language is not part of the JSON export (a strict plates envelope).
+- A first run (no store yet) ignores and clears the hint.
+- A locked or unreadable store is "unknown": it changes neither the hint nor the language.
+- The late meal slot is "Nuit" in French.
+- Seed `sourceRef` values (`seed:apple`) are unchanged.
+- The AI recognition prompt is a fixed per-locale template; the `group` enum stays English.
+- Exports can mix languages (names are stored as logged); the stable `sourceRef` identifies seed foods.
+- The pre-paint `<html lang>` lives in `boot-guard.js` (CSP forbids inline script); a test keeps its
+  hint key and supported list in sync with the TypeScript.
+
+## Known follow-ups
+
+- Name the French copy tone reviewer in `REVIEWERS.md` (still a placeholder handle).
+- The dock's week route overflows below 336 px in every language (48 px touch-target floor x 7).
+- Out of scope: fr-CA and other region variants, right-to-left languages.
+
+## Original analysis (kept for reference)
+
+At the start, every user-facing string already lived in a typed catalogue read through `useStrings()`,
+an ESLint gate rejected literal copy, and sentence assembly was isolated in `src/i18n/sentences.ts`,
+so this was "add a second catalogue and a switch", not a rewrite.
 
 ## Decisions
 
@@ -51,9 +71,9 @@ What is still hard-wired to English:
    from `(low, high, unit)`. OFF products and AI names stay as returned. New entries keep storing
    the text too, so exports stay readable.
 
-## Phases
+## Phases (the original plan)
 
-Each phase is one PR, green on `pnpm verify`.
+This is the plan as first written; the sections above record what was built. Each phase is one PR, green on `pnpm verify`.
 
 ### Phase A: locale plumbing (no French yet)
 
@@ -115,9 +135,11 @@ Each phase is one PR, green on `pnpm verify`.
 ### Phase E: shell and docs
 
 - `index.html` `lang` set at boot by a tiny inline-free script (CSP: no inline) or by `main.tsx`
-  before first paint; `boot-guard.js` fallback text in both languages.
+  before first paint; ~~`boot-guard.js` fallback text in both languages~~ (resolved: the guard has no
+  user-facing text, so there is nothing to translate).
 - Manifest: one manifest stays (`lang: en`); browsers do not localise it per user, so the install
-  name stays "AI Nutrition Coach" (decide if a neutral brand name is wanted).
+  name stays "AI Nutrition Coach" (~~decide if a neutral brand name is wanted~~ resolved: the brand
+  name is kept).
 - Docs: README "Languages" section, CONTRIBUTING "Adding a language" (copy `en.ts`, add to
   `SUPPORTED_LOCALES`, translate seed names and classifier keywords, tone review).
 

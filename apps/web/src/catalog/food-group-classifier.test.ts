@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { classifyFoodByName, classifyFoodGroup } from './food-group-classifier';
 import { seedName } from './food-display';
 import { seedFoods } from './seed-foods';
+import { SUPPORTED_LOCALES } from '../i18n/locale';
 
 describe('the reported misclassifications', () => {
   it('peanut butter is PROTEIN, not dairy (it contains "butter")', () => {
@@ -65,33 +66,21 @@ describe('whole-token matching', () => {
   });
 });
 
-it('every seeded food classifies to its own group by name, in each language (or other)', () => {
-  // The name classifier is a FALLBACK; it must never contradict the curated seed list (a wrong
-  // group is worse than `other`).
-  for (const seed of seedFoods) {
-    // The curated `other` set (nuts, oils, chocolate) is a product choice the name classifier is
-    // not asked to reproduce.
-    if (seed.foodGroup === 'other') continue;
-    for (const locale of ['en', 'fr'] as const) {
-      const name = seedName(seed, locale);
-      const guessed = classifyFoodGroup([name]);
-      expect(
-        guessed === seed.foodGroup || guessed === 'other',
-        `${name}: seed ${seed.foodGroup}, guessed ${guessed}`,
-      ).toBe(true);
+describe.each(SUPPORTED_LOCALES)('seed names in %s', (locale) => {
+  it('every seeded food name classifies exactly to its seed group (the keyword list covers it)', () => {
+    for (const seed of seedFoods) {
+      // The curated `other` set (nuts, oils, chocolate) is a product choice the name classifier
+      // is not asked to reproduce.
+      if (seed.foodGroup === 'other') continue;
+      expect(classifyFoodByName(seedName(seed, locale)), `${locale}/${seed.id}`).toBe(
+        seed.foodGroup,
+      );
     }
-  }
+  });
 });
 
 describe('French names', () => {
   const group = (name: string) => classifyFoodByName(name);
-
-  it('every seeded food is classified by its French name, exactly (the keyword list covers them)', () => {
-    for (const seed of seedFoods) {
-      if (seed.foodGroup === 'other') continue;
-      expect(group(seedName(seed, 'fr')), seed.id).toBe(seed.foodGroup);
-    }
-  });
 
   it('fruit and vegetables', () => {
     for (const name of [
