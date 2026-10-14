@@ -6,12 +6,13 @@
     <title>AI Nutrition Coach</title>
     <meta name="description" content="A quiet, offline-first plate-logging app." />
     <meta name="theme-color" content="#0E1A3A" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="AI Nutrition" />
+    <meta name="apple-mobile-web-app-title" content="Nutrition Coach" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link
       rel="preload"
@@ -23,6 +24,7 @@
   </head>
   <body>
     <div id="root"></div>
+    <script src="/boot-guard.js" defer></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

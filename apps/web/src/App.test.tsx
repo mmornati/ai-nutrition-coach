@@ -6,14 +6,10 @@ import { App } from './App';
 import { forgetAcknowledgedBeforeStore } from './app/about-ack';
 import { memoryBundle } from './app/testing';
 
-// One controllable service-worker hook for the whole file (the real module only exists at build).
+// One controllable update signal for the whole file.
 const sw = vi.hoisted(() => ({ needRefresh: false }));
-vi.mock('virtual:pwa-register/react', () => ({
-  useRegisterSW: () => ({
-    needRefresh: [sw.needRefresh, () => undefined],
-    offlineReady: [false, () => undefined],
-    updateServiceWorker: () => Promise.resolve(),
-  }),
+vi.mock('./pwa/useAppUpdate', () => ({
+  useAppUpdate: () => ({ updateReady: sw.needRefresh, applyUpdate: () => Promise.resolve() }),
 }));
 
 afterEach(() => {

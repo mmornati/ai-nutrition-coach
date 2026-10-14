@@ -6,12 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const update = vi.fn(() => Promise.resolve());
 let needRefresh = false;
 
-vi.mock('virtual:pwa-register/react', () => ({
-  useRegisterSW: () => ({
-    needRefresh: [needRefresh, () => {}],
-    offlineReady: [false, () => {}],
-    updateServiceWorker: update,
-  }),
+vi.mock('../../pwa/useAppUpdate', () => ({
+  useAppUpdate: () => ({ updateReady: needRefresh, applyUpdate: update }),
 }));
 
 import { UpdatePrompt } from './UpdatePrompt';
@@ -44,7 +40,6 @@ describe('UpdatePrompt', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
     expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith(true);
   });
 
   it('Reload is never a dead end: it is re-enabled if the reload does not happen', async () => {

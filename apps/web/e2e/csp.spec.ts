@@ -22,7 +22,7 @@ test('the built index.html meta CSP restricts neither connect-src nor default-sr
   );
   expect(content).toContain("script-src 'self' 'wasm-unsafe-eval'");
   expect(content).toContain("object-src 'none'");
-  expect(content).toContain("base-uri 'self'");
+  expect(content).toContain("base-uri 'none'");
   expect(content).not.toMatch(/connect-src/);
   expect(content).not.toMatch(/default-src/);
 });

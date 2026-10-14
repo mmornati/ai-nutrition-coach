@@ -4,101 +4,102 @@
 #   Build from the repository root (the build context must be the repo root):
 #       docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .
 #
-#   stage 1 (build):   ghcr.io/cirruslabs/flutter:3.44.0 (pinned by digest)
-#                      → flutter pub get --enforce-lockfile (pubspec.lock)
-#                      → melos run build:web
+#   stage 1 (build):   node:24 LTS alpine (pinned by version AND digest)
+#                      → pnpm from corepack, pinned to the repo's packageManager
+#                      → pnpm install --frozen-lockfile (pnpm-lock.yaml)
+#                      → the two SHA-256-pinned wasm fetches (cached layers)
+#                      → vite build + the precache manifest / service worker
+#                      → secrets scan, third-party-host scan, no-gallery and
+#                        no-dev-store checks: any failure fails the image build
 #
-#   stage 2 (serve):  nginxinc/nginx-unprivileged:1.30.5-alpine (by digest)
+#   stage 2 (serve):  nginxinc/nginx-unprivileged:1.31.5-alpine (by digest)
 #                      → serves /usr/share/nginx/html on :8080
 #                      → SPA fallback via try_files (FR11 seam)
 #                      → runs as uid 101 (nginx), never root; works with a
 #                        read-only root filesystem (writes only to /tmp)
 #                      → the server holds NO user data: the store is encrypted
-#                        in the user's browser (ADR-0002)
+#                        in the user's browser (ADR-0005)
 #
-# Reproducibility (I7): the Flutter image is pinned by version AND digest
-# (keep in sync with scripts/flutter_docker.sh, .github/workflows/*,
-# CONTRIBUTING.md), and dependencies are resolved strictly from the
-# committed pubspec.lock — a drifting lockfile fails the build.
+# Reproducibility (I7): the build image is pinned by version AND digest (bump
+# tag + digest together; Dependabot keeps the digest moving), pnpm is pinned to
+# the version in the root package.json `packageManager`, and dependencies are
+# resolved strictly from the committed pnpm-lock.yaml — a drifting lockfile
+# fails the build.
 # ───────────────────────────────────────────────────────────────────────────
 
 # ── stage 1: build ────────────────────────────────────────────────────────
-FROM ghcr.io/cirruslabs/flutter:3.44.0@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8 AS build
+FROM node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build
+
+# What the fetch scripts and the build scans use. Nothing here ends up in the
+# runtime image, and every download is verified against pinned SHA-256 values.
+RUN apk add --no-cache bash curl unzip python3 grep findutils coreutils
+
+# Keep in step with package.json `packageManager`; corepack refuses a mismatch
+# with the manifest at install time.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    CI=true
+RUN corepack enable && corepack prepare pnpm@11.14.0 --activate
 
 WORKDIR /work
 
 # Resolve the workspace first, from the manifests + lockfile only, so the
-# dependency layer is cached until a pubspec changes. `--enforce-lockfile`
-# refuses to build if pubspec.lock is missing or out of date. Melos itself
-# is a locked dev_dependency of the root pubspec, so `dart run melos` needs
-# no global activation.
-COPY pubspec.yaml pubspec.lock ./
-COPY apps/client/pubspec.yaml apps/client/pubspec.yaml
-COPY packages/domain_core/pubspec.yaml packages/domain_core/pubspec.yaml
-COPY packages/integrations/pubspec.yaml packages/integrations/pubspec.yaml
-RUN flutter pub get --enforce-lockfile
+# dependency layer is cached until a manifest changes. `--frozen-lockfile`
+# refuses to install if pnpm-lock.yaml is missing or out of date.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/core/package.json packages/core/package.json
+RUN pnpm install --frozen-lockfile
 
-# Phase 2B: the web store's sqlite3mc.wasm, fetched and SHA-256-verified by the
-# pinned script (it also checks the sqlite3 version against pubspec.lock). Done
-# before the sources are copied so the ~800 KB download is a cached layer.
-COPY scripts/fetch_web_sqlite.sh scripts/fetch_web_sqlite.sh
-RUN bash scripts/fetch_web_sqlite.sh
+# The encrypted store's sqlite3mc engine (js + wasm) and the zxing-wasm barcode
+# decoder, fetched and SHA-256-verified by the pinned scripts. Done before the
+# sources are copied so the downloads are cached layers. The build re-runs them
+# (idempotent: no download when the output already matches the pins).
+COPY scripts/fetch_web_sqlite3mc.sh scripts/fetch_web_zxing_pwa.sh scripts/
+RUN mkdir -p apps/web/public \
+ && bash scripts/fetch_web_sqlite3mc.sh \
+ && bash scripts/fetch_web_zxing_pwa.sh
 
-# ADR-0003: the zxing-wasm barcode decoder (Safari / iOS have no native
-# BarcodeDetector), self-hosted instead of loaded from a CDN; SHA-256-verified
-# by the pinned script (it also checks the mobile_scanner version it was
-# reviewed against). Cached layer, like the sqlite wasm.
-COPY scripts/fetch_web_zxing.sh scripts/fetch_web_zxing.sh
-RUN bash scripts/fetch_web_zxing.sh
+# .gitignore: Tailwind's source scanner honours it (it must not pick class-like words out of the
+# git-ignored fetched wasm/JS under apps/web/public, or the CSS would differ from a local build).
+COPY .gitignore tsconfig.base.json eslint.restrictions.js ./
+COPY apps/web apps/web
+COPY packages/core packages/core
+COPY tools/ tools/
 
-COPY apps ./apps
-COPY packages ./packages
-# The `build:web` script ends with the secrets scan of the bundle (S1): the
-# image build fails if a key-shaped string was compiled in.
-COPY tools/check_no_secrets_in_build.sh tools/check_no_external_hosts.sh tools/
-COPY tools/generate_precache_manifest.dart tools/generate_precache_manifest.dart
-COPY tools/check_release_posture.dart tools/check_release_posture.dart
-COPY tools/pwa/ tools/pwa/
-
-# Build the web release bundle via the `build:web` script in the root
-# pubspec.yaml `melos:` block. `--release` + `--pwa-strategy=none` drops
-# Flutter's own (deprecated) service worker; AI Nutrition Coach's own `sw.js` and the
-# precache manifest are then generated into the bundle by
-# tools/generate_precache_manifest.dart (offline use + the "new version is
-# ready" flow, ADR-0003, docs/pwa.md).
-# The script also builds with --no-web-resources-cdn (CanvasKit is served from
-# this origin), then runs the secrets scan and the third-party-host scan: the
-# image build fails if the bundle would call out to a CDN.
-# Debug symbol maps for the engine are never loaded at run time: drop them.
-# AI_NUTRITION_COACH_PROJECT_URL (build argument, optional) is the project page that goes
-# into the app identity / Open Food Facts User-Agent. Unset keeps the
-# default (the project repository https://github.com/mmornati/ai-nutrition-coach);
-# `AI_NUTRITION_COACH_BUILD=release dart run tools/check_release_posture.dart` refuses
-# an empty or `.invalid` override for a release (docs/release-checklist.md).
-# AI_NUTRITION_COACH_RELEASE=1 makes this a RELEASE build: the project-URL rule is
-# enforced here (it fails if the URL is empty or `.invalid`). The release
-# workflow passes both arguments (.github/workflows/release-gate.yml). Whatever
-# the value, a URL that is set must be a plain https URL (checked by the same
-# tool, also inside `build:web`).
+# AI_NUTRITION_COACH_PROJECT_URL (build argument, optional) is the project page
+# that identifies this deployment (docs/self-host.md "The project URL"). Unset
+# keeps the default (the project repository). AI_NUTRITION_COACH_RELEASE=1 makes
+# this a RELEASE build: an empty or `.invalid` URL fails the build. Whatever the
+# value, a URL that is set must be a plain https URL. The release workflow passes
+# both arguments (.github/workflows/release-gate.yml).
 ARG AI_NUTRITION_COACH_PROJECT_URL=""
 ARG AI_NUTRITION_COACH_RELEASE=0
 ENV AI_NUTRITION_COACH_PROJECT_URL=${AI_NUTRITION_COACH_PROJECT_URL}
 RUN if [ "$AI_NUTRITION_COACH_RELEASE" = "1" ]; then \
-      AI_NUTRITION_COACH_BUILD=selfhost dart run tools/check_release_posture.dart --project-url-only; \
+      AI_NUTRITION_COACH_BUILD=selfhost node tools/check_project_url.mjs; \
     else \
-      dart run tools/check_release_posture.dart --project-url-only; \
+      node tools/check_project_url.mjs; \
     fi
-RUN dart run melos run build:web \
- && rm -f apps/client/build/web/canvaskit/*.js.symbols
+
+# `build` = fetch (no-op) → tsc -b → vite build → tools/generate_precache_manifest.mjs, which
+# writes sw.js + precache-manifest.json and REFUSES a bundle that cannot boot offline.
+RUN pnpm --filter @anc/web build
+
+# The bundle is public: the image build fails if a key-shaped string, a
+# third-party host, the dev gallery or the unencrypted dev store is in it.
+RUN bash tools/check_no_secrets_in_build.sh apps/web/dist \
+ && bash tools/check_no_external_hosts.sh apps/web/dist \
+ && bash tools/check_no_gallery_in_build.sh apps/web/dist \
+ && bash tools/check_no_dev_store_in_build.sh apps/web/dist
 
 # ── stage 2: serve ────────────────────────────────────────────────────────
 # Pinned by digest so the production image is byte-stable across rebuilds
-# (tag 1.30.5-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
+# (tag 1.31.5-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
 # in sync).
 FROM nginxinc/nginx-unprivileged:1.31.5-alpine@sha256:19c132c9ab02d3b783f478743dafc7a7f42e27aa7d2bdcbec1bb1128ca8f2a07 AS serve
 
 # The base image already runs as uid 101 (`nginx`) and listens on 8080; no
-# user juggling is needed (the previous `useradd ... || true` never worked).
+# user juggling is needed.
 # Drop the stock vhost; ours is rendered from the templates at start-up.
 USER root
 # Pull the distribution's security fixes on top of the digest-pinned base:
@@ -118,12 +119,12 @@ COPY infra/nginx/templates/ /etc/nginx/templates/
 # Fails the start-up (before envsubst) if AI_NUTRITION_COACH_CONNECT_SRC_EXTRA could
 # alter the CSP beyond adding origins.
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/05-validate-csp.sh /docker-entrypoint.d/05-validate-csp.sh
-# Renders sw.js + the precache manifest for this start (build id = bundle +
-# header hash, so a CSP-only redeploy reaches installed apps) or, with
-# AI_NUTRITION_COACH_SW_KILL=1, the kill-switch worker (docs/pwa.md).
 # Renders the access-log config (PV9): off by default; AI_NUTRITION_COACH_ACCESS_LOG=on
 # is a minimal, address-truncated log without User-Agent.
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/10-render-access-log.sh /docker-entrypoint.d/10-render-access-log.sh
+# Renders sw.js + the precache manifest for this start (build id = bundle +
+# header hash, so a CSP-only redeploy reaches installed apps) or, with
+# AI_NUTRITION_COACH_SW_KILL=1, the kill-switch worker (docs/pwa.md).
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/30-render-sw.sh /docker-entrypoint.d/30-render-sw.sh
 COPY tools/pwa/sw.kill.js /etc/ai-nutrition-coach/sw.kill.js
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
@@ -133,7 +134,7 @@ ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
     AI_NUTRITION_COACH_ACCESS_LOG="off"
 
 # The release build output.
-COPY --from=build /work/apps/client/build/web /usr/share/nginx/html
+COPY --from=build /work/apps/web/dist /usr/share/nginx/html
 
 EXPOSE 8080
 

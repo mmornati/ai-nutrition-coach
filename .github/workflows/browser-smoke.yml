@@ -1,11 +1,14 @@
 # Browser smoke of the release web bundle in WebKit (Safari's engine) and
 # Chromium (ADR-0003, docs/pwa.md "Browser smoke").
 #
-# Builds the production image and runs scripts/webkit_smoke.sh: manifest +
-# service worker + precache, create / log / reload / unlock, OFFLINE reload,
-# the "new version is ready" update flow, no request leaving the origin.
-# The Playwright image is pinned by digest in the script. Separate from the
-# main CI job on purpose: it needs the network (npm ci) and ~10 minutes.
+# Builds the production image (node build stage -> nginx-unprivileged) and runs
+# scripts/webkit_smoke.sh: tools/webkit_smoke/smoke.spec.mjs drives the image in
+# Chromium and WebKit with real selectors: manifest + service worker + precache,
+# create / log / reload / unlock, durable-storage line, OFFLINE reload, the
+# "new version is ready" update flow, barcode with a fake camera (one OFF GET),
+# plain-CSV export, no request leaving the origin. The Playwright image is pinned
+# by digest in the script. Separate from the main CI job on purpose: it needs the
+# network (npm ci, a ~3 GB image) and several minutes.
 
 name: browser-smoke
 

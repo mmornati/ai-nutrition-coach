@@ -2,7 +2,7 @@
 // Safari private browsing) refuses OPFS file handles, so the real encrypted store (and with it
 // every screen past the "store unavailable" one) only runs in a persistent profile; see
 // docs/adr/0005-web-encrypted-store.md. Chromium accepts either.
-import { test as base } from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 
 export const test = base.extend({
   context: async ({ playwright, browserName, baseURL, channel }, provide, testInfo) => {
@@ -14,10 +14,21 @@ export const test = base.extend({
     await provide(context);
     await context.close();
   },
+  // Every test on this fixture also fails on a Content-Security-Policy violation other than a
+  // deliberate connect-src one: the shipped policy has no 'unsafe-inline' for styles, so any inline
+  // style the build needs would show up here as "Refused to apply inline style".
   page: async ({ context }, provide) => {
     const page = context.pages()[0] ?? (await context.newPage());
+    const violations: string[] = [];
+    page.on('console', (m) => {
+      const text = m.text();
+      if (/Content Security Policy|Refused to/i.test(text) && !/connect-src/i.test(text)) {
+        violations.push(text);
+      }
+    });
     await provide(page);
+    expect(violations).toEqual([]);
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };

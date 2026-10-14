@@ -2,7 +2,6 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { VitePWA } from 'vite-plugin-pwa';
 
 // CSP, two layers. A <meta> CSP and a header CSP are BOTH enforced and can only narrow each other,
 // so the <meta> must never restrict anything a deployment may legitimately widen:
@@ -15,22 +14,26 @@ import { VitePWA } from 'vite-plugin-pwa';
 //  - `vite dev` / `vite preview` send the FULL Appendix A policy as a response header
 //    (docs/migration/parity-checklist.md), so connect-src is enforced there too with Open Food
 //    Facts as the one allowed host. Dev adds only what HMR needs ('unsafe-inline' scripts for the
-//    React refresh preamble, ws:).
+//    React refresh preamble, inline <style> for CSS HMR, ws:).
 const OFF_ORIGIN = 'https://world.openfoodfacts.org';
 
 export const META_CSP = [
   "script-src 'self' 'wasm-unsafe-eval'",
   "worker-src 'self' blob:",
   "object-src 'none'",
-  "base-uri 'self'",
+  "base-uri 'none'",
   "form-action 'none'",
 ].join('; ');
 
-const headerCsp = (opts: { dev: boolean }): string =>
+export const headerCsp = (opts: { dev: boolean }): string =>
   [
     "default-src 'self'",
     `script-src 'self' ${opts.dev ? "'unsafe-inline' " : ''}'wasm-unsafe-eval'`,
-    "style-src 'self' 'unsafe-inline'",
+    // No 'unsafe-inline' in a release: the build ships its CSS as a file, and React's `style={}`
+    // props are applied through the CSSOM (element.style), which style-src does not govern (only
+    // `style=""` attributes parsed from markup and <style> elements are). Dev needs it for Vite's
+    // HMR <style> injection. e2e fails on any style-src violation (e2e/persistent.ts).
+    `style-src 'self'${opts.dev ? " 'unsafe-inline'" : ''}`,
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "media-src 'self' blob:",
@@ -38,7 +41,7 @@ const headerCsp = (opts: { dev: boolean }): string =>
     `connect-src 'self' ${OFF_ORIGIN}${opts.dev ? ' ws: wss:' : ''}`,
     "manifest-src 'self'",
     "object-src 'none'",
-    "base-uri 'self'",
+    "base-uri 'none'",
     "form-action 'none'",
     "frame-ancestors 'none'",
   ].join('; ');
@@ -66,51 +69,13 @@ function cspPlugin(): Plugin {
 const harness = process.env['VITE_STORAGE_HARNESS'] === '1';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    cspPlugin(),
-    VitePWA({
-      registerType: 'prompt',
-      strategies: 'generateSW',
-      injectRegister: false,
-      manifest: {
-        id: '/',
-        name: 'AI Nutrition Coach',
-        short_name: 'AI Nutrition',
-        description: 'A quiet, offline-first plate-logging app.',
-        theme_color: '#0E1A3A',
-        background_color: '#0E1A3A',
-        display: 'standalone',
-        start_url: '/',
-        scope: '/',
-        icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          {
-            src: 'icons/icon-maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-      workbox: {
-        // App shell + fonts only. API / AI requests are NEVER runtime-cached.
-        // Includes the sqlite3mc engine (`sqlite3mc/<version>/sqlite3.mjs` + `sqlite3.wasm`, ~1.5 MB)
-        // and the store worker chunk, so the encrypted store works offline.
-        globPatterns: ['**/*.{js,mjs,wasm,css,html,woff2,svg,png,webmanifest,txt}'],
-        runtimeCaching: [],
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/ai\//, /^\/relay\//],
-        cleanupOutdatedCaches: true,
-        clientsClaim: false,
-        skipWaiting: false,
-      },
-    }),
-  ],
+  plugins: [react(), tailwindcss(), cspPlugin()],
   server: { headers: { 'Content-Security-Policy': headerCsp({ dev: true }) } },
-  preview: { headers: { 'Content-Security-Policy': headerCsp({ dev: false }) } },
+  preview: {
+    headers: { 'Content-Security-Policy': headerCsp({ dev: false }) },
+    // scripts/run_local_web.sh --tunnel serves the release bundle through an ephemeral ngrok URL.
+    allowedHosts: ['.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
+  },
   // The store worker is a module worker (it dynamically imports the versioned engine).
   worker: { format: 'es' },
   build: {

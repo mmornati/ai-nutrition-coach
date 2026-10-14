@@ -1,6 +1,6 @@
 /* AI Nutrition Coach service worker (ADR-0003, docs/pwa.md).
  *
- * GENERATED into the release bundle by tools/generate_precache_manifest.dart
+ * GENERATED into the release bundle by tools/generate_precache_manifest.mjs
  * from this template: the build id below changes whenever any shipped file
  * does, so the browser sees a different sw.js and runs the update flow.
  *
@@ -36,6 +36,12 @@ const MANIFEST = 'precache-manifest.json';
 // decoded bytes) or that must never be replayed from a cache.
 const DROPPED_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie']);
 
+// Vite emits `<script type="module" crossorigin>`, so the browser's requests are CORS requests
+// carrying an `Origin` header; a cached response whose `Vary` names a request header (a server or
+// CDN adding `Vary: Origin`, say) would never match them and the app would not boot offline. The
+// precache is keyed by exact URL and verified by hash, so `Vary` is ignored on every lookup.
+const MATCH_OPTIONS = { ignoreVary: true };
+
 const scopeUrl = (path) => new URL(path, self.registration.scope).href;
 
 const toHex = (buffer) =>
@@ -48,7 +54,7 @@ async function sha256Hex(buffer) {
 /** Files already cached, with the same hash, by an older build: reuse them. */
 async function reusableFrom(oldCaches, request, sha256) {
   for (const old of oldCaches) {
-    const hit = await old.match(request);
+    const hit = await old.match(request, MATCH_OPTIONS);
     if (hit && hit.headers.get(HASH_HEADER) === sha256) return hit;
   }
   return null;
@@ -134,7 +140,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const shell = await cache.match(scopeUrl('index.html'));
+        const shell = await cache.match(scopeUrl('index.html'), MATCH_OPTIONS);
         return shell || fetch(request);
       })(),
     );
@@ -146,7 +152,7 @@ self.addEventListener('fetch', (event) => {
       const cache = await caches.open(CACHE_NAME);
       // Query strings (cache busters such as ?v=) never match a precached
       // file and would 404 the cache; match on the path.
-      const hit = await cache.match(request, { ignoreSearch: true });
+      const hit = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
       return hit || fetch(request);
     })(),
   );

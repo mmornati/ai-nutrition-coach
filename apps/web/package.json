@@ -8,7 +8,8 @@
     "fetch:zxing": "bash ../../scripts/fetch_web_zxing_pwa.sh",
     "fetch:assets": "pnpm run fetch:sqlite3mc && pnpm run fetch:zxing",
     "dev": "pnpm run fetch:assets && vite",
-    "build": "pnpm run fetch:assets && tsc -b && vite build",
+    "build": "pnpm run fetch:assets && tsc -b && vite build && pnpm run precache",
+    "precache": "node ../../tools/generate_precache_manifest.mjs dist",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
@@ -42,9 +43,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
     "vite": "7.3.7",
-    "vite-plugin-pwa": "1.3.0",
     "vitest": "3.2.7",
-    "vitest-axe": "0.1.0",
-    "workbox-window": "7.4.1"
+    "vitest-axe": "0.1.0"
   }
 }
