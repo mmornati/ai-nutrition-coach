@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { strings, useStrings } from '../../i18n';
 import { dayDescription, daySentence, networkDescription, platesCount } from '../../i18n/sentences';
 import { LINES } from '../primitives';
+import { labelRowTemplate } from './geometry';
 import { useElementWidth } from './hooks';
 import { weekdayAbbr, weekdayName } from './format';
 import { dayKind, describeDay } from './week';
@@ -56,12 +57,10 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
   const lineY = (j: number) => PAD + j * gap;
   const ring = Math.min(32, colW - 2);
   // Label rows: a zero-height row at each line's y, so the name centres on (or sits above) it.
-  const labelRows = `minmax(0,${PAD}fr) ${LINES.map(
-    (_, j) => `0px${j < LINES.length - 1 ? ` minmax(0,${gap}fr)` : ''}`,
-  ).join(' ')} minmax(0,${PAD}fr)`;
+  const labelRows = labelRowTemplate(LINES.length, PAD, gap);
   // Container query in rem (so it moves with text size; spelled out so Tailwind sees it): from
   // 21rem up the line names sit left of the plot, below it above each line.
-  const plot = 'col-start-1 w-full max-w-[42.5rem] @min-[21rem]:col-start-2';
+  const PLOT = 'col-start-1 w-full max-w-[42.5rem] @min-[21rem]:col-start-2';
 
   return (
     <div
@@ -72,7 +71,7 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
       <div className="grid grid-cols-1 justify-start @min-[21rem]:grid-cols-[auto_minmax(0,42.5rem)]">
         <div
           aria-hidden="true"
-          className={`font-display text-ui row-start-1 grid grid-cols-7 pb-1 text-center leading-none font-bold tracking-[0.1em] uppercase ${plot}`}
+          className={`font-display text-ui row-start-1 grid grid-cols-7 pb-1 text-center leading-none font-bold tracking-[0.1em] uppercase ${PLOT}`}
         >
           {days.map((d) => (
             <div key={d.date} className={d.isToday ? 'text-line-starch' : 'text-signal-muted'}>
@@ -92,7 +91,7 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
             </div>
           ))}
         </div>
-        <div ref={ref} aria-hidden="true" className={`row-start-2 ${plot}`}>
+        <div ref={ref} aria-hidden="true" className={`row-start-2 ${PLOT}`}>
           <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full">
             {days.map((d, i) =>
               dayKind(d) === 'loggedNoLine' ? (

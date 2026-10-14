@@ -2,7 +2,14 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { at, renderUnlockedApp, seedPlate, unlockedBundle } from '../../app/testing';
+import {
+  at,
+  renderInSession,
+  renderUnlockedApp,
+  seedPlate,
+  unlockedBundle,
+} from '../../app/testing';
+import { PlateScreen } from './PlateScreen';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 20, 0) });
@@ -96,7 +103,21 @@ describe('PlateScreen', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = await openPlate();
+    const bundle = await unlockedBundle();
+    const plate = await seedPlate(bundle, at(12, 55), [
+      ['Lentil salad', 'protein'],
+      ['Tomato', 'vegFruit'],
+    ]);
+    await bundle.notes.append({
+      id: 0,
+      plateLogId: plate.id,
+      anchor: 'postResolve',
+      questionKey: 'post.resolve.balanced',
+      text: 'Nice plate — anything you would change next time?',
+      generatedAt: Date.now(),
+    });
+    const { container } = await renderInSession(<PlateScreen plateId={plate.id} />, { bundle });
+    await screen.findByRole('heading', { level: 1, name: 'Lunch' });
     await screen.findByRole('group', { name: 'Coach question' });
     await act(async () => undefined);
     expect(await axe(container)).toHaveNoViolations();

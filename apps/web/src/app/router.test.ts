@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hrefs, isPrivacyRoute, parseRoute } from './router';
+import { hrefs, isPrivacyRoute, parseRoute, replaceRoute } from './router';
 
 describe('parseRoute', () => {
   it.each([
@@ -30,5 +30,21 @@ describe('parseRoute', () => {
     expect(parseRoute(hrefs.section('data'))).toEqual({ name: 'settings', section: 'data' });
     expect(isPrivacyRoute(parseRoute(hrefs.privacy))).toBe(true);
     expect(isPrivacyRoute(parseRoute(hrefs.today))).toBe(false);
+  });
+});
+
+describe('replaceRoute', () => {
+  it('replaces the current history entry with the new hash and tells listeners', () => {
+    window.location.hash = '#/plate/7';
+    const before = window.history.length;
+    const seen: string[] = [];
+    const listener = () => seen.push(window.location.hash);
+    window.addEventListener('hashchange', listener);
+    replaceRoute('#/');
+    window.removeEventListener('hashchange', listener);
+    expect(['', '#/']).toContain(window.location.hash);
+    expect(window.history.length).toBe(before);
+    expect(seen.length).toBeGreaterThan(0);
+    window.location.hash = '';
   });
 });

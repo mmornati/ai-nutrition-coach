@@ -5,10 +5,12 @@
 // (vitest-axe: accessible names, roles, contrast where jsdom can compute it) and asserts no
 // violations. A new screen without one fails `pnpm verify`.
 //
-// "Exercised" means: some test block (`it` / `test` / `it.each`, never skipped) calls `axe(` and
-// asserts `toHaveNoViolations()`, and the test FILE that holds it refers to the component by name
-// (JSX, a describe title or an import). Comments and string contents are not searched for the
-// `axe(` call itself. A component that is only ever rendered INSIDE another screen (a layout
+// "Exercised" means: ONE test block (`it` / `test` / `it.each`, never skipped) calls `axe(`,
+// asserts `toHaveNoViolations()` and renders the component by name (JSX `<Name`, a render call
+// `Name(` or `createElement(Name`). Comments and the contents of string literals are blanked
+// before anything is matched, so a mention in a comment, a test title or a string does not count.
+// Exports are found in every form: `export function X`, `export default function X`,
+// `export const X`, `export default X`, `export { X }` and `export { X as Y }`. A component that is only ever rendered INSIDE another screen (a layout
 // helper, a sheet body) may be listed in COVERED_BY with the screen that hosts it; the host must
 // itself be covered, and a stale entry (the component no longer exists) fails. A component with
 // nothing to measure (a decorative diagram) may be listed in EXEMPT with a reason.
@@ -48,9 +50,6 @@ export const COVERED_BY = Object.freeze({
 export const EXEMPT = Object.freeze({
   LineDiagram: 'decorative svg, aria-hidden; the screens that hold it are measured',
 });
-
-const COMPONENT =
-  /export\s+(?:async\s+)?function\s+([A-Z]\w*)|export\s+const\s+([A-Z][a-z]\w*)\s*[:=]/g;
 
 function walk(dir) {
   const out = [];
@@ -102,7 +101,11 @@ function testCalls(text) {
   return spans;
 }
 
-/** The text with `//` and block comments blanked (strings are kept as they are). */
+/**
+ * The text with `//` and block comments removed and the CONTENTS of string literals blanked (the
+ * quotes stay). A `'` or `"` string ends at the line end, so an apostrophe in JSX text cannot
+ * swallow the code after it; a template literal may span lines.
+ */
 function stripComments(text) {
   let out = '';
   for (let i = 0; i < text.length; i++) {
@@ -115,21 +118,68 @@ function stripComments(text) {
       const end = text.indexOf('*/', i + 2);
       i = end < 0 ? text.length : end + 1;
     } else if (c === "'" || c === '"' || c === '`') {
-      const from = i;
-      for (i++; i < text.length && text[i] !== c; i++) if (text[i] === '\\') i++;
-      out += text.slice(from, i + 1);
+      let j = i + 1;
+      for (; j < text.length && text[j] !== c; j++) {
+        if (text[j] === '\\') j++;
+        else if (c !== '`' && text[j] === '\n') break;
+      }
+      out += text[j] === c ? c + c : c;
+      i = text[j] === c ? j : j - 1;
     } else out += c;
   }
   return out;
 }
 
+/** The test blocks of a source (comments and string contents blanked) that call axe and assert. */
+export function axeBlocks(source) {
+  const text = stripComments(source);
+  return testCalls(text)
+    .map(([from, to]) => text.slice(from, to))
+    .filter((block) => /\baxe\s*\(/.test(block) && /toHaveNoViolations\s*\(/.test(block));
+}
+
+/** True when `block` renders `name`: JSX `<Name`, a call `Name(` or `createElement(Name`. */
+export function rendersComponent(block, name) {
+  return new RegExp(`<${name}(?![\\w$])|(?<![\\w$.])${name}\\s*\\(|createElement\\(\\s*${name}(?![\\w$])`).test(
+    block,
+  );
+}
+
+/**
+ * The components a source exports, in every form. `export { X as Y }` yields the public name Y
+ * with the local name X as an alias; types are skipped.
+ * @returns {{ name: string, aliases: string[] }[]}
+ */
+export function exportedComponents(source) {
+  const text = stripComments(source);
+  const out = new Map();
+  const add = (name, alias) => {
+    if (!name || !/^[A-Z]/.test(name)) return;
+    const entry = out.get(name) ?? { name, aliases: [] };
+    if (alias && alias !== name && !entry.aliases.includes(alias)) entry.aliases.push(alias);
+    out.set(name, entry);
+  };
+  for (const m of text.matchAll(/\bexport\s+(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/g))
+    add(m[1]);
+  for (const m of text.matchAll(/\bexport\s+const\s+([A-Z][a-z]\w*)\s*[:=]/g)) add(m[1]);
+  for (const m of text.matchAll(/\bexport\s+default\s+(?:class\s+)?([A-Za-z_$][\w$]*)\s*(?:;|\n|$)/g))
+    if (!['function', 'async', 'class'].includes(m[1])) add(m[1]);
+  for (const m of text.matchAll(/\bexport\s*(type\s*)?\{([^}]*)\}/g)) {
+    if (m[1]) continue;
+    for (const part of m[2].split(',')) {
+      const spec = part.trim();
+      if (!spec || /^type\s/.test(spec)) continue;
+      const [local, exported] = spec.split(/\s+as\s+/).map((s) => s.trim());
+      if (exported === 'default') add(local);
+      else add(exported ?? local, local);
+    }
+  }
+  return [...out.values()];
+}
+
 /** True when some test block calls `axe(` and asserts `toHaveNoViolations`. */
 export function hasAxeTest(source) {
-  const text = stripComments(source);
-  return testCalls(text).some(([from, to]) => {
-    const block = text.slice(from, to);
-    return /\baxe\s*\(/.test(block) && /toHaveNoViolations\s*\(/.test(block);
-  });
+  return axeBlocks(source).length > 0;
 }
 
 /**
@@ -150,21 +200,27 @@ export function checkAccessibilityFloor({
     (f) => f.startsWith(join(src, 'screens')) && f.endsWith('.tsx') && !isTest(f),
   )) {
     const text = readFileSync(file, 'utf8');
-    for (const m of text.matchAll(COMPONENT)) {
-      components.push({ name: m[1] ?? m[2], file: relative(root, file) });
+    for (const { name, aliases } of exportedComponents(text)) {
+      components.push({ name, aliases, file: relative(root, file) });
     }
   }
 
   const axeTests = files
     .filter((f) => isTest(f) && f.endsWith('.tsx'))
     .map((f) => ({ file: f, text: readFileSync(f, 'utf8') }))
-    .filter(({ text }) => /from\s+['"]vitest-axe['"]/.test(text) && hasAxeTest(text));
+    .filter(({ text }) => /from\s+['"]vitest-axe['"]/.test(text))
+    .map(({ file, text }) => ({ file, blocks: axeBlocks(text) }))
+    .filter(({ blocks }) => blocks.length > 0);
 
-  const directlyCovered = (name) =>
-    axeTests.find(({ text }) => new RegExp(`\\b${name}\\b`).test(text));
+  // Covered: one test block that calls axe, asserts, and renders the component itself.
+  const directlyCovered = (name, aliases = []) =>
+    axeTests.find(({ blocks }) =>
+      blocks.some((block) => [name, ...aliases].some((n) => rendersComponent(block, n))),
+    );
 
   const problems = [];
   const names = new Set(components.map((c) => c.name));
+  const componentsByName = new Map(components.map((c) => [c.name, c]));
   for (const name of [...Object.keys(coveredBy), ...Object.keys(exempt)]) {
     if (!names.has(name))
       problems.push(`stale allow-list entry: ${name} is not a screens/** component`);
@@ -172,11 +228,11 @@ export function checkAccessibilityFloor({
   for (const c of components) {
     if (Object.hasOwn(exempt, c.name)) {
       c.status = 'exempt';
-    } else if (directlyCovered(c.name)) {
+    } else if (directlyCovered(c.name, c.aliases)) {
       c.status = 'covered';
     } else if (Object.hasOwn(coveredBy, c.name)) {
       const host = coveredBy[c.name];
-      if (directlyCovered(host)) {
+      if (directlyCovered(host, componentsByName.get(host)?.aliases)) {
         c.status = 'covered';
         c.by = host;
       } else {

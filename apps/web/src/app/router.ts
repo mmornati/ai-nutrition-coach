@@ -73,7 +73,17 @@ export function navigate(hash: string): void {
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 
-/** Replace the current entry (no history step): used when a screen has nothing left to show. */
+/**
+ * Replace the current entry (no history step): used when a screen has nothing left to show and on
+ * a lock, so the old `#/plate/<id>` entry is overwritten rather than left behind. `replaceState`
+ * does not fire `hashchange`, so listeners are told by hand. Best effort: where the browser
+ * refuses (a sandboxed frame), it falls back to `location.replace`.
+ */
 export function replaceRoute(hash: string): void {
-  window.location.replace(hash);
+  try {
+    window.history.replaceState(window.history.state, '', hash);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  } catch {
+    window.location.replace(hash);
+  }
 }

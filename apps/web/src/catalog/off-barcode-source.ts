@@ -72,7 +72,12 @@ export function offProductUrl(barcode: string, origin: string = OFF_ORIGIN): str
 }
 
 export function createOffBarcodeSource(
-  options: { readonly fetchImpl?: FetchLike; readonly origin?: string } = {},
+  options: {
+    readonly fetchImpl?: FetchLike;
+    readonly origin?: string;
+    /** Aborts an in-flight lookup (the session ended). */
+    readonly signal?: AbortSignal;
+  } = {},
 ): OffBarcodeSource {
   return {
     async lookup(barcode) {
@@ -84,6 +89,7 @@ export function createOffBarcodeSource(
         headers: { Accept: 'application/json' },
         // Only a 2xx has a body worth reading.
         ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+        ...(options.signal ? { signal: options.signal } : {}),
       });
 
       if (result.kind === 'failure') {

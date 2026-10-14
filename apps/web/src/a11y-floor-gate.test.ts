@@ -21,6 +21,7 @@ const REPO = resolve(__dirname, '../../..');
 const load = async (): Promise<{
   checkAccessibilityFloor: Gate;
   hasAxeTest: (t: string) => boolean;
+  exportedComponents: (t: string) => { name: string; aliases: string[] }[];
 }> =>
   (await import(
     /* @vite-ignore */ pathToFileURL(join(REPO, 'tools/check_accessibility_floor.mjs')).href
@@ -47,10 +48,13 @@ const SCREEN = { 'screens/foo/FooScreen.tsx': 'export function FooScreen() { ret
 const GOOD_TEST = `import { axe } from 'vitest-axe';
 describe('FooScreen', () => {
   it('has no axe violations', async () => {
-    expect(await axe(document.body)).toHaveNoViolations();
+    expect(await axe(render(<FooScreen />).container)).toHaveNoViolations();
   });
 });
 `;
+
+/** The same test with the component never rendered in the axe block. */
+const UNRENDERED = GOOD_TEST.replace('render(<FooScreen />).container', 'document.body');
 
 describe('check_accessibility_floor', () => {
   it('passes on this repository: every screen component has an axe test', async () => {
@@ -91,8 +95,8 @@ describe('check_accessibility_floor', () => {
     const { checkAccessibilityFloor } = await load();
     const skipped = GOOD_TEST.replace('it(', 'it.skip(');
     const unasserted = GOOD_TEST.replace(
-      'expect(await axe(document.body)).toHaveNoViolations();',
-      'await axe(document.body);',
+      'expect(await axe(render(<FooScreen />).container)).toHaveNoViolations();',
+      'await axe(render(<FooScreen />).container);',
     );
     const commented = `import { axe } from 'vitest-axe';
 describe('FooScreen', () => {
@@ -129,5 +133,84 @@ describe('FooScreen', () => {
     });
     const report = checkAccessibilityFloor({ root, coveredBy: { Ghost: 'FooScreen' }, exempt: {} });
     expect(report.problems.join('\n')).toContain('stale allow-list entry');
+  });
+
+  describe('every export form is seen, and a name mentioned is not a name rendered', () => {
+    const FORMS: Record<string, string> = {
+      'export function': 'export function FooScreen() { return null; }\n',
+      'export default function': 'export default function FooScreen() { return null; }\n',
+      'export default X': 'function FooScreen() { return null; }\nexport default FooScreen;\n',
+      'export { X }': 'function FooScreen() { return null; }\nexport { FooScreen };\n',
+      'export { X as Y }': 'function Inner() { return null; }\nexport { Inner as FooScreen };\n',
+      'export const': 'export const FooScreen = () => null;\n',
+    };
+
+    it('finds the component in each form (and skips type exports)', async () => {
+      const { exportedComponents } = await load();
+      for (const [form, source] of Object.entries(FORMS)) {
+        expect(
+          exportedComponents(source).map((c) => c.name),
+          form,
+        ).toEqual(['FooScreen']);
+      }
+      expect(exportedComponents('export type { FooScreen };\nexport { type Bar };')).toEqual([]);
+      expect(exportedComponents('// export default function Ghost() {}\n')).toEqual([]);
+    });
+
+    it.each(Object.keys(FORMS))(
+      '%s with no test fails; with a rendering axe test passes',
+      async (form) => {
+        const { checkAccessibilityFloor } = await load();
+        const source = FORMS[form] as string;
+        const bare = fixture({ 'screens/foo/FooScreen.tsx': source });
+        expect(checkAccessibilityFloor({ root: bare, ...NO_LISTS }).problems, form).toHaveLength(1);
+        const aliased = form === 'export { X as Y }';
+        const jsx = aliased ? '<Inner />' : '<FooScreen />';
+        const root = fixture({
+          'screens/foo/FooScreen.tsx': source,
+          'screens/foo/FooScreen.test.tsx': GOOD_TEST.replace('<FooScreen />', jsx),
+        });
+        expect(checkAccessibilityFloor({ root, ...NO_LISTS }).problems, form).toEqual([]);
+      },
+    );
+
+    const flawed: Record<string, string> = {
+      'a mention in a comment': UNRENDERED.replace(
+        "it('has no axe violations', async () => {",
+        "it('has no axe violations', async () => {\n    // <FooScreen />",
+      ),
+      'a mention in a string or title': UNRENDERED.replace(
+        "it('has no axe violations'",
+        "it('renders <FooScreen /> and has no axe violations'",
+      ),
+      'a mention in the describe title only': UNRENDERED,
+      'rendered in a different block than the one that calls axe': `import { axe } from 'vitest-axe';
+describe('FooScreen', () => {
+  it('renders', () => {
+    render(<FooScreen />);
+  });
+  it('has no axe violations', async () => {
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});
+`,
+      'an import only': `import { FooScreen } from './FooScreen';\n${UNRENDERED}`,
+    };
+
+    it.each(Object.keys(flawed))('fails %s', async (name) => {
+      const { checkAccessibilityFloor } = await load();
+      const root = fixture({ ...SCREEN, 'screens/foo/FooScreen.test.tsx': flawed[name] as string });
+      expect(checkAccessibilityFloor({ root, ...NO_LISTS }).problems, name).toHaveLength(1);
+    });
+
+    it('accepts a render call (not only JSX) inside the axe block', async () => {
+      const { checkAccessibilityFloor } = await load();
+      const text = GOOD_TEST.replace(
+        'render(<FooScreen />).container',
+        'renderInSession(FooScreen())',
+      );
+      const root = fixture({ ...SCREEN, 'screens/foo/FooScreen.test.tsx': text });
+      expect(checkAccessibilityFloor({ root, ...NO_LISTS }).problems).toEqual([]);
+    });
   });
 });

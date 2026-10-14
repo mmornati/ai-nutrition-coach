@@ -6,9 +6,10 @@
 // (see Gate). The moment the status leaves `unlocked` React unmounts it, which
 //   - drops every component's state (day plates, coach notes, open sheets, typed text, the photo
 //     flow, the camera) because they all live beneath it;
-//   - runs `session.dispose()`: the sync outbox is cleared, the catalog caches and the AI
-//     services (settings, key store, upload permit) are released and every late async result is
-//     ignored (`session.live` is false).
+//   - runs `session.dispose()`: the sync outbox is cleared, the catalog caches are emptied, any
+//     photo-upload permit is dropped, every request in flight (Open Food Facts, a BYOK endpoint)
+//     is aborted through the session's AbortController, and every late async result is ignored
+//     (`session.live` is false).
 // The next unlock builds a NEW session from the newly opened database, so AI settings, the BYOK
 // key and the notice answers are read again from the encrypted store. Nothing is cached across.
 
@@ -87,11 +88,18 @@ export async function createSession(
   const syncQueue = new InMemorySyncQueue();
   const stopScoping = scopeSyncQueueToSession(controller, syncQueue);
 
+  // Aborted on dispose: any request still in flight (Open Food Facts, a BYOK endpoint) is cut and
+  // can land nothing after the lock.
+  const abort = new AbortController();
+
   const privacy = new PrivacyPrefs(kv);
   // The catalog may only send a barcode while the stored answer to the one-time notice is `allowed`.
   const catalog = new OfflineFirstFoodCatalog({
     onlineLookupAllowed: offLookupGate(privacy),
-    offSource: createOffBarcodeSource(options.fetch ? { fetchImpl: options.fetch } : {}),
+    offSource: createOffBarcodeSource({
+      ...(options.fetch ? { fetchImpl: options.fetch } : {}),
+      signal: abort.signal,
+    }),
   });
 
   const ai = await createAiServices({
@@ -100,6 +108,7 @@ export async function createSession(
     classifyFoodGroup: classifyFoodByName,
     photoDigest,
     ...(options.fetch ? { fetch: options.fetch } : {}),
+    signal: abort.signal,
   });
 
   const coach = createTemplateCoach(coachLookup);
@@ -129,6 +138,9 @@ export async function createSession(
     dispose() {
       if (!live) return;
       live = false;
+      abort.abort();
+      catalog.clearCaches();
+      ai.permit.close();
       stopScoping();
       syncQueue.clear();
       syncQueue.dispose();

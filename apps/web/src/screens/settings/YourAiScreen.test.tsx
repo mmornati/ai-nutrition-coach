@@ -5,10 +5,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
-import { AiSettings, KvAiSettingsStore } from '../../ai';
+import { AiProvider, AiSettings, KvAiSettingsStore } from '../../ai';
+import { useSession } from '../../app/session';
 import { chatReply, FakeFetch } from '../../ai/testing';
-import { renderUnlockedApp, unlockedBundle } from '../../app/testing';
+import { renderInSession, renderUnlockedApp, unlockedBundle } from '../../app/testing';
 import { KV_KEYS, type StoreBundle } from '../../storage';
+import { YourAiScreen } from './YourAiScreen';
 
 const SECRET = 'sk-or-v1-SECRETMATERIAL-9f3a';
 
@@ -60,6 +62,17 @@ describe('YourAiScreen', () => {
     expect(within(group).getByRole('radio', { name: /Free hosted model/ })).toBeDisabled();
     expect(within(group).getByRole('radio', { name: /Model on this device/ })).toBeDisabled();
     expect(within(group).getAllByText('Not available yet')).toHaveLength(2);
+    // Only the on-device model carries the version tag; the hosted tier never says "version 2".
+    const hosted = within(group)
+      .getByRole('radio', { name: /Free hosted model/ })
+      .closest('label');
+    const local = within(group)
+      .getByRole('radio', { name: /Model on this device/ })
+      .closest('label');
+    expect(local).toHaveTextContent('Not in v1');
+    expect(local).toHaveTextContent('not in version 1');
+    expect(hosted).not.toHaveTextContent(/v1|v2|version/i);
+    expect(within(group).queryByText(/version 2/i)).toBeNull();
 
     await user.click(within(group).getByText('Free hosted model'));
     expect(within(group).getByRole('radio', { name: /No AI/ })).toBeChecked();
@@ -251,7 +264,17 @@ describe('YourAiScreen', () => {
 
   it('has no axe violations (rungs only, and with the key form open)', async () => {
     const user = userEvent.setup();
-    await openAi();
+    const bundle = await unlockedBundle();
+    function Hosted() {
+      const session = useSession();
+      return (
+        <AiProvider services={session.ai}>
+          <YourAiScreen />
+        </AiProvider>
+      );
+    }
+    await renderInSession(<Hosted />, { bundle, session: { fetch: new FakeFetch().fetch } });
+    await screen.findByRole('heading', { level: 1, name: 'Your AI' });
     expect(await axe(document.body)).toHaveNoViolations();
     await chooseOwnKey(user);
     await fillForm(user, 'https://api.example.com/v1', 'vision-1');

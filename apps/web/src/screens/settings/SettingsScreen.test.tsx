@@ -4,7 +4,8 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
-import { renderUnlockedApp, unlockedBundle } from '../../app/testing';
+import { renderInSession, renderUnlockedApp, unlockedBundle } from '../../app/testing';
+import { SettingsScreen } from './SettingsScreen';
 
 afterEach(() => {
   window.location.hash = '';
@@ -84,7 +85,8 @@ describe('SettingsScreen', () => {
   });
 
   it('has no axe violations', async () => {
-    await openSettings();
+    const bundle = await unlockedBundle();
+    await renderInSession(<SettingsScreen section={null} />, { bundle });
     await heading('Settings');
     expect(await axe(document.body)).toHaveNoViolations();
   });

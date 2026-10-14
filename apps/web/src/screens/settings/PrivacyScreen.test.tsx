@@ -50,11 +50,13 @@ describe('PrivacyScreen: before the unlock', () => {
     expect(screen.getByRole('link', { name: 'Today' })).toHaveAttribute('href', '#/');
   });
 
-  it('states the shared-device note: one history, no in-app profile or app lock', () => {
+  it('states the shared-device note: one history for whoever knows the passphrase, no in-app profiles', () => {
     render(<PrivacyScreen />);
     expect(screen.getByRole('heading', { level: 2, name: 'Shared devices' })).toBeVisible();
     expect(
-      screen.getByText(/sees the same history; there is no in-app profile or app lock/),
+      screen.getByText(
+        /knows the passphrase sees the same history; there are no separate in-app profiles/,
+      ),
     ).toBeVisible();
   });
 

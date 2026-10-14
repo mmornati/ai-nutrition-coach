@@ -225,6 +225,12 @@ export function TodayScreen() {
               />
             </>
           )}
+          <a
+            href={hrefs.week}
+            className="text-porcelain-dim mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
+          >
+            {s.seeWeekNetwork}
+          </a>
         </section>
         <section className="border-rule hidden px-7 pt-6 lg:block lg:border-l-2">
           <h2 className="font-display text-section text-signal-muted mb-4 uppercase">

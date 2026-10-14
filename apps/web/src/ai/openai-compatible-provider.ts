@@ -85,6 +85,8 @@ export interface OpenAiCompatibleProviderOptions {
   readonly receiveTimeoutMs?: number;
   readonly pingReceiveTimeoutMs?: number;
   readonly bodyReadTimeoutMs?: number;
+  /** Aborts an in-flight request (the session ended). */
+  readonly signal?: AbortSignal | undefined;
 }
 
 function base64(bytes: Uint8Array): string {
@@ -160,6 +162,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         ? {}
         : { bodyTimeoutMs: this.#opts.bodyReadTimeoutMs }),
       fetchImpl: this.#fetch(),
+      ...(this.#opts.signal ? { signal: this.#opts.signal } : {}),
     });
     if (r.kind === 'failure') {
       switch (r.reason) {

@@ -92,7 +92,12 @@ describe('InstallScreen', () => {
 
   it('has no axe violations (with the Install button showing)', async () => {
     const { source, offer } = offeredPrompt();
-    await open({ platform: 'android', standalone: false }, source);
+    const bundle = await unlockedBundle();
+    await renderInSession(
+      <InstallScreen context={{ platform: 'android', standalone: false }} prompt={source} />,
+      { bundle },
+    );
+    await screen.findByRole('heading', { level: 1, name: 'Install on your phone' });
     offer();
     await screen.findByRole('button', { name: 'Install' });
     expect(await axe(document.body)).toHaveNoViolations();

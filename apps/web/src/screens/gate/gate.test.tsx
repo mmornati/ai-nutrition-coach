@@ -314,7 +314,15 @@ describe('StoreUnavailableScreen', () => {
     expect(screen.getByText(s.session.unavailableInsecure)).toBeVisible();
     expect(s.session.unavailableInsecure).toMatch(/https:\/\/ or localhost/);
     expect(screen.queryByText(s.session.wrongPassphrase)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('the general line points at the Try again button, never at a reload', () => {
+    expect(s.session.unavailable).not.toMatch(/reload/i);
+    expect(s.session.unavailable).toMatch(/try again\.$/);
+    render(<StoreUnavailableScreen reason="storage" onRetry={() => Promise.resolve()} />);
+    expect(screen.getByText(s.session.unavailable)).toBeVisible();
+    expect(screen.getByRole('button', { name: s.storeUnavailable.retry })).toBeVisible();
   });
 
   it('has no axe violations', async () => {

@@ -255,7 +255,6 @@ export const en = {
     body: 'Your plates, coach notes, saved AI key and exports still on this device will be deleted for good. Copies you shared or downloaded elsewhere are not affected.',
     confirm: 'Erase',
     keep: 'Keep my data',
-    done: 'All local data was erased. Close and reopen AI Nutrition Coach to start fresh.',
     failed:
       "Some data could not be erased. Please try again, or clear the app's storage in your device settings.",
   },
@@ -356,9 +355,11 @@ export const en = {
     dayDescription: '{day}: {state}',
     noteAllRan: 'All four lines ran this week.',
     noteNone: 'No plates logged yet this week.',
+    noteNoneRan: 'No line ran this week.',
     noteSome: '{names} ran this week.',
     noteQuietDays: '{name} was quiet on {days}.',
     noteQuietAll: '{name} stayed quiet all week.',
+    noteQuietMany: '{names} were quiet this week.',
   },
   /** AboutNoticeScreen (app_en.arb): the one-time notice before the first passphrase screen. */
   about: {
@@ -376,7 +377,7 @@ export const en = {
     unlock: 'Unlock',
     wrongPassphrase: 'That passphrase does not open this store.',
     unavailable:
-      "This browser can't open the protected store. It needs a secure (https or localhost) page with site storage allowed. Reload to try again.",
+      "This browser can't open the protected store. It needs a secure (https or localhost) page with site storage allowed. Check that, then try again.",
     unavailableInsecure:
       'AI Nutrition Coach needs a secure page (https:// or localhost) to protect your data. This address is plain http://, so the browser does not allow encryption here. Open the https:// address of this app instead; your data is not affected.',
     throttled: 'Please wait a moment before trying again.',
@@ -444,6 +445,7 @@ export const en = {
     plateRemoved: 'Plate removed.',
     plateRemoveFailed: 'Couldn’t remove it. Try again.',
     networkHeading: 'This week’s network',
+    seeWeekNetwork: "See the week's network",
   },
   /** The Plate screen. */
   plate: {
@@ -473,8 +475,8 @@ export const en = {
   /** SettingsStrings (coach_strings.dart) and the Settings rows of app_en.arb. */
   settings: {
     aiTier: 'AI tier',
-    v2Tag: 'v2',
-    v2Spoken: 'coming in version 2',
+    v2Tag: 'Not in v1',
+    v2Spoken: 'not in version 1',
     title: 'Settings',
     backToSettings: 'Settings',
     rowAi: 'Your AI',
@@ -559,7 +561,7 @@ export const en = {
       'Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.',
     sharedHeading: 'Shared devices',
     sharedBody:
-      'Everyone who can open AI Nutrition Coach in this browser profile sees the same history; there is no in-app profile or app lock. For separate histories use a separate device or a separate browser profile, each with its own passphrase.',
+      'Everyone who can open AI Nutrition Coach in this browser profile and knows the passphrase sees the same history; there are no separate in-app profiles. For separate histories use a separate device or a separate browser profile, each with its own passphrase.',
     saveFailed: 'Couldn’t save that. Unlock the app and try again.',
   },
   /** Install on your phone (app_en.arb, docs/pwa.md). */
@@ -609,6 +611,7 @@ export const en = {
         licence: 'MIT licence (SQLite itself is in the public domain)',
       },
       { id: 'zxing', name: 'zxing-wasm', licence: 'MIT licence' },
+      { id: 'zxingcpp', name: 'zxing-cpp (inside zxing-wasm)', licence: 'Apache licence 2.0' },
       { id: 'react', name: 'React', licence: 'MIT licence' },
     ],
   },

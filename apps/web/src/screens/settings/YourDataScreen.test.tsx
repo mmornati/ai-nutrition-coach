@@ -11,6 +11,7 @@ import {
   rememberAcknowledgedBeforeStore,
   wasAcknowledgedBeforeStore,
 } from '../../app/about-ack';
+import { useDay } from '../../app/day-context';
 import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testing';
 import { KV_KEYS, type StoreBundle } from '../../storage';
 import { YourDataScreen } from './YourDataScreen';
@@ -165,6 +166,37 @@ describe('YourDataScreen: export', () => {
     expect(writes[1]?.text).not.toContain('Old rice');
   });
 
+  it('the "Today" scope is the real today even after another day was selected', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 20, 0) });
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(12, 0), [['Salmon', 'protein']]);
+    await seedPlate(bundle, at(12, 0, -1), [['Yesterday oats', 'starch']]);
+    const { writes, destination } = fakeDestination();
+    function Pick() {
+      const day = useDay();
+      return (
+        <button type="button" onClick={() => day.select(at(12, 0, -1))}>
+          pick yesterday
+        </button>
+      );
+    }
+    await renderInSession(
+      <>
+        <Pick />
+        <YourDataScreen destination={destination} />
+      </>,
+      { bundle },
+    );
+    await screen.findByRole('heading', { level: 1, name: 'Your data' });
+    await user.click(screen.getByRole('button', { name: 'pick yesterday' }));
+    await user.click(screen.getByRole('radio', { name: 'Today' }));
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.text).toContain('Salmon');
+    expect(writes[0]?.text).not.toContain('Yesterday oats');
+  });
+
   it('a dismissed share sheet says nothing was exported and records no date', async () => {
     const user = userEvent.setup();
     const { bundle } = await open({ outcome: 'cancelled', seed: withSalmon });
@@ -316,7 +348,12 @@ describe('YourDataScreen: erase', () => {
 describe('YourDataScreen: accessibility', () => {
   it('has no axe violations (with data, the suggestion showing and the erase dialog open)', async () => {
     const user = userEvent.setup();
-    await open({ seed: withSalmon, durable: 'notPersisted' });
+    const bundle = await unlockedBundle({ requestDurable: () => Promise.resolve('notPersisted') });
+    await withSalmon(bundle);
+    await renderInSession(<YourDataScreen destination={fakeDestination().destination} />, {
+      bundle,
+    });
+    await screen.findByRole('heading', { level: 1, name: 'Your data' });
     await screen.findByText(/You have not exported yet/);
     expect(await axe(document.body)).toHaveNoViolations();
     await user.click(screen.getByRole('button', { name: 'Erase all local data' }));

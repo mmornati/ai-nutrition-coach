@@ -73,7 +73,8 @@ export function YourDataScreen({
   const scope = (): ExportScope => {
     switch (scopeKind) {
       case 'visibleDay':
-        return visibleDayScope(day.selected);
+        // The "Today" scope is the real today, whichever day was last looked at on Today.
+        return visibleDayScope(day.today);
       case 'week':
         return weekScope(day.days[0]?.date ?? day.today);
       case 'allHistory':

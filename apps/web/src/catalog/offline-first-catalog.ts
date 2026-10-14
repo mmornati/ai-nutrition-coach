@@ -99,6 +99,12 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     this.onlineLookupAllowed = options.onlineLookupAllowed;
   }
 
+  /** Forgets every remembered query and barcode (the session ended). */
+  clearCaches(): void {
+    this.searchCache.clear();
+    this.barcodeCache.clear();
+  }
+
   /** Entries in the search LRU (exposed for tests). */
   get cacheCapacity(): number {
     return this.searchCache.capacity;

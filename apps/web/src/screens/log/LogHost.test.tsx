@@ -1,7 +1,7 @@
 // Ports of capture_sheet_test, manual_entry_screen_test, capture_barcode_screen_test and
 // capture_photo_screen_test: the three ways to log, as the person meets them.
 import { useEffect } from 'react';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -11,7 +11,10 @@ import { jpegWithExif } from '../../capture/testing';
 import { OFF_ORIGIN } from '../../catalog';
 import { strings } from '../../i18n';
 import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testing';
-import { useSession, type Session } from '../../app/session';
+import { DayProvider } from '../../app/day-context';
+import { SessionBoundary, useSession, type Session } from '../../app/session';
+import { StoreProvider } from '../../app/store-context';
+import { LogHost } from './LogHost';
 import { TodayScreen } from '../today/TodayScreen';
 
 const s = strings();
@@ -83,7 +86,15 @@ describe('LogHost: the capture sheet', () => {
   it('has no axe violations while open', async () => {
     const user = userEvent.setup();
     const bundle = await unlockedBundle();
-    const { baseElement } = await renderInSession(screenWithGrab, { bundle });
+    const { baseElement } = render(
+      <StoreProvider bundle={bundle}>
+        <SessionBoundary bundle={bundle}>
+          <DayProvider>
+            <LogHost>{screenWithGrab}</LogHost>
+          </DayProvider>
+        </SessionBoundary>
+      </StoreProvider>,
+    );
     await screen.findByText('Breakfast');
     await openSheet(user);
     expect(await axe(baseElement)).toHaveNoViolations();

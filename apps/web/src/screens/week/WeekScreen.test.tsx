@@ -4,7 +4,14 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { at, renderUnlockedApp, seedPlate, unlockedBundle } from '../../app/testing';
+import {
+  at,
+  renderInSession,
+  renderUnlockedApp,
+  seedPlate,
+  unlockedBundle,
+} from '../../app/testing';
+import { WeekScreen } from './WeekScreen';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 20, 0) });
@@ -68,7 +75,13 @@ describe('WeekScreen', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = await openWeek();
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(12, 0, -1), [
+      ['Eggs', 'protein'],
+      ['Spinach', 'vegFruit'],
+    ]);
+    const { container } = await renderInSession(<WeekScreen />, { bundle });
+    await screen.findByRole('heading', { level: 1, name: 'This week' });
     expect(await axe(container)).toHaveNoViolations();
   });
 });

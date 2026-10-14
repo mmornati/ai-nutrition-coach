@@ -24,12 +24,19 @@ The React PWA replaces the Flutter screens, and its floor is measured like this:
   so for the components. Both run in Chromium and WebKit.
 - **Reflow and text size.** The same journey spec checks every settings screen for horizontal
   scroll at 390 px and 1440 px and at 200 % text (the root font size doubled; all type is `rem`).
-- **Targets and names.** Touch targets are at least 48 px (the primitives set `min-h-12`); every
-  control has an accessible name, and state (a chosen option, a switch, a disabled tier) is carried
-  by a tick or text, never by colour alone.
-- **i18n.** `apps/web/eslint.config.js` fails a string literal in JSX text or in `aria-label`,
-  `title`, `alt` or `placeholder` for every `.tsx` under `src/` (tests, `main.tsx` and the dev
-  gallery excepted); the copy lives in `src/i18n/en.ts`.
+- **Targets and names.** Touch targets are at least 48 px (the primitives set `min-h-12`); on a
+  phone the dock holds only the seven-stop week route (each stop is at least 48 px wide) and "Log a
+  plate" floats above it as a 56 px square. `apps/web/e2e/targets.spec.ts` measures every
+  interactive element on Today, Week, Plate, the capture sheet and Unlock at 390 px and 1440 px
+  (an inline link inside a sentence is the only exemption). Every control has an accessible name,
+  and state (a chosen option, a switch, a disabled tier) is carried by a tick or text, never by
+  colour alone.
+- **i18n.** `apps/web/eslint.config.js` runs `i18next/no-literal-string` in mode `all` over every
+  `.tsx` under `src/` (tests, `main.tsx` and the dev gallery excepted): JSX text, ternary and
+  template children, `aria-label={'...'}`, the text of any prop on a custom component, and a
+  string handed to a state setter all fail. A lower-case token (a union member, an id) and
+  strings inside `cn()` are not copy. The copy lives in `src/i18n/en.ts`;
+  `src/components/i18nGate.test.ts` proves each case.
 
 Still not measured automatically: keyboard order beyond the dialogs and sheets, and real screen
 readers (VoiceOver, TalkBack).

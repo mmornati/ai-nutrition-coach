@@ -48,6 +48,8 @@ export function YourAiScreen() {
     title: choice.label,
     description: choice.help,
     disabled: !choice.selectable,
+    // Only the on-device model is a version-1 non-goal; the hosted tier is just not available yet.
+    versionTag: choice.kind === 'local',
   }));
   const hosts = [...settings.photoConsentHosts].sort();
   const keyLine = ai.keyStatus.hasKey ? keySavedText(ai.keyStatus.keyEnding) : c.keyNone;

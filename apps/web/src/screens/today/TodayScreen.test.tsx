@@ -129,6 +129,15 @@ describe('TodayScreen: the day as a map', () => {
     expect(screen.queryByText(/synced|pending/i)).not.toBeInTheDocument();
   });
 
+  it('links to the week network below the line map (the rail is desktop-only)', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByText('Breakfast');
+    const link = screen.getByRole('link', { name: s.today.seeWeekNetwork });
+    expect(link).toHaveAttribute('href', '#/week');
+    expect(link.className).toMatch(/lg:hidden/);
+  });
+
   it('a store that fails shows one calm line: no retry button, no spinner', async () => {
     const bundle = await unlockedBundle();
     const failing = Object.create(bundle.store, {

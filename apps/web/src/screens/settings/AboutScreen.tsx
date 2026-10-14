@@ -1,12 +1,15 @@
 import { fill, useStrings } from '../../i18n';
-import { engineBasePath } from '../../storage/engine-pin';
 import { Prose, Section, SettingsPage } from './SettingsPage';
 
 /** Licence texts that ship with the app (same origin, precached), by licence row id. */
 const base = import.meta.env.BASE_URL;
-const LICENCE_FILES: Readonly<Record<string, string>> = {
+export const LICENCE_FILES: Readonly<Record<string, string>> = {
+  app: `${base}licenses/app-MIT.txt`,
+  react: `${base}licenses/react-MIT.txt`,
+  zxing: `${base}licenses/zxing-wasm-MIT.txt`,
+  zxingcpp: `${base}licenses/zxing-cpp-Apache-2.0.txt`,
+  sqlite: `${base}licenses/sqlite3-multiple-ciphers.txt`,
   fonts: `${base}fonts/OFL.txt`,
-  sqlite: `${engineBasePath(base)}NOTICE.txt`,
 };
 
 /**

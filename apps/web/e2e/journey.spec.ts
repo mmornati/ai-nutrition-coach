@@ -10,6 +10,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { type Page } from '@playwright/test';
 import { expect, test } from './persistent';
+import { undersizedTargets } from './targets';
 
 const PASSPHRASE = 'correct horse battery staple';
 
@@ -371,4 +372,177 @@ test('every settings screen: no horizontal scroll at 390px and 1440px, nor at 20
   await expect(page.getByRole('switch')).toHaveCount(0);
   const locked = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(locked.violations).toEqual([]);
+});
+
+// Target size (this app's floor is 48 x 48 CSS px, docs/accessibility.md) on the core screens.
+const VIEWPORTS = [
+  [390, 844],
+  [1440, 900],
+] as const;
+
+test('every interactive element is at least 48 x 48 on Today, Week, Plate, the capture sheet and Unlock', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await freshStart(page);
+  await createStore(page);
+  await logSalmonByTypingIt(page);
+  const plate = page.locator('[data-testid^="open-plate-"]').first();
+  await expect(plate).toBeVisible();
+
+  for (const [width, height] of VIEWPORTS) {
+    await page.setViewportSize({ width, height });
+    const at = `${width}px`;
+
+    await page.evaluate(() => {
+      window.location.hash = '#/';
+    });
+    await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    expect(await undersizedTargets(page), `Today at ${at}`).toEqual([]);
+
+    await page.evaluate(() => {
+      window.location.hash = '#/week';
+    });
+    await expect(page.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
+    expect(await undersizedTargets(page), `Week at ${at}`).toEqual([]);
+
+    await page.evaluate(() => {
+      window.location.hash = '#/';
+    });
+    await plate.click();
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Today');
+    expect(await undersizedTargets(page), `Plate at ${at}`).toEqual([]);
+
+    await page.evaluate(() => {
+      window.location.hash = '#/';
+    });
+    await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    await page.getByRole('button', { name: 'Log a plate' }).last().click();
+    await expect(page.getByRole('dialog', { name: 'Log a plate' })).toBeVisible();
+    expect(await undersizedTargets(page), `Capture sheet at ${at}`).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+  }
+
+  await page.getByRole('button', { name: 'Lock' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Unlock your store' })).toBeVisible();
+  for (const [width, height] of VIEWPORTS) {
+    await page.setViewportSize({ width, height });
+    expect(await undersizedTargets(page), `Unlock at ${width}px`).toEqual([]);
+  }
+});
+
+test('Week is reachable on a phone: Today links to the week network below the line map', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await freshStart(page);
+  await createStore(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+  const link = page.getByRole('link', { name: "See the week's network" });
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
+  // The floating Log button never covers the last content: scrolled to the end, the link's
+  // bottom edge clears the button's top edge.
+  await page.goto('/#/');
+  await expect(link).toBeVisible();
+  await link.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const fab = await page.getByRole('button', { name: 'Log a plate' }).last().boundingBox();
+  const main = await page.getByRole('main').boundingBox();
+  const last = await link.boundingBox();
+  expect(fab && fab.width >= 56 && fab.height >= 56).toBe(true);
+  expect(last && fab && last.y + last.height <= fab.y).toBe(true);
+  expect(main).not.toBeNull();
+  // And on a wide screen the link is not shown (the rail and the network column are).
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(link).toBeHidden();
+});
+
+test('a focused control is never hidden behind the floating Log button on a phone', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await freshStart(page);
+  await createStore(page);
+  await logSalmonByTypingIt(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const fabButton = page.getByRole('button', { name: 'Log a plate' }).last();
+  const askLater = page.getByRole('button', { name: 'Ask later' }).first();
+  await expect(askLater).toBeVisible();
+  // Put the control right under the button, then move focus to it as the keyboard would.
+  const fab = await fabButton.boundingBox();
+  const before = await askLater.boundingBox();
+  expect(fab && before).toBeTruthy();
+  await page.evaluate((dy) => window.scrollBy(0, dy), before!.y - fab!.y);
+  await askLater.focus();
+  const after = await askLater.boundingBox();
+  const fabAfter = await fabButton.boundingBox();
+  expect(after!.y + after!.height <= fabAfter!.y).toBe(true);
+});
+
+// About, Open-source licences: every listed licence links to its full text, served from this
+// origin and precached by the service worker (so it opens offline too).
+test('every licence link returns its text (not the app shell) and is in the offline precache', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await freshStart(page);
+  await createStore(page);
+  await page.evaluate(() => {
+    window.location.hash = '#/settings/about';
+  });
+  await expect(page.getByRole('heading', { level: 1, name: 'About' })).toBeVisible();
+
+  const links = page.getByRole('link', { name: /^Read the licence: / });
+  await expect(links).toHaveCount(6);
+  const names = await links.evaluateAll((as) => as.map((a) => a.getAttribute('aria-label') ?? ''));
+  for (const expected of [
+    'AI Nutrition Coach',
+    'Barlow and Barlow Condensed (fonts)',
+    'SQLite3 Multiple Ciphers',
+    'zxing-wasm',
+    'zxing-cpp',
+    'React',
+  ]) {
+    expect(
+      names.some((n) => n.includes(expected)),
+      expected,
+    ).toBe(true);
+  }
+  const hrefs = await links.evaluateAll((as) => as.map((a) => a.getAttribute('href') ?? ''));
+  expect(new Set(hrefs).size).toBe(hrefs.length);
+
+  for (const href of hrefs) {
+    const res = await page.request.get(href);
+    expect(res.status(), href).toBe(200);
+    const body = await res.text();
+    // The SPA fallback would answer any unknown path with index.html and a 200.
+    expect(body, href).not.toMatch(/<!doctype html|<html/i);
+    expect(body.length, href).toBeGreaterThan(500);
+    expect(body, href).toMatch(/licen[cs]e|permission is hereby granted|apache/i);
+  }
+
+  // Offline: each is in the service worker's precache.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  for (const href of hrefs) {
+    await expect
+      .poll(
+        () =>
+          page.evaluate(async (path) => {
+            for (const name of await caches.keys()) {
+              const cache = await caches.open(name);
+              const keys = await cache.keys();
+              if (keys.some((r) => new URL(r.url).pathname === path)) return true;
+            }
+            return false;
+          }, href),
+        { message: `${href} precached`, timeout: 20_000 },
+      )
+      .toBe(true);
+  }
 });
