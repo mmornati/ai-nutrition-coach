@@ -24,6 +24,10 @@ The floor is measured like this:
   so for the components. Both run in Chromium and WebKit.
 - **Reflow and text size.** The same journey spec checks every settings screen for horizontal
   scroll at 390 px and 1440 px and at 200 % text (the root font size doubled; all type is `rem`).
+  The phone dock's seven 48 px stops need 336 px: narrower (320 px, or 400 % zoom) the week route
+  scrolls sideways inside the dock rather than sticking out of it, with the selected stop kept in
+  view and the far stop peeking in at the edge. `apps/web/e2e/french.spec.ts` measures the dock at
+  320 px and 375 px in English and French.
 - **Targets and names.** Touch targets are at least 48 px (the primitives set `min-h-12`); on a
   phone the dock holds only the seven-stop week route (each stop is at least 48 px wide) and "Log a
   plate" floats above it as a 56 px square. `apps/web/e2e/targets.spec.ts` measures every

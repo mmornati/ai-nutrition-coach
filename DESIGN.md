@@ -271,7 +271,7 @@ Signage buttons: uppercase condensed labels in a square 2px frame.
 - **Radio tiers:** full-width outlined rows with a 24px porcelain ring; checked rows take a porcelain border and a filled 10px centre; disabled rows drop to 0.75 opacity and carry a version tag.
 
 ### Navigation
-- **Phone:** the bottom dock's week route is the day switcher: seven 20px station rings on a 4px rule track; a full day (all four lines) is a filled porcelain dot, a partial day is hollow; today is amber with a double interchange ring and porcelain label. Settings is a header icon button; back links are condensed uppercase with a chevron.
+- **Phone:** the bottom dock's week route is the day switcher: seven 20px station rings on a 4px rule track; a full day (all four lines) is a filled porcelain dot, a partial day is hollow; today is amber with a double interchange ring and porcelain label (the word where it fits its stop, the day's initial where it does not). Below 336px (seven 48px stops) the route scrolls sideways inside the dock, the selected stop kept in view and the far stop peeking in at the edge; stops never shrink under 48px. Settings is a header icon button; back links are condensed uppercase with a chevron.
 - **Desktop rail:** brand mark plus condensed 18px uppercase items at 52px; inactive items porcelain-dim, the current item porcelain with a 64×4px amber underline.
 
 ### Day Map (signature)

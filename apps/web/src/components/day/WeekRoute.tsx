@@ -1,5 +1,6 @@
 import type { EpochMs } from '@anc/core';
 import { isSameLocalDay } from '@anc/core';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useStrings } from '../../i18n';
 import { weekdayAbbr } from './format';
 import { dayKind, dayRouteLabel } from './week';
@@ -45,59 +46,109 @@ function dotClass(d: WeekDayData, current: boolean): string {
  *
  * ARIA: the stop showing is `aria-current="true"` (the nav's current item); "today" is part of the
  * accessible name, never a second aria-current value, so today and the selection never collide.
+ *
+ * Reflow: seven 48 px stops need 336 px (21rem). Narrower than that (a 320 px phone, or 400 %
+ * zoom) the route scrolls sideways inside the dock instead of sticking out of it: the selected
+ * stop (today, unless another day was picked) is kept fully in view and the far stop peeks in at
+ * the edge, so the route reads as one that goes on. Tab and a tap on the peeking stop bring it in.
  */
 export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekRouteProps) {
   const s = useStrings().week;
+  const nav = useRef<HTMLElement>(null);
+  // Today's word ("Today", "Aujourd’hui") is shown only when it fits inside its stop.
+  const [wordFits, setWordFits] = useState(false);
+  useLayoutEffect(() => {
+    const el = nav.current;
+    if (!el) return;
+    const fit = () => {
+      const word = el.querySelector<HTMLElement>('[data-measure]');
+      const stop = word?.closest('button');
+      if (word && stop)
+        setWordFits(word.offsetWidth > 0 && word.offsetWidth <= stop.clientWidth - 4);
+    };
+    // Only the route scrolls (scrollIntoView could also move the page).
+    const pin = () => {
+      const stop = el.querySelector<HTMLElement>('[aria-current="true"]');
+      if (!stop) return;
+      const left = stop.offsetLeft;
+      const right = left + stop.offsetWidth;
+      if (left < el.scrollLeft) el.scrollLeft = left;
+      else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+    };
+    fit();
+    pin();
+    // A rotation, a zoom or a resized window can narrow the route after it was drawn.
+    if (typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(() => {
+      fit();
+      pin();
+    });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [selected, s.today]);
   return (
     <nav
+      ref={nav}
       aria-label={s.routeLabel}
-      className={`@container relative flex items-center before:absolute before:top-7.25 before:right-[calc(100%/14)] before:left-[calc(100%/14)] before:h-1 before:bg-rule before:content-[''] ${className}`}
+      data-scroll-x
+      className={`overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
     >
-      {days.map((d) => {
-        const current = isSameLocalDay(d.date, selected);
-        return (
-          <button
-            key={d.date}
-            type="button"
-            aria-label={dayRouteLabel(d)}
-            aria-current={current ? 'true' : undefined}
-            onClick={() => onSelectDay(d.date)}
-            className={`font-display relative flex min-h-19 min-w-[48px] flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-5 text-tag font-semibold tracking-[0.08em] uppercase ${current ? 'text-porcelain' : 'text-signal-muted'}`}
-          >
-            <span
-              aria-hidden="true"
-              data-day-kind={dayKind(d)}
-              className={`relative block h-5 w-5 rounded-full border-[3.5px] ${dotClass(d, current)}`}
+      <div className="relative flex w-full min-w-[21rem] items-center before:absolute before:top-7.25 before:right-[calc(100%/14)] before:left-[calc(100%/14)] before:h-1 before:bg-rule before:content-['']">
+        {days.map((d) => {
+          const current = isSameLocalDay(d.date, selected);
+          return (
+            <button
+              key={d.date}
+              type="button"
+              aria-label={dayRouteLabel(d)}
+              aria-current={current ? 'true' : undefined}
+              onClick={() => onSelectDay(d.date)}
+              className={`font-display relative flex min-h-19 min-w-[48px] flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-5 text-tag font-semibold tracking-[0.08em] uppercase ${current ? 'text-porcelain' : 'text-signal-muted'}`}
             >
-              {dayKind(d) === 'loggedNoLine' && (
+              <span
+                aria-hidden="true"
+                data-day-kind={dayKind(d)}
+                className={`relative block h-5 w-5 rounded-full border-[3.5px] ${dotClass(d, current)}`}
+              >
+                {dayKind(d) === 'loggedNoLine' && (
+                  <span
+                    data-logged-core
+                    className={`absolute inset-1 rounded-full ${d.isToday ? 'bg-enamel' : 'bg-porcelain'}`}
+                  />
+                )}
+              </span>
+              {/* Today's word only where its stop is wide enough for it (measured, since the word's
+                length depends on the language); otherwise the day's initial (drawn by CSS from
+                data-initial, so the text stays "Today"). All hidden from AT: the button's name
+                already says "today". */}
+              <span
+                aria-hidden="true"
+                data-route-label
+                data-initial={weekdayAbbr(d.date).charAt(0)}
+                className={
+                  d.isToday && !wordFits ? 'before:content-[attr(data-initial)]' : undefined
+                }
+              >
+                {d.isToday ? (
+                  <span className={wordFits ? undefined : 'hidden'}>{s.today}</span>
+                ) : (
+                  weekdayAbbr(d.date).charAt(0)
+                )}
+              </span>
+              {d.isToday && (
+                // The ruler: the word drawn invisibly (as CSS content, so it is not text), anchored
+                // right so it never widens the route.
                 <span
-                  data-logged-core
-                  className={`absolute inset-1 rounded-full ${d.isToday ? 'bg-enamel' : 'bg-porcelain'}`}
+                  aria-hidden="true"
+                  data-measure
+                  data-word={s.today}
+                  className="pointer-events-none invisible absolute top-0 right-0 whitespace-nowrap before:content-[attr(data-word)]"
                 />
               )}
-            </span>
-            {/* Today's word only where a stop is wide enough for it; otherwise the day's initial
-                (drawn by CSS from data-initial, so the text stays "Today"). Both are hidden from
-                AT: the button's name already says "today". */}
-            <span
-              aria-hidden="true"
-              data-route-label
-              data-initial={weekdayAbbr(d.date).charAt(0)}
-              className={
-                d.isToday
-                  ? 'before:content-[attr(data-initial)] @min-[21rem]:before:content-none'
-                  : undefined
-              }
-            >
-              {d.isToday ? (
-                <span className="hidden @min-[21rem]:inline">{s.today}</span>
-              ) : (
-                weekdayAbbr(d.date).charAt(0)
-              )}
-            </span>
-          </button>
-        );
-      })}
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }
