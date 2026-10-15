@@ -10,6 +10,7 @@ import { createStore, freshStart, logSalmonByTypingIt, plates, unlockAfterReload
 import { undersizedTargets } from './targets';
 
 const NARROW = { width: 320, height: 700 } as const;
+const WIDE = { width: 375, height: 700 } as const;
 
 /**
  * Elements that stick out past the viewport, or whose content is wider than their own box and
@@ -17,14 +18,16 @@ const NARROW = { width: 320, height: 700 } as const;
  * purpose are left out. Returns one line per offender.
  */
 async function overflowing(page: Page): Promise<string[]> {
-  return page.evaluate((skip) => {
+  return page.evaluate(() => {
     const vw = document.documentElement.clientWidth;
     const out: string[] = [];
     const describe = (el: Element) =>
       `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''} "${(el.textContent ?? '').trim().slice(0, 40)}"`;
     for (const el of Array.from(document.body.querySelectorAll<HTMLElement>('*'))) {
       if (el.closest('[aria-hidden="true"], .sr-only, dialog:not([open])')) continue;
-      if (skip && el.closest(skip)) continue;
+      // Inside a sideways scroller (the dock's week route below 336 px), children may sit past
+      // the edge on purpose: the scroller itself is still measured, and dockFits checks the rest.
+      if (el.parentElement?.closest('[data-scroll-x]')) continue;
       const style = getComputedStyle(el);
       if (style.display === 'none' || style.visibility === 'hidden') continue;
       if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') continue;
@@ -42,18 +45,46 @@ async function overflowing(page: Page): Promise<string[]> {
       }
     }
     return out;
-  }, KNOWN_NARROW_OVERFLOW);
+  });
 }
 
 /**
- * Tracked separately: dock week route overflows below 336px (48px target floor × 7).
- * Selected by a stable, non-localised hook (the dock's test id), not its aria-label.
- *
- * Not a French issue, so measured apart: the phone dock's week route has seven stops of at least
- * 48 px each (the target-size floor), 336 px, so below 336 px the last stop (today) sticks out of
- * the fixed dock in every language. The stops show one letter (or a CSS initial) at this width.
+ * The phone dock (selected by its test id, not its localised name) at a narrow width: seven stops of
+ * at least 48 px need 336 px, so below that the week route scrolls inside the dock. The dock and
+ * the route stay within the viewport, every stop keeps its 48 px, and the selected stop (today on
+ * arrival) is wholly in view. At 336 px and wider nothing scrolls.
  */
-const KNOWN_NARROW_OVERFLOW = '[data-testid="dock"] nav';
+async function dockFits(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const out: string[] = [];
+    const dock = document.querySelector<HTMLElement>('[data-testid="dock"]');
+    const nav = dock?.querySelector<HTMLElement>('nav[data-scroll-x]');
+    if (!dock || !nav) return ['no dock week route'];
+    for (const [name, el] of [
+      ['dock', dock],
+      ['route', nav],
+    ] as const) {
+      const r = el.getBoundingClientRect();
+      if (r.left < -0.5 || r.right > vw + 0.5)
+        out.push(`${name} spans ${r.left}..${r.right} of ${vw}`);
+    }
+    const box = nav.getBoundingClientRect();
+    const stops = Array.from(nav.querySelectorAll<HTMLElement>('button'));
+    if (stops.length !== 7) out.push(`${stops.length} stops`);
+    for (const b of stops) {
+      if (b.getBoundingClientRect().width < 47.5) out.push(`${b.ariaLabel} is narrower than 48px`);
+    }
+    const current = nav.querySelector<HTMLElement>('[aria-current="true"]');
+    const c = current?.getBoundingClientRect();
+    if (!c || c.left < box.left - 0.5 || c.right > box.right + 0.5) {
+      out.push(`selected stop ${current?.ariaLabel ?? '(none)'} is not wholly in view`);
+    }
+    const scrolls = nav.scrollWidth > nav.clientWidth + 1;
+    if (scrolls !== vw < 336) out.push(`route scrolls: ${scrolls} at ${vw}px`);
+    return out;
+  });
+}
 
 async function noPageScroll(page: Page): Promise<{ scroll: number; client: number }> {
   return page.evaluate(() => {
@@ -117,6 +148,15 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   await logSalmonByTypingIt(page);
   await expect(plates(page)).toHaveCount(1);
 
+  // English first: the dock is not a French issue, so it is measured in both languages.
+  await page.setViewportSize(NARROW);
+  await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+  await checkScreen(page, 'Today (English) at 320px');
+  expect(await dockFits(page), 'dock (English) at 320px').toEqual([]);
+  expect(await undersizedTargets(page), 'Today (English) targets at 320px').toEqual([]);
+  await page.setViewportSize(WIDE);
+  expect(await dockFits(page), 'dock (English) at 375px').toEqual([]);
+
   // Settings, Language, Français.
   await go(page, '#/settings/language');
   await page.getByText('Français', { exact: true }).click();
@@ -163,6 +203,14 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   await expect(page.getByText('Saumon', { exact: true })).toBeVisible();
   await expect(page.getByText('Salmon')).toHaveCount(0);
   expect(await undersizedTargets(page), 'Today targets at 320px').toEqual([]);
+  expect(await dockFits(page), 'dock at 320px').toEqual([]);
+  // Another day selected: it is brought into view, and today peeks in at the far edge.
+  await page.getByTestId('dock').locator('nav button').first().click();
+  expect(await dockFits(page), 'dock at 320px, oldest day selected').toEqual([]);
+  await page.setViewportSize(WIDE);
+  expect(await dockFits(page), 'dock at 375px').toEqual([]);
+  await page.setViewportSize(NARROW);
+  await page.getByTestId('dock').locator('nav button').last().click();
 
   // The capture sheet and the Type it sheet.
   await page.getByRole('button', { name: 'Noter une assiette' }).first().click();
