@@ -5,18 +5,25 @@
 //
 // Each test uses a fresh PERSISTENT browser context (an ephemeral WebKit context, like Safari
 // private browsing, refuses OPFS file handles; see docs/adr/0005-web-encrypted-store.md).
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test as base, expect, type Page } from '@playwright/test';
 import type { ContractResult, OpfsReport } from '../src/storage/harness/harness';
 
 const test = base.extend({
-  context: async ({ playwright, browserName, baseURL, channel }, provide, testInfo) => {
+  context: async ({ playwright, browserName, baseURL, channel }, provide) => {
     const type = playwright[browserName];
-    const context = await type.launchPersistentContext(testInfo.outputPath('profile'), {
+    // An ASCII-only profile path: the test output path follows the title ("Français"), which
+    // WebKitGTK cannot parse as an argument without a UTF-8 locale.
+    const profile = mkdtempSync(join(tmpdir(), 'anc-e2e-profile-'));
+    const context = await type.launchPersistentContext(profile, {
       baseURL: baseURL ?? 'http://localhost:4173',
       ...(browserName === 'chromium' && channel ? { channel } : {}),
     });
     await provide(context);
     await context.close();
+    rmSync(profile, { recursive: true, force: true });
   },
   page: async ({ context }, provide) => {
     const page = context.pages()[0] ?? (await context.newPage());
