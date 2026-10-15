@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { useLocale } from '../i18n';
 import type { AiSettings } from './ai-settings';
 import type { FieldMessage } from './copy';
 import { connectionResultMessage, saveResultMessage } from './copy';
@@ -63,7 +64,9 @@ export function useYourAi(): YourAiState {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>(NO_KEY);
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [message, setMessage] = useState<FieldMessage | null>(null);
+  // A thunk, not the worded message: it is evaluated per locale below, so it follows a switch.
+  const [held, setHeld] = useState<{ readonly of: () => FieldMessage } | null>(null);
+  const { locale } = useLocale();
 
   const refresh = useCallback(async (): Promise<void> => {
     setKeyStatus(await yourAi.keyStatus());
@@ -85,18 +88,18 @@ export function useYourAi(): YourAiState {
       keyStatus,
       busy,
       testing,
-      message,
+      message: held === null ? null : held.of(),
       selectNoAi: async () => {
-        setMessage(null);
+        setHeld(null);
         await yourAi.selectNoAi();
       },
       save: async (form) => {
         if (busy) return false;
         setBusy(true);
-        setMessage(null);
+        setHeld(null);
         try {
           const result = await yourAi.saveByok(form);
-          setMessage(saveResultMessage(result));
+          setHeld({ of: () => saveResultMessage(result) });
           await refresh();
           return result.kind === 'saved';
         } finally {
@@ -116,17 +119,19 @@ export function useYourAi(): YourAiState {
       test: async (form) => {
         if (testing) return;
         setTesting(true);
-        setMessage(null);
+        setHeld(null);
         try {
-          setMessage(connectionResultMessage(await yourAi.testConnection(form)));
+          const result = await yourAi.testConnection(form);
+          setHeld({ of: () => connectionResultMessage(result) });
         } finally {
           setTesting(false);
         }
       },
       revokeConsent: (host) => controller.revokePhotoConsent(host),
       setAskBeforeEveryPhoto: (value) => controller.setAskBeforeEveryPhoto(value),
-      clearMessage: () => setMessage(null),
+      clearMessage: () => setHeld(null),
     }),
-    [settings, keyStatus, busy, testing, message, yourAi, controller, refresh],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale`: `held.of()` words the message via `strings()`.
+    [settings, keyStatus, busy, testing, held, locale, yourAi, controller, refresh],
   );
 }

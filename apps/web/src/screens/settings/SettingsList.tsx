@@ -44,6 +44,14 @@ export function SettingsList() {
         onSelect: go(SECTIONS.privacy),
       },
       {
+        id: SECTIONS.language,
+        line: 'vegFruit',
+        title: s.rowLanguage,
+        subtitle: s.rowLanguageSubtitle,
+        status: '',
+        onSelect: go(SECTIONS.language),
+      },
+      {
         id: SECTIONS.install,
         line: 'starch',
         title: s.rowInstall,

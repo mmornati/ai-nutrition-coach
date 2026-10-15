@@ -81,6 +81,12 @@ hence no inline script and no CSP change), **only on a secure context and only i
 for a new version on every load and whenever it comes back to the foreground. The web manifest
 (`apps/web/public/manifest.webmanifest`) is a static file linked from `index.html`.
 
+The manifest is one file with `"lang": "en"`: browsers read it once, at install, and do not
+localise it per person, so the install name ("AI Nutrition Coach"), short name and description stay
+English whatever language the app is set to. (The brand name is not translated.) The language the
+person picked applies inside the app; `<html lang>` is set before the app bundle runs by
+`boot-guard.js` (no inline script is allowed by the CSP) and kept up to date by the app.
+
 The *update flow* in the UI: the new worker finishes installing → the app shows one
 dismissible line ("A new version is ready. Reloading locks your data, so you will enter your
 passphrase again." — *Reload* / *Later*) → *Reload* posts `SKIP_WAITING` → the page reloads

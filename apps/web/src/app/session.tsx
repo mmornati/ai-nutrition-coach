@@ -43,6 +43,7 @@ import {
   PrivacyPrefs,
 } from '../catalog';
 import { strings } from '../i18n';
+import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
 import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
@@ -56,6 +57,7 @@ export interface Session {
   readonly clock: Clock;
   readonly catalog: FoodCatalog;
   readonly privacy: PrivacyPrefs;
+  readonly localePrefs: LocalePrefs;
   readonly syncQueue: InMemorySyncQueue;
   readonly ai: AiServices;
   readonly coach: Coach;
@@ -75,8 +77,10 @@ export interface SessionOptions {
 }
 
 /** The v1 template coach reads its questions from the typed copy catalogue by key. */
-const coachLookup = (key: string): string | undefined =>
-  (strings().coachQuestions as Readonly<Record<string, string>>)[key];
+const coachLookup = (key: string): string | undefined => {
+  const questions = strings().coachQuestions as Readonly<Record<string, string>>;
+  return Object.hasOwn(questions, key) ? questions[key] : undefined;
+};
 
 export async function createSession(
   bundle: StoreBundle,
@@ -128,6 +132,7 @@ export async function createSession(
     clock,
     catalog,
     privacy,
+    localePrefs: new LocalePrefs(kv),
     syncQueue,
     ai,
     coach,
@@ -179,11 +184,15 @@ export function SessionBoundary(props: {
   useEffect(() => {
     let cancelled = false;
     let built: Session | null = null;
-    void createSession(bundle, options).then((s) => {
+    void createSession(bundle, options).then(async (s) => {
+      // The stored language is read before the first screen renders, and applied only if this
+      // session is still wanted (a torn-down one must not change the language).
+      const stored = await s.localePrefs.readStored();
       if (cancelled) {
         s.dispose();
         return;
       }
+      applyLocalePreference(s.localePrefs, stored);
       built = s;
       setSession(s);
     });

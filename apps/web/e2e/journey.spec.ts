@@ -210,6 +210,7 @@ const SETTINGS_SCREENS = [
   ['#/settings/ai', 'Your AI'],
   ['#/settings/data', 'Your data'],
   ['#/settings/privacy', 'What this app stores and sends'],
+  ['#/settings/language', 'Language'],
   ['#/settings/install', 'Install on your phone'],
   ['#/settings/about', 'About'],
 ] as const;

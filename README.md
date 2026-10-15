@@ -91,6 +91,15 @@ exports are plaintext files you hold; devices shared by several people see one h
 import; the hosted AI tier is not built (you bring your own key); the Tip jar is pending the named
 reviewer; there is no light theme.
 
+## Languages
+
+The app speaks English and French (Français). It follows your device's language until you choose:
+**Settings → Language** offers *Match my device*, *English* and *Français*. The choice is stored in
+the encrypted local store with the rest of your settings, plus a plain `localStorage` hint (the
+language code only) so the passphrase and unlock screens can show it before the store is open.
+"Erase all local data" removes both. Adding a language is described in
+[`CONTRIBUTING.md`](./CONTRIBUTING.md#adding-a-language).
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the build / test /

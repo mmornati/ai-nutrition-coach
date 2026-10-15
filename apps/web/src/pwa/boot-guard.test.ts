@@ -1,6 +1,8 @@
 // public/boot-guard.js: the stuck-boot escape hatch (docs/pwa.md). A classic script, so it is
 // executed here as one, with a scripted navigator.serviceWorker and fake timers.
 import guardSource from '../../public/boot-guard.js?raw';
+import { SUPPORTED_LOCALES } from '../i18n/locale';
+import { LOCALE_HINT_KEY } from '../storage/constants';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const STUCK_MS = 20_000;
@@ -104,5 +106,57 @@ describe('boot guard', () => {
     Reflect.deleteProperty(navigator, 'serviceWorker');
     expect(() => run()).not.toThrow();
     await settle(STUCK_MS + 100);
+  });
+});
+
+describe('boot guard: pre-paint <html lang>', () => {
+  const langWith = (opts: { hint?: string | null; languages?: unknown; language?: string }) => {
+    document.documentElement.lang = 'en';
+    localStorage.clear();
+    if (opts.hint != null) localStorage.setItem(LOCALE_HINT_KEY, opts.hint);
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(
+      (opts.languages ?? []) as readonly string[],
+    );
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue(opts.language ?? 'en-US');
+    new Function(guardSource)();
+    return document.documentElement.lang;
+  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+    document.documentElement.lang = 'en';
+  });
+
+  it('stays in sync with the TypeScript constants (hint key and supported list)', () => {
+    expect(guardSource).toContain(`var LOCALE_HINT_KEY = '${LOCALE_HINT_KEY}';`);
+    const m = /var SUPPORTED = (\[[^\]]*\]);/.exec(guardSource);
+    expect(m).not.toBeNull();
+    expect(JSON.parse(m![1]!.replace(/'/g, '"'))).toEqual([...SUPPORTED_LOCALES]);
+  });
+
+  it('resolves <code>-XX to <code> for every supported locale', () => {
+    for (const code of SUPPORTED_LOCALES) {
+      expect(langWith({ languages: [`${code}-XX`] }), code).toBe(code);
+    }
+  });
+
+  it('uses the hint first', () => {
+    expect(langWith({ hint: 'fr', languages: ['en-US'] })).toBe('fr');
+    expect(langWith({ hint: 'en', languages: ['fr-FR'] })).toBe('en');
+  });
+  it('ignores an unsupported hint and follows the browser list (first supported wins)', () => {
+    expect(langWith({ hint: 'de', languages: ['de-DE', 'fr-FR'] })).toBe('fr');
+  });
+  it('falls back to navigator.language when the list is empty, then to en', () => {
+    expect(langWith({ languages: [], language: 'fr-CA' })).toBe('fr');
+    expect(langWith({ languages: ['de'], language: 'fr' })).toBe('en');
+    expect(langWith({ languages: [], language: 'zz' })).toBe('en');
+  });
+  it('never throws on malformed tags or a refusing localStorage', () => {
+    expect(langWith({ languages: [null, 42, '', '--', 'fr_CA'] })).toBe('fr');
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    expect(() => langWith({ languages: ['fr'] })).not.toThrow();
   });
 });

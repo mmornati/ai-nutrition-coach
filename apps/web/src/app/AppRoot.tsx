@@ -6,6 +6,9 @@ import type { StoreBundle } from '../storage';
 import { createAppStore } from '../storage/create-app-store';
 import { Gate, type GateProps } from './Gate';
 import { UpdatePrompt } from '../components/shell';
+import { LocaleProvider } from '../i18n/LocaleProvider';
+import { browserLocaleHint } from '../i18n/locale-hint';
+import { resolveLocale } from '../i18n/locale';
 
 export interface AppRootProps extends GateProps {
   /** Injectable for tests; production uses the encrypted store. */
@@ -34,13 +37,21 @@ export function AppRoot({ createBundle = createAppStore, ...gate }: AppRootProps
     };
   }, [createBundle]);
 
+  // Before the unlock only the plaintext hint is readable (the preference is in the encrypted
+  // store); the session re-resolves from the stored preference once it is open.
+  const [initialLocale] = useState(() =>
+    resolveLocale(null, browserLocaleHint().read(), navigator.languages, navigator.language),
+  );
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      {/* After the screen in the DOM (it reads after the page), pinned above it with CSS order. */}
-      <div className="min-w-0 flex-1">{bundle && <Gate bundle={bundle} {...gate} />}</div>
-      <div className="order-first">
-        <UpdatePrompt />
+    <LocaleProvider initial={initialLocale}>
+      <div className="flex min-h-dvh flex-col">
+        {/* After the screen in the DOM (it reads after the page), pinned above it with CSS order. */}
+        <div className="min-w-0 flex-1">{bundle && <Gate bundle={bundle} {...gate} />}</div>
+        <div className="order-first">
+          <UpdatePrompt />
+        </div>
       </div>
-    </div>
+    </LocaleProvider>
   );
 }

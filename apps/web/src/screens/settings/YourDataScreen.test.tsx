@@ -107,7 +107,7 @@ describe('YourDataScreen: export', () => {
     const { writes, bundle } = await open({ seed: withSalmon });
     expect(screen.getByRole('radio', { name: 'CSV' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'All history' })).toBeChecked();
-    expect(screen.getByText('Last export: never')).toBeVisible();
+    expect(await screen.findByText('Last export: never')).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: 'Export' }));
     const line = await screen.findByText(/^exported:/);

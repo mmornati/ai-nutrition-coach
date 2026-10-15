@@ -3,7 +3,7 @@
 // first run, and names failures; the steps are independent and best-effort.
 import { createEraseLocalData, eraseResultEquals, ERASE_SUCCESS } from '@anc/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LOCK_IDLE_MINUTES_KEY, STORE_META_KEY } from './constants';
+import { LOCALE_HINT_KEY, LOCK_IDLE_MINUTES_KEY, STORE_META_KEY } from './constants';
 import { WebLocalDataEraser } from './local-data-eraser';
 import type { StoreBundle } from './store-bundle';
 import { memfsFileExists } from './testing/node-sqlite';
@@ -53,6 +53,14 @@ describe('WebLocalDataEraser', () => {
     expect(bundle.controller.database()).toBeNull();
     expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
     expect(stack.lock.isHeld).toBe(false);
+    bundle.dispose();
+  });
+
+  it('removes the plaintext language hint with everything else', async () => {
+    const bundle = await unlockedStore();
+    stack.storage.write(LOCALE_HINT_KEY, 'fr');
+    expect(await bundle.eraser.eraseAll()).toEqual(ERASE_SUCCESS);
+    expect(stack.storage.read(LOCALE_HINT_KEY)).toBeNull();
     bundle.dispose();
   });
 

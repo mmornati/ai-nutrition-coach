@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { PointerEvent, ReactNode } from 'react';
 import type { MealSlot, PlateLog, SyncOpStatusValue } from '@anc/core';
-import { useStrings } from '../../i18n';
+import { foodName } from '../../catalog';
+import { useLocale, useStrings } from '../../i18n';
 import {
   lineNames,
   passedThrough,
@@ -46,11 +47,12 @@ export function PlateRow({
   children,
 }: PlateRowProps) {
   const s = useStrings().day;
+  const { locale } = useLocale();
   const present = groupsOfPlate(plate);
   const passed = passedGroups(present);
   const meal = slotName(slot);
   const time = formatTime(plate.loggedAtUtc);
-  const summary = plate.entries.map((e) => e.databaseFood.displayName).join(', ');
+  const summary = plate.entries.map((e) => foodName(e.databaseFood, locale)).join(', ');
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const origin = useRef<{ x: number; y: number } | null>(null);

@@ -4,7 +4,8 @@
  * every user-visible sentence lives here so no JSX carries a string literal of its own.
  *
  * Sources: the earlier client's message catalogue and coach strings.
- * Placeholders use `{name}` and are filled with `fill()`.
+ * Placeholders use `{name}` and are filled with `fill()`. A plural's `one` form uses `{count}` too,
+ * not a literal 1: other languages pick `one` for other numbers (French uses it for 0 and 1).
  */
 export const en = {
   common: {
@@ -39,6 +40,61 @@ export const en = {
     oneServing: '~1 serving',
     labelFor: '{label}: {name}',
   },
+  /**
+   * The seed foods and the units their portions are counted in. `names` is keyed by the stable id
+   * in `catalog/seed-foods.ts`; a unit's forms are the bare word (the number is added by
+   * `quantityLabel`), picked by the plural rule of the upper end of the range.
+   */
+  foods: {
+    names: {
+      apple: 'Apple',
+      banana: 'Banana',
+      orange: 'Orange',
+      spinach: 'Spinach',
+      broccoli: 'Broccoli',
+      carrot: 'Carrot',
+      tomato: 'Tomato',
+      avocado: 'Avocado',
+      strawberries: 'Strawberries',
+      salmon: 'Salmon',
+      chickenBreast: 'Chicken Breast',
+      eggs: 'Eggs',
+      tofu: 'Tofu',
+      beef: 'Beef',
+      tuna: 'Tuna',
+      lentils: 'Lentils',
+      chickpeas: 'Chickpeas',
+      rice: 'Rice',
+      pasta: 'Pasta',
+      bread: 'Bread',
+      potato: 'Potato',
+      quinoa: 'Quinoa',
+      oats: 'Oats',
+      sweetPotato: 'Sweet Potato',
+      tortilla: 'Tortilla',
+      yogurt: 'Yogurt',
+      milk: 'Milk',
+      cheese: 'Cheese',
+      cottageCheese: 'Cottage Cheese',
+      butter: 'Butter',
+      greekYogurt: 'Greek Yogurt',
+      kefir: 'Kefir',
+      mixedNuts: 'Mixed Nuts',
+      oliveOil: 'Olive Oil',
+      darkChocolate: 'Dark Chocolate',
+    },
+    units: {
+      piece: { one: 'piece', other: 'pieces' },
+      cup: { one: 'cup', other: 'cups' },
+      fist: { one: 'fist', other: 'fists' },
+      can: { one: 'can', other: 'cans' },
+      slice: { one: 'slice', other: 'slices' },
+      tbsp: { one: 'tbsp', other: 'tbsp' },
+      handful: { one: 'handful', other: 'handfuls' },
+      square: { one: 'square', other: 'squares' },
+      serving: { one: 'serving', other: 'servings' },
+    },
+  },
   /** Shared by the photo capture and the barcode scanner: one calm camera-problem copy. */
   camera: {
     deniedTitle: 'Camera denied — type it instead',
@@ -64,7 +120,10 @@ export const en = {
     retake: 'Retake',
     typeManually: 'Type it manually',
     noFoodsMatched: 'No foods matched — pick one below.',
-    foundFoods: { one: 'Found 1 food on this plate.', other: 'Found {count} foods on this plate.' },
+    foundFoods: {
+      one: 'Found {count} food on this plate.',
+      other: 'Found {count} foods on this plate.',
+    },
     nothingOnPlate: 'Nothing on this plate — pick one below.',
     searchUnavailablePick: "Search isn't available right now. Pick a closest match below.",
   },
@@ -103,7 +162,7 @@ export const en = {
     groupLabel: 'Food group',
   },
   recognized: {
-    lookedLike: { one: 'Looks like 1 food', other: 'Looks like {count} foods' },
+    lookedLike: { one: 'Looks like {count} food', other: 'Looks like {count} foods' },
     tickHint: 'All are ticked. Untick anything that is not on the plate.',
     nothingMatched: 'Nothing matched',
     nothingOnPlate: 'Nothing on this plate',
@@ -122,7 +181,7 @@ export const en = {
   consent: {
     title: 'Send this photo to {host}?',
     whatIsSent:
-      'What is sent: the photo, shrunk, with its location and camera details removed, a fixed instruction asking which foods are on the plate, and the model name you chose. AI Nutrition Coach does not run that service and never sees the photo.',
+      'What is sent: the photo, shrunk, with its location and camera details removed, a fixed instruction asking which foods are on the plate and in which language to answer (English or French, the app language), and the model name you chose. AI Nutrition Coach does not run that service and never sees the photo.',
     alsoVisible:
       'Also visible to {host}: your internet address and your device or app type, as with any website.',
     alsoVisibleWeb:
@@ -326,8 +385,11 @@ export const en = {
     retryLater: 'Retry later',
     /** Page-level sync announcements (aggregate, never per plate). */
     allSynced: 'All plates synced',
-    waiting: { one: '1 plate waiting to sync', other: '{count} plates waiting to sync' },
-    retryLaterPlates: { one: '1 plate will retry later', other: '{count} plates will retry later' },
+    waiting: { one: '{count} plate waiting to sync', other: '{count} plates waiting to sync' },
+    retryLaterPlates: {
+      one: '{count} plate will retry later',
+      other: '{count} plates will retry later',
+    },
   },
   week: {
     title: 'This week',
@@ -339,7 +401,7 @@ export const en = {
     stateNone: 'nothing logged',
     stateLoggedNoLine: 'logged — no food group line',
     stateSome: '{count} of 4 lines',
-    plates: { zero: 'No plates', one: '1 plate', other: '{count} plates' },
+    plates: { zero: 'No plates', one: '{count} plate', other: '{count} plates' },
     networkIntro: 'Week network.',
     networkDescription: '{intro} {days}',
     daySentence: '{day}: {state}.',
@@ -484,10 +546,20 @@ export const en = {
     rowDataSubtitle: 'export · lock · erase',
     rowPrivacy: 'Privacy',
     rowPrivacySubtitle: 'what is stored · what is sent',
+    rowLanguage: 'Language',
+    rowLanguageSubtitle: 'match your device · or choose',
     rowInstall: 'Install on your phone',
     rowInstallSubtitle: 'offline · own icon',
     rowAbout: 'About',
     rowAboutSubtitle: 'yours to run · open source',
+  },
+  language: {
+    title: 'Language',
+    groupLabel: 'App language',
+    matchDevice: 'Match my device',
+    explain:
+      'The app follows your browser’s language until you pick one. Your pick is kept with your data on this device.',
+    note: 'The chosen language is also kept as a plain note in this browser, so the screens before the unlock can use it. It reveals only the language.',
   },
   /** YourDataStrings (the earlier client) and the Your data lines of app_en.arb. */
   yourData: {
@@ -536,12 +608,12 @@ export const en = {
     intro: 'A plain list. Nothing here is hidden, and nothing about you is collected.',
     storedHeading: 'Stored on this device, encrypted',
     storedBody:
-      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked.',
+      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked. The one exception is your chosen language, which is also kept as a plain note on this device so the unlock screen can use it; it reveals nothing else.',
     leavesHeading: 'What leaves this device, and when',
     leavesBarcode:
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
     leavesPhoto:
-      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
+      'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction (which also says in which language to answer, the app language) and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:

@@ -5,7 +5,8 @@ import { LineBar, EntryList } from '../../components/sheets';
 import { StatusChip } from '../../components/day';
 import { formatTime } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { useStrings } from '../../i18n';
+import { foodName, quantityLabel } from '../../catalog';
+import { useLocale, useStrings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
 import { useDay } from '../../app/day-context';
 import { replaceRoute, TODAY_HASH } from '../../app/router';
@@ -21,6 +22,7 @@ import { plateSummary } from './summary';
  */
 export function PlateScreen({ plateId }: { readonly plateId: number }) {
   const all = useStrings();
+  const { locale } = useLocale();
   const { deletePlate, notes } = useSession();
   const day = useDay();
   const dismissed = useDismissals(notes);
@@ -45,7 +47,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
     }
     setBusy(false);
     setConfirming(false);
-    day.setNotice(removed ? all.today.plateRemoved : all.today.plateRemoveFailed);
+    day.setNotice((a) => (removed ? a.today.plateRemoved : a.today.plateRemoveFailed));
     if (removed) replaceRoute(TODAY_HASH);
   };
 
@@ -68,8 +70,8 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
         <EntryList
           entries={plate.entries.map((e) => ({
             id: String(e.id),
-            name: e.databaseFood.displayName,
-            quantity: e.quantity.displayLabel,
+            name: foodName(e.databaseFood, locale),
+            quantity: quantityLabel(e.quantity, locale),
             group: e.databaseFood.foodGroup,
           }))}
         />

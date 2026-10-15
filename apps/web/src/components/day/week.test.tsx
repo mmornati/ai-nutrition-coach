@@ -246,6 +246,16 @@ describe('WeekRoute', () => {
     }
   });
 
+  it('scrolls sideways inside the dock below 336px instead of sticking out (reflow)', () => {
+    route();
+    const nav = screen.getByRole('navigation');
+    // The nav is the scroller; the stops sit on a row that never gets narrower than 7 x 48px.
+    expect(nav).toHaveClass('overflow-x-auto');
+    expect(nav).toHaveAttribute('data-scroll-x');
+    const row = within(nav).getAllByRole('button')[0]?.parentElement;
+    expect(row).toHaveClass('min-w-[21rem]', 'w-full');
+  });
+
   it('marks only the selected day aria-current="true" and selecting calls back', async () => {
     const onSelect = route(localTime(2026, 10, 11));
     const current = screen

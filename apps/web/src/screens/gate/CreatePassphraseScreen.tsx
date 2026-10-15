@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { validateNewPassphrase, type PassphraseIssue, type UnlockOutcome } from '../../storage';
-import { useStrings, type Strings } from '../../i18n';
+import { useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { Button, TextField } from '../../components/primitives';
 import { GateFrame } from './GateFrame';
 import { unavailableText } from './unavailable-text';
@@ -41,26 +41,27 @@ export function CreatePassphraseScreen({
   const [passphrase, setPassphrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useMessage();
 
   const submit = async () => {
     if (busy) return;
     const issue = validateNewPassphrase(passphrase);
     if (issue !== null) {
-      setMessage(issueText(issue, s));
+      setMessage((a) => issueText(issue, a.session));
       return;
     }
     if (passphrase !== confirm) {
-      setMessage(s.mismatch);
+      setMessage((a) => a.session.mismatch);
       return;
     }
     setBusy(true);
     setMessage(null);
-    let next: string | null;
+    let next: Message | null;
     try {
-      next = outcomeText(await onCreate(passphrase), s);
+      const outcome = await onCreate(passphrase);
+      next = (a) => outcomeText(outcome, a.session);
     } catch {
-      next = s.unavailable;
+      next = (a) => a.session.unavailable;
     } finally {
       setPassphrase('');
       setConfirm('');

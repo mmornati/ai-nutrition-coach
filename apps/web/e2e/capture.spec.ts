@@ -12,7 +12,8 @@ import type { DecodeReport, ScanReport } from '../src/capture/harness/harness';
 
 const CODE = '3017620422003';
 const OFF_HOST = 'world.openfoodfacts.org';
-const OFF_FIELDS = 'product_name,product_name_en,generic_name,brands,categories_tags';
+const OFF_FIELDS =
+  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags';
 
 interface OffSeen {
   readonly url: string;

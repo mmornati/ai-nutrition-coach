@@ -2,7 +2,7 @@
 // bundle. It assembles the REAL controller, store, coach-note store and key/value store over the
 // in-memory engine (the one the dev store uses), so a screen test exercises the same code paths
 // as production without a worker or WebCrypto.
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import {
   databaseFood,
@@ -97,6 +97,23 @@ export function draft(
   };
 }
 
+/** A plate of seed foods, as the type-it flow logs them: their frozen `seed:` ref and their text. */
+export async function seedFoodPlate(
+  bundle: StoreBundle,
+  when: number,
+  foods: readonly (readonly [string, string, FoodGroup, QuantityRange])[],
+): Promise<PlateLog> {
+  const result = await bundle.store.recordPlate({
+    entries: foods.map(([sourceRef, displayName, foodGroup, quantity]) => ({
+      databaseFood: databaseFood({ sourceRef, displayName, source: 'seed', foodGroup }),
+      quantity,
+    })),
+    loggedAtUtc: when,
+  });
+  if (result.kind !== 'recordPlateSuccess') throw new Error('could not seed a plate');
+  return result.plateLog;
+}
+
 /** Today at `hour:minute` local, plus `dayOffset` days. */
 export function at(hour: number, minute = 0, dayOffset = 0): number {
   const d = new Date();
@@ -129,6 +146,8 @@ export async function renderInSession(
     readonly session?: SessionOptions;
     readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
     readonly createCapture?: UsePhotoFlowDeps['createCapture'];
+    /** Wraps the whole tree (e.g. a `LocaleProvider`, which sits above the session at the app root). */
+    readonly wrapper?: ComponentType<{ children: ReactNode }>;
   },
 ) {
   const view = render(
@@ -147,6 +166,7 @@ export async function renderInSession(
         </DayProvider>
       </SessionBoundary>
     </StoreProvider>,
+    options.wrapper ? { wrapper: options.wrapper } : {},
   );
   await waitFor(() => {
     if (view.container.childElementCount === 0) throw new Error('session not built yet');
@@ -161,6 +181,8 @@ export async function renderUnlockedApp(
     readonly session?: SessionOptions;
     readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
     readonly createCapture?: UsePhotoFlowDeps['createCapture'];
+    /** Wraps the whole tree (e.g. a `LocaleProvider`, which sits above the session at the app root). */
+    readonly wrapper?: ComponentType<{ children: ReactNode }>;
   } = {},
 ) {
   const view = render(
@@ -172,6 +194,7 @@ export async function renderUnlockedApp(
         />
       </SessionBoundary>
     </StoreProvider>,
+    options.wrapper ? { wrapper: options.wrapper } : {},
   );
   await waitFor(() => {
     if (view.container.childElementCount === 0) throw new Error('session not built yet');

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   OpenAiCompatibleByokProvider,
   RECOGNITION_PROMPT,
+  RECOGNITION_PROMPTS,
   type ByokConnectionResult,
 } from './openai-compatible-provider';
 import { classifyFoodByName } from '../catalog';
@@ -23,6 +24,7 @@ const provider = (
     model?: string;
     receiveTimeoutMs?: number;
     pingReceiveTimeoutMs?: number;
+    locale?: 'en' | 'fr';
   } = {},
 ) =>
   new OpenAiCompatibleByokProvider({
@@ -31,6 +33,7 @@ const provider = (
     sanitizePhoto: stubSanitizer,
     classifyFoodGroup: stubClassify,
     fetch: fake.fetch,
+    ...(o.locale === undefined ? {} : { locale: () => o.locale! }),
     ...(o.receiveTimeoutMs === undefined ? {} : { receiveTimeoutMs: o.receiveTimeoutMs }),
     ...(o.pingReceiveTimeoutMs === undefined
       ? {}
@@ -111,11 +114,105 @@ describe('what leaves the device (privacy audit, automated check 1)', () => {
       messages: [{ role: 'user', content: [parts[0]] }],
     });
     expect(scannable).not.toMatch(/\d{4}-\d{2}-\d{2}/); // no ISO date
-    expect(scannable).not.toMatch(/\b[a-z]{2}[-_][A-Z]{2}\b/); // no locale
+    expect(scannable).not.toMatch(/\b[a-z]{2}[-_][A-Z]{2}\b/); // no locale tag
     for (const needle of ['locale', 'user_id', 'device', 'Plate']) {
       expect(scannable.split(needle).length - 1, needle).toBe(0);
     }
-    expect(RECOGNITION_PROMPT).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    for (const prompt of Object.values(RECOGNITION_PROMPTS)) {
+      expect(prompt).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    }
+  });
+
+  it('the language is the one thing that follows the person: one fixed template each', async () => {
+    const sentText = async (locale: 'en' | 'fr') => {
+      const f = new FakeFetch();
+      f.jsonBody = chatReply('[]');
+      await recognize(provider(f, { locale }));
+      const parts = (
+        (sentBody(f).messages as { content: unknown[] }[])[0] as {
+          content: Record<string, unknown>[];
+        }
+      ).content;
+      // The same request shape in both: the prompt and the photo, nothing else.
+      expect(Object.keys(sentBody(f)).sort()).toEqual([
+        'max_tokens',
+        'messages',
+        'model',
+        'temperature',
+      ]);
+      expect(parts).toHaveLength(2);
+      return parts[0];
+    };
+    expect(await sentText('en')).toEqual({ type: 'text', text: RECOGNITION_PROMPTS.en });
+    expect(await sentText('fr')).toEqual({ type: 'text', text: RECOGNITION_PROMPTS.fr });
+    expect(RECOGNITION_PROMPT).toBe(RECOGNITION_PROMPTS.en);
+  });
+
+  it('the language is read when the request is built, not when the provider is', async () => {
+    let locale: 'en' | 'fr' = 'en';
+    const f = new FakeFetch();
+    f.jsonBody = chatReply('[]');
+    const p = new OpenAiCompatibleByokProvider({
+      endpointUrl: 'https://api.example.com/v1',
+      model: 'vision-1',
+      sanitizePhoto: stubSanitizer,
+      classifyFoodGroup: stubClassify,
+      fetch: f.fetch,
+      locale: () => locale,
+    });
+    await recognize(p);
+    locale = 'fr';
+    await recognize(p);
+    const texts = f.requests.map(
+      (r) =>
+        (
+          (JSON.parse(r.body) as { messages: { content: { text?: string }[] }[] }).messages[0]
+            ?.content[0] as { text: string }
+        ).text,
+    );
+    expect(texts).toEqual([RECOGNITION_PROMPTS.en, RECOGNITION_PROMPTS.fr]);
+  });
+
+  it('each template asks for the name and hint in its language and keeps the group enum English', () => {
+    expect(RECOGNITION_PROMPTS.en).toContain('plain English');
+    expect(RECOGNITION_PROMPTS.fr).toContain('en français');
+    expect(RECOGNITION_PROMPTS.fr).toContain('estimation honnête de la quantité, en français');
+    for (const prompt of Object.values(RECOGNITION_PROMPTS)) {
+      for (const g of ['vegFruit', 'protein', 'starch', 'dairy', 'other']) {
+        expect(prompt, g).toContain(`\`${g}\``);
+      }
+      expect(prompt).toContain('`name`');
+      expect(prompt).toContain('`quantityHint`');
+      // Fixed text: no placeholder a caller could fill with anything.
+      expect(prompt).not.toMatch(/\{\w+\}|\$\{/);
+    }
+  });
+
+  it('a French reply keeps its French name and hint, and its group is validated', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = chatReply(
+      '[{"name":"Pommes de terre","quantityHint":"environ 2 poings","group":"starch"},' +
+        '{"name":"Lait d’avoine","quantityHint":"1 tasse","group":"nope"}]',
+    );
+    const foods = recognizedFoods(
+      await recognize(
+        new OpenAiCompatibleByokProvider({
+          endpointUrl: 'https://api.example.com/v1',
+          model: 'vision-1',
+          sanitizePhoto: stubSanitizer,
+          classifyFoodGroup: classifyFoodByName,
+          fetch: f.fetch,
+          locale: () => 'fr',
+        }),
+      ),
+    );
+    expect(foods.map((x) => x.databaseFood.displayName)).toEqual([
+      'Pommes de terre',
+      'Lait d’avoine',
+    ]);
+    expect(foods.map((x) => x.quantity.displayLabel)).toEqual(['environ 2 poings', '1 tasse']);
+    // An invalid group falls back to the French-aware classifier, never a guess.
+    expect(foods.map((x) => x.databaseFood.foodGroup)).toEqual(['starch', 'dairy']);
   });
 
   it('the connection test sends only a one-token ping', async () => {

@@ -29,10 +29,16 @@
  * The barcode string is the only thing sent off-device. No camera frames, nothing about the person.
  */
 import type { CatalogFailureReason } from '@anc/core';
+import { currentLocale } from '../i18n';
+import type { Locale } from '../i18n/locale';
 import { cappedFetch, parseJsonBody, type FetchLike } from '../net/capped-fetch';
 
-/** The only product fields the parser reads (do not download the whole product record). */
-export const OFF_FIELDS = 'product_name,product_name_en,generic_name,brands,categories_tags';
+/**
+ * The only product fields the parser reads (do not download the whole product record). The French
+ * name is asked for on every request, whatever the language: the request is the same for everyone.
+ */
+export const OFF_FIELDS =
+  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags';
 
 export const OFF_ORIGIN = 'https://world.openfoodfacts.org';
 
@@ -60,8 +66,8 @@ export type OffBarcodeResult =
     };
 
 export interface OffBarcodeSource {
-  /** Never throws. */
-  lookup(barcode: string): Promise<OffBarcodeResult>;
+  /** Never throws. `locale` picks which of the product's names is preferred (default: current). */
+  lookup(barcode: string, options?: { readonly locale?: Locale }): Promise<OffBarcodeResult>;
 }
 
 /** The exact request URL for `barcode` (already trimmed, non-empty). */
@@ -80,7 +86,7 @@ export function createOffBarcodeSource(
   } = {},
 ): OffBarcodeSource {
   return {
-    async lookup(barcode) {
+    async lookup(barcode, lookupOptions) {
       const trimmed = barcode.trim();
       // A blank barcode is a UI error, not an OFF call.
       if (trimmed.length === 0) return { kind: 'notFound', barcode: trimmed };
@@ -103,7 +109,12 @@ export function createOffBarcodeSource(
                 : 'httpError';
         return { kind: 'failure', barcode: trimmed, reason, message: `OFF ${result.reason}` };
       }
-      return parseResponse(trimmed, result.status, parseJsonBody(result.body));
+      return parseResponse(
+        trimmed,
+        result.status,
+        parseJsonBody(result.body),
+        lookupOptions?.locale ?? currentLocale(),
+      );
     },
   };
 }
@@ -113,7 +124,12 @@ const isObject = (v: unknown): v is Json =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Translate a response into the typed result. Exported so the parser is tested without a network. */
-export function parseResponse(barcode: string, status: number, body: unknown): OffBarcodeResult {
+export function parseResponse(
+  barcode: string,
+  status: number,
+  body: unknown,
+  locale: Locale = currentLocale(),
+): OffBarcodeResult {
   if (status === 404) return { kind: 'notFound', barcode };
   if (status < 200 || status >= 300) {
     return { kind: 'failure', barcode, reason: 'httpError', message: `OFF HTTP ${status}` };
@@ -133,7 +149,7 @@ export function parseResponse(barcode: string, status: number, body: unknown): O
   const product = body['product'];
   if (!found || !isObject(product)) return { kind: 'notFound', barcode };
 
-  const name = extractDisplayName(product);
+  const name = extractDisplayName(product, locale);
   // OFF sometimes returns a found body with an empty product name (a user-submitted photo with no
   // name yet). That is not-found, so the UI hands off to manual entry instead of logging a blank.
   if (name.length === 0) return { kind: 'notFound', barcode };
@@ -148,12 +164,19 @@ function capText(text: string, max: number = MAX_OFF_NAME_LENGTH): string {
   return chars.slice(0, max).join('').trim();
 }
 
+/** Which product fields name a food, best first, for each language. */
+const NAME_FIELDS: Readonly<Record<Locale, readonly string[]>> = {
+  en: ['product_name', 'product_name_en', 'generic_name'],
+  fr: ['product_name_fr', 'product_name', 'product_name_en', 'generic_name'],
+};
+
 /**
- * Best-effort product name: `product_name`, else `product_name_en`, else `generic_name`. A leading
- * brand is stripped when followed by a separator ("Nutella - Ferrero" -> "Nutella"), so the name
- * reads cleanly on the match sheet.
+ * Best-effort product name in the person's language: English is `product_name`, else
+ * `product_name_en`, else `generic_name`; French tries `product_name_fr` first. A leading brand is
+ * stripped when followed by a separator ("Nutella - Ferrero" -> "Nutella"), so the name reads
+ * cleanly on the match sheet.
  */
-function extractDisplayName(product: Json): string {
+function extractDisplayName(product: Json, locale: Locale): string {
   const pick = (key: string): string | null => {
     const v = product[key];
     if (typeof v !== 'string') return null;
@@ -161,9 +184,12 @@ function extractDisplayName(product: Json): string {
     return trimmed.length === 0 ? null : trimmed;
   };
 
-  const raw = capText(
-    pick('product_name') ?? pick('product_name_en') ?? pick('generic_name') ?? '',
-  );
+  let picked: string | null = null;
+  for (const field of NAME_FIELDS[locale]) {
+    picked = pick(field);
+    if (picked !== null) break;
+  }
+  const raw = capText(picked ?? '');
   const brands = pick('brands');
   if (brands === null) return raw;
   const lower = raw.toLowerCase();

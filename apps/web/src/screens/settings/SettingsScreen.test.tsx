@@ -21,7 +21,7 @@ async function openSettings(hash = '#/settings') {
 const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
 
 describe('SettingsScreen', () => {
-  it('lists Your AI, Your data, Privacy, Install on your phone and About, in that order, with their subtitles', async () => {
+  it('lists Your AI, Your data, Privacy, Language, Install on your phone and About, in that order, with their subtitles', async () => {
     await openSettings();
     await heading('Settings');
     const rows = screen
@@ -31,12 +31,14 @@ describe('SettingsScreen', () => {
       'Your AI',
       'Your data',
       'Privacy',
+      'Language',
       'Install on your phone',
       'About',
     ]);
     expect(screen.getByText('offline (no AI)')).toBeVisible();
     expect(screen.getByText('export · lock · erase')).toBeVisible();
     expect(screen.getByText('what is stored · what is sent')).toBeVisible();
+    expect(screen.getByText('match your device · or choose')).toBeVisible();
     expect(screen.getByText('offline · own icon')).toBeVisible();
     expect(document.body.textContent?.toLowerCase()).not.toContain('tip jar');
   });
@@ -45,6 +47,7 @@ describe('SettingsScreen', () => {
     ['Your AI', 'Your AI'],
     ['Your data', 'Your data'],
     ['Privacy', 'What this app stores and sends'],
+    ['Language', 'Language'],
     ['Install on your phone', 'Install on your phone'],
     ['About', 'About'],
   ])('%s opens its screen and the way back returns to the board', async (row, title) => {

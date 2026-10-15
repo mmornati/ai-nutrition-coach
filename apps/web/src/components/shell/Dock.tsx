@@ -12,6 +12,7 @@ export function Dock({ route, onLog }: { readonly route: ReactNode; readonly onL
   return (
     <section
       aria-label={s.dock}
+      data-testid="dock"
       className="bg-enamel-raised border-rule fixed inset-x-0 bottom-0 z-20 border-t-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       <div className="min-w-0">{route}</div>

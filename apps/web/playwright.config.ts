@@ -22,6 +22,9 @@ mkdirSync(cameraDir, { recursive: true });
 const fakeCameraClip = join(cameraDir, `ean13-${FAKE_CAMERA_CODE}.y4m`);
 writeFileSync(fakeCameraClip, ean13Y4m(FAKE_CAMERA_CODE));
 
+// The specs that run on the real encrypted store (a shared site-data store on WebKit).
+const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey'];
+
 export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!process.env['CI'],
@@ -52,21 +55,22 @@ export default defineConfig({
     },
     // WebKit's persistent contexts share one site-data store (OPFS, IndexedDB, localStorage) for the
     // origin, whatever their profile directory, so two WebKit tests that use the real store at the
-    // same time wipe each other's data. The journey therefore runs in its own project, after
-    // everything else, never beside the other store specs. (Chromium profiles are isolated.)
+    // same time wipe each other's data. Every store-backed spec therefore runs in its own project,
+    // chained one after the other (and after everything else), never beside another store spec.
+    // (Chromium profiles are isolated.)
     ...(process.env['PW_WEBKIT']
       ? [
           {
             name: 'webkit',
-            testIgnore: /journey\.spec\.ts/,
+            testIgnore: STORE_SPECS.map((n) => new RegExp(`${n}\\.spec\\.ts`)),
             use: { ...devices['Desktop Safari'] },
           },
-          {
-            name: 'webkit-journey',
-            testMatch: /journey\.spec\.ts/,
-            dependencies: ['webkit'],
+          ...STORE_SPECS.map((n, i) => ({
+            name: `webkit-${n}`,
+            testMatch: new RegExp(`${n}\\.spec\\.ts`),
+            dependencies: [i === 0 ? 'webkit' : `webkit-${STORE_SPECS[i - 1]}`],
             use: { ...devices['Desktop Safari'] },
-          },
+          })),
         ]
       : []),
   ],

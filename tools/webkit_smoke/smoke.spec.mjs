@@ -35,7 +35,8 @@ import { CAMERA_CLIP, EAN } from './playwright.config.mjs';
 
 const PASSPHRASE = 'correct horse battery staple';
 const OFF_HOST = 'world.openfoodfacts.org';
-const OFF_FIELDS = 'product_name,product_name_en,generic_name,brands,categories_tags';
+const OFF_FIELDS =
+  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags';
 const CACHE_PREFIX = 'ai-nutrition-coach-precache-';
 const PWA_DIR = process.env['PWA_DIR'] || '';
 

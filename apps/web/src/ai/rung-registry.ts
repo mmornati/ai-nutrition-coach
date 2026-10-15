@@ -41,12 +41,11 @@ export function buildAiRung(settings: AiSettings, deps: AiRungDeps): AiRung {
       const host = photoUploadHost(settings);
       if (host === null) {
         // Endpoint unset or invalid: nothing can be sent, no key is read. Say "not configured".
-        const t = strings().ai.failure;
-        return new NotConfiguredAiRung(
-          settings.byokEndpointUrl.trim() === '' || settings.byokModel.trim() === ''
-            ? t.endpointNotSet
-            : t.endpointInvalid,
-        );
+        const notSet = settings.byokEndpointUrl.trim() === '' || settings.byokModel.trim() === '';
+        return new NotConfiguredAiRung(() => {
+          const t = strings().ai.failure;
+          return notSet ? t.endpointNotSet : t.endpointInvalid;
+        });
       }
       // The stored key is only released for the host it was entered for.
       const byok = new ByokAiRung({

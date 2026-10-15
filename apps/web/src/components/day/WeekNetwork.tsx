@@ -193,7 +193,12 @@ export interface DayListProps {
 export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
   const w = useStrings().week;
   return (
-    <ul className={`border-porcelain m-0 list-none border-t-2 p-0 ${className}`}>
+    // One grid for every row (each row a subgrid): the day column is as wide as its widest
+    // label ("AUJOURD’HUI" in French) and at least 4rem, and the bars stay aligned across rows.
+    // Without subgrid support each row falls back to the fixed 4rem label column.
+    <ul
+      className={`border-porcelain m-0 grid list-none grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)_auto] gap-x-3 border-t-2 p-0 ${className}`}
+    >
       {days.map((d) => {
         const row = (
           <>
@@ -218,18 +223,21 @@ export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
           </>
         );
         return (
-          <li key={d.date} className="border-rule border-b">
+          <li
+            key={d.date}
+            className="border-rule col-span-3 grid grid-cols-[4rem_minmax(0,1fr)_auto] supports-[grid-template-columns:subgrid]:grid-cols-subgrid border-b"
+          >
             {onSelectDay ? (
               <button
                 type="button"
                 aria-current={d.isToday ? 'date' : undefined}
                 onClick={() => onSelectDay(d.date)}
-                className="grid min-h-14 w-full cursor-pointer grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 bg-transparent text-left"
+                className="col-span-3 grid min-h-14 w-full cursor-pointer grid-cols-[4rem_minmax(0,1fr)_auto] supports-[grid-template-columns:subgrid]:grid-cols-subgrid items-center bg-transparent text-left"
               >
                 {row}
               </button>
             ) : (
-              <div className="grid min-h-14 w-full grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3">
+              <div className="col-span-3 grid min-h-14 w-full grid-cols-[4rem_minmax(0,1fr)_auto] supports-[grid-template-columns:subgrid]:grid-cols-subgrid items-center">
                 {row}
               </div>
             )}

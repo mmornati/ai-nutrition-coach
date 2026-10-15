@@ -25,6 +25,8 @@ export const KV_KEYS = Object.freeze({
   privacyAboutAckAtUtc: 'privacy.aboutAckAtUtc',
   /** `allowed` | `offlineOnly`: the answer to the one-time Open Food Facts notice. */
   privacyOffLookup: 'privacy.offLookup',
+  /** `system` | `en` | `fr`: the interface language ("Match my device" when absent or `system`). */
+  uiLocale: 'ui.locale',
 } as const);
 
 export interface KeyValueStore {
@@ -34,6 +36,11 @@ export interface KeyValueStore {
   write(key: string, value: string): Promise<void>;
   /** Remove `key` (no-op when absent). Throws `KeyValueStoreLocked` while locked. */
   delete(key: string): Promise<void>;
+  /**
+   * Whether a database is open right now. Absent on in-memory stand-ins, which are always open.
+   * Lets a caller tell "nothing stored" from "locked, so nothing known".
+   */
+  isOpen?(): boolean;
 }
 
 /**
@@ -42,6 +49,10 @@ export interface KeyValueStore {
  */
 export class DatabaseKeyValueStore implements KeyValueStore {
   constructor(private readonly source: Pick<StoreSource, 'database'>) {}
+
+  isOpen(): boolean {
+    return this.source.database() !== null;
+  }
 
   async read(key: string): Promise<string | null> {
     const db = this.source.database();

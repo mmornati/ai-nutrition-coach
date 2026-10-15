@@ -4,8 +4,17 @@ import type { LineGroup } from '../components/primitives/lines';
 
 /**
  * Typed sentence builders for copy assembled from parts (names, counts, times). Every word comes
- * from `en.ts`; these only fill placeholders, pick plural forms and join lists.
+ * from the catalogue; these only fill placeholders, pick plural forms and join lists.
+ *
+ * Word order belongs to the template, never to this file: a name is filled in lower-case and the
+ * finished sentence gets its first letter capitalised (`sentence`), so "{names} passed through"
+ * and "{names} : passage sans arrêt" (name first) or "La ligne {name} …" (name later) all read
+ * right. A weekday filled first ("lundi" in French) is capitalised the same way.
  */
+
+/** Fill a template and capitalise the first letter of the result. */
+const sentence = (template: string, vars: Readonly<Record<string, string | number>>): string =>
+  capitalise(fill(template, vars));
 
 /** Lower-case line name for mid-sentence use: the one i18n spelling, lower-cased. */
 export const lineName = (g: LineGroup): string => strings().groups[g].toLowerCase();
@@ -15,7 +24,7 @@ export const slotName = (s: MealSlot): string => strings().slots[s];
 export const lineNames = (groups: readonly LineGroup[]): string[] => groups.map(lineName);
 
 export const passedThrough = (names: readonly string[]): string =>
-  fill(strings().day.passedThrough, { names: capitalise(joinNames(names)) });
+  sentence(strings().day.passedThrough, { names: joinNames(names) });
 
 /** Accessible name of a station's detail button: groups by name, never a count. */
 export function stationLabel(args: {
@@ -35,7 +44,7 @@ export function stationLabel(args: {
     meal,
     time,
     stops,
-    passed: fill(d.stationPassed, { names: capitalise(joinNames(passed)) }),
+    passed: sentence(d.stationPassed, { names: joinNames(passed) }),
   });
 }
 
@@ -63,30 +72,30 @@ export const dayDetail = (stopped: readonly string[], quiet: readonly string[]):
   fill(strings().week.dayDetail, { stopped: joinPlain(stopped), quiet: dayQuiet(quiet) });
 
 export const dayDescription = (day: string, state: string): string =>
-  fill(strings().week.dayDescription, { day, state });
+  sentence(strings().week.dayDescription, { day, state });
 
 export const noteSome = (names: readonly string[]): string =>
-  fill(strings().week.noteSome, { names: capitalise(joinNames(names)) });
+  sentence(strings().week.noteSome, { names: joinNames(names) });
 
 export const noteQuietDays = (name: string, days: readonly string[]): string =>
-  fill(strings().week.noteQuietDays, { name: capitalise(name), days: joinNames(days) });
+  sentence(strings().week.noteQuietDays, { name, days: joinNames(days) });
 
 /** Every line that never ran, in ONE sentence: "Dairy stayed quiet all week." / "A and b were quiet this week." */
 export const noteQuietNever = (names: readonly string[]): string => {
   const w = strings().week;
   return names.length === 1
-    ? fill(w.noteQuietAll, { name: capitalise(names[0] ?? '') })
-    : fill(w.noteQuietMany, { names: capitalise(joinNames(names)) });
+    ? sentence(w.noteQuietAll, { name: names[0] ?? '' })
+    : sentence(w.noteQuietMany, { names: joinNames(names) });
 };
 
 /** A day as one sentence: "Monday: all four lines." */
 export const daySentence = (day: string, state: string): string =>
-  fill(strings().week.daySentence, { day, state });
+  sentence(strings().week.daySentence, { day, state });
 
 /** Accessible name of a route stop: "<Weekday>, <state>" (plus "today"). */
 export const routeStop = (day: string, state: string, isToday: boolean): string => {
   const w = strings().week;
-  return fill(isToday ? w.routeStopToday : w.routeStop, { day, state });
+  return sentence(isToday ? w.routeStopToday : w.routeStop, { day, state });
 };
 
 /** Sentences in order as one run of text (the catalogue owns the separator). */

@@ -1,6 +1,8 @@
 export { classifyFoodGroup, classifyFoodByName } from './food-group-classifier';
 export { LruCache } from './lru-cache';
-export { seedFoods, type SeedFood } from './seed-foods';
+export { seedFoods, seedForRef, type SeedFood, type SeedPreset } from './seed-foods';
+export { foodName, isKnownUnit, quantityLabel, seedName, seedPresets } from './food-display';
+export { foldText } from './fold';
 export {
   createOffBarcodeSource,
   offProductUrl,

@@ -1,6 +1,8 @@
 // `OffBarcodeSource` network hygiene (N3): request shape, timeouts, response-size cap, capped
 // parsed text. Ported from the earlier client plus the
 // response-parsing cases of the earlier client ("OffBarcodeSource (dio wrapper)").
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FakeFetch } from '../net/testing';
 import {
@@ -26,7 +28,20 @@ describe('the request', () => {
     expect(url.searchParams.get('fields')).toBe(OFF_FIELDS);
     expect(OFF_FIELDS).toContain('product_name');
     expect(OFF_FIELDS).toContain('categories_tags');
+    // The French name is asked for on every request, whatever the language.
+    expect(OFF_FIELDS.split(',')).toContain('product_name_fr');
     expect(url.pathname).toBe('/api/v2/product/3017620422003');
+  });
+
+  it('the WebKit smoke test pins the same OFF_FIELDS (one source of truth)', () => {
+    // tools/webkit_smoke is a separate package and cannot import this constant, so read its source.
+    const smoke = readFileSync(
+      resolve(process.cwd(), '../../tools/webkit_smoke/smoke.spec.mjs'),
+      'utf8',
+    );
+    const m = /const OFF_FIELDS =\s*'([^']+)';/.exec(smoke);
+    expect(m, 'OFF_FIELDS literal in smoke.spec.mjs').not.toBeNull();
+    expect(m?.[1]).toBe(OFF_FIELDS);
   });
 
   it('privacy: exactly GET /api/v2/product/<barcode>?fields= with an Accept, nothing else', async () => {
@@ -220,6 +235,47 @@ describe('parsing', () => {
     const g = new FakeFetch();
     g.jsonBody = { status: 1, product: { generic_name: 'Generic' } };
     expect(await source(g).lookup('1')).toMatchObject({ displayName: 'Generic' });
+  });
+
+  it('NAME_LOCALE: French prefers product_name_fr, then the generic order; English is unchanged', async () => {
+    const product = {
+      product_name: 'Hazelnut spread',
+      product_name_fr: 'Pâte à tartiner',
+      product_name_en: 'English Name',
+      generic_name: 'Generic',
+    };
+    const f = new FakeFetch();
+    f.jsonBody = { status: 1, product };
+    expect(await source(f).lookup('1', { locale: 'fr' })).toMatchObject({
+      displayName: 'Pâte à tartiner',
+    });
+    // English still reads product_name first and ignores the French field.
+    expect(await source(f).lookup('1', { locale: 'en' })).toMatchObject({
+      displayName: 'Hazelnut spread',
+    });
+    // French without a French name falls back: product_name, product_name_en, generic_name.
+    for (const [rest, expected] of [
+      [{ product_name: 'Nom', product_name_en: 'En', generic_name: 'G' }, 'Nom'],
+      [{ product_name_fr: '  ', product_name_en: 'En', generic_name: 'G' }, 'En'],
+      [{ generic_name: 'Générique' }, 'Générique'],
+    ] as const) {
+      const g = new FakeFetch();
+      g.jsonBody = { status: 1, product: rest };
+      expect(await source(g).lookup('1', { locale: 'fr' })).toMatchObject({
+        displayName: expected,
+      });
+    }
+  });
+
+  it('NAME_LOCALE: the brand is stripped from the French name too', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = {
+      status: 1,
+      product: { product_name_fr: 'Nutella - pâte à tartiner', brands: 'Nutella' },
+    };
+    expect(await source(f).lookup('1', { locale: 'fr' })).toMatchObject({
+      displayName: 'pâte à tartiner',
+    });
   });
 
   it('NAME_BLANK: status=1 with an empty name is not-found (the UI hands off to manual entry)', async () => {

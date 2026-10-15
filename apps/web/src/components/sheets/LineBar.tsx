@@ -31,7 +31,7 @@ export function LineBar({ present }: { readonly present: readonly FoodGroup[] })
                 className="border-signal-muted mt-0.5 block h-2 w-full border-t-[3px] border-dashed"
               />
             )}
-            <span className="break-words">
+            <span className="break-words hyphens-auto">
               {stopped ? s.groups[group] : fill(s.lineBar.groupPassed, { name: s.groups[group] })}
             </span>
           </li>

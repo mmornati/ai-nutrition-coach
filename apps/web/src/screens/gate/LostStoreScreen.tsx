@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { EraseLocalDataResult } from '@anc/core';
-import { useStrings } from '../../i18n';
+import { useMessage, useStrings, type Message } from '../../i18n';
 import { Button } from '../../components/primitives';
 import { EraseLocalDataDialog } from '../../components/dialogs';
 import { GateFrame } from './GateFrame';
@@ -26,18 +26,18 @@ export function LostStoreScreen({
   const text = copy ?? all.keyLost.unreadable;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useMessage();
 
   const erase = async () => {
     if (busy) return;
     setConfirming(false);
     setBusy(true);
-    let next: string | null = null;
+    let next: Message | null = null;
     try {
       const result = await onErase();
-      if (result.kind === 'eraseLocalDataFailure') next = all.erase.failed;
+      if (result.kind === 'eraseLocalDataFailure') next = (a) => a.erase.failed;
     } catch {
-      next = all.erase.failed;
+      next = (a) => a.erase.failed;
     }
     setBusy(false);
     setMessage(next);
