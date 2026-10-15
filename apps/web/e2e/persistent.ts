@@ -2,17 +2,24 @@
 // Safari private browsing) refuses OPFS file handles, so the real encrypted store (and with it
 // every screen past the "store unavailable" one) only runs in a persistent profile; see
 // docs/adr/0005-web-encrypted-store.md. Chromium accepts either.
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, test as base } from '@playwright/test';
 
 export const test = base.extend({
-  context: async ({ playwright, browserName, baseURL, channel }, provide, testInfo) => {
+  context: async ({ playwright, browserName, baseURL, channel }, provide) => {
     const type = playwright[browserName];
-    const context = await type.launchPersistentContext(testInfo.outputPath('profile'), {
+    // An ASCII-only profile path: the test output path follows the title ("Français"), which
+    // WebKitGTK cannot parse as an argument without a UTF-8 locale.
+    const profile = mkdtempSync(join(tmpdir(), 'anc-e2e-profile-'));
+    const context = await type.launchPersistentContext(profile, {
       baseURL: baseURL ?? 'http://localhost:4173',
       ...(browserName === 'chromium' && channel ? { channel } : {}),
     });
     await provide(context);
     await context.close();
+    rmSync(profile, { recursive: true, force: true });
   },
   // Every test on this fixture also fails on a Content-Security-Policy violation other than a
   // deliberate connect-src one: the shipped policy has no 'unsafe-inline' for styles, so any inline

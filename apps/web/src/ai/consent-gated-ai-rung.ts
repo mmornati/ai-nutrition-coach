@@ -36,7 +36,7 @@ export class ConsentGatedAiRung implements AiRung {
   }
 
   async recognize(photoBytes: Uint8Array): Promise<RecognitionResult> {
-    let allowed = false;
+    let allowed: boolean;
     try {
       const perPhoto = this.#askEveryPhoto?.() ?? false;
       allowed = perPhoto

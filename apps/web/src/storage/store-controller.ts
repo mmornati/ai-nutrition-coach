@@ -445,6 +445,9 @@ export class StoreController implements StoreSource {
     this.busy = true;
     const bytes = passphraseBytes(passphrase);
     try {
+      // No store has an empty passphrase (validateNewPassphrase), and some WebCrypto builds
+      // (WebKitGTK) refuse empty PBKDF2 key material: it is a wrong passphrase, never a failure.
+      if (bytes.length === 0) return this.wrongPassphrase();
       const handle = await this.lockProvider.tryAcquire();
       if (!handle) return { kind: 'inUseElsewhere' };
       this.lockHandle = handle;
@@ -460,12 +463,8 @@ export class StoreController implements StoreSource {
         this.releaseLock();
         const failure = classifyOpenError(error);
         switch (failure.kind) {
-          case 'wrongKey': {
-            this.failures++;
-            const delay = unlockDelayMs(this.failures);
-            this.blockedUntil = delay === 0 ? null : this.clock() + delay;
-            return { kind: 'wrongPassphrase', retryAfterMs: delay };
-          }
+          case 'wrongKey':
+            return this.wrongPassphrase();
           case 'dataMissing':
             this.status = 'needsReset';
             this.notify();
@@ -481,6 +480,13 @@ export class StoreController implements StoreSource {
       wipe(bytes);
       this.busy = false;
     }
+  }
+
+  private wrongPassphrase(): UnlockOutcome {
+    this.failures++;
+    const delay = unlockDelayMs(this.failures);
+    this.blockedUntil = delay === 0 ? null : this.clock() + delay;
+    return { kind: 'wrongPassphrase', retryAfterMs: delay };
   }
 
   private unavailableOutcome(): UnlockOutcome {

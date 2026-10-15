@@ -117,7 +117,7 @@ describe('YourAiScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('Saved.')).toBeVisible();
-    expect(screen.getByText('key saved • ends with ••••9f3a')).toBeVisible();
+    expect(await screen.findByText('key saved • ends with ••••9f3a')).toBeVisible();
     expect(document.body.textContent).not.toContain('SECRETMATERIAL');
     expect(screen.getByLabelText('API key')).toHaveValue('');
     expect(await bundle.kv.read(KV_KEYS.aiByokKey)).toBe(SECRET);
@@ -233,8 +233,8 @@ describe('YourAiScreen', () => {
       seedKey: 'sk-stored-abcdef123456',
     });
     expect(screen.getByRole('radio', { name: /My own key/ })).toBeChecked();
-    expect(screen.getByText('key saved • ends with ••••3456')).toBeVisible();
-    expect(screen.getByText('removing this key returns to offline (no AI)')).toBeVisible();
+    expect(await screen.findByText('key saved • ends with ••••3456')).toBeVisible();
+    expect(await screen.findByText('removing this key returns to offline (no AI)')).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: 'Remove key' }));
     expect(await screen.findByText('Key removed.')).toBeVisible();

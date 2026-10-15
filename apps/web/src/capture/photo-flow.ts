@@ -100,7 +100,7 @@ export async function runPhotoFlow(deps: PhotoFlowDeps): Promise<PhotoFlowState>
   }
 
   if (host !== null) {
-    let perPhoto = true;
+    let perPhoto: boolean;
     try {
       perPhoto = deps.askBeforeEveryPhoto();
     } catch {

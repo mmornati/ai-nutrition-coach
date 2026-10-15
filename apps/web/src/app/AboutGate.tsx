@@ -33,7 +33,7 @@ export function AboutGate({ children }: { children: ReactNode }): ReactNode {
   useEffect(() => {
     let current = true;
     void (async () => {
-      let done = false;
+      let done: boolean;
       try {
         done = await privacy.aboutAcknowledged();
         if (!done && wasAcknowledgedBeforeStore()) {

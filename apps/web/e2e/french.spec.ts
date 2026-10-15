@@ -195,7 +195,6 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   await go(page, '#/');
   await expect(page.getByRole('heading', { level: 1, name: 'Aujourd’hui' })).toBeVisible();
   await expect(plates(page).first()).toHaveAttribute('aria-label', /arrêt pour protéines/);
-  await expect(page.getByRole('button', { name: 'Noter une autre assiette' })).toBeVisible();
   // The coach note was written while the app spoke English: it is shown in French now.
   await expect(page.getByRole('group', { name: 'Question du coach' })).toContainText('légumes');
   // The salmon was logged in English: its plate reads "Saumon" now (the ref is frozen, the name
@@ -247,6 +246,22 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   // The coach card arrives once its note is read, then fades in: measure after it has settled.
   await expect(page.getByRole('group', { name: 'Question du coach' })).toBeVisible();
   await checkScreen(page, 'plate screen at 320px');
+
+  // A plate logged in French: the quiet "+ log another plate" line speaks French. Checked right
+  // after the log, because the line is gone five seconds later by design (QuickRepeat).
+  await go(page, '#/');
+  await page.getByRole('button', { name: 'Noter une assiette' }).first().click();
+  await page
+    .getByRole('dialog', { name: 'Noter une assiette' })
+    .getByRole('button', { name: /^Saisir/ })
+    .click();
+  const typeItAgain = page.getByRole('dialog', { name: 'Ajouter un aliment' });
+  await typeItAgain.getByLabel('Recherche d’aliment').fill('épinards');
+  await typeItAgain.getByRole('button', { name: /^Épinards, Fruits & légumes/ }).click();
+  await typeItAgain.getByRole('button', { name: 'Noter', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Noter une autre assiette' })).toBeVisible();
+  await expect(page.getByText('+ noter une autre assiette')).toBeVisible();
 
   // Lock: the gate is French too, and fits.
   await go(page, '#/');

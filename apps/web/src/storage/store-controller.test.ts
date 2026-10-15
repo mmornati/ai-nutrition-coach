@@ -359,8 +359,14 @@ describe('wrong passphrase', () => {
     const c1 = await created();
     await c1.controller.lock();
     const c2 = await reloaded();
+    const opensBefore = spy().openCalls;
     expect((await c2.controller.unlock('')).kind).toBe('wrongPassphrase');
     expect(c2.controller.database()).toBeNull();
+    // Never reaches the engine (WebKitGTK's WebCrypto refuses empty PBKDF2 key material).
+    expect(spy().openCalls).toBe(opensBefore);
+    // It still counts towards the throttle.
+    await c2.controller.unlock('');
+    expect(await c2.controller.unlock('')).toEqual({ kind: 'wrongPassphrase', retryAfterMs: 1000 });
   });
 
   it('a returning user cannot "create" over an existing store', async () => {

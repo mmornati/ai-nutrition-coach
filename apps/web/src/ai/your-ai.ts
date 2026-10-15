@@ -140,7 +140,7 @@ export class YourAi {
   }): Promise<ByokConnectionResult> {
     let key = args.typedKey?.trim() ?? '';
     if (key === '') {
-      let stored = '';
+      let stored: string;
       try {
         stored = (await this.#keyStore.read()) ?? '';
       } catch {

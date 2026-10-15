@@ -50,7 +50,7 @@ export function createWebExportDestination(env: WebExportEnv = defaultEnv()): Ex
         typeof nav.share === 'function'
       ) {
         const file = new File([blob], filename, { type: mimeType });
-        let shareable = false;
+        let shareable: boolean;
         try {
           shareable = nav.canShare({ files: [file] });
         } catch {

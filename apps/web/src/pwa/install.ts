@@ -39,7 +39,7 @@ export function readInstallContext(
   env: InstallEnv | undefined = typeof window === 'undefined' ? undefined : window,
 ): InstallContext {
   if (env === undefined) return { platform: 'desktop', standalone: false };
-  let standalone = false;
+  let standalone: boolean;
   try {
     standalone =
       env.matchMedia?.('(display-mode: standalone)').matches === true ||
