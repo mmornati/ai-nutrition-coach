@@ -49,7 +49,7 @@ export function useExportInfo(session: Session, services: ReturnType<typeof useE
     due: false,
   });
   const read = useCallback(async (): Promise<ExportInfo> => {
-    let hasData = false;
+    let hasData: boolean;
     try {
       const plates = await store.readRange();
       hasData = plates.kind === 'platesRead' && plates.plates.length > 0;

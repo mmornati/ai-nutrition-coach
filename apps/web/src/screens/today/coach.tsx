@@ -71,7 +71,7 @@ export function PlateCoach({
   if (gone || !note || dismissed.has(`note:${note.id}`)) return null;
 
   const sure = async () => {
-    let followUp: CoachNote | null = null;
+    let followUp: CoachNote | null;
     try {
       followUp = (await coachInteractions.record({ note, kind: 'sure' })).followedUpNote;
     } catch {

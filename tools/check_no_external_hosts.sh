@@ -40,6 +40,9 @@ NETWORK_HOSTS=(world.openfoodfacts.org)
 #                           scripts/fetch_web_sqlite3mc.sh); text only, never requested. The
 #                           trailing-colon forms are how the scanner sees "https://sqlite.org:" in
 #                           the licence prose.
+#   tailwindcss.com         the MIT licence banner Tailwind writes into the built CSS
+#                           (`/*! tailwindcss vX | MIT License | https://tailwindcss.com */`);
+#                           text only, never requested.
 INERT_URLS=(
   "http://www.w3.org/2000/svg"
   "http://www.w3.org/1999/xlink"
@@ -50,6 +53,7 @@ INERT_URLS=(
   "https://emscripten.org/docs/introducing_emscripten/emscripten_license.html"
   "https://sqlite.org:"
   "https://sqlite.org/wasm/doc/trunk/persistence.md#coop-coep"
+  "https://tailwindcss.com"
 )
 INERT_URL_PREFIXES=(
   "https://react.dev/errors/"

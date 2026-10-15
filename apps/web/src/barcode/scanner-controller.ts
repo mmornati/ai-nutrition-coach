@@ -91,7 +91,7 @@ export class ScannerController {
     if (this.started || this.disposed) return;
     this.started = true; // a second start() is a no-op: ONE camera, ONE start per session
 
-    let decoder: BarcodeDecoder | null = null;
+    let decoder: BarcodeDecoder | null;
     try {
       decoder = await this.deps.createDecoder();
     } catch {
