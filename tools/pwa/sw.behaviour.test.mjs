@@ -220,6 +220,18 @@ describe('fetch', () => {
     expect(w.dispatchFetch(new Request('https://api.byok.example/v1/chat/completions'))).toBeUndefined();
   });
 
+  it("never intercepts the reverse-proxy SSO paths (Authentik's login callback is a navigation)", async () => {
+    const w = await installed();
+    const callback = new Request(`${ORIGIN}/outpost.goauthentik.io/callback?X-authentik-auth-callback=true&code=c`);
+    Object.defineProperty(callback, 'mode', { value: 'navigate' });
+    expect(w.dispatchFetch(callback)).toBeUndefined();
+    expect(w.dispatchFetch(new Request(`${ORIGIN}/outpost.goauthentik.io/sign_out`))).toBeUndefined();
+    // Only that prefix: a look-alike app route is still served from the shell.
+    const lookAlike = new Request(`${ORIGIN}/outpost.goauthentik.io`);
+    Object.defineProperty(lookAlike, 'mode', { value: 'navigate' });
+    expect(w.dispatchFetch(lookAlike)).toBeDefined();
+  });
+
   it('a navigation without a file extension gets the cached index.html, with no network', async () => {
     const w = await installed();
     const nav = new Request(`${ORIGIN}/board/2026-08-13`);

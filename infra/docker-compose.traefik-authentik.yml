@@ -1,0 +1,18 @@
+# Overlay for docker-compose.traefik.yml + docker-compose.traefik-auth.yml:
+# Authentik's outpost on the app's own host.
+#
+# Authentik's forward auth finishes the sign-in on the protected host itself
+# (/outpost.goauthentik.io/callback sets the session cookie there). This second
+# router sends that path to the outpost WITHOUT the auth middleware; its longer
+# rule gives it priority over the app's router. The service worker never answers
+# these paths from its cache (tools/pwa/sw.template.js).
+#
+#   AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE=sso@file   # a Traefik service -> http://authentik:9000/outpost.goauthentik.io
+
+services:
+  ai-nutrition-coach:
+    labels:
+      traefik.http.routers.ai-nutrition-coach-sso.rule: Host(`${AI_NUTRITION_COACH_DOMAIN:?set AI_NUTRITION_COACH_DOMAIN to the public host name}`) && PathPrefix(`/outpost.goauthentik.io/`)
+      traefik.http.routers.ai-nutrition-coach-sso.entrypoints: ${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.ai-nutrition-coach-sso.tls: ${AI_NUTRITION_COACH_TRAEFIK_TLS:-true}
+      traefik.http.routers.ai-nutrition-coach-sso.service: ${AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE:?set AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE to the Traefik service of the Authentik outpost, e.g. sso@file}

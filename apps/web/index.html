@@ -6,7 +6,10 @@
     <title>AI Nutrition Coach</title>
     <meta name="description" content="A quiet, offline-first plate-logging app." />
     <meta name="theme-color" content="#0E1A3A" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- use-credentials: the browser fetches a manifest WITHOUT cookies by default, so behind a
+         forward-auth SSO (docs/self-host.md "Behind Authentik") it would get the sign-in redirect and
+         the app would not be installable. Same origin, so nothing else changes. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />

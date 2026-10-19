@@ -37,6 +37,16 @@
 # is configured in Traefik, set nothing. An empty resolver label is never
 # emitted.
 #
+# Behind a tunnel / a proxy that terminates HTTPS in front of Traefik (Cloudflare
+# Tunnel -> Traefik over plain HTTP): AI_NUTRITION_COACH_TRAEFIK_TLS=false and the
+# HTTP entrypoint. The browser still gets HTTPS from the tunnel, which the web
+# store needs.
+#
+# Sign-in in front of the app (Authentik, Authelia, ... forward auth): add the
+# overlay -f infra/docker-compose.traefik-auth.yml (and, for Authentik, also
+# -f infra/docker-compose.traefik-authentik.yml). See docs/self-host.md
+# "Behind Authentik"; infra/server.env.example is a complete example.
+#
 # Family-only access: add the allow-list overlay
 #     -f infra/docker-compose.traefik-allowlist.yml
 # with AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST=192.168.1.0/24,100.64.0.0/10 (Traefik v3
@@ -47,11 +57,15 @@
 #
 # Environment
 #   AI_NUTRITION_COACH_DOMAIN                  REQUIRED. Public DNS name.
+#   AI_NUTRITION_COACH_TRAEFIK_TLS             true|false: the router serves HTTPS (default
+#                                     true); false only when HTTPS ends BEFORE Traefik
 #   AI_NUTRITION_COACH_TRAEFIK_NETWORK         external network shared with Traefik (default traefik)
 #   AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT      HTTPS entrypoint name (default websecure)
 #   AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER    see above (overlay only)
 #   AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS true|false (default false)
-#   AI_NUTRITION_COACH_IMAGE_TAG               image to run (default ai-nutrition-coach:dev)
+#   AI_NUTRITION_COACH_IMAGE_TAG               image to run (default ai-nutrition-coach:dev);
+#                                     `docker compose up --build` builds it from this
+#                                     checkout (infra/Dockerfile)
 #   AI_NUTRITION_COACH_CONNECT_SRC_EXTRA       extra CSP connect-src origins -- THE place to
 #                                     allow the BYOK AI endpoint, e.g.
 #                                     "https://api.openai.com" (origins only,
@@ -70,6 +84,14 @@ services:
   ai-nutrition-coach:
     <<: *hardening
     image: ${AI_NUTRITION_COACH_IMAGE_TAG:-ai-nutrition-coach:dev}
+    # Used by `docker compose up --build` only (bin/ai-nutrition-coach builds the
+    # image itself, with the same arguments).
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        AI_NUTRITION_COACH_PROJECT_URL: ${AI_NUTRITION_COACH_PROJECT_URL:-}
+        AI_NUTRITION_COACH_RELEASE: ${AI_NUTRITION_COACH_RELEASE:-0}
     environment:
       AI_NUTRITION_COACH_CONNECT_SRC_EXTRA: ${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}
       # 1 = serve the service-worker kill switch (docs/pwa.md); normally unset.
@@ -87,7 +109,7 @@ services:
       traefik.docker.network: ${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}
       traefik.http.routers.ai-nutrition-coach.rule: Host(`${AI_NUTRITION_COACH_DOMAIN:?set AI_NUTRITION_COACH_DOMAIN to the public host name}`)
       traefik.http.routers.ai-nutrition-coach.entrypoints: ${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}
-      traefik.http.routers.ai-nutrition-coach.tls: "true"
+      traefik.http.routers.ai-nutrition-coach.tls: ${AI_NUTRITION_COACH_TRAEFIK_TLS:-true}
       traefik.http.routers.ai-nutrition-coach.service: ai-nutrition-coach
       traefik.http.routers.ai-nutrition-coach.middlewares: ai-nutrition-coach-hsts
       traefik.http.services.ai-nutrition-coach.loadbalancer.server.port: "8080"

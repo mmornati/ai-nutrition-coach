@@ -306,6 +306,9 @@ describe('Traefik deployment (docs/pwa.md)', () => {
   const traefik = readCode('infra/docker-compose.traefik.yml');
   const certresolver = readCode('infra/docker-compose.traefik-certresolver.yml');
   const allowlist = readCode('infra/docker-compose.traefik-allowlist.yml');
+  const auth = readCode('infra/docker-compose.traefik-auth.yml');
+  const authentik = readCode('infra/docker-compose.traefik-authentik.yml');
+  const serverEnv = readCode('infra/server.env.example');
   const dynamic = readCode('infra/traefik/ai-nutrition-coach-dynamic.yml');
   const script = readCode('bin/ai-nutrition-coach');
 
@@ -314,7 +317,10 @@ describe('Traefik deployment (docs/pwa.md)', () => {
     expect(traefik).not.toContain('network_mode');
     expect(traefik).toContain('external: true');
     expect(traefik).toContain('${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}');
-    for (const overlay of [certresolver, allowlist]) expect(overlay).not.toContain('ports:');
+    for (const overlay of [certresolver, allowlist, auth, authentik]) {
+      expect(overlay).not.toContain('ports:');
+      expect(overlay).not.toContain('network_mode');
+    }
   });
 
   it('keeps the same container hardening as the base file', () => {
@@ -333,7 +339,9 @@ describe('Traefik deployment (docs/pwa.md)', () => {
     expect(traefik).toContain(
       'traefik.http.routers.ai-nutrition-coach.entrypoints: ${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}',
     );
-    expect(traefik).toContain('traefik.http.routers.ai-nutrition-coach.tls: "true"');
+    expect(traefik).toContain(
+      'traefik.http.routers.ai-nutrition-coach.tls: ${AI_NUTRITION_COACH_TRAEFIK_TLS:-true}',
+    );
     expect(traefik).toContain(
       'traefik.http.services.ai-nutrition-coach.loadbalancer.server.port: "8080"',
     );
@@ -373,6 +381,48 @@ describe('Traefik deployment (docs/pwa.md)', () => {
     );
   });
 
+  it('builds from this checkout with the same arguments as bin/ai-nutrition-coach', () => {
+    expect(traefik).toContain('dockerfile: infra/Dockerfile');
+    expect(traefik).toContain('AI_NUTRITION_COACH_PROJECT_URL: ${AI_NUTRITION_COACH_PROJECT_URL:-}');
+    expect(traefik).toContain('AI_NUTRITION_COACH_RELEASE: ${AI_NUTRITION_COACH_RELEASE:-0}');
+  });
+
+  it('the sign-in overlay keeps HSTS and has NO default middleware (compose refuses to start)', () => {
+    expect(auth).toContain(
+      'traefik.http.routers.ai-nutrition-coach.middlewares: ai-nutrition-coach-hsts,${AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE:?',
+    );
+    expect(auth).not.toContain('AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE:-');
+  });
+
+  it("the Authentik overlay routes ONLY the outpost path of the app's host, without the middleware", () => {
+    expect(authentik).toContain(
+      'traefik.http.routers.ai-nutrition-coach-sso.rule: Host(`${AI_NUTRITION_COACH_DOMAIN:?',
+    );
+    expect(authentik).toContain('&& PathPrefix(`/outpost.goauthentik.io/`)');
+    expect(authentik).toContain(
+      'traefik.http.routers.ai-nutrition-coach-sso.service: ${AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE:?',
+    );
+    expect(authentik).toContain('ai-nutrition-coach-sso.tls: ${AI_NUTRITION_COACH_TRAEFIK_TLS:-true}');
+    expect(authentik).not.toContain('middlewares');
+    // It never touches the app's own router.
+    expect(authentik).not.toContain('routers.ai-nutrition-coach.');
+  });
+
+  it('the server example wires all three files and the sign-in, with no secret', () => {
+    expect(serverEnv).toContain(
+      'COMPOSE_FILE=docker-compose.traefik.yml:docker-compose.traefik-auth.yml:docker-compose.traefik-authentik.yml',
+    );
+    expect(serverEnv).toMatch(/^AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE=\S+/m);
+    expect(serverEnv).toMatch(/^AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE=\S+/m);
+    expect(serverEnv).not.toMatch(/KEY|TOKEN|SECRET|PASSWORD/i);
+  });
+
+  it('the manifest is fetched with credentials (installable behind a forward-auth sign-in)', () => {
+    expect(read('apps/web/index.html')).toMatch(
+      /<link rel="manifest" href="\/manifest\.webmanifest" crossorigin="use-credentials" \/>/,
+    );
+  });
+
   it('the host-Traefik example targets loopback and keeps HSTS', () => {
     expect(dynamic).toContain('http://127.0.0.1:8080');
     expect(dynamic).toContain('stsSeconds: 31536000');
@@ -388,6 +438,8 @@ describe('Traefik deployment (docs/pwa.md)', () => {
     expect(script).toContain('docker network inspect');
     expect(script).toContain('docker-compose.traefik-certresolver.yml');
     expect(script).toContain('docker-compose.traefik-allowlist.yml');
+    expect(script).toContain('docker-compose.traefik-auth.yml');
+    expect(script).toContain('docker-compose.traefik-authentik.yml');
   });
 
   // Runs the real script (POSIX sh); validation happens before Docker is needed.
@@ -418,6 +470,21 @@ describe('Traefik deployment (docs/pwa.md)', () => {
     { ...D, AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST: '1.2.3.4' },
     { ...D, AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST: '10.0.0.0/8,evil' },
     { ...D, AI_NUTRITION_COACH_CONNECT_SRC_EXTRA: "https://a.example'; script-src *" },
+    { ...D, AI_NUTRITION_COACH_TRAEFIK_TLS: 'no' },
+    { ...D, AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'authentik@file,evil' },
+    { ...D, AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'a@b@c' },
+    { ...D, AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'authentik@file\nx' },
+    { ...D, AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE: 'sso@file' },
+    {
+      ...D,
+      AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'authentik@file',
+      AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE: 'sso@file`)',
+    },
+    {
+      ...D,
+      AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'authentik@file',
+      AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST: '10.0.0.0/8',
+    },
   ])('refuses invalid settings (exit 42): %j', (env) => {
     const r = up(env);
     expect(r.status, r.stderr).toBe(42);
@@ -436,6 +503,18 @@ describe('Traefik deployment (docs/pwa.md)', () => {
       AI_NUTRITION_COACH_CONNECT_SRC_EXTRA: 'https://api.openai.com',
     });
     // 10 = no docker here; 43 = docker present but no such network. Never 41/42.
+    expect([10, 43], r.stderr).toContain(r.status);
+  });
+
+  it('the Authentik-behind-a-tunnel settings pass validation', () => {
+    const r = up({
+      AI_NUTRITION_COACH_DOMAIN: 'ai-nutrition-coach.mornati.ovh',
+      AI_NUTRITION_COACH_TRAEFIK_NETWORK: 'traefik-network',
+      AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT: 'insecure',
+      AI_NUTRITION_COACH_TRAEFIK_TLS: 'false',
+      AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE: 'authentik@file',
+      AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE: 'sso@file',
+    });
     expect([10, 43], r.stderr).toContain(r.status);
   });
 });
