@@ -20,8 +20,9 @@
  *                 load is always ONE consistent build, online or off;
  *               precached asset                -> cache first;
  *               anything else                  -> the network, untouched.
- *             Cross-origin requests (Open Food Facts, a BYOK AI endpoint) and
- *             every non-GET request are never intercepted. Nothing is ever
+ *             Cross-origin requests (Open Food Facts, a BYOK AI endpoint),
+ *             every non-GET request and the sign-in paths of a reverse-proxy
+ *             SSO (Authentik's /outpost.goauthentik.io/) are never intercepted. Nothing is ever
  *             written to a cache at run time, so no API-like response can end
  *             up cached.
  */
@@ -49,6 +50,12 @@ const DROPPED_HEADERS = new Set([
 // CORS requests carrying an `Origin` header and such an entry would never match them offline. The
 // precache is keyed by exact URL and verified by hash, so `Vary` is ignored on every lookup.
 const MATCH_OPTIONS = { ignoreVary: true };
+
+// Forward-auth sign-in endpoints that live on the app's own host (docs/self-host.md "Behind
+// Authentik"). The login callback is a navigation: answered with the cached shell, the proxy would
+// never set its session cookie and the sign-in would loop. Root-relative: the outpost is mounted at
+// the host root whatever the app's scope.
+const PROXY_AUTH_PREFIXES = ['/outpost.goauthentik.io/'];
 
 const scopeUrl = (path) => new URL(path, self.registration.scope).href;
 
@@ -143,6 +150,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (PROXY_AUTH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return;
 
   if (request.mode === 'navigate' && !looksLikeAFile(url.pathname)) {
     event.respondWith(

@@ -48,6 +48,9 @@ TRAEFIK_ENTRYPOINT="${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}"
 TRAEFIK_CERTRESOLVER="${AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER:-}"
 TRAEFIK_ALLOWLIST="${AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST:-}"
 TRAEFIK_HSTS_SUBDOMAINS="${AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS:-false}"
+TRAEFIK_TLS="${AI_NUTRITION_COACH_TRAEFIK_TLS:-true}"
+TRAEFIK_AUTH_MIDDLEWARE="${AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE:-}"
+AUTHENTIK_OUTPOST_SERVICE="${AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE:-}"
 
 # Exported so compose (and its ${VAR:-default} substitutions) sees the same
 # values as the plain `docker run` path.
@@ -56,7 +59,10 @@ export AI_NUTRITION_COACH_IMAGE_TAG="$IMAGE_TAG" AI_NUTRITION_COACH_BIND="$BIND"
   AI_NUTRITION_COACH_ACCESS_LOG="${AI_NUTRITION_COACH_ACCESS_LOG:-off}" \
   AI_NUTRITION_COACH_TRAEFIK_NETWORK="$TRAEFIK_NETWORK" \
   AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT="$TRAEFIK_ENTRYPOINT" \
-  AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS"
+  AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS" \
+  AI_NUTRITION_COACH_TRAEFIK_TLS="$TRAEFIK_TLS" \
+  AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE="$TRAEFIK_AUTH_MIDDLEWARE" \
+  AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE="$AUTHENTIK_OUTPOST_SERVICE"
 
 # True if $1 contains only characters from the plain-origin set (no newline,
 # quote, semicolon, wildcard, ...). Mirrors infra/nginx/docker-entrypoint.d/05-validate-csp.sh.
@@ -148,6 +154,27 @@ validate_traefik() {
     true|false) ;;
     *) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS must be true or false.' ;;
   esac
+  case "$TRAEFIK_TLS" in
+    true|false) ;;
+    *) bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_TLS must be true or false.' ;;
+  esac
+  # Traefik references: name@provider (authentik@file, authelia@docker) or a bare name.
+  for pair in "AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE=$TRAEFIK_AUTH_MIDDLEWARE" \
+              "AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE=$AUTHENTIK_OUTPOST_SERVICE"; do
+    name="${pair%%=*}"
+    v="${pair#*=}"
+    [ -n "$v" ] || continue
+    case "$v" in
+      *[!A-Za-z0-9_@-]*|[_@-]*|*@*@*|*@) bad_traefik "$name must be a Traefik name, optionally @provider (e.g. authentik@file)." ;;
+    esac
+    [ "${#v}" -le 63 ] || bad_traefik "$name is too long."
+  done
+  if [ -n "$AUTHENTIK_OUTPOST_SERVICE" ] && [ -z "$TRAEFIK_AUTH_MIDDLEWARE" ]; then
+    bad_traefik 'AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE needs AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE (the outpost route alone protects nothing).'
+  fi
+  if [ -n "$TRAEFIK_AUTH_MIDDLEWARE" ] && [ -n "$TRAEFIK_ALLOWLIST" ]; then
+    bad_traefik 'AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE and AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST cannot be combined (both set the router middlewares).'
+  fi
   if [ -n "$TRAEFIK_ALLOWLIST" ]; then
     # Comma-separated IPv4 / IPv6 CIDRs, nothing else.
     case "$TRAEFIK_ALLOWLIST" in
@@ -164,6 +191,8 @@ traefik_compose_args() {
   printf -- '-f %s' "$TRAEFIK_COMPOSE_FILE"
   [ -z "$TRAEFIK_CERTRESOLVER" ] || printf -- ' -f infra/docker-compose.traefik-certresolver.yml'
   [ -z "$TRAEFIK_ALLOWLIST" ] || printf -- ' -f infra/docker-compose.traefik-allowlist.yml'
+  [ -z "$TRAEFIK_AUTH_MIDDLEWARE" ] || printf -- ' -f infra/docker-compose.traefik-auth.yml'
+  [ -z "$AUTHENTIK_OUTPOST_SERVICE" ] || printf -- ' -f infra/docker-compose.traefik-authentik.yml'
 }
 
 need_docker() {
@@ -341,6 +370,12 @@ Environment:
   AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST  --traefik: comma-separated CIDRs allowed to
                                connect (optional; Traefik v3 ipAllowList)
   AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS  --traefik: true|false (default: false)
+  AI_NUTRITION_COACH_TRAEFIK_TLS        --traefik: true|false (default: true); false only
+                               when HTTPS ends before Traefik (a Cloudflare Tunnel)
+  AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE  --traefik: forward-auth middleware in front
+                               of the app, e.g. authentik@file (optional)
+  AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE  --traefik: Traefik service of Authentik's
+                               outpost, e.g. sso@file (with the middleware above)
   AI_NUTRITION_COACH_CONNECT_SRC_EXTRA  extra CSP connect-src origins, e.g. the BYOK
                                AI endpoint ("https://api.openai.com"); origins
                                only, validated

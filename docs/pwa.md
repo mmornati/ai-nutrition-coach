@@ -308,7 +308,10 @@ Pick one, in this order of preference:
 1. **Don't expose it publicly:** a VPN (WireGuard, Tailscale) and a name that only resolves inside it.
 2. **IP allow-list** in Traefik (`AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST`). It judges the address Traefik *sees*: behind
    Docker NAT or another proxy that may be the proxy's address, so test from outside the list.
-3. Nothing: the app itself is protected by the passphrase (data is encrypted in each browser, the server
+3. **A forward-auth sign-in** you already run (Authentik, Authelia): the `traefik-auth` (+ `traefik-authentik`)
+   overlays, see [`docs/self-host.md`](./self-host.md#behind-authentik-traefik-forward-auth-cloudflare-tunnel).
+   The manifest is requested with the session cookie, so the app stays installable.
+4. Nothing: the app itself is protected by the passphrase (data is encrypted in each browser, the server
    holds none). Open access to the *app shell* exposes only static files.
 
 Prefer these to **Traefik basic auth** in front of this app: the browser fetches the web manifest without

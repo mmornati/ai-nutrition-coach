@@ -1,0 +1,28 @@
+# Overlay for docker-compose.traefik.yml: a sign-in in front of AI Nutrition Coach
+# (a Traefik forward-auth middleware you already have: authentik@file,
+# authelia@docker, ...).
+#
+#   AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE=authentik@file \
+#   AI_NUTRITION_COACH_DOMAIN=plate.example.com \
+#     docker compose -f infra/docker-compose.traefik.yml \
+#                    -f infra/docker-compose.traefik-auth.yml up -d
+#
+# With Authentik, ALSO add infra/docker-compose.traefik-authentik.yml (the
+# outpost route on the same host). `bin/ai-nutrition-coach up --traefik` adds
+# both when the variables are set. docs/self-host.md "Behind Authentik".
+#
+# What the sign-in protects: who may DOWNLOAD the app (and its updates). The
+# data never reaches the server: it is encrypted in each browser and the
+# passphrase still guards it. Once installed, the app opens from its offline
+# cache, so an expired SSO session only delays updates until the next sign-in.
+#
+# Not combinable with the allow-list overlay: both set the router's middleware
+# list, and the file named last would silently win (bin/ai-nutrition-coach
+# refuses the pair).
+
+services:
+  ai-nutrition-coach:
+    labels:
+      # Replaces the base router's middleware list: HSTS first, then the sign-in.
+      # No default: without a middleware name compose refuses to start.
+      traefik.http.routers.ai-nutrition-coach.middlewares: ai-nutrition-coach-hsts,${AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE:?set AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE to your forward-auth middleware, e.g. authentik@file}

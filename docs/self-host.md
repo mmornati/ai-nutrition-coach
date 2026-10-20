@@ -63,6 +63,59 @@ as labels; optional overlays add a cert resolver and an `ipAllowList`. Traefik o
 step-by-step, DNS/certificates, family-only access (and why not basic auth), the CSP knob for the BYOK
 endpoint — is in [`docs/pwa.md`](./pwa.md#deploy-behind-traefik).
 
+### Behind Authentik (Traefik forward auth, Cloudflare Tunnel)
+
+The same Traefik stack, with a sign-in in front: the setup of a home server where Cloudflare serves HTTPS,
+a tunnel (`cloudflared`) hands the traffic to Traefik over plain HTTP, and Traefik asks Authentik before
+anything reaches the app. `infra/server.env.example` is a complete example:
+
+```sh
+git clone https://github.com/mmornati/ai-nutrition-coach.git && cd ai-nutrition-coach/infra
+cp server.env.example .env       # git-ignored; set the domain, network, entrypoint, middleware names
+docker compose up -d --build     # builds infra/Dockerfile from this checkout
+docker compose ps                # "healthy" within a few seconds
+```
+
+`.env` names the three compose files (`COMPOSE_FILE`) and the project (`COMPOSE_PROJECT_NAME`):
+
+- `docker-compose.traefik.yml` — the app, no published port. `AI_NUTRITION_COACH_TRAEFIK_TLS=false` because
+  HTTPS ends at Cloudflare and the tunnel reaches Traefik's HTTP entrypoint
+  (`AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT`, e.g. `insecure`). The browser still sees HTTPS, which the
+  encrypted store needs.
+- `docker-compose.traefik-auth.yml` — HSTS + your forward-auth middleware
+  (`AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE=authentik@file`). It has no default: compose refuses to start
+  without it.
+- `docker-compose.traefik-authentik.yml` — a second router for `/outpost.goauthentik.io/` on the same host,
+  without the middleware, to Authentik's outpost (`AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE`, a Traefik
+  service pointing at `http://authentik:9000/outpost.goauthentik.io`). Authentik finishes the sign-in there.
+
+`bin/ai-nutrition-coach up --traefik` does the same from environment variables: it adds the two overlays when
+the middleware and outpost variables are set.
+
+**Updating:** `git -C .. pull --ff-only && docker compose up -d --build`. Installed apps pick the new build up
+through their update prompt.
+
+**Authentik:** with a *domain-level* forward-auth provider the new host is covered already. With
+*single application* mode, create a *Proxy* provider (forward auth, single application, external host
+`https://ai-nutrition-coach.example.org`), an *Application* using it, and add it to the embedded outpost.
+Bind the application to the people who should use the app (a group of the household's adults).
+
+**Cloudflare:** Zero Trust → Networks → Tunnels → your tunnel → *Public Hostname*: the new name, type
+`HTTP`, URL the same Traefik target as your other names.
+
+What the sign-in does and does not do, for this app specifically:
+
+- It controls who may **download** the app and its updates. There is nothing else on the server: the data is
+  encrypted in each browser and the passphrase protects it, signed in or not.
+- Once installed, the app opens from its offline cache without asking the proxy, so an expired SSO session is
+  not noticed until an update is fetched: that fetch fails quietly and is retried after the next sign-in
+  (open the address in the browser). The service worker never answers `/outpost.goauthentik.io/` from its
+  cache, so the sign-in callback always reaches Authentik.
+- The web manifest is requested *with* the session cookie (`crossorigin="use-credentials"`), so
+  installation works behind the sign-in. (Plain basic auth is still discouraged — see
+  [`docs/pwa.md`](./pwa.md#family-only-access).)
+- Forward auth and the IP allow-list overlay both set the router's middlewares: use one of them.
+
 Another reverse proxy (nginx, a tunnel)? Point it at the app, terminate TLS there and add HSTS yourself. If
 that proxy runs **in a container**, `127.0.0.1:8080` is its own loopback, not the app: put both on a shared
 docker network and proxy to `http://ai-nutrition-coach:8080` (the compose service name).
@@ -96,6 +149,9 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER` | – | `--traefik`: ACME resolver name (optional overlay). |
 | `AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
 | `AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
+| `AI_NUTRITION_COACH_TRAEFIK_TLS` | `true` | `--traefik`: the router serves HTTPS. `false` only when HTTPS ends before Traefik (a tunnel). |
+| `AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE` | – | `--traefik`: forward-auth middleware in front of the app, e.g. `authentik@file` (optional overlay). |
+| `AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE` | – | `--traefik`: Traefik service of Authentik's outpost, e.g. `sso@file`; needs the middleware. |
 | `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
 | `AI_NUTRITION_COACH_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
 | `AI_NUTRITION_COACH_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
@@ -265,7 +321,9 @@ infra/Dockerfile               multi-stage: node 24 LTS alpine (digest) + pnpm �
 infra/nginx/nginx.conf         main config (everything writable lives in /tmp)
 infra/nginx/templates/         vhost + shared security-header include (envsubst at start)
 infra/docker-compose.yml       hardened app service + opt-in `tls` profile (Caddy)
-infra/docker-compose.traefik*.yml  behind your Traefik: no published port (+ cert-resolver / allow-list overlays)
+infra/docker-compose.traefik*.yml  behind your Traefik: no published port (+ cert-resolver / allow-list /
+                               forward-auth / Authentik-outpost overlays)
+infra/server.env.example       `.env` for Traefik + Authentik behind a Cloudflare Tunnel
 infra/traefik/                 file-provider example for a Traefik running on the host
 infra/Caddyfile                automatic HTTPS + HSTS for $AI_NUTRITION_COACH_DOMAIN
 bin/ai-nutrition-coach                  the one-command affordance
