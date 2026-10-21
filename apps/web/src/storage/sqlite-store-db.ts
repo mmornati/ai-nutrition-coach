@@ -15,6 +15,13 @@ import type { SqlHandle, SqlRow, SqlValue } from './sql-handle';
 
 const text = (value: SqlValue | undefined): string =>
   value === null || value === undefined ? '' : String(value);
+const nullableText = (value: SqlValue | undefined): string | null =>
+  value === null || value === undefined ? null : String(value);
+const nullableInt = (value: SqlValue | undefined): number | null => {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
 const int = (value: SqlValue | undefined): number => Number(value ?? 0);
 
 export class SqliteStoreDb implements StoreDbOps {
@@ -28,8 +35,9 @@ export class SqliteStoreDb implements StoreDbOps {
       for (const e of entries) {
         this.db.run(
           `INSERT INTO food_entry (plate_log_id, source_ref, display_name, source, food_group,
-             quantity_low, quantity_high, quantity_unit, quantity_display_label)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             quantity_low, quantity_high, quantity_unit, quantity_display_label,
+             quantity_grams, quantity_grams_estimated, nutrients_per_100g, food_extra)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             plateId,
             e.sourceRef,
@@ -40,6 +48,10 @@ export class SqliteStoreDb implements StoreDbOps {
             e.quantityHigh,
             e.quantityUnit,
             e.quantityDisplayLabel,
+            e.quantityGrams ?? null,
+            e.quantityGramsEstimated ?? null,
+            e.nutrientsPer100g ?? null,
+            e.foodExtra ?? null,
           ],
         );
         entryIds.push(this.db.lastInsertRowid());
@@ -68,7 +80,10 @@ export class SqliteStoreDb implements StoreDbOps {
               e.id AS entry_id, e.plate_log_id AS plate_log_id, e.source_ref AS source_ref,
               e.display_name AS display_name, e.source AS source, e.food_group AS food_group,
               e.quantity_low AS quantity_low, e.quantity_high AS quantity_high,
-              e.quantity_unit AS quantity_unit, e.quantity_display_label AS quantity_display_label
+              e.quantity_unit AS quantity_unit, e.quantity_display_label AS quantity_display_label,
+              e.quantity_grams AS quantity_grams,
+              e.quantity_grams_estimated AS quantity_grams_estimated,
+              e.nutrients_per_100g AS nutrients_per_100g, e.food_extra AS food_extra
          FROM plate_log p LEFT JOIN food_entry e ON e.plate_log_id = p.id
          ${where}
         ORDER BY p.logged_at_utc DESC, p.id DESC, e.id ASC`,
@@ -206,5 +221,9 @@ function toEntry(r: SqlRow): EntryRow {
     quantityHigh: text(r['quantity_high']),
     quantityUnit: text(r['quantity_unit']),
     quantityDisplayLabel: text(r['quantity_display_label']),
+    quantityGrams: nullableText(r['quantity_grams']),
+    quantityGramsEstimated: nullableInt(r['quantity_grams_estimated']),
+    nutrientsPer100g: nullableText(r['nutrients_per_100g']),
+    foodExtra: nullableText(r['food_extra']),
   };
 }

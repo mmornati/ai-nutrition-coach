@@ -142,6 +142,16 @@ button. In the browser they are a download (or the system share sheet where the
 browser offers Web Share); the app does not keep them and cannot delete them
 later. *Erase all local data* cannot reach a file you downloaded or shared
 (Chrome saves to Downloads without asking, and Downloads may sync to a cloud).
+The CSV has one row per food entry. Columns are only ever appended: `id, logged_at_utc, entry_id,
+database_food_source, database_food_ref, database_food_display_name, quantity_low, quantity_high,
+quantity_unit, quantity_display_label, food_group, grams, grams_estimated, energy_kcal, protein_g,
+carbohydrate_g, sugars_g, fat_g, saturated_fat_g, fibre_g, salt_g`. `grams` is the entry's weight
+and `grams_estimated` is `true` when it was a preset or a guess; the nutrient columns are the values
+for that entry (per 100 g scaled by the weight), with a dot decimal and at most one decimal, and
+**empty when unknown** (never zero). The JSON export also carries `grams`, `gramsEstimated`, and the
+food's per-100 g `nutrientsPer100g` and product `extra` (Nutri-Score and NOVA from Open Food Facts)
+when known.
+
 Exports cover plates only: coach notes, AI settings, the language and these notices are not
 exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).

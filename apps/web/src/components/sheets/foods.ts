@@ -37,6 +37,7 @@ export function sameQuantity(a: QuantityRange, b: QuantityRange): boolean {
     a.low === b.low &&
     a.high === b.high &&
     a.unit === b.unit &&
+    a.grams === b.grams &&
     (isKnownUnit(a.unit) || a.displayLabel === b.displayLabel)
   );
 }

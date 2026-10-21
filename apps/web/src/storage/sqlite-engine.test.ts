@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { DATABASE_FILENAME, PINNED_CIPHER, SCHEMA_VERSION } from './constants';
 import { SchemaTooNewError, StoreOpenError, StoreUnavailableError } from './errors';
-import type { EntryInsert } from './ops';
+import type { EntryInsert, EntryRow } from './ops';
 import { passphraseBytes } from './passphrase';
 import { mapPlateRows } from './row-mapping';
 import { TABLE_NAMES } from './schema';
@@ -359,7 +359,7 @@ describe('schema version 1', () => {
     await expect(open(attempt, { expectExisting: true })).rejects.toMatchObject({
       name: 'SchemaTooNewError',
       found: 7,
-      supported: 1,
+      supported: SCHEMA_VERSION,
     });
     await expect(open(engineFor(file), { expectExisting: true })).rejects.toBeInstanceOf(
       SchemaTooNewError,
@@ -367,6 +367,82 @@ describe('schema version 1', () => {
     expect(attempt.isOpen).toBe(false);
     const check = await openRawKeyed(file, key);
     expect(check.all('PRAGMA user_version')[0]?.['user_version']).toBe(7);
+    check.close();
+  });
+
+  it('upgrades a v1 database to v2: old rows stay readable, the new columns are null', async () => {
+    const file = newFile();
+    const key = await testKey(GOOD, SALT);
+    const first = engineFor(file);
+    await open(first);
+    first.close();
+    // Rebuild the v1 shape: drop the v2 columns and rewind the version.
+    const raw = await openRawKeyed(file, key);
+    for (const c of [
+      'quantity_grams',
+      'quantity_grams_estimated',
+      'nutrients_per_100g',
+      'food_extra',
+    ]) {
+      raw.run(`ALTER TABLE food_entry DROP COLUMN ${c}`);
+    }
+    raw.run("INSERT INTO plate_log (logged_at_utc) VALUES ('2026-08-16T12:00:00.000Z')");
+    raw.run(
+      `INSERT INTO food_entry (plate_log_id, source_ref, display_name, source, food_group,
+         quantity_low, quantity_high, quantity_unit, quantity_display_label)
+       VALUES (1, 'manual:old', 'Old', 'manual', 'other', '1', '2', 'piece', '~1')`,
+    );
+    raw.run('PRAGMA user_version = 1');
+    raw.close();
+
+    const second = engineFor(file);
+    await open(second, { expectExisting: true });
+    const rows = second.call('readPlateRows', [null, null]) as { entries: EntryRow[] };
+    expect(rows.entries).toHaveLength(1);
+    expect(rows.entries[0]).toMatchObject({
+      displayName: 'Old',
+      quantityGrams: null,
+      quantityGramsEstimated: null,
+      nutrientsPer100g: null,
+      foodExtra: null,
+    });
+    second.call('insertPlate', [
+      '2026-08-17T12:00:00.000Z',
+      [
+        entry('New', {
+          quantityGrams: '90',
+          quantityGramsEstimated: 0,
+          nutrientsPer100g: '{"salt":1}',
+        }),
+      ],
+    ]);
+    second.close();
+    const check = await openRawKeyed(file, key);
+    expect(check.all('PRAGMA user_version')[0]?.['user_version']).toBe(2);
+    check.close();
+  });
+
+  it('re-running the v2 migration is a no-op (columns exist once)', async () => {
+    const file = newFile();
+    const key = await testKey(GOOD, SALT);
+    const first = engineFor(file);
+    await open(first);
+    first.call('insertPlate', [
+      '2026-08-16T12:00:00.000Z',
+      [entry('Kept', { quantityGrams: '50' })],
+    ]);
+    first.close();
+    const raw = await openRawKeyed(file, key);
+    raw.run('PRAGMA user_version = 1');
+    raw.close();
+    const second = engineFor(file);
+    await open(second, { expectExisting: true });
+    const rows = second.call('readPlateRows', [null, null]) as { entries: EntryRow[] };
+    expect(rows.entries[0]?.quantityGrams).toBe('50');
+    second.close();
+    const check = await openRawKeyed(file, key);
+    const names = check.all('PRAGMA table_info(food_entry)').map((r) => r['name']);
+    expect(names.filter((n) => n === 'quantity_grams')).toHaveLength(1);
     check.close();
   });
 

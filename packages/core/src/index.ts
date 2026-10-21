@@ -21,6 +21,8 @@ export * from './value-types/export-scope';
 export * from './value-types/food-entry-draft';
 export * from './value-types/food-group-coverage';
 export * from './value-types/managed-oversight-seam';
+export * from './value-types/nutrient-totals';
+export * from './value-types/nutrients';
 export * from './value-types/plate-range';
 export * from './value-types/quantity-range';
 export * from './value-types/recognized-food';

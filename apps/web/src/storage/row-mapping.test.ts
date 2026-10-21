@@ -24,6 +24,47 @@ const map = (plates: { id: number; loggedAtUtc: string }[], entries: EntryRow[])
   return mapPlateRows({ plates, entries }, report);
 };
 
+describe('schema v2 columns', () => {
+  const when = '2026-08-16T12:00:00.000Z';
+  const one = (over: Partial<EntryRow>) => {
+    const plates = map([{ id: 1, loggedAtUtc: when }], [entry(over)]);
+    return plates[0]?.entries[0];
+  };
+
+  it('maps grams, the estimate flag, nutrients and extra', () => {
+    const e = one({
+      quantityGrams: '125',
+      quantityGramsEstimated: 1,
+      nutrientsPer100g: '{"energyKcal":61,"protein":3.5}',
+      foodExtra: '{"nutriscoreGrade":"b","novaGroup":3}',
+    });
+    expect(e?.quantity).toMatchObject({ grams: 125, gramsEstimated: true });
+    expect(e?.databaseFood.nutrientsPer100g).toEqual({ energyKcal: 61, protein: 3.5 });
+    expect(e?.databaseFood.extra).toEqual({ nutriscoreGrade: 'b', novaGroup: 3 });
+  });
+
+  it('null or missing columns (a v1 row) map to absent fields', () => {
+    const e = one({});
+    expect(e?.quantity).not.toHaveProperty('grams');
+    expect(e?.databaseFood).not.toHaveProperty('nutrientsPer100g');
+    expect(e?.databaseFood).not.toHaveProperty('extra');
+  });
+
+  it('garbage in the new columns never drops the row', () => {
+    const e = one({
+      quantityGrams: 'lots',
+      quantityGramsEstimated: 7,
+      nutrientsPer100g: '{not json',
+      foodExtra: '[1,2]',
+    });
+    expect(e).toBeDefined();
+    expect(e?.quantity).not.toHaveProperty('grams');
+    expect(e?.databaseFood).not.toHaveProperty('nutrientsPer100g');
+    expect(one({ quantityGrams: '99999' })?.quantity).not.toHaveProperty('grams');
+    expect(reports).toEqual([]);
+  });
+});
+
 describe('timestamps', () => {
   it('are UTC ISO-8601 with millisecond precision, fixed width', () => {
     expect(toStoredInstant(Date.UTC(2026, 7, 16, 12, 0, 0, 123))).toBe('2026-08-16T12:00:00.123Z');
