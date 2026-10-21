@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { FoodCatalog } from '@anc/core';
 import { createCameraRequest, type CameraRequest } from './camera';
 import { createBarcodeDecoder, type BarcodeDecoder, type CreateDecoderOptions } from './decoder';
-import { ScannerController, type ScannerState, type VideoSurface } from './scanner-controller';
+import {
+  NO_EXTRAS,
+  ScannerController,
+  type ScannerExtras,
+  type ScannerState,
+  type VideoSurface,
+} from './scanner-controller';
 import type { ScanFlowDeps } from './scan-flow';
 
 export interface UseBarcodeScannerOptions extends Omit<ScanFlowDeps, 'catalog' | 'onChange'> {
@@ -22,9 +28,13 @@ export interface UseBarcodeScannerOptions extends Omit<ScanFlowDeps, 'catalog' |
 export function useBarcodeScanner(options: UseBarcodeScannerOptions): {
   readonly state: ScannerState;
   readonly videoRef: RefObject<HTMLVideoElement | null>;
+  readonly extras: ScannerExtras;
   readonly dismissResult: () => void;
+  readonly toggleTorch: () => void;
+  readonly submitCode: (code: string) => void;
 } {
   const [state, setState] = useState<ScannerState>({ kind: 'checking' });
+  const [extras, setExtras] = useState<ScannerExtras>(NO_EXTRAS);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controllerRef = useRef<ScannerController | null>(null);
   const optionsRef = useRef(options);
@@ -59,6 +69,7 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): {
       surface,
       ...(o.intervalMs !== undefined ? { intervalMs: o.intervalMs } : {}),
       onChange: setState,
+      onExtras: setExtras,
     });
     controllerRef.current = controller;
 
@@ -77,5 +88,10 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): {
   }, []);
 
   const dismissResult = useCallback(() => controllerRef.current?.dismissResult(), []);
-  return { state, videoRef, dismissResult };
+  const toggleTorch = useCallback(() => void controllerRef.current?.toggleTorch(), []);
+  const submitCode = useCallback(
+    (code: string) => void controllerRef.current?.submitCode(code),
+    [],
+  );
+  return { state, videoRef, extras, dismissResult, toggleTorch, submitCode };
 }
