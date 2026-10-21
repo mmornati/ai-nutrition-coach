@@ -10,7 +10,15 @@
 //                 -> Type it  -> ranked matches + portion presets + custom food
 //
 // Browsers only open a camera/file picker from a tap, so nothing here starts one on mount.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import {
   addCalendarDays,
   mealSlotForHour,
@@ -20,7 +28,7 @@ import {
 } from '@anc/core';
 import { usePhotoFlow, type PhotoSource, type UsePhotoFlowDeps } from '../../capture';
 import type { UseBarcodeScannerOptions } from '../../barcode';
-import { photoFlowConsentDeps } from '../../ai';
+import { photoFlowConsentDeps, photoUploadHost } from '../../ai';
 import { PhotoConsentDialog } from '../../components/dialogs';
 import { CaptureSheet, RecognizedMatchSheet } from '../../components/sheets';
 import { useDay } from '../../app/day-context';
@@ -113,6 +121,13 @@ export function LogHost({
     ...(createCapture ? { createCapture } : {}),
   });
 
+  // Nothing can be sent while No AI is chosen or the endpoint is not set: say so before the photo.
+  const aiSettings = useSyncExternalStore(
+    session.ai.settings.subscribe,
+    session.ai.settings.getSnapshot,
+  );
+  const aiSetupHref = photoUploadHost(aiSettings) === null ? hrefs.section('ai') : undefined;
+
   const close = useCallback(() => setFlow({ kind: 'closed' }), []);
 
   // The privacy page is a link inside several dialogs. Following it leaves the dialog behind, so
@@ -182,6 +197,7 @@ export function LogHost({
         onClose={close}
         onSource={startPhoto}
         onTypeInstead={() => typeInstead()}
+        aiSetupHref={aiSetupHref}
       />
       <BarcodeSheet
         open={flow.kind === 'barcode'}
@@ -216,6 +232,7 @@ export function LogHost({
           result={state.result}
           closestMatches={state.closestMatches}
           onLog={commit}
+          aiSetupHref={hrefs.section('ai')}
         />
       )}
     </LogContext.Provider>

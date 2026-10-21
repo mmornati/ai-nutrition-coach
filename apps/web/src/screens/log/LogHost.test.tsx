@@ -437,11 +437,34 @@ describe('Snapshot', () => {
     expect(pick).not.toHaveBeenCalled();
   });
 
+  it('with no AI the Snap sheet says so before the photo, with a link to Your AI', async () => {
+    const { user, snap } = await start({ capture: photo });
+    expect(within(snap).getByText(s.capture.noAiNote)).toBeVisible();
+    const link = within(snap).getByRole('link', { name: s.recognized.setUpAi });
+    expect(link).toHaveAttribute('href', '#/settings/ai');
+    await user.click(link);
+    expect(window.location.hash).toBe('#/settings/ai');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('with your own key set up, the Snap sheet carries no AI note', async () => {
+    const { snap } = await start({ capture: photo, byok: true });
+    expect(within(snap).queryByText(s.capture.noAiNote)).not.toBeInTheDocument();
+    expect(
+      within(snap).queryByRole('link', { name: s.recognized.setUpAi }),
+    ).not.toBeInTheDocument();
+  });
+
   it('with no AI: no consent question, the no-AI core offers the closest matches and a custom food', async () => {
     const { user, bundle } = await start({ capture: photo, seed: true });
     await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
 
-    const sheet = await screen.findByRole('dialog', { name: s.recognized.nothingMatched });
+    const sheet = await screen.findByRole('dialog', { name: s.recognized.noAiTitle });
+    expect(within(sheet).getByText(s.recognized.noAiHint)).toBeVisible();
+    expect(within(sheet).getByRole('link', { name: s.recognized.setUpAi })).toHaveAttribute(
+      'href',
+      '#/settings/ai',
+    );
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     // What was logged this week is offered as a closest match.
     expect(within(sheet).getByText('Porridge')).toBeVisible();
@@ -491,7 +514,13 @@ describe('Snapshot', () => {
     const consent = await screen.findByRole('alertdialog');
     await user.click(within(consent).getByRole('button', { name: s.consent.allowOnce }));
 
-    expect(await screen.findByRole('dialog', { name: s.recognized.failureTitle })).toBeVisible();
+    const failed = await screen.findByRole('dialog', { name: s.recognized.failureTitle });
+    expect(failed).toBeVisible();
+    // The specific cause is shown, not just the generic title (a 500 is not a setup problem).
+    expect(within(failed).getByText(/^Error 500 from ai\.example\.test$/)).toBeVisible();
+    expect(
+      within(failed).queryByRole('link', { name: s.recognized.setUpAi }),
+    ).not.toBeInTheDocument();
     expect(fetch.requests).toHaveLength(1);
     expect(new URL(fetch.requests[0]?.url ?? '').host).toBe('ai.example.test');
     // The key goes only in the header of that request, never in the address or the body.

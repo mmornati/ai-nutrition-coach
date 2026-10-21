@@ -1,19 +1,15 @@
-import {
-  recognitionFailure,
-  recognizedPlate,
-  type AiRung,
-  type RecognitionResult,
-} from '@anc/core';
+import { recognitionFailure, type AiRung, type RecognitionResult } from '@anc/core';
 import { strings } from '../i18n';
 
 /**
- * No AI, the default and a complete product. Always answers an empty `recognizedPlate`: the rung
- * looked and matched nothing, so the photo path degrades honestly to the closest matches and
- * manual entry with no network call. The bytes are dropped, never stored, hashed or sent.
+ * No AI, the default and a complete product. Always answers a `noAi` recognition failure: nothing
+ * was looked at, and the result sheet says so (it is not "nothing matched"), while the photo path
+ * still degrades to the closest matches and manual entry with no network call. The bytes are
+ * dropped, never stored, hashed or sent.
  */
 export class NoopAiRung implements AiRung {
   async recognize(): Promise<RecognitionResult> {
-    return recognizedPlate([]);
+    return recognitionFailure('noAi');
   }
 }
 

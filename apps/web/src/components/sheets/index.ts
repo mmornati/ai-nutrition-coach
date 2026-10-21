@@ -6,3 +6,4 @@ export { PortionPresets, type PortionPresetsProps } from './PortionPresets';
 export { LineBar } from './LineBar';
 export { EntryList, type EntryItem } from './EntryList';
 export { oneServing, manualFood, effectivePresets } from './foods';
+export { AiSetupLink } from './AiSetupLink';

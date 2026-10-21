@@ -9,6 +9,7 @@
  * Pure browser APIs behind small interfaces, so it is unit-tested with fakes.
  */
 import { ZXING_READER_PATH } from './zxing-pin';
+import { FULL_FRAME_EVERY, cropOutputScale, fullFrameSize, guideSourceRect } from './roi';
 
 /** Retail codes only: the same four the earlier scanner was configured with. */
 export const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'] as const;
@@ -49,7 +50,10 @@ export function decoderMaybeAvailable(
   return env.BarcodeDetector !== undefined || env.WebAssembly !== undefined;
 }
 
-async function createNativeDecoder(env: DecoderEnv): Promise<BarcodeDecoder | null> {
+async function createNativeDecoder(
+  env: DecoderEnv,
+  frame: FrameReader,
+): Promise<BarcodeDecoder | null> {
   const Ctor = env.BarcodeDetector;
   if (Ctor === undefined) return null;
   try {
@@ -57,11 +61,15 @@ async function createNativeDecoder(env: DecoderEnv): Promise<BarcodeDecoder | nu
     const supported = await Ctor.getSupportedFormats?.();
     if (supported !== undefined && !NATIVE_FORMATS.some((f) => supported.includes(f))) return null;
     const detector = new Ctor({ formats: NATIVE_FORMATS });
+    const nextMode = attemptCounter();
     return {
       kind: 'native',
       async decode(input) {
         try {
-          const found = await detector.detect(input);
+          // The guide box at full resolution (every 4th attempt the whole frame); anything that
+          // is not a live frame (a blob, pixels already read) goes to the detector as it is.
+          const readable = isLiveFrame(input) ? await frame(input, nextMode()) : null;
+          const found = await detector.detect(readable ?? input);
           return found.map((b) => b.rawValue).filter((v) => v.length > 0);
         } catch {
           return [];
@@ -87,7 +95,14 @@ interface ZXingApi {
   }): Promise<unknown>;
   readBarcodes(
     input: Blob | ImageData,
-    options?: { formats?: readonly string[]; tryHarder?: boolean; maxNumberOfSymbols?: number },
+    options?: {
+      formats?: readonly string[];
+      tryHarder?: boolean;
+      tryRotate?: boolean;
+      tryInvert?: boolean;
+      tryDownscale?: boolean;
+      maxNumberOfSymbols?: number;
+    },
   ): Promise<readonly ZXingReadResult[]>;
 }
 
@@ -149,15 +164,22 @@ async function createZxingDecoder(
   } catch {
     return null;
   }
+  const nextMode = attemptCounter();
   return {
     kind: 'zxing',
     async decode(input) {
       try {
-        const readable = input instanceof Blob || isImageData(input) ? input : await frame(input);
+        const readable =
+          input instanceof Blob || isImageData(input) ? input : await frame(input, nextMode());
         if (readable === null) return [];
         const results = await api.readBarcodes(readable, {
           formats: ZXING_FORMATS,
+          // Option names checked against zxing-wasm 3.1.1 (ReaderOptions): all default to true
+          // there, set explicitly so a library default change cannot silently drop them.
           tryHarder: true,
+          tryRotate: true,
+          tryInvert: true,
+          tryDownscale: true,
           maxNumberOfSymbols: 1,
         });
         return results.filter((r) => r.isValid !== false && r.text.length > 0).map((r) => r.text);
@@ -172,22 +194,62 @@ async function createZxingDecoder(
 const isImageData = (v: unknown): v is ImageData =>
   typeof ImageData !== 'undefined' && v instanceof ImageData;
 
-/** Turns a video / bitmap into pixels zxing can read (a canvas copy, at most 1280 px wide). */
-export type FrameReader = (source: HTMLVideoElement | ImageBitmap) => Promise<ImageData | null>;
+/**
+ * `guide`: the centred guide box (see `roi.ts`) at full resolution, doubled when narrow.
+ * `full`: the whole frame, at most 1280 px wide (the fallback, every {@link FULL_FRAME_EVERY}th attempt).
+ */
+export type FrameMode = 'guide' | 'full';
 
-export const canvasFrameReader: FrameReader = async (source) => {
-  const width = source instanceof HTMLVideoElement ? source.videoWidth : source.width;
-  const height = source instanceof HTMLVideoElement ? source.videoHeight : source.height;
+/** Turns a video / bitmap into pixels the decoder can read (a canvas copy). */
+export type FrameReader = (
+  source: HTMLVideoElement | ImageBitmap,
+  mode?: FrameMode,
+) => Promise<ImageData | null>;
+
+type LiveFrame = HTMLVideoElement | ImageBitmap;
+
+const isLiveFrame = (v: unknown): v is LiveFrame =>
+  (typeof HTMLVideoElement !== 'undefined' && v instanceof HTMLVideoElement) ||
+  (typeof ImageBitmap !== 'undefined' && v instanceof ImageBitmap);
+
+/** 'full' on every Nth call, 'guide' otherwise. */
+function attemptCounter(): () => FrameMode {
+  let n = 0;
+  return () => (++n % FULL_FRAME_EVERY === 0 ? 'full' : 'guide');
+}
+
+// One canvas for every frame: a new canvas per 200 ms tick is garbage the phone has to collect.
+let sharedCanvas: HTMLCanvasElement | undefined;
+
+export const canvasFrameReader: FrameReader = async (source, mode = 'full') => {
+  const isVideo = source instanceof HTMLVideoElement;
+  const width = isVideo ? source.videoWidth : source.width;
+  const height = isVideo ? source.videoHeight : source.height;
   if (!(width > 0) || !(height > 0)) return null;
-  const scale = Math.min(1, 1280 / width);
-  const w = Math.max(1, Math.round(width * scale));
-  const h = Math.max(1, Math.round(height * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  // The preview is object-cover in its element: map the visible guide box back to source pixels.
+  const box = isVideo ? { w: source.clientWidth, h: source.clientHeight } : { w: 0, h: 0 };
+  let sx = 0;
+  let sy = 0;
+  let sw = width;
+  let sh = height;
+  let w: number;
+  let h: number;
+  if (mode === 'guide') {
+    ({ x: sx, y: sy, w: sw, h: sh } = guideSourceRect(width, height, box.w, box.h));
+    const k = cropOutputScale(sw);
+    w = sw * k;
+    h = sh * k;
+  } else {
+    ({ w, h } = fullFrameSize(width, height));
+  }
+
+  sharedCanvas ??= document.createElement('canvas');
+  if (sharedCanvas.width !== w) sharedCanvas.width = w;
+  if (sharedCanvas.height !== h) sharedCanvas.height = h;
+  const ctx = sharedCanvas.getContext('2d', { willReadFrequently: true }); // same object each call
   if (ctx === null) return null;
-  ctx.drawImage(source, 0, 0, w, h);
+  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, w, h);
   return ctx.getImageData(0, 0, w, h);
 };
 
@@ -213,7 +275,7 @@ export async function createBarcodeDecoder(
   const frame = options.frameReader ?? canvasFrameReader;
 
   if (options.prefer !== 'zxing') {
-    const native = await createNativeDecoder(env);
+    const native = await createNativeDecoder(env, frame);
     if (native !== null || options.prefer === 'native') return native;
   }
   if (env.WebAssembly === undefined) return null;

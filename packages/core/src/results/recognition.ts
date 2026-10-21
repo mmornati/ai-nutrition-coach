@@ -9,6 +9,8 @@ export type RecognitionFailureCause =
   | 'keyMissing'
   | 'keyRejected'
   | 'notConfigured'
+  /** The No-AI rung is active: nothing was looked at, by design. Not an error. */
+  | 'noAi'
   | 'consentRequired'
   | 'photoNotSendable'
   | 'network'
