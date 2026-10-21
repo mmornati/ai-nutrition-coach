@@ -496,7 +496,9 @@ describe('YourAiScreen: describing a meal with AI', () => {
     const toggle = screen.getByRole('switch', { name: SWITCH });
     expect(toggle).not.toBeChecked();
     expect(
-      screen.getByText(/What is sent: only that text \(500 characters at most\)/),
+      screen.getByText(
+        /What is sent: only that text \(500 characters at most, or 8,000 for a pasted recipe\)/,
+      ),
     ).toBeVisible();
     expect(screen.getByText('Goes to api.example.com, the service you chose.')).toBeVisible();
     expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBeNull();

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { FoodMatch, RecognitionResult } from '@anc/core';
 import { MAX_DESCRIPTION_LENGTH, type DescribeState, type VoiceOutcome } from '../../ai';
 import { hrefs } from '../../app/router';
@@ -15,6 +15,7 @@ import {
 import { Button, MicIcon, TextArea } from '../../components/primitives';
 import { AiSetupLink, Sheet } from '../../components/sheets';
 import { fill, useLocale, useMessage, useStrings } from '../../i18n';
+import { DescribeConsentCard } from './DescribeConsentCard';
 import './describe.css';
 
 /** What a description produced, for the review sheet. */
@@ -78,8 +79,6 @@ export function Describe({
   const [note, setNote] = useMessage();
   const recorder = useRef<VoiceRecorder | null>(null);
   const abort = useRef(new AbortController());
-  const consentRef = useRef<HTMLElement>(null);
-  const headingId = useId();
   const env = voiceEnv ?? browserVoiceEnv();
   const canRecord = state.voice && voiceRecordingSupported(env);
 
@@ -111,9 +110,6 @@ export function Describe({
     };
   }, []);
   const status = state.status;
-  useEffect(() => {
-    if (consentFor !== null) consentRef.current?.querySelector('button')?.focus();
-  }, [consentFor]);
 
   const destination = status.kind === 'noAi' ? null : status.destination;
   // The AI went away (settings changed elsewhere): the card goes with it, never leaving a sheet
@@ -336,55 +332,12 @@ export function Describe({
       </p>
 
       {consentOpen && destination !== null && (
-        <section
-          ref={consentRef}
-          aria-labelledby={headingId}
-          className="border-porcelain flex flex-col gap-3 border-2 p-4"
-        >
-          <h3 id={headingId} className="font-display text-lead">
-            {viaServer ? d.consentTitleInstance : fill(d.consentTitle, { host: destination.host })}
-          </h3>
-          <div className="text-body flex flex-col gap-3">
-            <p>
-              {viaServer
-                ? fill(d.consentSentInstance, {
-                    host: destination.host,
-                    label: destination.label ?? '',
-                  })
-                : d.consentSent}
-            </p>
-            <p>
-              {fill(viaServer ? d.consentVisibleInstance : d.consentVisible, {
-                host: destination.host,
-                label: destination.label ?? '',
-              })}
-            </p>
-            <p>
-              {fill(viaServer ? d.consentRetentionInstance : d.consentRetention, {
-                host: destination.host,
-                label: destination.label ?? '',
-              })}
-            </p>
-            <p className="text-body-small text-porcelain-dim">{d.consentChange}</p>
-            <a
-              href={hrefs.privacy}
-              onClick={onClose}
-              className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
-            >
-              {all.consent.learnMore}
-            </a>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline-porcelain" className="flex-1" onClick={decline}>
-              {d.consentDecline}
-            </Button>
-            <Button variant="outline-porcelain" className="flex-1" onClick={() => void allow()}>
-              {viaServer
-                ? d.consentAllowInstance
-                : fill(d.consentAllow, { host: destination.host })}
-            </Button>
-          </div>
-        </section>
+        <DescribeConsentCard
+          destination={destination}
+          onAllow={() => void allow()}
+          onDecline={decline}
+          onLearnMore={onClose}
+        />
       )}
 
       {!consentOpen && (

@@ -22,7 +22,9 @@ import { Button, TextField } from '../../components/primitives';
 import { QuantityPicker, Sheet } from '../../components/sheets';
 import { fill, useLocale, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { useSession } from '../../app/session';
+import type { RecipePrefill } from '../../capture';
 import { MatchList } from './MatchList';
+import { RecipePaste } from './RecipePaste';
 
 /** A typed whole number of servings; `null` for anything else. */
 function parseServings(text: string): number | null {
@@ -62,7 +64,14 @@ const PROBLEM: Readonly<Record<RecipeProblem, Message>> = {
  * from the ingredients as they are added; an ingredient without nutrient data is named as missing,
  * never counted as zero.
  */
-export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) => void }) {
+export function RecipeEditor({
+  onSaved,
+  onLeave,
+}: {
+  readonly onSaved: (recipe: Recipe) => void;
+  /** Called when a link inside leaves for another page (the sheet closes). */
+  readonly onLeave?: () => void;
+}) {
   const all = useStrings();
   const t = all.relog.recipe;
   const { locale } = useLocale();
@@ -75,6 +84,9 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
   const [ingredients, setIngredients] = useState<readonly FoodEntryDraft[]>([]);
   const [weightValid, setWeightValid] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const [notAdded, setNotAdded] = useState<readonly string[]>([]);
+  const [estimatedNote, setEstimatedNote] = useState(false);
   const [note, setNote] = useMessage();
 
   const selected = state.selected;
@@ -101,6 +113,17 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
     setNote(null);
     setIngredients((all) => [...all, { databaseFood: selected.food, quantity: chosen }]);
     session.clear();
+  };
+
+  /** A pasted recipe fills in the form for review: nothing is saved. */
+  const applyPaste = (prefill: RecipePrefill, why: Message) => {
+    if (prefill.name !== undefined && cleanSavedName(name) === null) setName(prefill.name);
+    if (prefill.servings !== undefined) setServings(String(prefill.servings));
+    setIngredients((current) => [...current, ...prefill.ingredients].slice(0, MAX_INGREDIENTS));
+    setNotAdded(prefill.notAdded);
+    setEstimatedNote(prefill.anyEstimated);
+    setPasting(false);
+    setNote(why);
   };
 
   const save = async () => {
@@ -172,6 +195,18 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
         }}
       />
 
+      {pasting ? (
+        <RecipePaste
+          onResult={applyPaste}
+          onClose={() => setPasting(false)}
+          onLeave={() => onLeave?.()}
+        />
+      ) : (
+        <Button variant="outline-porcelain" fullWidth onClick={() => setPasting(true)}>
+          {t.pasteOpen}
+        </Button>
+      )}
+
       <section aria-labelledby="recipe-ingredients" className="flex flex-col gap-3">
         <h3
           id="recipe-ingredients"
@@ -208,6 +243,20 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
               );
             })}
           </ul>
+        )}
+        {estimatedNote && <p className="text-body-small text-porcelain-dim">{t.pasteEstimated}</p>}
+        {notAdded.length > 0 && (
+          <div className="border-rule flex flex-col gap-2 border-2 p-3">
+            <h4 className="font-display text-label text-signal-muted uppercase">
+              {t.notAddedTitle}
+            </h4>
+            <p className="text-body-small text-porcelain-dim">{t.notAddedBody}</p>
+            <ul className="text-body-small list-disc pl-5">
+              {notAdded.map((line, i) => (
+                <li key={`${i}:${line}`}>{line}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <TextField
           label={t.search}
@@ -321,7 +370,7 @@ export function RecipeEditorSheet({
   const t = useStrings().relog.recipe;
   return (
     <Sheet open={open} onClose={onClose} title={t.title}>
-      <RecipeEditor onSaved={onSaved} />
+      <RecipeEditor onSaved={onSaved} onLeave={onClose} />
     </Sheet>
   );
 }
