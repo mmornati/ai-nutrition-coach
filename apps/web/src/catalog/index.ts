@@ -58,3 +58,4 @@ export {
   type ManualEntryState,
 } from './manual-entry';
 export { useManualEntry } from './useManualEntry';
+export { RecipeFoodCatalog, recipePresets } from './recipe-catalog';

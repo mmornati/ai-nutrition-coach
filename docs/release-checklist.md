@@ -27,6 +27,16 @@ named reviewer records the human sign-off.
 - [ ] Rollback plan: restore from an export (Settings → Your data). Rolling the deploy back does not
   restore a v2 store to v1; a person who exported before the update re-imports that file.
 
+## Gate A3 — Schema v3 is forward-only
+
+- [ ] Release notes say that the local store moved to schema v3 (saved meals and recipes: four new
+  tables, no change to plates) and that the move is forward-only: there is no migration back to v2.
+- [ ] A browser tab still running the previous (v2) build and left open across the update meets a
+  v3 store and gets `SchemaTooNewError`; the fix is to reload the tab, which picks up the new
+  build. Nothing is lost.
+- [ ] Rollback plan: restore from an export (Settings → Your data); the JSON export carries the
+  saved meals and recipes. Rolling the deploy back does not restore a v3 store to v2.
+
 ## Gate B — Self-host
 
 - [ ] `scripts/smoke_self_host.sh` is green (FR-11 / NFR9).

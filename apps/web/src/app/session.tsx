@@ -27,9 +27,11 @@ import {
   type CoachParams,
   type Coach,
   type CoachNoteStore,
+  type CoachNoteGenerator,
   type DatabaseFood,
   type DeletePlate,
   type EncryptedStore,
+  type EpochMs,
   type FoodCatalog,
   type FoodEntryDraft,
   type LocalDataEraser,
@@ -37,6 +39,7 @@ import {
   type WeeklyReview,
   type RecordCoachInteraction,
   type RecordPlateResult,
+  type SavedStore,
 } from '@anc/core';
 import { createAiServices, type AiServices } from '../ai';
 import {
@@ -56,6 +59,7 @@ import {
   offLookupGate,
   OfflineFirstFoodCatalog,
   PrivacyPrefs,
+  RecipeFoodCatalog,
 } from '../catalog';
 import { currentLocale, strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
@@ -96,8 +100,27 @@ export interface Session {
   readonly askCoach: AskCoachConversation;
   /** The optional AI paragraph under the weekly review (never replaces the rule-based one). */
   readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
-  /** Records one plate (coach note and outbox op are best-effort post-commit steps). */
-  readonly recordPlate: (drafts: readonly FoodEntryDraft[]) => Promise<RecordPlateResult>;
+  /** The person's saved meals and home recipes (the recipes also show up in the food search). */
+  readonly saved: SavedStore;
+  /**
+   * Records one plate (coach note and outbox op are best-effort post-commit steps), now or at
+   * `loggedAtUtc` (a copy of another day's meal).
+   */
+  readonly recordPlate: (
+    drafts: readonly FoodEntryDraft[],
+    loggedAtUtc?: EpochMs,
+  ) => Promise<RecordPlateResult>;
+  /**
+   * Records several plates in order (copying a day). Every plate goes through the same path as
+   * `recordPlate`, but only the LAST one is coached: one calm note for the batch, written with the
+   * whole day in view, instead of a note (and an AI call) per plate.
+   */
+  readonly recordPlates: (
+    plates: readonly {
+      readonly entries: readonly FoodEntryDraft[];
+      readonly loggedAtUtc: EpochMs;
+    }[],
+  ) => Promise<{ readonly recorded: number; readonly failed: number }>;
   readonly deletePlate: DeletePlate;
   /** False once the session was disposed: late async results must not touch the UI. */
   readonly live: () => boolean;
@@ -130,7 +153,7 @@ export async function createSession(
 
   const privacy = new PrivacyPrefs(kv);
   // The catalog may only send a barcode while the stored answer to the one-time notice is `allowed`.
-  const catalog = new OfflineFirstFoodCatalog({
+  const baseCatalog = new OfflineFirstFoodCatalog({
     onlineLookupAllowed: offLookupGate(privacy),
     // The CIQUAL table is a same-origin, precached asset, read on the first search.
     ciqual: createCiqualFetchLoader(),
@@ -139,6 +162,31 @@ export async function createSession(
       signal: abort.signal,
     }),
   });
+
+  // The person's recipes join the search (after the seeds, before CIQUAL); a recipe saved or
+  // deleted is picked up by the next search.
+  const catalog = new RecipeFoodCatalog(baseCatalog, bundle.saved);
+  const saved: SavedStore = {
+    listMeals: () => bundle.saved.listMeals(),
+    saveMeal: (input) => bundle.saved.saveMeal(input),
+    renameMeal: (id, name) => bundle.saved.renameMeal(id, name),
+    deleteMeal: (id) => bundle.saved.deleteMeal(id),
+    listRecipes: () => bundle.saved.listRecipes(),
+    saveRecipe: async (input) => {
+      try {
+        return await bundle.saved.saveRecipe(input);
+      } finally {
+        catalog.invalidate();
+      }
+    },
+    deleteRecipe: async (id) => {
+      try {
+        return await bundle.saved.deleteRecipe(id);
+      } finally {
+        catalog.invalidate();
+      }
+    },
+  };
 
   const ai = await createAiServices({
     kv,
@@ -211,6 +259,15 @@ export async function createSession(
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
   });
+  // The same path without a coach note: the earlier plates of a copied day stay quiet.
+  const quietGenerator: CoachNoteGenerator = {
+    generateFor: () =>
+      Promise.resolve({ kind: 'noCoachNoteGenerated', reason: 'coachEmpty' as const }),
+  };
+  const recordQuietly = createRecordPlate({
+    generator: quietGenerator,
+    syncOpEnqueue: createRecordSyncOp(syncQueue),
+  });
 
   const askCoach = new AskCoachConversation({ ...coachAiDeps, naming, live: () => live });
   // A conversation belongs to one destination: when the AI, the destination or the coaching consent
@@ -246,7 +303,27 @@ export async function createSession(
     coachInteractions,
     askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
-    recordPlate: (entries) => record({ entries, store }),
+    saved,
+    recordPlate: (entries, loggedAtUtc) => record({ entries, store, loggedAtUtc }),
+    recordPlates: async (plates) => {
+      let recorded = 0;
+      for (const [i, plate] of plates.entries()) {
+        const last = i === plates.length - 1;
+        let result: RecordPlateResult;
+        try {
+          result = await (last ? record : recordQuietly)({
+            entries: plate.entries,
+            store,
+            loggedAtUtc: plate.loggedAtUtc,
+          });
+        } catch {
+          break;
+        }
+        if (result.kind !== 'recordPlateSuccess') break;
+        recorded++;
+      }
+      return { recorded, failed: plates.length - recorded };
+    },
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
     live: () => live,
     dispose() {
@@ -255,7 +332,7 @@ export async function createSession(
       abort.abort();
       stopWatching();
       ai.coaching.dispose();
-      catalog.clearCaches();
+      baseCatalog.clearCaches();
       ai.permit.close();
       stopScoping();
       syncQueue.clear();

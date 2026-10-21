@@ -8,6 +8,7 @@ import {
   mealSlotForHour,
   openPlateDismissalKey,
   openPlateSuggestionFor,
+  planDayCopy,
   visibleSlots,
   type MealSlot,
   type PlateLog,
@@ -25,9 +26,9 @@ import {
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
 import { NutritionSection, useShowNumbers, useTargets } from '../../components/nutrition';
-import { formatDayMonth, weekdayName } from '../../components/day/format';
+import { formatDayMonth, formatTime, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { capitalise, useLocale, useStrings } from '../../i18n';
+import { capitalise, fill, plural, useLocale, useStrings } from '../../i18n';
 import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { useLog } from '../../app/log-context';
 import { hrefs, navigate } from '../../app/router';
@@ -36,6 +37,7 @@ import { useSession } from '../../app/session';
 import { useStoreSnapshot } from '../../app/store-context';
 import { PlateCoach, useDismissals } from './coach';
 import { plateSummary } from '../plate/summary';
+import { CopyDayDialog } from './CopyDayDialog';
 
 const QUICK_REPEAT_MS = 5000;
 
@@ -95,7 +97,7 @@ export function TodayScreen() {
   const all = useStrings();
   const { locale } = useLocale();
   const s = all.today;
-  const { deletePlate, coach, coachInteractions, notes } = useSession();
+  const { deletePlate, coach, coachInteractions, notes, recordPlates } = useSession();
   const targets = useTargets();
   const showNumbers = useShowNumbers();
   const day = useDay();
@@ -103,6 +105,7 @@ export function TodayScreen() {
   const dismissed = useDismissals(notes);
   const [removing, setRemoving] = useState<PlateLog | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useNoticeTimeout(day.notice, () => day.setNotice(null));
 
@@ -196,6 +199,57 @@ export function TodayScreen() {
     }
   };
 
+  // "Copy this day to today": a past day's plates, kept in slot order and at their own clock times.
+  const copyPlan = useMemo(
+    () =>
+      viewingToday
+        ? []
+        : planDayCopy(
+            board.slots.flatMap((entry) => entry.plates),
+            day.today,
+          ),
+    [viewingToday, board, day.today],
+  );
+  const copyLines = useMemo(() => {
+    const byId = new Map(board.slots.flatMap((entry) => entry.plates).map((p) => [p.id, p]));
+    return copyPlan.map((planned) => {
+      const source = byId.get(planned.sourcePlateId);
+      return {
+        id: planned.sourcePlateId,
+        slot: planned.slot,
+        time: formatTime(planned.loggedAtUtc),
+        foods: source === undefined ? '' : plateSummary(source),
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
+  }, [copyPlan, board, locale]);
+  const copyDay = async () => {
+    if (busy || copyPlan.length === 0) return;
+    setBusy(true);
+    let recorded = 0;
+    try {
+      // One calm coach note for the whole batch (the last plate's); see Session.recordPlates.
+      recorded = (
+        await recordPlates(
+          copyPlan.map((p) => ({ entries: p.entries, loggedAtUtc: p.loggedAtUtc })),
+        )
+      ).recorded;
+    } catch {
+      recorded = 0;
+    }
+    setBusy(false);
+    setCopying(false);
+    const total = copyPlan.length;
+    day.setNotice((a) =>
+      recorded === total
+        ? plural(a.relog.copiedDay, recorded)
+        : recorded > 0
+          ? fill(a.relog.copiedDayPartial, { done: recorded, total })
+          : a.common.logFailed,
+    );
+    if (recorded > 0) day.select(day.today);
+  };
+
   const dayTotals = useMemo(
     () => dayNutrients(board.slots.flatMap((entry) => entry.plates)),
     [board],
@@ -211,6 +265,15 @@ export function TodayScreen() {
       <p role="status" className="text-signal-muted mx-5 mt-3 text-meta empty:hidden lg:mx-7">
         {day.notice}
       </p>
+      {copyPlan.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setCopying(true)}
+          className="text-porcelain-dim mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+        >
+          {all.relog.copyDay}
+        </button>
+      )}
       <QuickRepeat at={day.lastLoggedAt} onOpen={log.open} />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="min-w-0 pb-6">
@@ -281,6 +344,13 @@ export function TodayScreen() {
           <NoStreaksLine className="mt-4" />
         </section>
       </div>
+      <CopyDayDialog
+        open={copying}
+        lines={copyLines}
+        busy={busy}
+        onKeep={() => setCopying(false)}
+        onCopy={() => void copyDay()}
+      />
       <RemovePlateDialog
         open={removing !== null}
         dish={removing ? plateSummary(removing) : ''}

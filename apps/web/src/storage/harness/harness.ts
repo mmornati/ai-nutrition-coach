@@ -123,7 +123,7 @@ function draft(name: string) {
 async function runContract(passphrase: string): Promise<ContractResult[]> {
   const results: ContractResult[] = [];
   for (const contractCase of storeContractCases) {
-    const { controller, store, notes, kv, eraser } = bundle;
+    const { controller, store, notes, saved, kv, eraser } = bundle;
     let outcome: ContractResult;
     try {
       await eraser.eraseAll();
@@ -133,6 +133,7 @@ async function runContract(passphrase: string): Promise<ContractResult[]> {
       const subject: ContractSubject = {
         store,
         notes,
+        saved,
         kv,
         lock: () => controller.lock(),
         dispose: () => controller.lock(),
@@ -157,6 +158,7 @@ const harness = {
   controller: bundle.controller,
   store: bundle.store,
   notes: bundle.notes,
+  saved: bundle.saved,
   kv: bundle.kv,
   eraser: bundle.eraser,
   headerDbName: HEADER_DB_NAME,

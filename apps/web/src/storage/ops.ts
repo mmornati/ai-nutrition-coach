@@ -53,6 +53,39 @@ export interface NoteRow extends NoteInsert {
   readonly id: number;
 }
 
+/** One kept entry of a saved meal or an ingredient of a recipe (the food snapshot columns). */
+export interface SavedItemRow extends EntryInsert {
+  readonly id: number;
+  /** `saved_meal_id` or `recipe_id`. */
+  readonly parentId: number;
+}
+
+export interface SavedMealRow {
+  readonly id: number;
+  readonly name: string;
+  readonly createdAtUtc: string;
+}
+
+/** Saved meals newest first; each meal's items by ascending position. */
+export interface SavedMealSet {
+  readonly meals: readonly SavedMealRow[];
+  readonly items: readonly SavedItemRow[];
+}
+
+export interface RecipeRow {
+  readonly id: number;
+  readonly name: string;
+  readonly servings: number;
+  /** Grams as text, verbatim; `null` when the dish was not weighed. */
+  readonly cookedWeightGrams: string | null;
+  readonly createdAtUtc: string;
+}
+
+export interface RecipeSet {
+  readonly recipes: readonly RecipeRow[];
+  readonly items: readonly SavedItemRow[];
+}
+
 export interface StoreDbOps {
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate;
   /** `[from, to)` on the UTC text, either bound optional. Newest first. */
@@ -71,6 +104,23 @@ export interface StoreDbOps {
   insertInteraction(coachNoteId: number, kind: string, atUtc: string): number;
   /** Notes, their interactions and their dismissal markers (the plate itself stays). */
   deleteNotesForPlate(plateLogId: number): void;
+
+  /** Schema v3. The meal and its items in ONE transaction; returns the new id. */
+  insertSavedMeal(name: string, createdAtUtc: string, items: readonly EntryInsert[]): number;
+  readSavedMeals(): SavedMealSet;
+  renameSavedMeal(id: number, name: string): void;
+  /** The meal and its items in ONE transaction. An unknown id is a no-op. */
+  deleteSavedMeal(id: number): void;
+  insertRecipe(
+    name: string,
+    servings: number,
+    cookedWeightGrams: string | null,
+    createdAtUtc: string,
+    items: readonly EntryInsert[],
+  ): number;
+  readRecipes(): RecipeSet;
+  /** The recipe and its items in ONE transaction. An unknown id is a no-op. */
+  deleteRecipe(id: number): void;
 
   kvGet(key: string): string | null;
   kvSet(key: string, value: string): void;
@@ -91,6 +141,13 @@ export const STORE_OP_NAMES: readonly StoreOpName[] = [
   'pruneOpenPlateDismissals',
   'insertInteraction',
   'deleteNotesForPlate',
+  'insertSavedMeal',
+  'readSavedMeals',
+  'renameSavedMeal',
+  'deleteSavedMeal',
+  'insertRecipe',
+  'readRecipes',
+  'deleteRecipe',
   'kvGet',
   'kvSet',
   'kvDelete',

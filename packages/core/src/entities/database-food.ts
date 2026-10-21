@@ -1,6 +1,6 @@
 import { sanitizeNutrients, type Nutrients } from '../value-types/nutrients';
 
-export const SOURCE_CATALOGS = ['off', 'usda', 'manual', 'seed', 'ciqual'] as const;
+export const SOURCE_CATALOGS = ['off', 'usda', 'manual', 'seed', 'ciqual', 'recipe'] as const;
 export type SourceCatalog = (typeof SOURCE_CATALOGS)[number];
 
 export const FOOD_GROUPS = ['vegFruit', 'protein', 'starch', 'dairy', 'other'] as const;

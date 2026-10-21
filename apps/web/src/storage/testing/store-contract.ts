@@ -20,6 +20,7 @@ import {
   type FoodEntryDraft,
   type FoodGroup,
   type PlateLog,
+  type SavedStore,
   type SourceCatalog,
 } from '@anc/core';
 import { KeyValueStoreLocked, type KeyValueStore } from '../key-value-store';
@@ -27,6 +28,7 @@ import { KeyValueStoreLocked, type KeyValueStore } from '../key-value-store';
 export interface ContractSubject {
   readonly store: EncryptedStore;
   readonly notes: CoachNoteStore;
+  readonly saved: SavedStore;
   readonly kv: KeyValueStore;
   /** Lock the store (drop the database); the same ports must then answer typed "locked" results. */
   lock(): Promise<void>;
@@ -91,6 +93,19 @@ function draft(
     },
   };
 }
+
+/** A starch ingredient with a weight and per-100 g nutrients, as a recipe needs. */
+const weighed = (name: string, grams: number): FoodEntryDraft => ({
+  databaseFood: {
+    sourceRef: `seed:${name}`,
+    displayName: name,
+    source: 'seed',
+    foodGroup: 'starch',
+    nutrientsPer100g: { energyKcal: 130, protein: 2.7 },
+  },
+  quantity: { low: grams, high: grams, unit: 'g', displayLabel: `${grams} g`, grams },
+});
+const weighedOne = (): FoodEntryDraft => weighed('Rice', 100);
 
 async function record(
   store: EncryptedStore,
@@ -449,7 +464,7 @@ export const storeContractCases: readonly ContractCase[] = [
   },
   {
     name: 'locked: writes answer a typed failure, reads fail typed, watchers emit nothing',
-    async run({ store, notes, kv, lock }) {
+    async run({ store, notes, saved, kv, lock }) {
       await record(store, [draft('Kept')], T0);
       const seen = collect<readonly PlateLog[]>();
       await lock();
@@ -477,6 +492,19 @@ export const storeContractCases: readonly ContractCase[] = [
         'interaction',
       );
       assert((await notes.deleteForPlate(1)).kind === 'plateDeleteFailed', 'deleteForPlate');
+      for (const result of [
+        await saved.listMeals(),
+        await saved.saveMeal({ name: 'x', entries: [draft('x')] }),
+        await saved.renameMeal(1, 'y'),
+        await saved.deleteMeal(1),
+        await saved.listRecipes(),
+        await saved.deleteRecipe(1),
+      ]) {
+        assert(
+          result.kind === 'savedFailed' && result.reason === 'locked',
+          'saved meals and recipes answer a typed locked failure',
+        );
+      }
       assert((await kv.read('ai.settings')) === null, 'kv reads null while locked');
       let thrown: unknown;
       try {
@@ -744,6 +772,169 @@ export const storeContractCases: readonly ContractCase[] = [
         JSON.stringify(food) === JSON.stringify(stored?.entries[0]?.databaseFood),
         'what is returned is what a later read gives',
       );
+    },
+  },
+
+  // ── SavedStore (schema v3) ──────────────────────────────────────────────────────────────────
+  {
+    name: 'saved meals: round-trip every field, newest first, entries in order',
+    async run({ saved }) {
+      const rich: FoodEntryDraft = {
+        databaseFood: {
+          sourceRef: 'off:3017620422003',
+          displayName: 'Spread',
+          source: 'off',
+          foodGroup: 'other',
+          nutrientsPer100g: { energyKcal: 539, sugars: 56.3, fat: 30.9, saturatedFat: 10.6 },
+          extra: { nutriscoreGrade: 'e', novaGroup: 4, nutrientsEstimated: true },
+        },
+        quantity: {
+          low: 0.5,
+          high: 0.5,
+          unit: 'g',
+          displayLabel: '15 g',
+          grams: 15,
+          gramsEstimated: false,
+        },
+      };
+      const first = await saved.saveMeal({
+        name: '  Usual   breakfast ',
+        entries: [draft('Oats'), rich],
+      });
+      assert(first.kind === 'saved' && first.value.id > 0, 'a saved meal gets a positive id');
+      assert(
+        first.kind === 'saved' && first.value.name === 'Usual breakfast',
+        'the name is cleaned',
+      );
+      await sleep(3);
+      const second = await saved.saveMeal({ name: 'Lunch', entries: [draft('Rice')] });
+      assert(second.kind === 'saved', 'second saved');
+      const listed = await saved.listMeals();
+      assert(listed.kind === 'saved', 'listed');
+      if (listed.kind !== 'saved') return;
+      same(
+        listed.value.map((m) => m.name),
+        ['Lunch', 'Usual breakfast'],
+        'newest first',
+      );
+      const breakfast = listed.value[1];
+      same(
+        breakfast?.entries.map((e) => e.databaseFood.displayName),
+        ['Oats', 'Spread'],
+        'order',
+      );
+      same(breakfast?.entries[1], rich, 'every field of an entry round-trips');
+      assert(
+        (breakfast?.createdAtUtc ?? 0) > 0 &&
+          (listed.value[0]?.createdAtUtc ?? 0) >= (breakfast?.createdAtUtc ?? 0),
+        'created time is kept',
+      );
+    },
+  },
+  {
+    name: 'saved meals: rename and delete touch only that meal; delete is idempotent',
+    async run({ saved }) {
+      const a = await saved.saveMeal({ name: 'A', entries: [draft('One'), draft('Two')] });
+      const b = await saved.saveMeal({ name: 'B', entries: [draft('Three')] });
+      assert(a.kind === 'saved' && b.kind === 'saved', 'both saved');
+      if (a.kind !== 'saved' || b.kind !== 'saved') return;
+      assert((await saved.renameMeal(a.value.id, ' Renamed ')).kind === 'saved', 'renamed');
+      assert(
+        (await saved.renameMeal(a.value.id, '   ')).kind === 'savedFailed',
+        'empty name refused',
+      );
+      let listed = await saved.listMeals();
+      same(
+        listed.kind === 'saved' ? listed.value.map((m) => m.name).sort() : null,
+        ['B', 'Renamed'],
+        'renamed only A',
+      );
+      assert((await saved.deleteMeal(a.value.id)).kind === 'saved', 'deleted');
+      assert((await saved.deleteMeal(a.value.id)).kind === 'saved', 'delete again is a no-op');
+      assert((await saved.deleteMeal(9999)).kind === 'saved', 'unknown id succeeds');
+      listed = await saved.listMeals();
+      same(
+        listed.kind === 'saved' ? listed.value.map((m) => [m.name, m.entries.length]) : null,
+        [['B', 1]],
+        'B and its entry survive',
+      );
+    },
+  },
+  {
+    name: 'saved meals: an empty name, no entries or an invalid quantity are refused, nothing written',
+    async run({ saved }) {
+      const bad = draft('Bad', { low: 2, high: 1 });
+      for (const input of [
+        { name: '   ', entries: [draft('x')] },
+        { name: 'ok', entries: [] },
+        { name: 'ok', entries: [bad] },
+      ]) {
+        const result = await saved.saveMeal(input);
+        assert(result.kind === 'savedFailed' && result.reason === 'invalid', 'invalid');
+      }
+      const listed = await saved.listMeals();
+      same(listed.kind === 'saved' ? listed.value : null, [], 'nothing was written');
+    },
+  },
+  {
+    name: 'recipes: round-trip servings, cooked weight and weighed ingredients; delete cascades',
+    async run({ saved }) {
+      const stew = await saved.saveRecipe({
+        name: 'Stew',
+        servings: 4,
+        cookedWeightGrams: 1200.5,
+        ingredients: [weighed('Rice', 200), weighed('Beans', 300)],
+      });
+      const plain = await saved.saveRecipe({
+        name: 'Plain',
+        servings: 1,
+        ingredients: [weighed('Rice', 100)],
+      });
+      assert(stew.kind === 'saved' && plain.kind === 'saved', 'both saved');
+      if (stew.kind !== 'saved' || plain.kind !== 'saved') return;
+      const listed = await saved.listRecipes();
+      assert(listed.kind === 'saved', 'listed');
+      if (listed.kind !== 'saved') return;
+      same(
+        listed.value.map((r) => [
+          r.name,
+          r.servings,
+          r.cookedWeightGrams ?? null,
+          r.ingredients.length,
+        ]),
+        [
+          ['Plain', 1, null, 1],
+          ['Stew', 4, 1200.5, 2],
+        ],
+        'recipes newest first with their weights',
+      );
+      same(listed.value[1]?.ingredients[1], weighed('Beans', 300), 'an ingredient round-trips');
+      assert((await saved.deleteRecipe(stew.value.id)).kind === 'saved', 'deleted');
+      assert((await saved.deleteRecipe(stew.value.id)).kind === 'saved', 'idempotent');
+      const after = await saved.listRecipes();
+      same(
+        after.kind === 'saved' ? after.value.map((r) => r.name) : null,
+        ['Plain'],
+        'only Stew is gone',
+      );
+    },
+  },
+  {
+    name: 'recipes: a missing weight, a bad serving count or no ingredient is refused',
+    async run({ saved }) {
+      const unweighed = draft('Rice');
+      for (const input of [
+        { name: 'r', servings: 1, ingredients: [] },
+        { name: 'r', servings: 0, ingredients: [weighedOne()] },
+        { name: 'r', servings: 2, ingredients: [unweighed] },
+        { name: '', servings: 2, ingredients: [weighedOne()] },
+        { name: 'r', servings: 2, cookedWeightGrams: -5, ingredients: [weighedOne()] },
+      ]) {
+        const result = await saved.saveRecipe(input);
+        assert(result.kind === 'savedFailed' && result.reason === 'invalid', 'invalid recipe');
+      }
+      const listed = await saved.listRecipes();
+      same(listed.kind === 'saved' ? listed.value : null, [], 'nothing was written');
     },
   },
   {

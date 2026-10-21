@@ -13,7 +13,7 @@ import type { Session } from '../../app/session';
 
 /** The export pieces for one unlocked session, built over its store and its encrypted key/value table. */
 export function useExportServices(session: Session, destination?: ExportDestination) {
-  const { store, kv, clock, profile } = session;
+  const { store, kv, clock, profile, saved } = session;
   return useMemo(() => {
     const history = createExportHistory(kv);
     return {
@@ -25,9 +25,16 @@ export function useExportServices(session: Session, destination?: ExportDestinat
         history,
         clock,
         readProfile: () => profile.read(),
+        readSaved: async () => {
+          const [meals, recipes] = await Promise.all([saved.listMeals(), saved.listRecipes()]);
+          return {
+            meals: meals.kind === 'saved' ? meals.value : [],
+            recipes: recipes.kind === 'saved' ? recipes.value : [],
+          };
+        },
       }),
     };
-  }, [store, kv, clock, profile, destination]);
+  }, [store, kv, clock, profile, saved, destination]);
 }
 
 export interface ExportInfo {

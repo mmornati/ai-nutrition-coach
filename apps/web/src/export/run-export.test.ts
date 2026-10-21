@@ -87,6 +87,49 @@ describe('runExport', () => {
     expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
   });
 
+  it('puts saved meals and recipes in the json export only, and a failing read leaves them out', async () => {
+    const t = setup();
+    const entry = {
+      databaseFood: {
+        sourceRef: 'manual:egg',
+        displayName: 'Egg',
+        source: 'manual' as const,
+        foodGroup: 'protein' as const,
+      },
+      quantity: { low: 1, high: 1, unit: 'g', displayLabel: '60 g', grams: 60 },
+    };
+    const make = (readSaved: () => Promise<never | { meals: never[]; recipes: never[] }>) =>
+      createRunExport({
+        exporters: t.exporters,
+        destination: t.destination,
+        history: t.history,
+        clock: () => NOW,
+        readSaved,
+      });
+    const withSaved = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readSaved: () =>
+        Promise.resolve({
+          meals: [{ id: 1, name: 'Usual', createdAtUtc: NOW, entries: [entry] }],
+          recipes: [],
+        }),
+    });
+    await withSaved({ format: 'json', scope: ALL_HISTORY_SCOPE });
+    await withSaved({ format: 'csv', scope: ALL_HISTORY_SCOPE });
+    expect(JSON.parse(t.written[0]?.text ?? '{}')).toMatchObject({
+      savedMeals: [{ name: 'Usual' }],
+    });
+    expect(t.written[1]?.text).not.toContain('Usual');
+    await make(() => Promise.reject(new Error('locked')))({
+      format: 'json',
+      scope: ALL_HISTORY_SCOPE,
+    });
+    expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
+  });
+
   it('failing to remember the date never turns a successful export into an error', async () => {
     const t = setup({ locked: true });
     expect((await t.run({ format: 'csv', scope: ALL_HISTORY_SCOPE })).kind).toBe('exported');

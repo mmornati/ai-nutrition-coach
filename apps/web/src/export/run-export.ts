@@ -11,7 +11,7 @@ import {
 import { serializePlatesToCsv } from './csv-exporter';
 import type { ExportDestination } from './export-destination';
 import type { ExportHistory } from './export-history';
-import { serializePlatesToJson } from './json-exporter';
+import { serializePlatesToJson, type SavedExport } from './json-exporter';
 
 export type RunExportResult =
   | { readonly kind: 'exported'; readonly filename: string; readonly plateCount: number }
@@ -44,6 +44,8 @@ export function createRunExport(deps: {
   readonly clock?: Clock;
   /** The optional profile, included in the JSON export only. Failure reads as none. */
   readonly readProfile?: () => Promise<Profile | undefined>;
+  /** The saved meals and recipes, included in the JSON export only. Failure reads as none. */
+  readonly readSaved?: () => Promise<SavedExport | undefined>;
 }): (input: {
   readonly format: ExportFormat;
   readonly scope: ExportScope;
@@ -60,10 +62,18 @@ export function createRunExport(deps: {
         profile = undefined;
       }
     }
+    let saved: SavedExport | undefined;
+    if (format === 'json' && deps.readSaved) {
+      try {
+        saved = await deps.readSaved();
+      } catch {
+        saved = undefined;
+      }
+    }
     const text =
       format === 'csv'
         ? serializePlatesToCsv(result.plates)
-        : serializePlatesToJson(result.plates, profile);
+        : serializePlatesToJson(result.plates, profile, saved);
     const now = clock();
     const filename = exportFilename(format, now);
     let outcome;

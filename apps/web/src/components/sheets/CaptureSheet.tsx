@@ -10,6 +10,8 @@ export interface CaptureSheetProps {
   readonly onSnapshot: () => void;
   readonly onBarcode: () => void;
   readonly onType: () => void;
+  /** Saved meals and recipes: shown as a quiet link under the tiles when given. */
+  readonly onSaved?: () => void;
   /** Name of the next meal slot, shown as "Next station: <meal>". */
   readonly nextMeal?: string;
 }
@@ -58,9 +60,11 @@ export function CaptureSheet({
   onSnapshot,
   onBarcode,
   onType,
+  onSaved,
   nextMeal,
 }: CaptureSheetProps) {
-  const s = useStrings().capture;
+  const all = useStrings();
+  const s = all.capture;
   const choose = (action: () => void) => () => {
     onClose();
     action();
@@ -94,6 +98,15 @@ export function CaptureSheet({
           onClick={choose(onType)}
         />
       </div>
+      {onSaved && (
+        <button
+          type="button"
+          onClick={choose(onSaved)}
+          className="text-porcelain-dim inline-flex min-h-12 w-fit cursor-pointer items-center bg-transparent text-lead underline underline-offset-4"
+        >
+          {all.relog.savedEntry}
+        </button>
+      )}
     </Sheet>
   );
 }
