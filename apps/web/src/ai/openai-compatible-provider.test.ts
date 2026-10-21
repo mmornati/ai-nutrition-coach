@@ -737,3 +737,72 @@ describe('the catalog classifier wired as the AI fallback (no group from the mod
     ]);
   });
 });
+
+describe('completeChat (the text seam) and the key-less transport', () => {
+  const messages = [{ role: 'user', content: 'Hello' }] as const;
+
+  it('BYOK text: the same two headers, exactly the fields the caller gave', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = chatReply('Hi there');
+    const out = await provider(f).completeChat({ messages, apiKey: TEST_KEY, maxTokens: 120 });
+    expect(out).toEqual({ kind: 'text', text: 'Hi there' });
+    expect(Object.keys(f.last.headers).sort()).toEqual(ALLOWED_HEADERS);
+    expect(f.last.headers.authorization).toBe(`Bearer ${TEST_KEY}`);
+    expect(JSON.parse(f.last.body)).toEqual({
+      model: 'vision-1',
+      messages: [{ role: 'user', content: 'Hello' }],
+      max_tokens: 120,
+      temperature: 0.2,
+    });
+    expect(f.last.url).toBe('https://api.example.com/v1/chat/completions');
+  });
+
+  it('the key-less transport (the instance proxy) sends no Authorization header at all', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = chatReply('[]');
+    const p = new OpenAiCompatibleByokProvider({
+      endpointUrl: 'https://plate.example.test/ai/v1',
+      model: 'vendor/model-x',
+      sanitizePhoto: stubSanitizer,
+      classifyFoodGroup: stubClassify,
+      fetch: f.fetch,
+      sendKey: false,
+    });
+    await p.recognize({ photoBytes: photoBytes(1), apiKey: TEST_KEY });
+    expect(f.last.headers).toEqual({ 'content-type': 'application/json' });
+    // Even if a key were passed by mistake it is neither sent nor written anywhere.
+    expect(f.last.body).not.toContain(TEST_KEY);
+    await p.completeChat({ messages, apiKey: TEST_KEY });
+    expect(f.last.headers).toEqual({ 'content-type': 'application/json' });
+    // "Test connection" needs no key here.
+    expect(await p.testConnection({ apiKey: '' })).toEqual({ kind: 'ok' });
+    expect(f.last.headers).toEqual({ 'content-type': 'application/json' });
+  });
+
+  it('maps 401/429/5xx/empty/oversize/timeouts to typed outcomes and never throws', async () => {
+    const run = async (setup: (f: FakeFetch) => void) => {
+      const f = new FakeFetch();
+      f.jsonBody = chatReply('x');
+      setup(f);
+      return provider(f, { receiveTimeoutMs: 30 }).completeChat({ messages, apiKey: TEST_KEY });
+    };
+    expect(await run((f) => (f.status = 401))).toEqual({ kind: 'keyRejected' });
+    expect(await run((f) => (f.status = 429))).toEqual({ kind: 'quotaExhausted' });
+    expect(await run((f) => (f.status = 503))).toMatchObject({
+      kind: 'failure',
+      cause: 'httpError',
+      status: 503,
+    });
+    expect(await run((f) => (f.jsonBody = { choices: [] }))).toMatchObject({
+      kind: 'failure',
+      cause: 'invalidResponse',
+    });
+    expect(await run((f) => (f.error = new TypeError('Failed to fetch')))).toMatchObject({
+      kind: 'failure',
+      cause: 'network',
+    });
+    expect(await run((f) => (f.hang = true))).toMatchObject({ kind: 'failure', cause: 'timeout' });
+    const unset = await provider(new FakeFetch(), { endpoint: '' }).completeChat({ messages });
+    expect(unset).toMatchObject({ kind: 'failure', cause: 'notConfigured' });
+  });
+});

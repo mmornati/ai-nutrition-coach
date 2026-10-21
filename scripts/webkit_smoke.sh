@@ -76,6 +76,13 @@ done
 [[ -f "$PWA/sw.js" && -f "$PWA/precache-manifest.json" ]] \
   || { echo "✗ the image rendered no sw.js / precache manifest" >&2; exit 1; }
 
+# The instance AI proxy is off by default (docs/self-host.md): the offer says so and the proxy path
+# is a plain 404, so the app the browsers load is in its no-AI-key-on-the-server state.
+[[ "$(docker exec "$SERVER" wget -q -O - http://127.0.0.1:8080/ai/config.json)" == '{"enabled":false}' ]] \
+  || { echo "✗ /ai/config.json is not {\"enabled\":false} by default" >&2; exit 1; }
+docker exec "$SERVER" wget -S -O /dev/null --post-data '{}' http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 \
+  | grep -q 'HTTP/1.1 404' || { echo "✗ the disabled AI proxy path is not a 404" >&2; exit 1; }
+
 echo "▶ running the smoke in: $BROWSERS"
 docker run --rm --network "container:$SERVER" --ipc=host \
   -v "$ROOT/tools/webkit_smoke":/src:ro -v "$PWA":/pwa \

@@ -30,7 +30,14 @@ import {
   type FetchLike,
 } from '../net/capped-fetch';
 import { parseRateLimitReset } from './rate-limit-reset';
-import type { ByokOutcome, ByokProvider, ClassifyFoodGroup, PhotoSanitizer } from './types';
+import type {
+  ByokOutcome,
+  ByokProvider,
+  ChatMessage,
+  ChatOutcome,
+  ClassifyFoodGroup,
+  PhotoSanitizer,
+} from './types';
 
 /** The status reported for a redirect (never followed): the browser hides the real one. */
 const REDIRECT_STATUS = 302;
@@ -132,6 +139,11 @@ export interface OpenAiCompatibleProviderOptions {
   readonly signal?: AbortSignal | undefined;
   /** The language to ask the answer in, read when the request is built. Default: the app's. */
   readonly locale?: (() => Locale) | undefined;
+  /**
+   * `false` for the instance proxy: the request carries NO Authorization header (the server adds
+   * the key; the browser never holds it). Default `true` (BYOK).
+   */
+  readonly sendKey?: boolean | undefined;
 }
 
 function base64(bytes: Uint8Array): string {
@@ -194,12 +206,19 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
     body: unknown,
     apiKey: string,
     receiveTimeoutMs: number | undefined,
+    signal?: AbortSignal,
   ): Promise<PostResult> {
     const receiveMs = receiveTimeoutMs ?? RECEIVE_TIMEOUT_MS;
+    const outer =
+      signal === undefined ? this.#opts.signal : combineSignals(this.#opts.signal, signal);
     const r = await cappedFetch(url, {
       method: 'POST',
-      // Exactly these two headers. The browser adds its own User-Agent and Origin.
-      headers: { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
+      // Exactly these two headers (only Content-Type for the instance proxy, whose server holds
+      // the key). The browser adds its own User-Agent and Origin.
+      headers:
+        this.#opts.sendKey === false
+          ? { 'Content-Type': 'application/json' }
+          : { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       headersTimeoutMs: receiveMs,
       idleTimeoutMs: receiveMs,
@@ -207,7 +226,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         ? {}
         : { bodyTimeoutMs: this.#opts.bodyReadTimeoutMs }),
       fetchImpl: this.#fetch(),
-      ...(this.#opts.signal ? { signal: this.#opts.signal } : {}),
+      ...(outer ? { signal: outer } : {}),
     });
     if (r.kind === 'failure') {
       switch (r.reason) {
@@ -281,7 +300,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           : { kind: 'quotaExhausted', resetAt };
       }
       if (status < 200 || status >= 300) {
-        return failure('httpError', fill(t.httpStatus, { status, host: endpoint.host }));
+        return failure('httpError', fill(t.httpStatus, { status, host: endpoint.host }), status);
       }
       if (!isRecord(reply.json)) return { kind: 'noMatch' };
       const text = extractText(reply.json);
@@ -311,7 +330,9 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         ? { kind: 'notConfigured' }
         : { kind: 'endpointInvalid', problem: endpoint.problem };
     }
-    if (model.trim() === '' || args.apiKey.trim() === '') return { kind: 'notConfigured' };
+    if (model.trim() === '' || (this.#opts.sendKey !== false && args.apiKey.trim() === '')) {
+      return { kind: 'notConfigured' };
+    }
     try {
       // The smallest request that proves endpoint + key + model: one token.
       const reply = await this.#post(
@@ -337,6 +358,77 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
       if (e instanceof ResponseTooLargeError) return { kind: 'responseTooLarge' };
       if (e instanceof RequestTimeoutError) return { kind: 'unreachable', reason: 'timeout' };
       return { kind: 'unreachable', reason: 'network' };
+    }
+  }
+
+  /**
+   * One plain-text chat completion through the same transport (same endpoint, same headers, same
+   * caps and timeouts): the seam a later LLM coach reuses. Nothing here is added to the messages:
+   * the caller decides every word that leaves the device. For the instance proxy `apiKey` is
+   * ignored (no Authorization header is sent). Never throws.
+   */
+  async completeChat(args: {
+    readonly messages: readonly ChatMessage[];
+    readonly apiKey?: string;
+    readonly maxTokens?: number;
+    readonly temperature?: number;
+    readonly signal?: AbortSignal;
+  }): Promise<ChatOutcome> {
+    const t = strings().ai.failure;
+    const { endpointUrl, model } = this.#opts;
+    if (endpointUrl.trim() === '' || model.trim() === '') {
+      return { kind: 'failure', cause: 'notConfigured', message: t.endpointNotSet };
+    }
+    const endpoint = validateByokEndpoint(endpointUrl);
+    if (endpoint.kind !== 'valid') {
+      return { kind: 'failure', cause: 'notConfigured', message: t.endpointInvalid };
+    }
+    try {
+      const reply = await this.#post(
+        endpoint.chatCompletions,
+        {
+          model,
+          messages: args.messages.map((m) => ({ role: m.role, content: m.content })),
+          max_tokens: args.maxTokens ?? RECOGNITION_MAX_TOKENS,
+          temperature: args.temperature ?? RECOGNITION_TEMPERATURE,
+        },
+        args.apiKey ?? '',
+        this.#opts.receiveTimeoutMs,
+        args.signal,
+      );
+      const { status } = reply;
+      if (status === 401 || status === 403) return { kind: 'keyRejected' };
+      if (status === 429) {
+        const resetAt = resetAtOf(reply.headers);
+        return resetAt === undefined
+          ? { kind: 'quotaExhausted' }
+          : { kind: 'quotaExhausted', resetAt };
+      }
+      if (status < 200 || status >= 300) {
+        return {
+          kind: 'failure',
+          cause: 'httpError',
+          message: fill(t.httpStatus, { status, host: endpoint.host }),
+          status,
+        };
+      }
+      const text = isRecord(reply.json) ? extractText(reply.json) : null;
+      if (text === null || text === '') {
+        return { kind: 'failure', cause: 'invalidResponse', message: t.unreachable };
+      }
+      return { kind: 'text', text };
+    } catch (e) {
+      if (e instanceof ResponseTooLargeError) {
+        return { kind: 'failure', cause: 'responseTooLarge', message: t.responseTooLarge };
+      }
+      if (e instanceof RequestTimeoutError) {
+        return {
+          kind: 'failure',
+          cause: 'timeout',
+          message: fill(t.timedOut, { host: endpoint.host }),
+        };
+      }
+      return { kind: 'failure', cause: 'network', message: t.unreachable };
     }
   }
 
@@ -421,6 +513,17 @@ function parseConfidence(value: unknown): number {
   return Math.min(1, Math.max(0, n));
 }
 
+/** An outer cancel (the session ended) plus a per-call one (the caller gave up). */
+function combineSignals(a: AbortSignal | undefined, b: AbortSignal): AbortSignal {
+  if (a === undefined) return b;
+  const controller = new AbortController();
+  const abort = (): void => controller.abort();
+  if (a.aborted || b.aborted) controller.abort();
+  a.addEventListener('abort', abort, { once: true });
+  b.addEventListener('abort', abort, { once: true });
+  return controller.signal;
+}
+
 function resetAtOf(headers: Headers): EpochMs | undefined {
   return (
     parseRateLimitReset(headers.get('retry-after')) ??
@@ -431,6 +534,9 @@ function resetAtOf(headers: Headers): EpochMs | undefined {
 function failure(
   cause: Extract<ByokOutcome, { kind: 'failure' }>['cause'],
   message: string,
+  status?: number,
 ): ByokOutcome {
-  return { kind: 'failure', cause, message };
+  return status === undefined
+    ? { kind: 'failure', cause, message }
+    : { kind: 'failure', cause, message, status };
 }

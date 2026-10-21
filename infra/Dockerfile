@@ -127,11 +127,18 @@ COPY --chmod=0755 infra/nginx/docker-entrypoint.d/10-render-access-log.sh /docke
 # AI_NUTRITION_COACH_SW_KILL=1, the kill-switch worker (docs/pwa.md).
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/30-render-sw.sh /docker-entrypoint.d/30-render-sw.sh
 COPY tools/pwa/sw.kill.js /etc/ai-nutrition-coach/sw.kill.js
+# The optional instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on your instance").
+# OFF unless AI_PROXY_ENABLED=1 and AI_PROXY_KEY are set when the container starts. The key is
+# NEVER baked in: this step renders it, at start, into a 0600 file under /tmp (a tmpfs), and fails
+# the start if it would appear anywhere else. The njs script forces the model and caps the tokens.
+COPY infra/nginx/ai-proxy/ /etc/ai-nutrition-coach/ai-proxy/
+COPY --chmod=0755 infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh /docker-entrypoint.d/40-render-ai-proxy.sh
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
     NGINX_ENVSUBST_FILTER=AI_NUTRITION_COACH_ \
     NGINX_ENTRYPOINT_QUIET_LOGS=1 \
     AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="" \
-    AI_NUTRITION_COACH_ACCESS_LOG="off"
+    AI_NUTRITION_COACH_ACCESS_LOG="off" \
+    AI_PROXY_ENABLED="0"
 
 # The release build output.
 COPY --from=build /work/apps/web/dist /usr/share/nginx/html

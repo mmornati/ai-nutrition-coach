@@ -281,3 +281,115 @@ describe('YourAiScreen', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 });
+
+describe('YourAiScreen: the AI this server offers', () => {
+  const OFFER = { enabled: true, model: 'vendor/model-x', label: 'Acme AI' };
+  const offered = () => {
+    const fake = new FakeFetch();
+    fake.instanceConfig = OFFER;
+    return fake;
+  };
+  const noAi = () => new AiSettings({ rung: { kind: 'noOp' } });
+
+  it('is not listed while the server offers none (the default)', async () => {
+    await openAi();
+    expect(screen.queryByRole('radio', { name: /Provided by this server/ })).toBeNull();
+    expect(screen.getByRole('radiogroup', { name: 'Recognising a photo' })).toBeVisible();
+  });
+
+  it('is listed after No AI, with an honest line about where photos go', async () => {
+    await openAi({ fake: offered(), seed: noAi() });
+    const group = screen.getByRole('radiogroup', { name: 'Recognising a photo' });
+    const radios = await waitFor(() => {
+      const found = within(group).getAllByRole('radio');
+      expect(found).toHaveLength(5);
+      return found;
+    });
+    expect(radios.map((r) => r.closest('label')?.textContent ?? '')).toEqual([
+      expect.stringContaining('No AI'),
+      expect.stringContaining('Provided by this server'),
+      expect.stringContaining('My own key'),
+      expect.stringContaining('Free hosted model'),
+      expect.stringContaining('Model on this device'),
+    ]);
+    expect(radios[1]?.closest('label')?.textContent).toContain(
+      'No key needed. Photos go to this server, which sends them on to Acme AI.',
+    );
+    expect(radios[1]).toBeEnabled();
+  });
+
+  it('a NEW install starts on it (nothing to set up) and the screen explains it', async () => {
+    await openAi({ fake: offered() });
+    const radio = await screen.findByRole('radio', { name: /Provided by this server/ });
+    await waitFor(() => expect(radio).toBeChecked());
+    const section = screen.getByRole('heading', { name: 'AI on this server' }).closest('section');
+    expect(section).not.toBeNull();
+    const text = section?.textContent ?? '';
+    expect(text).toContain('localhost');
+    expect(text).toContain('Acme AI');
+    expect(text).toContain('Model: vendor/model-x');
+    // No key form, no key field: the server holds the key.
+    expect(screen.queryByLabelText('API key')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/sk-|Bearer/);
+  });
+
+  it('an existing No AI choice is kept; choosing the server’s AI saves it, and No AI goes back', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ fake: offered(), seed: noAi() });
+    const instance = await screen.findByRole('radio', { name: /Provided by this server/ });
+    expect(screen.getByRole('radio', { name: /No AI/ })).toBeChecked();
+    expect(instance).not.toBeChecked();
+
+    await user.click(instance);
+    await waitFor(async () => expect(await storedSettings(bundle)).toContain('"kind":"instance"'));
+    expect(instance).toBeChecked();
+    expect(await screen.findByRole('heading', { name: 'AI on this server' })).toBeVisible();
+
+    await user.click(screen.getByRole('radio', { name: /No AI/ }));
+    await waitFor(async () => expect(await storedSettings(bundle)).toContain('"kind":"noOp"'));
+    expect(screen.queryByRole('heading', { name: 'AI on this server' })).toBeNull();
+  });
+
+  it('opening My own key from it swaps the explanation for the usual key form', async () => {
+    const user = userEvent.setup();
+    await openAi({ fake: offered(), seed: new AiSettings({ rung: { kind: 'instance' } }) });
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Provided by this server/ })).toBeChecked(),
+    );
+    await chooseOwnKey(user);
+    expect(screen.getByLabelText('API key')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'AI on this server' })).toBeNull();
+  });
+
+  it('when the server stops offering it, nothing is faked as chosen and No AI can still be picked', async () => {
+    const user = userEvent.setup();
+    const fake = new FakeFetch(); // offers nothing
+    const { bundle } = await openAi({
+      fake,
+      seed: new AiSettings({ rung: { kind: 'instance' } }),
+    });
+    expect(screen.queryByRole('radio', { name: /Provided by this server/ })).toBeNull();
+    const none = screen.getByRole('radio', { name: /No AI/ });
+    expect(none).not.toBeChecked();
+    await user.click(none);
+    await waitFor(async () => expect(await storedSettings(bundle)).toContain('"kind":"noOp"'));
+  });
+
+  it('has no axe violations with the offer on screen', async () => {
+    const bundle = await unlockedBundle();
+    function Hosted() {
+      const session = useSession();
+      return (
+        <AiProvider services={session.ai}>
+          <YourAiScreen />
+        </AiProvider>
+      );
+    }
+    await renderInSession(<Hosted />, { bundle, session: { fetch: offered().fetch } });
+    await screen.findByRole('radio', { name: /Provided by this server/ });
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'AI on this server' })).toBeVisible(),
+    );
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});

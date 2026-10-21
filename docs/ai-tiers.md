@@ -1,6 +1,6 @@
 # AI Nutrition Coach — AI Tiers
 
-This document describes the v1 AI tier ladder: the four rungs the
+This document describes the v1 AI tier ladder: the rungs the
 `AiRung` port exposes, how they are configured, and how the
 photo-recognition path behaves when each rung is active. It is the
 canonical reference for FR6 (free quota honesty), FR7 (BYOK key
@@ -13,7 +13,7 @@ on-device), and FR8 (local-model v2 seam).
 > translation; the specs are the contract. The code is
 > `apps/web/src/ai` (adapters) and `packages/core` (the `AiRung` port).
 
-## The four rungs
+## The rungs
 
 Exactly one rung is active at any time. The active rung is the user's
 choice in **Settings → Your AI** (reached from the gear on the Day Board)
@@ -26,24 +26,49 @@ restarts (see "Where settings live" below).
 | Offline (no AI) | `noOp`           | Default; always available                              |
 | Free model      | `hostedQuota`    | **Not built** (known accepted gap) — needs a server-side relay |
 | Your key        | `byok`           | Active; your key, your endpoint                        |
+| This server's AI | `instance`      | **Built** (Phase 4), only where the server's operator turned it on |
 | Local model     | `local`          | v2 seam — not implemented                              |
 
-The Your AI screen lists all four, but only *No AI* and *My own key* can be
-chosen; the other two read "Not available yet". A persisted value naming an
+The Your AI screen lists *No AI*, *My own key* and the two unavailable rungs, which read "Not available yet";
+*Provided by this server* is listed, after *No AI*, only while the server offers it. A persisted value naming an
 unavailable rung is normalised to *No AI* when it is loaded.
 
 The v2 `local` rung exists in the type system and the rung registry; it
 cannot be selected and returns a typed failure, so the seam is declared
 without crashing the core.
 
-### Planned: instance-wide key (Phase 4)
+### Instance-wide key (Phase 4): "Provided by this server"
 
-Not built. A self-hoster will be able to hold one AI key on the server,
-used through a server-side proxy and configured in `infra/server.env`, so
-the people sharing an instance need not each bring a key. It would appear
-as a rung in the same ladder, under the same no-pressure rules, and the
-key would never reach the browser. See
-`docs/adr/0006-nutrition-numbers-calm-framing.md`.
+Built. Whoever hosts the app can keep **one** OpenAI-compatible endpoint, key and model on the server
+(`AI_PROXY_*` in `infra/server.env`; see [`docs/self-host.md`](./self-host.md#offer-ai-to-everyone-on-your-instance)
+for setup, cost and abuse). The rung kind is `instance`.
+
+- **The key never reaches the browser.** nginx answers `POST /ai/v1/chat/completions` on the app's own origin, adds the
+  `Authorization` header itself and forwards nothing the browser sent. The browser's request carries only
+  `Content-Type`: the existing OpenAI-compatible provider is used with `sendKey: false`
+  (`apps/web/src/ai/openai-compatible-provider.ts`), which is pinned by tests.
+- **What the browser can read** is `GET /ai/config.json`: `{ "enabled": true, "model": "…", "label": "…" }`, or
+  `{ "enabled": false }`. It is read when the AI services are built (after the unlock; never blocking it) and again when
+  Your AI opens or a photo needs it (`apps/web/src/ai/instance-config.ts`), parsed strictly, never cached, never precached.
+- **Availability.** The choice appears in Your AI only while the server says it is on. On a **new** install (nothing stored
+  yet) it becomes the starting choice; a person who already chose anything, No AI included, keeps their choice. If the
+  server later switches it off, a saved choice of it does not silently become No AI: the next photo says the server does
+  not offer AI right now, with the way to Your AI, and nothing is sent.
+- **Consent is unchanged in shape and honest in content.** The upload host is this page's own host; the dialog says the
+  photo goes to *this server* and is passed on to the provider named in the label, that the provider receives it from the
+  server and not from the person's device, and that the server's software does not store it. "Ask before every photo upload"
+  stays on by default. The one-shot permit and the consent gate apply exactly as for BYOK.
+- **Failures are calm and about the server.** `429` is "The AI on this server is busy. Try again in a moment." (no
+  countdown, even if a `Retry-After` is present); `404` is "This server does not offer AI right now."; a `5xx`, or a key
+  the provider refused (the proxy answers `502`), is "The AI on this server did not answer. Try again in a moment." None says
+  the person's own key was rejected: they have none. The no-AI core (closest matches, type it) is always right there.
+- **Where the no-AI messages point.** When the server offers AI but the person is on No AI, the Snap sheet and the
+  "No AI connected" sheet say so and link to Your AI.
+- **Text, for the coach.** `AiServices.chat.completeChat(messages, options)` sends one plain chat completion through the
+  same proxy (the instance rung's `completeChat`, `apps/web/src/ai/instance-ai-rung.ts`), returning
+  `text | busy | unavailable | failure`; it is `unavailable` unless the rung is the instance rung and the server offers AI. It adds
+  nothing to the messages and asks no consent: whoever builds on it explains what it sends. The server forces the model
+  and caps `max_tokens`.
 
 ### Where settings live
 

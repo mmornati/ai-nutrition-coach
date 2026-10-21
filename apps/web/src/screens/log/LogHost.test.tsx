@@ -1,11 +1,12 @@
 // Ports of capture_sheet_test, manual_entry_screen_test, capture_barcode_screen_test and
 // capture_photo_screen_test: the three ways to log, as the person meets them.
 import { useEffect } from 'react';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { FakeFetch, TEST_KEY } from '../../ai/testing';
+import { AiSettings, KvAiSettingsStore } from '../../ai';
+import { FakeFetch, TEST_KEY, chatReply } from '../../ai/testing';
 import { FakeDecoder, granted } from '../../barcode/testing';
 import { jpegWithExif } from '../../capture/testing';
 import { OFF_ORIGIN } from '../../catalog';
@@ -569,5 +570,165 @@ describe('Snapshot', () => {
   it('the Snap sheet has no axe violations', async () => {
     const { snap } = await start({ capture: photo });
     expect(await axe(snap)).toHaveNoViolations();
+  });
+});
+
+describe('Snapshot with the AI this server offers', () => {
+  const photo = () => Promise.resolve(jpegWithExif());
+  const OFFER = { enabled: true, model: 'vendor/model-x', label: 'Acme AI' };
+  const RICE =
+    '[{"name":"Rice","quantityHint":"1 cup","grams":150,"group":"starch","confidence":0.9}]';
+
+  async function start(
+    options: { seed?: AiSettings; offered?: boolean; status?: number; hang?: boolean } = {},
+  ) {
+    const user = userEvent.setup();
+    const fetch = new FakeFetch();
+    fetch.instanceConfig = options.offered === false ? { enabled: false } : OFFER;
+    fetch.jsonBody = chatReply(RICE);
+    if (options.status !== undefined) fetch.status = options.status;
+    if (options.hang) fetch.hang = true;
+    const bundle = await unlockedBundle();
+    if (options.seed) await new KvAiSettingsStore(bundle.kv).write(options.seed);
+    await renderInSession(screenWithGrab, {
+      bundle,
+      session: { fetch: fetch.fetch },
+      createCapture: () => ({ capture: photo }),
+    });
+    await screen.findByText('Lunch');
+    // The offer is read right after the unlock, and a new install then defaults to it.
+    await waitFor(() => expect(fetch.configRequests.length).toBeGreaterThan(0));
+    await act(async () => {
+      await (grabbed as Session).ai.instance.refresh();
+    });
+    const dialog = await openSheet(user);
+    await user.click(within(dialog).getByRole('button', { name: /Snapshot/ }));
+    const snap = await screen.findByRole('dialog', { name: s.capture.snapTitle });
+    return { user, fetch, bundle, snap };
+  }
+
+  it('a new install is on it: no AI note, and the consent names this server AND the provider', async () => {
+    const { user, fetch, snap } = await start();
+    await waitFor(() =>
+      expect((grabbed as Session).ai.settings.getSnapshot().rung.kind).toBe('instance'),
+    );
+    expect(within(snap).queryByText(s.capture.noAiNote)).not.toBeInTheDocument();
+    expect(within(snap).queryByText(s.capture.noAiNoteInstance)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    const consent = await screen.findByRole('alertdialog', {
+      name: 'Send this photo to this server?',
+    });
+    // Honest about both hops: this server (its own host) and the provider it passes the photo to.
+    expect(consent.textContent).toContain('this server (localhost)');
+    expect(consent.textContent).toContain('passes it on to Acme AI');
+    expect(consent.textContent).toContain('not from your device');
+    expect(within(consent).getByText(/does not store the photo/)).toBeVisible();
+    expect(within(consent).getByRole('button', { name: s.consent.decline })).toHaveFocus();
+
+    // "Not now": nothing is sent, to this server or anywhere.
+    await user.click(within(consent).getByRole('button', { name: s.consent.decline }));
+    expect(await screen.findByRole('dialog', { name: s.recognized.nothingMatched })).toBeVisible();
+    expect(fetch.requests).toEqual([]);
+  });
+
+  it('a yes sends this one photo to the SAME-ORIGIN proxy with no key, and lands the plate', async () => {
+    const { user, fetch } = await start();
+    await waitFor(() =>
+      expect((grabbed as Session).ai.settings.getSnapshot().rung.kind).toBe('instance'),
+    );
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: s.consent.allowOnce,
+      }),
+    );
+
+    const sheet = await screen.findByRole('dialog', { name: 'Looks like 1 food' });
+    expect(within(sheet).getAllByRole('checkbox', { name: /Rice/ })[0]).toBeChecked();
+
+    expect(fetch.requests).toHaveLength(1);
+    const request = fetch.requests[0];
+    expect(request?.url).toBe(`${window.location.origin}/ai/v1/chat/completions`);
+    expect(request?.init.method).toBe('POST');
+    expect(request?.headers).toEqual({ 'content-type': 'application/json' });
+    expect(request?.init.credentials).toBe('omit');
+    const body = JSON.parse(request?.body ?? '{}') as { model: string };
+    expect(body.model).toBe('vendor/model-x');
+    expect(request?.body).not.toMatch(/sk-|Bearer/);
+  });
+
+  it('429 is "busy, try again in a moment": calm, no countdown, no set-up link', async () => {
+    const { user, fetch } = await start({ status: 429 });
+    fetch.headers = { 'retry-after': '3600' };
+    await waitFor(() =>
+      expect((grabbed as Session).ai.settings.getSnapshot().rung.kind).toBe('instance'),
+    );
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: s.consent.allowOnce,
+      }),
+    );
+    const failed = await screen.findByRole('dialog', { name: s.recognized.failureTitle });
+    expect(
+      within(failed).getByText('The AI on this server is busy. Try again in a moment.'),
+    ).toBeVisible();
+    expect(failed.textContent).not.toMatch(/3600|\d+ (second|minute|hour)|quota/i);
+    expect(
+      within(failed).queryByRole('link', { name: s.recognized.setUpAi }),
+    ).not.toBeInTheDocument();
+    // The no-AI core is still there.
+    expect(within(failed).getByLabelText(s.recognized.customFoodName)).toBeVisible();
+  });
+
+  it('404 and 502 are calm lines about this server (the operator switched it off / it is down)', async () => {
+    for (const [status, line] of [
+      [404, /does not offer AI right now/],
+      [502, /did not answer\. Try again in a moment/],
+    ] as const) {
+      const { user } = await start({ status });
+      await waitFor(() =>
+        expect((grabbed as Session).ai.settings.getSnapshot().rung.kind).toBe('instance'),
+      );
+      await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: s.consent.allowOnce,
+        }),
+      );
+      const failed = await screen.findByRole('dialog', { name: s.recognized.failureTitle });
+      expect(within(failed).getByText(line)).toBeVisible();
+      cleanup();
+    }
+  });
+
+  it('a person who chose No AI keeps it, and is told this server offers one', async () => {
+    const { user, fetch, snap } = await start({ seed: new AiSettings({ rung: { kind: 'noOp' } }) });
+    expect((grabbed as Session).ai.settings.getSnapshot().rung.kind).toBe('noOp');
+    expect(within(snap).getByText(s.capture.noAiNoteInstance)).toBeVisible();
+    expect(within(snap).getByRole('link', { name: s.recognized.setUpAi })).toHaveAttribute(
+      'href',
+      '#/settings/ai',
+    );
+
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    const sheet = await screen.findByRole('dialog', { name: s.recognized.noAiTitle });
+    expect(within(sheet).getByText(s.recognized.noAiHintInstance)).toBeVisible();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(fetch.requests).toEqual([]);
+  });
+
+  it('a saved choice of it while the server offers nothing says so, with the way to Your AI', async () => {
+    const { user, fetch } = await start({
+      offered: false,
+      seed: new AiSettings({ rung: { kind: 'instance' } }),
+    });
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    const failed = await screen.findByRole('dialog', { name: s.recognized.failureTitle });
+    expect(within(failed).getByText(/does not offer AI right now/)).toBeVisible();
+    expect(within(failed).getByRole('link', { name: s.recognized.setUpAi })).toBeVisible();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(fetch.requests).toEqual([]);
   });
 });

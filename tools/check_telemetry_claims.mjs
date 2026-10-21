@@ -69,6 +69,9 @@ export const ALLOW_LIST = {
   'apps/web/src/catalog/ciqual-index.ts': { kinds: ['network'], reason: 'same-origin CIQUAL table (precached)' },
   // The BYOK OpenAI-compatible endpoint the user configures, through the helper.
   'apps/web/src/ai/openai-compatible-provider.ts': { kinds: ['network'], reason: 'BYOK AI endpoint' },
+  // The instance-wide AI offer (docs/ai-tiers.md): a same-origin GET of `/ai/config.json` through
+  // the helper (no key, no query, no identifier); the container renders the file.
+  'apps/web/src/ai/instance-config.ts': { kinds: ['network'], reason: 'same-origin /ai/config.json (the instance AI offer)' },
   // The service worker precaches OUR files (same-origin GET) and never intercepts anything else.
   'tools/pwa/sw.template.js': { kinds: ['network'], reason: 'same-origin precache (sw.behaviour.test.mjs)' },
   // The self-hosted zxing reader: a <script> from our own origin (script-src 'self' enforces it),

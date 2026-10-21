@@ -127,6 +127,8 @@ export const en = {
     aimHint: 'Aim at your plate, then tap the shutter.',
     noAiNote:
       'Photo recognition needs an AI connection. Without one, you can still pick or type what is on the plate.',
+    noAiNoteInstance:
+      'Photo recognition needs an AI connection. This server offers one: you can turn it on in Settings. Without it, you can still pick or type what is on the plate.',
     reading: 'Reading your plate…',
     retake: 'Retake',
     typeManually: 'Type it manually',
@@ -191,6 +193,8 @@ export const en = {
     noAiTitle: 'No AI connected',
     noAiHint:
       "Photos aren't analysed without AI. Pick a recent food, type it, or set up AI in Settings.",
+    noAiHintInstance:
+      "Photos aren't analysed without AI. Pick a recent food, type it, or turn on the AI this server offers in Settings.",
     setUpAi: 'Set up AI',
     recognizedLabel: 'Recognized foods',
     closestMatches: 'Closest matches',
@@ -216,6 +220,14 @@ export const en = {
     allowOnce: 'Send this photo',
     decline: 'Not now',
     learnMore: 'What this app stores and sends',
+    instanceTitle: 'Send this photo to this server?',
+    instanceWhatIsSent:
+      'What is sent: the photo, shrunk, with its location and camera details removed, and a fixed instruction asking which foods are on the plate and in which language to answer (English or French, the app language). The photo goes to this server ({host}), which adds its own AI key and passes it on to {via}. AI Nutrition Coach, the project, does not run this server or that service and never sees the photo.',
+    instanceAlsoVisible:
+      'Also visible to whoever runs {host}: your internet address and your browser type, as with any website. {via} receives the photo from this server, not from your device.',
+    instanceRetention:
+      '{via} may keep requests under its own terms, and whoever runs this server chose it: ask them about its data policy. This server’s software does not store the photo.',
+    instanceAllow: 'Allow this server',
   },
   ai: {
     /** AiRungStrings (the earlier client). The quota lines belong to the deferred hosted tier. */
@@ -231,6 +243,8 @@ export const en = {
       waitForReset: 'wait for the quota to reset',
       quotaStatusHeading: 'When the free quota runs out',
       manualFallbackHint: 'You can still pick a closest match or type it manually.',
+      thisServerActive: 'this server — {label}',
+      thisServerOff: 'this server — not offered',
     },
     /** ByokStrings (the earlier client). */
     byok: {
@@ -258,6 +272,12 @@ export const en = {
       rungHostedLabel: 'Free hosted model',
       rungLocalLabel: 'Model on this device',
       rungUnavailable: 'Not available yet',
+      rungInstanceLabel: 'Provided by this server',
+      rungInstanceHelp: 'No key needed. Photos go to this server, which sends them on to {label}.',
+      instanceHeading: 'AI on this server',
+      instanceExplain:
+        'The person who runs this server ({host}) keeps an AI key on it, so you need none. A photo goes first to this server and from there to {label}, which reads it and answers. You are asked before each photo is sent, unless you turn that off below.',
+      instanceModel: 'Model: {model}',
       byokHeading: 'Your service',
       endpointLabel: 'Endpoint',
       endpointHint: 'https://openrouter.ai/api/v1',
@@ -326,6 +346,10 @@ export const en = {
       couldNotConnect: 'could not connect to {host}',
       unreachable: 'the provider could not be reached',
       unavailableRung: 'Not available yet',
+      instanceUnavailable:
+        'This server does not offer AI right now. You can choose another option in Settings → Your AI.',
+      instanceBusy: 'The AI on this server is busy. Try again in a moment.',
+      instanceError: 'The AI on this server did not answer. Try again in a moment.',
       /** Browsers report a CORS or Content-Security-Policy block exactly like an offline host. */
       blockedByBrowser:
         'If the service is up, the browser may have blocked the call: the service has to allow requests from this page (CORS), and this site’s Content-Security-Policy has to list its address. If you host this app yourself, add the address to AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (see the self-hosting notes).',
@@ -827,6 +851,8 @@ export const en = {
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
     leavesPhoto:
       'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction (which also says in which language to answer, the app language) and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
+    leavesInstance:
+      'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:
@@ -835,6 +861,8 @@ export const en = {
     serverHeading: 'What the server you got this app from sees',
     serverBody:
       'Nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.',
+    serverInstance:
+      'The one exception is a photo you choose to send through the AI this server offers (see above): it passes through this server on its way to the provider, and is not stored there.',
     neverHeading: 'Never collected',
     neverBody:
       'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.',

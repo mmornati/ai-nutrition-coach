@@ -28,6 +28,8 @@ export type ByokOutcome =
       readonly kind: 'failure';
       readonly cause: RecognitionFailureCause;
       readonly message: string;
+      /** The HTTP status, when the failure was an unexpected one (404, 5xx, ...). */
+      readonly status?: number;
     }
   | { readonly kind: 'keyRejected' }
   | { readonly kind: 'quotaExhausted'; readonly resetAt?: EpochMs };
@@ -35,4 +37,54 @@ export type ByokOutcome =
 /** The transport the BYOK rung reads through. The key is passed per call, never held. */
 export interface ByokProvider {
   recognize(args: { photoBytes: Uint8Array; apiKey: string }): Promise<ByokOutcome>;
+}
+
+/** One message of a text chat. The caller decides every word; nothing is added on the way out. */
+export interface ChatMessage {
+  readonly role: 'system' | 'user' | 'assistant';
+  readonly content: string;
+}
+
+/** The outcome of one text completion before a rung maps it onto `ChatResult`. */
+export type ChatOutcome =
+  | { readonly kind: 'text'; readonly text: string }
+  | { readonly kind: 'quotaExhausted'; readonly resetAt?: EpochMs }
+  | { readonly kind: 'keyRejected' }
+  | {
+      readonly kind: 'failure';
+      readonly cause: RecognitionFailureCause;
+      readonly message: string;
+      readonly status?: number;
+    };
+
+/** Options for one `completeChat` call. */
+export interface ChatOptions {
+  /** Upper bound on the reply (the proxy caps it too). */
+  readonly maxTokens?: number;
+  readonly temperature?: number;
+  /** Cancels this call (a screen went away). The session's own abort still applies. */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * What a text completion gives back, calm and typed (never thrown):
+ *  - `text`: the model's reply;
+ *  - `busy`: the server asked to slow down (429): say "busy, try again in a moment", no countdown;
+ *  - `unavailable`: this rung offers no text completion right now (the person is on No AI or their
+ *    own key, or this server no longer offers AI);
+ *  - `failure`: anything else, with a short calm line for the person.
+ */
+export type ChatResult =
+  | { readonly kind: 'text'; readonly text: string }
+  | { readonly kind: 'busy' }
+  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'failure'; readonly message: string };
+
+/**
+ * The text-completion seam over the instance rung. A later LLM coach calls this and nothing
+ * else: it needs no key, no endpoint and no model (the server holds all three). It does NOT ask
+ * for consent: the caller must, because what it sends is the caller's text.
+ */
+export interface TextCompletionPort {
+  completeChat(messages: readonly ChatMessage[], options?: ChatOptions): Promise<ChatResult>;
 }

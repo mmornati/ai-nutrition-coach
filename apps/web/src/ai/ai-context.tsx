@@ -13,6 +13,7 @@ import type { AiSettings } from './ai-settings';
 import type { FieldMessage } from './copy';
 import { connectionResultMessage, saveResultMessage } from './copy';
 import type { AiServices } from './create-ai-services';
+import type { InstanceAiView } from './instance-config';
 import type { KeyStatus } from './your-ai';
 
 const AiServicesContext = createContext<AiServices | null>(null);
@@ -36,14 +37,24 @@ export function useAiSettings(): AiSettings {
   return useSyncExternalStore(settings.subscribe, settings.getSnapshot);
 }
 
+/** What this server offers (the instance-wide AI key); re-renders when the offer is read. */
+export function useInstanceAi(): InstanceAiView {
+  const { instance } = useAiServices();
+  return useSyncExternalStore(instance.subscribe, instance.getSnapshot);
+}
+
 export interface YourAiState {
   readonly settings: AiSettings;
+  /** What this server offers: `{ enabled: false }` when it offers nothing. */
+  readonly instance: InstanceAiView;
   readonly keyStatus: KeyStatus;
   readonly busy: boolean;
   readonly testing: boolean;
   /** The latest outcome as calm copy, placed on the field it belongs to. */
   readonly message: FieldMessage | null;
   selectNoAi(): Promise<void>;
+  /** Chooses the AI this server offers; `false` when it is not offered (nothing changed). */
+  selectInstance(): Promise<boolean>;
   save(form: { endpointUrl: string; model: string; newKey: string }): Promise<boolean>;
   removeKey(): Promise<void>;
   test(form: { endpointUrl: string; model: string; typedKey: string }): Promise<void>;
@@ -61,6 +72,7 @@ const NO_KEY: KeyStatus = { hasKey: false, keyEnding: null };
 export function useYourAi(): YourAiState {
   const { yourAi, settings: controller } = useAiServices();
   const settings = useAiSettings();
+  const instance = useInstanceAi();
   const [keyStatus, setKeyStatus] = useState<KeyStatus>(NO_KEY);
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -82,9 +94,16 @@ export function useYourAi(): YourAiState {
     };
   }, [yourAi]);
 
+  // Opening Your AI reads the server's offer again: it may have changed since the app was unlocked.
+  const { instance: instanceSource } = useAiServices();
+  useEffect(() => {
+    void instanceSource.refresh();
+  }, [instanceSource]);
+
   return useMemo(
     () => ({
       settings,
+      instance,
       keyStatus,
       busy,
       testing,
@@ -92,6 +111,10 @@ export function useYourAi(): YourAiState {
       selectNoAi: async () => {
         setHeld(null);
         await yourAi.selectNoAi();
+      },
+      selectInstance: async () => {
+        setHeld(null);
+        return yourAi.selectInstance();
       },
       save: async (form) => {
         if (busy) return false;
@@ -132,6 +155,6 @@ export function useYourAi(): YourAiState {
       clearMessage: () => setHeld(null),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale`: `held.of()` words the message via `strings()`.
-    [settings, keyStatus, busy, testing, held, locale, yourAi, controller, refresh],
+    [settings, instance, keyStatus, busy, testing, held, locale, yourAi, controller, refresh],
   );
 }

@@ -1,0 +1,89 @@
+# Instance AI proxy -- server-level locations (rendered by 40-render-ai-proxy.sh into
+# /tmp/ai-nutrition-coach-ai-locations.inc, mode 0600, because it holds the provider key).
+# Doubled-at-sign placeholders are substituted from validated values; nginx's own $variables are
+# left alone.
+
+# What the app reads to know whether to offer the rung. No key, no upstream address.
+location = /ai/config.json {
+    default_type application/json;
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 200 '@@ANC_AI_CONFIG_JSON@@';
+}
+
+# One OpenAI-compatible chat completion, relayed with the operator's key. POST only.
+location = /ai/v1/chat/completions {
+    if ($request_method != POST) { return 405; }
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+
+    # One downscaled photo (1024 px JPEG, base64) is well under 1 MiB; 2 MiB is the ceiling.
+    # The body stays in memory (/tmp is a small tmpfs).
+    client_max_body_size 2m;
+    client_body_buffer_size 2m;
+    client_body_timeout 30s;
+
+    limit_req zone=ai_nutrition_coach_ai burst=@@ANC_AI_BURST@@ nodelay;
+    limit_req_status 429;
+    limit_conn ai_nutrition_coach_ai_ip 2;
+    limit_conn ai_nutrition_coach_ai_all 16;
+    limit_conn_status 429;
+
+    # Resolved at request time (cached 30 s) so a long-running container follows the provider's DNS.
+    resolver @@ANC_AI_RESOLVER@@ valid=30s ipv6=off;
+    resolver_timeout 5s;
+
+    set $anc_ai_upstream "@@ANC_AI_URL@@";
+    set $anc_ai_model "@@ANC_AI_MODEL@@";
+    set $anc_ai_max_tokens "@@ANC_AI_MAX_TOKENS@@";
+    js_set $anc_ai_body anc_ai.body;
+
+    proxy_http_version 1.1;
+    # Nothing the browser sent is forwarded (no Authorization, Cookie, Origin, Referer,
+    # X-Forwarded-For, User-Agent): only the headers below.
+    proxy_pass_request_headers off;
+    proxy_set_header Host "@@ANC_AI_HOST@@";
+    proxy_set_header Authorization "Bearer @@ANC_AI_KEY@@";
+    proxy_set_header Content-Type "application/json";
+    proxy_set_header Accept "application/json";
+    proxy_set_header User-Agent "ai-nutrition-coach-proxy";
+    proxy_set_header Connection "";
+    proxy_set_body $anc_ai_body;
+
+    # TLS to the provider, verified against the system CA bundle.
+    proxy_ssl_server_name on;
+    proxy_ssl_name "@@ANC_AI_HOST@@";
+    proxy_ssl_verify on;
+    proxy_ssl_verify_depth 3;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    proxy_ssl_protocols TLSv1.2 TLSv1.3;
+
+    # The app waits 45 s for headers (net/capped-fetch.ts RECEIVE_TIMEOUT_MS); nginx gives up just after.
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 30s;
+    proxy_read_timeout 50s;
+    proxy_max_temp_file_size 0;
+    proxy_redirect off;
+    proxy_hide_header Set-Cookie;
+    proxy_hide_header Authorization;
+
+    # A provider that refuses the key must not echo it (even masked) to a visitor.
+    proxy_intercept_errors on;
+    error_page 401 403 = @ai_nutrition_coach_ai_refused;
+
+    proxy_pass $anc_ai_upstream;
+}
+
+location @ai_nutrition_coach_ai_refused {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 502 '{"error":"ai_provider_refused"}';
+}
+
+# Anything else under /ai/ is not the app shell.
+location ^~ /ai/ {
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 404;
+}
