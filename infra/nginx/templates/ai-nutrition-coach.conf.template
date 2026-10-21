@@ -29,12 +29,14 @@ gzip_comp_level 6;
 gzip_types application/javascript text/javascript application/wasm application/json
            application/manifest+json text/css text/plain image/svg+xml font/ttf font/otf;
 
-# GET and HEAD everywhere; POST only to the AI proxy path (which exists only when the operator
-# turned the proxy on, 40-render-ai-proxy.sh).
+# GET and HEAD everywhere; POST only to the two AI proxy paths (chat, and voice transcription which
+# also needs AI_PROXY_TRANSCRIPTION=1): they exist only when the operator turned them on
+# (40-render-ai-proxy.sh), otherwise they are a plain 404.
 map "$request_method $uri" $ai_nutrition_coach_method_ok {
     default                           0;
     "~^(GET|HEAD) "                   1;
     "POST /ai/v1/chat/completions"    1;
+    "POST /ai/v1/audio/transcriptions" 1;
 }
 
 server {

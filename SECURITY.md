@@ -70,6 +70,16 @@ does not protect:
   mitigation is the operator's: put the instance behind a sign-in or an allow-list (the repository ships Traefik
   overlays for both) and set a spend limit at the provider. The key is also readable by anyone who can read the
   container's environment on the host (`docker inspect`), like any `.env` secret.
+- **Voice to text (optional, off by default, `AI_PROXY_TRANSCRIPTION=1`):** the one extra route,
+  `POST /ai/v1/audio/transcriptions`, takes a short voice recording (at most 1 MiB) for *Describe a meal*. Same-origin
+  and multipart only; the key is added server-side; nothing the browser sent is forwarded but the multipart
+  `Content-Type`; provider headers and error text are removed. njs validates the multipart structure and forces the model
+  by **refusing** any body that does not carry exactly the configured model, one audio file and at most a language code
+  (it does not rewrite binary audio), so a visitor cannot pick a dearer model or add a prompt. Rate limits are its own
+  (6 a minute per address, 20 for the instance). Not protected, as above: anyone who can reach the instance can spend the
+  key through it within those limits; the audio goes to the provider and is not stored by this software. Transcription
+  only: no speaker is identified (`docs/adults-only.md`). A multipart POST needs no CORS preflight, so unlike the JSON chat route this one relies on the `Sec-Fetch-Site` / `Origin` checks (sent by every modern browser on a cross-origin POST) as its cross-site defence, with the rate limits behind them. The app's `Permissions-Policy` allows the microphone for its own
+  origin only, and only a tap starts it.
 - **A privacy trade-off, disclosed in the app:** a photo sent this way passes through the operator's server before it
   reaches the provider. The consent dialog says so, and the server relays it without storing it.
 

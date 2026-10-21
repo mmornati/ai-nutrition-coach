@@ -51,6 +51,8 @@ export const COVERED_BY = Object.freeze({
   CopyPlateSheet: 'PlateScreen',
   SaveMealSheet: 'PlateScreen',
   CopyDayDialog: 'TodayScreen',
+  Describe: 'LogHost',
+  DescribeSheet: 'LogHost',
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
   // The frame of the gate screens.

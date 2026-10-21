@@ -4,6 +4,7 @@ export { Chip, VersionTag } from './Chip';
 export { VisuallyHidden } from './VisuallyHidden';
 export { GroupMarker, LineSwatch } from './GroupMarker';
 export { TextField, type TextFieldProps } from './TextField';
+export { TextArea, type TextAreaProps } from './TextArea';
 export { Checkbox, type CheckboxProps } from './Checkbox';
 export * from './icons';
 export { cn } from './cn';

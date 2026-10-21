@@ -113,6 +113,12 @@ services:
       AI_PROXY_CONN: ${AI_PROXY_CONN:-2}
       AI_PROXY_TOKEN_PARAM: ${AI_PROXY_TOKEN_PARAM:-max_tokens}
       AI_PROXY_MAX_TOKENS: ${AI_PROXY_MAX_TOKENS:-2000}
+      # Voice transcription (POST /ai/v1/audio/transcriptions): off unless AI_PROXY_TRANSCRIPTION=1.
+      AI_PROXY_TRANSCRIPTION: ${AI_PROXY_TRANSCRIPTION:-0}
+      AI_PROXY_TRANSCRIPTION_MODEL: ${AI_PROXY_TRANSCRIPTION_MODEL:-whisper-1}
+      AI_PROXY_TRANSCRIPTION_RATE: ${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}
+      AI_PROXY_TRANSCRIPTION_RATE_ALL: ${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}
+      AI_PROXY_TRANSCRIPTION_BURST: ${AI_PROXY_TRANSCRIPTION_BURST:-2}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m

@@ -419,6 +419,42 @@ questions. The conversation is kept in memory for the unlocked session only: not
 **Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text): the oldest turns of a
 chat go first, then the foods listed per day.
 
+## Describe a meal (typed, dictated or spoken)
+
+*Log, Describe*: a multi-line field ("two eggs, toast with butter, a coffee with milk", at most 500 characters), and,
+where it can work, a **Talk** button that records up to 30 seconds. It works with every rung, and without an AI.
+
+- **No AI (or "Not now"):** the words are split on commas, new lines and "and" / "et", a leading amount is dropped, and
+  each piece is looked up in the food list **on the device**. Nothing is sent; it works offline. The review sheet opens
+  with the best match of each piece ticked and the other matches unticked.
+- **With an AI:** the words go to the person's AI and come back as **the same list of foods a photo gives** (name,
+  weight guess, per-100 g guess, group, confidence). Everything after that is the photo pipeline: a confident catalogue
+  match replaces the AI's nutrient guess, the review sheet shows grams you can edit, and the plate is logged.
+- **Voice:** the microphone is asked for only when the Talk button is tapped, for at most 30 seconds (`audio/webm` Opus,
+  or `audio/mp4` on Safari, about 32 kbit/s); it is released the moment the recording ends. The audio is held in memory
+  until the request returns and is **never stored**. It is sent to a Whisper-compatible `/audio/transcriptions`: your own
+  endpoint (the voice model is set in Your AI, default `whisper-1`) or this server's proxy
+  (`AI_PROXY_TRANSCRIPTION=1`, [self-host](./self-host.md#voice-to-text-describe-a-meal-by-voice)). The transcript lands
+  in the text field for review; it is never logged by itself. A destination that has no such endpoint answers `404`: the
+  button is hidden for it until the settings change. **Transcription only:** no speaker is identified or fingerprinted
+  ([`docs/adults-only.md`](./adults-only.md)). The browser's own keyboard dictation (iOS, Android) also works in the field
+  with nothing sent by this app.
+
+**Consent.** A description is the person's own words about what they ate, and a recording is their voice: neither is a
+photo and neither is coaching, so it has **its own yes** (*Settings, Your AI, Describing a meal with AI*; it is also asked
+inline, in the Describe sheet, the first time). It is off by default, recorded for **one destination** (your endpoint's host,
+or for this server's AI the host, provider label and model together), cleared when the destination changes, read at call
+time (a revoke takes effect on the next call), and independent of the photo and coaching consents. It is stored in its own
+row (`ai.describeConsent`), which goes with "Erase all local data". The disclosure says: the text you write or dictate,
+or a short voice recording turned into text, plus a fixed instruction; the destination's host (and for this server the
+provider behind it); not your name, history, other plates or photos; this app does not store the recording.
+
+**What is sent (pinned by tests).** Text: a chat completion with exactly two messages, the fixed instruction (English or
+French, the app language; it tells the model to treat the text as data) and the text (cleaned, at most 500 characters),
+with the same `max_tokens` / `temperature` shape as a photo. It fits the instance proxy's input budget (at most 8 messages,
+24 KB). Voice: a multipart body of exactly `model`, `language` (the app language) and `file`; headers are `Authorization`
+(your own key, bound to its host) or none (this server). Nothing else: no date, id, name, history or profile.
+
 ## Related docs
 
 - `ARCHITECTURE-SPINE.md` — §AD-5 (AI tier ladder) and §AD-8

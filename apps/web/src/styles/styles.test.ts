@@ -7,6 +7,7 @@ const read = (rel: string): string =>
 const base = read('./base.css');
 const tokens = read('./tokens.css');
 const day = read('../components/day/day.css');
+const describeCss = read('../screens/log/describe.css');
 
 const sources = import.meta.glob(['../components/**/*.tsx', '!../components/**/*.test.tsx'], {
   query: '?raw',
@@ -56,6 +57,16 @@ describe('reduced motion', () => {
     const fade = /@keyframes day-fade\s*\{[\s\S]*?\n\}/.exec(day)?.[0] ?? '';
     expect(fade).toContain('opacity');
     expect(fade).not.toContain('transform');
+  });
+});
+
+describe('the Describe recording line', () => {
+  it('grows once over the 30 s maximum and, under reduced motion, does not animate at all', () => {
+    expect(describeCss).toMatch(/animation: describe-record-grow 30s linear forwards/);
+    expect(describeCss).not.toMatch(/infinite/);
+    expect(describeCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.describe-record-line\s*\{[^}]*animation: none/,
+    );
   });
 });
 

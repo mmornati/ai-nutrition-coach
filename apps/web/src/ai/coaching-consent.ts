@@ -14,18 +14,21 @@ import { KV_KEYS, type KeyValueStore } from '../storage/key-value-store';
  */
 export class CoachingConsent {
   readonly #kv: KeyValueStore;
+  readonly #key: string;
   readonly #listeners = new Set<() => void>();
   #host: string | null = null;
 
-  constructor(kv: KeyValueStore) {
+  /** `key`: the row to keep the agreement in; the "Describe a meal" consent uses its own. */
+  constructor(kv: KeyValueStore, key: string = KV_KEYS.aiCoachingConsent) {
     this.#kv = kv;
+    this.#key = key;
   }
 
   /** Reads the stored agreement. Never throws; anything unreadable is "no agreement". */
   async load(): Promise<void> {
     let host: string | null = null;
     try {
-      const raw = await this.#kv.read(KV_KEYS.aiCoachingConsent);
+      const raw = await this.#kv.read(this.#key);
       if (raw !== null) {
         const parsed: unknown = JSON.parse(raw);
         const value =
@@ -60,7 +63,7 @@ export class CoachingConsent {
   /** Persists first, then publishes: the switch never claims what was not kept. Throws on failure. */
   async grant(host: string): Promise<void> {
     const lower = host.toLowerCase();
-    await this.#kv.write(KV_KEYS.aiCoachingConsent, JSON.stringify({ host: lower }));
+    await this.#kv.write(this.#key, JSON.stringify({ host: lower }));
     this.#set(lower);
   }
 
@@ -70,7 +73,7 @@ export class CoachingConsent {
    */
   async revoke(): Promise<void> {
     this.#set(null);
-    await this.#kv.delete(KV_KEYS.aiCoachingConsent);
+    await this.#kv.delete(this.#key);
   }
 
   #set(host: string | null): void {
