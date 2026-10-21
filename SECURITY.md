@@ -49,6 +49,30 @@ workflows. Of particular interest: anything that sends user data off the
 device without consent, weakens the on-device encryption, exposes a
 bring-your-own-key AI key, or lets a build ship a secret.
 
+## The instance-wide AI key (optional)
+
+A self-hoster can keep one AI key on the server (`AI_PROXY_*`, `docs/self-host.md`). The design and what it does and
+does not protect:
+
+- **Protected:** the key never reaches the browser, the web bundle, the image or the logs. It exists only in the
+  container's environment and in one `0600` file under `/tmp` rendered at start; the start refuses if that file is not
+  private or if the key appears in any other rendered file. nginx forwards no browser header (no `Authorization`,
+  `Cookie`, `Origin`, `Referer`, `X-Forwarded-For`), logs no header, body or query string, and replaces every provider
+  error text (a refused or empty-balance key, an account) with a generic body, so nothing a provider says about the key or
+  the account is shown. The bundle scan
+  (`tools/check_no_secrets_in_build.sh`) and gitleaks run unchanged. A report that shows the key reaching any of these is in scope.
+- **Not protected, by design:** anyone who can reach the instance can spend the key, within the rate limit. The limit is
+  per client address as nginx sees it, so behind a reverse proxy it is effectively one cap for the whole instance. The
+  server forces the model and caps the reply (output); the input is bounded to the app's shapes (at most 8 messages, 24 KB
+  of text, one inline image, no remote URL) and the body to 2 MiB, but it cannot tell a photo question from any other
+  question. Requests must be same-origin JSON (`Content-Type`, `Sec-Fetch-Site`, `Origin` are checked), so another
+  website cannot spend the key through a visitor's browser. The
+  mitigation is the operator's: put the instance behind a sign-in or an allow-list (the repository ships Traefik
+  overlays for both) and set a spend limit at the provider. The key is also readable by anyone who can read the
+  container's environment on the host (`docker inspect`), like any `.env` secret.
+- **A privacy trade-off, disclosed in the app:** a photo sent this way passes through the operator's server before it
+  reaches the provider. The consent dialog says so, and the server relays it without storing it.
+
 Out of scope: vulnerabilities in third-party services you connect yourself
 (for example an AI provider), and issues that need a rooted or already
 compromised device.

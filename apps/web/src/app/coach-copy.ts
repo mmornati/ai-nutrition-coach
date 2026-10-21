@@ -53,4 +53,4 @@ export function coachCopy(
 
 /** True when the key carries nutrient numbers (so it is hidden while numbers are off). */
 export const coachKeyHasNumbers = (questionKey: string): boolean =>
-  Object.keys(splitQuestionKey(questionKey).params).length > 0;
+  Object.keys(splitQuestionKey(questionKey).params).some((key) => key !== 'lang');

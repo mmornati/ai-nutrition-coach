@@ -1,0 +1,14 @@
+# Instance AI proxy -- OFF (the default). Rendered into /tmp/ai-nutrition-coach-ai-locations.inc.
+# Nothing here makes a request: no upstream, no DNS resolver and no key.
+location = /ai/config.json {
+    default_type application/json;
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 200 '{"enabled":false}';
+}
+
+location ^~ /ai/ {
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 404;
+}

@@ -127,6 +127,8 @@ export const en = {
     aimHint: 'Aim at your plate, then tap the shutter.',
     noAiNote:
       'Photo recognition needs an AI connection. Without one, you can still pick or type what is on the plate.',
+    noAiNoteInstance:
+      'Photo recognition needs an AI connection. This server offers one: you can turn it on in Settings. Without it, you can still pick or type what is on the plate.',
     reading: 'Reading your plate…',
     retake: 'Retake',
     typeManually: 'Type it manually',
@@ -191,6 +193,8 @@ export const en = {
     noAiTitle: 'No AI connected',
     noAiHint:
       "Photos aren't analysed without AI. Pick a recent food, type it, or set up AI in Settings.",
+    noAiHintInstance:
+      "Photos aren't analysed without AI. Pick a recent food, type it, or turn on the AI this server offers in Settings.",
     setUpAi: 'Set up AI',
     recognizedLabel: 'Recognized foods',
     closestMatches: 'Closest matches',
@@ -216,6 +220,14 @@ export const en = {
     allowOnce: 'Send this photo',
     decline: 'Not now',
     learnMore: 'What this app stores and sends',
+    instanceTitle: 'Send this photo to this server?',
+    instanceWhatIsSent:
+      'What is sent: the photo, shrunk, with its location and camera details removed, and a fixed instruction asking which foods are on the plate and in which language to answer (English or French, the app language). The photo goes to this server ({host}), which adds its own AI key and passes it on to {via}. AI Nutrition Coach, the project, does not run this server or that service and never sees the photo.',
+    instanceAlsoVisible:
+      'Also visible to whoever runs {host}: your internet address and your browser type, as with any website. {via} receives the photo from this server, not from your device.',
+    instanceRetention:
+      '{via} may keep requests under its own terms, and whoever runs this server chose it: ask them about its data policy. This server’s software does not store the photo.',
+    instanceAllow: 'Allow this server',
   },
   ai: {
     /** AiRungStrings (the earlier client). The quota lines belong to the deferred hosted tier. */
@@ -231,6 +243,8 @@ export const en = {
       waitForReset: 'wait for the quota to reset',
       quotaStatusHeading: 'When the free quota runs out',
       manualFallbackHint: 'You can still pick a closest match or type it manually.',
+      thisServerActive: 'this server — {label}',
+      thisServerOff: 'this server — not offered',
     },
     /** ByokStrings (the earlier client). */
     byok: {
@@ -258,6 +272,12 @@ export const en = {
       rungHostedLabel: 'Free hosted model',
       rungLocalLabel: 'Model on this device',
       rungUnavailable: 'Not available yet',
+      rungInstanceLabel: 'Provided by this server',
+      rungInstanceHelp: 'No key needed. Photos go to this server, which sends them on to {label}.',
+      instanceHeading: 'AI on this server',
+      instanceExplain:
+        'The person who runs this server ({host}) keeps an AI key on it, so you need none. A photo goes first to this server and from there to {label}, which reads it and answers. You are asked before each photo is sent, unless you turn that off below.',
+      instanceModel: 'Model: {model}',
       byokHeading: 'Your service',
       endpointLabel: 'Endpoint',
       endpointHint: 'https://openrouter.ai/api/v1',
@@ -311,6 +331,22 @@ export const en = {
       askEveryPhotoLabel: 'Ask before every photo upload',
       askEveryPhotoHelp:
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
+      coachingHeading: 'AI coaching',
+      coachingIntro:
+        'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch.',
+      coachingSwitch: 'Let the AI write coach notes and answer questions',
+      coachingSwitchHelpOff:
+        'Off: the coach writes its built-in notes and nothing about your meals is sent.',
+      coachingSwitchHelpOn:
+        'On: after you log a plate, and when you ask the coach, your meal data goes to the destination below. You can turn this off at any time.',
+      coachingSent:
+        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), and what you type in Ask the coach along with the earlier answers of that conversation. Never your photos, never your passphrase. With nutrition numbers turned off, weights and nutrients are left out.',
+      coachingDestinationInstance:
+        'Destination: {host}, this server, which passes it on to {label}.',
+      coachingDestinationByok: 'Destination: {host}, the service you chose.',
+      coachingNeedsAi:
+        'Choose an AI above first: the one this server offers, or your own key. Until then nothing is sent.',
+      coachingSaveFailed: 'Could not keep that. Unlock the app and try again.',
     },
     /** Messages carried by a failed recognition (ported from the earlier rung and provider). */
     failure: {
@@ -326,6 +362,10 @@ export const en = {
       couldNotConnect: 'could not connect to {host}',
       unreachable: 'the provider could not be reached',
       unavailableRung: 'Not available yet',
+      instanceUnavailable:
+        'This server does not offer AI right now. You can choose another option in Settings → Your AI.',
+      instanceBusy: 'The AI on this server is busy. Try again in a moment.',
+      instanceError: 'The AI on this server did not answer. Try again in a moment.',
       /** Browsers report a CORS or Content-Security-Policy block exactly like an offline host. */
       blockedByBrowser:
         'If the service is up, the browser may have blocked the call: the service has to allow requests from this page (CORS), and this site’s Content-Security-Policy has to list its address. If you host this app yourself, add the address to AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (see the self-hosting notes).',
@@ -399,6 +439,7 @@ export const en = {
     askLater: 'Ask later',
     depthGroup: 'More from the coach',
     close: 'Close',
+    aiMark: 'Written by AI',
   },
   chip: {
     onDevice: 'On this device',
@@ -444,6 +485,7 @@ export const en = {
     noteQuietDays: '{name} was quiet on {days}.',
     noteQuietAll: '{name} stayed quiet all week.',
     noteQuietMany: '{names} were quiet this week.',
+    askCoachLink: 'Ask the coach',
     review: {
       title: 'The week, in short',
       daysLogged: {
@@ -477,6 +519,23 @@ export const en = {
           'Salt averaged {approx}{g} g a day. Tasting before salting is a gentle place to start.',
         easeSugars:
           'Sugars averaged {approx}{g} g a day. Fruit or plain yogurt in place of one sweet item is a small change.',
+      },
+      ai: {
+        button: 'Ask the coach about this week',
+        heading: 'The coach, on this week',
+        reading: 'The coach is reading your week…',
+        mark: 'Written by AI',
+        busy: 'The AI is busy. Try again in a moment.',
+        failure: 'The coach could not answer just now. You can try again.',
+        unsure: 'The coach did not find words it was happy with. You can try again.',
+        hiddenByNumbers:
+          'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
+        needsSetup:
+          'To ask the coach about your week, choose an AI and turn on AI coaching in Settings, Your AI.',
+        needsConsent:
+          'To ask the coach about your week, turn on AI coaching in Settings, Your AI. Your meals are sent only after you say yes.',
+        open: 'Open Your AI',
+        note: 'This sends the week’s counts, daily averages and daily guide to {host}, with your profile if you filled it in. The review above stays as it is.',
       },
     },
   },
@@ -565,6 +624,7 @@ export const en = {
     plateRemoveFailed: 'Couldn’t remove it. Try again.',
     networkHeading: 'This week’s network',
     seeWeekNetwork: "See the week's network",
+    askCoachLink: 'Ask the coach',
   },
   /** Nutrition numbers (docs/adr/0006): grams, previews, Nutrient Bars. */
   nutrition: {
@@ -668,6 +728,47 @@ export const en = {
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'around {pct}%', underOne: 'less than 1%' },
+  /** Ask the coach (optional AI chat) and the AI coaching copy. */
+  askCoach: {
+    title: 'Ask the coach',
+    intro:
+      'Ask about your last seven days of meals. The AI sees the names of your foods, their food groups, the nutrient totals of each day and your profile, never your photos. This is not medical advice.',
+    memory:
+      'This conversation is kept only while the app is unlocked. It is not saved or exported, and it is gone when you lock the app.',
+    offTitle: 'The AI coach is off',
+    offNoAi:
+      'Ask the coach needs an AI. Choose one, and say yes to AI coaching, in Settings, Your AI. Until then the coach keeps writing its built-in notes.',
+    offNeedsConsent:
+      'Ask the coach sends your meals to {host}, so it needs your yes first. You can give it in Settings, Your AI.',
+    openYourAi: 'Open Your AI',
+    inputLabel: 'Your question',
+    inputHint: 'For example: is my week varied enough?',
+    counter: '{count} of {max} characters',
+    send: 'Ask',
+    thinking: 'The coach is thinking…',
+    conversation: 'Conversation',
+    you: 'You',
+    coach: 'The coach',
+    aiMark: 'Written by AI',
+    asked: '{count} of {max} questions asked',
+    limit: 'That is the end of this conversation: {max} questions. Start a new one to keep going.',
+    newConversation: 'Start a new conversation',
+    busy: 'The AI is busy. Try again in a moment.',
+    failure: 'The coach could not answer just now. Your question is still in the box.',
+    consent: 'AI coaching is switched off. Turn it on in Settings, Your AI.',
+    unavailable: 'No AI is set up right now. Choose one in Settings, Your AI.',
+    unsure: 'I could not put that into words I am happy with. Could you ask it another way?',
+    supportEating:
+      'It sounds like food or your body may be weighing on you. I cannot give advice on that.',
+    supportMedical:
+      'That sounds like something to check with a doctor or a pharmacist. I cannot give advice on symptoms.',
+    supportUrgent:
+      'This could be urgent. Please call your local emergency number now: 112 in the EU, 999 in the UK, 911 in the US, 15 or 112 in France. I cannot give advice on symptoms.',
+    supportSelfHarm:
+      'I am sorry you are feeling this way, and I am glad you said it. You do not have to carry it alone. In France you can call 3114, the national suicide prevention line, free and open day and night. In the UK, Samaritans are on 116 123, free, any time. In the US, call or text 988. Elsewhere, please call your local emergency number or a crisis line near you.',
+    hiddenByNumbers:
+      'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
+  },
   coachQuestions: {
     'post.resolve.vegLight':
       'No veg or fruit so far today. Could a handful join this meal, even on the side?',
@@ -827,6 +928,10 @@ export const en = {
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
     leavesPhoto:
       'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction (which also says in which language to answer, the app language) and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
+    leavesInstance:
+      'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
+    leavesCoaching:
+      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:
@@ -835,6 +940,8 @@ export const en = {
     serverHeading: 'What the server you got this app from sees',
     serverBody:
       'Nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.',
+    serverInstance:
+      'The one exception is a photo you choose to send through the AI this server offers (see above): it passes through this server on its way to the provider, and is not stored there.',
     neverHeading: 'Never collected',
     neverBody:
       'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.',

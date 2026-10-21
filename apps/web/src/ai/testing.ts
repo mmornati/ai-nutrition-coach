@@ -32,6 +32,14 @@ export class FakeFetch {
   stream: ReadableStream<Uint8Array> | null = null;
   /** Answer like a browser that refused to follow a redirect. */
   opaqueRedirect = false;
+  /**
+   * The container's `/ai/config.json` (the instance-wide AI offer). It is answered at once, whatever
+   * `hang` and `error` say, and kept out of `requests` (those are the AI and catalogue calls a test
+   * asserts on); look in `configRequests`. Default: the server offers no AI.
+   */
+  instanceConfig: unknown = { enabled: false };
+  configStatus = 200;
+  configRequests: RecordedRequest[] = [];
 
   get last(): RecordedRequest {
     const r = this.requests.at(-1);
@@ -44,6 +52,13 @@ export class FakeFetch {
     new Headers(init.headers).forEach((v, k) => {
       headers[k] = v;
     });
+    if (url.endsWith('/ai/config.json')) {
+      this.configRequests.push({ url, init, body: '', headers });
+      return new Response(JSON.stringify(this.instanceConfig), {
+        status: this.configStatus,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     this.requests.push({ url, init, body: String(init.body ?? ''), headers });
     if (this.error) throw this.error;
     if (this.hang) {

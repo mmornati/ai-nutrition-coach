@@ -5,6 +5,7 @@ import { useDay } from '../../app/day-context';
 import { foodGroupsOfFood } from '../../catalog';
 import { hasNutrition, NutrientBars, useShowNumbers, useTargets } from '../../components/nutrition';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
+import { WeekAiSummary } from './WeekAiSummary';
 
 /**
  * "The week, in short": how many days have meals logged (a count, never a run), the daily average
@@ -79,6 +80,7 @@ export function WeekReview({ className }: { readonly className?: string }) {
           <p className="text-lead">{tryNext}</p>
         </div>
       )}
+      <WeekAiSummary review={review} />
     </section>
   );
 }

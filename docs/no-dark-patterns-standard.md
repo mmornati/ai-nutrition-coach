@@ -79,6 +79,20 @@ One well-known organisation per language, verified 2026-10-21 (page loaded, corr
 
 Re-verify both links at each release and update the date here.
 
+**Crisis and emergency lines in Ask the coach** (shown as text only, no link and no fetch; a question about
+self-harm or a possible emergency is answered on the device and never sent to an AI). Numbers verified 2026-10-21 on
+the official pages:
+
+| Where | Line | Source |
+| --- | --- | --- |
+| France | 3114, national suicide prevention number, free, 24 h/24 and 7 j/7 | https://3114.fr ("Le 3114 est accessible 24h/24 et 7j/7, gratuitement, en France entière") |
+| United Kingdom | Samaritans, 116 123, free from any phone, any time | https://www.samaritans.org/how-we-can-help/contact-samaritan/ |
+| United States | 988 Suicide & Crisis Lifeline, call or text 988, free, 24/7 | https://988lifeline.org/ |
+| Emergencies | 112 (EU), 999 (UK), 911 (US), 15 or 112 (France) | Standard national emergency numbers |
+
+The self-harm copy names the French and the UK and US lines and, elsewhere, the local emergency number or a crisis
+line; the urgent-symptom copy names the four emergency numbers.
+
 ## Named reviewer
 
 The named reviewer owns the pass on every PR that touches

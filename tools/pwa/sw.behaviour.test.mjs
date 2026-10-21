@@ -259,6 +259,25 @@ describe('fetch', () => {
   });
 });
 
+describe('the instance AI proxy (docs/self-host.md)', () => {
+  it('/ai/config.json is never precached and always read from the network; the proxy POST is never intercepted', async () => {
+    const w = makeWorker({ files: FILES });
+    await w.install();
+    expect([...w.caches.stores.values()].flatMap((c) => [...c.entries.keys()]).join('\n')).not.toContain(
+      '/ai/',
+    );
+    w.network.length = 0;
+    const res = await w.dispatchFetch(new Request(`${ORIGIN}/ai/config.json`));
+    expect(res.status).toBe(404); // the fake network knows no such file: the worker did not invent one
+    expect(w.network.map((n) => n.url)).toEqual([`${ORIGIN}/ai/config.json`]);
+    expect(
+      w.dispatchFetch(
+        new Request(`${ORIGIN}/ai/v1/chat/completions`, { method: 'POST', body: '{}' }),
+      ),
+    ).toBeUndefined();
+  });
+});
+
 describe('the template, statically', () => {
   const code = template.split('\n').filter((l) => !l.trimStart().startsWith('*') && !l.trimStart().startsWith('/*')).join('\n');
   it('contains no absolute URL (no third-party host can be reached)', () => {

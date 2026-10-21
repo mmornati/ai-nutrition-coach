@@ -99,6 +99,20 @@ services:
       # off (default) | on (minimal, address-truncated, no User-Agent) | full
       # (docs/self-host.md "Logs").
       AI_NUTRITION_COACH_ACCESS_LOG: ${AI_NUTRITION_COACH_ACCESS_LOG:-off}
+      # Instance-wide AI (docs/self-host.md "Offer AI to everyone on your instance"). Off unless
+      # AI_PROXY_ENABLED=1 and a key are set. The key is read by the container at start, rendered
+      # into a private file under /tmp, and never reaches the browser, the image or the logs.
+      AI_PROXY_ENABLED: ${AI_PROXY_ENABLED:-0}
+      AI_PROXY_UPSTREAM: ${AI_PROXY_UPSTREAM:-}
+      AI_PROXY_KEY: ${AI_PROXY_KEY:-}
+      AI_PROXY_MODEL: ${AI_PROXY_MODEL:-}
+      AI_PROXY_LABEL: ${AI_PROXY_LABEL:-}
+      AI_PROXY_RATE: ${AI_PROXY_RATE:-10r/m}
+      AI_PROXY_RATE_ALL: ${AI_PROXY_RATE_ALL:-30r/m}
+      AI_PROXY_BURST: ${AI_PROXY_BURST:-5}
+      AI_PROXY_CONN: ${AI_PROXY_CONN:-2}
+      AI_PROXY_TOKEN_PARAM: ${AI_PROXY_TOKEN_PARAM:-max_tokens}
+      AI_PROXY_MAX_TOKENS: ${AI_PROXY_MAX_TOKENS:-2000}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m

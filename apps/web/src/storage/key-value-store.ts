@@ -15,6 +15,12 @@ export { KeyValueStoreLocked };
 export const KV_KEYS = Object.freeze({
   /** `AiSettings` as JSON. */
   aiSettings: 'ai.settings',
+  /**
+   * `{ "host": "<destination>" }`: the person agreed to let an AI see their meals to write coach
+   * notes and answer questions, for that destination only. Absent means no (the default). Not the
+   * photo consent, which lives in `ai.settings`.
+   */
+  aiCoachingConsent: 'ai.coachingConsent',
   /** The BYOK API key. A secret: protected by the database key, never logged, never exported. */
   aiByokKey: 'ai.byokKey',
   /** UTC ISO-8601 time of the last successful export. */

@@ -23,7 +23,8 @@
 #   20  image build failed              30  docker run failed
 #   31  container name already in use   40  compose stack failed to start
 #   41  --tls / --traefik without AI_NUTRITION_COACH_DOMAIN
-#   42  invalid AI_NUTRITION_COACH_DOMAIN / AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / Traefik setting
+#   42  invalid AI_NUTRITION_COACH_DOMAIN / AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / Traefik /
+#       AI_PROXY_* setting
 #   43  --traefik: the Docker network AI_NUTRITION_COACH_TRAEFIK_NETWORK does not exist
 #
 # POSIX sh. Works from any current directory.
@@ -104,6 +105,34 @@ validate_access_log() {
       exit 42
       ;;
   esac
+}
+
+# AI_PROXY_* (optional): ONE AI key for everyone on this instance, kept on the server
+# (docs/self-host.md "Offer AI to everyone on your instance"). Off unless AI_PROXY_ENABLED=1.
+# The key is only ever passed to the container by NAME (`docker run -e AI_PROXY_KEY`), so it is
+# not in this script's arguments, `ps` or the output; error messages never print a value. The
+# container validates the values again at start (40-render-ai-proxy.sh).
+validate_ai_proxy() {
+  [ "${AI_PROXY_ENABLED:-0}" = 1 ] || return 0
+  [ -n "${AI_PROXY_KEY:-}" ] || {
+    printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_KEY (the provider key; it is never printed).\n' >&2
+    exit 42
+  }
+  case "${AI_PROXY_UPSTREAM:-}" in
+    https://?*) ;;
+    *) printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_UPSTREAM=https://... (e.g. https://openrouter.ai/api/v1).\n' >&2; exit 42 ;;
+  esac
+  [ -n "${AI_PROXY_MODEL:-}" ] || {
+    printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_MODEL (the model every request uses).\n' >&2
+    exit 42
+  }
+}
+
+# A reminder, never a prompt: anyone who can open the instance can spend the key.
+note_ai_proxy() {
+  [ "${AI_PROXY_ENABLED:-0}" = 1 ] || return 0
+  printf 'ai-nutrition-coach: instance-wide AI is ON. Anyone who can reach this instance can use your key (within\n' >&2
+  printf '           the rate limit): put it behind a sign-in or an allow-list, and set a spend cap at your provider.\n' >&2
 }
 
 # AI_NUTRITION_COACH_PROJECT_URL is a build-time setting of the image (a --build-arg): a plain
@@ -240,6 +269,7 @@ up() {
   # the same way with or without Docker on the machine.
   validate_csp_extra
   validate_access_log
+  validate_ai_proxy
   validate_project_url
   if [ "$mode" = tls ]; then
     if [ -z "${AI_NUTRITION_COACH_DOMAIN:-}" ]; then
@@ -289,6 +319,7 @@ up() {
       exit 40
     fi
     printf 'ai-nutrition-coach is up behind Traefik: https://%s/ (once Traefik has picked up the labels)\n' "$AI_NUTRITION_COACH_DOMAIN"
+    note_ai_proxy
     exit 0
   fi
 
@@ -307,6 +338,7 @@ up() {
       warn_if_exposed
       printf 'ai-nutrition-coach is up at http://%s:%s/\n' "$(url_host)" "$PORT"
     fi
+    note_ai_proxy
     exit 0
   fi
 
@@ -320,6 +352,9 @@ up() {
         -e "AI_NUTRITION_COACH_CONNECT_SRC_EXTRA=$CSP_EXTRA" \
         -e "AI_NUTRITION_COACH_SW_KILL=${AI_NUTRITION_COACH_SW_KILL:-}" \
         -e "AI_NUTRITION_COACH_ACCESS_LOG=${AI_NUTRITION_COACH_ACCESS_LOG:-off}" \
+        -e AI_PROXY_ENABLED -e AI_PROXY_UPSTREAM -e AI_PROXY_KEY -e AI_PROXY_MODEL -e AI_PROXY_LABEL \
+        -e AI_PROXY_RATE -e AI_PROXY_RATE_ALL -e AI_PROXY_BURST -e AI_PROXY_CONN -e AI_PROXY_MAX_TOKENS \
+        -e AI_PROXY_TOKEN_PARAM \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
     printf 'ai-nutrition-coach: docker run failed (is port %s already in use? try AI_NUTRITION_COACH_PORT=...).\n' "$PORT" >&2
@@ -329,6 +364,7 @@ up() {
   fi
   warn_if_exposed
   printf 'ai-nutrition-coach is up at http://%s:%s/\n' "$(url_host)" "$PORT"
+  note_ai_proxy
 }
 
 down() {
@@ -381,6 +417,14 @@ Environment:
                                only, validated
   AI_NUTRITION_COACH_ACCESS_LOG         nginx access log: off (default) | on (address
                                truncated, no User-Agent) | full
+  AI_PROXY_ENABLED                      1 = offer ONE AI key to everyone on this instance
+                               (default: off). Needs AI_PROXY_UPSTREAM (https://...),
+                               AI_PROXY_KEY and AI_PROXY_MODEL; optional AI_PROXY_LABEL,
+                               AI_PROXY_RATE, AI_PROXY_RATE_ALL, AI_PROXY_BURST, AI_PROXY_CONN, AI_PROXY_MAX_TOKENS,
+                               AI_PROXY_TOKEN_PARAM. The key
+                               stays on the server and is never printed. Anyone who can
+                               reach the instance can spend it: use a sign-in or an
+                               allow-list (docs/self-host.md)
   AI_NUTRITION_COACH_PROJECT_URL        project page compiled into the build (plain https URL;
                                default https://github.com/mmornati/ai-nutrition-coach)
   AI_NUTRITION_COACH_RELEASE            1 = release build: refuse an empty/.invalid project URL

@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { CoachNote, CoachNoteStore, PlateLog } from '@anc/core';
+import {
+  coachNoteDismissalKey,
+  containsNumberWithUnit,
+  aiNoteLocale,
+  isAiCoachNote,
+  type CoachNote,
+  type CoachNoteStore,
+  type PlateLog,
+} from '@anc/core';
 import { CoachCard, DepthPanel } from '../../components/day';
 import { coachCopy, coachKeyHasNumbers } from '../../app/coach-copy';
 import { useSession } from '../../app/session';
@@ -47,7 +55,9 @@ export function usePlateNotes(notes: CoachNoteStore, plateLogId: number): readon
 }
 
 type Phase =
-  { readonly kind: 'card' } | { readonly kind: 'depth'; readonly followUp: CoachNote | null };
+  | { readonly kind: 'card' }
+  /** `note` is the note that was shown when Sure was tapped: Close is recorded against it. */
+  | { readonly kind: 'depth'; readonly note: CoachNote; readonly followUp: CoachNote | null };
 
 /**
  * The one coach question under a plate: Sure opens the bounded follow-up, Ask later dismisses it
@@ -69,30 +79,48 @@ export function PlateCoach({
   const [gone, setGone] = useState(false);
   const showNumbers = useShowNumbers();
 
-  const note = list.find((n) => n.anchor === 'postResolve');
-  if (gone || !note || dismissed.has(`note:${note.id}`)) return null;
+  const template = list.find((n) => n.anchor === 'postResolve' && !isAiCoachNote(n));
+  const aiNote = list.find((n) => n.anchor === 'postResolve' && isAiCoachNote(n));
+  // An AI-written note replaces the template one in place, unless it was written in another
+  // language than the interface now speaks, or it quotes amounts while numbers are off (the person
+  // may have changed either since): then the template note stands.
+  const usableAi = (n: CoachNote): boolean =>
+    aiNoteLocale(n) === locale && (showNumbers || !containsNumberWithUnit(n.text));
+  const useAi = aiNote !== undefined && usableAi(aiNote);
+  const note = useAi ? aiNote : template;
+  // The one question is dismissed for good when either of its two versions was.
+  const isDismissed = [template, aiNote].some(
+    (n) => n !== undefined && dismissed.has(coachNoteDismissalKey(n.id)),
+  );
+  if (gone || !note || isDismissed) return null;
   // A note that quotes nutrient numbers stays out of sight while numbers are turned off.
   if (!showNumbers && coachKeyHasNumbers(note.questionKey)) return null;
+  // The AI's own follow-up (stored beside its note) opens under the AI note, under the same
+  // language and numbers checks; the template note asks the core to append its bounded one.
+  const aiFollowUp = list.find((n) => n.anchor === 'depthFollowUp' && isAiCoachNote(n));
+  const storedFollowUp =
+    useAi && aiFollowUp !== undefined && usableAi(aiFollowUp) ? aiFollowUp : null;
 
   const sure = async () => {
     let followUp: CoachNote | null;
     try {
-      followUp = (await coachInteractions.record({ note, kind: 'sure' })).followedUpNote;
+      followUp =
+        (await coachInteractions.record({ note, kind: 'sure' })).followedUpNote ?? storedFollowUp;
     } catch {
       followUp = null;
     }
-    setPhase({ kind: 'depth', followUp });
+    setPhase({ kind: 'depth', note, followUp });
   };
   const askLater = () => {
     setGone(true);
     void coachInteractions.record({ note, kind: 'askLater' }).catch(() => undefined);
   };
-  const close = () => {
+  const close = (shown: CoachNote) => {
     setGone(true);
     void (async () => {
       try {
-        await coachInteractions.record({ note, kind: 'depthAnswer' });
-        await coachInteractions.record({ note, kind: 'dismiss' });
+        await coachInteractions.record({ note: shown, kind: 'depthAnswer' });
+        await coachInteractions.record({ note: shown, kind: 'dismiss' });
       } catch {
         // Closed for this session; the card may return after a reload at worst.
       }
@@ -102,13 +130,17 @@ export function PlateCoach({
   return phase.kind === 'card' ? (
     <CoachCard
       question={noteQuestion(all, note, locale)}
+      {...(useAi ? { aiMark: all.coach.aiMark } : {})}
       onSure={() => void sure()}
       onAskLater={askLater}
     />
   ) : (
     <DepthPanel
       followUp={phase.followUp === null ? null : noteQuestion(all, phase.followUp, locale)}
-      onClose={close}
+      {...(phase.followUp !== null && isAiCoachNote(phase.followUp)
+        ? { aiMark: all.coach.aiMark }
+        : {})}
+      onClose={() => close(phase.note)}
     />
   );
 }

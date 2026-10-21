@@ -1,5 +1,9 @@
-/** The four rungs behind the `AiRung` port. `local` is a declared v2 seam. */
-export const AI_RUNG_KINDS = ['noOp', 'hostedQuota', 'byok', 'local'] as const;
+/**
+ * The rungs behind the `AiRung` port. `instance` is the key the person who hosts this app keeps
+ * on the server (a same-origin proxy; the key never reaches the browser). `hostedQuota` is a
+ * relay run by the project and is not built. `local` is a declared v2 seam.
+ */
+export const AI_RUNG_KINDS = ['noOp', 'hostedQuota', 'byok', 'local', 'instance'] as const;
 export type AiRungKind = (typeof AI_RUNG_KINDS)[number];
 
 const LABELS: Readonly<Record<AiRungKind, string>> = {
@@ -7,6 +11,7 @@ const LABELS: Readonly<Record<AiRungKind, string>> = {
   hostedQuota: 'free model',
   byok: 'your key',
   local: 'local model',
+  instance: 'this server',
 };
 
 /** Human-readable label. */

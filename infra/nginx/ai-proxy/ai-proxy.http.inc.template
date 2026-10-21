@@ -1,0 +1,39 @@
+# Instance AI proxy -- http-level directives (rendered by 40-render-ai-proxy.sh
+# into /tmp/ai-nutrition-coach-ai-http.inc, mode 0600). Doubled-at-sign placeholders are
+# substituted from validated values; nothing here holds the key.
+#
+# Two rate limits apply to every request: per client address AS NGINX SEES IT, and for the whole
+# instance. Behind a reverse proxy (Traefik, Caddy) the client address is the PROXY's, so the two
+# are the same bucket unless real_ip is configured: then the per-address limit is effectively
+# instance-wide too, and so is the per-address connection limit (docs/self-host.md). Rejections
+# are logged at `info`, below the error_log level, so no client address reaches the container log.
+limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=@@ANC_AI_RATE@@;
+limit_req_zone $server_name zone=ai_nutrition_coach_ai_rall:64k rate=@@ANC_AI_RATE_ALL@@;
+limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_ai_ip:1m;
+limit_conn_zone $server_name zone=ai_nutrition_coach_ai_all:64k;
+limit_req_log_level info;
+limit_conn_log_level info;
+
+# Same-origin only. Browsers send Sec-Fetch-Site on every request they make: anything but
+# same-origin (cross-site, same-site, none) is refused; a client that sends none (curl, wget, an
+# old browser) is judged by Origin below.
+map $http_sec_fetch_site $anc_ai_sfs_bad {
+    default       1;
+    ""            0;
+    "same-origin" 0;
+}
+# The host part of Origin (empty when there is none; "bad" for anything that is not http(s)://host).
+map $http_origin $anc_ai_origin_host {
+    default                          "bad";
+    ""                               "";
+    "~*^https?://(?<ah>[^/]+)$"      $ah;
+}
+# Origin's host[:port] must equal the Host header the browser used (Traefik and Caddy keep it).
+map "$anc_ai_origin_host|$http_host" $anc_ai_origin_bad {
+    default              1;
+    "~^\|"               0;
+    "~*^([^|]+)\|\1$"    0;
+}
+
+js_path /etc/ai-nutrition-coach/ai-proxy;
+js_import anc_ai from ai-proxy.js;

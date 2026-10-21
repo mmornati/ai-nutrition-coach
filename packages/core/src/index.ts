@@ -56,6 +56,8 @@ export * from './use-cases/record-byok-change';
 export * from './use-cases/record-coach-interaction';
 export * from './use-cases/record-plate';
 export * from './use-cases/record-sync-op';
+export * from './coach/ai-coaching';
+export * from './coach/ai-prompts';
 export * from './coach/day-coaching';
 export * from './coach/nutrient-coaching';
 export * from './coach/weekly-review';

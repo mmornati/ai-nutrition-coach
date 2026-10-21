@@ -49,6 +49,8 @@ type Flow =
 
 interface Consent {
   readonly host: string;
+  /** The provider behind this server, when the host is this server (the instance-wide key). */
+  readonly via?: string;
   readonly perPhoto: boolean;
   readonly resolve: (allowed: boolean) => void;
 }
@@ -75,11 +77,23 @@ export function LogHost({
   const askConsent = useCallback(
     (input: { host: string; perPhoto: boolean }) =>
       new Promise<boolean>((resolve) => {
-        const next = { ...input, resolve };
+        // On the instance rung the host is this server: name the provider it passes the photo to.
+        const offer = session.ai.instance.getSnapshot().config;
+        const via =
+          session.ai.settings.getSnapshot().rung.kind === 'instance' && offer.enabled
+            ? offer.label
+            : undefined;
+        const next: Consent = {
+          // The consent key of the instance rung is not a host name: the dialog names this server.
+          ...input,
+          host: via === undefined ? input.host : session.ai.instance.getSnapshot().host,
+          ...(via === undefined ? {} : { via }),
+          resolve,
+        };
         consentRef.current = next;
         setConsent(next);
       }),
-    [],
+    [session],
   );
   const answerConsent = (allowed: boolean) => {
     consentRef.current?.resolve(allowed);
@@ -113,7 +127,7 @@ export function LogHost({
 
   const photo = usePhotoFlow({
     getRung: () => session.ai.rung,
-    ...photoFlowConsentDeps(session.ai.settings),
+    ...photoFlowConsentDeps(session.ai.settings, session.ai.instance.getSnapshot),
     askConsent,
     permit: session.ai.permit,
     catalog: session.catalog,
@@ -126,7 +140,17 @@ export function LogHost({
     session.ai.settings.subscribe,
     session.ai.settings.getSnapshot,
   );
-  const aiSetupHref = photoUploadHost(aiSettings) === null ? hrefs.section('ai') : undefined;
+  const instance = useSyncExternalStore(
+    session.ai.instance.subscribe,
+    session.ai.instance.getSnapshot,
+  );
+  const aiSetupHref =
+    photoUploadHost(aiSettings, instance) === null ? hrefs.section('ai') : undefined;
+  // The AI this server offers, when the person has not turned it on: the setup notes say so.
+  const instanceLabel =
+    instance.config.enabled && aiSettings.rung.kind !== 'instance'
+      ? instance.config.label
+      : undefined;
 
   const close = useCallback(() => setFlow({ kind: 'closed' }), []);
 
@@ -198,6 +222,7 @@ export function LogHost({
         onSource={startPhoto}
         onTypeInstead={() => typeInstead()}
         aiSetupHref={aiSetupHref}
+        instanceOffered={instanceLabel !== undefined}
       />
       <BarcodeSheet
         open={flow.kind === 'barcode'}
@@ -215,6 +240,7 @@ export function LogHost({
       <PhotoConsentDialog
         open={consent !== null}
         host={consent?.host ?? ''}
+        via={consent?.via}
         perPhoto={consent?.perPhoto ?? false}
         privacyHref={hrefs.privacy}
         onAllow={() => answerConsent(true)}
@@ -233,6 +259,7 @@ export function LogHost({
           closestMatches={state.closestMatches}
           onLog={commit}
           aiSetupHref={hrefs.section('ai')}
+          instanceOffered={instanceLabel !== undefined}
         />
       )}
     </LogContext.Provider>

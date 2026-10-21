@@ -6,6 +6,8 @@ export interface CoachCardProps {
   readonly question: string;
   /** Short condensed line above the question. */
   readonly title?: string;
+  /** "Written by AI": shown under the question when an AI wrote it. */
+  readonly aiMark?: string;
   readonly onSure: () => void;
   /** The parent removes the card after this; the card never re-asks. */
   readonly onAskLater: () => void;
@@ -13,7 +15,14 @@ export interface CoachCardProps {
 }
 
 /** The one inverted surface: a porcelain card with one question and two plain choices. */
-export function CoachCard({ question, title, onSure, onAskLater, className = '' }: CoachCardProps) {
+export function CoachCard({
+  question,
+  title,
+  aiMark,
+  onSure,
+  onAskLater,
+  className = '',
+}: CoachCardProps) {
   const s = useStrings().coach;
   return (
     <div
@@ -27,6 +36,7 @@ export function CoachCard({ question, title, onSure, onAskLater, className = '' 
         </p>
       ) : null}
       <p className="text-body">{question}</p>
+      {aiMark ? <p className="mt-1 text-aside">{aiMark}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="solid-enamel" onClick={onSure}>
           {s.sure}
@@ -42,13 +52,15 @@ export function CoachCard({ question, title, onSure, onAskLater, className = '' 
 export interface DepthPanelProps {
   /** The follow-up text. Null or empty renders an empty panel with Close only. */
   readonly followUp?: string | null | undefined;
+  /** "Written by AI": shown under the follow-up when an AI wrote it. */
+  readonly aiMark?: string | undefined;
   /** Records `depthAnswer` in the parent. */
   readonly onClose: () => void;
   readonly className?: string;
 }
 
 /** What opens on Sure: the follow-up and Close. No "unavailable" message when empty. */
-export function DepthPanel({ followUp, onClose, className = '' }: DepthPanelProps) {
+export function DepthPanel({ followUp, aiMark, onClose, className = '' }: DepthPanelProps) {
   const s = useStrings().coach;
   return (
     <div
@@ -57,6 +69,7 @@ export function DepthPanel({ followUp, onClose, className = '' }: DepthPanelProp
       className={`day-enter on-porcelain bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
     >
       {followUp ? <p className="text-body">{followUp}</p> : null}
+      {followUp && aiMark ? <p className="mt-1 text-aside">{aiMark}</p> : null}
       <div className={followUp ? 'mt-3' : ''}>
         <Button variant="solid-enamel" onClick={onClose}>
           {s.close}

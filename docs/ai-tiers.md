@@ -1,6 +1,6 @@
 # AI Nutrition Coach — AI Tiers
 
-This document describes the v1 AI tier ladder: the four rungs the
+This document describes the v1 AI tier ladder: the rungs the
 `AiRung` port exposes, how they are configured, and how the
 photo-recognition path behaves when each rung is active. It is the
 canonical reference for FR6 (free quota honesty), FR7 (BYOK key
@@ -13,7 +13,7 @@ on-device), and FR8 (local-model v2 seam).
 > translation; the specs are the contract. The code is
 > `apps/web/src/ai` (adapters) and `packages/core` (the `AiRung` port).
 
-## The four rungs
+## The rungs
 
 Exactly one rung is active at any time. The active rung is the user's
 choice in **Settings → Your AI** (reached from the gear on the Day Board)
@@ -26,24 +26,49 @@ restarts (see "Where settings live" below).
 | Offline (no AI) | `noOp`           | Default; always available                              |
 | Free model      | `hostedQuota`    | **Not built** (known accepted gap) — needs a server-side relay |
 | Your key        | `byok`           | Active; your key, your endpoint                        |
+| This server's AI | `instance`      | **Built** (Phase 4), only where the server's operator turned it on |
 | Local model     | `local`          | v2 seam — not implemented                              |
 
-The Your AI screen lists all four, but only *No AI* and *My own key* can be
-chosen; the other two read "Not available yet". A persisted value naming an
+The Your AI screen lists *No AI*, *My own key* and the two unavailable rungs, which read "Not available yet";
+*Provided by this server* is listed, after *No AI*, only while the server offers it. A persisted value naming an
 unavailable rung is normalised to *No AI* when it is loaded.
 
 The v2 `local` rung exists in the type system and the rung registry; it
 cannot be selected and returns a typed failure, so the seam is declared
 without crashing the core.
 
-### Planned: instance-wide key (Phase 4)
+### Instance-wide key (Phase 4): "Provided by this server"
 
-Not built. A self-hoster will be able to hold one AI key on the server,
-used through a server-side proxy and configured in `infra/server.env`, so
-the people sharing an instance need not each bring a key. It would appear
-as a rung in the same ladder, under the same no-pressure rules, and the
-key would never reach the browser. See
-`docs/adr/0006-nutrition-numbers-calm-framing.md`.
+Built. Whoever hosts the app can keep **one** OpenAI-compatible endpoint, key and model on the server
+(`AI_PROXY_*` in `infra/server.env`; see [`docs/self-host.md`](./self-host.md#offer-ai-to-everyone-on-your-instance)
+for setup, cost and abuse). The rung kind is `instance`.
+
+- **The key never reaches the browser.** nginx answers `POST /ai/v1/chat/completions` on the app's own origin, adds the
+  `Authorization` header itself and forwards nothing the browser sent. The browser's request carries only
+  `Content-Type`: the existing OpenAI-compatible provider is used with `sendKey: false`
+  (`apps/web/src/ai/openai-compatible-provider.ts`), which is pinned by tests.
+- **What the browser can read** is `GET /ai/config.json`: `{ "enabled": true, "model": "…", "label": "…" }`, or
+  `{ "enabled": false }`. It is read when the AI services are built (after the unlock; never blocking it) and again when
+  Your AI opens or a photo needs it (`apps/web/src/ai/instance-config.ts`), parsed strictly, never cached, never precached.
+- **Availability.** The choice appears in Your AI only while the server says it is on. On a **new** install (nothing stored
+  yet) it becomes the starting choice; a person who already chose anything, No AI included, keeps their choice. If the
+  server later switches it off, a saved choice of it does not silently become No AI: the next photo says the server does
+  not offer AI right now, with the way to Your AI, and nothing is sent.
+- **Consent is unchanged in shape and honest in content.** The upload host is this page's own host; the dialog says the
+  photo goes to *this server* and is passed on to the provider named in the label, that the provider receives it from the
+  server and not from the person's device, and that the server's software does not store it. "Ask before every photo upload"
+  stays on by default. The one-shot permit and the consent gate apply exactly as for BYOK.
+- **Failures are calm and about the server.** `429` is "The AI on this server is busy. Try again in a moment." (no
+  countdown, even if a `Retry-After` is present); `404` is "This server does not offer AI right now."; a `5xx`, or a key
+  the provider refused (the proxy answers `502`), is "The AI on this server did not answer. Try again in a moment." None says
+  the person's own key was rejected: they have none. The no-AI core (closest matches, type it) is always right there.
+- **Where the no-AI messages point.** When the server offers AI but the person is on No AI, the Snap sheet and the
+  "No AI connected" sheet say so and link to Your AI.
+- **Text, for the coach.** `AiServices.chat.completeChat(messages, options)` sends one plain chat completion through the
+  same proxy (the instance rung's `completeChat`, `apps/web/src/ai/instance-ai-rung.ts`), returning
+  `text | busy | unavailable | failure`; it is `unavailable` unless the rung is the instance rung and the server offers AI. It adds
+  nothing to the messages and asks no consent: whoever builds on it explains what it sends. The server forces the model
+  and caps `max_tokens`.
 
 ### Where settings live
 
@@ -332,6 +357,67 @@ full user-facing posture.
 The `local` rung is reserved for v2. It is declared in the type system and the
 rung registry and cannot be selected, so a future implementation drops in
 behind the same port without touching the core or the UI.
+
+## Coaching (AI coach notes, Ask the coach, the weekly paragraph)
+
+The coach works without any AI: its built-in notes and weekly review are rules on the device. With an AI rung chosen
+(this server's AI, or your own key) and **a separate yes**, three optional features use a text chat on top of them.
+Photos and meal data are different things, so this is its own switch in *Settings, Your AI, AI coaching*
+("Let the AI write coach notes and answer questions"). It is **off by default**, it is recorded for one destination
+only (your endpoint host, or for this server's AI the host, provider label and model together, like the photo
+consent), and when the destination changes the stored yes is **cleared** (going back to the old destination asks
+again). No coaching call is made without it (checked at call time; revoking forgets it in memory first, so it takes
+effect at once even if the write fails). The Ask the coach conversation is also cleared whenever the destination or
+the yes changes. The photo consent never counts for it and it never counts for
+photos. With **No AI** nothing is sent.
+
+| Feature | When it runs | Exactly what is sent |
+| --- | --- | --- |
+| Coach note | After a plate is logged, only if the template coach had a note | Per food on the plate: name, food group, weight, nutrients; the plate's and the day so far's nutrient totals against the daily guide; the names (deduplicated, at most 12) of what you ate earlier that day; the number of plates; the meal slot (breakfast / lunch / dinner / late); the optional profile; the template coach's pattern name as a hint |
+| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days as one JSON document sent as a labelled data message (per day: its date without a time, number of plates, food groups, food names, nutrient totals; the top foods), the daily guide, the optional profile, your typed questions and the earlier answers of the conversation (the last two answered questions at most) |
+| Weekly paragraph | Only when you tap "Ask the coach about this week" | The number of days logged, the daily averages, the days each food group appeared, the daily guide, the keys of the rule-based remarks, the optional profile |
+
+The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. **Never sent**:
+photos, your passphrase, your key (it goes only in the request header to your own endpoint, never to this server's
+proxy), database ids, birth dates, or any time of day. Ask the coach sends the dates of the days (year-month-day) and the
+meal slot of a note is a name, not a time. With *nutrition numbers turned off*, weights, nutrients and the guide are left out
+altogether and the system prompt forbids amounts. Food names are cleaned (one line, 60 characters) and the system
+prompt tells the model that everything in the document is data, not instructions.
+
+**Prompts** live in one module, `packages/core/src/coach/ai-prompts.ts` (English and French, matching the interface
+language), with tests that pin the safety rules and the output contract. They say: a calm friend who asks rather than
+scolds; no exclamation marks, streaks, scores, points, "remaining" or "over budget"; no good or bad foods; not medical
+advice (never diagnose, treat or cure, no medication or doses; for a symptom or a worry about eating or the body, say
+that talking to a doctor or a support service can help); respect diet and allergies; no links.
+
+**Every AI text is validated** (and normalised first: NFKC, invisible characters removed, so a fullwidth "！" or a zero-width
+character cannot slip through; French output gets the narrow no-break space before `? ; :` and inside « ») (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
+(160 for its follow-up), 800 for a chat answer, 600 for the weekly paragraph; no link or web address; no exclamation
+mark; none of the pressure vocabulary of the No-Dark-Patterns Standard (EN and FR); no medical-claim words (diagnose,
+cure, treatment, prescribe, and the French equivalents); no harmful advice (skipping meals or breakfast, fasting,
+losing weight, a calorie deficit or cutting calories, purging, laxatives, a daily energy figure under 1200 kcal, and
+the French equivalents, for example "sauter le dîner", "jeûne", "perdre du poids"); no link or bare domain; at most one question (two in a chat answer); and, while
+numbers are off, no amount (digits followed by g, kcal or %). A note must be the JSON object
+`{ "note": string, "followUp": string }`. Anything else is dropped.
+
+**Fallbacks.** The log never waits for the AI: the template note is stored first and returned, then the AI call runs in
+the background with an 8 second limit. On busy, offline, timeout, invalid JSON or any validator failure, the template
+note stays and nothing is said. An AI note is stored as an ordinary coach-note row (`questionKey` `post.resolve.ai`,
+the validated text in `text`; its optional follow-up is a `depthFollowUp` row, `depth.followUp.ai`), so there is no
+schema change; the card (which watches the plate's notes) shows it in place of the template note, marked "Written by
+AI", and falls back to the template note if numbers were turned off since. It is not swapped in if the template note
+was already dismissed or its follow-up opened. A late answer after a lock writes nothing.
+
+**Safety routing is local.** In Ask the coach, a question about an eating worry or a health symptom (EN/FR keywords:
+binge, purge, starving, vomiting, "je me fais vomir", "crise de boulimie", chest pain, "malaise", ...) is answered on
+the device and is never sent. Four routes, in this order: thoughts of self-harm (calm words and the crisis lines below),
+a possibly urgent symptom (chest pain, trouble breathing, a swelling throat, an allergic reaction, fainting: "call your
+local emergency number now"), an eating worry (the existing support line), any other symptom (see a doctor or a
+pharmacist). Keywords are matched on accent-folded text in English and French; such a question is also never part of the context of later
+questions. The conversation is kept in memory for the unlocked session only: not stored, not exported, gone on a lock.
+
+**Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text): the oldest turns of a
+chat go first, then the foods listed per day.
 
 ## Related docs
 

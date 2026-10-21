@@ -8,7 +8,8 @@
 #        - index.html, sw.js, precache-manifest.json, manifest.webmanifest and
 #          boot-guard.js carry no hash and decide what runs      -> no-cache;
 #        - fonts/, icons/, licenses/, favicon.svg: unhashed names -> short cache.
-#   4. The security headers from ai-nutrition-coach-headers.inc on every response.
+#   4. The optional instance AI proxy under /ai/ (see below), off unless the operator sets it up.
+#   5. The security headers from ai-nutrition-coach-headers.inc on every response.
 
 # mime.types has no entry for ttf/otf/mjs/webmanifest, so they would be served
 # as application/octet-stream (a module script MUST be a JavaScript type) and
@@ -28,6 +29,14 @@ gzip_comp_level 6;
 gzip_types application/javascript text/javascript application/wasm application/json
            application/manifest+json text/css text/plain image/svg+xml font/ttf font/otf;
 
+# GET and HEAD everywhere; POST only to the AI proxy path (which exists only when the operator
+# turned the proxy on, 40-render-ai-proxy.sh).
+map "$request_method $uri" $ai_nutrition_coach_method_ok {
+    default                           0;
+    "~^(GET|HEAD) "                   1;
+    "POST /ai/v1/chat/completions"    1;
+}
+
 server {
     listen       8080;
     server_name  _;
@@ -40,9 +49,16 @@ server {
     # because add_header is not inherited into a location that has its own.
     include /tmp/ai-nutrition-coach-headers.inc;
 
-    # A static site: read-only methods only, and no request bodies.
+    # A static site: read-only methods only, and no request bodies. The one exception is the
+    # instance AI proxy's POST (below), whose location raises the body limit for itself and
+    # rejects every other method; when the proxy is off that path is a plain 404.
     client_max_body_size 1k;
-    if ($request_method !~ ^(GET|HEAD)$) { return 405; }
+    if ($ai_nutrition_coach_method_ok = 0) { return 405; }
+
+    # The instance AI proxy (docs/self-host.md "Offer AI to everyone on your instance"):
+    # /ai/config.json and /ai/v1/chat/completions, or just 404s when it is off. Rendered at
+    # container start because it holds the provider key (mode 0600).
+    include /tmp/ai-nutrition-coach-ai-locations.inc;
 
     # The document, the web manifest and the boot guard: always revalidate so an
     # upgrade is picked up on the next load. (The SPA fallback below re-enters

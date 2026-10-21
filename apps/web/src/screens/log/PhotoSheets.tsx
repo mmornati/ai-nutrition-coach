@@ -14,6 +14,7 @@ export function SnapSheet({
   onSource,
   onTypeInstead,
   aiSetupHref,
+  instanceOffered = false,
 }: {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -21,6 +22,8 @@ export function SnapSheet({
   readonly onTypeInstead: () => void;
   /** Set when no AI is connected: a calm note and a link to Settings → Your AI. */
   readonly aiSetupHref?: string | undefined;
+  /** This server offers AI that the person has not turned on: the note says so. */
+  readonly instanceOffered?: boolean;
 }) {
   const s = useStrings().capture;
   return (
@@ -29,7 +32,7 @@ export function SnapSheet({
       {aiSetupHref !== undefined && (
         <div className="flex flex-col gap-1">
           <p role="note" className="text-body-small text-porcelain-dim">
-            {s.noAiNote}
+            {instanceOffered ? s.noAiNoteInstance : s.noAiNote}
           </p>
           <AiSetupLink href={aiSetupHref} onNavigate={onClose} />
         </div>

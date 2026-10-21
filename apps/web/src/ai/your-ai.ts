@@ -3,6 +3,7 @@ import { AsyncMutex } from '../storage/async-mutex';
 import type { AiSettingsController } from './ai-settings-controller';
 import { validateByokEndpoint, type ByokEndpointProblem } from './byok-endpoint';
 import { byokKeyEndingHint, keyHasInvalidCharacters, type ByokKeyStore } from './byok-key-store';
+import type { InstanceAiSource } from './instance-config';
 import type { ByokConnectionResult, ByokConnectionTester } from './openai-compatible-provider';
 import { normaliseRungConfig } from './rungs';
 
@@ -38,16 +39,20 @@ export class YourAi {
   readonly #settings: AiSettingsController;
   readonly #keyStore: ByokKeyStore;
   readonly #createTester: ConnectionTesterFactory;
+  readonly #instance: InstanceAiSource | undefined;
   readonly #flow = new AsyncMutex();
 
   constructor(args: {
     readonly settings: AiSettingsController;
     readonly keyStore: ByokKeyStore;
     readonly createTester: ConnectionTesterFactory;
+    /** What this server offers; without it the instance rung can never be chosen. */
+    readonly instance?: InstanceAiSource;
   }) {
     this.#settings = args.settings;
     this.#keyStore = args.keyStore;
     this.#createTester = args.createTester;
+    this.#instance = args.instance;
   }
 
   /** Whether a key is saved and its safe ending. The key is read into a local and dropped. */
@@ -64,6 +69,19 @@ export class YourAi {
   /** Chooses No AI. The saved key (if any) is kept; only the rung changes. */
   selectNoAi(): Promise<void> {
     return this.#settings.setRung({ kind: 'noOp' });
+  }
+
+  /**
+   * Chooses "provided by this server" while this server offers it (the offer is read again first,
+   * so a stale screen cannot pick something that is gone). `false`: not offered, nothing changed.
+   * The saved BYOK key (if any) is kept; only the rung changes.
+   */
+  async selectInstance(): Promise<boolean> {
+    if (this.#instance === undefined) return false;
+    await this.#instance.refresh();
+    if (!this.#instance.getSnapshot().config.enabled) return false;
+    await this.#settings.setRung({ kind: 'instance' });
+    return true;
   }
 
   /**

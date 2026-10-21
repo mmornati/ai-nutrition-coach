@@ -122,6 +122,8 @@ export const fr: Strings = {
     aimHint: 'Cadrez votre assiette, puis touchez le déclencheur.',
     noAiNote:
       'La reconnaissance de photo demande une connexion à une IA. Sans elle, vous pouvez toujours choisir ou saisir ce qui se trouve dans l’assiette.',
+    noAiNoteInstance:
+      'La reconnaissance de photo demande une connexion à une IA. Ce serveur en propose une : vous pouvez l’activer dans les réglages. Sans elle, vous pouvez toujours choisir ou saisir ce qui se trouve dans l’assiette.',
     reading: 'Lecture de votre assiette…',
     retake: 'Reprendre',
     typeManually: 'Saisir à la main',
@@ -188,6 +190,8 @@ export const fr: Strings = {
     noAiTitle: 'Aucune IA connectée',
     noAiHint:
       'Sans IA, les photos ne sont pas analysées. Choisissez un aliment récent, saisissez-le, ou configurez une IA dans les réglages.',
+    noAiHintInstance:
+      'Sans IA, les photos ne sont pas analysées. Choisissez un aliment récent, saisissez-le, ou activez l’IA que ce serveur propose dans les réglages.',
     setUpAi: 'Configurer l’IA',
     recognizedLabel: 'Aliments reconnus',
     closestMatches: 'Correspondances les plus proches',
@@ -215,6 +219,14 @@ export const fr: Strings = {
     allowOnce: 'Envoyer cette photo',
     decline: 'Pas maintenant',
     learnMore: 'Ce que l’application stocke et envoie',
+    instanceTitle: 'Envoyer cette photo à ce serveur ?',
+    instanceWhatIsSent:
+      'Ce qui est envoyé : la photo, réduite, sans sa localisation ni les informations de l’appareil photo, et une instruction fixe demandant quels aliments sont dans l’assiette et dans quelle langue répondre (français ou anglais, la langue de l’application). La photo part vers ce serveur ({host}), qui ajoute sa propre clé d’IA et la transmet à {via}. AI Nutrition Coach, le projet, n’exploite ni ce serveur ni ce service et ne voit jamais la photo.',
+    instanceAlsoVisible:
+      'Également visibles par la personne qui exploite {host} : votre adresse IP et le type de votre navigateur, comme pour tout site web. {via} reçoit la photo de ce serveur, pas de votre appareil.',
+    instanceRetention:
+      '{via} peut conserver les requêtes selon ses propres conditions, et la personne qui exploite ce serveur l’a choisi : interrogez-la sur sa politique de données. Le logiciel de ce serveur ne conserve pas la photo.',
+    instanceAllow: 'Autoriser ce serveur',
   },
   ai: {
     rung: {
@@ -230,6 +242,8 @@ export const fr: Strings = {
       quotaStatusHeading: 'Quand le quota gratuit est épuisé',
       manualFallbackHint:
         'Vous pouvez toujours choisir la correspondance la plus proche ou saisir l’aliment à la main.',
+      thisServerActive: 'ce serveur — {label}',
+      thisServerOff: 'ce serveur — non proposé',
     },
     byok: {
       title: 'Votre IA',
@@ -256,6 +270,13 @@ export const fr: Strings = {
       rungHostedLabel: 'Modèle hébergé gratuit',
       rungLocalLabel: 'Modèle sur cet appareil',
       rungUnavailable: 'Pas encore disponible',
+      rungInstanceLabel: 'Fournie par ce serveur',
+      rungInstanceHelp:
+        'Aucune clé nécessaire. Les photos vont à ce serveur, qui les transmet à {label}.',
+      instanceHeading: 'L’IA de ce serveur',
+      instanceExplain:
+        'La personne qui exploite ce serveur ({host}) y garde une clé d’IA, vous n’en avez donc pas besoin. Une photo part d’abord vers ce serveur, puis vers {label}, qui la lit et répond. Votre accord est demandé avant chaque photo, sauf si vous le désactivez ci-dessous.',
+      instanceModel: 'Modèle : {model}',
       byokHeading: 'Votre service',
       endpointLabel: 'Adresse du service',
       endpointHint: 'https://openrouter.ai/api/v1',
@@ -309,6 +330,21 @@ export const fr: Strings = {
       askEveryPhotoLabel: 'Demander avant chaque envoi de photo',
       askEveryPhotoHelp:
         'Activé : chaque photo demande son propre accord. Désactivé : vous acceptez une fois par service, puis les photos partent sans demander, jusqu’à ce que vous révoquiez cet accord ci-dessous.',
+      coachingHeading: 'Coaching par IA',
+      coachingIntro:
+        'Le coach peut écrire ses notes et répondre à vos questions avec l’aide d’une IA. Cela envoie une partie de vos repas à cette IA, ce qui n’a rien à voir avec l’envoi d’une photo : c’est pourquoi il a son propre réglage.',
+      coachingSwitch: 'Laisser l’IA écrire les notes du coach et répondre aux questions',
+      coachingSwitchHelpOff:
+        'Désactivé : le coach écrit ses notes intégrées et rien de vos repas n’est envoyé.',
+      coachingSwitchHelpOn:
+        'Activé : après l’enregistrement d’une assiette, et quand vous interrogez le coach, vos données de repas partent vers la destination indiquée plus bas. Vous pouvez le désactiver à tout moment.',
+      coachingSent:
+        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids et les nutriments ne sont pas envoyés.',
+      coachingDestinationInstance: 'Destination : {host}, ce serveur, qui la transmet à {label}.',
+      coachingDestinationByok: 'Destination : {host}, le service que vous avez choisi.',
+      coachingNeedsAi:
+        'Choisissez d’abord une IA ci-dessus : celle que ce serveur propose, ou votre propre clé. D’ici là, rien n’est envoyé.',
+      coachingSaveFailed: 'Impossible de l’enregistrer. Déverrouillez l’application et réessayez.',
     },
     failure: {
       keyMissing: 'il manque votre propre clé — ouvrez Réglages → Votre IA pour la saisir',
@@ -326,6 +362,10 @@ export const fr: Strings = {
       couldNotConnect: 'impossible de se connecter à {host}',
       unreachable: 'le fournisseur est injoignable',
       unavailableRung: 'Pas encore disponible',
+      instanceUnavailable:
+        'Ce serveur ne propose pas d’IA pour le moment. Vous pouvez choisir une autre option dans Réglages → Votre IA.',
+      instanceBusy: 'L’IA de ce serveur est occupée. Réessayez dans un instant.',
+      instanceError: 'L’IA de ce serveur n’a pas répondu. Réessayez dans un instant.',
       blockedByBrowser:
         'Si le service fonctionne, le navigateur a peut-être bloqué l’appel : le service doit autoriser les requêtes venant de cette page (CORS), et la Content-Security-Policy de ce site doit indiquer son adresse. Si vous hébergez vous-même cette application, ajoutez l’adresse à AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (voir les notes d’auto-hébergement).',
     },
@@ -397,6 +437,7 @@ export const fr: Strings = {
     askLater: 'Plus tard',
     depthGroup: 'Plus d’idées du coach',
     close: 'Fermer',
+    aiMark: 'Écrit par une IA',
   },
   chip: {
     onDevice: 'Sur cet appareil',
@@ -444,6 +485,7 @@ export const fr: Strings = {
     noteQuietDays: 'La ligne {name} est restée calme {days}.',
     noteQuietAll: 'La ligne {name} est restée calme toute la semaine.',
     noteQuietMany: 'Les lignes {names} sont restées calmes cette semaine.',
+    askCoachLink: 'Interroger le coach',
     review: {
       title: 'La semaine en bref',
       daysLogged: {
@@ -480,6 +522,23 @@ export const fr: Strings = {
           'Le sel a fait {approx}{g} g par jour en moyenne. Goûter avant de saler est un début tout doux.',
         easeSugars:
           'Les sucres ont fait {approx}{g} g par jour en moyenne. Un fruit ou un yaourt nature à la place d’une douceur est un petit changement.',
+      },
+      ai: {
+        button: 'Interroger le coach sur cette semaine',
+        heading: 'Le coach, sur cette semaine',
+        reading: 'Le coach relit votre semaine…',
+        mark: 'Écrit par une IA',
+        busy: 'L’IA est occupée. Réessayez dans un instant.',
+        failure: 'Le coach n’a pas pu répondre à l’instant. Vous pouvez réessayer.',
+        unsure: 'Le coach n’a pas trouvé de mots dont il soit satisfait. Vous pouvez réessayer.',
+        hiddenByNumbers:
+          'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
+        needsSetup:
+          'Pour interroger le coach sur votre semaine, choisissez une IA et activez le coaching par IA dans Réglages, Votre IA.',
+        needsConsent:
+          'Pour interroger le coach sur votre semaine, activez le coaching par IA dans Réglages, Votre IA. Vos repas ne sont envoyés qu’après votre accord.',
+        open: 'Ouvrir Votre IA',
+        note: 'Cela envoie à {host} le nombre de jours, les moyennes quotidiennes et le repère quotidien de la semaine, avec votre profil si vous l’avez rempli. Le bilan ci-dessus reste tel quel.',
       },
     },
   },
@@ -561,6 +620,7 @@ export const fr: Strings = {
     plateRemoveFailed: 'Impossible de la retirer. Réessayez.',
     networkHeading: 'Le réseau de la semaine',
     seeWeekNetwork: 'Voir le réseau de la semaine',
+    askCoachLink: 'Interroger le coach',
   },
   nutrition: {
     sectionTitle: 'Nutrition',
@@ -655,6 +715,51 @@ export const fr: Strings = {
   },
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'environ {pct} %', underOne: 'moins de 1 %' },
+  /** Ask the coach (optional AI chat) and the AI coaching copy. */
+  askCoach: {
+    title: 'Interroger le coach',
+    intro:
+      'Posez une question sur vos sept derniers jours de repas. L’IA voit les noms de vos aliments, leurs groupes, les totaux de nutriments de chaque jour et votre profil, jamais vos photos. Ce n’est pas un avis médical.',
+    memory:
+      'Cette conversation n’est gardée que pendant que l’application est déverrouillée. Elle n’est ni enregistrée ni exportée, et elle disparaît quand vous verrouillez l’application.',
+    offTitle: 'Le coach IA est désactivé',
+    offNoAi:
+      'Interroger le coach demande une IA. Choisissez-en une, et acceptez le coaching par IA, dans Réglages, Votre IA. D’ici là, le coach continue d’écrire ses notes intégrées.',
+    offNeedsConsent:
+      'Interroger le coach envoie vos repas à {host} : il faut donc votre accord d’abord. Vous pouvez le donner dans Réglages, Votre IA.',
+    openYourAi: 'Ouvrir Votre IA',
+    inputLabel: 'Votre question',
+    inputHint: 'Par exemple : ma semaine est-elle assez variée ?',
+    counter: '{count} caractères sur {max}',
+    send: 'Demander',
+    thinking: 'Le coach réfléchit…',
+    conversation: 'Échange',
+    you: 'Vous',
+    coach: 'Le coach',
+    aiMark: 'Écrit par une IA',
+    asked: '{count} questions posées sur {max}',
+    limit:
+      'Cette conversation est terminée : {max} questions. Commencez-en une nouvelle pour continuer.',
+    newConversation: 'Commencer une nouvelle conversation',
+    busy: 'L’IA est occupée. Réessayez dans un instant.',
+    failure:
+      'Le coach n’a pas pu répondre à l’instant. Votre question est toujours dans la zone de saisie.',
+    consent: 'Le coaching par IA est désactivé. Activez-le dans Réglages, Votre IA.',
+    unavailable:
+      'Aucune IA n’est configurée pour le moment. Choisissez-en une dans Réglages, Votre IA.',
+    unsure:
+      'Je n’ai pas trouvé de mots dont je sois satisfait. Pourriez-vous poser la question autrement ?',
+    supportEating:
+      'Il semble que la nourriture ou votre corps vous préoccupent. Je ne peux pas vous conseiller là-dessus.',
+    supportMedical:
+      'Cela mérite l’avis d’un médecin ou d’un pharmacien. Je ne peux pas donner de conseil sur des symptômes.',
+    supportUrgent:
+      'Cela peut être urgent. Appelez les secours maintenant : le 15 ou le 112 en France, le 112 dans l’Union européenne. Je ne peux pas donner de conseil sur des symptômes.',
+    supportSelfHarm:
+      'Ce que vous ressentez compte, et merci d’en parler. Vous n’avez pas à porter cela sans aide. En France, vous pouvez appeler le 3114, le numéro national de prévention du suicide, gratuit et ouvert jour et nuit. Ailleurs, appelez le numéro d’urgence local (le 112 dans l’Union européenne) ou une ligne d’écoute près de chez vous.',
+    hiddenByNumbers:
+      'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
+  },
   coachQuestions: {
     'post.resolve.vegLight':
       'Pas de légumes ni de fruits pour l’instant aujourd’hui. Une poignée pourrait-elle se glisser dans ce repas, même à côté ?',
@@ -815,6 +920,10 @@ export const fr: Strings = {
       'Scan d’un code-barres : le numéro du code-barres est recherché sur Open Food Facts, une base de données publique sans compte. Seul le code-barres est envoyé. Open Food Facts voit aussi les informations de connexion que voit tout site web : votre adresse IP, le type de votre appareil ou de votre navigateur et l’adresse de ce site (le navigateur l’ajoute dans l’en-tête Origin). Vous pouvez désactiver cela ci-dessous.',
     leavesPhoto:
       'Reconnaissance d’une photo : seulement si vous avez activé votre propre IA et donné votre accord. La photo (réduite, sans sa localisation ni les informations de l’appareil photo), une instruction fixe (qui précise aussi dans quelle langue répondre, la langue de l’application) et le nom du modèle vont au service que vous avez choisi. Ce service voit aussi votre adresse IP et le type de votre appareil ou de votre navigateur, et peut conserver les requêtes selon sa propre politique.',
+    leavesInstance:
+      'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
+    leavesCoaching:
+      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil. Les poids et les nutriments sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',
     offToggleOn: 'Activé : un code-barres scanné est recherché en ligne.',
     offToggleOff:
@@ -824,6 +933,8 @@ export const fr: Strings = {
     serverHeading: 'Ce que voit le serveur d’où vient cette application',
     serverBody:
       'Rien sur vous ni sur vos assiettes. Le serveur ne fait que distribuer les fichiers de l’application. Comme tout serveur web, il peut tenir un court journal d’accès (adresses des pages et heures), avec les adresses des clients tronquées ; dans l’installation auto-hébergée standard, ce journal est désactivé.',
+    serverInstance:
+      'La seule exception est une photo que vous choisissez d’envoyer avec l’IA que ce serveur propose (voir plus haut) : elle transite par ce serveur avant d’arriver au fournisseur, et n’y est pas conservée.',
     neverHeading: 'Jamais collecté',
     neverBody:
       'Pas de statistiques, pas de pistage, pas de rapports de plantage, pas de publicité et pas de comptes. Rien n’est envoyé sur la façon dont vous utilisez l’application.',
