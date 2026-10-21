@@ -16,6 +16,7 @@
  */
 import type { BarcodeDecoder, DecodeInput } from './decoder';
 import { stopStream, type CameraRequest } from './camera';
+import { setTorch, tuneTrack, videoTrackOf } from './track-tuning';
 import { ScanFlow, type LookupState, type ScanFlowDeps } from './scan-flow';
 
 export type ScannerState =
@@ -44,6 +45,16 @@ const realScheduler: Scheduler = {
   clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
+/** What the camera surface adds to the scanning state: the torch, and a hint that it is slow. */
+export interface ScannerExtras {
+  readonly torchAvailable: boolean;
+  readonly torchOn: boolean;
+  /** No code was read for a while: the type-the-digits path gets more room. Never a countdown. */
+  readonly slow: boolean;
+}
+
+export const NO_EXTRAS: ScannerExtras = { torchAvailable: false, torchOn: false, slow: false };
+
 export interface ScannerControllerDeps extends Omit<ScanFlowDeps, 'onChange'> {
   readonly createDecoder: () => Promise<BarcodeDecoder | null>;
   readonly requestCamera: CameraRequest;
@@ -52,9 +63,15 @@ export interface ScannerControllerDeps extends Omit<ScanFlowDeps, 'onChange'> {
   readonly intervalMs?: number;
   readonly scheduler?: Scheduler;
   readonly onChange?: (state: ScannerState) => void;
+  readonly onExtras?: (extras: ScannerExtras) => void;
+  /** Quiet period before the type-the-digits path is promoted (default {@link SLOW_AFTER_MS}). */
+  readonly slowAfterMs?: number;
+  /** Separate from `scheduler` (which holds the one decode timer). */
+  readonly slowScheduler?: Scheduler;
 }
 
 export const DECODE_INTERVAL_MS = 200;
+export const SLOW_AFTER_MS = 10_000;
 
 export class ScannerController {
   private current: ScannerState = { kind: 'checking' };
@@ -66,6 +83,8 @@ export class ScannerController {
   private started = false; // the camera was started in this session
   private cameraActive = false; // and is running right now
   private decoding = false;
+  private extrasNow: ScannerExtras = NO_EXTRAS;
+  private slowTimer: unknown;
   private readonly scheduler: Scheduler;
   private readonly intervalMs: number;
 
@@ -84,6 +103,29 @@ export class ScannerController {
 
   get state(): ScannerState {
     return this.current;
+  }
+
+  get extras(): ScannerExtras {
+    return this.extrasNow;
+  }
+
+  /** Switch the torch on or off. A refusal leaves it as it was; never throws. */
+  async toggleTorch(): Promise<void> {
+    if (this.disposed || !this.cameraActive || !this.extrasNow.torchAvailable) return;
+    const next = !this.extrasNow.torchOn;
+    if (await setTorch(this.stream ? videoTrackOf(this.stream) : undefined, next)) {
+      this.setExtras({ torchOn: next });
+    }
+  }
+
+  /**
+   * A barcode typed by the person (already validated by `parseRetailCode`): the same lookup path
+   * as a camera decode. Dropped while another result is being handled.
+   */
+  async submitCode(code: string): Promise<void> {
+    if (this.disposed || this.current.kind !== 'scanning') return;
+    this.clearSlowTimer();
+    await this.flow.onCode(code);
   }
 
   /** Check the decoder, ask for the camera once, start scanning. Call once. */
@@ -127,6 +169,7 @@ export class ScannerController {
   /** The Dismiss of a result (match sheet closed / "Scan again"): re-arm the scanner. */
   dismissResult(): void {
     this.flow.dismissResult();
+    if (this.cameraActive) this.startSlowTimer();
   }
 
   /** The page went to the background: release the camera. */
@@ -134,6 +177,8 @@ export class ScannerController {
     if (this.disposed || !this.cameraActive) return;
     this.cameraActive = false;
     this.clearTimer();
+    this.clearSlowTimer();
+    this.setExtras({ torchOn: false, torchAvailable: false, slow: false });
     this.deps.surface.detach();
     stopStream(this.stream);
     this.stream = null;
@@ -155,6 +200,7 @@ export class ScannerController {
     if (this.disposed) return;
     this.disposed = true;
     this.clearTimer();
+    this.clearSlowTimer();
     this.flow.dispose();
     this.deps.surface.detach();
     stopStream(this.stream);
@@ -177,7 +223,33 @@ export class ScannerController {
       this.set({ kind: 'unavailable' });
       return;
     }
+    // Zoom and focus are wishes: a camera that refuses them is simply left as it is.
+    const tuning = await tuneTrack(videoTrackOf(stream));
+    if (this.disposed || this.stream !== stream) return;
+    this.setExtras({ torchAvailable: tuning.torchAvailable, torchOn: false, slow: false });
+    this.startSlowTimer();
     this.schedule();
+  }
+
+  private setExtras(patch: Partial<ScannerExtras>): void {
+    this.extrasNow = { ...this.extrasNow, ...patch };
+    if (!this.disposed) this.deps.onExtras?.(this.extrasNow);
+  }
+
+  private clearSlowTimer(): void {
+    if (this.slowTimer !== undefined) {
+      (this.deps.slowScheduler ?? realScheduler).clearTimeout(this.slowTimer);
+    }
+    this.slowTimer = undefined;
+  }
+
+  private startSlowTimer(): void {
+    this.clearSlowTimer();
+    if (this.extrasNow.slow) this.setExtras({ slow: false });
+    this.slowTimer = (this.deps.slowScheduler ?? realScheduler).setTimeout(
+      () => this.setExtras({ slow: true }),
+      this.deps.slowAfterMs ?? SLOW_AFTER_MS,
+    );
   }
 
   private set(state: ScannerState): void {
@@ -208,7 +280,11 @@ export class ScannerController {
         try {
           const codes = await decoder.decode(frame);
           const code = codes.find((c) => c.trim().length > 0);
-          if (code !== undefined && !this.disposed) await this.flow.onCode(code);
+          if (code !== undefined && !this.disposed) {
+            this.clearSlowTimer();
+            this.setExtras({ slow: false });
+            await this.flow.onCode(code);
+          }
         } catch {
           // A bad frame is not an error worth showing; the next one may decode.
         } finally {

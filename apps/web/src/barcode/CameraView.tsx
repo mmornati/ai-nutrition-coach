@@ -1,13 +1,22 @@
-import type { RefObject } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { fill, useStrings } from '../i18n';
 import { Button } from '../components/primitives/Button';
+import { TextField } from '../components/primitives/TextField';
+import { TorchIcon } from '../components/primitives/icons';
 import { CameraNotice } from '../capture/CameraNotice';
-import type { ScannerState } from './scanner-controller';
+import { NO_EXTRAS, type ScannerExtras, type ScannerState } from './scanner-controller';
+import { parseRetailCode } from './retail-code';
+import { GUIDE_HEIGHT, GUIDE_WIDTH } from './roi';
+
+/** Digits, with the spaces and dashes people copy from the pack. */
+const DIGITS_PATTERN = '[0-9 \\-]*';
 
 /**
  * The camera surface of the barcode screen, in its calm states:
  *
- *   scanning      live preview, a quiet "Move closer or steady" hint, no countdown, no urgency
+ *   scanning      live preview with a guide box, a quiet "hold about 20 cm away" hint, a torch
+ *                 toggle where the camera has one, and always a way to type the digits; no
+ *                 countdown, no urgency (after a quiet while the typing path is simply made clearer)
  *   denied        "Camera denied, type it instead"
  *   unavailable   "Camera unavailable, type it instead"
  *   unsupported   "Scanning isn't available in this browser, type it instead"
@@ -25,18 +34,47 @@ export function CameraView({
   videoRef,
   onTypeInstead,
   onScanAgain,
+  extras = NO_EXTRAS,
+  onToggleTorch,
+  onManualCode,
 }: {
   readonly state: ScannerState;
   readonly videoRef: RefObject<HTMLVideoElement | null>;
   /** `code` is the barcode to prefill when the person came from a not-found result. */
   readonly onTypeInstead: (code?: string) => void;
   readonly onScanAgain: () => void;
+  readonly extras?: ScannerExtras;
+  readonly onToggleTorch?: () => void;
+  /** A typed barcode that passed the length and check-digit test: same lookup as a camera decode. */
+  readonly onManualCode?: (code: string) => void;
 }) {
   const all = useStrings();
   const s = all.barcode;
   const cam = all.camera;
   const scanning = state.kind === 'scanning';
   const lookup = scanning ? state.lookup : null;
+  const [typing, setTyping] = useState(false);
+  const [digits, setDigits] = useState('');
+  const [problem, setProblem] = useState<string | undefined>();
+
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    // Opening the field puts the cursor in it (an effect, not autoFocus: it is the person's tap).
+    if (typing) form.current?.querySelector('input')?.focus();
+  }, [typing]);
+
+  const submitDigits = (event: FormEvent) => {
+    event.preventDefault();
+    const parsed = parseRetailCode(digits);
+    if (parsed.ok) {
+      setProblem(undefined);
+      setDigits('');
+      setTyping(false);
+      onManualCode?.(parsed.code);
+    } else {
+      setProblem(parsed.reason === 'checksum' ? s.digitsChecksum : s.digitsLength);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,8 +87,31 @@ export function CameraView({
           playsInline
           autoPlay
         />
-        <p className="text-small bg-enamel/85 text-porcelain-dim absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1">
-          {s.moveCloser}
+        {/* The guide box: the same fraction of the visible preview that the decoder reads at full
+            resolution (roi.ts). Static on purpose: nothing animates, so reduced motion needs no
+            special case. */}
+        <div
+          aria-hidden="true"
+          data-testid="scan-guide"
+          className="border-porcelain/70 pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2"
+          style={{ width: `${GUIDE_WIDTH * 100}%`, height: `${GUIDE_HEIGHT * 100}%` }}
+        />
+        {extras.torchAvailable && (
+          <button
+            type="button"
+            aria-label={s.torch}
+            aria-pressed={extras.torchOn}
+            onClick={onToggleTorch}
+            className={
+              'border-porcelain absolute top-3 right-3 grid size-12 cursor-pointer place-items-center border-2 ' +
+              (extras.torchOn ? 'bg-porcelain text-enamel' : 'bg-enamel/85 text-porcelain')
+            }
+          >
+            <TorchIcon />
+          </button>
+        )}
+        <p className="text-small bg-enamel/85 text-porcelain-dim absolute bottom-3 left-1/2 w-[calc(100%-1.5rem)] -translate-x-1/2 px-3 py-1 text-center">
+          {s.holdDistance}
         </p>
       </div>
 
@@ -125,6 +186,39 @@ export function CameraView({
                 {s.typeManually}
               </Button>
             </>
+          )}
+        </div>
+      )}
+
+      {scanning && (
+        <div className="flex flex-col gap-3">
+          {extras.slow && !typing && <p className="text-body text-porcelain-dim">{s.slowHint}</p>}
+          {typing ? (
+            <form ref={form} onSubmit={submitDigits} className="flex flex-col gap-3" noValidate>
+              <TextField
+                label={s.barcodeDigits}
+                inputMode="numeric"
+                pattern={DIGITS_PATTERN}
+                autoComplete="off"
+                value={digits}
+                onChange={(e) => {
+                  setDigits(e.target.value);
+                  setProblem(undefined);
+                }}
+                message={problem}
+              />
+              <Button type="submit" fullWidth>
+                {s.lookUpBarcode}
+              </Button>
+            </form>
+          ) : (
+            <Button
+              variant={extras.slow ? 'solid-porcelain' : 'outline-porcelain'}
+              fullWidth
+              onClick={() => setTyping(true)}
+            >
+              {s.typeBarcode}
+            </Button>
           )}
         </div>
       )}

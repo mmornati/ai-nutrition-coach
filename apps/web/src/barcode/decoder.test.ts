@@ -1,7 +1,8 @@
 // Decoder choice: native `BarcodeDetector` where present, otherwise self-hosted zxing-wasm; if
 // neither can start, null ("scanning isn't available in this browser").
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  canvasFrameReader,
   createBarcodeDecoder,
   decoderMaybeAvailable,
   locateZxingFile,
@@ -193,5 +194,128 @@ describe('neither can start', () => {
 
   it('native-only preference with no native -> null', async () => {
     expect(await createBarcodeDecoder({ prefer: 'native', env: { WebAssembly: {} } })).toBeNull();
+  });
+});
+
+// ── the frame reader: guide-box crop, shared canvas, whole-frame fallback ──
+
+function stubCanvas() {
+  const drawImage = vi.fn();
+  const getImageData = vi.fn((_x: number, _y: number, w: number, h: number) => ({
+    width: w,
+    height: h,
+  }));
+  const getContext = vi
+    .spyOn(HTMLCanvasElement.prototype, 'getContext')
+    .mockReturnValue({ drawImage, getImageData } as never);
+  return { drawImage, getImageData, getContext };
+}
+
+function videoOf(
+  videoWidth: number,
+  videoHeight: number,
+  clientWidth: number,
+  clientHeight: number,
+) {
+  const video = document.createElement('video');
+  for (const [k, v] of Object.entries({ videoWidth, videoHeight, clientWidth, clientHeight })) {
+    Object.defineProperty(video, k, { value: v, configurable: true });
+  }
+  return video;
+}
+
+describe('canvasFrameReader', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('guide mode crops the centred box at full resolution (no downscale)', async () => {
+    const c = stubCanvas();
+    // 1920x1080 in a 4:3 box: visible 1440x1080, guide 1152x378 centred at (960, 540)
+    const image = await canvasFrameReader(videoOf(1920, 1080, 400, 300), 'guide');
+    expect(c.drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      384,
+      351,
+      1152,
+      378,
+      0,
+      0,
+      1152,
+      378,
+    );
+    expect(image).toMatchObject({ width: 1152, height: 378 });
+  });
+
+  it('a narrow crop is drawn twice as large', async () => {
+    const c = stubCanvas();
+    // 640x480 in a 4:3 box: guide 512x168 -> doubled
+    await canvasFrameReader(videoOf(640, 480, 400, 300), 'guide');
+    expect(c.drawImage).toHaveBeenCalledWith(expect.anything(), 64, 156, 512, 168, 0, 0, 1024, 336);
+  });
+
+  it('full mode reads the whole frame, at most 1280 wide', async () => {
+    const c = stubCanvas();
+    await canvasFrameReader(videoOf(1920, 1080, 400, 300), 'full');
+    expect(c.drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1920, 1080, 0, 0, 1280, 720);
+  });
+
+  it('reuses one canvas for every frame', async () => {
+    const c = stubCanvas();
+    const created = vi.spyOn(document, 'createElement');
+    await canvasFrameReader(videoOf(1920, 1080, 400, 300), 'guide');
+    await canvasFrameReader(videoOf(1920, 1080, 400, 300), 'full');
+    await canvasFrameReader(videoOf(1920, 1080, 400, 300), 'guide');
+    expect(created.mock.calls.filter(([tag]) => tag === 'canvas').length).toBeLessThanOrEqual(1);
+    expect(c.drawImage).toHaveBeenCalledTimes(3);
+  });
+
+  it('a video with no frame yet is null', async () => {
+    stubCanvas();
+    expect(await canvasFrameReader(videoOf(0, 0, 400, 300), 'guide')).toBeNull();
+  });
+});
+
+describe('decode attempts: guide box first, the whole frame every 4th time', () => {
+  it('zxing: modes guide, guide, guide, full, guide ... and the explicit options', async () => {
+    const zx = fakeZxing();
+    const modes: (string | undefined)[] = [];
+    const decoder = await createBarcodeDecoder({
+      env: { WebAssembly: {} },
+      loadZxing: zx.load,
+      frameReader: async (_source, mode) => {
+        modes.push(mode);
+        return { width: 1, height: 1 } as ImageData;
+      },
+    });
+    const video = document.createElement('video');
+    for (let i = 0; i < 5; i++) await decoder!.decode(video);
+    expect(modes).toEqual(['guide', 'guide', 'guide', 'full', 'guide']);
+    expect(zx.readBarcodes.mock.calls[0]?.[1]).toEqual({
+      formats: ZXING_FORMATS,
+      tryHarder: true,
+      tryRotate: true,
+      tryInvert: true,
+      tryDownscale: true,
+      maxNumberOfSymbols: 1,
+    });
+  });
+
+  it('native: the detector gets the cropped pixels; a blob or a null crop goes through as is', async () => {
+    reset();
+    const crop = { width: 9, height: 9 } as ImageData;
+    let cropped: ImageData | null = crop;
+    const decoder = await createBarcodeDecoder({
+      env: { BarcodeDetector: FakeDetector as never, WebAssembly: {} },
+      frameReader: async () => cropped,
+    });
+    const detect = vi.spyOn(FakeDetector.prototype, 'detect');
+    const video = document.createElement('video');
+    await decoder!.decode(video);
+    expect(detect).toHaveBeenLastCalledWith(crop);
+    cropped = null;
+    await decoder!.decode(video);
+    expect(detect).toHaveBeenLastCalledWith(video);
+    const blob = new Blob([]);
+    await decoder!.decode(blob);
+    expect(detect).toHaveBeenLastCalledWith(blob);
   });
 });

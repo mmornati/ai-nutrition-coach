@@ -3,7 +3,10 @@ export { useBarcodeScanner, type UseBarcodeScannerOptions } from './useBarcodeSc
 export {
   ScannerController,
   DECODE_INTERVAL_MS,
+  NO_EXTRAS,
+  SLOW_AFTER_MS,
   type ScannerControllerDeps,
+  type ScannerExtras,
   type ScannerState,
   type VideoSurface,
 } from './scanner-controller';
@@ -20,3 +23,4 @@ export {
 } from './decoder';
 export { createCameraRequest, stopStream, type CameraRequest, type CameraResult } from './camera';
 export { ZXING_VERSION, ZXING_READER_PATH, ZXING_WASM_PATH } from './zxing-pin';
+export { parseRetailCode, type RetailCodeResult } from './retail-code';
