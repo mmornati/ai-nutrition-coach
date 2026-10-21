@@ -424,7 +424,7 @@ test('every licence link returns its text (not the app shell) and is in the offl
   await expect(page.getByRole('heading', { level: 1, name: 'About' })).toBeVisible();
 
   const links = page.getByRole('link', { name: /^Read the licence: / });
-  await expect(links).toHaveCount(6);
+  await expect(links).toHaveCount(7);
   const names = await links.evaluateAll((as) => as.map((a) => a.getAttribute('aria-label') ?? ''));
   for (const expected of [
     'AI Nutrition Coach',
@@ -433,6 +433,7 @@ test('every licence link returns its text (not the app shell) and is in the offl
     'zxing-wasm',
     'zxing-cpp',
     'React',
+    'Ciqual French food composition table',
   ]) {
     expect(
       names.some((n) => n.includes(expected)),
