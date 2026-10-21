@@ -1,5 +1,5 @@
 import { databaseFood, type DatabaseFood, type QuantityRange } from '@anc/core';
-import { isKnownUnit } from '../../catalog';
+import { classifyFoodByName, isKnownUnit } from '../../catalog';
 import { strings } from '../../i18n';
 
 /**
@@ -14,12 +14,16 @@ export const oneServing = (): QuantityRange => ({
   displayLabel: strings().portion.oneServing,
 });
 
-/** The food for a name the person typed. Its group is unknown (`other`). */
+/**
+ * The food for a name the person typed. Its group comes from the name classifier and may still be
+ * `other` when the name says nothing; the coach reads a mixed dish's other groups from the name.
+ */
 export function manualFood(name: string): DatabaseFood {
   return databaseFood({
     sourceRef: `manual:${name.toLowerCase()}`,
     displayName: name,
     source: 'manual',
+    foodGroup: classifyFoodByName(name),
   });
 }
 

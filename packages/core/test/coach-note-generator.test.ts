@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   coachNoteEquals,
+  localTime,
   compositionPatternFor,
   createCoachNoteGenerator,
   NO_COACH_QUESTION,
@@ -55,11 +56,6 @@ describe('CoachNoteGenerator pattern pick logic', () => {
     CompositionPattern,
   ][] = [
     [
-      'veg-only plate (2 veg, no protein) resolves to vegRich',
-      [G('vegFruit', 'Salad'), G('vegFruit', 'Roasted veg')],
-      'vegRich',
-    ],
-    [
       'protein-heavy plate (3 protein, 1 veg) resolves to proteinHeavy',
       [G('vegFruit', 'Salad'), G('protein', 'Chicken'), G('protein', 'Fish'), G('protein', 'Eggs')],
       'proteinHeavy',
@@ -70,27 +66,37 @@ describe('CoachNoteGenerator pattern pick logic', () => {
       'starchHeavy',
     ],
     [
-      'plate with no veg at all resolves to vegLight',
+      'plate with no veg on a day with no veg resolves to vegLight',
       [G('protein', 'Chicken'), G('starch', 'Rice')],
       'vegLight',
     ],
     ['single veg entry (no dairy) resolves to dairyLight', [G('vegFruit', 'Salad')], 'dairyLight'],
   ];
 
+  // Lunchtime, with protein already logged earlier the same day, so only the plate decides.
+  const lunch = localTime(2026, 8, 16, 13);
+  const earlierProtein = plateWith(90, [G('protein', 'Eggs')], localTime(2026, 8, 16, 8));
+
   it.each(patternCases)('%s', async (_name, entries, expected) => {
     const coach = new FakeCoach();
     const store = new FakeCoachNoteStore();
-    await createCoachNoteGenerator({ coach, store }).generateFor(plateWith(1, entries));
+    const plate = plateWith(1, entries, lunch);
+    await createCoachNoteGenerator({ coach, store }).generateFor(plate, {
+      dayPlates: [earlierProtein, plate],
+    });
     expect(coach.calls).toHaveLength(1);
     expect(coach.calls[0]?.pattern).toBe(expected);
-    expect(compositionPatternFor(plateWith(1, entries))).toBe(expected);
+    expect(compositionPatternFor(plate, { dayPlates: [earlierProtein] })).toBe(expected);
   });
 
   it('veg plus dairy and a protein is balanced; two groups without dairy is balanced', () => {
+    const at = localTime(2026, 8, 16, 13);
     expect(
-      compositionPatternFor(plateWith(1, [G('vegFruit', 'a'), G('dairy', 'b'), G('protein', 'c')])),
+      compositionPatternFor(
+        plateWith(1, [G('vegFruit', 'a'), G('dairy', 'b'), G('protein', 'c')], at),
+      ),
     ).toBe('balanced');
-    expect(compositionPatternFor(plateWith(1, [G('vegFruit', 'a'), G('protein', 'c')]))).toBe(
+    expect(compositionPatternFor(plateWith(1, [G('vegFruit', 'a'), G('protein', 'c')], at))).toBe(
       'balanced',
     );
   });

@@ -6,6 +6,7 @@ import {
   MEAL_SLOTS,
   mealSlotForHour,
   openPlateDismissalKey,
+  openPlatePatternFor,
   visibleSlots,
   type MealSlot,
   type PlateLog,
@@ -21,6 +22,7 @@ import {
   weekNoteParts,
   type LineMapStation,
 } from '../../components/day';
+import { foodGroupsOfFood } from '../../catalog';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
 import { capitalise, useLocale, useStrings } from '../../i18n';
@@ -152,12 +154,21 @@ export function TodayScreen() {
         );
       })?.id
     : undefined;
-  // `coach` words the question from the current catalogue, so a locale switch must recompute it.
+  // What the day holds so far decides the hint (nothing to say hides it). `coach` words the
+  // question from the current catalogue, so a locale switch must recompute it.
+  const hintSlot = hintStation === undefined ? undefined : slotOf.get(hintStation)?.slot;
   const hintQuestion = useMemo(() => {
-    const r = coach.questionFor({ anchor: 'openPlate', pattern: 'balanced' });
+    if (hintSlot === undefined) return null;
+    const pattern = openPlatePatternFor({
+      dayPlates: day.plates,
+      slot: hintSlot,
+      groupsOf: foodGroupsOfFood,
+    });
+    if (pattern === null) return null;
+    const r = coach.questionFor({ anchor: 'openPlate', pattern });
     return r.kind === 'coachFound' ? r.question.text : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
-  }, [coach, locale]);
+  }, [coach, locale, hintSlot, day.plates]);
 
   const remove = async () => {
     const plate = removing;

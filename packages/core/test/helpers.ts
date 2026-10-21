@@ -224,6 +224,10 @@ export class FakeStore implements EncryptedStore {
   calls = 0;
   lastEntries: readonly FoodEntryDraft[] | undefined;
   lastLoggedAtUtc: number | undefined;
+  /** What `readRange` returns, and the last range asked for. */
+  dayPlates: readonly PlateLog[] = [];
+  readMode: 'ok' | 'fail' | 'throw' = 'ok';
+  lastRange: { from?: number | undefined; to?: number | undefined } | undefined;
   constructor(private readonly fixed?: RecordPlateResult) {}
 
   recordPlate(input: {
@@ -252,8 +256,16 @@ export class FakeStore implements EncryptedStore {
   watchRange(): Unsubscribe {
     return () => undefined;
   }
-  readRange(): Promise<ReadPlatesResult> {
-    return Promise.resolve({ kind: 'platesRead', plates: [] });
+  readRange(range?: {
+    from?: number | undefined;
+    to?: number | undefined;
+  }): Promise<ReadPlatesResult> {
+    this.lastRange = range;
+    if (this.readMode === 'throw') return Promise.reject(new Error('read exploded'));
+    if (this.readMode === 'fail') {
+      return Promise.resolve({ kind: 'platesReadFailed', failure: storeFailure('storeOperation') });
+    }
+    return Promise.resolve({ kind: 'platesRead', plates: this.dayPlates });
   }
   deletePlate(): Promise<DeletePlateResult> {
     return Promise.resolve(PLATE_DELETED);

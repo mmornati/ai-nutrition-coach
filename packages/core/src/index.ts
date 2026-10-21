@@ -52,6 +52,7 @@ export * from './use-cases/record-byok-change';
 export * from './use-cases/record-coach-interaction';
 export * from './use-cases/record-plate';
 export * from './use-cases/record-sync-op';
+export * from './coach/day-coaching';
 export * from './coach/taxonomy';
 export * from './coach/template-coach';
 export * from './day/day-board';

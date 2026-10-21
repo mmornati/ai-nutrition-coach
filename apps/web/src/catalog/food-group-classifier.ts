@@ -29,7 +29,7 @@
  *
  * Anything that matches nothing is `other`: never a guess. Pure TypeScript.
  */
-import type { FoodGroup } from '@anc/core';
+import type { DatabaseFood, FoodGroup } from '@anc/core';
 import { foldText } from './fold';
 
 /**
@@ -55,9 +55,70 @@ export function classifyFoodGroup(descriptors: readonly string[]): FoodGroup {
   return 'other';
 }
 
-/** Classify ONE food name (the AI fallback's `ClassifyFoodGroup`). */
+/**
+ * Classify ONE food name (the AI fallback's `ClassifyFoodGroup`, and every typed custom food): the
+ * primary group, i.e. the first of {@link classifyFoodGroupsByName}. May be `other`.
+ */
 export function classifyFoodByName(name: string): FoodGroup {
-  return classifyFoodGroup([name]);
+  return classifyFoodGroupsByName(name)[0] ?? 'other';
+}
+
+/**
+ * EVERY major group a food name mentions, primary first, without `other` (an empty list is
+ * unclassified). A mixed dish counts in each of its parts: `chicken salad` is protein and
+ * vegFruit, `tomato pasta` is starch and vegFruit, `lasagne` and `pizza` come from the small
+ * {@link DISHES} table. Storage keeps one primary group per food; this is read at coaching time.
+ *
+ * The primary group is exactly what {@link classifyFoodGroup} says for the name, so the
+ * single-group behaviour is unchanged. Fruit or herb flavours of a yogurt / milk / cream
+ * (`strawberry yogurt`) stay dairy only.
+ */
+export function classifyFoodGroupsByName(name: string): readonly FoodGroup[] {
+  const ts = tokens(name);
+  if (isNutButter(ts)) return ['protein'];
+  if (isPlantMilk(ts)) return ['dairy'];
+
+  const found = new Set<FoodGroup>();
+  const masked = new Set<number>();
+  const claim = (table: readonly (readonly [readonly string[], readonly FoodGroup[]])[]) => {
+    for (const [phrase, groups] of table) {
+      for (let i = 0; i + phrase.length <= ts.length; i++) {
+        if (!phrase.every((word, k) => ts[i + k] === word)) continue;
+        for (let k = 0; k < phrase.length; k++) masked.add(i + k);
+        for (const g of groups) if (g !== 'other') found.add(g);
+      }
+    }
+  };
+  claim(PHRASES.map(([phrase, group]) => [phrase, [group]] as const));
+  claim(DISHES);
+
+  // `lieu` (pollock) is a fish, but `au lieu de` ("instead of") is not a food.
+  const rest = ts.filter((t, i) => !masked.has(i) && !(t === 'lieu' && ts[i - 1] === 'au'));
+  const any = (set: ReadonlySet<string>): boolean => rest.some((t) => set.has(t));
+  if (any(DAIRY)) found.add('dairy');
+  if (any(PROTEIN)) found.add('protein');
+  if (any(STARCH)) found.add('starch');
+  if (any(VEG_FRUIT)) found.add('vegFruit');
+  if (rest.some((t) => DAIRY_FLAVOURED.has(t)) && !rest.some((t) => SALAD.has(t))) {
+    found.delete('vegFruit');
+  }
+
+  const primary = classifyFoodGroup([name]);
+  const out = found.has(primary) ? [primary] : [];
+  for (const g of found) if (g !== primary) out.push(g);
+  return out;
+}
+
+/**
+ * The groups a logged food counts in at coaching time: the stored group, plus whatever its name
+ * says (a typed `chicken salad` stored as protein also counts as vegFruit). Open Food Facts
+ * products keep their category-derived group alone: their names are brands and slogans.
+ */
+export function foodGroupsOfFood(food: DatabaseFood): readonly FoodGroup[] {
+  if (food.source === 'off') return [food.foodGroup];
+  const out: FoodGroup[] = food.foodGroup === 'other' ? [] : [food.foodGroup];
+  for (const g of classifyFoodGroupsByName(food.displayName)) if (!out.includes(g)) out.push(g);
+  return out.length > 0 ? out : ['other'];
 }
 
 function tokens(raw: string): string[] {
@@ -86,6 +147,9 @@ function singular(t: string): string {
   if (t.length > 4 && t.endsWith('ies')) return `${t.slice(0, -3)}y`;
   // French: `poireaux` -> `poireau`, `choux` -> `chou` (`noix` is its own singular).
   if (t.length > 4 && /(eau|ou)x$/.test(t)) return t.slice(0, -1);
+  // English `-es` plurals (`tomatoes`, `radishes`, `sandwiches`, `peaches`). Not a bare `-ches`:
+  // French `pêches` and `brioches` keep their `e`.
+  if (t.length > 4 && /(oes|shes|wiches|eaches)$/.test(t)) return t.slice(0, -2);
   if (t.length > 3 && t.endsWith('s') && !t.endsWith('ss')) return t.slice(0, -1);
   return t;
 }
@@ -221,6 +285,24 @@ const PHRASES: readonly (readonly [readonly string[], FoodGroup])[] = (
     ['petit pois', 'vegFruit'],
     ['haricot vert', 'vegFruit'],
     ['legume vert', 'vegFruit'],
+    // English: the pod is a vegetable, the dried bean is a legume (`beans` alone stays protein).
+    ['green bean', 'vegFruit'],
+    ['runner bean', 'vegFruit'],
+    ['french bean', 'vegFruit'],
+    ['string bean', 'vegFruit'],
+    ['snap pea', 'vegFruit'],
+    ['split pea', 'protein'],
+    ['black eyed pea', 'protein'],
+    ['pumpkin seed', 'protein'],
+    ['squash seed', 'protein'],
+    ['corn flake', 'starch'],
+    ['corn flour', 'starch'],
+    ['corn starch', 'starch'],
+    ['corn bread', 'starch'],
+    ['corn chip', 'other'],
+    ['corn oil', 'other'],
+    ['sweet corn', 'vegFruit'],
+    ['pate de campagne', 'protein'],
     ['vegetable vert', 'vegFruit'],
     // Sweets and pastry: not the pasta, fruit, cabbage or cream their words say.
     ['pain d epice', 'other'],
@@ -249,6 +331,68 @@ function phraseGroup(ts: readonly string[]): FoodGroup | null {
   }
   return null;
 }
+
+/** Dishes whose name says more than its keywords: each lists every group the dish counts in. */
+const DISHES: readonly (readonly [readonly string[], readonly FoodGroup[]])[] = (
+  [
+    ['pizza', ['starch', 'dairy']],
+    ['lasagne', ['starch', 'protein']],
+    ['lasagna', ['starch', 'protein']],
+    ['burger', ['protein', 'starch']],
+    ['hamburger', ['protein', 'starch']],
+    ['cheeseburger', ['protein', 'starch', 'dairy']],
+    ['sandwich', ['starch']],
+    ['panini', ['starch']],
+    ['wrap', ['starch']],
+    ['burrito', ['starch', 'protein']],
+    ['taco', ['starch', 'protein']],
+    ['kebab', ['protein', 'starch']],
+    ['sushi', ['starch', 'protein']],
+    ['ramen', ['starch', 'protein']],
+    ['pad thai', ['starch', 'protein']],
+    ['fish and chip', ['protein', 'starch']],
+    ['quiche', ['starch', 'dairy', 'protein']],
+    ['paella', ['starch', 'protein', 'vegFruit']],
+    ['moussaka', ['protein', 'vegFruit']],
+    ['minestrone', ['vegFruit', 'starch']],
+    ['gazpacho', ['vegFruit']],
+    ['smoothie', ['vegFruit']],
+    ['bruschetta', ['starch', 'vegFruit']],
+    ['cottage pie', ['protein', 'starch']],
+    ['shepherd s pie', ['protein', 'starch']],
+    ['risotto', ['starch']],
+    // French
+    ['croque monsieur', ['starch', 'dairy', 'protein']],
+    ['croque madame', ['starch', 'dairy', 'protein']],
+    ['gratin dauphinois', ['starch', 'dairy']],
+    ['hachis parmentier', ['protein', 'starch']],
+    ['pot au feu', ['protein', 'vegFruit']],
+    ['tajine', ['protein', 'vegFruit']],
+    ['tartiflette', ['starch', 'dairy', 'protein']],
+    ['pissaladiere', ['starch', 'vegFruit']],
+    ['tarte flambee', ['starch', 'dairy', 'protein']],
+    ['crepe', ['starch']],
+    ['galette', ['starch']],
+    ['pancake', ['starch']],
+    ['tartine', ['starch']],
+  ] as const
+).map(([phrase, groups]) => [phrase.split(' ').map(singular), groups] as const);
+
+/** Fruit and herbs in these are flavours, not a serving of vegetables. */
+const DAIRY_FLAVOURED = words(
+  'yogurt',
+  'yoghurt',
+  'milk',
+  'cream',
+  'kefir',
+  'skyr',
+  'yaourt',
+  'yogourt',
+  'lait',
+  'creme',
+  'faisselle',
+);
+const SALAD = words('salad', 'salade');
 
 const DAIRY = words(
   'milk',
@@ -424,6 +568,64 @@ const VEG_FRUIT = words(
   'mango',
   'lemon',
   'avocado',
+  'zucchini',
+  'courgette',
+  'kale',
+  'cabbage',
+  'cauliflower',
+  'mushroom',
+  'pea',
+  'corn',
+  'asparagus',
+  'squash',
+  'pumpkin',
+  'leek',
+  'beetroot',
+  'beet',
+  'radish',
+  'celery',
+  'fennel',
+  'artichoke',
+  'sprout',
+  'rocket',
+  'arugula',
+  'chard',
+  'cress',
+  'watercress',
+  'parsnip',
+  'turnip',
+  'swede',
+  'okra',
+  'shallot',
+  'scallion',
+  'coleslaw',
+  'slaw',
+  'veggie',
+  'veg',
+  'crudite',
+  'ratatouille',
+  'plum',
+  'apricot',
+  'cherry',
+  'kiwi',
+  'pineapple',
+  'melon',
+  'watermelon',
+  'grapefruit',
+  'mandarin',
+  'clementine',
+  'tangerine',
+  'nectarine',
+  'fig',
+  'pomegranate',
+  'papaya',
+  'lychee',
+  'lime',
+  'blackberry',
+  'cranberry',
+  'currant',
+  'gooseberry',
+  'compote',
   // French
   'salade',
   'baie',
@@ -474,6 +676,34 @@ const VEG_FRUIT = words(
   'endive',
   'roquette',
   'pruneau',
+  'epinard',
+  'blette',
+  'cresson',
+  'mache',
+  'oseille',
+  'panais',
+  'rutabaga',
+  'cornichon',
+  'echalote',
+  'potimarron',
+  'butternut',
+  'mais',
+  'crudite',
+  'ratatouille',
+  'compote',
+  'nectarine',
+  'litchi',
+  'grenade',
+  'papaye',
+  'mure',
+  'cassis',
+  'groseille',
+  'kaki',
+  'veggie',
+  'brocoli',
+  'aubergine',
+  'tomate',
+  'cerfeuil',
 );
 
 function classifyTokens(all: readonly string[]): FoodGroup {

@@ -100,7 +100,7 @@ describe('ManualEntrySession', () => {
     expect(drafts).toHaveLength(0);
   });
 
-  it('no-match shows the custom form: logs a manual food (group other, ~1 serving)', async () => {
+  it('no-match shows the custom form: logs a manual food (unclassifiable name stays other, ~1 serving)', async () => {
     const s = new ManualEntrySession(fakeCatalog({ zxqwer: notFound('zxqwer') }));
     await s.updateQuery('zxqwer');
     expect(s.state.catalogStatus).toBe('notFound');
@@ -116,6 +116,20 @@ describe('ManualEntrySession', () => {
       sourceRef: 'manual:mystery stew',
     });
     expect(draft.quantity).toMatchObject({ low: 1, high: 1, unit: 'serving' });
+  });
+
+  it('a typed food is classified by its name: zucchini is vegFruit, chicken salad protein', async () => {
+    for (const [name, group] of [
+      ['Zucchini', 'vegFruit'],
+      ['Chicken salad', 'protein'],
+      ['Pizza', 'starch'],
+    ] as const) {
+      const s = new ManualEntrySession(fakeCatalog({}));
+      s.setCustomName(name);
+      const { commit, drafts } = recorder();
+      expect(await s.logCustom(commit)).toEqual({ kind: 'logged' });
+      expect(drafts[0]![0]!.databaseFood).toMatchObject({ displayName: name, foodGroup: group });
+    }
   });
 
   it('a blank custom name needs a name first', async () => {

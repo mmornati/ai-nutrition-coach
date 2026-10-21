@@ -177,7 +177,7 @@ export class ManualEntrySession {
     return this.submit(commit, [{ databaseFood: selected.food, quantity: chosenPreset }]);
   }
 
-  /** Log the custom food form: `source: manual`, group `other`, `~1 serving`. */
+  /** Log the custom food form: `source: manual`, group from the name classifier (`other` when unknown), `~1 serving`. */
   async logCustom(commit: CommitPlate): Promise<LogOutcome> {
     if (this.current.submitting) return { kind: 'busy' };
     const name = this.current.customName.trim();

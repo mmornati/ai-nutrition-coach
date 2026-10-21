@@ -7,6 +7,8 @@ import {
   type PostCommitWarning,
   type RecordPlateResult,
 } from '../results/store';
+import { localDayRange } from '../value-types/calendar-day';
+import type { PlateLog } from '../entities/plate-log';
 import { generateUuidV4, type IdGenerator } from '../util/uuid-v4';
 import type { FoodEntryDraft } from '../value-types/food-entry-draft';
 import { isValidQuantity } from '../value-types/quantity-range';
@@ -45,7 +47,16 @@ export function createRecordPlate(deps: {
     const plate = result.plateLog;
 
     try {
-      const generated = await deps.generator.generateFor(plate);
+      // The coach reads the plate in the context of its own day. If the day cannot be read the
+      // plate is judged alone: a note is never held back because of it.
+      let dayPlates: readonly PlateLog[] = [];
+      try {
+        const day = await store.readRange(localDayRange(plate.loggedAtUtc));
+        if (day.kind === 'platesRead') dayPlates = day.plates;
+      } catch {
+        // judged alone
+      }
+      const generated = await deps.generator.generateFor(plate, { dayPlates });
       if (generated.kind === 'noCoachNoteGenerated' && generated.reason === 'appendFailed') {
         warnings.push({ step: 'coachNote' });
       }

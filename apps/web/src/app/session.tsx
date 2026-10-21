@@ -38,6 +38,7 @@ import { photoDigest, sanitizePhotoForUpload } from '../capture';
 import {
   classifyFoodByName,
   createOffBarcodeSource,
+  foodGroupsOfFood,
   offLookupGate,
   OfflineFirstFoodCatalog,
   PrivacyPrefs,
@@ -116,7 +117,12 @@ export async function createSession(
   });
 
   const coach = createTemplateCoach(coachLookup);
-  const generator = createCoachNoteGenerator({ coach, store: notes, clock });
+  const generator = createCoachNoteGenerator({
+    coach,
+    store: notes,
+    clock,
+    groupsOf: foodGroupsOfFood,
+  });
   const record = createRecordPlate({
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
