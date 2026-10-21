@@ -275,7 +275,7 @@ export type SupportSignal = 'selfHarm' | 'urgent' | 'eatingWorry' | 'medicalSymp
 
 const SELF_HARM_PATTERNS: readonly RegExp[] = [
   /\bkill(?:ing)? myself\b|\bsuicid|\bwant(?:ed)? to die\b|\bwanna die\b|\bend(?:ing)? my (?:own )?life\b|\bself[- ]?harm|\bhurt(?:ing)? myself\b|\bbetter off dead\b/,
-  /\bje veux mourir\b|\benvie de mourir\b|\bmourir\b|\bme suicid|\bme tuer\b|\bme faire du mal\b|\ben finir\b|\bidees? noires?\b|\bautomutil/,
+  /\bje veux mourir\b(?! de (?:faim|rire|soif|froid|chaud|ennui|envie|honte))|\benvie de mourir\b(?! de (?:faim|rire|soif|froid|chaud|ennui|envie|honte))|\bmourir\b(?! de (?:faim|rire|soif|froid|chaud|ennui|envie|honte))|\bme suicid|\bme tuer\b|\bme faire du mal\b|\ben finir\b|\bidees? noires?\b|\bautomutil/,
 ];
 
 const URGENT_PATTERNS: readonly RegExp[] = [

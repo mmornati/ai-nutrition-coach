@@ -160,6 +160,19 @@ describe('detectSupportSignal', () => {
   });
 
   it.each([
+    'Je vais mourir de faim avant le dîner',
+    'J’avais envie de mourir de rire',
+    'On peut mourir de soif ici',
+  ])('does not treat an everyday French idiom as self-harm: %s', (text) => {
+    expect(detectSupportSignal(text)).not.toBe('selfHarm');
+  });
+
+  it('still routes "mourir" when it is not one of those idioms', () => {
+    expect(detectSupportSignal('j’ai envie de mourir, de tout arrêter')).toBe('selfHarm');
+    expect(detectSupportSignal('je veux mourir de honte et en finir')).toBe('selfHarm');
+  });
+
+  it.each([
     'I get chest pain after eating',
     'I almost fainted at lunch',
     'I passed out after dinner',

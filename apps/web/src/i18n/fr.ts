@@ -756,7 +756,7 @@ export const fr: Strings = {
     supportUrgent:
       'Cela peut être urgent. Appelez les secours maintenant : le 15 ou le 112 en France, le 112 dans l’Union européenne. Je ne peux pas donner de conseil sur des symptômes.',
     supportSelfHarm:
-      'Je suis désolé que vous vous sentiez ainsi, et je suis content que vous en parliez. Vous n’avez pas à porter cela sans aide. En France, vous pouvez appeler le 3114, le numéro national de prévention du suicide, gratuit et ouvert jour et nuit. Ailleurs, appelez le numéro d’urgence local (le 112 dans l’Union européenne) ou une ligne d’écoute près de chez vous.',
+      'Ce que vous ressentez compte, et merci d’en parler. Vous n’avez pas à porter cela sans aide. En France, vous pouvez appeler le 3114, le numéro national de prévention du suicide, gratuit et ouvert jour et nuit. Ailleurs, appelez le numéro d’urgence local (le 112 dans l’Union européenne) ou une ligne d’écoute près de chez vous.',
     hiddenByNumbers:
       'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
   },
