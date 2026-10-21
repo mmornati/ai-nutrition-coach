@@ -536,7 +536,7 @@ export const en = {
     sectionTitle: 'Nutrition',
     sectionTitleToday: 'Today’s nutrition',
     gramsLabel: 'Grams',
-    gramsInvalid: 'Type a weight from 1 to 5000 g.',
+    gramsInvalid: 'Type a weight from 0.1 to 5000 g.',
     /** A weight the person typed or weighed. */
     weight: '{value} g',
     /** A weight that is a guess (a preset, a photo): never shown as exact. */
@@ -560,11 +560,13 @@ export const en = {
       fibre: 'Fibre',
       salt: 'Salt',
     },
-    reference: 'about {percent}% of the {reference} reference',
+    reference: 'about {percent}% of the EU reference intake ({reference})',
+    /** A value above zero that rounds to 0%. */
+    referenceUnderOne: 'less than 1% of the EU reference intake ({reference})',
     barsLabel: 'Nutrient amounts against reference intakes',
     coverage: {
-      one: 'Based on {count} food with nutrition data; {missing} without.',
-      other: 'Based on {count} foods with nutrition data; {missing} without.',
+      one: 'Based on {count} food with a weight and nutrition data; {missing} without.',
+      other: 'Based on {count} foods with a weight and nutrition data; {missing} without.',
     },
     whatAre: 'What are reference intakes?',
     whatAreBody:
@@ -574,7 +576,7 @@ export const en = {
     title: 'Nutrition',
     switchTitle: 'Show nutrition numbers',
     switchHelp:
-      'If numbers about food feel stressful, you can turn them off. Your meals are still logged.',
+      'If numbers about food feel stressful, you can hide nutrient values and bars. Weights and your meals stay.',
     saveFailed: 'That did not save just now. The switch stays where it was.',
   },
   /** The Plate screen. */

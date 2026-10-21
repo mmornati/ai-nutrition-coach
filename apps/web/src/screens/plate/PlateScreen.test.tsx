@@ -161,7 +161,9 @@ describe('PlateScreen: weights and nutrition', () => {
     expect(within(bars).getByText('5 g')).toBeVisible();
     // A nutrient the food does not know is not drawn, never drawn as zero.
     expect(within(bars).queryByText('of which saturates')).toBeNull();
-    expect(screen.getByText('Based on 1 food with nutrition data; 1 without.')).toBeVisible();
+    expect(
+      screen.getByText('Based on 1 food with a weight and nutrition data; 1 without.'),
+    ).toBeVisible();
   });
 
   it('marks the totals as estimates when a weight was a guess', async () => {

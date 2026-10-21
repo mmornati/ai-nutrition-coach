@@ -88,6 +88,24 @@ describe('serializePlatesToCsv', () => {
     expect(row({ ...e, quantity: { ...e.quantity, gramsEstimated: false } })[12]).toBe('false');
   });
 
+  it('writes grams as plain fixed-point text: at most one decimal, no exponent', () => {
+    const base = entry(1, 1, 'Spice');
+    const grams = (g: number) =>
+      splitCsvRow(
+        serializePlatesToCsv([
+          plate(1, at(16), [{ ...base, quantity: { ...base.quantity, grams: g } }]),
+        ]).split('\n')[1] as string,
+      )[11];
+    expect(grams(150)).toBe('150');
+    expect(grams(12.5)).toBe('12.5');
+    expect(grams(0.1)).toBe('0.1');
+    expect(grams(0.5)).toBe('0.5');
+    expect(grams(12.34)).toBe('12.3');
+    expect(grams(1e-7 + 0.1)).toBe('0.1');
+    expect(grams(5000)).toBe('5000');
+    for (const g of [0.0000001, 5000, 0.04, 12.3456]) expect(grams(g)).not.toMatch(/e/i);
+  });
+
   describe('formula injection', () => {
     const row = (e: ReturnType<typeof entry>): string =>
       serializePlatesToCsv([plate(1, at(16), [e])]).slice(CSV_HEADER.length + 1);

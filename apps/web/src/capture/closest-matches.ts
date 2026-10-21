@@ -76,11 +76,12 @@ export function namesAgree(foodName: string, matchName: string): boolean {
 }
 
 /**
- * Gives a food the model recognised (and so named, with a weight guess, but no nutrients) the
- * per-100 g nutrients of the best catalogue match, when that match is confident
- * ({@link NUTRIENT_MATCH_MIN_CONFIDENCE} and {@link namesAgree}). Only `nutrientsPer100g` is added:
- * the food keeps its own name, reference, group and the model's grams. No confident match, or a
- * search that fails: the food is left as it was and its nutrients stay unknown, never guessed.
+ * Gives a food the model recognised the per-100 g nutrients of the best confident catalogue match
+ * ({@link NUTRIENT_MATCH_MIN_CONFIDENCE} and {@link namesAgree}). A confident match REPLACES the
+ * model's own values (a database beats a guess); the model's values stay, flagged
+ * `extra.nutrientsEstimated`, only when no match is confident. Nutrients that already came from a
+ * database are left alone. The food keeps its own name, reference, group and the model's grams.
+ * A search that fails leaves the food as it was; nothing is ever invented.
  * A typed custom food is NOT run through this (the ranked list already offers the catalogue food).
  */
 export async function enrichRecognition(
@@ -98,19 +99,27 @@ export async function enrichRecognition(
 }
 
 async function withNutrients(food: DatabaseFood, catalog: FoodCatalog): Promise<DatabaseFood> {
-  if (food.nutrientsPer100g !== undefined) return food;
+  if (food.nutrientsPer100g !== undefined && food.extra?.nutrientsEstimated !== true) return food;
   try {
-    const result = await catalog.search(food.displayName, { limit: 3 });
+    const result = await catalog.search(food.displayName, { limit: 5 });
     if (result.kind !== 'rankedMatches') return food;
     for (const match of result.matches) {
       const nutrients = match.food.nutrientsPer100g;
       if (nutrients === undefined) continue;
-      if (match.confidence < NUTRIENT_MATCH_MIN_CONFIDENCE) break;
+      if (match.confidence < NUTRIENT_MATCH_MIN_CONFIDENCE) continue;
       if (!namesAgree(food.displayName, match.food.displayName)) continue;
-      return databaseFood({ ...food, nutrientsPer100g: nutrients });
+      // The product information (grade, group) stays; the "estimated" flag goes with the guess.
+      return databaseFood({
+        ...food,
+        nutrientsPer100g: nutrients,
+        extra: {
+          nutriscoreGrade: food.extra?.nutriscoreGrade,
+          novaGroup: food.extra?.novaGroup,
+        },
+      });
     }
   } catch {
-    // The catalogue is unavailable: nutrients stay unknown.
+    // The catalogue is unavailable: the model's values (if any) stay, flagged as estimates.
   }
   return food;
 }

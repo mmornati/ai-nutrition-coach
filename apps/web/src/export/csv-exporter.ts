@@ -59,9 +59,18 @@ function csvText(raw: string): string {
 /** A numeric cell, written as-is: negatives and decimals stay numbers. */
 const csvNumber = (value: number): string => String(value);
 
+/**
+ * A value with at most one decimal, trailing zero trimmed, and never exponent notation ("1e-7",
+ * "1e+21"): "150", "12.5", "0".
+ */
+function csvFixed(value: number): string {
+  const text = (Math.round(value * 10) / 10).toFixed(1);
+  return text.endsWith('.0') ? text.slice(0, -2) : text;
+}
+
 /** A scaled nutrient cell: dot decimal, at most one decimal, empty when unknown. */
 function csvNutrient(value: number | undefined): string {
-  return value === undefined ? '' : String(Math.round(value * 10) / 10);
+  return value === undefined ? '' : csvFixed(value);
 }
 
 /** One row per food entry; an empty list is a header-only file. UTF-8 text, LF line endings. */
@@ -84,7 +93,7 @@ export function serializePlatesToCsv(plates: readonly PlateLog[]): string {
           csvText(entry.quantity.unit),
           csvText(entry.quantity.displayLabel),
           csvText(entry.databaseFood.foodGroup),
-          grams === undefined ? '' : csvNumber(grams),
+          grams === undefined ? '' : csvFixed(grams),
           grams === undefined || entry.quantity.gramsEstimated === undefined
             ? ''
             : entry.quantity.gramsEstimated

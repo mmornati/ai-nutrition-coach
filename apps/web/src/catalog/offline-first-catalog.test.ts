@@ -23,6 +23,7 @@ const custom = (name: string, foodGroup: FoodGroup): SeedFood => ({
   id: name,
   sourceRef: `seed:${name.toLowerCase()}`,
   foodGroup,
+  nutrients: { energyKcal: 100 },
   presets: seedFoods[0]!.presets,
 });
 const idAsName = { nameOf: (s: SeedFood) => s.id };
@@ -148,7 +149,7 @@ describe('OfflineFirstFoodCatalog', () => {
     ]);
   });
 
-  it('token overlap scores 0.4 x the fraction of query words found as whole words', async () => {
+  it('a seed needs ALL the query words: all as whole words score 0.4, a missing one lists nothing', async () => {
     const catalog = new OfflineFirstFoodCatalog({
       onlineLookupAllowed: allow,
       ...idAsName,
@@ -157,8 +158,8 @@ describe('OfflineFirstFoodCatalog', () => {
     // Not a substring of the name as a whole, but both words are whole tokens of it.
     const out = ranked(await catalog.search('potato sweet'));
     expect(out[0]?.confidence).toBeCloseTo(0.4);
-    const half = ranked(await catalog.search('potato mash'));
-    expect(half[0]?.confidence).toBeCloseTo(0.2);
+    // "mash" is not in the name: the seed is not listed at all.
+    expect((await catalog.search('potato mash')).kind).toBe('notFound');
   });
 
   it('case-insensitive matching: "SALM" matches Salmon', async () => {
@@ -246,7 +247,7 @@ describe('OfflineFirstFoodCatalog', () => {
     // A ranker that throws:
     const bad = new OfflineFirstFoodCatalog({
       onlineLookupAllowed: allow,
-      seeds: [{ id: 'x', sourceRef: 'seed:x', foodGroup: 'other', presets: [] }],
+      seeds: [{ id: 'x', sourceRef: 'seed:x', foodGroup: 'other', nutrients: {}, presets: [] }],
     });
     (bad as unknown as { rank: () => never }).rank = () => {
       throw new Error('boom');

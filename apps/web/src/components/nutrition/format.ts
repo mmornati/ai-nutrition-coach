@@ -1,6 +1,6 @@
 /**
  * How weights and nutrient values read in the person's language. Kcal are whole numbers; grams
- * are whole from 10 up and keep one decimal below ("5,4 g"). Nothing here rounds toward a target.
+ * are whole from 10 up and keep one decimal below ("5,4 g"). French groups thousands ("5 000 g"). Nothing here rounds toward a target.
  */
 import {
   NUTRIENT_KEYS,
@@ -14,11 +14,15 @@ import { currentLocale, fill } from '../../i18n';
 import { catalogueFor } from '../../i18n/catalogues';
 import { perLocale, type Locale } from '../../i18n/locale';
 
+// French groups thousands with a narrow no-break space, even four-digit ones ("5 000 g"); English
+// keeps them plain ("5000 g").
 const oneDecimal = perLocale(
-  (tag) => new Intl.NumberFormat(tag, { maximumFractionDigits: 1, useGrouping: false }),
+  (tag, locale) =>
+    new Intl.NumberFormat(tag, { maximumFractionDigits: 1, useGrouping: locale === 'fr' }),
 );
 const whole = perLocale(
-  (tag) => new Intl.NumberFormat(tag, { maximumFractionDigits: 0, useGrouping: false }),
+  (tag, locale) =>
+    new Intl.NumberFormat(tag, { maximumFractionDigits: 0, useGrouping: locale === 'fr' }),
 );
 
 /** A gram amount: one decimal under 10, whole from 10. */
@@ -35,6 +39,11 @@ export function formatWeight(
 ): string {
   const t = catalogueFor(locale).nutrition;
   return fill(approximate ? t.weightApprox : t.weight, { value: formatAmount(grams, locale) });
+}
+
+/** A whole number in the person's language: "1 200" in French (narrow no-break space). */
+export function formatWhole(value: number, locale: Locale = currentLocale()): string {
+  return whole(locale).format(value);
 }
 
 /** A nutrient value with its unit: "210 kcal", "9 g"; "~" in front when estimated. */

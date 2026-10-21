@@ -167,6 +167,25 @@ describe('Type it', () => {
     expect(within(sheet).getByRole('button', { name: s.common.log })).toBeDisabled();
   });
 
+  it('Log is off while the Grams field holds something that is not a weight, and clearing it restores the preset', async () => {
+    const { user, bundle, sheet } = await open();
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'salm');
+    await user.click(await within(sheet).findByRole('button', { name: /^Salmon/ }));
+    const grams = within(sheet).getByLabelText(s.nutrition.gramsLabel);
+    const log = within(sheet).getByRole('button', { name: s.common.log });
+    await user.type(grams, '5001');
+    expect(log).toBeDisabled();
+    await user.clear(grams);
+    expect(log).toBeEnabled();
+    await user.click(log);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const q = read.kind === 'platesRead' ? read.plates[0]?.entries[0]?.quantity : undefined;
+    // The first preset, never "1 g".
+    expect(q?.unit).not.toBe('g');
+    expect(q?.grams).toBeGreaterThan(1);
+  });
+
   it('a name that matches nothing opens the custom food form (manual, group other, ~1 serving)', async () => {
     const { user, bundle, sheet } = await open();
     await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'zzqx mystery stew');

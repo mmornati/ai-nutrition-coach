@@ -719,6 +719,34 @@ export const storeContractCases: readonly ContractCase[] = [
     },
   },
   {
+    name: 'recordPlate returns the sanitised entries, the same as what is stored',
+    async run({ store }) {
+      const dirty: FoodEntryDraft = {
+        ...draft('Dirty'),
+        databaseFood: {
+          ...draft('Dirty').databaseFood,
+          nutrientsPer100g: { energyKcal: 50, protein: -2, fat: Number.NaN },
+          extra: { nutriscoreGrade: 'z', nutrientsEstimated: true },
+        } as unknown as FoodEntryDraft['databaseFood'],
+      };
+      const returned = await record(store, [dirty], T0);
+      const stored = (await read(store))[0];
+      const food = returned.entries[0]?.databaseFood;
+      assert(
+        JSON.stringify(food?.nutrientsPer100g) === JSON.stringify({ energyKcal: 50 }),
+        'invalid nutrient values are dropped from the returned plate too',
+      );
+      assert(
+        JSON.stringify(food?.extra) === JSON.stringify({ nutrientsEstimated: true }),
+        'an invalid grade is dropped, the estimate flag stays',
+      );
+      assert(
+        JSON.stringify(food) === JSON.stringify(stored?.entries[0]?.databaseFood),
+        'what is returned is what a later read gives',
+      );
+    },
+  },
+  {
     name: 'kv: reads null, writes, overwrites and deletes',
     async run({ kv }) {
       assert((await kv.read('a.b')) === null, 'absent');

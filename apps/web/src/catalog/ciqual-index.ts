@@ -4,7 +4,10 @@
  * LOADING. The table (`public/catalog/ciqual-2025.json`, ~500 kB, precached by the service worker) is
  * fetched from the app's own origin, once, on the first search, by an injectable {@link CiqualLoader}
  * (tests pass their own; nothing leaves the device and no new host is involved). A failed load is
- * not fatal: the catalog keeps answering with the curated foods alone and retries later.
+ * not fatal: the catalog keeps answering with the curated foods alone (which carry their own
+ * nutrients) and retries later with a growing delay. A file that arrives but cannot be parsed is not
+ * downloaded again after the second attempt in a session. This request is the one fetch the
+ * search path makes, to the app's own origin only (docs/telemetry-posture.md).
  *
  * INDEX. Built once per table: for each food the French and English names are folded (lower-case, no
  * accents, `oe` ligatures spelled out), split into tokens, lightly stemmed (a trailing plural
@@ -32,6 +35,14 @@ import { foldText } from './fold';
 /** Supplies the table. Rejects when it cannot (offline and not precached, bad file). */
 export type CiqualLoader = () => Promise<CiqualTable>;
 
+/** The file arrived but is not a usable table: downloading it again will not help. */
+export class CiqualParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CiqualParseError';
+  }
+}
+
 export const CIQUAL_SOURCE_PREFIX = 'ciqual:';
 
 type FetchFn = (input: string) => Promise<Response>;
@@ -48,13 +59,18 @@ export function createCiqualFetchLoader(
     const doFetch: FetchFn = options.fetchImpl ?? ((url) => globalThis.fetch(url));
     const response = await doFetch(`${base}catalog/${CIQUAL_FILE}`);
     if (!response.ok) throw new Error(`CIQUAL table HTTP ${response.status}`);
-    const body: unknown = await response.json();
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new CiqualParseError('CIQUAL table is not valid JSON');
+    }
     if (
       typeof body !== 'object' ||
       body === null ||
       !Array.isArray((body as { foods?: unknown }).foods)
     ) {
-      throw new Error('CIQUAL table is not the expected JSON');
+      throw new CiqualParseError('CIQUAL table is not the expected JSON');
     }
     return body as CiqualTable;
   };
@@ -154,6 +170,27 @@ function scoreName(query: readonly string[], name: readonly string[]): number {
   return Math.min(1, 0.35 * mean + 0.25 * head + 0.4 * specificity + generic);
 }
 
+/** Sub-groups of tubers, pulses and pasta / rice / grains, where raw and cooked rows both exist. */
+const COOKABLE_SUBGROUPS: ReadonlySet<string> = new Set(['0202', '0203', '0301']);
+const COOKED_WORDS: ReadonlySet<string> = new Set(['cuit', 'cooked', 'boiled', 'bouilli']);
+const RAW_WORDS: ReadonlySet<string> = new Set(['cru', 'raw', 'sec', 'seche', 'dry', 'dried']);
+/** How much a cooked row gains (a raw or dry one loses) when the query does not say "raw" / "dry". */
+const COOKED_BIAS = 0.15;
+
+/**
+ * "riz" means the cooked rice on the plate, not the dry grain in the bag: for tubers, pulses, pasta,
+ * rice and grains, cooked rows rank above raw / dry ones unless the query itself says "cru", "raw",
+ * "sec" or "dry".
+ */
+function cookedBias(entry: CiqualEntry, queryWantsRaw: boolean): number {
+  if (queryWantsRaw || entry.subgroupCode === undefined) return 0;
+  if (!COOKABLE_SUBGROUPS.has(entry.subgroupCode)) return 0;
+  const tokens = [...entry.frTokens, ...entry.enTokens];
+  if (tokens.some((t) => RAW_WORDS.has(t))) return -COOKED_BIAS;
+  if (tokens.some((t) => COOKED_WORDS.has(t))) return COOKED_BIAS;
+  return 0;
+}
+
 /** A match through the name in the other language than the UI's counts a little less. */
 const OTHER_LANGUAGE = 0.85;
 
@@ -167,10 +204,16 @@ export class CiqualIndex {
     this.byCodeMap = new Map(entries.map((e) => [e.code, e]));
   }
 
-  /** Builds the index; throws when the table has the wrong shape. */
+  /** Builds the index; throws a {@link CiqualParseError} when the table has the wrong shape. */
   static fromTable(table: CiqualTable): CiqualIndex {
     const entries: CiqualEntry[] = [];
-    for (const food of ciqualFoods(table)) {
+    let foods: ReturnType<typeof ciqualFoods>;
+    try {
+      foods = ciqualFoods(table);
+    } catch (e) {
+      throw new CiqualParseError(e instanceof Error ? e.message : 'bad CIQUAL table');
+    }
+    for (const food of foods) {
       if (!isUseful(food)) continue;
       entries.push({
         code: food.code,
@@ -204,13 +247,17 @@ export class CiqualIndex {
     const tokens = indexTokens(query.slice(0, MAX_QUERY_LENGTH)).slice(0, MAX_QUERY_TOKENS);
     if (tokens.length === 0 || limit <= 0) return [];
     const hits: CiqualHit[] = [];
+    const queryWantsRaw = tokens.some((t) => RAW_WORDS.has(t) || COOKED_WORDS.has(t));
     for (const entry of this.entries) {
       if (exclude?.has(entry.code)) continue;
       const fr = scoreName(tokens, entry.frTokens);
       const en = scoreName(tokens, entry.enTokens);
-      const score =
+      const base =
         locale === 'fr' ? Math.max(fr, en * OTHER_LANGUAGE) : Math.max(en, fr * OTHER_LANGUAGE);
-      if (score > 0) hits.push({ entry, score });
+      if (base > 0) {
+        const score = Math.min(1, Math.max(0.01, base + cookedBias(entry, queryWantsRaw)));
+        hits.push({ entry, score });
+      }
     }
     hits.sort(
       (a, b) =>

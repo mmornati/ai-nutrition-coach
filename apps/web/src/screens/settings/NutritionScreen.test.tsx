@@ -28,7 +28,7 @@ describe('NutritionScreen', () => {
     expect(screen.getByRole('switch', SWITCH)).toBeChecked();
     expect(
       screen.getByText(
-        'If numbers about food feel stressful, you can turn them off. Your meals are still logged.',
+        'If numbers about food feel stressful, you can hide nutrient values and bars. Weights and your meals stay.',
       ),
     ).toBeVisible();
   });

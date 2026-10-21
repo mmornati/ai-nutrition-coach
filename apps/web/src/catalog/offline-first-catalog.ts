@@ -5,7 +5,10 @@
  * and then the CIQUAL table (3.4k generic foods, source `ciqual`, loaded once from the app's own
  * precached asset on the first search; see `ciqual-index.ts`), with a small LRU cache for offline
  * replay (NFR5). The seeds come first: their ranking is plain string matching, exact > prefix >
- * substring > token overlap; CIQUAL follows by token score. The cache key is the case-folded,
+ * substring > every query word present; a seed is only listed when ALL the query words match it.
+ * CIQUAL follows by token score. The seeds carry their own per-100 g nutrients, so they never wait
+ * for the table; a search waits for it at most `ciqualWaitMs` and otherwise answers with the seeds
+ * while the load carries on in the background. The cache key is the case-folded,
  * trimmed query so a previously-seen search resolves identically offline. Both kinds carry their
  * per-100 g nutrients and gram presets (docs/adr/0006). If the table cannot be loaded the search
  * still answers with the seeds (and is not cached, so a later search retries).
@@ -24,8 +27,10 @@
  * Only a definitive answer (a match, or "OFF has no such product") is cached. A transient failure
  * (timeout, 5xx, offline) must not poison the barcode for the rest of the process.
  *
- * No network call on the search path: the offline-first guarantee is structural, the search
- * adapter has no path that talks to the network. Both caches are in memory only.
+ * The only request on the search path is the first load of the CIQUAL table from the app's own
+ * origin (served by the service worker's precache when offline; see `ciqual-index.ts` and
+ * docs/telemetry-posture.md). Nothing about the query leaves the device: the adapter has no path
+ * that talks to a third party. Both caches are in memory only.
  *
  * Failures are typed `catalogFailure` results, never a thrown error.
  */
@@ -44,6 +49,7 @@ import type { Locale } from '../i18n/locale';
 import {
   CIQUAL_SOURCE_PREFIX,
   CiqualIndex,
+  CiqualParseError,
   ciqualDatabaseFood,
   type CiqualLoader,
 } from './ciqual-index';
@@ -61,6 +67,10 @@ import { seedFoods, type SeedFood } from './seed-foods';
 export const SEARCH_CACHE_CAPACITY = 32;
 export const BARCODE_CACHE_CAPACITY = 64;
 const DEFAULT_LIMIT = 10;
+/** The longest wait between two attempts to load the CIQUAL table. */
+export const CIQUAL_RETRY_CAP_MS = 600_000;
+/** A table that arrived but could not be read is fetched again at most this many times. */
+const CIQUAL_MAX_PARSE_FAILURES = 2;
 
 export interface OfflineFirstFoodCatalogOptions {
   readonly seeds?: readonly SeedFood[];
@@ -73,8 +83,13 @@ export interface OfflineFirstFoodCatalogOptions {
    * `createCiqualFetchLoader()`.
    */
   readonly ciqual?: CiqualLoader;
-  /** Wait this long (ms) after a failed CIQUAL load before trying again. Default 30 s. */
+  /**
+   * After a failed CIQUAL load, wait this long (ms) before trying again; the wait doubles with each
+   * further failure up to {@link CIQUAL_RETRY_CAP_MS}. Default 30 s.
+   */
   readonly ciqualRetryMs?: number;
+  /** A search waits at most this long (ms) for the table, then answers with the seeds. Default 1500. */
+  readonly ciqualWaitMs?: number;
   /**
    * The language names, portion labels and Open Food Facts names are worded in, asked at call time
    * (so a language switch takes effect on the next search). Defaults to the app's current one.
@@ -89,14 +104,9 @@ export interface OfflineFirstFoodCatalogOptions {
   readonly onlineLookupAllowed: () => Promise<boolean>;
 }
 
-function toDatabaseFood(
-  seed: SeedFood,
-  displayName: string,
-  index: CiqualIndex | null,
-): DatabaseFood {
-  const nutrients = seed.ciqual === undefined ? undefined : index?.byCode(seed.ciqual)?.nutrients;
+function toDatabaseFood(seed: SeedFood, displayName: string): DatabaseFood {
   return databaseFood({
-    ...(nutrients ? { nutrientsPer100g: nutrients } : {}),
+    nutrientsPer100g: seed.nutrients,
     sourceRef: seed.sourceRef,
     // The text is kept with the plate (exports stay readable); the plate itself is shown from the
     // catalogue's name for `sourceRef`, so a later language switch still reads right.
@@ -109,19 +119,17 @@ function toDatabaseFood(
 
 /**
  * Score a seed name against the query (both already folded: lower-case, no accents). 0 when there
- * is no match: exact 1.0, prefix 0.8, substring 0.6, token overlap 0.4 x overlap fraction (whole
- * words).
+ * is no match: exact 1.0, prefix 0.8, substring 0.6, all query words present 0.4 (whole words).
  */
 function score(query: string, name: string): number {
   if (name === query) return 1.0;
   if (name.startsWith(query)) return 0.8;
   if (name.includes(query)) return 0.6;
-  const queryTokens = query.split(/\s+/);
+  const queryTokens = query.split(/\s+/).filter((t) => t.length > 0);
   if (queryTokens.length <= 1) return 0.0;
   const nameTokens = name.split(/\s+/);
-  const overlap = queryTokens.filter((t) => t.length > 0 && nameTokens.includes(t)).length;
-  if (overlap === 0) return 0.0;
-  return 0.4 * (overlap / queryTokens.length);
+  // Every query word must be a word of the name: "riz basmati" is not "Rice".
+  return queryTokens.every((t) => nameTokens.includes(t)) ? 0.4 : 0.0;
 }
 
 export class OfflineFirstFoodCatalog implements FoodCatalog {
@@ -134,6 +142,9 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   private readonly nameOf: (seed: SeedFood, locale: Locale) => string;
   private readonly ciqualLoader: CiqualLoader | undefined;
   private readonly ciqualRetryMs: number;
+  private readonly ciqualWaitMs: number;
+  private ciqualFailures = 0;
+  private ciqualParseFailures = 0;
   private ciqualIndex: CiqualIndex | null = null;
   private ciqualLoading: Promise<CiqualIndex | null> | null = null;
   private ciqualFailedAt = Number.NEGATIVE_INFINITY;
@@ -150,33 +161,58 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     this.nameOf = options.nameOf ?? seedName;
     this.ciqualLoader = options.ciqual;
     this.ciqualRetryMs = options.ciqualRetryMs ?? 30_000;
+    this.ciqualWaitMs = options.ciqualWaitMs ?? 1500;
   }
 
   /**
-   * The CIQUAL index, loading it on first use. `null` when there is no loader or the load failed
-   * (then retried no sooner than `ciqualRetryMs` later). Never throws; concurrent callers share
-   * one load.
+   * The CIQUAL index, loading it on first use. `null` when there is no loader, the load failed
+   * (retried after an exponentially growing wait: `ciqualRetryMs`, twice that, ... capped at 10
+   * minutes) or the file arrived unreadable twice (then never again this session). Never throws;
+   * concurrent callers share one load.
    */
-  private async ciqual(): Promise<CiqualIndex | null> {
-    if (this.ciqualIndex !== null) return this.ciqualIndex;
+  private ciqual(): Promise<CiqualIndex | null> {
+    if (this.ciqualIndex !== null) return Promise.resolve(this.ciqualIndex);
     const loader = this.ciqualLoader;
-    if (loader === undefined) return null;
+    if (loader === undefined) return Promise.resolve(null);
     if (this.ciqualLoading === null) {
-      if (Date.now() - this.ciqualFailedAt < this.ciqualRetryMs) return null;
-      this.ciqualLoading = this.loadCiqual(loader);
+      if (this.ciqualParseFailures >= CIQUAL_MAX_PARSE_FAILURES) return Promise.resolve(null);
+      const wait = Math.min(
+        this.ciqualRetryMs * 2 ** Math.max(0, this.ciqualFailures - 1),
+        CIQUAL_RETRY_CAP_MS,
+      );
+      if (this.ciqualFailures > 0 && Date.now() - this.ciqualFailedAt < wait) {
+        return Promise.resolve(null);
+      }
+      this.ciqualLoading = this.loadCiqual(loader).finally(() => {
+        this.ciqualLoading = null;
+      });
     }
+    return this.ciqualLoading;
+  }
+
+  /** The table if it arrives within `ciqualWaitMs`; otherwise `null`, and the load carries on. */
+  private async ciqualWithin(): Promise<CiqualIndex | null> {
+    const loading = this.ciqual();
+    if (this.ciqualLoading === null) return loading;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), this.ciqualWaitMs);
+    });
     try {
-      return await this.ciqualLoading;
+      return await Promise.race([loading, timeout]);
     } finally {
-      this.ciqualLoading = null;
+      clearTimeout(timer);
     }
   }
 
   private async loadCiqual(loader: CiqualLoader): Promise<CiqualIndex | null> {
     try {
       this.ciqualIndex = CiqualIndex.fromTable(await loader());
-    } catch {
+      this.ciqualFailures = 0;
+    } catch (error) {
+      this.ciqualFailures++;
       this.ciqualFailedAt = Date.now();
+      if (error instanceof CiqualParseError) this.ciqualParseFailures++;
     }
     return this.ciqualIndex;
   }
@@ -214,14 +250,14 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       const cached = this.searchCache.get(cacheKey);
       if (cached !== undefined) return rankedMatches(cached);
 
-      const index = await this.ciqual();
+      const index = await this.ciqualWithin();
       const trimmed = this.rank(foldText(normalized), locale, index, limit).slice(
         0,
         Math.max(0, limit),
       );
       if (trimmed.length === 0) return notFound(normalized);
-      // A list built without the table (not loaded yet, or the load failed) is not remembered, so
-      // the next search gets the full one.
+      // A list built without the table (not loaded yet, slow, or the load failed) is not
+      // remembered, so the next search gets the full one.
       if (index !== null || this.ciqualLoader === undefined) {
         this.searchCache.put(cacheKey, trimmed);
       }
@@ -234,10 +270,11 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   async lookupBySourceRef(sourceRef: string): Promise<DatabaseFood | null> {
     const needle = sourceRef.toLowerCase();
     const locale = this.locale();
-    const index = await this.ciqual();
     for (const seed of this.seeds) {
-      if (seed.sourceRef === needle) return toDatabaseFood(seed, this.nameOf(seed, locale), index);
+      if (seed.sourceRef === needle) return toDatabaseFood(seed, this.nameOf(seed, locale));
     }
+    if (!needle.startsWith(CIQUAL_SOURCE_PREFIX)) return null;
+    const index = await this.ciqual();
     if (index !== null && needle.startsWith(CIQUAL_SOURCE_PREFIX)) {
       const entry = index.byCode(needle.slice(CIQUAL_SOURCE_PREFIX.length));
       if (entry !== undefined) return ciqualDatabaseFood(index, entry, locale);
@@ -330,7 +367,7 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
         if (seed.ciqual !== undefined) matchedCodes.add(seed.ciqual);
         scored.push({
           match: {
-            food: toDatabaseFood(seed, name, index),
+            food: toDatabaseFood(seed, name),
             confidence: s,
             presets: seedPresets(seed, locale),
           },

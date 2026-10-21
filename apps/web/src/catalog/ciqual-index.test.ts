@@ -6,6 +6,7 @@ import {
   CiqualIndex,
   ciqualDatabaseFood,
   ciqualName,
+  CiqualParseError,
   createCiqualFetchLoader,
   indexTokens,
 } from './ciqual-index';
@@ -74,7 +75,10 @@ describe('search', () => {
     const top = names('riz', 3);
     expect(top[0]).toMatch(/^Riz/);
     // "Pain au riz" style names (head word elsewhere) rank after names that start with it.
-    const hits = index.search('riz', 30);
+    // (Raw rice is ranked down on purpose, see the cooked-first tests: leave it out here.)
+    const hits = index
+      .search('riz', 60)
+      .filter((h) => !/\bcru\b|\bsec\b/.test(h.entry.nameFr.toLowerCase()));
     const firstElsewhere = hits.findIndex((h) => !h.entry.nameFr.toLowerCase().startsWith('riz'));
     const lastStarting = hits
       .map((h) => h.entry.nameFr.toLowerCase().startsWith('riz'))
@@ -158,5 +162,58 @@ describe('createCiqualFetchLoader', () => {
       }),
     ).rejects.toThrow();
     await expect(bad(async () => new Response('{"a":1}'))).rejects.toThrow(/expected/);
+  });
+
+  it('tells an unreadable file (do not download it again) from a failed request', async () => {
+    const bad = (fetchImpl: () => Promise<Response>) =>
+      createCiqualFetchLoader({ baseUrl: '/', fetchImpl })();
+    await expect(bad(async () => new Response('<html>'))).rejects.toBeInstanceOf(CiqualParseError);
+    await expect(bad(async () => new Response('{"a":1}'))).rejects.toBeInstanceOf(CiqualParseError);
+    await expect(bad(async () => new Response('x', { status: 503 }))).rejects.not.toBeInstanceOf(
+      CiqualParseError,
+    );
+    expect(() => CiqualIndex.fromTable({ ...table, nutrients: ['x'] })).toThrow(CiqualParseError);
+  });
+});
+
+describe('cooked first', () => {
+  const isCooked = (name: string) => /\bcuit/i.test(name);
+  const isRaw = (name: string) => /\b(cru|sec)\b/i.test(name);
+  const top = (query: string, limit: number, locale: 'en' | 'fr' = 'fr') =>
+    index.search(query, limit, { locale }).map((h) => h.entry);
+
+  it('ranks the cooked rice rows above the raw ones for "riz"', () => {
+    const rows = top('riz', 40).filter((e) => e.subgroupCode === '0301');
+    const firstRaw = rows.findIndex((e) => isRaw(e.nameFr));
+    const lastCooked = rows.map((e) => isCooked(e.nameFr)).lastIndexOf(true);
+    expect(firstRaw).toBeGreaterThan(-1);
+    expect(lastCooked).toBeGreaterThan(-1);
+    expect(firstRaw).toBeGreaterThan(lastCooked);
+  });
+
+  it('puts cooked basmati first for "riz basmati"', () => {
+    const [first, second] = top('riz basmati', 5);
+    expect(first!.nameFr).toMatch(/basmati, cuit/i);
+    expect(second!.nameFr).toMatch(/basmati/i);
+  });
+
+  it('puts cooked pasta, lentils and rice first, in either language', () => {
+    expect(top('pâtes', 1)[0]!.nameFr).toMatch(/cuit/i);
+    expect(top('lentilles', 1)[0]!.nameFr).toMatch(/cuit/i);
+    expect(top('rice', 1, 'en')[0]!.nameEn).toMatch(/cooked/i);
+    expect(top('lentils', 1, 'en')[0]!.nameEn).toMatch(/cooked|boiled/i);
+  });
+
+  it('keeps raw and dry first when the query asks for them', () => {
+    expect(top('riz cru', 1)[0]!.nameFr).toMatch(/\bcru\b/i);
+    expect(top('lentilles sèches', 1)[0]!.nameFr).toMatch(/sèche|\bsec\b/i);
+    expect(top('rice raw', 1, 'en')[0]!.nameEn).toMatch(/\braw\b/i);
+  });
+
+  it('does not reorder foods outside tubers, pulses and grains', () => {
+    const meat = top('poulet', 10);
+    const bias = index.search('poulet', 10).map((h) => h.score);
+    expect(bias).toEqual([...bias].sort((a, b) => b - a));
+    expect(meat.length).toBeGreaterThan(0);
   });
 });

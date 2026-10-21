@@ -104,3 +104,12 @@ describe('gram presets', () => {
     ]);
   });
 });
+
+describe('seed nutrients', () => {
+  it('ship the same per-100 g values as their CIQUAL row, so they cannot drift', () => {
+    for (const seed of seedFoods) {
+      expect(seed.nutrients, seed.id).toEqual(index.byCode(seed.ciqual!)!.nutrients);
+      expect(seed.nutrients.energyKcal, seed.id).toBeGreaterThan(0);
+    }
+  });
+});

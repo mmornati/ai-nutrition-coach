@@ -489,6 +489,15 @@ describe('recognize', () => {
       });
     });
 
+    it('flags model nutrients as estimated, and only when there are any', async () => {
+      const withNutrients = await one({ per100g: { energyKcal: 60 } });
+      expect(withNutrients?.databaseFood.extra).toEqual({ nutrientsEstimated: true });
+      const without = await one({ grams: 100 });
+      expect(without?.databaseFood).not.toHaveProperty('extra');
+      const unusable = await one({ per100g: { energyKcal: 'n/a' } });
+      expect(unusable?.databaseFood).not.toHaveProperty('extra');
+    });
+
     it('reads a numeric-string weight', async () => {
       expect((await one({ grams: '80' }))?.quantity.grams).toBe(80);
     });

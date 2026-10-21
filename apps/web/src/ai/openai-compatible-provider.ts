@@ -383,7 +383,10 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           displayName: name,
           source: 'manual',
           foodGroup: group,
-          ...(nutrients === undefined ? {} : { nutrientsPer100g: nutrients }),
+          // The model's per-100 g values are a guess; a confident catalogue match replaces them.
+          ...(nutrients === undefined
+            ? {}
+            : { nutrientsPer100g: nutrients, extra: { nutrientsEstimated: true } }),
         },
         confidence: parseConfidence(entry.confidence),
         quantity: {

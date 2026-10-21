@@ -52,9 +52,9 @@ describe('NutrientBars', () => {
       'Salt',
     ]);
     expect(rows[0]).toHaveTextContent('1100 kcal');
-    expect(rows[0]).toHaveTextContent('about 55% of the 2000 kcal reference');
+    expect(rows[0]).toHaveTextContent('about 55% of the EU reference intake (2000 kcal)');
     expect(rows[1]).toHaveTextContent('54 g');
-    expect(rows[1]).toHaveTextContent('about 108% of the 50 g reference');
+    expect(rows[1]).toHaveTextContent('about 108% of the EU reference intake (50 g)');
     expect(rows[7]).toHaveTextContent('3 g');
   });
 
@@ -97,7 +97,7 @@ describe('NutrientBars', () => {
     const { container } = render(
       <NutrientBars nutrition={totals({ sugars: 270, carbohydrate: 300 })} />,
     );
-    expect(screen.getByText('about 300% of the 90 g reference')).toBeVisible();
+    expect(screen.getByText('about 300% of the EU reference intake (90 g)')).toBeVisible();
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/\b(over|exceed|too much|remaining|left|warning|limit)\b|!/i);
     expect(container.innerHTML).not.toMatch(
@@ -111,8 +111,21 @@ describe('NutrientBars', () => {
     const graphic = container.querySelector('[aria-hidden="true"]');
     expect(graphic).not.toBeNull();
     expect(container.querySelector('li')).toHaveTextContent(
-      /Protein.*25 g.*about 50% of the 50 g reference/,
+      /Protein.*25 g.*about 50% of the EU reference intake \(50 g\)/,
     );
+  });
+
+  it('a value above zero that rounds to 0% says "less than 1%"; a real zero says 0%', () => {
+    render(<NutrientBars nutrition={totals({ protein: 0.2, salt: 0 })} />);
+    const [protein, salt] = screen.getAllByRole('listitem');
+    expect(protein).toHaveTextContent('less than 1% of the EU reference intake (50 g)');
+    expect(protein).not.toHaveTextContent('about 0%');
+    expect(salt).toHaveTextContent('about 0% of the EU reference intake (6 g)');
+  });
+
+  it('names the source of the reference in the row text', () => {
+    render(<NutrientBars nutrition={totals({ energyKcal: 300 })} />);
+    expect(screen.getByText('about 15% of the EU reference intake (2000 kcal)')).toBeVisible();
   });
 
   it('barFill clamps at the track end', () => {
@@ -126,14 +139,18 @@ describe('NutrientBars', () => {
     render(
       <NutrientBars nutrition={totals({ protein: 10 }, { entriesCounted: 3, entriesTotal: 4 })} />,
     );
-    expect(screen.getByText('Based on 3 foods with nutrition data; 1 without.')).toBeVisible();
+    expect(
+      screen.getByText('Based on 3 foods with a weight and nutrition data; 1 without.'),
+    ).toBeVisible();
   });
 
   it('uses the singular for one food and says nothing when every food counted', () => {
     const { rerender } = render(
       <NutrientBars nutrition={totals({ protein: 10 }, { entriesCounted: 1, entriesTotal: 3 })} />,
     );
-    expect(screen.getByText('Based on 1 food with nutrition data; 2 without.')).toBeVisible();
+    expect(
+      screen.getByText('Based on 1 food with a weight and nutrition data; 2 without.'),
+    ).toBeVisible();
     rerender(<NutrientBars nutrition={totals({ protein: 10 })} />);
     expect(screen.queryByText(/Based on/)).toBeNull();
   });
@@ -164,9 +181,36 @@ describe('NutrientBars', () => {
       screen.getByText((_, el) => el?.children.length === 0 && el.textContent === text);
     expect(raw('~500 kcal')).toBeVisible();
     expect(raw('~13 g')).toBeVisible();
-    expect(raw('environ 25 % de la référence de 2000 kcal')).toBeVisible();
+    expect(raw('environ 25 % de l’apport de référence UE (2 000 kcal)')).toBeVisible();
     expect(raw('Que sont les apports de référence ?')).toBeVisible();
-    expect(screen.getByText(/Calculé sur 1 aliment/)).toBeVisible();
+    expect(screen.getByText(/Calculé sur 1 aliment avec un poids/)).toBeVisible();
+  });
+
+  it('French: groups thousands, names the EU reference, says "moins de 1 %"', () => {
+    render(
+      <LocaleProvider initial="fr">
+        <NutrientBars nutrition={totals({ energyKcal: 2500, protein: 0.2 })} />
+      </LocaleProvider>,
+    );
+    const raw = (text: string) =>
+      screen.getByText((_, el) => el?.children.length === 0 && el.textContent === text);
+    expect(raw('2\u202f500\u202fkcal')).toBeVisible();
+    expect(
+      raw('environ 125\u202f% de l’apport de référence UE (2\u202f000\u202fkcal)'),
+    ).toBeVisible();
+    expect(raw('moins de 1\u202f% de l’apport de référence UE (50\u202fg)')).toBeVisible();
+  });
+
+  it('the French explanation uses narrow no-break spaces before its units', () => {
+    render(
+      <LocaleProvider initial="fr">
+        <NutrientBars nutrition={totals({ protein: 10 })} />
+      </LocaleProvider>,
+    );
+    const body = document.querySelector('details p')?.textContent ?? '';
+    expect(body).toContain('2\u202f000\u202fkcal');
+    expect(body).toContain('25\u202fg');
+    expect(body).not.toMatch(/\d (kcal|g)\b/);
   });
 
   it('has no axe violations', async () => {

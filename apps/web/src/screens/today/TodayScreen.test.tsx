@@ -415,7 +415,9 @@ describe('TodayScreen: the day in nutrients', () => {
     const bars = screen.getByRole('list', { name: /Nutrient amounts/ });
     expect(within(bars).getByText('180 kcal')).toBeVisible();
     expect(within(bars).getByText('12 g')).toBeVisible();
-    expect(screen.getByText('Based on 2 foods with nutrition data; 1 without.')).toBeVisible();
+    expect(
+      screen.getByText('Based on 2 foods with a weight and nutrition data; 1 without.'),
+    ).toBeVisible();
     // The plate map is still there and nothing turned into a count or a verdict.
     expect(screen.getByText('Yogurt')).toBeVisible();
     expect(document.body.textContent).not.toMatch(

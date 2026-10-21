@@ -50,6 +50,14 @@ endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
   round-trip. The remote call is a typed `CatalogResult` (never a
   raw exception crossing the port).
 
+  The same catalog also reads the CIQUAL food table (`apps/web/src/catalog/ciqual-index.ts`, on the
+  `check:telemetry` allow-list). That is not a third-party call: it is a plain `GET` of
+  `catalog/ciqual-2025.json` from **your own origin**, served from the service worker's precache
+  when offline. It carries no query, no identifier and no body, and no new host is involved. It
+  happens on the first search; a failed load is retried with a growing delay (30 s, 60 s, ... up
+  to 10 minutes), and a file that arrives unreadable is not downloaded again after the second try
+  in a session.
+
 - **The AI rung transport** (Epic 3). Only when the user has
   selected a non-noOp rung in Settings → Your AI. The default
   rung is `noOp`; the catalog's "no AI" path is complete and

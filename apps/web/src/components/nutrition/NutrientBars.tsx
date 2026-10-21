@@ -6,7 +6,7 @@ import {
 } from '@anc/core';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
-import { formatNutrient, formatReference } from './format';
+import { formatNutrient, formatReference, formatWhole } from './format';
 
 /** The two sub-rows that sit under their parent nutrient. */
 const SUB_ROWS: ReadonlySet<NutrientKey> = new Set(['sugars', 'saturatedFat']);
@@ -51,6 +51,8 @@ export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals
           const value = nutrition.totals[key] ?? 0;
           const reference = EU_REFERENCE_INTAKES[key];
           const percent = Math.round((value / reference) * 100);
+          // Above zero but under half a percent: say so instead of "about 0%".
+          const underOne = value > 0 && percent === 0;
           const sub = SUB_ROWS.has(key);
           return (
             <li key={key} className="border-rule border-b py-2.5">
@@ -70,7 +72,10 @@ export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals
                 <div className="bg-porcelain absolute inset-y-0 right-0 w-px" />
               </div>
               <p className="text-body-small text-signal-muted mt-1">
-                {fill(t.reference, { percent, reference: formatReference(key, reference, locale) })}
+                {fill(underOne ? t.referenceUnderOne : t.reference, {
+                  percent: formatWhole(percent, locale),
+                  reference: formatReference(key, reference, locale),
+                })}
               </p>
             </li>
           );

@@ -142,6 +142,16 @@
   --spacing-gutter-desktop: 1.75rem;
   --spacing-column-gap: 2.25rem;
 
+  /* The phone's floating Log button: its size, how far its bottom edge sits above the screen
+     bottom (clear of the dock), and the air kept between it and the last content. The page's
+     bottom padding is the sum, so nothing ends underneath the button. */
+  --spacing-fab-size: 3.5rem;
+  --spacing-fab-offset: 5.75rem;
+  --spacing-fab-gap: 2rem;
+  --spacing-fab-clearance: calc(
+    var(--spacing-fab-offset) + var(--spacing-fab-size) + var(--spacing-fab-gap)
+  );
+
   --ease-line: cubic-bezier(0.16, 1, 0.3, 1);
 }
 

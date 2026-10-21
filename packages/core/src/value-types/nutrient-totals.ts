@@ -8,7 +8,7 @@ export interface NutrientTotals {
   /** Entries that contributed (grams and per-100 g nutrients both known). */
   readonly entriesCounted: number;
   readonly entriesTotal: number;
-  /** True when any counted entry's weight was a preset / AI / serving guess. */
+  /** True when any counted entry's weight was a preset / AI / serving guess, or its nutrients came from a model. */
   readonly estimated: boolean;
 }
 
@@ -35,7 +35,12 @@ export function sumNutrients(entries: readonly FoodEntry[]): NutrientTotals {
     const n = entryNutrients(entry);
     if (!n) continue;
     counted++;
-    if (entry.quantity.gramsEstimated === true) estimated = true;
+    if (
+      entry.quantity.gramsEstimated === true ||
+      entry.databaseFood.extra?.nutrientsEstimated === true
+    ) {
+      estimated = true;
+    }
     for (const key of NUTRIENT_KEYS) {
       const value = n[key];
       if (value !== undefined) totals[key] = (totals[key] ?? 0) + value;

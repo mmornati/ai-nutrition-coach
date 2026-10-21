@@ -5,6 +5,7 @@
 // SQL in sqlite-store-db.ts.
 
 import {
+  databaseFood,
   isValidQuantity,
   plateDeleteFailed,
   PLATE_DELETED,
@@ -93,10 +94,11 @@ export class WebEncryptedStore implements EncryptedStore {
     if (!Number.isFinite(at)) return storeFailure('storeOperation');
     try {
       const inserted = await db.insertPlate(toStoredInstant(at), input.entries.map(toInsert));
+      // What comes back is what was stored: nutrients and extra went through the same sanitisers.
       const entries: FoodEntry[] = input.entries.map((draft, i) => ({
         id: inserted.entryIds[i] ?? 0,
         plateLogId: inserted.plateId,
-        databaseFood: { ...draft.databaseFood },
+        databaseFood: databaseFood(draft.databaseFood),
         quantity: { ...draft.quantity },
       }));
       this.bus.emit('plates');

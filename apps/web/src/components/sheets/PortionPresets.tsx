@@ -1,6 +1,7 @@
 import type { QuantityRange } from '@anc/core';
 import { quantityLabel } from '../../catalog';
 import { useLocale, useStrings } from '../../i18n';
+import type { Locale } from '../../i18n/locale';
 import { cn } from '../primitives/cn';
 import { formatWeight } from '../nutrition/format';
 import { effectivePresets, sameQuantity } from './foods';
@@ -9,6 +10,8 @@ export interface PortionPresetsProps {
   readonly presets: readonly QuantityRange[];
   readonly value: QuantityRange;
   readonly onChange: (preset: QuantityRange) => void;
+  /** True while a typed weight is the quantity: no preset shows as chosen. */
+  readonly deselected?: boolean;
   /** Accessible name of the group; defaults to "Portion". */
   readonly label?: string;
   /** On raised enamel (sheets): uses the raised control edge. Default true. */
@@ -23,6 +26,7 @@ export function PortionPresets({
   presets,
   value,
   onChange,
+  deselected = false,
   label,
   raised = true,
 }: PortionPresetsProps) {
@@ -32,7 +36,7 @@ export function PortionPresets({
   return (
     <div role="group" aria-label={label ?? s.portion.label} className="flex flex-wrap gap-2">
       {shown.map((preset) => {
-        const selected = sameQuantity(preset, value);
+        const selected = !deselected && sameQuantity(preset, value);
         return (
           <button
             key={`${preset.unit}:${preset.low}-${preset.high}:${preset.displayLabel}`}
@@ -50,10 +54,22 @@ export function PortionPresets({
             )}
           >
             {quantityLabel(preset, locale)}
-            {preset.grams !== undefined && ` · ${formatWeight(preset.grams, true, locale)}`}
+            {gramHint(preset, locale)}
           </button>
         );
       })}
     </div>
   );
+}
+
+/**
+ * The weight a preset stands for, after its words: " · ≈150 g" for a guess, " · 100 g" when exact.
+ * Nothing when the label already is the weight ("100 g"), which would only say it twice.
+ */
+export function gramHint(preset: QuantityRange, locale: Locale): string {
+  if (preset.grams === undefined) return '';
+  const hint = formatWeight(preset.grams, preset.gramsEstimated === true, locale);
+  const label = quantityLabel(preset, locale);
+  const plain = formatWeight(preset.grams, false, locale);
+  return label === hint || label === plain ? '' : ` · ${hint}`;
 }

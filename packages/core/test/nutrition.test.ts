@@ -159,6 +159,16 @@ describe('databaseFood', () => {
     expect(sanitizeFoodExtra({ nutriscoreGrade: 'A', novaGroup: 2 })).toEqual({ novaGroup: 2 });
     expect(sanitizeFoodExtra('x')).toBeUndefined();
   });
+
+  it('sanitizeFoodExtra keeps nutrientsEstimated only when exactly true', () => {
+    expect(sanitizeFoodExtra({ nutrientsEstimated: true })).toEqual({ nutrientsEstimated: true });
+    expect(sanitizeFoodExtra({ nutrientsEstimated: 'yes' })).toBeUndefined();
+    expect(sanitizeFoodExtra({ nutrientsEstimated: false })).toBeUndefined();
+    expect(sanitizeFoodExtra({ novaGroup: 1, nutrientsEstimated: true })).toEqual({
+      novaGroup: 1,
+      nutrientsEstimated: true,
+    });
+  });
 });
 
 describe('nutrient totals', () => {
@@ -198,6 +208,17 @@ describe('nutrient totals', () => {
     expect(t).toMatchObject({ entriesCounted: 1, entriesTotal: 3, estimated: false });
     const e = sumNutrients([entry(1, yogurt, gramsQuantity(100, { estimated: true }))]);
     expect(e.estimated).toBe(true);
+    const modelFood = databaseFood({
+      sourceRef: 'm',
+      displayName: 'M',
+      source: 'manual',
+      nutrientsPer100g: yogurt,
+      extra: { nutrientsEstimated: true },
+    });
+    const viaModel = sumNutrients([
+      { id: 1, plateLogId: 1, databaseFood: modelFood, quantity: gramsQuantity(100) },
+    ]);
+    expect(viaModel.estimated).toBe(true);
     expect(sumNutrients([])).toEqual({
       totals: {},
       entriesCounted: 0,

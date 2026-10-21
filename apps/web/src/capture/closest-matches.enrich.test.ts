@@ -53,7 +53,7 @@ describe('enrichRecognition', () => {
     for (const f of out) expect(f.databaseFood.nutrientsPer100g).toBeUndefined();
   });
 
-  it('does not override nutrients a food already has, and ignores non-plates', async () => {
+  it('does not override nutrients that came from a database, and ignores non-plates', async () => {
     const own = databaseFood({
       sourceRef: 'x',
       displayName: 'Rice',
@@ -67,6 +67,70 @@ describe('enrichRecognition', () => {
     expect(foods(await enrichRecognition(rec, catalog))[0]!.databaseFood).toBe(own);
     const failure: RecognitionResult = { kind: 'recognitionFailure', reason: 'unknown' } as never;
     expect(await enrichRecognition(failure, catalog)).toBe(failure);
+  });
+
+  it('a confident match REPLACES the model values and drops the estimate flag', async () => {
+    const modelFood = databaseFood({
+      sourceRef: 'byok-m-Rice',
+      displayName: 'Rice',
+      source: 'manual',
+      nutrientsPer100g: { energyKcal: 999, protein: 40 },
+      extra: { nutrientsEstimated: true },
+    });
+    const rec: RecognitionResult = {
+      kind: 'recognizedPlate',
+      foods: [{ databaseFood: modelFood, confidence: 0.9, quantity: gramsQuantity(180) }],
+    };
+    const out = foods(await enrichRecognition(rec, catalog))[0]!.databaseFood;
+    expect(out.nutrientsPer100g?.energyKcal).toBe(155);
+    expect(out.nutrientsPer100g?.protein).toBe(3.15);
+    expect(out.extra?.nutrientsEstimated).toBeUndefined();
+    expect(out.sourceRef).toBe('byok-m-Rice');
+  });
+
+  it('keeps the model values, flagged as estimates, when no match is confident', async () => {
+    const modelFood = databaseFood({
+      sourceRef: 'byok-m-Zorblax',
+      displayName: 'Zorblax stew',
+      source: 'manual',
+      nutrientsPer100g: { energyKcal: 120 },
+      extra: { nutrientsEstimated: true },
+    });
+    const rec: RecognitionResult = {
+      kind: 'recognizedPlate',
+      foods: [{ databaseFood: modelFood, confidence: 0.9, quantity: gramsQuantity(180) }],
+    };
+    const out = foods(await enrichRecognition(rec, catalog))[0]!;
+    expect(out.databaseFood).toBe(modelFood);
+    expect(out.databaseFood.extra?.nutrientsEstimated).toBe(true);
+  });
+
+  it('considers every candidate: a weak first hit does not hide a confident later one', async () => {
+    const weak = databaseFood({
+      sourceRef: 'a',
+      displayName: 'Rice pudding',
+      source: 'ciqual',
+      nutrientsPer100g: { energyKcal: 1 },
+    });
+    const good = databaseFood({
+      sourceRef: 'b',
+      displayName: 'Rice',
+      source: 'ciqual',
+      nutrientsPer100g: { energyKcal: 130 },
+    });
+    const stub: FoodCatalog = {
+      search: async () => ({
+        kind: 'rankedMatches',
+        matches: [
+          { food: weak, confidence: 0.3, presets: [] },
+          { food: good, confidence: 0.7, presets: [] },
+        ],
+      }),
+      lookupBySourceRef: async () => null,
+      lookupByBarcode: async () => ({ kind: 'notFound', query: '' }),
+    };
+    const out = foods(await enrichRecognition(plate('Rice'), stub))[0]!;
+    expect(out.databaseFood.nutrientsPer100g?.energyKcal).toBe(130);
   });
 
   it('survives a catalogue that fails or throws', async () => {

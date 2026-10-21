@@ -528,7 +528,7 @@ export const fr: Strings = {
     sectionTitle: 'Nutrition',
     sectionTitleToday: 'Nutrition du jour',
     gramsLabel: 'Grammes',
-    gramsInvalid: 'Saisissez un poids de 1 à 5000 g.',
+    gramsInvalid: 'Saisissez un poids de 0,1 à 5 000 g.',
     weight: '{value} g',
     weightApprox: '≈{value} g',
     previewLead: '≈ {parts}',
@@ -548,21 +548,23 @@ export const fr: Strings = {
       fibre: 'Fibres',
       salt: 'Sel',
     },
-    reference: 'environ {percent} % de la référence de {reference}',
+    reference: 'environ {percent} % de l’apport de référence UE ({reference})',
+    referenceUnderOne: 'moins de 1 % de l’apport de référence UE ({reference})',
     barsLabel: 'Quantités de nutriments par rapport aux apports de référence',
     coverage: {
-      one: 'Calculé sur {count} aliment avec données nutritionnelles ; {missing} sans.',
-      other: 'Calculé sur {count} aliments avec données nutritionnelles ; {missing} sans.',
+      one: 'Calculé sur {count} aliment avec un poids et des données nutritionnelles ; {missing} sans.',
+      other:
+        'Calculé sur {count} aliments avec un poids et des données nutritionnelles ; {missing} sans.',
     },
     whatAre: 'Que sont les apports de référence ?',
     whatAreBody:
-      'Les apports de référence sont les quantités quotidiennes fixées par le règlement européen 1169/2011 pour un adulte moyen consommant 2000 kcal par jour. Les fibres n’ont pas de valeur européenne : 25 g est une recommandation générale. Vos besoins peuvent être différents, et les barres sont une information, pas un objectif.',
+      'Les apports de référence sont les quantités quotidiennes fixées par le règlement européen 1169/2011 pour un adulte moyen consommant 2 000 kcal par jour. Les fibres n’ont pas de valeur européenne : 25 g est une recommandation générale. Vos besoins peuvent être différents, et les barres sont une information, pas un objectif.',
   },
   nutritionSettings: {
     title: 'Nutrition',
     switchTitle: 'Afficher les valeurs nutritionnelles',
     switchHelp:
-      'Si les chiffres sur l’alimentation vous pèsent, vous pouvez les masquer. Vos repas restent enregistrés.',
+      'Si les chiffres sur l’alimentation vous pèsent, vous pouvez masquer les valeurs nutritionnelles et les barres. Les poids et vos repas restent.',
     saveFailed: 'Cela n’a pas été enregistré à l’instant. L’interrupteur reste où il était.',
   },
   plate: {

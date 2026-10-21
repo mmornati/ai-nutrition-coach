@@ -63,12 +63,15 @@ describe('AppShell', () => {
     ).toEqual(['Today', 'Week', 'Settings']);
   });
 
-  it('on a phone the dock holds only the route; Log a plate is a floating 56px button above it', () => {
+  it('on a phone the dock holds only the route; Log a plate is a floating button above it', () => {
     renderShell();
     const dock = screen.getByRole('region', { name: 'Week and log' });
     const fab = within(dock).getByRole('button', { name: 'Log a plate' });
-    expect(fab).toHaveClass('fixed', 'size-14');
+    expect(fab).toHaveClass('fixed', 'size-(--spacing-fab-size)');
+    expect(fab.className).toContain('--spacing-fab-offset');
     expect(fab.className).toContain('safe-area-inset-bottom');
+    // The page ends above the button: its bottom padding is the same tokens plus a gap.
+    expect(screen.getByRole('main').className).toContain('--spacing-fab-clearance');
     expect(screen.getByRole('main').className).toContain('safe-area-inset-bottom');
   });
 

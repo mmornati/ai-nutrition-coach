@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { databaseFood, type FoodMatch, type QuantityRange } from '@anc/core';
+import { databaseFood, gramsQuantity, type FoodMatch, type QuantityRange } from '@anc/core';
 import { renderInSession, unlockedBundle } from '../../app/testing';
 import { setCurrentLocale } from '../../i18n';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
@@ -35,10 +35,12 @@ const YOGURT = databaseFood({
 
 function Harness({
   onChange,
+  onValidityChange,
   food,
   presets = [fist, cup],
 }: {
   readonly onChange?: (q: QuantityRange) => void;
+  readonly onValidityChange?: (valid: boolean) => void;
   readonly food?: typeof YOGURT;
   readonly presets?: readonly QuantityRange[];
 }) {
@@ -48,6 +50,7 @@ function Harness({
       presets={presets}
       value={value}
       food={food}
+      {...(onValidityChange ? { onValidityChange } : {})}
       onChange={(q) => {
         setValue(q);
         onChange?.(q);
@@ -66,7 +69,12 @@ describe('parseGrams', () => {
     ['5000', 5000],
     ['.5e', null],
     ['0', null],
-    ['0,9', null],
+    ['0,9', 0.9],
+    ['0.1', 0.1],
+    ['0,05', 0.1],
+    ['12.34', 12.3],
+    ['0.04', null],
+    ['5000.04', 5000],
     ['5001', null],
     ['-3', null],
     ['1,2,3', null],
@@ -112,15 +120,67 @@ describe('QuantityPicker', () => {
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ grams: 12.5 }));
   });
 
-  it('refuses out-of-range weights with a calm line and keeps the previous quantity', async () => {
+  it('text that is not a weight reports itself invalid and never emits a stale quantity', async () => {
     const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
+    const onValidityChange = vi.fn();
+    render(<Harness onChange={onChange} onValidityChange={onValidityChange} />);
     await userEvent.type(screen.getByLabelText('Grams'), '5001');
-    // 500 was accepted on the way; 5001 is not.
+    // 500 was a weight on the way; 5001 is not, and says so without emitting 500 again.
+    expect(onValidityChange).toHaveBeenLastCalledWith(false);
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ grams: 500 }));
-    expect(screen.getByRole('status')).toHaveTextContent('Type a weight from 1 to 5000 g.');
+    expect(onChange).toHaveBeenCalledTimes(3); // 5, 50, 500
+    expect(screen.getByRole('status')).toHaveTextContent('Type a weight from 0.1 to 5000 g.');
     expect(screen.getByLabelText('Grams')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('status').textContent).not.toMatch(/!/);
+    // Fixing the text makes it loggable again.
+    await userEvent.type(screen.getByLabelText('Grams'), '{Backspace}');
+    expect(onValidityChange).toHaveBeenLastCalledWith(true);
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ grams: 500 }));
+  });
+
+  it('clearing the field goes back to the preset chosen before, not to 1 g', async () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    await userEvent.click(screen.getByRole('button', { name: /~1 cup/ }));
+    await userEvent.type(screen.getByLabelText('Grams'), '150');
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ grams: 150 }));
+    await userEvent.clear(screen.getByLabelText('Grams'));
+    expect(onChange).toHaveBeenLastCalledWith(cup);
+    expect(screen.getByRole('button', { name: /~1 cup/ })).toHaveAttribute('aria-pressed', 'true');
+    // Backspacing character by character ends at the same place.
+    await userEvent.type(screen.getByLabelText('Grams'), '15{Backspace}{Backspace}');
+    expect(onChange).toHaveBeenLastCalledWith(cup);
+  });
+
+  it('clearing with no preset chosen yet goes back to the first preset', async () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    await userEvent.type(screen.getByLabelText('Grams'), '9');
+    await userEvent.clear(screen.getByLabelText('Grams'));
+    expect(onChange).toHaveBeenLastCalledWith(fist);
+  });
+
+  it('typing the exact weight of a preset does not highlight the preset', async () => {
+    const hundred = gramsQuantity(100, { displayLabel: '100 g' });
+    render(<Harness presets={[fist, hundred]} />);
+    expect(screen.getByRole('button', { name: '100 g' })).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.type(screen.getByLabelText('Grams'), '100');
+    expect(screen.getByRole('button', { name: '100 g' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByLabelText('Grams')).toHaveValue('100');
+    // Picking the preset is not typing: it highlights and empties the field.
+    await userEvent.click(screen.getByRole('button', { name: '100 g' }));
+    expect(screen.getByRole('button', { name: '100 g' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Grams')).toHaveValue('');
+  });
+
+  it('shows a gram hint only when it adds something, with ≈ only for a guess', () => {
+    const exact = gramsQuantity(150, { displayLabel: '1 portion' });
+    const hundred = gramsQuantity(100, { displayLabel: '100 g' });
+    render(<Harness presets={[fist, exact, hundred]} />);
+    expect(screen.getByRole('button', { name: '~1 fist · ≈150 g' })).toBeVisible();
+    expect(screen.getByRole('button', { name: '1 portion · 150 g' })).toBeVisible();
+    // Already the weight: no "100 g · ≈100 g".
+    expect(screen.getByRole('button', { name: '100 g' })).toBeVisible();
   });
 
   it('choosing a preset clears the field and selects it', async () => {
@@ -207,5 +267,21 @@ describe('in the barcode sheet', () => {
     expect(onLog.mock.calls[0]?.[0]).toMatchObject({
       quantity: { grams: 150, gramsEstimated: true },
     });
+  });
+});
+
+describe('Log stays off while the weight is not a weight', () => {
+  it('in the barcode sheet', async () => {
+    const onLog = vi.fn();
+    const match: FoodMatch = { food: YOGURT, confidence: 1, presets: [fist, cup] };
+    render(<BarcodeMatchSheet open onClose={() => undefined} match={match} onLog={onLog} />);
+    const log = screen.getByRole('button', { name: 'Log' });
+    await userEvent.type(screen.getByLabelText('Grams'), '5001');
+    expect(log).toBeDisabled();
+    await userEvent.clear(screen.getByLabelText('Grams'));
+    expect(log).toBeEnabled();
+    // Cleared: the first preset, not 1 g.
+    await userEvent.click(log);
+    expect(onLog.mock.calls[0]?.[0]).toMatchObject({ quantity: { grams: 150, unit: 'fist' } });
   });
 });

@@ -95,3 +95,15 @@ describe('nutrition formatting', () => {
     expect(entryQuantityText(typed, 'en')).toBe('150 g');
   });
 });
+
+describe('French number grouping', () => {
+  const NNBSP = '\u202f';
+  it('groups thousands with a narrow no-break space, even four digits; English does not', () => {
+    expect(formatWeight(5000, false, 'fr')).toBe(`5${NNBSP}000${NNBSP}g`);
+    expect(formatNutrient('energyKcal', 2000, false, 'fr')).toBe(`2${NNBSP}000${NNBSP}kcal`);
+    expect(formatNutrient('energyKcal', 12345, true, 'fr')).toBe(`~12${NNBSP}345${NNBSP}kcal`);
+    expect(formatWeight(5000, false, 'en')).toBe('5000 g');
+    expect(formatNutrient('energyKcal', 2000, false, 'en')).toBe('2000 kcal');
+    expect(formatAmount(150.5, 'fr')).toBe('151');
+  });
+});
