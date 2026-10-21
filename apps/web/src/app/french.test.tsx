@@ -188,7 +188,7 @@ describe('food names and portions in French', () => {
       within(portions)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['~1–2 tasses']);
+    ).toEqual([expect.stringMatching(/^~1–2 tasses · ≈\d+\u202fg$/)]);
     await expectFrenchOnly();
 
     await user.clear(search);

@@ -5,7 +5,10 @@
 import {
   foodGroupFromStored,
   frozenList,
+  isValidGrams,
   isValidRange,
+  sanitizeFoodExtra,
+  sanitizeNutrients,
   plateLog,
   SOURCE_CATALOGS,
   type CoachAnchor,
@@ -44,6 +47,22 @@ function parseSource(raw: string): SourceCatalog {
   return SOURCE_CATALOGS.find((s) => s === raw) ?? 'manual';
 }
 
+/** Garbage in the v2 columns never drops a row: the field is simply absent. */
+function parseGrams(raw: string | null | undefined): number | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  const value = parseFinite(raw);
+  return value !== null && isValidGrams(value) ? value : undefined;
+}
+
+function parseJson(raw: string | null | undefined): unknown {
+  if (raw === null || raw === undefined) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
 function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
   const low = parseFinite(row.quantityLow);
   const high = parseFinite(row.quantityHigh);
@@ -51,6 +70,9 @@ function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
     report(row.id, 'entry: invalid quantity');
     return null;
   }
+  const grams = parseGrams(row.quantityGrams);
+  const nutrientsPer100g = sanitizeNutrients(parseJson(row.nutrientsPer100g));
+  const extra = sanitizeFoodExtra(parseJson(row.foodExtra));
   return {
     id: row.id,
     plateLogId: row.plateLogId,
@@ -59,8 +81,23 @@ function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
       displayName: row.displayName,
       source: parseSource(row.source),
       foodGroup: foodGroupFromStored(row.foodGroup),
+      ...(nutrientsPer100g ? { nutrientsPer100g } : {}),
+      ...(extra ? { extra } : {}),
     },
-    quantity: { low, high, unit: row.quantityUnit, displayLabel: row.quantityDisplayLabel },
+    quantity: {
+      low,
+      high,
+      unit: row.quantityUnit,
+      displayLabel: row.quantityDisplayLabel,
+      ...(grams !== undefined
+        ? {
+            grams,
+            ...(row.quantityGramsEstimated !== null
+              ? { gramsEstimated: row.quantityGramsEstimated === 1 }
+              : {}),
+          }
+        : {}),
+    },
   };
 }
 

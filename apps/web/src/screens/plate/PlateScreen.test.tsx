@@ -6,9 +6,11 @@ import {
   at,
   renderInSession,
   renderUnlockedApp,
+  seedMeasuredPlate,
   seedPlate,
   unlockedBundle,
 } from '../../app/testing';
+import { KV_KEYS } from '../../storage';
 import { PlateScreen } from './PlateScreen';
 
 beforeEach(() => {
@@ -120,6 +122,85 @@ describe('PlateScreen', () => {
     await screen.findByRole('heading', { level: 1, name: 'Lunch' });
     await screen.findByRole('group', { name: 'Coach question' });
     await act(async () => undefined);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('PlateScreen: weights and nutrition', () => {
+  const YOGURT = { energyKcal: 60, protein: 4, sugars: 5, fat: 3 };
+
+  async function openMeasured(foods: Parameters<typeof seedMeasuredPlate>[2]) {
+    const bundle = await unlockedBundle();
+    const plate = await seedMeasuredPlate(bundle, at(12, 55), foods);
+    window.location.hash = `#/plate/${plate.id}`;
+    await renderUnlockedApp(bundle);
+    await screen.findByRole('heading', { level: 1, name: 'Lunch' });
+    return bundle;
+  }
+
+  it('shows each entry weight, with a tilde-like mark when it is a guess', async () => {
+    await openMeasured([
+      { name: 'Yogurt', group: 'dairy', grams: 125, estimated: false, per100g: YOGURT },
+      { name: 'Apple', group: 'vegFruit', grams: 180, estimated: true },
+      { name: 'Bread', group: 'starch' },
+    ]);
+    const entries = screen.getByRole('list', { name: 'On the plate' });
+    expect(within(entries).getByText('~1 fist · 125 g')).toBeVisible();
+    expect(within(entries).getByText('~1 fist · ≈180 g')).toBeVisible();
+    expect(within(entries).getByText('~1 fist')).toBeVisible();
+  });
+
+  it('draws a Nutrition section for the plate, counting only foods with data', async () => {
+    await openMeasured([
+      { name: 'Yogurt', group: 'dairy', grams: 125, per100g: YOGURT },
+      { name: 'Bread', group: 'starch' },
+    ]);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Nutrition' })).toBeVisible();
+    const bars = screen.getByRole('list', { name: /Nutrient amounts/ });
+    expect(within(bars).getByText('75 kcal')).toBeVisible();
+    expect(within(bars).getByText('5 g')).toBeVisible();
+    // A nutrient the food does not know is not drawn, never drawn as zero.
+    expect(within(bars).queryByText('of which saturates')).toBeNull();
+    expect(
+      screen.getByText('Based on 1 food with a weight and nutrition data; 1 without.'),
+    ).toBeVisible();
+  });
+
+  it('marks the totals as estimates when a weight was a guess', async () => {
+    await openMeasured([
+      { name: 'Yogurt', group: 'dairy', grams: 125, estimated: true, per100g: YOGURT },
+    ]);
+    expect(await screen.findByText('~75 kcal')).toBeVisible();
+  });
+
+  it('has no Nutrition section when no entry has data', async () => {
+    await openMeasured([{ name: 'Yogurt', group: 'dairy', grams: 125 }]);
+    expect(screen.queryByRole('heading', { name: 'Nutrition' })).toBeNull();
+    expect(screen.queryByRole('list', { name: /Nutrient amounts/ })).toBeNull();
+  });
+
+  it('hides the numbers (not the weights) when they are turned off', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
+    const plate = await seedMeasuredPlate(bundle, at(12, 55), [
+      { name: 'Yogurt', group: 'dairy', grams: 125, per100g: YOGURT },
+    ]);
+    window.location.hash = `#/plate/${plate.id}`;
+    await renderUnlockedApp(bundle);
+    await screen.findByRole('heading', { level: 1, name: 'Lunch' });
+    expect(screen.getByText('~1 fist · 125 g')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Nutrition' })).toBeNull();
+    expect(screen.queryByText(/kcal/)).toBeNull();
+  });
+
+  it('has no axe violations with the Nutrition section open', async () => {
+    const bundle = await unlockedBundle();
+    const plate = await seedMeasuredPlate(bundle, at(12, 55), [
+      { name: 'Yogurt', group: 'dairy', grams: 125, per100g: YOGURT },
+      { name: 'Bread', group: 'starch' },
+    ]);
+    const { container } = await renderInSession(<PlateScreen plateId={plate.id} />, { bundle });
+    await screen.findByRole('heading', { level: 2, name: 'Nutrition' });
     expect(await axe(container)).toHaveNoViolations();
   });
 });

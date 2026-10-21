@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { FoodEntryDraft, RecordPlateResult } from '@anc/core';
 import { fill, useLocale, useMessage, useStrings } from '../../i18n';
 import { Button, GroupMarker, TextField } from '../../components/primitives';
-import { PortionPresets, Sheet } from '../../components/sheets';
+import { QuantityPicker, Sheet } from '../../components/sheets';
 import { foodName, useManualEntry } from '../../catalog';
 import type { LogOutcome } from '../../catalog';
 import { useSession } from '../../app/session';
@@ -26,6 +26,8 @@ export function TypeIt({
   const { catalog, recordPlate } = useSession();
   const { session, state } = useManualEntry(catalog);
   const [note, setNote] = useMessage();
+  // False while the Grams field holds text that is not a weight: Log stays off until it is.
+  const [weightValid, setWeightValid] = useState(true);
 
   useEffect(() => {
     if (prefill) void session.prefill(prefill);
@@ -130,10 +132,13 @@ export function TypeIt({
         </div>
       )}
       {selected && chosen && (
-        <PortionPresets
+        <QuantityPicker
+          key={selected.food.sourceRef}
+          food={selected.food}
           presets={selected.presets}
           value={chosen}
           onChange={(preset) => session.selectPreset(preset)}
+          onValidityChange={setWeightValid}
         />
       )}
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
@@ -143,7 +148,7 @@ export function TypeIt({
       {hasMatches && (
         <Button
           fullWidth
-          disabled={selected === null}
+          disabled={selected === null || !weightValid}
           busy={state.submitting}
           busyLabel={s.common.logging}
           onClick={() => void session.logSelected(commit).then(finish)}

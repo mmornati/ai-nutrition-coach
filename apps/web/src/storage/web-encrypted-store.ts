@@ -5,11 +5,14 @@
 // SQL in sqlite-store-db.ts.
 
 import {
+  databaseFood,
   isValidQuantity,
   plateDeleteFailed,
   PLATE_DELETED,
   plateLog,
   recordPlateSuccess,
+  sanitizeFoodExtra,
+  sanitizeNutrients,
   storeFailure,
   type DeletePlateResult,
   type EncryptedStore,
@@ -30,6 +33,8 @@ import { mapPlateRows, toStoredInstant } from './row-mapping';
 import type { StoreSource } from './store-source';
 
 function toInsert(draft: FoodEntryDraft): EntryInsert {
+  const nutrients = sanitizeNutrients(draft.databaseFood.nutrientsPer100g);
+  const extra = sanitizeFoodExtra(draft.databaseFood.extra);
   return {
     sourceRef: draft.databaseFood.sourceRef,
     displayName: draft.databaseFood.displayName,
@@ -40,6 +45,16 @@ function toInsert(draft: FoodEntryDraft): EntryInsert {
     quantityHigh: String(draft.quantity.high),
     quantityUnit: draft.quantity.unit,
     quantityDisplayLabel: draft.quantity.displayLabel,
+    quantityGrams: draft.quantity.grams === undefined ? null : String(draft.quantity.grams),
+    quantityGramsEstimated:
+      draft.quantity.grams === undefined || draft.quantity.gramsEstimated === undefined
+        ? null
+        : draft.quantity.gramsEstimated
+          ? 1
+          : 0,
+    // A snapshot of the food's nutrients at log time, re-sanitized at the store boundary.
+    nutrientsPer100g: nutrients ? JSON.stringify(nutrients) : null,
+    foodExtra: extra ? JSON.stringify(extra) : null,
   };
 }
 
@@ -79,10 +94,11 @@ export class WebEncryptedStore implements EncryptedStore {
     if (!Number.isFinite(at)) return storeFailure('storeOperation');
     try {
       const inserted = await db.insertPlate(toStoredInstant(at), input.entries.map(toInsert));
+      // What comes back is what was stored: nutrients and extra went through the same sanitisers.
       const entries: FoodEntry[] = input.entries.map((draft, i) => ({
         id: inserted.entryIds[i] ?? 0,
         plateLogId: inserted.plateId,
-        databaseFood: { ...draft.databaseFood },
+        databaseFood: databaseFood(draft.databaseFood),
         quantity: { ...draft.quantity },
       }));
       this.bus.emit('plates');

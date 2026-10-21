@@ -1,8 +1,9 @@
-// Schema version 1 (a new schema: there is no migration chain from the earlier app).
+// Schema version 2 (v1 -> v2 adds grams and per-100 g nutrients to food_entry; docs/adr/0006).
 //
 // Tables:
 //   plate_log         one row per logged meal
-//   food_entry        denormalised food + quantity low/high + food_group, back-referenced to the plate
+//   food_entry        denormalised food + quantity low/high + food_group (+ v2: grams, nutrient snapshot),
+//                     back-referenced to the plate
 //   coach_note        one row per post-resolve coach note
 //   coach_interaction append-only record of one user action against a coach note
 //   coach_dismissal   durable "quiet" markers for dismissed whispers and open-plate hints
@@ -76,10 +77,26 @@ export const CREATE_STATEMENTS: readonly string[] = [
   'CREATE INDEX IF NOT EXISTS idx_note_plate ON coach_note (plate_log_id)',
 ];
 
+/** Nullable TEXT columns added to `food_entry` by schema v2 (`quantity_grams_estimated` holds 0/1). */
+const V2_FOOD_ENTRY_COLUMNS = [
+  'quantity_grams',
+  'quantity_grams_estimated',
+  'nutrients_per_100g',
+  'food_extra',
+] as const;
+
 /** Step `n` (0-based) upgrades a database from version n to n + 1. Each must be re-runnable. */
 const MIGRATIONS: readonly ((db: SqlHandle) => void)[] = [
   (db) => {
     for (const statement of CREATE_STATEMENTS) db.run(statement);
+  },
+  // v2 (docs/adr/0006): grams per entry and a snapshot of the food's per-100 g nutrients.
+  // Check-before-alter, so re-running after a rolled-back user_version is a no-op.
+  (db) => {
+    const have = new Set(db.all('PRAGMA table_info(food_entry)').map((r) => String(r['name'])));
+    for (const column of V2_FOOD_ENTRY_COLUMNS) {
+      if (!have.has(column)) db.run(`ALTER TABLE food_entry ADD COLUMN ${column} TEXT`);
+    }
   },
 ];
 

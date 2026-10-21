@@ -128,6 +128,19 @@ be changed in *Settings → Privacy*. Nothing is sent until you have answered: t
 catalog itself refuses to send a barcode unless the stored answer is "OK". The
 camera frames are decoded on your device and never leave it.
 
+What is read back from Open Food Facts for a scanned product is limited to the fields the app
+uses: its name (in several languages), brand, categories, the per-100 g nutrition values
+(energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt or sodium), the serving
+and pack size, and its Nutri-Score and NOVA group. Those are third-party product information and
+are kept with the plate you log (a missing value stays missing, never zero). The request itself is
+unchanged: the barcode only.
+
+## The built-in food table (CIQUAL)
+
+Searching foods also uses the CIQUAL table (ANSES, Etalab Open Licence 2.0): about 3,500 generic
+foods with per-100 g nutrition, shipped with the app as one file from this app's own address, saved
+for offline use and read on your first search. Nothing is sent anywhere to search it.
+
 ## Photos
 
 A photo you take or pick is held in memory only for the recognition call: it is
@@ -142,6 +155,16 @@ button. In the browser they are a download (or the system share sheet where the
 browser offers Web Share); the app does not keep them and cannot delete them
 later. *Erase all local data* cannot reach a file you downloaded or shared
 (Chrome saves to Downloads without asking, and Downloads may sync to a cloud).
+The CSV has one row per food entry. Columns are only ever appended: `id, logged_at_utc, entry_id,
+database_food_source, database_food_ref, database_food_display_name, quantity_low, quantity_high,
+quantity_unit, quantity_display_label, food_group, grams, grams_estimated, energy_kcal, protein_g,
+carbohydrate_g, sugars_g, fat_g, saturated_fat_g, fibre_g, salt_g`. `grams` is the entry's weight
+and `grams_estimated` is `true` when it was a preset or a guess; the nutrient columns are the values
+for that entry (per 100 g scaled by the weight), with a dot decimal and at most one decimal, and
+**empty when unknown** (never zero). The JSON export also carries `grams`, `gramsEstimated`, and the
+food's per-100 g `nutrientsPer100g` and product `extra` (Nutri-Score and NOVA from Open Food Facts)
+when known.
+
 Exports cover plates only: coach notes, AI settings, the language and these notices are not
 exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).

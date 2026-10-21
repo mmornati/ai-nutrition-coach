@@ -269,7 +269,21 @@ which the consent dialog and the privacy page say; no date, id or name is in it.
 The one thing that follows the person is the **language**: the fixed instruction is one of two
 templates, English or French (`RECOGNITION_PROMPTS`, chosen from the app language when the request
 is built), which ask for each food's `name` and `quantityHint` in that language. The `group` values
-stay the English identifiers the reply is checked against. No free text from the person goes into
+stay the English identifiers the reply is checked against.
+
+The same fixed instruction also asks for three numeric fields per food, added with the nutrition
+numbers of ADR 0006 (the provider header requires a new field to be argued here):
+
+- `grams`: the model's guess of the food's weight on the plate. It is stored as an estimate
+  (`gramsEstimated`) and shown with "≈".
+- `per100g`: the model's guess of the food's nutrients per 100 g. It is validated with
+  `sanitizeNutrients` and stored with `extra.nutrientsEstimated`, so totals that count it read
+  as estimated ("~"). A confident CIQUAL or seed match for the same food replaces these values
+  before the person sees them; the model's numbers are used only when no catalogue food agrees.
+- `confidence`: 0 to 1, shown only as the words "likely" or "maybe", never as a number.
+
+These are answers requested from the model, not extra data sent about the person: the request
+body and headers are unchanged. No free text from the person goes into
 either template, and there is no locale field. The consent dialog and the privacy page say so. The
 connection test sends a one-token `ping`. Nothing is
 sent about the person: no name, no history, no other plates, no coach notes.

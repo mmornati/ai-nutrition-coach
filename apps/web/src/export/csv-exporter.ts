@@ -1,4 +1,5 @@
 import {
+  entryNutrients,
   exportReady,
   exportScopeRange,
   type EncryptedStore,
@@ -11,13 +12,15 @@ import {
 
 /**
  * The CSV header: one column per field, fixed order. Columns are only ever APPENDED (`food_group`
- * was the last addition) so a consumer that reads by position keeps working.
+ * the v2 grams and nutrient columns are the last) so a consumer that reads by position keeps working.
  */
 export const CSV_HEADER =
   'id,logged_at_utc,entry_id,database_food_source,' +
   'database_food_ref,database_food_display_name,' +
   'quantity_low,quantity_high,quantity_unit,' +
-  'quantity_display_label,food_group';
+  'quantity_display_label,food_group,' +
+  'grams,grams_estimated,' +
+  'energy_kcal,protein_g,carbohydrate_g,sugars_g,fat_g,saturated_fat_g,fibre_g,salt_g';
 
 /** Longest text cell written, in characters (code points). */
 export const MAX_CSV_FIELD_LENGTH = 1000;
@@ -56,11 +59,27 @@ function csvText(raw: string): string {
 /** A numeric cell, written as-is: negatives and decimals stay numbers. */
 const csvNumber = (value: number): string => String(value);
 
+/**
+ * A value with at most one decimal, trailing zero trimmed, and never exponent notation ("1e-7",
+ * "1e+21"): "150", "12.5", "0".
+ */
+function csvFixed(value: number): string {
+  const text = (Math.round(value * 10) / 10).toFixed(1);
+  return text.endsWith('.0') ? text.slice(0, -2) : text;
+}
+
+/** A scaled nutrient cell: dot decimal, at most one decimal, empty when unknown. */
+function csvNutrient(value: number | undefined): string {
+  return value === undefined ? '' : csvFixed(value);
+}
+
 /** One row per food entry; an empty list is a header-only file. UTF-8 text, LF line endings. */
 export function serializePlatesToCsv(plates: readonly PlateLog[]): string {
   const lines: string[] = [CSV_HEADER];
   for (const plate of plates) {
     for (const entry of plate.entries) {
+      const n = entryNutrients(entry);
+      const grams = entry.quantity.grams;
       lines.push(
         [
           String(plate.id),
@@ -74,6 +93,20 @@ export function serializePlatesToCsv(plates: readonly PlateLog[]): string {
           csvText(entry.quantity.unit),
           csvText(entry.quantity.displayLabel),
           csvText(entry.databaseFood.foodGroup),
+          grams === undefined ? '' : csvFixed(grams),
+          grams === undefined || entry.quantity.gramsEstimated === undefined
+            ? ''
+            : entry.quantity.gramsEstimated
+              ? 'true'
+              : 'false',
+          csvNutrient(n?.energyKcal),
+          csvNutrient(n?.protein),
+          csvNutrient(n?.carbohydrate),
+          csvNutrient(n?.sugars),
+          csvNutrient(n?.fat),
+          csvNutrient(n?.saturatedFat),
+          csvNutrient(n?.fibre),
+          csvNutrient(n?.salt),
         ].join(','),
       );
     }

@@ -47,15 +47,63 @@ describe('serializePlatesToCsv', () => {
     expect(lines(csv)).toHaveLength(3);
   });
 
-  it('food_group is the LAST column and round-trips the group', () => {
-    expect(CSV_HEADER.endsWith(',food_group')).toBe(true);
+  it('food_group keeps its position and round-trips the group', () => {
+    expect(CSV_HEADER.split(',')[10]).toBe('food_group');
     const csv = serializePlatesToCsv([
       plate(1, at(16), [entry(1, 1, 'Egg', { group: 'protein', source: 'seed', ref: 'seed:egg' })]),
     ]);
     const cells = splitCsvRow(csv.split('\n')[1] as string);
     expect(cells).toHaveLength(CSV_HEADER.split(',').length);
-    expect(cells.at(-1)).toBe('protein');
+    expect(cells[10]).toBe('protein');
     expect(cells[3]).toBe('seed');
+    // No grams, no nutrients: the appended cells are empty, never zero.
+    expect(cells.slice(11)).toEqual(Array(10).fill(''));
+  });
+
+  it('appends grams, the estimate flag and scaled nutrients (dot decimal, max 1 decimal)', () => {
+    expect(CSV_HEADER.split(',').slice(11)).toEqual([
+      'grams',
+      'grams_estimated',
+      'energy_kcal',
+      'protein_g',
+      'carbohydrate_g',
+      'sugars_g',
+      'fat_g',
+      'saturated_fat_g',
+      'fibre_g',
+      'salt_g',
+    ]);
+    const base = entry(1, 1, 'Yogurt');
+    const e = {
+      ...base,
+      databaseFood: {
+        ...base.databaseFood,
+        nutrientsPer100g: { energyKcal: 61, protein: 3.5, sugars: 4.7, salt: 0.1 },
+      },
+      quantity: { ...base.quantity, grams: 125, gramsEstimated: true },
+    };
+    const row = (x: typeof e) =>
+      splitCsvRow(serializePlatesToCsv([plate(1, at(16), [x])]).split('\n')[1] as string);
+    expect(row(e).slice(11)).toEqual(['125', 'true', '76.3', '4.4', '', '5.9', '', '', '', '0.1']);
+    expect(row({ ...e, quantity: { ...e.quantity, gramsEstimated: false } })[12]).toBe('false');
+  });
+
+  it('writes grams as plain fixed-point text: at most one decimal, no exponent', () => {
+    const base = entry(1, 1, 'Spice');
+    const grams = (g: number) =>
+      splitCsvRow(
+        serializePlatesToCsv([
+          plate(1, at(16), [{ ...base, quantity: { ...base.quantity, grams: g } }]),
+        ]).split('\n')[1] as string,
+      )[11];
+    expect(grams(150)).toBe('150');
+    expect(grams(12.5)).toBe('12.5');
+    expect(grams(0.1)).toBe('0.1');
+    expect(grams(0.5)).toBe('0.5');
+    expect(grams(12.34)).toBe('12.3');
+    expect(grams(1e-7 + 0.1)).toBe('0.1');
+    expect(grams(5000)).toBe('5000');
+    for (const g of [0.0000001, 5000, 0.04, 12.3456]) expect(grams(g)).not.toMatch(/e/i);
   });
 
   describe('formula injection', () => {

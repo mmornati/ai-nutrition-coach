@@ -16,6 +16,28 @@ const ids = async (p: Promise<ExportResult>): Promise<number[]> => {
 };
 
 describe('serializePlatesToJson', () => {
+  it('includes grams, gramsEstimated, nutrientsPer100g and extra when present', () => {
+    const base = entry(1, 1, 'Yogurt');
+    const e = {
+      ...base,
+      databaseFood: {
+        ...base.databaseFood,
+        nutrientsPer100g: { energyKcal: 61 },
+        extra: { nutriscoreGrade: 'a' as const, novaGroup: 1 as const },
+      },
+      quantity: { ...base.quantity, grams: 125, gramsEstimated: false },
+    };
+    const decoded = JSON.parse(serializePlatesToJson([plate(1, 0, [e])])) as {
+      plates: { entries: { databaseFood: object; quantity: object }[] }[];
+    };
+    const out = decoded.plates[0]?.entries[0];
+    expect(out?.databaseFood).toMatchObject({
+      nutrientsPer100g: { energyKcal: 61 },
+      extra: { nutriscoreGrade: 'a', novaGroup: 1 },
+    });
+    expect(out?.quantity).toMatchObject({ grams: 125, gramsEstimated: false });
+  });
+
   it('envelope is exactly {"plates": [...]}', () => {
     const decoded = JSON.parse(serializePlatesToJson([])) as Record<string, unknown>;
     expect(Object.keys(decoded)).toEqual(['plates']);

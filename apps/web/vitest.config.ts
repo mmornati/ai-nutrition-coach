@@ -22,7 +22,7 @@ export default defineConfig({
           name: 'tools',
           environment: 'node',
           dir: '../../tools',
-          include: ['pwa/*.test.mjs', 'gates/*.test.mjs'],
+          include: ['pwa/*.test.mjs', 'gates/*.test.mjs', 'ciqual/*.test.mjs'],
           testTimeout: 20_000,
         },
       },

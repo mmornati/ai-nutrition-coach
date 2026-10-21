@@ -11,7 +11,14 @@
  * templates (English, French) that asks for the food names in that language; no free text goes in.
  * A new field has to be argued in the diff and in docs/ai-tiers.md.
  */
-import { parseFoodGroup, type EpochMs, type FoodGroup, type RecognizedFood } from '@anc/core';
+import {
+  isValidGrams,
+  parseFoodGroup,
+  sanitizeNutrients,
+  type EpochMs,
+  type FoodGroup,
+  type RecognizedFood,
+} from '@anc/core';
 import { currentLocale, strings, fill } from '../i18n';
 import type { Locale } from '../i18n/locale';
 import { validateByokEndpoint, type ByokEndpointProblem } from './byok-endpoint';
@@ -46,7 +53,7 @@ export const MAX_RECOGNIZED_FOODS = 20;
 export const MAX_FOOD_TEXT_LENGTH = 100;
 /** Used when the model gave no usable confidence for a food. */
 const DEFAULT_CONFIDENCE = 0.5;
-export const RECOGNITION_MAX_TOKENS = 800;
+export const RECOGNITION_MAX_TOKENS = 1600;
 export const RECOGNITION_TEMPERATURE = 0.2;
 
 /**
@@ -60,7 +67,11 @@ export const RECOGNITION_PROMPTS: Readonly<Record<Locale, string>> = {
     'Look at the plate in the photo. Return a JSON array of the foods you see. For each food, ' +
     'return an object with these fields: `name` (the food name, plain English), ' +
     '`quantityHint` (an honest quantity range the user could commit to, e.g. "1 piece", ' +
-    '"about 2 fists", "~1 cup"), `group` (the food group, EXACTLY one of: `vegFruit`, ' +
+    '"about 2 fists", "~1 cup"), `grams` (your best estimate of the weight of this food on the ' +
+    "plate, in grams, as a number), `per100g` (an object with your estimate of this food's " +
+    'nutrients per 100 g, numbers only: `energyKcal` in kcal, then `protein`, `carbohydrate`, ' +
+    '`sugars`, `fat`, `saturatedFat`, `fibre` and `salt` in grams; leave out any you do not ' +
+    'know), `group` (the food group, EXACTLY one of: `vegFruit`, ' +
     '`protein`, `starch`, `dairy`, `other` — `other` for oils, sweets, drinks and mixed dishes ' +
     'that fit none of the four) and `confidence` (a number from 0 to 1: how sure you are ' +
     'of this food, 1 being certain). Return an empty array `[]` if the plate is empty or the photo ' +
@@ -70,7 +81,11 @@ export const RECOGNITION_PROMPTS: Readonly<Record<Locale, string>> = {
     'chaque aliment, renvoyez un objet avec ces champs : `name` (le nom de l’aliment, ' +
     'en français courant), `quantityHint` (une estimation honnête de la quantité, en ' +
     'français, que la personne peut confirmer, par ' +
-    'ex. « 1 pièce », « environ 2 poings », « ~1 tasse »), `group` (le groupe alimentaire, ' +
+    'ex. « 1 pièce », « environ 2 poings », « ~1 tasse »), `grams` (votre meilleure estimation du ' +
+    'poids de cet aliment dans l’assiette, en grammes, sous forme de nombre), `per100g` (un objet ' +
+    'avec votre estimation des nutriments pour 100 g de cet aliment, nombres uniquement : ' +
+    '`energyKcal` en kcal, puis `protein`, `carbohydrate`, `sugars`, `fat`, `saturatedFat`, ' +
+    '`fibre` et `salt` en grammes ; omettez ceux que vous ne connaissez pas), `group` (le groupe alimentaire, ' +
     'EXACTEMENT l’un de : `vegFruit`, `protein`, `starch`, `dairy`, `other` — ces ' +
     'identifiants restent en anglais ; `other` pour les huiles, les sucreries, les boissons et ' +
     'les plats composés qui n’entrent dans aucun des quatre) et `confidence` (un nombre de 0 à 1 : votre degré de ' +
@@ -326,7 +341,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
   }
 
   /**
-   * Parses the model's text as a JSON array of `{name, quantityHint, group}`. `group` is
+   * Parses the model's text as a JSON array of `{name, quantityHint, grams, per100g, group}`. `group` is
    * validated against the closed enum; a missing or unknown value falls back to the classifier
    * on the cleaned name, never to a guess. The output is untrusted: at most 20 entries are kept
    * and every string is cleaned and capped at 100 characters.
@@ -360,12 +375,18 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
       const hint = cleanText(entry.quantityHint);
       if (name === null) continue;
       const group: FoodGroup = parseFoodGroup(entry.group) ?? this.#opts.classifyFoodGroup(name);
+      const grams = parseGramsEstimate(entry.grams);
+      const nutrients = sanitizeNutrients(entry.per100g);
       foods.push({
         databaseFood: {
           sourceRef: `byok-${this.#opts.model}-${name}`,
           displayName: name,
           source: 'manual',
           foodGroup: group,
+          // The model's per-100 g values are a guess; a confident catalogue match replaces them.
+          ...(nutrients === undefined
+            ? {}
+            : { nutrientsPer100g: nutrients, extra: { nutrientsEstimated: true } }),
         },
         confidence: parseConfidence(entry.confidence),
         quantity: {
@@ -373,6 +394,8 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           high: 1,
           unit: hint ?? 'serving',
           displayLabel: hint ?? '1 serving',
+          // The model's weight is a guess, and says so.
+          ...(grams === undefined ? {} : { grams, gramsEstimated: true }),
         },
       });
     }
@@ -383,6 +406,12 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
   toString(): string {
     return 'OpenAiCompatibleByokProvider(endpointUrl: redacted, model: redacted)';
   }
+}
+
+/** A model's weight guess: a valid number of grams (a numeric string is read), else absent. */
+function parseGramsEstimate(value: unknown): number | undefined {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return isValidGrams(n) ? n : undefined;
 }
 
 /** A model's own confidence: finite, clamped to 0..1; 0.5 ("maybe") when absent or unusable. */

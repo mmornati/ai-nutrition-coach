@@ -15,7 +15,7 @@ import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { TextField } from '../primitives/TextField';
 import { effectivePresets, manualFood, oneServing, sameFood, uniqueQuantities } from './foods';
-import { PortionPresets } from './PortionPresets';
+import { QuantityPicker } from './QuantityPicker';
 import { Sheet } from './Sheet';
 
 export interface RecognizedMatchSheetProps {
@@ -172,6 +172,8 @@ function Body({
   const [customMessage, setCustomMessage] = useMessage();
   const [submitting, setSubmitting] = useState<'ticked' | 'custom' | null>(null);
   const [failed, setFailed] = useState(false);
+  // Candidates whose Grams field holds text that is not a weight: Log stays off while any is ticked.
+  const [badWeight, setBadWeight] = useState<ReadonlySet<string>>(new Set());
   const inFlight = useRef(false);
 
   const all = [...recognized, ...extra];
@@ -185,6 +187,7 @@ function Body({
     }));
   }
   const ticked = all.filter((c) => choices[c.key]?.checked);
+  const weightsValid = !ticked.some((c) => badWeight.has(c.key));
 
   const update = (key: string, patch: Partial<Choice>) =>
     setChoices((prev) => {
@@ -253,10 +256,20 @@ function Body({
         </Checkbox>
         {choice.checked && (
           <div className="pr-0 pb-3 pl-9">
-            <PortionPresets
+            <QuantityPicker
+              food={c.food}
               presets={c.presets}
               value={choice.quantity}
               onChange={(quantity) => update(c.key, { quantity })}
+              onValidityChange={(valid) =>
+                setBadWeight((prev) => {
+                  if (prev.has(c.key) === !valid) return prev;
+                  const next = new Set(prev);
+                  if (valid) next.delete(c.key);
+                  else next.add(c.key);
+                  return next;
+                })
+              }
               label={portionFor(foodName(c.food, locale))}
             />
           </div>
@@ -287,7 +300,7 @@ function Body({
       </p>
       <Button
         fullWidth
-        disabled={ticked.length === 0}
+        disabled={ticked.length === 0 || !weightsValid}
         busy={submitting === 'ticked'}
         aria-disabled={submitting === 'custom' ? true : undefined}
         busyLabel={s.common.logging}

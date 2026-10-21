@@ -33,14 +33,15 @@ describe('the request', () => {
     expect(url.pathname).toBe('/api/v2/product/3017620422003');
   });
 
-  it('the WebKit smoke test pins the same OFF_FIELDS (one source of truth)', () => {
-    // tools/webkit_smoke is a separate package and cannot import this constant, so read its source.
-    const smoke = readFileSync(
-      resolve(process.cwd(), '../../tools/webkit_smoke/smoke.spec.mjs'),
-      'utf8',
-    );
-    const m = /const OFF_FIELDS =\s*'([^']+)';/.exec(smoke);
-    expect(m, 'OFF_FIELDS literal in smoke.spec.mjs').not.toBeNull();
+  it.each([
+    // tools/webkit_smoke is a separate package and cannot import this constant; the Playwright
+    // spec runs in Node outside the app bundle. Both keep a literal, so read their sources.
+    '../../tools/webkit_smoke/smoke.spec.mjs',
+    'e2e/capture.spec.ts',
+  ])('%s pins the same OFF_FIELDS (one source of truth)', (path) => {
+    const spec = readFileSync(resolve(process.cwd(), path), 'utf8');
+    const m = /const OFF_FIELDS =\s*'([^']+)';/.exec(spec);
+    expect(m, `OFF_FIELDS literal in ${path}`).not.toBeNull();
     expect(m?.[1]).toBe(OFF_FIELDS);
   });
 

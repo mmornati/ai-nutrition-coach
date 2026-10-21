@@ -37,6 +37,7 @@ import { createAiServices, type AiServices } from '../ai';
 import { photoDigest, sanitizePhotoForUpload } from '../capture';
 import {
   classifyFoodByName,
+  createCiqualFetchLoader,
   createOffBarcodeSource,
   foodGroupsOfFood,
   offLookupGate,
@@ -47,6 +48,7 @@ import { strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
+import { NumbersPref } from './numbers-pref';
 import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
 
 export interface Session {
@@ -59,6 +61,8 @@ export interface Session {
   readonly catalog: FoodCatalog;
   readonly privacy: PrivacyPrefs;
   readonly localePrefs: LocalePrefs;
+  /** "Show nutrition numbers": read once at the unlock, live afterwards. */
+  readonly numbers: NumbersPref;
   readonly syncQueue: InMemorySyncQueue;
   readonly ai: AiServices;
   readonly coach: Coach;
@@ -101,6 +105,8 @@ export async function createSession(
   // The catalog may only send a barcode while the stored answer to the one-time notice is `allowed`.
   const catalog = new OfflineFirstFoodCatalog({
     onlineLookupAllowed: offLookupGate(privacy),
+    // The CIQUAL table is a same-origin, precached asset, read on the first search.
+    ciqual: createCiqualFetchLoader(),
     offSource: createOffBarcodeSource({
       ...(options.fetch ? { fetchImpl: options.fetch } : {}),
       signal: abort.signal,
@@ -115,6 +121,9 @@ export async function createSession(
     ...(options.fetch ? { fetch: options.fetch } : {}),
     signal: abort.signal,
   });
+
+  const numbers = new NumbersPref(kv);
+  await numbers.load();
 
   const coach = createTemplateCoach(coachLookup);
   const generator = createCoachNoteGenerator({
@@ -139,6 +148,7 @@ export async function createSession(
     catalog,
     privacy,
     localePrefs: new LocalePrefs(kv),
+    numbers,
     syncQueue,
     ai,
     coach,

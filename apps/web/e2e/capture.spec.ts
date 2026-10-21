@@ -13,7 +13,7 @@ import type { DecodeReport, ScanReport } from '../src/capture/harness/harness';
 const CODE = '3017620422003';
 const OFF_HOST = 'world.openfoodfacts.org';
 const OFF_FIELDS =
-  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags';
+  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags,nutriments,serving_quantity,serving_quantity_unit,serving_size,product_quantity,product_quantity_unit,nutriscore_grade,nova_group';
 
 interface OffSeen {
   readonly url: string;

@@ -41,7 +41,7 @@ export function AppShell({
       <Rail current={current} hrefs={hrefs} onLog={onLog} />
       <div className="flex min-w-0 flex-1 flex-col">
         {header}
-        <main className="flex-1 pb-[calc(11rem+env(safe-area-inset-bottom))] lg:pb-16">
+        <main className="flex-1 pb-[calc(var(--spacing-fab-clearance)+env(safe-area-inset-bottom))] lg:pb-16">
           {children}
         </main>
         {banner && <div className="order-first">{banner}</div>}

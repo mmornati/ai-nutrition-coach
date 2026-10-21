@@ -4,7 +4,7 @@ import { useStrings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { effectivePresets, oneServing } from './foods';
-import { PortionPresets } from './PortionPresets';
+import { QuantityPicker } from './QuantityPicker';
 import { Sheet } from './Sheet';
 
 export interface BarcodeMatchSheetProps {
@@ -23,6 +23,8 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
   const [chosen, setChosen] = useState(presets[0] ?? oneServing());
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
+  // False while the Grams field holds text that is not a weight: Log stays off until it is.
+  const [valid, setValid] = useState(true);
   const inFlight = useRef(false);
 
   const submit = async () => {
@@ -43,13 +45,20 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
 
   return (
     <>
-      <PortionPresets presets={presets} value={chosen} onChange={setChosen} />
+      <QuantityPicker
+        presets={presets}
+        value={chosen}
+        onChange={setChosen}
+        onValidityChange={setValid}
+        food={match.food}
+      />
       {/* Always mounted: a live region is only announced reliably when its text changes. */}
       <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
         {message}
       </p>
       <Button
         fullWidth
+        disabled={!valid}
         busy={submitting}
         busyLabel={s.common.logging}
         onClick={() => void submit()}

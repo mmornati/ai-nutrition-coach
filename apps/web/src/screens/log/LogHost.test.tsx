@@ -135,7 +135,11 @@ describe('Type it', () => {
     if (read.kind === 'platesRead') {
       const entry = read.plates[0]?.entries[0];
       expect(entry?.databaseFood.displayName).toBe('Salmon');
-      expect(entry?.quantity.displayLabel).toBe(first.textContent);
+      // The button adds the gram hint ("~1 fist · ≈120 g"); the stored label is the portion itself.
+      expect(first.textContent).toMatch(
+        new RegExp(`^${entry?.quantity.displayLabel} · ≈\\d+\\s?g$`),
+      );
+      expect(entry?.quantity.grams).toBeGreaterThan(0);
     }
   });
 
@@ -151,9 +155,9 @@ describe('Type it', () => {
     await user.click(within(sheet).getByRole('button', { name: s.common.log }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const read = await bundle.store.readRange();
-    expect(read.kind === 'platesRead' && read.plates[0]?.entries[0]?.quantity.displayLabel).toBe(
-      other.textContent,
-    );
+    const label =
+      read.kind === 'platesRead' ? read.plates[0]?.entries[0]?.quantity.displayLabel : '';
+    expect(other.textContent).toMatch(new RegExp(`^${label} · ≈\\d+\\s?g$`));
   });
 
   it('Log is off until a food is picked', async () => {
@@ -161,6 +165,25 @@ describe('Type it', () => {
     await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'apple');
     await within(sheet).findByRole('button', { name: /^Apple/ });
     expect(within(sheet).getByRole('button', { name: s.common.log })).toBeDisabled();
+  });
+
+  it('Log is off while the Grams field holds something that is not a weight, and clearing it restores the preset', async () => {
+    const { user, bundle, sheet } = await open();
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'salm');
+    await user.click(await within(sheet).findByRole('button', { name: /^Salmon/ }));
+    const grams = within(sheet).getByLabelText(s.nutrition.gramsLabel);
+    const log = within(sheet).getByRole('button', { name: s.common.log });
+    await user.type(grams, '5001');
+    expect(log).toBeDisabled();
+    await user.clear(grams);
+    expect(log).toBeEnabled();
+    await user.click(log);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const q = read.kind === 'platesRead' ? read.plates[0]?.entries[0]?.quantity : undefined;
+    // The first preset, never "1 g".
+    expect(q?.unit).not.toBe('g');
+    expect(q?.grams).toBeGreaterThan(1);
   });
 
   it('a name that matches nothing opens the custom food form (manual, group other, ~1 serving)', async () => {

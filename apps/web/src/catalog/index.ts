@@ -6,13 +6,35 @@ export {
 } from './food-group-classifier';
 export { LruCache } from './lru-cache';
 export { seedFoods, seedForRef, type SeedFood, type SeedPreset } from './seed-foods';
-export { foodName, isKnownUnit, quantityLabel, seedName, seedPresets } from './food-display';
+export {
+  ciqualPresets,
+  foodName,
+  isKnownUnit,
+  offPresets,
+  quantityLabel,
+  seedName,
+  seedPresets,
+} from './food-display';
+export {
+  CIQUAL_SOURCE_PREFIX,
+  CiqualIndex,
+  ciqualDatabaseFood,
+  ciqualName,
+  createCiqualFetchLoader,
+  indexTokens,
+  type CiqualEntry,
+  type CiqualHit,
+  type CiqualLoader,
+} from './ciqual-index';
+export { ciqualFoodGroup, GROUP_RULES, SUBGROUP_RULES } from './ciqual-groups';
+export { portionsFor, SUBGROUP_PORTIONS, type Portion, type PortionKind } from './ciqual-portions';
 export { foldText } from './fold';
 export {
   createOffBarcodeSource,
   offProductUrl,
   OFF_FIELDS,
   OFF_ORIGIN,
+  MAX_OFF_PACK_GRAMS,
   MAX_OFF_NAME_LENGTH,
   MAX_OFF_TAGS,
   MAX_OFF_TAG_LENGTH,

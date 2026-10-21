@@ -328,6 +328,33 @@ describe('RecognizedMatchSheet', () => {
     expect(screen.getByRole('heading', { name: 'Looks like 2 foods' })).toHaveFocus();
   });
 
+  it('Log is off while a ticked food has a weight that is not a weight, and back on when fixed or unticked', async () => {
+    const onLog = vi.fn();
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={recognized}
+        closestMatches={closest}
+        onLog={onLog}
+      />,
+    );
+    const log = screen.getByRole('button', { name: 'Log' });
+    const [salmonField] = screen.getAllByLabelText('Grams');
+    await userEvent.type(salmonField as HTMLElement, '9999');
+    expect(log).toBeDisabled();
+    // Unticking the food with the bad weight leaves nothing wrong to log.
+    await userEvent.click(screen.getByRole('checkbox', { name: /Salmon/ }));
+    expect(log).toBeEnabled();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Salmon/ }));
+    expect(screen.getAllByLabelText('Grams')[0]).toHaveValue('');
+    expect(log).toBeEnabled();
+    await userEvent.type(screen.getAllByLabelText('Grams')[0] as HTMLElement, '9999');
+    expect(log).toBeDisabled();
+    await userEvent.clear(screen.getAllByLabelText('Grams')[0] as HTMLElement);
+    expect(log).toBeEnabled();
+  });
+
   it('lists recognized foods, all ticked, with group markers and a portion each', () => {
     render(
       <RecognizedMatchSheet

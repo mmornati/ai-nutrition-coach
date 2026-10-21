@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   addCalendarDays,
   classifyForDate,
+  dayNutrients,
   isSameLocalDay,
   MEAL_SLOTS,
   mealSlotForHour,
@@ -23,6 +24,7 @@ import {
   type LineMapStation,
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
+import { NutritionSection } from '../../components/nutrition';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
 import { capitalise, useLocale, useStrings } from '../../i18n';
@@ -187,6 +189,10 @@ export function TodayScreen() {
     }
   };
 
+  const dayTotals = useMemo(
+    () => dayNutrients(board.slots.flatMap((entry) => entry.plates)),
+    [board],
+  );
   const weekNote = weekNoteParts(day.days);
 
   return (
@@ -238,6 +244,11 @@ export function TodayScreen() {
                     />
                   );
                 }}
+              />
+              <NutritionSection
+                className="mx-5 mt-6 lg:mx-7"
+                title={viewingToday ? all.nutrition.sectionTitleToday : all.nutrition.sectionTitle}
+                nutrition={dayTotals}
               />
             </>
           )}

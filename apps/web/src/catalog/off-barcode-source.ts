@@ -28,7 +28,14 @@
  *
  * The barcode string is the only thing sent off-device. No camera frames, nothing about the person.
  */
-import type { CatalogFailureReason } from '@anc/core';
+import {
+  isValidGrams,
+  sanitizeFoodExtra,
+  sanitizeNutrients,
+  type CatalogFailureReason,
+  type FoodExtra,
+  type Nutrients,
+} from '@anc/core';
 import { currentLocale } from '../i18n';
 import type { Locale } from '../i18n/locale';
 import { cappedFetch, parseJsonBody, type FetchLike } from '../net/capped-fetch';
@@ -37,8 +44,26 @@ import { cappedFetch, parseJsonBody, type FetchLike } from '../net/capped-fetch'
  * The only product fields the parser reads (do not download the whole product record). The French
  * name is asked for on every request, whatever the language: the request is the same for everyone.
  */
-export const OFF_FIELDS =
-  'product_name,product_name_fr,product_name_en,generic_name,brands,categories_tags';
+export const OFF_FIELDS = [
+  'product_name',
+  'product_name_fr',
+  'product_name_en',
+  'generic_name',
+  'brands',
+  'categories_tags',
+  // Nutrition (docs/adr/0006): per-100 g values, serving and pack size, third-party grades.
+  'nutriments',
+  'serving_quantity',
+  'serving_quantity_unit',
+  'serving_size',
+  'product_quantity',
+  'product_quantity_unit',
+  'nutriscore_grade',
+  'nova_group',
+].join(',');
+
+/** A whole pack is offered as a preset up to this many grams (or millilitres). */
+export const MAX_OFF_PACK_GRAMS = 2000;
 
 export const OFF_ORIGIN = 'https://world.openfoodfacts.org';
 
@@ -56,6 +81,14 @@ export type OffBarcodeResult =
       readonly displayName: string;
       /** Lower-cased category tags, e.g. `en:spreads`. Empty when OFF ships none. */
       readonly categoryTags: readonly string[];
+      /** Per-100 g values OFF knows (sanitized); absent when it has none. Missing is never zero. */
+      readonly nutrientsPer100g?: Nutrients;
+      /** OFF's own Nutri-Score grade / NOVA group, as third-party product information. */
+      readonly extra?: FoodExtra;
+      /** The producer's serving in grams (g or ml taken as grams), when valid. */
+      readonly servingGrams?: number;
+      /** The whole pack in grams, when valid and at most {@link MAX_OFF_PACK_GRAMS}. */
+      readonly packGrams?: number;
     }
   | { readonly kind: 'notFound'; readonly barcode: string }
   | {
@@ -154,7 +187,78 @@ export function parseResponse(
   // name yet). That is not-found, so the UI hands off to manual entry instead of logging a blank.
   if (name.length === 0) return { kind: 'notFound', barcode };
 
-  return { kind: 'match', barcode, displayName: name, categoryTags: extractCategoryTags(product) };
+  const nutrientsPer100g = extractNutrients(product['nutriments']);
+  const extra = sanitizeFoodExtra({
+    nutriscoreGrade: lowerText(product['nutriscore_grade']),
+    novaGroup: numeric(product['nova_group']),
+  });
+  const servingGrams = extractAmount(product['serving_quantity'], product['serving_quantity_unit']);
+  const packRaw = extractAmount(product['product_quantity'], product['product_quantity_unit']);
+  const packGrams = packRaw !== undefined && packRaw <= MAX_OFF_PACK_GRAMS ? packRaw : undefined;
+
+  return {
+    kind: 'match',
+    barcode,
+    displayName: name,
+    categoryTags: extractCategoryTags(product),
+    ...(nutrientsPer100g ? { nutrientsPer100g } : {}),
+    ...(extra ? { extra } : {}),
+    ...(servingGrams !== undefined ? { servingGrams } : {}),
+    ...(packGrams !== undefined ? { packGrams } : {}),
+  };
+}
+
+/** A finite number from a number or a plain numeric string (OFF ships both); else undefined. */
+function numeric(v: unknown): number | undefined {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'string' && /^\s*-?\d{1,12}(\.\d{1,12})?\s*$/.test(v)) return Number(v);
+  return undefined;
+}
+
+const lowerText = (v: unknown): string | undefined =>
+  typeof v === 'string' ? v.trim().toLowerCase().slice(0, 16) : undefined;
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+const KJ_PER_KCAL = 4.184;
+/** Salt (g) = sodium (g) x 2.5, the regulation's conversion. */
+const SALT_PER_SODIUM = 2.5;
+
+/**
+ * Per-100 g nutrients from OFF's `nutriments` object. Energy is `energy-kcal_100g`, or the kJ value
+ * divided by 4.184 ONLY when kcal is absent; salt is `salt_100g`, or `sodium_100g` x 2.5 when absent.
+ * Everything else is read as is. Untrusted: a non-number, a negative or an implausible value is
+ * dropped by `sanitizeNutrients` (which also drops sugars above carbohydrate), never turned into 0.
+ */
+function extractNutrients(raw: unknown): Nutrients | undefined {
+  if (!isObject(raw)) return undefined;
+  const get = (key: string): number | undefined => numeric(raw[key]);
+  const kcal = get('energy-kcal_100g');
+  const kj = get('energy-kj_100g') ?? get('energy_100g');
+  const salt = get('salt_100g');
+  const sodium = get('sodium_100g');
+  const candidate: Record<string, number | undefined> = {
+    energyKcal: kcal ?? (kj !== undefined ? round2(kj / KJ_PER_KCAL) : undefined),
+    protein: get('proteins_100g'),
+    carbohydrate: get('carbohydrates_100g'),
+    sugars: get('sugars_100g'),
+    fat: get('fat_100g'),
+    saturatedFat: get('saturated-fat_100g'),
+    fibre: get('fiber_100g'),
+    salt: salt ?? (sodium !== undefined ? round2(sodium * SALT_PER_SODIUM) : undefined),
+  };
+  return sanitizeNutrients(candidate);
+}
+
+/** A serving / pack size in grams: only g or ml (taken 1:1), positive and at most 5 kg. */
+function extractAmount(quantity: unknown, unit: unknown): number | undefined {
+  const n = numeric(quantity);
+  if (n === undefined || !isValidGrams(n)) return undefined;
+  if (unit !== undefined && unit !== null && unit !== '') {
+    const u = lowerText(unit);
+    if (u !== 'g' && u !== 'ml') return undefined;
+  }
+  return round2(n);
 }
 
 /** Caps `text` at `max` characters (code points, so no split surrogate pair). */
