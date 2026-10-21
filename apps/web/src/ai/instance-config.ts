@@ -40,6 +40,24 @@ export function parseInstanceAiConfig(value: unknown): InstanceAiConfig {
   return { enabled: true, model, label };
 }
 
+/**
+ * The consent key of the instance rung: this server's host AND the provider label AND the model.
+ * A person agreed to send photos to THAT combination, so when the operator changes the provider
+ * or the model the old agreement no longer applies and the next photo asks again.
+ */
+export const INSTANCE_CONSENT_PREFIX = 'instance:';
+
+export function instanceConsentKey(host: string, config: { label: string; model: string }): string {
+  return `${INSTANCE_CONSENT_PREFIX}${host}|${config.label}|${config.model}`;
+}
+
+/** "host (label)" for a consent list; `null` when `key` is an ordinary host. */
+export function describeInstanceConsent(key: string): string | null {
+  if (!key.startsWith(INSTANCE_CONSENT_PREFIX)) return null;
+  const [host = '', label = ''] = key.slice(INSTANCE_CONSENT_PREFIX.length).split('|');
+  return `${host} — ${label}`;
+}
+
 /** What the rung registry and the screens read. `host` is this page's own host (same origin). */
 export interface InstanceAiView {
   readonly config: InstanceAiConfig;

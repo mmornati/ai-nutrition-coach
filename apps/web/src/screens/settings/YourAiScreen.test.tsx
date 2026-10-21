@@ -393,3 +393,18 @@ describe('YourAiScreen: the AI this server offers', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 });
+
+describe('YourAiScreen: the server’s AI in the consent list', () => {
+  it('shows the agreement as "host — provider" and revokes the exact key', async () => {
+    const user = userEvent.setup();
+    const key = 'instance:plate.example.test|acme ai|vendor/model-x';
+    const { bundle } = await openAi({ seed: new AiSettings({ photoConsentHosts: [key] }) });
+    const list = screen.getByRole('list', { name: 'Services that may receive photos' });
+    expect(within(list).getByText('plate.example.test — acme ai')).toBeVisible();
+    await user.click(
+      within(list).getByRole('button', { name: 'Revoke plate.example.test — acme ai' }),
+    );
+    await waitFor(() => expect(screen.queryByText('plate.example.test — acme ai')).toBeNull());
+    expect(await storedSettings(bundle)).not.toContain('instance:');
+  });
+});

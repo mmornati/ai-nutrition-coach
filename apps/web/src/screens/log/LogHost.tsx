@@ -84,7 +84,9 @@ export function LogHost({
             ? offer.label
             : undefined;
         const next: Consent = {
+          // The consent key of the instance rung is not a host name: the dialog names this server.
           ...input,
+          host: via === undefined ? input.host : session.ai.instance.getSnapshot().host,
           ...(via === undefined ? {} : { via }),
           resolve,
         };

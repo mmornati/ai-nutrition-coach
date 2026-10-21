@@ -58,7 +58,10 @@ services:
       AI_PROXY_MODEL: ${AI_PROXY_MODEL:-}
       AI_PROXY_LABEL: ${AI_PROXY_LABEL:-}
       AI_PROXY_RATE: ${AI_PROXY_RATE:-10r/m}
+      AI_PROXY_RATE_ALL: ${AI_PROXY_RATE_ALL:-30r/m}
       AI_PROXY_BURST: ${AI_PROXY_BURST:-5}
+      AI_PROXY_CONN: ${AI_PROXY_CONN:-2}
+      AI_PROXY_TOKEN_PARAM: ${AI_PROXY_TOKEN_PARAM:-max_tokens}
       AI_PROXY_MAX_TOKENS: ${AI_PROXY_MAX_TOKENS:-2000}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:

@@ -16,16 +16,32 @@ https
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {
       const send = (status, body) => {
-        res.writeHead(status, { 'content-type': 'application/json', 'set-cookie': 'upstream=1' });
+        // The kind of envelope a real provider sends: CORS "*", account and request ids, rate-limit
+        // numbers. None of it may reach the browser through the proxy.
+        res.writeHead(status, {
+          'content-type': 'application/json',
+          'set-cookie': 'upstream=1',
+          'access-control-allow-origin': '*',
+          'openai-organization': 'org-smoke',
+          'x-request-id': 'req-smoke',
+          'x-ratelimit-remaining-requests': '41',
+        });
         res.end(JSON.stringify(body));
       };
       if (req.headers.authorization !== expected) {
         send(401, { error: `bad key starting ${String(req.headers.authorization).slice(0, 12)}` });
         return;
       }
+      const text = Buffer.concat(chunks).toString('utf8');
+      // A test hook: a message that says so makes the provider answer with an error whose text
+      // (a balance, an account) must never reach a browser.
+      if (text.includes('__PROVIDER_402__')) {
+        send(402, { error: { message: 'Insufficient balance: top up your account acct-smoke' } });
+        return;
+      }
       let body = {};
       try {
-        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        body = JSON.parse(text);
       } catch {
         body = {};
       }

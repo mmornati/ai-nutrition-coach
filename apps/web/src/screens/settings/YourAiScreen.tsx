@@ -3,6 +3,7 @@ import { Button, TextField } from '../../components/primitives';
 import { TierRadio, type Tier } from '../../components/shell';
 import { fill, useStrings } from '../../i18n';
 import {
+  describeInstanceConsent,
   filterKeyInput,
   KEY_FIELD_ATTRIBUTES,
   keySavedText,
@@ -206,10 +207,14 @@ export function YourAiScreen() {
                 key={host}
                 className="border-rule flex min-h-14 items-center justify-between gap-3 border-b"
               >
-                <span className="text-body [overflow-wrap:anywhere]">{host}</span>
+                <span className="text-body [overflow-wrap:anywhere]">
+                  {describeInstanceConsent(host) ?? host}
+                </span>
                 <Button
                   variant="outline-porcelain"
-                  aria-label={fill(c.consentRevokeFor, { host })}
+                  aria-label={fill(c.consentRevokeFor, {
+                    host: describeInstanceConsent(host) ?? host,
+                  })}
                   onClick={() => void ai.revokeConsent(host)}
                 >
                   {c.consentRevoke}

@@ -57,12 +57,16 @@ does not protect:
 - **Protected:** the key never reaches the browser, the web bundle, the image or the logs. It exists only in the
   container's environment and in one `0600` file under `/tmp` rendered at start; the start refuses if that file is not
   private or if the key appears in any other rendered file. nginx forwards no browser header (no `Authorization`,
-  `Cookie`, `Origin`, `Referer`, `X-Forwarded-For`), logs no header, body or query string, and replaces a provider's
-  `401`/`403` with a plain `502` so a provider message that quotes the key is not shown. The bundle scan
+  `Cookie`, `Origin`, `Referer`, `X-Forwarded-For`), logs no header, body or query string, and replaces every provider
+  error text (a refused or empty-balance key, an account) with a generic body, so nothing a provider says about the key or
+  the account is shown. The bundle scan
   (`tools/check_no_secrets_in_build.sh`) and gitleaks run unchanged. A report that shows the key reaching any of these is in scope.
 - **Not protected, by design:** anyone who can reach the instance can spend the key, within the rate limit. The limit is
   per client address as nginx sees it, so behind a reverse proxy it is effectively one cap for the whole instance. The
-  server forces the model and caps the reply size, but cannot tell a photo question from any other question. The
+  server forces the model and caps the reply (output); the input is bounded to the app's shapes (at most 8 messages, 24 KB
+  of text, one inline image, no remote URL) and the body to 2 MiB, but it cannot tell a photo question from any other
+  question. Requests must be same-origin JSON (`Content-Type`, `Sec-Fetch-Site`, `Origin` are checked), so another
+  website cannot spend the key through a visitor's browser. The
   mitigation is the operator's: put the instance behind a sign-in or an allow-list (the repository ships Traefik
   overlays for both) and set a spend limit at the provider. The key is also readable by anyone who can read the
   container's environment on the host (`docker inspect`), like any `.env` secret.

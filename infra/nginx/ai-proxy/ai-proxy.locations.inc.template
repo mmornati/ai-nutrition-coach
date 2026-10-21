@@ -11,23 +11,39 @@ location = /ai/config.json {
     return 200 '@@ANC_AI_CONFIG_JSON@@';
 }
 
-# One OpenAI-compatible chat completion, relayed with the operator's key. POST only.
+# One OpenAI-compatible chat completion, relayed with the operator's key. POST only, same origin only.
+#
+# Local refusals use `return <code> '<text>'`: with a body, nginx answers directly and the
+# error_page below (meant for the PROVIDER's answers) is not consulted.
 location = /ai/v1/chat/completions {
-    if ($request_method != POST) { return 405; }
+    default_type application/json;
+    if ($request_method != POST) { return 405 '{"error":"method_not_allowed"}'; }
+    # JSON only: a cross-site page can send text/plain without a preflight (no-cors), but not
+    # application/json. Together with the Sec-Fetch-Site / Origin checks this keeps other sites
+    # from spending the key through a visitor's browser.
+    if ($content_type !~* "^application/json(;|$)") { return 415 '{"error":"json_only"}'; }
+    if ($anc_ai_sfs_bad) { return 403 '{"error":"same_origin_only"}'; }
+    if ($anc_ai_origin_bad) { return 403 '{"error":"same_origin_only"}'; }
     add_header Cache-Control "no-store" always;
     include /tmp/ai-nutrition-coach-headers.inc;
 
     # One downscaled photo (1024 px JPEG, base64) is well under 1 MiB; 2 MiB is the ceiling.
-    # The body stays in memory (/tmp is a small tmpfs).
+    # The body stays in memory (/tmp is a small tmpfs). njs bounds what is inside it.
     client_max_body_size 2m;
     client_body_buffer_size 2m;
     client_body_timeout 30s;
 
+    # Per client address AND for the whole instance (both must allow the request).
     limit_req zone=ai_nutrition_coach_ai burst=@@ANC_AI_BURST@@ nodelay;
+    limit_req zone=ai_nutrition_coach_ai_rall burst=@@ANC_AI_BURST@@ nodelay;
     limit_req_status 429;
-    limit_conn ai_nutrition_coach_ai_ip 2;
+    limit_conn ai_nutrition_coach_ai_ip @@ANC_AI_CONN@@;
     limit_conn ai_nutrition_coach_ai_all 16;
     limit_conn_status 429;
+
+    # Upstream failures are logged at `crit` only (an upstream timeout would otherwise write the
+    # client's address and the request line to the container log).
+    error_log /dev/stderr crit;
 
     # Resolved at request time (cached 30 s) so a long-running container follows the provider's DNS.
     resolver @@ANC_AI_RESOLVER@@ valid=30s ipv6=off;
@@ -36,6 +52,7 @@ location = /ai/v1/chat/completions {
     set $anc_ai_upstream "@@ANC_AI_URL@@";
     set $anc_ai_model "@@ANC_AI_MODEL@@";
     set $anc_ai_max_tokens "@@ANC_AI_MAX_TOKENS@@";
+    set $anc_ai_token_param "@@ANC_AI_TOKEN_PARAM@@";
     js_set $anc_ai_body anc_ai.body;
 
     proxy_http_version 1.1;
@@ -64,12 +81,46 @@ location = /ai/v1/chat/completions {
     proxy_read_timeout 50s;
     proxy_max_temp_file_size 0;
     proxy_redirect off;
+
+    # Nothing of the provider's own envelope reaches a visitor: no CORS headers (a cross-site page
+    # must never be allowed to READ a reply), no account, project, request or rate-limit headers.
+    # (nginx cannot hide by prefix: the known x-ratelimit-* names are listed.)
     proxy_hide_header Set-Cookie;
     proxy_hide_header Authorization;
+    proxy_hide_header Location;
+    proxy_hide_header Server;
+    proxy_hide_header Via;
+    proxy_hide_header Alt-Svc;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_hide_header Access-Control-Allow-Credentials;
+    proxy_hide_header Access-Control-Allow-Headers;
+    proxy_hide_header Access-Control-Allow-Methods;
+    proxy_hide_header Access-Control-Expose-Headers;
+    proxy_hide_header Access-Control-Max-Age;
+    proxy_hide_header OpenAI-Organization;
+    proxy_hide_header OpenAI-Project;
+    proxy_hide_header OpenAI-Processing-Ms;
+    proxy_hide_header OpenAI-Version;
+    proxy_hide_header X-Request-Id;
+    proxy_hide_header X-RateLimit-Limit;
+    proxy_hide_header X-RateLimit-Remaining;
+    proxy_hide_header X-RateLimit-Reset;
+    proxy_hide_header X-RateLimit-Limit-Requests;
+    proxy_hide_header X-RateLimit-Limit-Tokens;
+    proxy_hide_header X-RateLimit-Remaining-Requests;
+    proxy_hide_header X-RateLimit-Remaining-Tokens;
+    proxy_hide_header X-RateLimit-Reset-Requests;
+    proxy_hide_header X-RateLimit-Reset-Tokens;
+    proxy_hide_header CF-RAY;
 
-    # A provider that refuses the key must not echo it (even masked) to a visitor.
+    # A provider's error text (a refused or empty-balance key, a model name, an account) is never
+    # shown: every provider error becomes a generic JSON body. 400 stays 400 and 429 stays 429
+    # (with Retry-After); 401/402/403/404/... and 5xx become a bare 502. (413 is nginx's own.)
     proxy_intercept_errors on;
-    error_page 401 403 = @ai_nutrition_coach_ai_refused;
+    error_page 400 = @ai_nutrition_coach_ai_badrequest;
+    error_page 429 = @ai_nutrition_coach_ai_busy;
+    error_page 401 402 403 404 405 406 407 408 409 410 411 412 414 415 416 417 418 421 422 423 424 425 426 428 431 451 500 501 502 503 504 505 507 = @ai_nutrition_coach_ai_refused;
 
     proxy_pass $anc_ai_upstream;
 }
@@ -78,7 +129,22 @@ location @ai_nutrition_coach_ai_refused {
     default_type application/json;
     add_header Cache-Control "no-store" always;
     include /tmp/ai-nutrition-coach-headers.inc;
-    return 502 '{"error":"ai_provider_refused"}';
+    return 502 '{"error":"ai_provider_error"}';
+}
+
+location @ai_nutrition_coach_ai_badrequest {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 400 '{"error":"ai_bad_request"}';
+}
+
+location @ai_nutrition_coach_ai_busy {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    add_header Retry-After $upstream_http_retry_after always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 429 '{"error":"ai_busy"}';
 }
 
 # Anything else under /ai/ is not the app shell.

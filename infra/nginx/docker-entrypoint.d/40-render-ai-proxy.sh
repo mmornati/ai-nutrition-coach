@@ -18,8 +18,10 @@
 #                       environment of awk, never a command line, a log line or a message of this script.
 #   AI_PROXY_MODEL      forced into every request by njs (the client cannot choose another)
 #   optional: AI_PROXY_LABEL (shown to people; default: the upstream host), AI_PROXY_RATE (default
-#   10r/m per client address), AI_PROXY_BURST (default 5), AI_PROXY_MAX_TOKENS (default 2000),
-#   AI_PROXY_RESOLVER (default: the first nameserver of /etc/resolv.conf).
+#   10r/m per client address), AI_PROXY_RATE_ALL (default 30r/m for the whole instance),
+#   AI_PROXY_BURST (default 5), AI_PROXY_CONN (concurrent requests per address, default 2),
+#   AI_PROXY_MAX_TOKENS (default 2000), AI_PROXY_TOKEN_PARAM (max_tokens, or max_completion_tokens
+#   for reasoning models), AI_PROXY_RESOLVER (default: the first plain nameserver of /etc/resolv.conf).
 # Every value is validated against a strict pattern; an invalid value refuses to start, like a
 # bad AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (05-validate-csp.sh). Error messages name the variable
 # and never print its value.
@@ -55,7 +57,7 @@ render() {
       while ((i = index(s, k)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(k)) }
       return o s
     }
-    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE BURST MAX_TOKENS RESOLVER", names, " ") }
+    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM RESOLVER", names, " ") }
     {
       line = $0
       for (j = 1; j <= n; j++) line = rep(line, "@@ANC_AI_" names[j] "@@", ENVIRON["ANC_AI_" names[j]])
@@ -106,24 +108,40 @@ model="${AI_PROXY_MODEL:-}"
 matches '^[A-Za-z0-9._:/@+-]{1,128}$' "$model" \
   || die "AI_PROXY_MODEL must be 1-128 characters of A-Z a-z 0-9 . _ : / @ + - (e.g. google/gemini-2.0-flash-001)."
 
-label="${AI_PROXY_LABEL:-$hostname}"
+# The default label is the upstream host, cut to the 60 characters a label may have.
+label="${AI_PROXY_LABEL:-$(printf '%s' "$hostname" | cut -c1-60)}"
 matches '^[A-Za-z0-9][A-Za-z0-9 ._()+-]{0,59}$' "$label" \
   || die "AI_PROXY_LABEL must be 1-60 characters of letters, digits, spaces and . _ ( ) + - (it is shown to people)."
 
 rate="${AI_PROXY_RATE:-10r/m}"
 matches '^[1-9][0-9]{0,3}r/[sm]$' "$rate" || die "AI_PROXY_RATE must look like 10r/m or 2r/s."
+rate_all="${AI_PROXY_RATE_ALL:-30r/m}"
+matches '^[1-9][0-9]{0,3}r/[sm]$' "$rate_all" || die "AI_PROXY_RATE_ALL must look like 30r/m or 2r/s."
+conn="${AI_PROXY_CONN:-2}"
+matches '^[1-9][0-9]{0,2}$' "$conn" || die "AI_PROXY_CONN must be a whole number from 1 to 999."
+token_param="${AI_PROXY_TOKEN_PARAM:-max_tokens}"
+case "$token_param" in max_tokens|max_completion_tokens) ;; *) die "AI_PROXY_TOKEN_PARAM must be max_tokens or max_completion_tokens." ;; esac
 burst="${AI_PROXY_BURST:-5}"
 matches '^[0-9]{1,3}$' "$burst" || die "AI_PROXY_BURST must be a whole number up to 999."
 max_tokens="${AI_PROXY_MAX_TOKENS:-2000}"
 matches '^[1-9][0-9]{0,4}$' "$max_tokens" || die "AI_PROXY_MAX_TOKENS must be a whole number up to 99999."
 
+# The first nameserver that is a plain address (a scoped one such as fe80::1%eth0 is skipped).
+# nginx resolves the provider through THIS server only: /etc/hosts and `--add-host` are ignored.
 resolver="${AI_PROXY_RESOLVER:-}"
 if [ -z "$resolver" ] && [ -r "$resolv" ]; then
-  resolver="$(awk '$1 == "nameserver" { print $2; exit }' "$resolv")"
+  for ns in $(awk '$1 == "nameserver" { print $2 }' "$resolv"); do
+    if printf '%s' "$ns" | grep -Eq '^[0-9A-Fa-f:.]{2,45}$'; then resolver="$ns"; break; fi
+  done
 fi
 matches '^[0-9A-Fa-f:.]{2,45}$' "$resolver" \
   || die "no usable DNS server: set AI_PROXY_RESOLVER to an IP address (nginx resolves the provider at request time)."
 case "$resolver" in *:*) resolver="[$resolver]" ;; esac
+
+# A value must not contain a placeholder of its own (substitution is not re-entrant).
+for v in "$key" "$upstream" "$model" "$label" "$rate" "$rate_all" "$resolver"; do
+  case "$v" in *@@*) die "an AI_PROXY_* value contains '@@' (the value is not shown)." ;; esac
+done
 
 # ── render ──────────────────────────────────────────────────────────────────
 ANC_AI_URL="$upstream/chat/completions"
@@ -133,10 +151,13 @@ ANC_AI_MODEL="$model"
 ANC_AI_CONFIG_JSON="{\"enabled\":true,\"model\":\"$model\",\"label\":\"$label\"}"
 ANC_AI_RATE="$rate"
 ANC_AI_BURST="$burst"
+ANC_AI_RATE_ALL="$rate_all"
+ANC_AI_CONN="$conn"
+ANC_AI_TOKEN_PARAM="$token_param"
 ANC_AI_MAX_TOKENS="$max_tokens"
 ANC_AI_RESOLVER="$resolver"
-export ANC_AI_URL ANC_AI_HOST ANC_AI_KEY ANC_AI_MODEL ANC_AI_CONFIG_JSON ANC_AI_RATE ANC_AI_BURST \
-  ANC_AI_MAX_TOKENS ANC_AI_RESOLVER
+export ANC_AI_URL ANC_AI_HOST ANC_AI_KEY ANC_AI_MODEL ANC_AI_CONFIG_JSON ANC_AI_RATE ANC_AI_RATE_ALL \
+  ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_RESOLVER
 
 printf '%s\n' 'load_module /usr/lib/nginx/modules/ngx_http_js_module.so;' > "$main_inc"
 render "$tpl/ai-proxy.http.inc.template" "$httpctx_inc"

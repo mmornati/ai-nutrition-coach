@@ -5,7 +5,7 @@ import { ByokAiRung } from './byok-ai-rung';
 import { HostBoundByokKeyStore, type ByokKeyStore } from './byok-key-store';
 import { ConsentGatedAiRung } from './consent-gated-ai-rung';
 import { strings } from '../i18n';
-import type { InstanceAiView } from './instance-config';
+import { instanceConsentKey, type InstanceAiView } from './instance-config';
 import { InstanceAiRung, type InstanceProvider } from './instance-ai-rung';
 import { NoopAiRung, NotConfiguredAiRung, UnavailableAiRung } from './noop-ai-rung';
 import type { PhotoUploadPermit } from './photo-upload-permit';
@@ -21,14 +21,15 @@ import type {
  * The host an upload would go to under `settings`, or `null` when nothing would leave the
  * device: No AI, an unavailable rung, a BYOK endpoint that does not validate (and so is never
  * called), or the instance rung while this server does not offer AI. This is the host the consent
- * dialog names and the consent list is keyed by. For the instance rung it is THIS page's own host
- * (the same origin): the photo goes to this server first and on to the provider it names.
+ * dialog names and the consent list is keyed by. For the instance rung it is a key made of THIS page's
+ * own host (the same origin), the provider label and the model (`instanceConsentKey`): the photo goes
+ * to this server first and on to the provider it names, and a changed provider asks again.
  */
 export function photoUploadHost(settings: AiSettings, instance?: InstanceAiView): string | null {
   if (settings.rung.kind === 'instance') {
     if (instance === undefined || !instance.config.enabled || instance.host === '') return null;
     const endpoint = validateByokEndpoint(instance.endpointUrl);
-    return endpoint.kind === 'valid' ? endpoint.host : null;
+    return endpoint.kind === 'valid' ? instanceConsentKey(endpoint.host, instance.config) : null;
   }
   if (settings.rung.kind !== 'byok') return null;
   const endpoint = validateByokEndpoint(settings.byokEndpointUrl);

@@ -59,7 +59,7 @@ TMP="$(mktemp -d)"
 
 cleanup() {
   docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" \
-    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-aibad" >/dev/null 2>&1 || true
+    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-aibad" >/dev/null 2>&1 || true
   docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
@@ -486,7 +486,7 @@ if command -v openssl >/dev/null 2>&1; then
       http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true
   }
   out="$(post "$NAME-ai" --header 'Authorization: Bearer browser-secret' --header 'Cookie: sid=browser-cookie' \
-    --header 'Origin: http://evil.test' --header 'X-Forwarded-For: 203.0.113.9')"
+    --header 'Origin: http://127.0.0.1:8080' --header 'X-Forwarded-For: 203.0.113.9')"
   grep -q 'HTTP/1.1 200' <<<"$out" || fail 50 "the proxied request was not a 200: $(tail -3 <<<"$out")"
   for want in '"authOk":true' '"cookie":false' '"origin":false' '"referer":false' '"xff":false' \
               '"model":"vendor/model-x"' '"maxTokens":2000' '"keys":["max_tokens","messages","model"]' '"path":"/v1/chat/completions"'; do
@@ -514,6 +514,57 @@ if command -v openssl >/dev/null 2>&1; then
   grep -q 'bad key starting' <<<"$out3" && fail 50 "the provider's refusal message reached the browser"
   docker rm -f "$NAME-ai3" >/dev/null 2>&1 || true
   ok "AI proxy: a provider's refusal of the key is a bare 502, its message is not shown"
+
+  # Same origin only, JSON only, a bounded input, and a quiet provider envelope. A fresh container,
+  # so these requests do not eat the burst allowance the rate-limit check below relies on.
+  export AI_PROXY_KEY="$AIKEY"
+  docker run -d --name "$NAME-ai4" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x "$IMAGE-aitest" >/dev/null
+  unset AI_PROXY_KEY
+  for _ in $(seq 1 40); do docker exec "$NAME-ai4" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  HELLO='{"messages":[{"role":"user","content":"hi"}]}'
+  req() { # req <post-data> <wget args...>
+    local data="$1"; shift
+    docker exec "$NAME-ai4" wget -S -O - "$@" --post-data "$data" http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true
+  }
+  # (wget writes the body to stdout and the headers to stderr: they can interleave on one line.)
+  status_of() { grep -oE 'HTTP/1\.1 [0-9]{3}' <<<"$1" | head -1 | cut -d' ' -f2; }
+  JSONH='Content-Type: application/json'
+  [[ "$(status_of "$(req "$HELLO" --header 'Content-Type: text/plain')")" == 415 ]] || fail 50 "cross-site style text/plain is not a 415"
+  [[ "$(status_of "$(req "$HELLO" --header 'Content-Type: application/x-www-form-urlencoded')")" == 415 ]] || fail 50 "a form post is not a 415"
+  [[ "$(status_of "$(req "$HELLO" --header "$JSONH" --header 'Sec-Fetch-Site: cross-site')")" == 403 ]] || fail 50 "Sec-Fetch-Site: cross-site is not a 403"
+  [[ "$(status_of "$(req "$HELLO" --header "$JSONH" --header 'Sec-Fetch-Site: same-site')")" == 403 ]] || fail 50 "Sec-Fetch-Site: same-site is not a 403"
+  [[ "$(status_of "$(req "$HELLO" --header "$JSONH" --header 'Origin: http://evil.test')")" == 403 ]] || fail 50 "a foreign Origin is not a 403"
+  [[ "$(status_of "$(req "$HELLO" --header "$JSONH" --header 'Origin: null')")" == 403 ]] || fail 50 "Origin: null is not a 403"
+  [[ "$(status_of "$(req "$HELLO" --header "$JSONH" --header 'Origin: http://127.0.0.1:9999')")" == 403 ]] || fail 50 "an Origin on another port is not a 403"
+  ok4="$(req "$HELLO" --header "$JSONH" --header 'Origin: http://127.0.0.1:8080' --header 'Sec-Fetch-Site: same-origin')"
+  [[ "$(status_of "$ok4")" == 200 ]] || fail 50 "a same-origin JSON request is not a 200: $(head -8 <<<"$ok4")"
+  if grep -Eiq '^ *(access-control-|openai-|x-request-id|x-ratelimit|set-cookie|server: [^n])' <<<"$ok4"; then
+    fail 50 "the provider's envelope (CORS, account, request id, rate-limit, cookie) reached the browser: $(grep -Ei '^ *(access-control-|openai-|x-request-id|x-ratelimit)' <<<"$ok4" | head -3)"
+  fi
+  ok "AI proxy: text/plain and form posts 415, cross-site / same-site Sec-Fetch-Site and foreign / null / other-port Origin 403, same-origin JSON 200; no CORS, account, request-id or rate-limit header from the provider"
+
+  # The input budget (njs): a remote image URL, two images, or too much text is not forwarded.
+  img='data:image/jpeg;base64,/9j/AAAA'
+  seen_keys() { grep -o '"keys":\[[^]]*\]' <<<"$1" | head -1; }
+  [[ "$(seen_keys "$(req "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}}]}]}" --header "$JSONH")")" == '"keys":["max_tokens","messages","model"]' ]] \
+    || fail 50 "a valid one-photo request was not forwarded"
+  [[ "$(seen_keys "$(req '{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"http://evil.test/x.png"}}]}]}' --header "$JSONH")")" == '"keys":[]' ]] \
+    || fail 50 "a remote image URL was forwarded"
+  [[ "$(seen_keys "$(req "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}}]}]}" --header "$JSONH")")" == '"keys":[]' ]] \
+    || fail 50 "two images were forwarded"
+  docker exec "$NAME-ai4" sh -c "head -c 30000 /dev/zero | tr '\\0' a > /tmp/long.txt"
+  bigtext="$(docker exec "$NAME-ai4" sh -c "printf '{\"messages\":[{\"role\":\"user\",\"content\":\"'; cat /tmp/long.txt; printf '\"}]}'" )"
+  [[ "$(seen_keys "$(req "$bigtext" --header "$JSONH")")" == '"keys":[]' ]] || fail 50 "30 KB of text was forwarded"
+  ok "AI proxy: the input budget holds (one data: image, 24 KB of text, 8 messages); a remote image URL, two images or too much text are not forwarded"
+
+  # A provider's error text (an empty balance, an account) never reaches the browser.
+  e402="$(req '{"messages":[{"role":"user","content":"x __PROVIDER_402__"}]}' --header "$JSONH")"
+  [[ "$(status_of "$e402")" == 502 ]] || fail 50 "a provider 402 is not a 502: $(tail -3 <<<"$e402")"
+  grep -Eiq 'balance|acct-smoke|top up' <<<"$e402" && fail 50 "the provider's 402 message reached the browser"
+  docker rm -f "$NAME-ai4" >/dev/null 2>&1 || true
+  ok "AI proxy: a provider 402 with a balance message is a generic 502"
 
   # Method, size and rate.
   mout="$(docker exec "$NAME-ai" wget -S -O /dev/null http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true)"
