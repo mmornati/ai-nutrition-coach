@@ -26,19 +26,29 @@ import {
   type CoachParams,
   type Coach,
   type CoachNoteStore,
+  type DatabaseFood,
   type DeletePlate,
   type EncryptedStore,
   type FoodCatalog,
   type FoodEntryDraft,
   type LocalDataEraser,
   type Nutrients,
+  type WeeklyReview,
   type RecordCoachInteraction,
   type RecordPlateResult,
 } from '@anc/core';
 import { createAiServices, type AiServices } from '../ai';
+import {
+  AskCoachConversation,
+  createAiNoteUpgrader,
+  requestWeekSummary,
+  withAiNotes,
+  type WeekSummaryResult,
+} from '../coaching';
 import { photoDigest, sanitizePhotoForUpload } from '../capture';
 import {
   classifyFoodByName,
+  foodName,
   createCiqualFetchLoader,
   createOffBarcodeSource,
   foodGroupsOfFood,
@@ -46,7 +56,7 @@ import {
   OfflineFirstFoodCatalog,
   PrivacyPrefs,
 } from '../catalog';
-import { strings } from '../i18n';
+import { currentLocale, strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
@@ -78,6 +88,13 @@ export interface Session {
    */
   readonly targets: () => Required<Nutrients>;
   readonly coachInteractions: RecordCoachInteraction;
+  /**
+   * "Ask the coach": the conversation, kept in memory for this unlocked session only (never
+   * stored, never exported, gone on a lock).
+   */
+  readonly askCoach: AskCoachConversation;
+  /** The optional AI paragraph under the weekly review (never replaces the rule-based one). */
+  readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
   /** Records one plate (coach note and outbox op are best-effort post-commit steps). */
   readonly recordPlate: (drafts: readonly FoodEntryDraft[]) => Promise<RecordPlateResult>;
   readonly deletePlate: DeletePlate;
@@ -137,7 +154,7 @@ export async function createSession(
   await profile.load();
 
   const coach = createTemplateCoach(coachLookup);
-  const generator = createCoachNoteGenerator({
+  const templateGenerator = createCoachNoteGenerator({
     coach,
     store: notes,
     clock,
@@ -145,12 +162,30 @@ export async function createSession(
     // No numbers in a note while the person has numbers turned off.
     targets: () => (numbers.current() ? profile.targets() : undefined),
   });
+  // What an AI sees is named the way the person reads it, in the interface language.
+  const naming = {
+    nameOf: (food: DatabaseFood) => foodName(food, currentLocale()),
+    groupsOf: foodGroupsOfFood,
+  };
+  const coachAiDeps = {
+    coaching: ai.coaching,
+    numbersOn: numbers.current,
+    locale: currentLocale,
+    targets: profile.targets,
+    profile: profile.current,
+  };
+  let live = true;
+  // The template note is written first, as ever; an AI-written one (only with the person's
+  // coaching consent) replaces it in place if it arrives in time.
+  const generator = withAiNotes(
+    templateGenerator,
+    createAiNoteUpgrader({ ...coachAiDeps, notes, clock, naming, live: () => live }),
+  );
   const record = createRecordPlate({
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
   });
 
-  let live = true;
   return {
     controller,
     store,
@@ -168,6 +203,8 @@ export async function createSession(
     coach,
     targets: profile.targets,
     coachInteractions: createRecordCoachInteraction({ coach, store: notes, clock }),
+    askCoach: new AskCoachConversation({ ...coachAiDeps, naming, live: () => live }),
+    summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
     recordPlate: (entries) => record({ entries, store }),
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
     live: () => live,
@@ -175,6 +212,7 @@ export async function createSession(
       if (!live) return;
       live = false;
       abort.abort();
+      ai.coaching.dispose();
       catalog.clearCaches();
       ai.permit.close();
       stopScoping();

@@ -81,6 +81,7 @@ export function PrivacyScreen() {
         <Prose>{s.leavesBarcode}</Prose>
         <Prose>{s.leavesPhoto}</Prose>
         <Prose>{s.leavesInstance}</Prose>
+        <Prose>{s.leavesCoaching}</Prose>
         {session !== null && <OffSwitch session={session} />}
       </Section>
       <Section title={s.serverHeading}>

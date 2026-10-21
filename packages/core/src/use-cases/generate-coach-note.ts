@@ -7,6 +7,7 @@ import type {
   CoachNoteGenerationResult,
   CoachQuestionResult,
 } from '../results/coach';
+import { isAiCoachNote } from '../coach/ai-coaching';
 import { otherPlatesOfSameDay, type GroupsOf } from '../coach/day-coaching';
 import { coachSuggestionFor } from '../coach/nutrient-coaching';
 import type { Nutrients } from '../value-types/nutrients';
@@ -40,7 +41,11 @@ async function previousPatternOf(
   );
   let latest: CoachNote | null = null;
   for (const note of lists.flat()) {
-    if (note.anchor !== 'postResolve' || !note.questionKey.startsWith(POST_RESOLVE_PREFIX)) {
+    if (
+      note.anchor !== 'postResolve' ||
+      !note.questionKey.startsWith(POST_RESOLVE_PREFIX) ||
+      isAiCoachNote(note)
+    ) {
       continue;
     }
     if (latest === null || note.generatedAt > latest.generatedAt) latest = note;

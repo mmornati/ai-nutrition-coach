@@ -1,4 +1,5 @@
 import type { AiRung, RecognitionResult } from '@anc/core';
+import { ByokChat } from './byok-chat';
 import type { AiSettings } from './ai-settings';
 import { validateByokEndpoint } from './byok-endpoint';
 import { ByokAiRung } from './byok-ai-rung';
@@ -10,6 +11,7 @@ import { InstanceAiRung, type InstanceProvider } from './instance-ai-rung';
 import { NoopAiRung, NotConfiguredAiRung, UnavailableAiRung } from './noop-ai-rung';
 import type { PhotoUploadPermit } from './photo-upload-permit';
 import type {
+  ByokChatProvider,
   ByokProvider,
   ChatMessage,
   ChatOptions,
@@ -41,7 +43,10 @@ export interface AiRungDeps {
   readonly keyStore: ByokKeyStore;
   readonly permit: PhotoUploadPermit;
   /** Builds the transport for the saved endpoint and model. */
-  readonly createProvider: (args: { endpointUrl: string; model: string }) => ByokProvider;
+  readonly createProvider: (args: {
+    endpointUrl: string;
+    model: string;
+  }) => ByokProvider & Partial<ByokChatProvider>;
   /** What this server offers (the instance rung). Absent: the instance rung is unavailable. */
   readonly instance?: () => InstanceAiView;
   /** Builds the key-less transport for the same-origin proxy. */
@@ -157,11 +162,35 @@ export function createLiveAiRung(deps: AiRungDeps): AiRung {
 }
 
 /**
- * The text-completion seam (a later LLM coach reuses it): one chat completion through the instance
- * rung, i.e. through the same-origin proxy, with no key in the browser. It follows the settings on
- * every call. It answers `unavailable` unless the person's rung is "provided by this server" and
- * this server offers AI; it never touches the BYOK key or endpoint. It asks no consent: the
- * caller's text is the caller's to explain.
+ * The BYOK text chat for the CURRENT settings: the same endpoint, model and host-bound key as the
+ * photo path. `null` (so `unavailable`) while the endpoint or model is unset or invalid, or the
+ * transport cannot chat. The key is released only for the host it was entered for.
+ */
+function buildByokChat(settings: AiSettings, deps: AiRungDeps): ByokChat | null {
+  const host = photoUploadHost(settings);
+  if (host === null) return null;
+  const provider = deps.createProvider({
+    endpointUrl: settings.byokEndpointUrl,
+    model: settings.byokModel,
+  });
+  if (provider.completeChat === undefined) return null;
+  const chatter = provider as ByokProvider & ByokChatProvider;
+  return new ByokChat({
+    keyStore: new HostBoundByokKeyStore({
+      inner: deps.keyStore,
+      boundHost: settings.byokKeyHost,
+      endpointHost: host,
+    }),
+    provider: chatter,
+  });
+}
+
+/**
+ * The text-completion seam the AI coach uses: one chat completion through the person's rung. On
+ * "provided by this server" it goes through the same-origin proxy with no key in the browser; on
+ * "my own key" it goes to their endpoint with their key (bound to that host). It follows the
+ * settings on every call and answers `unavailable` on No AI or when nothing is set up. It asks no
+ * consent: the caller's text is the caller's to explain (see `CoachingAi`).
  */
 export function createLiveChat(deps: AiRungDeps): TextCompletionPort {
   return {
@@ -169,7 +198,12 @@ export function createLiveChat(deps: AiRungDeps): TextCompletionPort {
       messages: readonly ChatMessage[],
       options?: ChatOptions,
     ): Promise<ChatResult> => {
-      if (deps.getSettings().rung.kind !== 'instance') return { kind: 'unavailable' };
+      const settings = deps.getSettings();
+      if (settings.rung.kind === 'byok') {
+        const chat = buildByokChat(settings, deps);
+        return chat === null ? { kind: 'unavailable' } : chat.completeChat(messages, options);
+      }
+      if (settings.rung.kind !== 'instance') return { kind: 'unavailable' };
       await settleInstance(deps);
       const built = buildInstanceRung(deps);
       return built === null ? { kind: 'unavailable' } : built.rung.completeChat(messages, options);

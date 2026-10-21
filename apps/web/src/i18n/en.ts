@@ -331,6 +331,22 @@ export const en = {
       askEveryPhotoLabel: 'Ask before every photo upload',
       askEveryPhotoHelp:
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
+      coachingHeading: 'AI coaching',
+      coachingIntro:
+        'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch.',
+      coachingSwitch: 'Let the AI write coach notes and answer questions',
+      coachingSwitchHelpOff:
+        'Off: the coach writes its built-in notes and nothing about your meals is sent.',
+      coachingSwitchHelpOn:
+        'On: after you log a plate, and when you ask the coach, your meal data goes to the destination below. You can turn this off at any time.',
+      coachingSent:
+        'What is sent: the names of your foods, their weights, nutrient totals and what you ate earlier in the week, plus your profile if you filled it in (goal, diet, allergies, age band, sex, activity). Never your photos, never your passphrase. With nutrition numbers turned off, weights and nutrients are left out.',
+      coachingDestinationInstance:
+        'Destination: {host}, this server, which passes it on to {label}.',
+      coachingDestinationByok: 'Destination: {host}, the service you chose.',
+      coachingNeedsAi:
+        'Choose an AI above first: the one this server offers, or your own key. Until then nothing is sent.',
+      coachingSaveFailed: 'Could not keep that. Unlock the app and try again.',
     },
     /** Messages carried by a failed recognition (ported from the earlier rung and provider). */
     failure: {
@@ -423,6 +439,7 @@ export const en = {
     askLater: 'Ask later',
     depthGroup: 'More from the coach',
     close: 'Close',
+    aiMark: 'Written by AI',
   },
   chip: {
     onDevice: 'On this device',
@@ -468,6 +485,7 @@ export const en = {
     noteQuietDays: '{name} was quiet on {days}.',
     noteQuietAll: '{name} stayed quiet all week.',
     noteQuietMany: '{names} were quiet this week.',
+    askCoachLink: 'Ask the coach',
     review: {
       title: 'The week, in short',
       daysLogged: {
@@ -501,6 +519,21 @@ export const en = {
           'Salt averaged {approx}{g} g a day. Tasting before salting is a gentle place to start.',
         easeSugars:
           'Sugars averaged {approx}{g} g a day. Fruit or plain yogurt in place of one sweet item is a small change.',
+      },
+      ai: {
+        button: 'Ask the coach about this week',
+        heading: 'The coach, on this week',
+        reading: 'The coach is reading your week…',
+        mark: 'Written by AI',
+        busy: 'The AI is busy. Try again in a moment.',
+        failure: 'The coach could not answer just now. You can try again.',
+        unsure: 'The coach did not find words it was happy with. You can try again.',
+        needsSetup:
+          'To ask the coach about your week, choose an AI and turn on AI coaching in Settings, Your AI.',
+        needsConsent:
+          'To ask the coach about your week, turn on AI coaching in Settings, Your AI. Your meals are sent only after you say yes.',
+        open: 'Open Your AI',
+        note: 'This sends the counts and daily averages of the week to {host}. The review above stays as it is.',
       },
     },
   },
@@ -589,6 +622,7 @@ export const en = {
     plateRemoveFailed: 'Couldn’t remove it. Try again.',
     networkHeading: 'This week’s network',
     seeWeekNetwork: "See the week's network",
+    askCoachLink: 'Ask the coach',
   },
   /** Nutrition numbers (docs/adr/0006): grams, previews, Nutrient Bars. */
   nutrition: {
@@ -692,6 +726,41 @@ export const en = {
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'around {pct}%', underOne: 'less than 1%' },
+  /** Ask the coach (optional AI chat) and the AI coaching copy. */
+  askCoach: {
+    title: 'Ask the coach',
+    intro:
+      'Ask about your last seven days of meals. The AI sees the names of your foods, their weights, nutrient totals and your profile, never your photos. This is not medical advice.',
+    memory:
+      'This conversation is kept only while the app is unlocked. It is not saved or exported, and it is gone when you lock the app.',
+    offTitle: 'The AI coach is off',
+    offNoAi:
+      'Ask the coach needs an AI. Choose one, and say yes to AI coaching, in Settings, Your AI. Until then the coach keeps writing its built-in notes.',
+    offNeedsConsent:
+      'Ask the coach sends your meals to {host}, so it needs your yes first. You can give it in Settings, Your AI.',
+    openYourAi: 'Open Your AI',
+    inputLabel: 'Your question',
+    inputHint: 'For example: is my week varied enough?',
+    counter: '{count} of {max} characters',
+    send: 'Ask',
+    thinking: 'The coach is thinking…',
+    conversation: 'Conversation',
+    you: 'You',
+    coach: 'Coach',
+    aiMark: 'Written by AI',
+    asked: '{count} of {max} questions asked',
+    limit: 'That is the end of this conversation: {max} questions. Start a new one to keep going.',
+    newConversation: 'Start a new conversation',
+    busy: 'The AI is busy. Try again in a moment.',
+    failure: 'The coach could not answer just now. Your question is still in the box.',
+    consent: 'AI coaching is switched off. Turn it on in Settings, Your AI.',
+    unavailable: 'No AI is set up right now. Choose one in Settings, Your AI.',
+    unsure: 'I could not put that into words I am happy with. Could you ask it another way?',
+    supportEating:
+      'It sounds like food or your body may be weighing on you. I cannot give advice on that.',
+    supportMedical:
+      'That sounds like something to check with a doctor or a pharmacist. I cannot give advice on symptoms.',
+  },
   coachQuestions: {
     'post.resolve.vegLight':
       'No veg or fruit so far today. Could a handful join this meal, even on the side?',
@@ -853,6 +922,8 @@ export const en = {
       'Recognising a photo: only if you turned on your own AI and say yes. The photo (shrunk, with its location and camera details removed), a fixed instruction (which also says in which language to answer, the app language) and the model name go to the service you chose. That service also sees your internet address and your device or browser type, and may keep requests under its own policy.',
     leavesInstance:
       'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
+    leavesCoaching:
+      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names of your foods, their weights, nutrient totals, the day or week so far and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, and the conversation is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:

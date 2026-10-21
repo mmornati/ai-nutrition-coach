@@ -393,3 +393,64 @@ describe('YourAiScreen: the AI this server offers', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 });
+
+describe('YourAiScreen: AI coaching consent', () => {
+  const byok = () =>
+    new AiSettings({
+      rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'gpt-test',
+      byokKeyHost: 'api.example.com',
+    });
+  const consentRow = (bundle: StoreBundle) => bundle.kv.read(KV_KEYS.aiCoachingConsent);
+  const SWITCH = 'Let the AI write coach notes and answer questions';
+
+  it('on No AI the switch is off and disabled, and says to choose an AI first', async () => {
+    await openAi();
+    const toggle = screen.getByRole('switch', { name: SWITCH });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toBeDisabled();
+    expect(screen.getByText(/Choose an AI above first/)).toBeVisible();
+  });
+
+  it('lists exactly what is sent and where, defaults to off, and is not the photo consent', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    const toggle = screen.getByRole('switch', { name: SWITCH });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toBeEnabled();
+    expect(
+      screen.getByText(/the names of your foods, their weights, nutrient totals/),
+    ).toBeVisible();
+    expect(screen.getByText(/Never your photos, never your passphrase/)).toBeVisible();
+    expect(screen.getByText('Destination: api.example.com, the service you chose.')).toBeVisible();
+    expect(await consentRow(bundle)).toBeNull();
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(await consentRow(bundle)).toBe('{"host":"api.example.com"}');
+    // The photo consent list is untouched.
+    expect(screen.getByText("You haven't allowed any service to receive photos.")).toBeVisible();
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(await consentRow(bundle)).toBeNull();
+  });
+
+  it('names this server and its provider on the instance rung', async () => {
+    const fake = new FakeFetch();
+    fake.instanceConfig = { enabled: true, model: 'm1', label: 'Acme AI' };
+    await openAi({ fake, seed: new AiSettings({ rung: { kind: 'instance' } }) });
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Destination: localhost, this server, which passes it on to Acme AI\./),
+      ).toBeVisible(),
+    );
+  });
+
+  it('has no axe violations', async () => {
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    expect(bundle).toBeDefined();
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});

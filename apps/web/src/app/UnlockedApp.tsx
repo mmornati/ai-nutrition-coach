@@ -1,5 +1,6 @@
 import { DayProvider } from './day-context';
 import { parseRoute, useHash } from './router';
+import { AskCoachScreen } from '../screens/coach/AskCoachScreen';
 import { PlateScreen } from '../screens/plate/PlateScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TodayScreen } from '../screens/today/TodayScreen';
@@ -19,6 +20,8 @@ function Routes() {
   switch (route.name) {
     case 'week':
       return <WeekScreen />;
+    case 'coach':
+      return <AskCoachScreen />;
     case 'plate':
       return <PlateScreen plateId={route.id} />;
     case 'settings':

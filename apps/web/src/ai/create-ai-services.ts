@@ -6,6 +6,8 @@ import { KvByokKeyStore, type ByokKeyStore } from './byok-key-store';
 import { OpenAiCompatibleByokProvider } from './openai-compatible-provider';
 import { PhotoUploadPermit } from './photo-upload-permit';
 import { InstanceAiSource } from './instance-config';
+import { CoachingAi } from './coaching-ai';
+import { CoachingConsent } from './coaching-consent';
 import { createLiveAiRung, createLiveChat } from './rung-registry';
 import type { FetchLike } from '../net/capped-fetch';
 import type { ClassifyFoodGroup, PhotoDigest, PhotoSanitizer, TextCompletionPort } from './types';
@@ -26,6 +28,12 @@ export interface AiServices {
    */
   readonly chat: TextCompletionPort;
   readonly yourAi: YourAi;
+  /**
+   * The gate and transport of the AI coach (notes, Ask the coach, the weekly summary): text
+   * completions through the person's rung (this server's AI or their own key), refused unless they
+   * agreed to coaching for that destination. Separate from the photo consent.
+   */
+  readonly coaching: CoachingAi;
 }
 
 export interface CreateAiServicesOptions {
@@ -101,13 +109,19 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
     }
   });
 
+  const chat = createLiveChat(rungDeps);
+  const consent = new CoachingConsent(options.kv);
+  await consent.load();
+  const coaching = new CoachingAi({ settings, instance, consent, chat });
+
   return {
     settings,
     keyStore,
     permit,
     rung: createLiveAiRung(rungDeps),
     instance,
-    chat: createLiveChat(rungDeps),
+    chat,
+    coaching,
     yourAi: new YourAi({ settings, keyStore, createTester: provider, instance }),
   };
 }

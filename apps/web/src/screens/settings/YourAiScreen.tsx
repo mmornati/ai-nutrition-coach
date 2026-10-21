@@ -12,6 +12,8 @@ import {
   type FieldMessage,
 } from '../../ai';
 import { hrefs } from '../../app/router';
+import { useSession } from '../../app/session';
+import { useSessionCoachingStatus } from '../../coaching';
 import { Prose, Section, SettingsPage } from './SettingsPage';
 import { SwitchRow } from './SwitchRow';
 
@@ -20,6 +22,58 @@ function messageFor(
   field: FieldMessage['field'],
 ): string | undefined {
   return message?.field === field ? message.text : undefined;
+}
+
+/**
+ * The coaching consent, apart from the photo consent: "Let the AI write coach notes and answer
+ * questions". Off by default; it shows exactly what is sent and where, and it lapses by itself if
+ * the destination changes. A write that fails leaves the switch where it was and says so.
+ */
+function CoachingSection() {
+  const c = useStrings().ai.yourAi;
+  const { ai } = useSession();
+  const coaching = ai.coaching;
+  const status = useSessionCoachingStatus();
+  const [failed, setFailed] = useState(false);
+  const on = status.kind === 'ready';
+
+  const change = async (next: boolean) => {
+    try {
+      if (next) await coaching.grant();
+      else await coaching.revoke();
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  };
+
+  const destination =
+    status.kind === 'noAi'
+      ? c.coachingNeedsAi
+      : status.destination.label !== null
+        ? fill(c.coachingDestinationInstance, {
+            host: status.destination.host,
+            label: status.destination.label,
+          })
+        : fill(c.coachingDestinationByok, { host: status.destination.host });
+
+  return (
+    <Section title={c.coachingHeading}>
+      <Prose>{c.coachingIntro}</Prose>
+      <SwitchRow
+        title={c.coachingSwitch}
+        help={on ? c.coachingSwitchHelpOn : c.coachingSwitchHelpOff}
+        checked={on}
+        disabled={status.kind === 'noAi'}
+        onChange={(next) => void change(next)}
+      />
+      <Prose>{c.coachingSent}</Prose>
+      <Prose>{destination}</Prose>
+      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+        {failed ? c.coachingSaveFailed : ''}
+      </p>
+    </Section>
+  );
 }
 
 /**
@@ -188,6 +242,8 @@ export function YourAiScreen() {
       <p role="status" className="text-body text-porcelain empty:hidden">
         {live}
       </p>
+
+      <CoachingSection />
 
       <Section title={c.privacyHeading}>
         <Prose>{c.consentExplainer}</Prose>

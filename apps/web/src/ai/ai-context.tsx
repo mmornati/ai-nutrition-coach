@@ -12,6 +12,7 @@ import { useLocale } from '../i18n';
 import type { AiSettings } from './ai-settings';
 import type { FieldMessage } from './copy';
 import { connectionResultMessage, saveResultMessage } from './copy';
+import type { CoachingStatus } from './coaching-ai';
 import type { AiServices } from './create-ai-services';
 import type { InstanceAiView } from './instance-config';
 import type { KeyStatus } from './your-ai';
@@ -41,6 +42,12 @@ export function useAiSettings(): AiSettings {
 export function useInstanceAi(): InstanceAiView {
   const { instance } = useAiServices();
   return useSyncExternalStore(instance.subscribe, instance.getSnapshot);
+}
+
+/** What the AI coach may do right now (no AI, needs the person's yes, or ready); live. */
+export function useCoachingStatus(): CoachingStatus {
+  const { coaching } = useAiServices();
+  return useSyncExternalStore(coaching.subscribe, coaching.getSnapshot);
 }
 
 export interface YourAiState {

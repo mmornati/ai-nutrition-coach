@@ -88,3 +88,17 @@ export type ChatResult =
 export interface TextCompletionPort {
   completeChat(messages: readonly ChatMessage[], options?: ChatOptions): Promise<ChatResult>;
 }
+
+/**
+ * The text-completion half of the OpenAI-compatible transport, as the BYOK chat needs it. The key
+ * is passed per call and never held. (The same class also serves the key-less instance proxy.)
+ */
+export interface ByokChatProvider {
+  completeChat(args: {
+    readonly messages: readonly ChatMessage[];
+    readonly apiKey?: string;
+    readonly maxTokens?: number;
+    readonly temperature?: number;
+    readonly signal?: AbortSignal;
+  }): Promise<ChatOutcome>;
+}

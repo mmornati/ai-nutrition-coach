@@ -3,6 +3,7 @@
 //
 //   #/               Today
 //   #/week           Week
+//   #/coach          Ask the coach (optional AI chat)
 //   #/plate/<id>     Plate detail
 //   #/settings[/..]  Settings and its sub-screens (part B owns the sub-routes)
 //   #/privacy        What this app stores and sends (reachable before the store is open)
@@ -11,6 +12,7 @@ import { useSyncExternalStore } from 'react';
 export type Route =
   | { readonly name: 'today' }
   | { readonly name: 'week' }
+  | { readonly name: 'coach' }
   | { readonly name: 'plate'; readonly id: number }
   | {
       readonly name: 'settings';
@@ -23,6 +25,7 @@ export const TODAY_HASH = '#/';
 export const hrefs = {
   today: TODAY_HASH,
   week: '#/week',
+  coach: '#/coach',
   settings: '#/settings',
   privacy: '#/privacy',
   plate: (id: number): string => `#/plate/${id}`,
@@ -37,6 +40,8 @@ export function parseRoute(hash: string): Route {
   switch (head) {
     case 'week':
       return { name: 'week' };
+    case 'coach':
+      return { name: 'coach' };
     case 'plate': {
       const id = Number(second);
       return Number.isInteger(id) && id > 0 ? { name: 'plate', id } : { name: 'today' };
