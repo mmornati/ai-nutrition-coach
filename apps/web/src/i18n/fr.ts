@@ -550,6 +550,8 @@ export const fr: Strings = {
     },
     reference: 'environ {percent} % de l’apport de référence UE ({reference})',
     referenceUnderOne: 'moins de 1 % de l’apport de référence UE ({reference})',
+    referencePersonal: 'environ {percent} % de votre repère du jour ({reference})',
+    referenceUnderOnePersonal: 'moins de 1 % de votre repère du jour ({reference})',
     barsLabel: 'Quantités de nutriments par rapport aux apports de référence',
     coverage: {
       one: 'Calculé sur {count} aliment avec un poids et des données nutritionnelles ; {missing} sans.',
@@ -559,6 +561,49 @@ export const fr: Strings = {
     whatAre: 'Que sont les apports de référence ?',
     whatAreBody:
       'Les apports de référence sont les quantités quotidiennes fixées par le règlement européen 1169/2011 pour un adulte moyen consommant 2 000 kcal par jour. Les fibres n’ont pas de valeur européenne : 25 g est une recommandation générale. Vos besoins peuvent être différents, et les barres sont une information, pas un objectif.',
+    whatAreBodyPersonal:
+      'Les barres utilisent votre repère du jour, calculé à partir du profil choisi dans les Réglages : l’énergie vient des valeurs de référence européennes (EFSA) pour votre tranche d’âge, votre sexe et votre activité, et les autres nutriments en sont déduits. C’est une estimation pour un adulte moyen, pas un conseil, et les barres sont une information, pas un objectif. Sans profil, ce sont les apports de référence UE qui servent (2 000 kcal par jour).',
+  },
+  support: {
+    line: 'Si l’alimentation ou le poids occupent beaucoup vos pensées, en parler à quelqu’un peut aider.',
+    linkLabel: 'FFAB, Fédération Française Anorexie Boulimie',
+    newTab: '(s’ouvre dans un nouvel onglet)',
+  },
+  profile: {
+    title: 'Profil',
+    intro:
+      'Facultatif. Il sert seulement à ajuster le repère du jour et le coach. Il reste chiffré sur cet appareil.',
+    notSet: 'Non renseigné',
+    ageBand: 'Tranche d’âge',
+    sex: 'Sexe',
+    activity: 'Activité',
+    goal: 'Souhait',
+    diet: 'Alimentation',
+    sexOptions: { female: 'Femme', male: 'Homme', unspecified: 'Je préfère ne pas dire' },
+    activityOptions: { low: 'Plutôt assis', moderate: 'Un peu de mouvement', high: 'Très actif' },
+    goalOptions: {
+      eatBetter: 'Mieux manger',
+      maintain: 'Rester comme je suis',
+      lose: 'Perdre un peu de poids',
+      gain: 'Prendre un peu de poids',
+    },
+    dietOptions: {
+      omnivore: 'De tout',
+      vegetarian: 'Végétarisme',
+      vegan: 'Véganisme',
+      pescatarian: 'Poisson, pas de viande',
+    },
+    allergiesLabel: 'Allergies ou aliments à éviter',
+    allergiesHelp: 'Saisissez-les un par un, puis ajoutez-les.',
+    allergyAdd: 'Ajouter',
+    allergyRemove: 'Retirer {tag}',
+    guideComplete: 'Votre repère du jour est d’environ {energy} kcal.',
+    guideIncomplete:
+      'Renseignez le sexe, la tranche d’âge et l’activité pour ajuster le repère du jour. D’ici là, l’apport de référence UE est utilisé.',
+    goalNote: 'Un souhait ne déplace le repère d’énergie que de 10 %, et jamais sous 1 500 kcal.',
+    clear: 'Effacer le profil',
+    cleared: 'Profil effacé.',
+    saveFailed: 'Cela n’a pas été enregistré à l’instant. Rien n’a changé.',
   },
   nutritionSettings: {
     title: 'Nutrition',
@@ -627,6 +672,8 @@ export const fr: Strings = {
     rowPrivacySubtitle: 'ce qui est stocké · ce qui est envoyé',
     rowNutrition: 'Nutrition',
     rowNutritionSubtitle: 'afficher ou masquer les chiffres',
+    rowProfile: 'Profil',
+    rowProfileSubtitle: 'facultatif · ajuste le repère du jour',
     rowLanguage: 'Langue',
     rowLanguageSubtitle: 'comme votre appareil · ou au choix',
     rowInstall: 'Installer sur votre téléphone',

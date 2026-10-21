@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useShowNumbers } from '../../components/nutrition';
+import { SupportLine, useShowNumbers } from '../../components/nutrition';
 import { useStrings } from '../../i18n';
 import { useSession } from '../../app/session';
 import { SettingsPage } from './SettingsPage';
@@ -38,6 +38,7 @@ export function NutritionScreen() {
           {failed ? s.saveFailed : ''}
         </p>
       </div>
+      <SupportLine />
     </SettingsPage>
   );
 }

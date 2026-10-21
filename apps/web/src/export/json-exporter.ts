@@ -1,4 +1,4 @@
-import type { EncryptedStore, Exporter, FoodEntry, PlateLog } from '@anc/core';
+import type { EncryptedStore, Exporter, FoodEntry, PlateLog, Profile } from '@anc/core';
 import { createFormatExporter } from './csv-exporter';
 
 function entryToJson(entry: FoodEntry): Record<string, unknown> {
@@ -38,10 +38,14 @@ function plateToJson(plate: PlateLog): Record<string, unknown> {
 
 /**
  * The top-level `{"plates": [...]}` envelope, so fields can be added without breaking consumers.
- * Plates only: no coach notes, settings or notices.
+ * Plates, plus the optional `profile` key when the person set one (the only preference exported).
+ * No coach notes, settings or notices.
  */
-export function serializePlatesToJson(plates: readonly PlateLog[]): string {
-  return JSON.stringify({ plates: plates.map(plateToJson) });
+export function serializePlatesToJson(plates: readonly PlateLog[], profile?: Profile): string {
+  return JSON.stringify({
+    plates: plates.map(plateToJson),
+    ...(profile !== undefined ? { profile } : {}),
+  });
 }
 
 export const createJsonExporter = (store: EncryptedStore): Exporter =>

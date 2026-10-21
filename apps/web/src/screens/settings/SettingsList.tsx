@@ -60,6 +60,14 @@ export function SettingsList() {
         onSelect: go(SECTIONS.nutrition),
       },
       {
+        id: SECTIONS.profile,
+        line: 'dairy',
+        title: s.rowProfile,
+        subtitle: s.rowProfileSubtitle,
+        status: '',
+        onSelect: go(SECTIONS.profile),
+      },
+      {
         id: SECTIONS.install,
         line: 'starch',
         title: s.rowInstall,

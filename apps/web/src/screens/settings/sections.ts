@@ -5,6 +5,7 @@ export const SECTIONS = {
   privacy: 'privacy',
   language: 'language',
   nutrition: 'nutrition',
+  profile: 'profile',
   install: 'install',
   about: 'about',
 } as const;

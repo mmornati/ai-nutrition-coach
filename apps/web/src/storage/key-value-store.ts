@@ -29,6 +29,8 @@ export const KV_KEYS = Object.freeze({
   uiLocale: 'ui.locale',
   /** `off` when the person hid nutrition numbers; absent means shown (the default). */
   uiShowNumbers: 'ui.showNumbers',
+  /** The optional `Profile` as JSON; absent means no profile. Included in the JSON export. */
+  profile: 'profile',
 } as const);
 
 export interface KeyValueStore {
