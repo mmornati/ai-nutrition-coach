@@ -402,6 +402,8 @@ export const en = {
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
       voiceModelLabel: 'Voice model',
       voiceModelHint: 'e.g. whisper-1',
+      voiceModelInvalid:
+        'Use letters, digits and . _ : / @ + - only (128 characters at most), or leave it empty.',
       voiceModelHelp:
         'Turns a short recording into text for Describe, at the same endpoint. Leave it empty for whisper-1. If your service has no such model, the microphone button stays hidden.',
       instanceVoice: 'Voice to text: {model}',

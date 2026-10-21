@@ -3,6 +3,11 @@
 # same privacy rules as the chat location: the key is injected here, nothing the browser sent is
 # forwarded except the multipart Content-Type, and every provider answer becomes generic JSON.
 
+# CSRF note: a multipart POST is a "simple" request, so a cross-site page can send one WITHOUT a
+# preflight (unlike application/json on the chat route). This route therefore relies on the
+# Sec-Fetch-Site / Origin checks below, which every modern browser sends on a cross-origin POST;
+# the rate limits and the 1 MiB / forced-model bounds are the defence in depth.
+#
 # One short voice recording, relayed to the provider's /audio/transcriptions with the operator's key.
 # POST only, same origin only, multipart only, at most 1 MiB (about 30 s of Opus / AAC).
 location = /ai/v1/audio/transcriptions {
@@ -104,7 +109,7 @@ location @ai_nutrition_coach_tx_proxy {
     proxy_intercept_errors on;
     error_page 400 = @ai_nutrition_coach_ai_badrequest;
     error_page 429 = @ai_nutrition_coach_ai_busy;
-    error_page 401 402 403 404 405 406 407 408 409 410 411 412 414 415 416 417 418 421 422 423 424 425 426 428 431 451 500 501 502 503 504 505 507 = @ai_nutrition_coach_ai_refused;
+    error_page 401 402 403 404 405 406 407 408 409 410 411 412 414 415 416 417 418 421 422 423 424 425 426 428 431 451 413 500 501 502 503 504 505 507 = @ai_nutrition_coach_ai_refused;
 
     proxy_pass $anc_ai_upstream;
 }

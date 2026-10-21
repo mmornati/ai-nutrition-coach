@@ -149,11 +149,17 @@ tx_model="${AI_PROXY_TRANSCRIPTION_MODEL:-whisper-1}"
 tx_rate="${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}"
 tx_rate_all="${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}"
 tx_burst="${AI_PROXY_TRANSCRIPTION_BURST:-2}"
-matches '^[A-Za-z0-9._:/@+-]{1,128}$' "$tx_model" \
-  || die "AI_PROXY_TRANSCRIPTION_MODEL must be 1-128 characters of A-Z a-z 0-9 . _ : / @ + - (e.g. whisper-1)."
-matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate" || die "AI_PROXY_TRANSCRIPTION_RATE must look like 6r/m or 1r/s."
-matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate_all" || die "AI_PROXY_TRANSCRIPTION_RATE_ALL must look like 20r/m or 1r/s."
-matches '^[0-9]{1,3}$' "$tx_burst" || die "AI_PROXY_TRANSCRIPTION_BURST must be a whole number up to 999."
+# Only validated when the voice route is on: a bad value must not stop the chat proxy.
+if [ "$tx" = "1" ]; then
+  matches '^[A-Za-z0-9._:/@+-]{1,128}$' "$tx_model" \
+    || die "AI_PROXY_TRANSCRIPTION_MODEL must be 1-128 characters of A-Z a-z 0-9 . _ : / @ + - (e.g. whisper-1)."
+  matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate" || die "AI_PROXY_TRANSCRIPTION_RATE must look like 6r/m or 1r/s."
+  matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate_all" || die "AI_PROXY_TRANSCRIPTION_RATE_ALL must look like 20r/m or 1r/s."
+  matches '^[0-9]{1,3}$' "$tx_burst" || die "AI_PROXY_TRANSCRIPTION_BURST must be a whole number up to 999."
+else
+  # Off: the (unused) zones still render, so ignore whatever was set and use the defaults.
+  tx_model="whisper-1"; tx_rate="6r/m"; tx_rate_all="20r/m"; tx_burst="2"
+fi
 
 # A value must not contain a placeholder of its own (substitution is not re-entrant).
 for v in "$key" "$upstream" "$model" "$label" "$rate" "$rate_all" "$resolver" "$tx_model" "$tx_rate" "$tx_rate_all"; do

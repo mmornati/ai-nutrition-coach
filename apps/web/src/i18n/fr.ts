@@ -404,6 +404,8 @@ export const fr: Strings = {
         'Activé : chaque photo demande son propre accord. Désactivé : vous acceptez une fois par service, puis les photos partent sans demander, jusqu’à ce que vous révoquiez cet accord ci-dessous.',
       voiceModelLabel: 'Modèle vocal',
       voiceModelHint: 'p. ex. whisper-1',
+      voiceModelInvalid:
+        'Utilisez uniquement des lettres, des chiffres et les signes . _ / @ + - (128 caractères au plus), ou laissez vide.',
       voiceModelHelp:
         'Transforme un court enregistrement en texte pour Décrire, au même point d’accès. Laissez vide pour whisper-1. Si votre service n’a pas un tel modèle, le bouton du micro reste masqué.',
       instanceVoice: 'Voix en texte : {model}',

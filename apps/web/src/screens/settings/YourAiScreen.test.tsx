@@ -530,6 +530,16 @@ describe('YourAiScreen: describing a meal with AI', () => {
     );
   });
 
+  it('refuses a voice model that is not a model name, calmly, and saves nothing', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    await user.type(screen.getByLabelText('Voice model'), 'bad model;');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(/Use letters, digits and/)).toBeVisible();
+    expect(await storedSettings(bundle)).not.toContain('bad model');
+    expect(screen.getByLabelText('Voice model')).toHaveAttribute('maxlength', '128');
+  });
+
   it('names the server’s voice model when it offers one', async () => {
     const fake = new FakeFetch();
     fake.instanceConfig = {

@@ -111,12 +111,14 @@ function body(r) {
 //   - one `model` part equal to the operator's AI_PROXY_TRANSCRIPTION_MODEL (the app reads it
 //     from /ai/config.json): a visitor cannot pick another model, a request that tries is a 400;
 //   - optionally `language` (a short code) and `response_format` (`json`);
+//   - the boundary string occurs nowhere but at the delimiters (no padded / LF-only / hidden delimiter);
 //   - nothing else (no `prompt`, no `temperature`, no timestamp options, no repeated part).
 //
 // Anything else is a 400 and never reaches the provider. Size and rate are bounded by nginx.
 
-var TX_FILE_HEADER = /^content-disposition: form-data; name="file"; filename="[A-Za-z0-9._ -]{1,100}"$/i;
-var TX_FIELD_HEADER = /^content-disposition: form-data; name="(model|language|response_format)"$/i;
+var TX_FILE_HEADER = /^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Dd][Ii][Ss][Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn]: form-data; name="file"; filename="[A-Za-z0-9._ -]{1,100}"$/;
+// Header NAME matched case-insensitively (by spelling it out); field NAMES are case-sensitive.
+var TX_FIELD_HEADER = /^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Dd][Ii][Ss][Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn]: form-data; name="(model|language|response_format)"$/;
 var TX_TYPE_HEADER = /^content-type: (audio|video)\/[A-Za-z0-9.+-]{1,30}(; ?[A-Za-z0-9=.+, -]{1,60})?$/i;
 var TX_BOUNDARY = /^multipart\/form-data; ?boundary=([A-Za-z0-9'()+_,.\/:=?-]{1,70})$/i;
 var TX_LANGUAGE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
@@ -135,6 +137,7 @@ function checkTranscription(buf, contentType, model) {
   var closer = Buffer.from('\r\n' + delim + '--');
   var blank = Buffer.from('\r\n\r\n');
   var seen = {};
+  var parts = 0;
   var pos = first.length;
   for (;;) {
     // The next boundary, scanning forward like the provider's parser does: a part separator, or
@@ -169,10 +172,23 @@ function checkTranscription(buf, contentType, model) {
     }
     if (seen[name]) return false;
     seen[name] = 1;
+    parts += 1;
     if (last) break;
     pos = next + sep.length;
   }
-  return !!(seen.file && seen.model);
+  if (!(seen.file && seen.model)) return false;
+  // Parser-differential guard: the boundary string must occur ONLY at the delimiters walked above
+  // (one opening, one per separator, one closing = parts + 1). Transport padding (`--B \r\n`),
+  // bare LF / CR delimiters or any `--B` hidden inside a part would be read as a real boundary by a
+  // lenient provider parser, so such a body is refused.
+  var needle = Buffer.from(delim);
+  var count = 0;
+  var at = buf.indexOf(needle, 0);
+  while (at >= 0) {
+    count += 1;
+    at = buf.indexOf(needle, at + needle.length);
+  }
+  return count === parts + 1;
 }
 
 function txGate(r) {

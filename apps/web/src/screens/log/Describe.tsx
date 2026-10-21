@@ -90,12 +90,35 @@ export function Describe({
       recorder.current?.cancel();
     };
   }, []);
+  // Leaving the page (a tab switch, a lock, the app going to the background) ends a recording and
+  // DROPS the audio: nothing is uploaded from a recording the person walked away from.
+  useEffect(() => {
+    const drop = (): void => {
+      const active = recorder.current;
+      if (active === null) return;
+      active.cancel();
+      recorder.current = null;
+      setMic('idle');
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') drop();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', drop);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', drop);
+    };
+  }, []);
+  const status = state.status;
   useEffect(() => {
     if (consentFor !== null) consentRef.current?.querySelector('button')?.focus();
   }, [consentFor]);
 
-  const status = state.status;
   const destination = status.kind === 'noAi' ? null : status.destination;
+  // The AI went away (settings changed elsewhere): the card goes with it, never leaving a sheet
+  // with nothing to answer.
+  const consentOpen = consentFor !== null && destination !== null;
   const viaServer = destination !== null && destination.label !== null;
 
   const runLocal = async (): Promise<void> => {
@@ -312,7 +335,7 @@ export function Describe({
         {live}
       </p>
 
-      {consentFor !== null && destination !== null && (
+      {consentOpen && destination !== null && (
         <section
           ref={consentRef}
           aria-labelledby={headingId}
@@ -364,7 +387,7 @@ export function Describe({
         </section>
       )}
 
-      {consentFor === null && (
+      {!consentOpen && (
         <>
           <div className="flex flex-col gap-1">
             <p role="note" className="text-body-small text-porcelain-dim">

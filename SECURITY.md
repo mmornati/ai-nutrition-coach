@@ -78,7 +78,7 @@ does not protect:
   (it does not rewrite binary audio), so a visitor cannot pick a dearer model or add a prompt. Rate limits are its own
   (6 a minute per address, 20 for the instance). Not protected, as above: anyone who can reach the instance can spend the
   key through it within those limits; the audio goes to the provider and is not stored by this software. Transcription
-  only: no speaker is identified (`docs/adults-only.md`). The app's `Permissions-Policy` allows the microphone for its own
+  only: no speaker is identified (`docs/adults-only.md`). A multipart POST needs no CORS preflight, so unlike the JSON chat route this one relies on the `Sec-Fetch-Site` / `Origin` checks (sent by every modern browser on a cross-origin POST) as its cross-site defence, with the rate limits behind them. The app's `Permissions-Policy` allows the microphone for its own
   origin only, and only a tap starts it.
 - **A privacy trade-off, disclosed in the app:** a photo sent this way passes through the operator's server before it
   reaches the provider. The consent dialog says so, and the server relays it without storing it.

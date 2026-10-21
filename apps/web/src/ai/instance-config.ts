@@ -32,7 +32,7 @@ export const INSTANCE_CONFIG_PATH = '/ai/config.json';
 export const INSTANCE_BASE_PATH = '/ai/v1';
 
 /** Bounds mirror what `40-render-ai-proxy.sh` accepts. */
-const MODEL_PATTERN = /^[A-Za-z0-9._:/@+-]{1,128}$/;
+export const MODEL_PATTERN = /^[A-Za-z0-9._:/@+-]{1,128}$/;
 const LABEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._()+-]{0,59}$/;
 /** A few hundred bytes: anything bigger is not our file. */
 const MAX_CONFIG_BYTES = 4096;

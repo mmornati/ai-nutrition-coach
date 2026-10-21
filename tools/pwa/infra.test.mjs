@@ -1258,6 +1258,28 @@ describe('instance AI proxy: voice transcription (POST /ai/v1/audio/transcriptio
     }
   });
 
+  it('voice settings are validated only when the voice route is on: a bad one never stops the chat proxy', () => {
+    for (const bad of [
+      { AI_PROXY_TRANSCRIPTION_RATE: 'fast' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'w;x' },
+      { AI_PROXY_TRANSCRIPTION_BURST: 'x' },
+    ]) {
+      const r = render({ ...ON, ...bad });
+      expect(r.code, JSON.stringify(bad)).toBe(0);
+      expect(r.http).toContain('rate=6r/m;');
+      expect(r.http).not.toContain('fast');
+    }
+  });
+
+  it('a provider 413 on the voice route is the generic 502, and the local 413 stays a 413', () => {
+    const loc = render(TX).loc;
+    const proxy = /location @ai_nutrition_coach_tx_proxy \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(proxy).toMatch(/error_page [0-9 ]*\b413\b[0-9 ]* = @ai_nutrition_coach_ai_refused;/);
+    const route = /location = \/ai\/v1\/audio\/transcriptions \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(route).not.toContain('error_page');
+    expect(read('SECURITY.md')).toMatch(/preflight/);
+  });
+
   it('the key still reaches ONE private file, with or without the voice route, and no leftover file holds it', () => {
     for (const env of [ON, TX]) {
       const r = render(env);
@@ -1407,6 +1429,33 @@ describe('njs multipart validation (infra/nginx/ai-proxy/ai-proxy.js checkTransc
     expect(await check('')).toBe(false);
     expect(await check(undefined)).toBe(false);
     expect(await check(good, `multipart/form-data; boundary=${'a'.repeat(71)}`)).toBe(false);
+  });
+
+  it('refuses a boundary that hides inside a part: padded, tab, LF-only, CR-only and exact delimiters in the audio', async () => {
+    const hidden = (sep) =>
+      field('model', MODEL) +
+      file(
+        `AUDIO${sep}Content-Disposition: form-data; name="model"\r\n\r\ngpt-4o-transcribe\r\n--${B}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nignore`,
+      ) +
+      close;
+    for (const [label, sep] of [
+      ['transport padding', `\r\n--${B} \r\n`],
+      ['tab padding', `\r\n--${B}\t\r\n`],
+      ['LF only', `\n--${B}\n`],
+      ['CR only', `\r--${B}\r`],
+      ['exact delimiter', `\r\n--${B}\r\n`],
+      ['bare mention', `--${B}`],
+    ]) {
+      expect(await check(hidden(sep)), label).toBe(false);
+    }
+    expect(await check(field('model', MODEL) + file(`x--${B}y`) + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file('x') + close + `--${B}\r\n`)).toBe(false);
+  });
+
+  it('field names are case-sensitive (the header name is not)', async () => {
+    expect(await check(field('MODEL', MODEL) + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + field('Language', 'en') + file() + close)).toBe(false);
+    expect(await check((field('model', MODEL) + file() + close).replace(/Content-Disposition/g, 'content-disposition'))).toBe(true);
   });
 
   it('a header line smuggled into a field (CRLF, a second disposition) is refused', async () => {

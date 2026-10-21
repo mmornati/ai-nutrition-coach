@@ -392,6 +392,10 @@ test('a focused control is never hidden behind the floating Log button on a phon
   page,
 }) => {
   test.setTimeout(120_000);
+  // The coach asks its question only outside the late slot, so pin the clock to lunch time.
+  const lunch = new Date();
+  lunch.setHours(12, 30, 0, 0);
+  await page.clock.setFixedTime(lunch);
   await freshStart(page);
   await createStore(page);
   await logSalmonByTypingIt(page);

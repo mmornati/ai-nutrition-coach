@@ -25,7 +25,7 @@ describe('splitDescription', () => {
       'une pomme',
       'un café',
     ]);
-    expect(splitDescription('tea & toast + jam plus honey puis cake then soup')).toEqual([
+    expect(splitDescription('tea + toast + jam plus honey puis cake then soup')).toEqual([
       'tea',
       'toast',
       'jam',
@@ -44,6 +44,26 @@ describe('splitDescription', () => {
       splitDescription(Array.from({ length: 15 }, (_, i) => `food${i}`).join(', ')),
     ).toHaveLength(10);
     expect(Array.from(splitDescription('z'.repeat(200))[0] ?? '')).toHaveLength(60);
+  });
+});
+
+describe('accents and "&"', () => {
+  it('does not treat the start of an accented word as a unit or amount', () => {
+    expect(searchTermOf('2 gâteaux')).toBe('gâteaux');
+    expect(searchTermOf('1 gésier')).toBe('gésier');
+    expect(searchTermOf('3 légumes')).toBe('légumes');
+    expect(searchTermOf('1 l’orange')).toBe('orange');
+    expect(searchTermOf('un œuf')).toBe('œuf');
+    expect(searchTermOf('2 grapefruits')).toBe('grapefruits');
+    expect(searchTermOf('apple')).toBe('apple');
+    expect(searchTermOf('une glace')).toBe('glace');
+  });
+
+  it('keeps "mac & cheese" and "fish & chips" whole', () => {
+    expect(splitDescription('mac & cheese, fish & chips')).toEqual([
+      'mac & cheese',
+      'fish & chips',
+    ]);
   });
 });
 

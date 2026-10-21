@@ -4,6 +4,7 @@ import { TierRadio, type Tier } from '../../components/shell';
 import { fill, useStrings } from '../../i18n';
 import {
   describeInstanceConsent,
+  MODEL_PATTERN,
   filterKeyInput,
   KEY_FIELD_ATTRIBUTES,
   keySavedText,
@@ -148,6 +149,7 @@ export function YourAiScreen() {
   const [endpoint, setEndpoint] = useState(settings.byokEndpointUrl);
   const [model, setModel] = useState(settings.byokModel);
   const [voiceModel, setVoiceModel] = useState(settings.byokTranscriptionModel);
+  const [voiceModelBad, setVoiceModelBad] = useState(false);
   const [key, setKey] = useState('');
   const [removed, setRemoved] = useState(false);
   const formId = useId();
@@ -181,7 +183,13 @@ export function YourAiScreen() {
 
   const save = async () => {
     setRemoved(false);
-    await ai.setTranscriptionModel(voiceModel);
+    const typed = voiceModel.trim();
+    if (typed !== '' && !MODEL_PATTERN.test(typed)) {
+      setVoiceModelBad(true);
+      return;
+    }
+    setVoiceModelBad(false);
+    await ai.setTranscriptionModel(typed);
     const saved = await ai.save({ endpointUrl: endpoint, model, newKey: key });
     if (saved) setKey('');
   };
@@ -270,9 +278,11 @@ export function YourAiScreen() {
               autoCorrect="off"
               spellCheck={false}
               value={voiceModel}
-              message={c.voiceModelHelp}
+              maxLength={128}
+              message={voiceModelBad ? c.voiceModelInvalid : c.voiceModelHelp}
               onChange={(e) => {
                 setVoiceModel(e.target.value);
+                setVoiceModelBad(false);
                 ai.clearMessage();
               }}
             />

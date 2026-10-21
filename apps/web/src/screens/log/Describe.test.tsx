@@ -372,6 +372,7 @@ describe('Describe: voice', () => {
     await user.type(field(sheet), 'rice');
     const talk = await within(sheet).findByRole('button', { name: d.talk });
     await user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
     fetch.jsonBody = { text: 'and an apple' };
     await user.click(talk);
     await waitFor(() => expect(field(sheet)).toHaveValue('rice and an apple'));
@@ -418,6 +419,7 @@ describe('Describe: voice', () => {
     const { user, sheet } = await start({ byok: true, agreed: true, voice, fetch });
     const talk = await within(sheet).findByRole('button', { name: d.talk });
     await user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
     fetch.status = 404;
     await user.click(talk);
     expect(await within(sheet).findByText(d.voiceUnsupported)).toBeVisible();
@@ -431,6 +433,7 @@ describe('Describe: voice', () => {
     const a = await start({ byok: true, agreed: true, voice: quiet });
     const talk = await within(a.sheet).findByRole('button', { name: d.talk });
     await a.user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
     await a.user.click(talk);
     expect(await within(a.sheet).findByText(d.heardNothing)).toBeVisible();
   });
@@ -446,11 +449,54 @@ describe('Describe: voice', () => {
     });
     const talk = await within(sheet).findByRole('button', { name: d.talk });
     await user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
     fetch.jsonBody = { text: 'salmon' };
     await user.click(talk);
     await waitFor(() => expect(field(sheet)).toHaveValue('salmon'));
     expect(fetch.last.url).toMatch(/\/ai\/v1\/audio\/transcriptions$/);
     expect(fetch.last.headers['authorization']).toBeUndefined();
     expect((fetch.last.init.body as FormData).get('model')).toBe('whisper-x');
+  });
+});
+
+describe('Describe: leaving the page and losing the AI', () => {
+  it('a recording is dropped, never uploaded, when the page is hidden', async () => {
+    const voice = fakeVoiceEnv();
+    const fetch = new FakeFetch();
+    const { user, sheet } = await start({ byok: true, agreed: true, voice, fetch });
+    const talk = await within(sheet).findByRole('button', { name: d.talk });
+    await user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
+    const before = fetch.requests.length;
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'false'));
+    expect(voice.streams[0]?.track.stopped).toBe(true);
+    expect(field(sheet)).toHaveValue('');
+    expect(fetch.requests).toHaveLength(before);
+    // pagehide does the same.
+    await user.click(talk);
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'true'));
+    await act(async () => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    await waitFor(() => expect(talk).toHaveAttribute('aria-pressed', 'false'));
+    expect(fetch.requests).toHaveLength(before);
+  });
+
+  it('the consent card goes away when the AI does, so the sheet is never left without buttons', async () => {
+    const { user, sheet } = await start({ byok: true });
+    await user.type(field(sheet), 'salmon');
+    await user.click(within(sheet).getByRole('button', { name: d.find }));
+    await within(sheet).findByRole('region', { name: /Send your words/ });
+    await act(async () => {
+      await (grabbed as Session).ai.settings.setRung({ kind: 'noOp' });
+    });
+    await waitFor(() => expect(within(sheet).queryByRole('region')).not.toBeInTheDocument());
+    expect(within(sheet).getByRole('button', { name: d.find })).toBeVisible();
+    expect(within(sheet).getByRole('button', { name: d.typeInstead })).toBeVisible();
   });
 });

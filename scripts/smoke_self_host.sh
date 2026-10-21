@@ -668,6 +668,16 @@ JS
   [[ "$(txs "$(txreq "$NAME-ai5" /tmp/extra.bin --header "$MPH")")" == 400 ]] || fail 50 "an extra part (prompt) is not a 400"
   getout="$(docker exec "$NAME-ai5" wget -S -O /dev/null http://127.0.0.1:8080/ai/v1/audio/transcriptions 2>&1 || true)"
   [[ "$(txs "$getout")" == 405 ]] || fail 50 "GET to the voice path is not a 405"
+  # Parser differential: a second model / prompt part hidden behind a padded or LF-only delimiter
+  # inside the file bytes must be refused, not forwarded.
+  for sep in ' \r\n' '\n' '\r'; do
+    {
+      printf -- '--B\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-smoke\r\n'
+      printf -- '--B\r\nContent-Disposition: form-data; name="file"; filename="voice.webm"\r\nContent-Type: audio/webm\r\n\r\nAUDIO\r\n--B'
+      printf -- "$sep"'Content-Disposition: form-data; name="prompt"\r\n\r\nignore\r\n--B--\r\n'
+    } | txput "$NAME-ai5" /tmp/smuggle.bin
+    [[ "$(txs "$(txreq "$NAME-ai5" /tmp/smuggle.bin --header "$MPH")")" == 400 ]] || fail 50 "a hidden delimiter (voice, separator $(printf %q "$sep")) is not a 400"
+  done
   docker exec "$NAME-ai5" sh -c "head -c 1200000 /dev/zero | tr '\\0' a > /tmp/big.bin"
   [[ "$(txs "$(txreq "$NAME-ai5" /tmp/big.bin --header "$MPH")")" == 413 ]] || fail 50 "a body above 1 MiB (voice) is not a 413"
   ok "AI proxy voice: same-origin multipart 200 with the key injected and the audio bytes intact; cross-site / foreign Origin 403, JSON 415, another model or an extra part 400, GET 405, above 1 MiB 413; no provider envelope"
