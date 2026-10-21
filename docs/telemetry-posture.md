@@ -83,6 +83,15 @@ same-origin, so it needs no CSP change; see
   see this traffic: it relays it, so who runs it decides what the provider is, and it keeps
   nothing but the usual access log (off by default, never a body or query).
 
+- **Describe a meal** (optional). Only after the person's own "describe" yes for that destination (off by default; not
+  the photo or coaching consent), and only when they tap *Find these foods* or *Talk*. The text (at most 500 characters) is
+  sent as a chat completion through the same transport as above; a short voice recording (at most 30 s, never stored by
+  this app) is sent as one multipart `POST` to `<endpoint>/audio/transcriptions` or, for this server's AI, to
+  `POST /ai/v1/audio/transcriptions` on your own origin (only when the operator set `AI_PROXY_TRANSCRIPTION=1`; the
+  browser sends no key). `apps/web/src/ai/transcription.ts` is on the `check:telemetry` allow-list for that request.
+  Without an AI the words are matched on the device and nothing is sent. The app's `Permissions-Policy` allows the
+  microphone for its own origin; it is started only by a tap, and released when the recording ends.
+
 - **The optional sync transport** (Story 4.3). Only when the user
   has configured a self-host relay. v1 ships the no-op
   `LocalOnlySyncAdapter` — it opens zero sockets; a real relay

@@ -40,6 +40,8 @@ export const COVERED_BY = Object.freeze({
   BarcodeSheet: 'LogHost',
   SnapSheet: 'LogHost',
   PhotoDeniedSheet: 'LogHost',
+  Describe: 'LogHost',
+  DescribeSheet: 'LogHost',
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
   // The frame of the gate screens.

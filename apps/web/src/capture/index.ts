@@ -38,3 +38,22 @@ export {
 export { usePhotoFlow, type UsePhotoFlowDeps } from './usePhotoFlow';
 export { PhotoCapture } from './PhotoCapture';
 export { CameraNotice } from './CameraNotice';
+export {
+  describeLocally,
+  searchTermOf,
+  splitDescription,
+  MAX_DESCRIBED_PIECES,
+  type LocalDescription,
+} from './describe-local';
+export {
+  VoiceRecorder,
+  browserVoiceEnv,
+  pickRecorderMime,
+  voiceRecordingSupported,
+  MAX_RECORDING_MS,
+  RECORDER_MIME_CANDIDATES,
+  type RecorderLike,
+  type RecorderStart,
+  type RecorderStop,
+  type VoiceEnv,
+} from './voice-recorder';

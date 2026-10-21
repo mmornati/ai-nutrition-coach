@@ -1,0 +1,110 @@
+# Instance AI proxy -- voice transcription locations, appended to the locations file by
+# 40-render-ai-proxy.sh ONLY when AI_PROXY_TRANSCRIPTION=1 (default off). Same placeholders and the
+# same privacy rules as the chat location: the key is injected here, nothing the browser sent is
+# forwarded except the multipart Content-Type, and every provider answer becomes generic JSON.
+
+# One short voice recording, relayed to the provider's /audio/transcriptions with the operator's key.
+# POST only, same origin only, multipart only, at most 1 MiB (about 30 s of Opus / AAC).
+location = /ai/v1/audio/transcriptions {
+    default_type application/json;
+    if ($request_method != POST) { return 405 '{"error":"method_not_allowed"}'; }
+    if ($content_type !~* "^multipart/form-data;") { return 415 '{"error":"multipart_only"}'; }
+    if ($anc_ai_sfs_bad) { return 403 '{"error":"same_origin_only"}'; }
+    if ($anc_ai_origin_bad) { return 403 '{"error":"same_origin_only"}'; }
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+
+    # A recording is at most about 120 KB; 1 MiB is the ceiling (413 above it). Kept in memory so
+    # njs can check what is inside before anything is sent to the provider.
+    client_max_body_size 1m;
+    client_body_buffer_size 1m;
+    client_body_timeout 30s;
+
+    # Its own limits, per client address AND for the whole instance (both must allow the request).
+    limit_req zone=ai_nutrition_coach_tx burst=@@ANC_AI_TX_BURST@@ nodelay;
+    limit_req zone=ai_nutrition_coach_tx_rall burst=@@ANC_AI_TX_BURST@@ nodelay;
+    limit_req_status 429;
+    limit_conn ai_nutrition_coach_ai_ip @@ANC_AI_CONN@@;
+    limit_conn ai_nutrition_coach_ai_all 16;
+    limit_conn_status 429;
+
+    error_log /dev/stderr crit;
+
+    # njs checks the multipart structure and the forced model, then hands the request (body
+    # unchanged) to the proxying location below, or answers a generic 400.
+    set $anc_ai_tx_model "@@ANC_AI_TX_MODEL@@";
+    js_content anc_ai.txGate;
+}
+
+location @ai_nutrition_coach_tx_proxy {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    error_log /dev/stderr crit;
+
+    resolver @@ANC_AI_RESOLVER@@ valid=30s ipv6=off;
+    resolver_timeout 5s;
+
+    set $anc_ai_upstream "@@ANC_AI_URL_TX@@";
+
+    proxy_http_version 1.1;
+    proxy_pass_request_headers off;
+    proxy_pass_request_body on;
+    proxy_set_header Host "@@ANC_AI_HOST@@";
+    proxy_set_header Authorization "Bearer @@ANC_AI_KEY@@";
+    # Only the multipart type (it carries the boundary); njs has already validated the body.
+    proxy_set_header Content-Type $content_type;
+    proxy_set_header Accept "application/json";
+    proxy_set_header User-Agent "ai-nutrition-coach-proxy";
+    proxy_set_header Connection "";
+
+    proxy_ssl_server_name on;
+    proxy_ssl_name "@@ANC_AI_HOST@@";
+    proxy_ssl_verify on;
+    proxy_ssl_verify_depth 3;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    proxy_ssl_protocols TLSv1.2 TLSv1.3;
+
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 30s;
+    proxy_read_timeout 50s;
+    proxy_max_temp_file_size 0;
+    proxy_redirect off;
+
+    proxy_hide_header Set-Cookie;
+    proxy_hide_header Authorization;
+    proxy_hide_header Location;
+    proxy_hide_header Server;
+    proxy_hide_header Via;
+    proxy_hide_header Alt-Svc;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_hide_header Access-Control-Allow-Credentials;
+    proxy_hide_header Access-Control-Allow-Headers;
+    proxy_hide_header Access-Control-Allow-Methods;
+    proxy_hide_header Access-Control-Expose-Headers;
+    proxy_hide_header Access-Control-Max-Age;
+    proxy_hide_header OpenAI-Organization;
+    proxy_hide_header OpenAI-Project;
+    proxy_hide_header OpenAI-Processing-Ms;
+    proxy_hide_header OpenAI-Version;
+    proxy_hide_header X-Request-Id;
+    proxy_hide_header X-RateLimit-Limit;
+    proxy_hide_header X-RateLimit-Remaining;
+    proxy_hide_header X-RateLimit-Reset;
+    proxy_hide_header X-RateLimit-Limit-Requests;
+    proxy_hide_header X-RateLimit-Limit-Tokens;
+    proxy_hide_header X-RateLimit-Remaining-Requests;
+    proxy_hide_header X-RateLimit-Remaining-Tokens;
+    proxy_hide_header X-RateLimit-Reset-Requests;
+    proxy_hide_header X-RateLimit-Reset-Tokens;
+    proxy_hide_header CF-RAY;
+
+    # Same generic errors as the chat location (the provider's text is never shown).
+    proxy_intercept_errors on;
+    error_page 400 = @ai_nutrition_coach_ai_badrequest;
+    error_page 429 = @ai_nutrition_coach_ai_busy;
+    error_page 401 402 403 404 405 406 407 408 409 410 411 412 414 415 416 417 418 421 422 423 424 425 426 428 431 451 500 501 502 503 504 505 507 = @ai_nutrition_coach_ai_refused;
+
+    proxy_pass $anc_ai_upstream;
+}

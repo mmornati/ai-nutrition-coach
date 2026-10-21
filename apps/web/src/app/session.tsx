@@ -255,6 +255,7 @@ export async function createSession(
       abort.abort();
       stopWatching();
       ai.coaching.dispose();
+      ai.describe.dispose();
       catalog.clearCaches();
       ai.permit.close();
       stopScoping();

@@ -21,6 +21,12 @@ export const KV_KEYS = Object.freeze({
    * photo consent, which lives in `ai.settings`.
    */
   aiCoachingConsent: 'ai.coachingConsent',
+  /**
+   * `{ "host": "<destination>" }`: the person agreed to send what they type or say to describe a
+   * meal (a short text, or a short voice recording) to an AI, for that destination only. Absent
+   * means no (the default). Neither the photo consent nor the coaching consent.
+   */
+  aiDescribeConsent: 'ai.describeConsent',
   /** The BYOK API key. A secret: protected by the database key, never logged, never exported. */
   aiByokKey: 'ai.byokKey',
   /** UTC ISO-8601 time of the last successful export. */

@@ -5,7 +5,8 @@ import { cappedFetch, type FetchLike } from '../net/capped-fetch';
  * The instance-wide AI tier: the person who hosts this app may keep ONE AI key on the server
  * (`AI_PROXY_*` in `infra/server.env`, docs/self-host.md). nginx relays `POST /ai/v1/chat/completions`
  * to the provider with that key; the browser sends no key and never sees it. What the browser CAN
- * read is `GET /ai/config.json`: whether the proxy is on, the model it uses and a short label for the
+ * read is `GET /ai/config.json`: whether the proxy is on, the model it uses, whether it also turns a
+ * short voice recording into text (and with which model), and a short label for the
  * provider, nothing else (no key, no upstream address).
  *
  * The file is untrusted input (any server can answer that path, a captive portal included), so it
@@ -13,7 +14,16 @@ import { cappedFetch, type FetchLike } from '../net/capped-fetch';
  */
 export type InstanceAiConfig =
   | { readonly enabled: false }
-  | { readonly enabled: true; readonly model: string; readonly label: string };
+  | {
+      readonly enabled: true;
+      readonly model: string;
+      readonly label: string;
+      /**
+       * The model this server uses to turn a short voice recording into text, when it offers that
+       * (`AI_PROXY_TRANSCRIPTION=1`). The proxy accepts a recording only with exactly this model.
+       */
+      readonly transcriptionModel?: string;
+    };
 
 export const INSTANCE_AI_OFF: InstanceAiConfig = Object.freeze({ enabled: false });
 
@@ -37,6 +47,11 @@ export function parseInstanceAiConfig(value: unknown): InstanceAiConfig {
   const { model, label } = o;
   if (typeof model !== 'string' || !MODEL_PATTERN.test(model)) return INSTANCE_AI_OFF;
   if (typeof label !== 'string' || !LABEL_PATTERN.test(label)) return INSTANCE_AI_OFF;
+  // Voice to text is a separate, optional offer: `transcription: true` AND a valid model name.
+  const tx = o['transcriptionModel'];
+  if (o['transcription'] === true && typeof tx === 'string' && MODEL_PATTERN.test(tx)) {
+    return { enabled: true, model, label, transcriptionModel: tx };
+  }
   return { enabled: true, model, label };
 }
 
@@ -167,7 +182,8 @@ export class InstanceAiSource {
       (!next.enabled ||
         (this.#config.enabled &&
           next.model === this.#config.model &&
-          next.label === this.#config.label));
+          next.label === this.#config.label &&
+          next.transcriptionModel === this.#config.transcriptionModel));
     this.#config = next;
     if (same) return;
     this.#view = this.#makeView();

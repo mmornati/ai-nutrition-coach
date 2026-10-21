@@ -34,6 +34,8 @@ export interface RecognizedMatchSheetProps {
   readonly aiSetupHref?: string | undefined;
   /** This server offers AI the person has not turned on: the no-AI hint points at it. */
   readonly instanceOffered?: boolean | undefined;
+  /** What the result came from. `description`: words the person wrote or said (Describe a meal). */
+  readonly source?: 'photo' | 'description' | undefined;
 }
 
 interface Candidate {
@@ -68,12 +70,20 @@ function describe(
   s: Strings,
   errorMessage: string | undefined,
   instanceOffered = false,
+  source: 'photo' | 'description' = 'photo',
 ): { title: string; subtitle: string | undefined; needsSetup: boolean } {
   const r = s.recognized;
   switch (result.kind) {
     case 'recognizedPlate':
       if (result.foods.length === 0) {
         return { title: r.nothingMatched, subtitle: r.pickOrType, needsSetup: false };
+      }
+      if (source === 'description') {
+        return {
+          title: plural(r.describedLooked, result.foods.length),
+          subtitle: r.describedHint,
+          needsSetup: false,
+        };
       }
       return {
         title: plural(r.lookedLike, result.foods.length),
@@ -163,7 +173,10 @@ function Body({
   onLog,
   errorMessage,
   setupLink,
-}: Omit<RecognizedMatchSheetProps, 'open' | 'onClose' | 'aiSetupHref' | 'instanceOffered'> & {
+}: Omit<
+  RecognizedMatchSheetProps,
+  'open' | 'onClose' | 'aiSetupHref' | 'instanceOffered' | 'source'
+> & {
   readonly setupLink: ReactNode;
 }) {
   const s = useStrings();
@@ -358,9 +371,16 @@ export function RecognizedMatchSheet({
   errorMessage,
   aiSetupHref,
   instanceOffered,
+  source,
 }: RecognizedMatchSheetProps) {
   const s = useStrings();
-  const { title, subtitle, needsSetup } = describe(result, s, errorMessage, instanceOffered);
+  const { title, subtitle, needsSetup } = describe(
+    result,
+    s,
+    errorMessage,
+    instanceOffered,
+    source,
+  );
   const shownInSubtitle = result.kind === 'recognitionFailure' && result.cause !== 'noAi';
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={subtitle} focusTitle>

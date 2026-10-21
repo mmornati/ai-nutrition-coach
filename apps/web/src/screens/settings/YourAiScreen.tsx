@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { Button, TextField } from '../../components/primitives';
 import { TierRadio, type Tier } from '../../components/shell';
 import { fill, useStrings } from '../../i18n';
@@ -78,6 +78,59 @@ function CoachingSection() {
 }
 
 /**
+ * The "Describe a meal" consent, apart from the photo and coaching consents: "Let the AI read what
+ * I describe". Off by default, per destination, and it lapses by itself if the destination changes.
+ * The same shape as the coaching switch.
+ */
+function DescribeSection() {
+  const c = useStrings().ai.yourAi;
+  const { ai } = useSession();
+  const { describe } = ai;
+  const state = useSyncExternalStore(describe.subscribe, describe.getSnapshot);
+  const [failed, setFailed] = useState(false);
+  const status = state.status;
+  const on = status.kind === 'ready';
+
+  const change = async (next: boolean) => {
+    try {
+      if (next) await describe.grant();
+      else await describe.revoke();
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  };
+
+  const destination =
+    status.kind === 'noAi'
+      ? c.describeNeedsAi
+      : status.destination.label !== null
+        ? fill(c.describeDestinationInstance, {
+            host: status.destination.host,
+            label: status.destination.label,
+          })
+        : fill(c.describeDestinationByok, { host: status.destination.host });
+
+  return (
+    <Section title={c.describeHeading}>
+      <Prose>{c.describeIntro}</Prose>
+      <SwitchRow
+        title={c.describeSwitch}
+        help={on ? c.describeSwitchHelpOn : c.describeSwitchHelpOff}
+        checked={on}
+        disabled={status.kind === 'noAi'}
+        onChange={(next) => void change(next)}
+      />
+      <Prose>{c.describeSent}</Prose>
+      <Prose>{destination}</Prose>
+      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+        {failed ? c.coachingSaveFailed : ''}
+      </p>
+    </Section>
+  );
+}
+
+/**
  * Settings, Your AI. Choose how a photo is recognised (No AI, the AI this server offers while it
  * offers one, or My own key; the hosted and on-device rungs are listed as not available yet), set
  * the endpoint, model and key, test the connection, and manage which services may receive photos.
@@ -94,6 +147,7 @@ export function YourAiScreen() {
   const [byokChosen, setByokChosen] = useState(settings.rung.kind === 'byok');
   const [endpoint, setEndpoint] = useState(settings.byokEndpointUrl);
   const [model, setModel] = useState(settings.byokModel);
+  const [voiceModel, setVoiceModel] = useState(settings.byokTranscriptionModel);
   const [key, setKey] = useState('');
   const [removed, setRemoved] = useState(false);
   const formId = useId();
@@ -127,6 +181,7 @@ export function YourAiScreen() {
 
   const save = async () => {
     setRemoved(false);
+    await ai.setTranscriptionModel(voiceModel);
     const saved = await ai.save({ endpointUrl: endpoint, model, newKey: key });
     if (saved) setKey('');
   };
@@ -169,6 +224,9 @@ export function YourAiScreen() {
             {fill(c.instanceExplain, { host: instance.host, label: instance.config.label })}
           </Prose>
           <Prose>{fill(c.instanceModel, { model: instance.config.model })}</Prose>
+          {instance.config.transcriptionModel !== undefined && (
+            <Prose>{fill(c.instanceVoice, { model: instance.config.transcriptionModel })}</Prose>
+          )}
         </Section>
       )}
 
@@ -201,6 +259,20 @@ export function YourAiScreen() {
               message={messageFor(ai.message, 'model')}
               onChange={(e) => {
                 setModel(e.target.value);
+                ai.clearMessage();
+              }}
+            />
+            <TextField
+              label={c.voiceModelLabel}
+              placeholder={c.voiceModelHint}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={voiceModel}
+              message={c.voiceModelHelp}
+              onChange={(e) => {
+                setVoiceModel(e.target.value);
                 ai.clearMessage();
               }}
             />
@@ -245,6 +317,8 @@ export function YourAiScreen() {
       </p>
 
       <CoachingSection />
+
+      <DescribeSection />
 
       <Section title={c.privacyHeading}>
         <Prose>{c.consentExplainer}</Prose>

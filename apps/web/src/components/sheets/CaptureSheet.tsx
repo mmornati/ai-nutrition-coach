@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { fill, useStrings } from '../../i18n';
-import { BarcodeIcon, CameraIcon, TypeIcon } from '../primitives/icons';
+import { BarcodeIcon, CameraIcon, DescribeIcon, TypeIcon } from '../primitives/icons';
 import { cn } from '../primitives/cn';
 import { Sheet } from './Sheet';
 
@@ -10,6 +10,8 @@ export interface CaptureSheetProps {
   readonly onSnapshot: () => void;
   readonly onBarcode: () => void;
   readonly onType: () => void;
+  /** Describe a meal in words or by voice. Absent: the tile is not shown. */
+  readonly onDescribe?: (() => void) | undefined;
   /** Name of the next meal slot, shown as "Next station: <meal>". */
   readonly nextMeal?: string;
 }
@@ -49,7 +51,7 @@ function Tile({
 }
 
 /**
- * The three ways to log: Snapshot dominant, Barcode and Type it secondary. Choosing one closes
+ * The ways to log: Snapshot dominant; Barcode, Type it and Describe secondary. Choosing one closes
  * the sheet and then reports the choice. No monetisation, no pressure copy.
  */
 export function CaptureSheet({
@@ -58,6 +60,7 @@ export function CaptureSheet({
   onSnapshot,
   onBarcode,
   onType,
+  onDescribe,
   nextMeal,
 }: CaptureSheetProps) {
   const s = useStrings().capture;
@@ -93,6 +96,14 @@ export function CaptureSheet({
           hint={s.typeHint}
           onClick={choose(onType)}
         />
+        {onDescribe && (
+          <Tile
+            icon={<DescribeIcon size={24} />}
+            title={s.describe}
+            hint={s.describeHint}
+            onClick={choose(onDescribe)}
+          />
+        )}
       </div>
     </Sheet>
   );

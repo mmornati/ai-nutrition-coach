@@ -8,6 +8,8 @@
 //                 -> Barcode  -> camera view -> one-time Open Food Facts notice
 //                      -> barcode match sheet, or "not found" and manual entry prefilled
 //                 -> Type it  -> ranked matches + portion presets + custom food
+//                 -> Describe -> words (or a short voice recording turned into text) -> the AI the
+//                      person agreed to, or the food list on this device -> the same match sheet
 //
 // Browsers only open a camera/file picker from a tap, so nothing here starts one on mount.
 import {
@@ -25,8 +27,16 @@ import {
   startOfNextLocalDay,
   type FoodEntryDraft,
   type FoodMatch,
+  type RecognitionResult,
 } from '@anc/core';
-import { usePhotoFlow, type PhotoSource, type UsePhotoFlowDeps } from '../../capture';
+import {
+  closestMatches,
+  enrichRecognition,
+  usePhotoFlow,
+  type PhotoSource,
+  type UsePhotoFlowDeps,
+  type VoiceEnv,
+} from '../../capture';
 import type { UseBarcodeScannerOptions } from '../../barcode';
 import { photoFlowConsentDeps, photoUploadHost } from '../../ai';
 import { PhotoConsentDialog } from '../../components/dialogs';
@@ -35,9 +45,11 @@ import { useDay } from '../../app/day-context';
 import { LogContext, type LogState } from '../../app/log-context';
 import { hrefs, isPrivacyRoute, navigate, parseRoute, TODAY_HASH } from '../../app/router';
 import { useSession } from '../../app/session';
+import { fill, joinPlain, strings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
 import { BarcodeSheet } from './BarcodeScan';
 import { PhotoDeniedSheet, SnapSheet } from './PhotoSheets';
+import { DescribeSheet, type DescribeResultPayload } from './Describe';
 import { TypeItSheet } from './TypeIt';
 
 type Flow =
@@ -45,6 +57,7 @@ type Flow =
   | { readonly kind: 'capture' }
   | { readonly kind: 'snap' }
   | { readonly kind: 'barcode' }
+  | { readonly kind: 'describe' }
   | { readonly kind: 'type'; readonly prefill?: string };
 
 interface Consent {
@@ -58,12 +71,15 @@ interface Consent {
 export function LogHost({
   scannerOptions,
   createCapture,
+  voiceEnv,
   children,
 }: {
   /** Injectable for tests (a fake decoder and camera). */
   readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
   /** Injectable for tests (a fake photo picker). */
   readonly createCapture?: UsePhotoFlowDeps['createCapture'];
+  /** Injectable for tests (a fake microphone and recorder for Describe). */
+  readonly voiceEnv?: VoiceEnv;
   readonly children: ReactNode;
 }) {
   const session = useSession();
@@ -73,6 +89,12 @@ export function LogHost({
   const consentRef = useRef<Consent | null>(null);
   // A photo run is on screen (resolving, ready or denied) until the person closes its result.
   const [photoOpen, setPhotoOpen] = useState(false);
+  // A described meal (typed, dictated or spoken) goes to the same review sheet as a photo.
+  const [described, setDescribed] = useState<{
+    readonly result: RecognitionResult;
+    readonly closestMatches: readonly FoodMatch[];
+    readonly unmatched: readonly string[];
+  } | null>(null);
 
   const askConsent = useCallback(
     (input: { host: string; perPhoto: boolean }) =>
@@ -174,6 +196,7 @@ export function LogHost({
     setPhotoOpen(false);
     day.select(day.today);
     day.markLogged();
+    setDescribed(null);
     navigate(TODAY_HASH);
   }, [day]);
 
@@ -196,6 +219,25 @@ export function LogHost({
     logged();
   };
 
+  const showDescribed = useCallback(
+    async (payload: DescribeResultPayload) => {
+      if (payload.kind === 'local') {
+        setDescribed({
+          result: payload.result,
+          closestMatches: payload.closestMatches,
+          unmatched: payload.unmatched,
+        });
+      } else {
+        // The AI names the foods and guesses grams; a confident catalogue match lends nutrients.
+        const result = await enrichRecognition(payload.result, session.catalog);
+        const closest = await closestMatches(result, session.catalog, recentMatches);
+        setDescribed({ result, closestMatches: closest, unmatched: [] });
+      }
+      setFlow({ kind: 'closed' });
+    },
+    [session, recentMatches, setDescribed],
+  );
+
   const state = photoOpen ? photo.state : null;
   const value = useMemo<LogState>(
     () => ({
@@ -214,6 +256,7 @@ export function LogHost({
         onSnapshot={() => setFlow({ kind: 'snap' })}
         onBarcode={() => setFlow({ kind: 'barcode' })}
         onType={() => setFlow({ kind: 'type' })}
+        onDescribe={() => setFlow({ kind: 'describe' })}
         nextMeal={slotName(mealSlotForHour(new Date().getHours()))}
       />
       <SnapSheet
@@ -230,6 +273,13 @@ export function LogHost({
         onClose={close}
         onTypeInstead={typeInstead}
         onLogged={logged}
+      />
+      <DescribeSheet
+        open={flow.kind === 'describe'}
+        onClose={close}
+        onResult={(payload) => void showDescribed(payload)}
+        onTypeInstead={typeInstead}
+        {...(voiceEnv ? { voiceEnv } : {})}
       />
       <TypeItSheet
         open={flow.kind === 'type'}
@@ -260,6 +310,23 @@ export function LogHost({
           onLog={commit}
           aiSetupHref={hrefs.section('ai')}
           instanceOffered={instanceLabel !== undefined}
+        />
+      )}
+      {described !== null && (
+        <RecognizedMatchSheet
+          open
+          onClose={() => setDescribed(null)}
+          result={described.result}
+          closestMatches={described.closestMatches}
+          onLog={commit}
+          source="description"
+          errorMessage={
+            described.unmatched.length === 0
+              ? undefined
+              : fill(strings().recognized.describedUnmatched, {
+                  names: joinPlain(described.unmatched),
+                })
+          }
         />
       )}
     </LogContext.Provider>

@@ -17,6 +17,11 @@
 #   AI_PROXY_KEY        the provider key. It reaches ONLY the locations file (mode 0600), through the
 #                       environment of awk, never a command line, a log line or a message of this script.
 #   AI_PROXY_MODEL      forced into every request by njs (the client cannot choose another)
+#   optional: AI_PROXY_TRANSCRIPTION=1 also offers POST /ai/v1/audio/transcriptions (voice to text;
+#   default off) with AI_PROXY_TRANSCRIPTION_MODEL (default whisper-1, validated by njs: the client
+#   must send exactly this model), AI_PROXY_TRANSCRIPTION_RATE (default 6r/m per client address),
+#   AI_PROXY_TRANSCRIPTION_RATE_ALL (default 20r/m for the whole instance) and
+#   AI_PROXY_TRANSCRIPTION_BURST (default 2).
 #   optional: AI_PROXY_LABEL (shown to people; default: the upstream host), AI_PROXY_RATE (default
 #   10r/m per client address), AI_PROXY_RATE_ALL (default 30r/m for the whole instance),
 #   AI_PROXY_BURST (default 5), AI_PROXY_CONN (concurrent requests per address, default 2),
@@ -57,7 +62,7 @@ render() {
       while ((i = index(s, k)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(k)) }
       return o s
     }
-    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM RESOLVER", names, " ") }
+    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM RESOLVER URL_TX TX_MODEL TX_RATE TX_RATE_ALL TX_BURST", names, " ") }
     {
       line = $0
       for (j = 1; j <= n; j++) line = rep(line, "@@ANC_AI_" names[j] "@@", ENVIRON["ANC_AI_" names[j]])
@@ -138,8 +143,20 @@ matches '^[0-9A-Fa-f:.]{2,45}$' "$resolver" \
   || die "no usable DNS server: set AI_PROXY_RESOLVER to an IP address (nginx resolves the provider at request time)."
 case "$resolver" in *:*) resolver="[$resolver]" ;; esac
 
+# Voice transcription: off unless AI_PROXY_TRANSCRIPTION=1 exactly.
+tx="${AI_PROXY_TRANSCRIPTION:-0}"
+tx_model="${AI_PROXY_TRANSCRIPTION_MODEL:-whisper-1}"
+tx_rate="${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}"
+tx_rate_all="${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}"
+tx_burst="${AI_PROXY_TRANSCRIPTION_BURST:-2}"
+matches '^[A-Za-z0-9._:/@+-]{1,128}$' "$tx_model" \
+  || die "AI_PROXY_TRANSCRIPTION_MODEL must be 1-128 characters of A-Z a-z 0-9 . _ : / @ + - (e.g. whisper-1)."
+matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate" || die "AI_PROXY_TRANSCRIPTION_RATE must look like 6r/m or 1r/s."
+matches '^[1-9][0-9]{0,3}r/[sm]$' "$tx_rate_all" || die "AI_PROXY_TRANSCRIPTION_RATE_ALL must look like 20r/m or 1r/s."
+matches '^[0-9]{1,3}$' "$tx_burst" || die "AI_PROXY_TRANSCRIPTION_BURST must be a whole number up to 999."
+
 # A value must not contain a placeholder of its own (substitution is not re-entrant).
-for v in "$key" "$upstream" "$model" "$label" "$rate" "$rate_all" "$resolver"; do
+for v in "$key" "$upstream" "$model" "$label" "$rate" "$rate_all" "$resolver" "$tx_model" "$tx_rate" "$tx_rate_all"; do
   case "$v" in *@@*) die "an AI_PROXY_* value contains '@@' (the value is not shown)." ;; esac
 done
 
@@ -148,7 +165,16 @@ ANC_AI_URL="$upstream/chat/completions"
 ANC_AI_HOST="$host"
 ANC_AI_KEY="$key"
 ANC_AI_MODEL="$model"
-ANC_AI_CONFIG_JSON="{\"enabled\":true,\"model\":\"$model\",\"label\":\"$label\"}"
+ANC_AI_URL_TX="$upstream/audio/transcriptions"
+ANC_AI_TX_MODEL="$tx_model"
+ANC_AI_TX_RATE="$tx_rate"
+ANC_AI_TX_RATE_ALL="$tx_rate_all"
+ANC_AI_TX_BURST="$tx_burst"
+if [ "$tx" = "1" ]; then
+  ANC_AI_CONFIG_JSON="{\"enabled\":true,\"model\":\"$model\",\"label\":\"$label\",\"transcription\":true,\"transcriptionModel\":\"$tx_model\"}"
+else
+  ANC_AI_CONFIG_JSON="{\"enabled\":true,\"model\":\"$model\",\"label\":\"$label\",\"transcription\":false}"
+fi
 ANC_AI_RATE="$rate"
 ANC_AI_BURST="$burst"
 ANC_AI_RATE_ALL="$rate_all"
@@ -157,11 +183,19 @@ ANC_AI_TOKEN_PARAM="$token_param"
 ANC_AI_MAX_TOKENS="$max_tokens"
 ANC_AI_RESOLVER="$resolver"
 export ANC_AI_URL ANC_AI_HOST ANC_AI_KEY ANC_AI_MODEL ANC_AI_CONFIG_JSON ANC_AI_RATE ANC_AI_RATE_ALL \
-  ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_RESOLVER
+  ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_RESOLVER \
+  ANC_AI_URL_TX ANC_AI_TX_MODEL ANC_AI_TX_RATE ANC_AI_TX_RATE_ALL ANC_AI_TX_BURST
 
 printf '%s\n' 'load_module /usr/lib/nginx/modules/ngx_http_js_module.so;' > "$main_inc"
 render "$tpl/ai-proxy.http.inc.template" "$httpctx_inc"
 render "$tpl/ai-proxy.locations.inc.template" "$loc_inc"
+if [ "$tx" = "1" ]; then
+  # The voice route is appended to the SAME private file (it holds the key too). nginx matches the
+  # exact-path location whatever its position, so it wins over the /ai/ catch-all before it.
+  render "$tpl/ai-proxy.transcription.inc.template" "$loc_inc.tx"
+  cat "$loc_inc.tx" >> "$loc_inc"
+  rm -f "$loc_inc.tx"
+fi
 unset ANC_AI_KEY
 
 # ── verify: the key is in exactly one file, and that file is private ────────
@@ -177,5 +211,9 @@ for f in "$out"/ai-nutrition-coach*; do
 done
 [ -z "$leaks" ] || die "the provider key leaked into:$leaks."
 
-echo "40-render-ai-proxy: instance AI proxy on for $hostname (model $model)." >&2
+if [ "$tx" = "1" ]; then
+  echo "40-render-ai-proxy: instance AI proxy on for $hostname (model $model, voice transcription $tx_model)." >&2
+else
+  echo "40-render-ai-proxy: instance AI proxy on for $hostname (model $model)." >&2
+fi
 exit 0

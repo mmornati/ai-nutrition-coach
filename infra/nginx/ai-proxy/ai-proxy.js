@@ -99,4 +99,90 @@ function body(r) {
   return JSON.stringify(out);
 }
 
-export default { body, cleanMessages };
+// ── POST /ai/v1/audio/transcriptions (only when AI_PROXY_TRANSCRIPTION=1) ─────────────────────────
+//
+// The body is a multipart/form-data upload (one short voice recording). njs does NOT rewrite it:
+// the audio is binary and a rewrite through a string could corrupt it. Instead `txGate` is a
+// strict VALIDATOR run as the location's js_content: it parses the multipart structure and lets
+// the request through (an internal redirect to the proxying location, original body untouched)
+// only when it is exactly what the app sends:
+//
+//   - one `file` part (an audio/* or video/* blob, with a plain filename);
+//   - one `model` part equal to the operator's AI_PROXY_TRANSCRIPTION_MODEL (the app reads it
+//     from /ai/config.json): a visitor cannot pick another model, a request that tries is a 400;
+//   - optionally `language` (a short code) and `response_format` (`json`);
+//   - nothing else (no `prompt`, no `temperature`, no timestamp options, no repeated part).
+//
+// Anything else is a 400 and never reaches the provider. Size and rate are bounded by nginx.
+
+var TX_FILE_HEADER = /^content-disposition: form-data; name="file"; filename="[A-Za-z0-9._ -]{1,100}"$/i;
+var TX_FIELD_HEADER = /^content-disposition: form-data; name="(model|language|response_format)"$/i;
+var TX_TYPE_HEADER = /^content-type: (audio|video)\/[A-Za-z0-9.+-]{1,30}(; ?[A-Za-z0-9=.+, -]{1,60})?$/i;
+var TX_BOUNDARY = /^multipart\/form-data; ?boundary=([A-Za-z0-9'()+_,.\/:=?-]{1,70})$/i;
+var TX_LANGUAGE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
+
+// `buf` is the request body as a Buffer. It is searched and sliced as BYTES (njs has no latin1
+// decoding, and a string round trip could corrupt the audio); only the small header blocks and
+// the short text fields are decoded, as UTF-8, and anything that is not plain ASCII fails the
+// strict patterns above.
+function checkTranscription(buf, contentType, model) {
+  var b = TX_BOUNDARY.exec(contentType || '');
+  if (b === null || buf === undefined || buf === null) return false;
+  var delim = '--' + b[1];
+  var first = delim + '\r\n';
+  if (buf.length < first.length + 1 || buf.subarray(0, first.length).toString('utf8') !== first) return false;
+  var sep = Buffer.from('\r\n' + delim + '\r\n');
+  var closer = Buffer.from('\r\n' + delim + '--');
+  var blank = Buffer.from('\r\n\r\n');
+  var seen = {};
+  var pos = first.length;
+  for (;;) {
+    // The next boundary, scanning forward like the provider's parser does: a part separator, or
+    // the closing delimiter (which must then be the very end of the body).
+    var nextSep = buf.indexOf(sep, pos);
+    var nextEnd = buf.indexOf(closer, pos);
+    if (nextSep < 0 && nextEnd < 0) return false;
+    var last = nextSep < 0 || (nextEnd >= 0 && nextEnd < nextSep);
+    var next = last ? nextEnd : nextSep;
+    if (last) {
+      var trailer = buf.subarray(next + closer.length).toString('utf8');
+      if (trailer !== '' && trailer !== '\r\n') return false;
+    }
+    var part = buf.subarray(pos, next);
+    var cut = part.indexOf(blank);
+    if (cut < 0) return false;
+    var lines = part.subarray(0, cut).toString('utf8').split('\r\n');
+    var data = part.subarray(cut + 4);
+    var name;
+    if (TX_FILE_HEADER.test(lines[0])) {
+      name = 'file';
+      if (lines.length > 2 || (lines.length === 2 && !TX_TYPE_HEADER.test(lines[1]))) return false;
+      if (data.length === 0) return false;
+    } else {
+      var m = TX_FIELD_HEADER.exec(lines[0]);
+      if (m === null || lines.length !== 1) return false;
+      name = m[1].toLowerCase();
+      var text = data.toString('utf8');
+      if (name === 'model' && text !== model) return false;
+      if (name === 'language' && !TX_LANGUAGE.test(text)) return false;
+      if (name === 'response_format' && text !== 'json') return false;
+    }
+    if (seen[name]) return false;
+    seen[name] = 1;
+    if (last) break;
+    pos = next + sep.length;
+  }
+  return !!(seen.file && seen.model);
+}
+
+function txGate(r) {
+  var ok = false;
+  try {
+    ok = checkTranscription(r.requestBuffer, r.headersIn['Content-Type'], r.variables.anc_ai_tx_model);
+  } catch (e) {
+    ok = false;
+  }
+  r.internalRedirect(ok ? '@ai_nutrition_coach_tx_proxy' : '@ai_nutrition_coach_ai_badrequest');
+}
+
+export default { body, cleanMessages, txGate, checkTranscription };
