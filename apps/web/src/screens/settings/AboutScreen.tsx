@@ -9,6 +9,7 @@ export const LICENCE_FILES: Readonly<Record<string, string>> = {
   zxing: `${base}licenses/zxing-wasm-MIT.txt`,
   zxingcpp: `${base}licenses/zxing-cpp-Apache-2.0.txt`,
   sqlite: `${base}licenses/sqlite3-multiple-ciphers.txt`,
+  ciqual: `${base}licenses/ciqual-Etalab-2.0.txt`,
   fonts: `${base}fonts/OFL.txt`,
 };
 

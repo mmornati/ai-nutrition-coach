@@ -709,6 +709,11 @@ export const fr: Strings = {
       { id: 'zxing', name: 'zxing-wasm', licence: 'Licence MIT' },
       { id: 'zxingcpp', name: 'zxing-cpp (inclus dans zxing-wasm)', licence: 'Licence Apache 2.0' },
       { id: 'react', name: 'React', licence: 'Licence MIT' },
+      {
+        id: 'ciqual',
+        name: 'Table de composition nutritionnelle des aliments Ciqual (Anses, 2025)',
+        licence: 'Licence Ouverte Etalab 2.0',
+      },
     ],
   },
   sync: {

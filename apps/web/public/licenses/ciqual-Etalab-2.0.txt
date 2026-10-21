@@ -1,0 +1,29 @@
+Anses. 2025. Table de composition nutritionnelle des aliments Ciqual.
+Anses. 2025. Ciqual French food composition table, version 2025.
+DOI 10.57745/RDMHWY (data revision of 2025-11-03, published 2025-11-19).
+
+The per-100 g nutrient values of the built-in food catalogue (energy, protein, carbohydrate, sugars,
+fat, saturated fat, fibre, salt) and the food names and groups come from the Ciqual table, published
+by the Observatoire des aliments of the French Agency for Food, Environmental and Occupational
+Health and Safety (Anses), and are used under the Etalab Open Licence version 2.0
+("Licence Ouverte / Open Licence", compatible with CC BY 4.0).
+
+What the Open Licence 2.0 allows and requires, in short (the licence text published by Etalab and
+data.gouv.fr is the authoritative one):
+
+  - You are free to reproduce, copy, publish, transmit, adapt, modify, extract and transform the
+    information, and to exploit it commercially, as long as you credit the source and give the date
+    of the last update of the information.
+  - The licensor (Anses) grants it "as is" and is not liable for the use made of it.
+
+Changes made by AI Nutrition Coach: the information was extracted from the official XML files
+(alim, alim_grp, compo, const), reduced to eight nutrients per food, and converted to a compact
+JSON file (tools/ciqual/build-ciqual.mjs). Values published as "traces" are stored as 0; values
+published as "< x" are stored as 0 when x is at most 0.1 and as unknown otherwise; values
+published as "-" are unknown. Numbers are rounded to two decimals. Ciqual values are averages
+for French foods; they are not the values of a given product. Anses has not reviewed or endorsed
+this application.
+
+Source: the ANSES Ciqual website (ciqual.anses.fr) and the "Table de composition nutritionnelle
+des aliments Ciqual 2025" dataset on recherche.data.gouv.fr, DOI 10.57745/RDMHWY.
+Licence: Licence Ouverte / Open Licence 2.0 (Etalab), published at etalab.gouv.fr and data.gouv.fr.
