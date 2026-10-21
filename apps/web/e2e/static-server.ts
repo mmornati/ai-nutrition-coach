@@ -50,6 +50,18 @@ export async function serveBundle(dir: string, port: number): Promise<TestServer
       'cross-origin-opener-policy': 'same-origin',
       'cross-origin-resource-policy': 'same-origin',
     };
+    // The container's instance AI offer: off (the default). A missing file would be a console
+    // error in the browser; the real server answers this too (infra/nginx/ai-proxy).
+    if (path === '/ai/config.json') {
+      res
+        .writeHead(200, {
+          ...headers,
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+        })
+        .end('{"enabled":false}');
+      return;
+    }
     if (!served) {
       res.writeHead(404, headers).end('not found');
       return;

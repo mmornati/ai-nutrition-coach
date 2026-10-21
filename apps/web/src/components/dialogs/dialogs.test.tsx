@@ -267,6 +267,29 @@ describe('PhotoConsentDialog', () => {
     expect(screen.getByRole('button', { name: `Allow ${host}` })).toBeInTheDocument();
   });
 
+  it('through this server: says both hops plainly, names the provider, and stays accessible', async () => {
+    const { baseElement } = render(
+      <PhotoConsentDialog
+        open
+        host="plate.example.test"
+        via="Acme AI"
+        onAllow={() => undefined}
+        onDecline={() => undefined}
+      />,
+    );
+    const dialog = screen.getByRole('alertdialog', { name: 'Send this photo to this server?' });
+    expect(dialog.textContent).toContain('goes to this server (plate.example.test)');
+    expect(dialog.textContent).toContain('adds its own AI key and passes it on to Acme AI');
+    expect(dialog.textContent).toContain('Also visible to whoever runs plate.example.test');
+    expect(dialog.textContent).toContain(
+      'Acme AI receives the photo from this server, not from your device',
+    );
+    expect(dialog.textContent).toContain('Acme AI may keep requests under its own terms');
+    expect(screen.getByRole('button', { name: 'Allow this server' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
+    expect(await axe(baseElement)).toHaveNoViolations();
+  });
+
   it('web wording mentions the address of this site; the other wording does not', () => {
     const { rerender } = render(
       <PhotoConsentDialog open host={host} onAllow={() => undefined} onDecline={() => undefined} />,

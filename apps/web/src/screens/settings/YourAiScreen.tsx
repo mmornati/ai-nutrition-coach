@@ -23,9 +23,9 @@ function messageFor(
 }
 
 /**
- * Settings, Your AI. Choose how a photo is recognised (No AI, or My own key; the hosted and
- * on-device rungs are listed as not available yet), set the endpoint, model and key, test the
- * connection, and manage which services may receive photos.
+ * Settings, Your AI. Choose how a photo is recognised (No AI, the AI this server offers while it
+ * offers one, or My own key; the hosted and on-device rungs are listed as not available yet), set
+ * the endpoint, model and key, test the connection, and manage which services may receive photos.
  *
  * The key is typed into an obscured field with no suggestions, stripped of whitespace, never
  * displayed back (the only trace is "ends with ••••abcd") and emptied after every save. It lives
@@ -35,7 +35,7 @@ export function YourAiScreen() {
   const all = useStrings();
   const c = all.ai.yourAi;
   const ai = useYourAi();
-  const { settings } = ai;
+  const { settings, instance } = ai;
   const [byokChosen, setByokChosen] = useState(settings.rung.kind === 'byok');
   const [endpoint, setEndpoint] = useState(settings.byokEndpointUrl);
   const [model, setModel] = useState(settings.byokModel);
@@ -43,7 +43,7 @@ export function YourAiScreen() {
   const [removed, setRemoved] = useState(false);
   const formId = useId();
 
-  const tiers: Tier[] = rungChoices().map((choice) => ({
+  const tiers: Tier[] = rungChoices(instance.config).map((choice) => ({
     id: choice.kind,
     title: choice.label,
     description: choice.help,
@@ -62,6 +62,9 @@ export function YourAiScreen() {
     if (id === 'noOp') {
       setByokChosen(false);
       void ai.selectNoAi();
+    } else if (id === 'instance') {
+      setByokChosen(false);
+      void ai.selectInstance();
     } else if (id === 'byok') {
       setByokChosen(true);
     }
@@ -80,6 +83,18 @@ export function YourAiScreen() {
     setRemoved(true);
   };
 
+  // The radio that is on: My own key while its form is open, the server's AI while it is chosen and
+  // still offered, No AI when chosen. Nothing is on when the saved choice (this server's AI) is no
+  // longer offered, so a click on No AI still registers.
+  const instanceOn = settings.rung.kind === 'instance' && instance.config.enabled;
+  const radioValue = byokChosen
+    ? 'byok'
+    : instanceOn
+      ? 'instance'
+      : settings.rung.kind === 'instance'
+        ? ''
+        : 'noOp';
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void save();
@@ -90,13 +105,17 @@ export function YourAiScreen() {
       <Prose>{c.intro}</Prose>
 
       <Section title={c.rungHeading}>
-        <TierRadio
-          tiers={tiers}
-          value={byokChosen ? 'byok' : 'noOp'}
-          onChange={choose}
-          label={c.rungHeading}
-        />
+        <TierRadio tiers={tiers} value={radioValue} onChange={choose} label={c.rungHeading} />
       </Section>
+
+      {instanceOn && !byokChosen && instance.config.enabled && (
+        <Section title={c.instanceHeading}>
+          <Prose>
+            {fill(c.instanceExplain, { host: instance.host, label: instance.config.label })}
+          </Prose>
+          <Prose>{fill(c.instanceModel, { model: instance.config.model })}</Prose>
+        </Section>
+      )}
 
       {byokChosen && (
         <Section title={c.byokHeading}>

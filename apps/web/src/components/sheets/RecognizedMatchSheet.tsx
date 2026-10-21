@@ -32,6 +32,8 @@ export interface RecognizedMatchSheetProps {
   readonly errorMessage?: string | undefined;
   /** In-app route to Settings → Your AI. When given, results that need AI set up link to it. */
   readonly aiSetupHref?: string | undefined;
+  /** This server offers AI the person has not turned on: the no-AI hint points at it. */
+  readonly instanceOffered?: boolean | undefined;
 }
 
 interface Candidate {
@@ -65,6 +67,7 @@ function describe(
   result: RecognitionResult,
   s: Strings,
   errorMessage: string | undefined,
+  instanceOffered = false,
 ): { title: string; subtitle: string | undefined; needsSetup: boolean } {
   const r = s.recognized;
   switch (result.kind) {
@@ -83,7 +86,11 @@ function describe(
       return { title: r.quotaTitle, subtitle: r.quotaHint, needsSetup: false };
     case 'recognitionFailure': {
       if (result.cause === 'noAi') {
-        return { title: r.noAiTitle, subtitle: r.noAiHint, needsSetup: true };
+        return {
+          title: r.noAiTitle,
+          subtitle: instanceOffered ? r.noAiHintInstance : r.noAiHint,
+          needsSetup: true,
+        };
       }
       const detail = errorMessage ?? result.message;
       return {
@@ -156,7 +163,7 @@ function Body({
   onLog,
   errorMessage,
   setupLink,
-}: Omit<RecognizedMatchSheetProps, 'open' | 'onClose' | 'aiSetupHref'> & {
+}: Omit<RecognizedMatchSheetProps, 'open' | 'onClose' | 'aiSetupHref' | 'instanceOffered'> & {
   readonly setupLink: ReactNode;
 }) {
   const s = useStrings();
@@ -350,9 +357,10 @@ export function RecognizedMatchSheet({
   onLog,
   errorMessage,
   aiSetupHref,
+  instanceOffered,
 }: RecognizedMatchSheetProps) {
   const s = useStrings();
-  const { title, subtitle, needsSetup } = describe(result, s, errorMessage);
+  const { title, subtitle, needsSetup } = describe(result, s, errorMessage, instanceOffered);
   const shownInSubtitle = result.kind === 'recognitionFailure' && result.cause !== 'noAi';
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={subtitle} focusTitle>

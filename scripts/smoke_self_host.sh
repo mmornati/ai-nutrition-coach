@@ -32,7 +32,13 @@
 #     injection, `;`, `*`, newline) make the container refuse to start;
 #   * the AI_NUTRITION_COACH_CONNECT_SRC_EXTRA knob reaches the CSP;
 #   * the compose file is valid, binds 127.0.0.1 by default, has the tls
-#     profile, and the shipped bundle has no third-party hosts.
+#     profile, and the shipped bundle has no third-party hosts;
+#   * the optional instance-wide AI proxy: OFF by default (/ai/config.json says
+#     {"enabled":false}, the proxy path is a 404, nothing is rendered that could make a
+#     request); ON against a throw-away HTTPS upstream (needs openssl): the operator's key
+#     reaches the provider and the browser's Authorization/Cookie do not, the model is
+#     forced, the provider's certificate is verified, a refused key is a bare 502, GET is
+#     405, an oversized body 413, a burst 429, and the key lives in one 0600 file only.
 #
 # Exit codes: 0 ok; 10 no docker; 20 build failed; 30 readiness/HTTP failure;
 #             40 pin/config assertion failed; 50 header/CSP assertion failed;
@@ -52,7 +58,9 @@ START_TS=$(date +%s)
 TMP="$(mktemp -d)"
 
 cleanup() {
-  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" >/dev/null 2>&1 || true
+  docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" \
+    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-aibad" >/dev/null 2>&1 || true
+  docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
@@ -373,11 +381,11 @@ docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 ok "access log: off by default; =on logs the resolved file only, address truncated, no User-Agent/Referer/query; bad value refused"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
-cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /etc/nginx/nginx.conf')"
+cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /tmp/ai-nutrition-coach-ai-*.inc /etc/nginx/nginx.conf')"
 if grep -Eq '^[[:space:]]*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b' <<<"$cfg"; then
   fail 70 "rendered nginx config contains proxy_pass/resolver-style directives"
 fi
-ok "rendered nginx config contains no proxy_pass / resolver"
+ok "rendered nginx config (including the AI-proxy includes, which are empty when off) contains no proxy_pass / resolver"
 
 # ── CSP injection: hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA must stop the container ──
 inject_cases=("https://a.test'; script-src *" "https://a.test; script-src 'unsafe-inline'" "*" "https:" \
@@ -402,6 +410,164 @@ rc=0
 AI_NUTRITION_COACH_DOMAIN=$'a.test\nevil' bin/ai-nutrition-coach up --tls >/dev/null 2>&1 || rc=$?
 [[ "$rc" -eq 42 ]] || fail 50 "bin/ai-nutrition-coach accepted a hostile AI_NUTRITION_COACH_DOMAIN (exit $rc)"
 ok "bin/ai-nutrition-coach rejects hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / AI_NUTRITION_COACH_DOMAIN"
+
+# ── instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on your instance") ──
+# OFF by default: the offer says so, the proxy path is a plain 404, nothing is precached.
+[[ "$(curl -fsS "$BASE/ai/config.json")" == '{"enabled":false}' ]] \
+  || fail 50 "/ai/config.json is not {\"enabled\":false} by default"
+ah="$(hdr /ai/config.json | tr -d '\r')"
+grep -qi '^cache-control: no-store$' <<<"$ah" || fail 50 "/ai/config.json is cacheable"
+grep -qi '^content-type: application/json' <<<"$ah" || fail 50 "/ai/config.json is not JSON"
+grep -qi '^content-security-policy:' <<<"$ah" || fail 50 "/ai/config.json lacks the security headers"
+for spec in "-X POST $BASE/ai/v1/chat/completions" "$BASE/ai/v1/chat/completions" "$BASE/ai/other" "-X POST $BASE/ai/config.json"; do
+  # shellcheck disable=SC2086
+  code="$(curl -s -o /dev/null -w '%{http_code}' $spec)"
+  case "$spec" in
+    "-X POST $BASE/ai/config.json") [[ "$code" == 405 ]] || fail 50 "POST /ai/config.json is $code, not 405" ;;
+    *) [[ "$code" == 404 ]] || fail 50 "the disabled AI path ($spec) answers $code, not 404" ;;
+  esac
+done
+! grep -q '"ai/' "$TMP/manifest.json" || fail 50 "the precache manifest lists an /ai/ file"
+docker exec "$NAME" sh -c 'cat /tmp/ai-nutrition-coach-ai-*.inc' | grep -Eq '^[[:space:]]*(proxy_pass|resolver|proxy_set_header)\b' \
+  && fail 70 "the default container renders proxy directives"
+ok "instance AI off by default: /ai/config.json says disabled (no-store), the proxy path is 404, POST elsewhere 405, nothing precached, no proxy directive rendered"
+
+# ON, against a throw-away HTTPS upstream on the same internal network (nothing leaves the host).
+AIKEY="smoke-ai-key-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+NODE_IMAGE="$(sed -n 's/^FROM \(node:[^ ]*\) AS build/\1/p' infra/Dockerfile)"
+[[ -n "$NODE_IMAGE" ]] || fail 40 "cannot read the node image from infra/Dockerfile"
+if command -v openssl >/dev/null 2>&1; then
+  mkdir -p "$TMP/ai/certs"
+  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$TMP/ai/ca.key" -out "$TMP/ai/ca.crt" -days 2 -subj "/CN=smoke test ca" >/dev/null 2>&1
+  openssl req -newkey rsa:2048 -nodes -keyout "$TMP/ai/certs/server.key" -out "$TMP/ai/server.csr" -subj "/CN=fake-ai.test" >/dev/null 2>&1
+  printf 'subjectAltName=DNS:fake-ai.test\n' >"$TMP/ai/ext.cnf"
+  openssl x509 -req -in "$TMP/ai/server.csr" -CA "$TMP/ai/ca.crt" -CAkey "$TMP/ai/ca.key" -CAcreateserial \
+    -out "$TMP/ai/certs/server.crt" -days 2 -extfile "$TMP/ai/ext.cnf" >/dev/null 2>&1
+  chmod 755 "$TMP/ai" "$TMP/ai/certs"; chmod 644 "$TMP/ai/certs/server.key" "$TMP/ai/certs/server.crt" "$TMP/ai/ca.crt"
+  # The same image with the test CA added to its trust store (only this copy trusts the fake provider).
+  printf 'FROM %s\nUSER root\nCOPY ca.crt /tmp/ca.crt\nRUN cat /tmp/ca.crt >> /etc/ssl/certs/ca-certificates.crt\nUSER 101\n' "$IMAGE" >"$TMP/ai/Dockerfile"
+  docker build -q -t "$IMAGE-aitest" "$TMP/ai" >/dev/null || fail 20 "building the AI test image failed"
+  docker rm -f "$NAME-aiup" "$NAME-ai" "$NAME-ai2" >/dev/null 2>&1 || true
+  docker run -d --name "$NAME-aiup" --network "$NET" --network-alias fake-ai.test -e "EXPECT_KEY=$AIKEY" \
+    -v "$TMP/ai/certs:/certs:ro" -v "$PWD/scripts/smoke_ai_upstream.mjs:/up.mjs:ro" "$NODE_IMAGE" node /up.mjs >/dev/null \
+    || fail 20 "cannot start the throw-away AI upstream"
+  # The key goes in by NAME (inherited from this shell), like bin/ai-nutrition-coach does.
+  export AI_PROXY_KEY="$AIKEY"
+  docker run -d --name "$NAME-ai" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x -e AI_PROXY_LABEL="Smoke AI" \
+    "$IMAGE-aitest" >/dev/null || fail 30 "cannot start the container with the AI proxy on"
+  # Same image WITHOUT the test CA: the proxy must refuse an unverifiable provider.
+  docker run -d --name "$NAME-ai2" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x "$IMAGE" >/dev/null \
+    || fail 30 "cannot start the second AI-proxy container"
+  unset AI_PROXY_KEY
+  for c in "$NAME-ai" "$NAME-ai2"; do
+    ready=0
+    for _ in $(seq 1 60); do
+      if docker exec "$c" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null; then ready=1; break; fi
+      sleep 0.5
+    done
+    [[ "$ready" -eq 1 ]] || { docker logs "$c" 2>&1 | tail -10 >&2; fail 30 "$c does not serve with the AI proxy on"; }
+  done
+  sleep 3 # the throw-away upstream needs a moment to listen
+  sleep 6 # the rate limit refills (10 requests a minute, burst 5): start the assertions from a clean slate
+
+  aijson="$(docker exec "$NAME-ai" wget -q -O - http://127.0.0.1:8080/ai/config.json)"
+  [[ "$aijson" == '{"enabled":true,"model":"vendor/model-x","label":"Smoke AI"}' ]] || fail 50 "/ai/config.json with the proxy on is: $aijson"
+  grep -qF "$AIKEY" <<<"$aijson" && fail 50 "/ai/config.json contains the key"
+  grep -q 'fake-ai.test' <<<"$aijson" && fail 50 "/ai/config.json names the upstream"
+
+  post() { # post <container> <extra wget args...>: status line + body, never fails the script
+    local c="$1"; shift
+    docker exec "$c" wget -S -O - --header 'Content-Type: application/json' "$@" \
+      --post-data '{"model":"vendor/expensive","stream":true,"n":5,"max_tokens":99999,"messages":[{"role":"user","content":"hi"}]}' \
+      http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true
+  }
+  out="$(post "$NAME-ai" --header 'Authorization: Bearer browser-secret' --header 'Cookie: sid=browser-cookie' \
+    --header 'Origin: http://evil.test' --header 'X-Forwarded-For: 203.0.113.9')"
+  grep -q 'HTTP/1.1 200' <<<"$out" || fail 50 "the proxied request was not a 200: $(tail -3 <<<"$out")"
+  for want in '"authOk":true' '"cookie":false' '"origin":false' '"referer":false' '"xff":false' \
+              '"model":"vendor/model-x"' '"maxTokens":2000' '"keys":["max_tokens","messages","model"]' '"path":"/v1/chat/completions"'; do
+    grep -qF "$want" <<<"$out" || fail 50 "what the provider saw lacks $want"
+  done
+  grep -qi 'set-cookie' <<<"$out" && fail 50 "the provider's Set-Cookie reached the browser"
+  grep -qF "$AIKEY" <<<"$out" && fail 50 "the key came back to the browser"
+  grep -qF 'browser-secret' <<<"$out" && fail 50 "the browser's Authorization was echoed"
+  ok "AI proxy on: the operator's key reached the provider, the browser's Authorization/Cookie/Origin/X-Forwarded-For did not; the model and token cap are forced; Set-Cookie is dropped"
+
+  # Refused unverifiable upstream (no test CA): a plain failure, never a request with the key.
+  out2="$(post "$NAME-ai2")"
+  grep -Eq 'HTTP/1.1 50[24]' <<<"$out2" || fail 50 "an unverifiable provider certificate was accepted: $(tail -3 <<<"$out2")"
+  ok "AI proxy: the provider's TLS certificate is verified (an untrusted one is a 5xx)"
+
+  # A wrong key at the provider: the 401 (whose body quotes part of what it received) is hidden.
+  export AI_PROXY_KEY="wrong-$AIKEY"
+  docker run -d --name "$NAME-ai3" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=m "$IMAGE-aitest" >/dev/null
+  unset AI_PROXY_KEY
+  for _ in $(seq 1 40); do docker exec "$NAME-ai3" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  out3="$(post "$NAME-ai3")"
+  grep -q 'HTTP/1.1 502' <<<"$out3" || fail 50 "a refused key was not turned into a 502: $(tail -3 <<<"$out3")"
+  grep -q 'bad key starting' <<<"$out3" && fail 50 "the provider's refusal message reached the browser"
+  docker rm -f "$NAME-ai3" >/dev/null 2>&1 || true
+  ok "AI proxy: a provider's refusal of the key is a bare 502, its message is not shown"
+
+  # Method, size and rate.
+  mout="$(docker exec "$NAME-ai" wget -S -O /dev/null http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true)"
+  grep -q 'HTTP/1.1 405' <<<"$mout" || fail 50 "GET to the proxy path is not a 405"
+  docker exec "$NAME-ai" sh -c "head -c 3000000 /dev/zero | tr '\\0' a > /tmp/big.bin"
+  bout="$(docker exec "$NAME-ai" wget -S -O /dev/null --header 'Content-Type: application/json' --post-file=/tmp/big.bin \
+    http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 || true)"
+  grep -q 'HTTP/1.1 413' <<<"$bout" || fail 50 "a 3 MB body to the proxy is not a 413: $(tail -2 <<<"$bout")"
+  codes=""
+  for _ in $(seq 1 12); do
+    c="$(docker exec "$NAME-ai" wget -S -O /dev/null --header 'Content-Type: application/json' --post-data '{"messages":[]}' \
+      http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 | sed -n 's/^ *HTTP\/1.1 \([0-9]*\).*/\1/p' | head -1 || true)"
+    codes="$codes $c"
+  done
+  grep -q '429' <<<"$codes" || fail 50 "no 429 after 12 quick requests (codes:$codes)"
+  grep -q '200' <<<"$codes" || fail 50 "the burst allowance let nothing through (codes:$codes)"
+  ok "AI proxy: GET is 405, a 3 MB body is 413; a burst of 12 requests is rate limited with 429 (codes:$codes)"
+
+  # The key is in ONE private file, in no log, and never in the image.
+  docker logs "$NAME-ai" 2>&1 | grep -qF "$AIKEY" && fail 50 "the key is in the container log"
+  [[ "$(docker exec "$NAME-ai" stat -c %a /tmp/ai-nutrition-coach-ai-locations.inc)" == 600 ]] \
+    || fail 50 "the rendered proxy config is not mode 600"
+  holders="$(docker exec "$NAME-ai" sh -c "grep -rlF '$AIKEY' /tmp /etc/nginx /usr/share/nginx/html 2>/dev/null || true")"
+  [[ "$holders" == "/tmp/ai-nutrition-coach-ai-locations.inc" ]] || fail 50 "the key is in more than one file: $holders"
+  docker history --no-trunc "$IMAGE" 2>/dev/null | grep -qF "$AIKEY" && fail 50 "the key is in the image history"
+  ok "AI key: only in one 0600 file under /tmp, not in the log, not in the image or its history"
+
+  # Misconfiguration refuses to start (and says nothing about the value); a missing key stays off.
+  for bad in "AI_PROXY_UPSTREAM=http://fake-ai.test/v1" "AI_PROXY_MODEL=" "AI_PROXY_RATE=fast" "AI_PROXY_LABEL=x\"y"; do
+    docker rm -f "$NAME-aibad" >/dev/null 2>&1 || true
+    export AI_PROXY_KEY="$AIKEY"
+    env_up="AI_PROXY_UPSTREAM=https://fake-ai.test/v1"; env_model="AI_PROXY_MODEL=m"
+    case "$bad" in AI_PROXY_UPSTREAM=*) env_up="$bad" ;; AI_PROXY_MODEL=*) env_model="$bad" ;; esac
+    docker run -d --name "$NAME-aibad" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+      -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY -e "$env_up" -e "$env_model" -e "$bad" "$IMAGE" >/dev/null 2>&1 || true
+    unset AI_PROXY_KEY
+    sleep 2
+    state="$(docker inspect -f '{{.State.Running}}' "$NAME-aibad" 2>/dev/null || echo false)"
+    badlog="$(docker logs "$NAME-aibad" 2>&1 || true)"
+    docker rm -f "$NAME-aibad" >/dev/null 2>&1 || true
+    [[ "$state" == false ]] || fail 50 "container started with a bad AI setting: ${bad%%=*}"
+    grep -qF "$AIKEY" <<<"$badlog" && fail 50 "a refused start printed the key"
+  done
+  docker run -d --name "$NAME-aibad" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY= -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=m "$IMAGE" >/dev/null
+  for _ in $(seq 1 40); do docker exec "$NAME-aibad" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  [[ "$(docker exec "$NAME-aibad" wget -q -O - http://127.0.0.1:8080/ai/config.json)" == '{"enabled":false}' ]] \
+    || fail 50 "AI_PROXY_ENABLED=1 with an empty key is not off"
+  docker rm -f "$NAME-aibad" "$NAME-ai" "$NAME-ai2" "$NAME-aiup" >/dev/null 2>&1 || true
+  docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
+  ok "AI proxy: bad settings refuse to start without printing a value; an empty key stays off"
+else
+  printf 'smoke: SKIP — openssl is not installed: the AI-proxy-on assertions did not run.\n' >&2
+fi
 
 ELAPSED=$(($(date +%s) - START_TS))
 [[ "$ELAPSED" -le "$BUDGET" ]] || fail 30 "exceeded the ${BUDGET}s budget (took ${ELAPSED}s)"

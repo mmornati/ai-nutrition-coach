@@ -25,9 +25,9 @@ import {
 import { rungChoices } from './copy';
 
 describe('rungs', () => {
-  it('lists four rungs; only No AI and My own key are selectable', () => {
+  it('lists four rungs; only No AI and My own key are always selectable (the server’s AI joins while offered)', () => {
     expect(RUNG_LISTING.map((r) => r.kind)).toEqual(['noOp', 'byok', 'hostedQuota', 'local']);
-    expect([...SELECTABLE_RUNGS]).toEqual(['noOp', 'byok']);
+    expect([...SELECTABLE_RUNGS]).toEqual(['noOp', 'byok', 'instance']);
     expect(isSelectableRung('hostedQuota')).toBe(false);
     expect(isSelectableRung('local')).toBe(false);
     const choices = rungChoices();

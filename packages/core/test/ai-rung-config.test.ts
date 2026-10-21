@@ -8,8 +8,8 @@ import {
 } from '../src/index';
 
 describe('AiRungKind (AD-5)', () => {
-  it('ships exactly four kinds: noOp | hostedQuota | byok | local', () => {
-    expect(AI_RUNG_KINDS).toEqual(['noOp', 'hostedQuota', 'byok', 'local']);
+  it('ships exactly five kinds: noOp | hostedQuota | byok | local | instance', () => {
+    expect(AI_RUNG_KINDS).toEqual(['noOp', 'hostedQuota', 'byok', 'local', 'instance']);
   });
 
   it('the v2 `local` seam is a first-class value (FR8)', () => {

@@ -1,0 +1,15 @@
+# Instance AI proxy -- http-level directives (rendered by 40-render-ai-proxy.sh
+# into /tmp/ai-nutrition-coach-ai-http.inc, mode 0600). Doubled-at-sign placeholders are
+# substituted from validated values; nothing here holds the key.
+#
+# Rate limits are per client address AS NGINX SEES IT. Behind a reverse proxy that is the proxy's
+# address, which makes this an instance-wide cap on how fast the key can be spent: that is the
+# point (docs/self-host.md "Offer AI to everyone on your instance"). Rejections are logged at
+# `info`, below the error_log level, so no client address reaches the container log.
+limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=@@ANC_AI_RATE@@;
+limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_ai_ip:1m;
+limit_conn_zone $server_name zone=ai_nutrition_coach_ai_all:64k;
+limit_req_log_level info;
+limit_conn_log_level info;
+js_path /etc/ai-nutrition-coach/ai-proxy;
+js_import anc_ai from ai-proxy.js;

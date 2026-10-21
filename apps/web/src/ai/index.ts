@@ -10,6 +10,8 @@ export * from './byok-key-store';
 export * from './consent-gated-ai-rung';
 export * from './copy';
 export * from './create-ai-services';
+export * from './instance-ai-rung';
+export * from './instance-config';
 export * from './noop-ai-rung';
 export * from './openai-compatible-provider';
 export * from './photo-consent';

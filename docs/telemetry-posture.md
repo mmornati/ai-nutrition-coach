@@ -29,10 +29,11 @@ in any `package.json` or imported anywhere.
 
 ## What is user-enabled
 
-Three paths open a connection — each one only after the user explicitly
+Four paths open a connection — each one only after the user explicitly
 enables the feature. In the browser build the Content-Security-Policy enforces
 this list (`connect-src 'self' https://world.openfoodfacts.org` plus the AI
-endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
+endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; the instance AI below is
+same-origin, so it needs no CSP change; see
 [`docs/self-host.md`](./self-host.md)):
 
 - **The food catalog** (Open Food Facts barcode lookup,
@@ -62,6 +63,24 @@ endpoint you add via `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`; see
   selected a non-noOp rung in Settings → Your AI. The default
   rung is `noOp`; the catalog's "no AI" path is complete and
   undegraded.
+
+- **The instance-wide AI** (optional; Phase 4). Only when the person who runs the server set
+  `AI_PROXY_*` in `infra/server.env`, and only for someone who chose "Provided by this
+  server" in Settings → Your AI (the default for a NEW install while the server offers it, and
+  still no photo moves without the consent dialog, which names this server and the provider
+  behind it). Two **same-origin** requests, no third-party host from the browser:
+  `GET /ai/config.json` (read when you unlock and when you open Your AI: whether the AI is
+  on, the model name and a provider label; no key, no identifier, no body) and, per photo you
+  agree to send, `POST /ai/v1/chat/completions` (the shrunk, metadata-free photo and the same
+  fixed instruction as the other rungs). The browser sends **no Authorization header**: the
+  container's nginx adds the operator's key, strips your cookies and headers, forces the
+  configured model and passes the request to the provider. The key never reaches the browser,
+  the bundle, the image or the logs (see `SECURITY.md`). `apps/web/src/ai/instance-config.ts`
+  (the config read) is on the `check:telemetry` allow-list; the POST goes through the same
+  provider as BYOK. Both are pinned by `apps/web/src/ai/instance-config.test.ts` and
+  `apps/web/src/ai/instance-ai-rung.test.ts`. Unlike the next point, the server **does**
+  see this traffic: it relays it, so who runs it decides what the provider is, and it keeps
+  nothing but the usual access log (off by default, never a body or query).
 
 - **The optional sync transport** (Story 4.3). Only when the user
   has configured a self-host relay. v1 ships the no-op
@@ -106,14 +125,17 @@ version of the posture:
   the container on a docker `--internal` network (no route out) and asserts it
   still boots and serves, that an outbound request from it fails, and that its
   rendered nginx config contains no `proxy_pass` / `resolver`. (That shows the
-  server is self-contained; it is not a packet capture.)
+  server is self-contained; it is not a packet capture.) The one exception is the optional
+  instance-wide AI proxy above: with it switched on (`AI_PROXY_ENABLED=1` and a key) the server
+  does need outbound HTTPS to the provider, and the smoke test checks both states.
 - The **bundle loads nothing from a third party**: fonts (Barlow) and the wasm assets
   (the SQLite3 Multiple Ciphers engine and the zxing-wasm decoder) are served from your own
   origin, and the barcode fallback decoder is served from the same origin instead of a CDN.
   `tools/check_no_external_hosts.sh` scans the built bundle and fails on any host outside a
   short, justified allow-list: Open Food Facts as the one network host, and inert
   documentation or namespace strings that are never fetched.
-- Your data never reaches the server: it is encrypted in your browser.
+- Your data never reaches the server: it is encrypted in your browser. (The one thing that passes
+  through it is a photo you choose to send with the optional instance-wide AI, relayed and not stored.)
 - Put TLS in front for other devices (`bin/ai-nutrition-coach up --tls`); AI Nutrition Coach
   itself does not phone home.
 

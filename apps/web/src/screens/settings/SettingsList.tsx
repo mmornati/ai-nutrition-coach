@@ -13,8 +13,8 @@ import { SECTIONS } from './sections';
 export function SettingsList() {
   const all = useStrings();
   const s = all.settings;
-  const { settings, keyStatus } = useYourAi();
-  const aiLine = rungStatusLine(settings, keyStatus.hasKey);
+  const { settings, keyStatus, instance } = useYourAi();
+  const aiLine = rungStatusLine(settings, keyStatus.hasKey, instance.config);
 
   const rows = useMemo<readonly DepartureRow[]>(() => {
     const go = (section: string) => () => navigate(hrefs.section(section));

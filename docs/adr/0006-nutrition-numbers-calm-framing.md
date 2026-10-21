@@ -52,4 +52,4 @@ Reaffirmed, unchanged, in `docs/no-dark-patterns-standard.md`:
 1. **Phase 1, quick wins.** A clear message when photo recognition has no AI configured; barcode camera on iPhone; a coach patch.
 2. **Phase 2, nutrition data.** Grams input, nutrient model, OFF nutriments, catalogue nutrients, schema v2 and migration, Nutrient Bars per plate and per day.
 3. **Phase 3, a real coach.** Optional profile and goals, a day- and week-aware coach, an LLM coach through the existing `Coach` port.
-4. **Phase 4, instance-wide AI key.** An AI key held on the server and used through a server-side proxy, configured in `infra/server.env`, so a self-hoster can offer AI to the people they share the instance with without each of them bringing a key. Planned; see `docs/ai-tiers.md`.
+4. **Phase 4, instance-wide AI key.** An AI key held on the server and used through a server-side proxy, configured in `infra/server.env`, so a self-hoster can offer AI to the people they share the instance with without each of them bringing a key. Built (an `instance` rung behind a same-origin nginx proxy); see `docs/ai-tiers.md` and `docs/self-host.md`.

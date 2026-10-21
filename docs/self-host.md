@@ -136,6 +136,8 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 - Clearing site data or switching browsers loses it. **The backup path is the
   in-app export** (CSV/JSON); keep exports somewhere safe.
 - A forgotten passphrase cannot be recovered by anyone.
+- The one thing that passes through the server is a photo someone chooses to send with the
+  [instance-wide AI](#offer-ai-to-everyone-on-your-instance), if you turned it on: it is relayed, not stored.
 
 ## Configuration
 
@@ -154,6 +156,12 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE` | – | `--traefik`: Traefik service of Authentik's outpost, e.g. `sso@file`; needs the middleware. |
 | `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
 | `AI_NUTRITION_COACH_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
+| `AI_PROXY_ENABLED` | `0` | `1` offers ONE AI key to everyone on this instance (needs the four below). Off otherwise; see [Offer AI to everyone on your instance](#offer-ai-to-everyone-on-your-instance). |
+| `AI_PROXY_UPSTREAM` | – | The provider's OpenAI-compatible base, `https://` only, e.g. `https://openrouter.ai/api/v1`. |
+| `AI_PROXY_KEY` | – | The provider key. A **secret**: never in the image or the bundle; rendered at start into a private file. |
+| `AI_PROXY_MODEL` | – | The model every request uses (forced server-side). |
+| `AI_PROXY_LABEL` | the upstream host | What people are told their photos go to after this server. |
+| `AI_PROXY_RATE` / `AI_PROXY_BURST` / `AI_PROXY_MAX_TOKENS` | `10r/m` / `5` / `2000` | Per-client-address request rate and burst, and the cap on a reply. |
 | `AI_NUTRITION_COACH_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
 | `AI_NUTRITION_COACH_IMAGE_TAG` | `ai-nutrition-coach:dev` | Image tag to build/run. |
 | `AI_NUTRITION_COACH_CONTAINER_NAME` | `ai-nutrition-coach` | Container name for plain `up`. |
@@ -227,6 +235,85 @@ only space-separated `https://host[:port]` origins (plus `http://localhost[:port
 are accepted. Quotes, `;`, `*`, bare `https:`, paths and newlines make the
 container refuse to start, because the value is written into the CSP header and
 must not be able to rewrite the policy.
+
+### Offer AI to everyone on your instance
+
+By default each person brings their own AI key (Settings → Your AI). If you run the instance for a household or a
+small group, you can instead keep **one** OpenAI-compatible endpoint, key and model on the server, so photo
+recognition (and, later, coaching) just works for everyone without a key of their own. Off by default.
+
+```sh
+# infra/server.env  (copy infra/server.env.example to .env; chmod 600 .env)
+AI_PROXY_ENABLED=1
+AI_PROXY_UPSTREAM=https://openrouter.ai/api/v1
+AI_PROXY_KEY=...                       # a secret: never commit it
+AI_PROXY_MODEL=google/gemini-2.0-flash-001
+AI_PROXY_LABEL=OpenRouter              # optional: what people are told their photos go to
+```
+
+With plain `bin/ai-nutrition-coach up` export the same variables first (the key is passed to Docker by name, so it is not
+in the command line or the output); with compose they come from `.env`.
+
+**What people see.** Settings → Your AI gains a choice, *Provided by this server*; it is the starting choice on a
+**new** install (someone who already chose No AI or their own key keeps their choice). The consent dialog before each
+photo says plainly that the photo goes to *this server* and from there to the provider you named in `AI_PROXY_LABEL`.
+Nothing about it is pressured; No AI stays one tap away. The app learns the offer from `GET /ai/config.json`, which
+says only `{ "enabled": true, "model": "…", "label": "…" }` (no key, no upstream address) and is never cached or
+precached. With the proxy off it says `{ "enabled": false }`.
+
+**How it works.** nginx, in the same container, answers `POST /ai/v1/chat/completions` on **your own origin** (so the
+CSP needs no change: `connect-src 'self'`). It forwards the request to `${AI_PROXY_UPSTREAM}/chat/completions` with
+`Authorization: Bearer <key>` added, and it forwards nothing the browser sent: no `Authorization`, `Cookie`, `Origin`,
+`Referer`, `X-Forwarded-For` or `User-Agent` (a whitelist of headers, not a blacklist). Per request it also:
+
+- rewrites the body with njs (the one nginx module the image's base ships with): the model is **forced** to
+  `AI_PROXY_MODEL`, `max_tokens` is capped at `AI_PROXY_MAX_TOKENS`, and only `messages`, `temperature`, `top_p` and
+  `response_format` are kept (no `stream`, `n`, `tools`, ...). Someone calling the endpoint directly cannot pick a dearer model;
+- accepts at most 2 MiB (one downscaled photo is a fraction of that), POST only, and answers `429` beyond the rate
+  limit (default 10 requests a minute per client address, burst 5, 2 connections per address, 16 in total);
+- talks TLS to the provider and **verifies** its certificate against the system CA bundle; resolves its name at
+  request time (cached 30 s), so a long-running container follows the provider's DNS; times out just after the app's
+  own 45 s;
+- hides the provider's refusal: a `401`/`403` from the provider becomes a plain `502`, so a provider's message that
+  quotes part of your key never reaches a visitor;
+- logs no header, body or query string. The access log is off by default and, when on, never has a query string
+  (see [Logs](#logs)); a rate-limit rejection is logged below the container's log level, so no client address is written.
+
+**How the key is protected.** `AI_PROXY_KEY` is read **only when the container starts**. It is never an image layer, a
+build argument, a default or part of the bundle (the image build's secret scan still runs on the bundle; a test pins
+that the Dockerfile has no key). At start `infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh` validates every value
+against a strict pattern (a bad one refuses to start and is never printed), renders the proxy config into a file under
+`/tmp` (a tmpfs, as for the rest of the rendered config) with mode `0600`, then **verifies** that the file is `0600` and
+that the key appears in no other rendered file (the access-log format, the headers, the main config). The stock
+`envsubst` step only touches `AI_NUTRITION_COACH_*` variables, so it never sees the key, and the script passes it to
+its renderer through the environment, not a command line. nginx drops the environment from its worker processes. The
+key is still in the container's environment, so anyone who can run `docker inspect` / `docker exec` on the host can read
+it: that is the same trust as reading `.env`.
+
+**Cost and abuse: read this.** Anyone who can reach the instance can use this key, within the rate limit. The limit is
+per client address *as nginx sees it*: behind Traefik or Caddy that address is the proxy's, so in effect it caps the
+whole instance (10 requests a minute by default, which is a ceiling on spend, not a fairness rule between people).
+Therefore:
+
+1. **Put the instance behind a sign-in or an allow-list** if it is reachable from the internet: the Traefik overlays
+   `docker-compose.traefik-auth.yml` / `-authentik.yml` (forward auth) or `-allowlist.yml` (CIDRs) already in this
+   repository ([Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel), [Behind your own
+   Traefik](#behind-your-own-traefik)). Forward auth covers `/ai/` too, because it is the same host.
+2. **Set a spend limit at the provider** (a monthly cap or a prepaid balance), and use a key created for this instance.
+3. Know the limits of the model lock: njs forces the model and the token cap, but it cannot tell a photo question from
+   any other question, so a visitor can still ask the model anything within the caps.
+4. The provider sees the photo and the instruction coming from **your server**, not from the person's device; the
+   person's internet address stays with your server. Whoever runs the server chooses the provider and answers for it:
+   the consent dialog says so.
+
+Turn it off by unsetting `AI_PROXY_ENABLED` (or the key) and restarting. A missing key with `AI_PROXY_ENABLED=1` leaves
+the AI off and says so in the container log. Rotating the key is a restart with the new value; nothing in a browser
+needs to change.
+
+`scripts/smoke_self_host.sh` runs the real container twice for this: with the proxy off (`/ai/config.json` says
+`{"enabled":false}`, `/ai/v1/chat/completions` is a 404, no `proxy_pass` exists in the rendered config) and with it on
+against a throw-away local HTTPS upstream that reports whether the browser's `Authorization` header or cookie reached it
+and what the injected key looked like. `tools/pwa/infra.test.mjs` pins the rendered config and the script.
 
 ### Caddy
 
@@ -343,9 +430,10 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 ## Telemetry
 
 The self-host image ships with no telemetry (FR-12): the served bundle makes no
-analytics or tracking calls, the server needs no outbound network, and the only
+analytics or tracking calls, the server needs no outbound network (unless you turn on the optional
+[instance-wide AI](#offer-ai-to-everyone-on-your-instance), which needs outbound HTTPS to your provider), and the only
 browser network paths are the ones you enable (barcode lookups, an AI endpoint
-you configure). The import-based telemetry gate (`tools/check_telemetry_claims.mjs`) pins this claim; see
+you configure, the AI your server offers). The import-based telemetry gate (`tools/check_telemetry_claims.mjs`) pins this claim; see
 [`docs/telemetry-posture.md`](./telemetry-posture.md).
 
 ## Cross-references

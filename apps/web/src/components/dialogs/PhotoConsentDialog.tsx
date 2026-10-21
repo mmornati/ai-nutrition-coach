@@ -7,6 +7,11 @@ export interface PhotoConsentDialogProps {
   readonly open: boolean;
   /** The AI host, named verbatim (e.g. "api.example.com"). */
   readonly host: string;
+  /**
+   * The provider's name when the host is THIS server and it passes the photo on (the instance-wide
+   * key): the dialog then says so plainly, in words about this server and that provider.
+   */
+  readonly via?: string | undefined;
   /** The question is about this one photo ("Ask before every photo upload"). */
   readonly perPhoto?: boolean;
   /** Web wording: the host also sees the page's address. Defaults to true (this is the web app). */
@@ -26,6 +31,7 @@ export interface PhotoConsentDialogProps {
 export function PhotoConsentDialog({
   open,
   host,
+  via,
   perPhoto = false,
   onWeb = true,
   privacyHref = '#/privacy',
@@ -33,21 +39,26 @@ export function PhotoConsentDialog({
   onDecline,
 }: PhotoConsentDialogProps) {
   const s = useStrings().consent;
-  const vars = { host };
+  const vars = { host, via: via ?? '' };
   const bodyId = useId();
+  const instance = via !== undefined;
   return (
     <Dialog
       open={open}
       onClose={onDecline}
-      title={fill(s.title, vars)}
+      title={instance ? s.instanceTitle : fill(s.title, vars)}
       scrimDismiss={false}
       role="alertdialog"
       describedBy={bodyId}
     >
       <div id={bodyId} className="text-body flex flex-col gap-3">
-        <p>{s.whatIsSent}</p>
-        <p>{fill(onWeb ? s.alsoVisibleWeb : s.alsoVisible, vars)}</p>
-        <p>{fill(s.retention, vars)}</p>
+        <p>{instance ? fill(s.instanceWhatIsSent, vars) : s.whatIsSent}</p>
+        <p>
+          {instance
+            ? fill(s.instanceAlsoVisible, vars)
+            : fill(onWeb ? s.alsoVisibleWeb : s.alsoVisible, vars)}
+        </p>
+        <p>{fill(instance ? s.instanceRetention : s.retention, vars)}</p>
         <p>{s.notSent}</p>
         <p className="text-body-small text-porcelain-dim">
           {perPhoto ? s.askEveryHint : s.revokeHint}
@@ -64,7 +75,7 @@ export function PhotoConsentDialog({
           {s.decline}
         </Button>
         <Button variant="outline-porcelain" className="flex-1" onClick={onAllow}>
-          {perPhoto ? s.allowOnce : fill(s.allow, vars)}
+          {perPhoto ? s.allowOnce : instance ? s.instanceAllow : fill(s.allow, vars)}
         </Button>
       </div>
     </Dialog>

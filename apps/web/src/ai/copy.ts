@@ -2,6 +2,7 @@ import { aiRungLabel, type AiRungKind } from '@anc/core';
 import { fill, strings } from '../i18n';
 import type { AiSettings } from './ai-settings';
 import type { ByokEndpointProblem } from './byok-endpoint';
+import type { InstanceAiConfig } from './instance-config';
 import type { ByokConnectionResult } from './openai-compatible-provider';
 import { RUNG_LISTING } from './rungs';
 import type { SaveByokResult } from './your-ai';
@@ -91,9 +92,18 @@ export function connectionResultMessage(result: ByokConnectionResult): FieldMess
 }
 
 /** The Settings row subtitle: the live rung as a calm mono status line. */
-export function rungStatusLine(settings: AiSettings, hasKey: boolean): string {
+export function rungStatusLine(
+  settings: AiSettings,
+  hasKey: boolean,
+  instance?: InstanceAiConfig,
+): string {
   const t = strings().ai;
   if (settings.rung.kind === 'byok') return hasKey ? t.byok.statusActive : t.byok.statusMissing;
+  if (settings.rung.kind === 'instance') {
+    return instance?.enabled === true
+      ? fill(t.rung.thisServerActive, { label: instance.label })
+      : t.rung.thisServerOff;
+  }
   return t.rung.offlineNoAi;
 }
 
@@ -112,14 +122,30 @@ export interface RungChoice {
   readonly selectable: boolean;
 }
 
-/** All four rungs for the Your AI list; only No AI and My own key can be chosen. */
-export function rungChoices(): readonly RungChoice[] {
+/**
+ * The rungs for the Your AI list. No AI and My own key can always be chosen; "Provided by this
+ * server" is listed (after No AI) only while this server offers it; the hosted and on-device rungs
+ * are listed as not available yet.
+ */
+export function rungChoices(instance?: InstanceAiConfig): readonly RungChoice[] {
   const c = strings().ai.yourAi;
   const labels: Record<AiRungKind, { label: string; help: string }> = {
     noOp: { label: c.rungNoneLabel, help: c.rungNoneHelp },
     byok: { label: c.rungByokLabel, help: c.rungByokHelp },
     hostedQuota: { label: c.rungHostedLabel, help: c.rungUnavailable },
     local: { label: c.rungLocalLabel, help: c.rungUnavailable },
+    instance: {
+      label: c.rungInstanceLabel,
+      help: instance?.enabled === true ? fill(c.rungInstanceHelp, { label: instance.label }) : '',
+    },
   };
-  return RUNG_LISTING.map(({ kind, selectable }) => ({ kind, selectable, ...labels[kind] }));
+  const listed: RungChoice[] = RUNG_LISTING.map(({ kind, selectable }) => ({
+    kind,
+    selectable,
+    ...labels[kind],
+  }));
+  if (instance?.enabled === true) {
+    listed.splice(1, 0, { kind: 'instance', selectable: true, ...labels.instance });
+  }
+  return listed;
 }

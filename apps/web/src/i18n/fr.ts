@@ -122,6 +122,8 @@ export const fr: Strings = {
     aimHint: 'Cadrez votre assiette, puis touchez le déclencheur.',
     noAiNote:
       'La reconnaissance de photo demande une connexion à une IA. Sans elle, vous pouvez toujours choisir ou saisir ce qui se trouve dans l’assiette.',
+    noAiNoteInstance:
+      'La reconnaissance de photo demande une connexion à une IA. Ce serveur en propose une : vous pouvez l’activer dans les réglages. Sans elle, vous pouvez toujours choisir ou saisir ce qui se trouve dans l’assiette.',
     reading: 'Lecture de votre assiette…',
     retake: 'Reprendre',
     typeManually: 'Saisir à la main',
@@ -188,6 +190,8 @@ export const fr: Strings = {
     noAiTitle: 'Aucune IA connectée',
     noAiHint:
       'Sans IA, les photos ne sont pas analysées. Choisissez un aliment récent, saisissez-le, ou configurez une IA dans les réglages.',
+    noAiHintInstance:
+      'Sans IA, les photos ne sont pas analysées. Choisissez un aliment récent, saisissez-le, ou activez l’IA que ce serveur propose dans les réglages.',
     setUpAi: 'Configurer l’IA',
     recognizedLabel: 'Aliments reconnus',
     closestMatches: 'Correspondances les plus proches',
@@ -215,6 +219,14 @@ export const fr: Strings = {
     allowOnce: 'Envoyer cette photo',
     decline: 'Pas maintenant',
     learnMore: 'Ce que l’application stocke et envoie',
+    instanceTitle: 'Envoyer cette photo à ce serveur ?',
+    instanceWhatIsSent:
+      'Ce qui est envoyé : la photo, réduite, sans sa localisation ni les informations de l’appareil photo, et une instruction fixe demandant quels aliments sont dans l’assiette et dans quelle langue répondre (français ou anglais, la langue de l’application). La photo part vers ce serveur ({host}), qui ajoute sa propre clé d’IA et la transmet à {via}. AI Nutrition Coach, le projet, n’exploite ni ce serveur ni ce service et ne voit jamais la photo.',
+    instanceAlsoVisible:
+      'Également visibles par la personne qui exploite {host} : votre adresse IP et le type de votre navigateur, comme pour tout site web. {via} reçoit la photo de ce serveur, pas de votre appareil.',
+    instanceRetention:
+      '{via} peut conserver les requêtes selon ses propres conditions, et la personne qui exploite ce serveur l’a choisi : interrogez-la sur sa politique de données. Le logiciel de ce serveur ne conserve pas la photo.',
+    instanceAllow: 'Autoriser ce serveur',
   },
   ai: {
     rung: {
@@ -230,6 +242,8 @@ export const fr: Strings = {
       quotaStatusHeading: 'Quand le quota gratuit est épuisé',
       manualFallbackHint:
         'Vous pouvez toujours choisir la correspondance la plus proche ou saisir l’aliment à la main.',
+      thisServerActive: 'ce serveur — {label}',
+      thisServerOff: 'ce serveur — non proposé',
     },
     byok: {
       title: 'Votre IA',
@@ -256,6 +270,13 @@ export const fr: Strings = {
       rungHostedLabel: 'Modèle hébergé gratuit',
       rungLocalLabel: 'Modèle sur cet appareil',
       rungUnavailable: 'Pas encore disponible',
+      rungInstanceLabel: 'Fournie par ce serveur',
+      rungInstanceHelp:
+        'Aucune clé nécessaire. Les photos vont à ce serveur, qui les transmet à {label}.',
+      instanceHeading: 'L’IA de ce serveur',
+      instanceExplain:
+        'La personne qui exploite ce serveur ({host}) y garde une clé d’IA, vous n’en avez donc pas besoin. Une photo part d’abord vers ce serveur, puis vers {label}, qui la lit et répond. Votre accord est demandé avant chaque photo, sauf si vous le désactivez ci-dessous.',
+      instanceModel: 'Modèle : {model}',
       byokHeading: 'Votre service',
       endpointLabel: 'Adresse du service',
       endpointHint: 'https://openrouter.ai/api/v1',
@@ -326,6 +347,10 @@ export const fr: Strings = {
       couldNotConnect: 'impossible de se connecter à {host}',
       unreachable: 'le fournisseur est injoignable',
       unavailableRung: 'Pas encore disponible',
+      instanceUnavailable:
+        'Ce serveur ne propose pas d’IA pour le moment. Vous pouvez choisir une autre option dans Réglages → Votre IA.',
+      instanceBusy: 'L’IA de ce serveur est occupée. Réessayez dans un instant.',
+      instanceError: 'L’IA de ce serveur n’a pas répondu. Réessayez dans un instant.',
       blockedByBrowser:
         'Si le service fonctionne, le navigateur a peut-être bloqué l’appel : le service doit autoriser les requêtes venant de cette page (CORS), et la Content-Security-Policy de ce site doit indiquer son adresse. Si vous hébergez vous-même cette application, ajoutez l’adresse à AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (voir les notes d’auto-hébergement).',
     },
@@ -692,6 +717,8 @@ export const fr: Strings = {
       'Scan d’un code-barres : le numéro du code-barres est recherché sur Open Food Facts, une base de données publique sans compte. Seul le code-barres est envoyé. Open Food Facts voit aussi les informations de connexion que voit tout site web : votre adresse IP, le type de votre appareil ou de votre navigateur et l’adresse de ce site (le navigateur l’ajoute dans l’en-tête Origin). Vous pouvez désactiver cela ci-dessous.',
     leavesPhoto:
       'Reconnaissance d’une photo : seulement si vous avez activé votre propre IA et donné votre accord. La photo (réduite, sans sa localisation ni les informations de l’appareil photo), une instruction fixe (qui précise aussi dans quelle langue répondre, la langue de l’application) et le nom du modèle vont au service que vous avez choisi. Ce service voit aussi votre adresse IP et le type de votre appareil ou de votre navigateur, et peut conserver les requêtes selon sa propre politique.',
+    leavesInstance:
+      'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',
     offToggleOn: 'Activé : un code-barres scanné est recherché en ligne.',
     offToggleOff:
@@ -701,6 +728,8 @@ export const fr: Strings = {
     serverHeading: 'Ce que voit le serveur d’où vient cette application',
     serverBody:
       'Rien sur vous ni sur vos assiettes. Le serveur ne fait que distribuer les fichiers de l’application. Comme tout serveur web, il peut tenir un court journal d’accès (adresses des pages et heures), avec les adresses des clients tronquées ; dans l’installation auto-hébergée standard, ce journal est désactivé.',
+    serverInstance:
+      'La seule exception est une photo que vous choisissez d’envoyer avec l’IA que ce serveur propose (voir plus haut) : elle transite par ce serveur avant d’arriver au fournisseur, et n’y est pas conservée.',
     neverHeading: 'Jamais collecté',
     neverBody:
       'Pas de statistiques, pas de pistage, pas de rapports de plantage, pas de publicité et pas de comptes. Rien n’est envoyé sur la façon dont vous utilisez l’application.',

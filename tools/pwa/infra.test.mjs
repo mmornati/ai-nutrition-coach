@@ -2,7 +2,7 @@
 // the earlier client). The container itself is exercised by
 // scripts/smoke_self_host.sh; these are the cheap static pins that run in `pnpm verify`.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,8 +121,12 @@ describe('nginx', () => {
   }));
   const cache = (needle) => locations.find((l) => l.match.includes(needle))?.body;
 
-  it('serves nothing but GET/HEAD, no bodies, no proxying, no resolver', () => {
-    expect(conf).toContain('if ($request_method !~ ^(GET|HEAD)$) { return 405; }');
+  it('serves nothing but GET/HEAD (plus the AI proxy POST), no bodies, no proxying, no resolver', () => {
+    // GET/HEAD everywhere; POST only to the one AI proxy path (a 404 unless the operator enabled it).
+    expect(conf).toContain('if ($ai_nutrition_coach_method_ok = 0) { return 405; }');
+    expect(conf).toMatch(/"~\^\(GET\|HEAD\) "\s+1;/);
+    expect(conf).toMatch(/"POST \/ai\/v1\/chat\/completions"\s+1;/);
+    expect(conf.match(/^\s*"(?!~)[A-Z]+ /gm)).toHaveLength(1);
     expect(conf).toContain('client_max_body_size 1k;');
     expect(`${conf}\n${read('infra/nginx/nginx.conf')}`).not.toMatch(
       /^\s*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b/m,
@@ -516,5 +520,360 @@ describe('Traefik deployment (docs/pwa.md)', () => {
       AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE: 'sso@file',
     });
     expect([10, 43], r.stderr).toContain(r.status);
+  });
+});
+
+describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on your instance")', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh');
+  const tplDir = join(root, 'infra/nginx/ai-proxy');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+  // A key-shaped fixture that is allow-listed exactly in .gitleaks.toml.
+  const KEY = 'sk-test-abcdef123456';
+  const ON = {
+    AI_PROXY_ENABLED: '1',
+    AI_PROXY_UPSTREAM: 'https://openrouter.ai/api/v1',
+    AI_PROXY_KEY: KEY,
+    AI_PROXY_MODEL: 'vendor/model-x',
+  };
+
+  // Runs the real POSIX-sh entrypoint script (no Docker needed) into a temp "/tmp".
+  const render = (env, { pre = {} } = {}) => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_ai_'));
+    try {
+      const resolv = join(dir, 'resolv.conf');
+      writeFileSync(resolv, 'search example.test\nnameserver 127.0.0.11\noptions ndots:0\n');
+      for (const [name, text] of Object.entries(pre)) writeFileSync(join(dir, name), text);
+      const r = spawnSync('sh', [script], {
+        env: {
+          PATH,
+          AI_PROXY_OUT_DIR: dir,
+          AI_PROXY_TEMPLATE_DIR: tplDir,
+          AI_PROXY_RESOLV_CONF: resolv,
+          ...env,
+        },
+        encoding: 'utf8',
+      });
+      const path = (name) => join(dir, `ai-nutrition-coach-ai-${name}.inc`);
+      const file = (name) => (existsSync(path(name)) ? readFileSync(path(name), 'utf8') : '');
+      const modes = Object.fromEntries(
+        ['locations', 'http', 'main'].map((n) => [n, existsSync(path(n)) ? statSync(path(n)).mode & 0o777 : 0]),
+      );
+      return {
+        code: r.status,
+        out: `${r.stdout}${r.stderr}`,
+        locations: file('locations'),
+        http: file('http'),
+        main: file('main'),
+        modes,
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const expectOff = (r) => {
+    expect(r.code).toBe(0);
+    expect(r.locations).toContain(`return 200 '{"enabled":false}';`);
+    expect(r.locations).toContain('location ^~ /ai/ {');
+    expect(r.locations).toContain('return 404;');
+    expect(r.locations).not.toMatch(/^\s*(proxy_pass|resolver|proxy_set_header)\b/m);
+    expect(r.locations).not.toContain(KEY);
+    expect(r.main).not.toContain('load_module');
+    expect(r.http).not.toContain('limit_req_zone');
+  };
+
+  it('is OFF by default: the image says so and the locations only answer disabled / 404', () => {
+    expect(dockerfile).toContain('AI_PROXY_ENABLED="0"');
+    expectOff(render({}));
+    expectOff(render({ ...ON, AI_PROXY_ENABLED: '0' }));
+    expectOff(render({ ...ON, AI_PROXY_ENABLED: 'true' }));
+  });
+
+  it('enabled but with an empty key stays off (and says so, without a value)', () => {
+    const r = render({ ...ON, AI_PROXY_KEY: '' });
+    expectOff(r);
+    expect(r.out).toContain('AI_PROXY_KEY is empty');
+  });
+
+  it('on: the key is injected by nginx, the client is not trusted with any header', () => {
+    const r = render(ON);
+    expect(r.code, r.out).toBe(0);
+    const loc = r.locations;
+    expect(loc).toContain(`proxy_set_header Authorization "Bearer ${KEY}";`);
+    // Whitelist, not blacklist: nothing the browser sent is forwarded (Authorization and Cookie
+    // included), and no client header is read into the upstream request.
+    expect(loc).toContain('proxy_pass_request_headers off;');
+    expect(loc).not.toMatch(/\$http_(authorization|cookie|x_|origin|referer|user_agent)/i);
+    expect(loc).not.toContain('$remote_addr');
+    expect(loc).not.toMatch(/proxy_set_header (Cookie|X-Forwarded-For|X-Real-IP|Origin|Referer)\b/);
+    // POST only; GET and anything else is a 405 inside the location (the server-level map lets only
+    // GET/HEAD and this one POST through).
+    expect(loc).toContain('if ($request_method != POST) { return 405; }');
+    expect(loc).toContain('location = /ai/v1/chat/completions {');
+    expect(loc).toContain('set $anc_ai_upstream "https://openrouter.ai/api/v1/chat/completions";');
+    expect(loc).toContain('proxy_pass $anc_ai_upstream;');
+    expect(loc).toContain('proxy_set_header Host "openrouter.ai";');
+    // Sized for one downscaled photo; per-client rate and connection limits; calm 429s.
+    expect(loc).toContain('client_max_body_size 2m;');
+    expect(loc).toMatch(/limit_req zone=ai_nutrition_coach_ai burst=5 nodelay;/);
+    expect(loc).toMatch(/limit_req_status 429;/);
+    expect(loc).toMatch(/limit_conn ai_nutrition_coach_ai_ip \d+;/);
+    expect(loc).toMatch(/limit_conn ai_nutrition_coach_ai_all \d+;/);
+    expect(r.http).toMatch(
+      /limit_req_zone \$binary_remote_addr zone=ai_nutrition_coach_ai:\d+m rate=10r\/m;/,
+    );
+    // Rejections are logged below the error_log level: no client address in the container log.
+    expect(r.http).toContain('limit_req_log_level info;');
+    expect(r.http).toContain('limit_conn_log_level info;');
+    // TLS to the provider, verified against the system CA bundle; timeouts sit just above the app's 45 s.
+    expect(loc).toContain('proxy_ssl_server_name on;');
+    expect(loc).toContain('proxy_ssl_verify on;');
+    expect(loc).toContain('proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;');
+    expect(loc).toContain('proxy_read_timeout 50s;');
+    expect(loc).toContain('resolver 127.0.0.11 valid=30s ipv6=off;');
+    // The model is forced server-side by njs, which is loaded only now.
+    expect(loc).toContain('set $anc_ai_model "vendor/model-x";');
+    expect(loc).toContain('js_set $anc_ai_body anc_ai.body;');
+    expect(loc).toContain('proxy_set_body $anc_ai_body;');
+    expect(r.main).toContain('load_module /usr/lib/nginx/modules/ngx_http_js_module.so;');
+    expect(r.http).toContain('js_import anc_ai from ai-proxy.js;');
+    // An upstream 401/403 (a refused key) must not echo the provider's message to a visitor.
+    expect(loc).toContain('error_page 401 403 = @ai_nutrition_coach_ai_refused;');
+    expect(loc).toContain('proxy_hide_header Set-Cookie;');
+    // No body, header or query ever reaches a log.
+    expect(loc).not.toMatch(/\baccess_log\b|\$request_body|\$query_string|\$args/);
+  });
+
+  it('the config endpoint names the model and a label, never the key or the upstream', () => {
+    const r = render({ ...ON, AI_PROXY_LABEL: 'OpenRouter (free)' });
+    const json = /location = \/ai\/config\.json \{[^}]*return 200 '([^']*)';/.exec(r.locations)[1];
+    expect(JSON.parse(json)).toEqual({
+      enabled: true,
+      model: 'vendor/model-x',
+      label: 'OpenRouter (free)',
+    });
+    expect(json).not.toContain(KEY);
+    expect(json).not.toContain('openrouter.ai/api');
+    expect(r.locations).toMatch(
+      /location = \/ai\/config\.json \{[^}]*add_header Cache-Control "no-store";/,
+    );
+    // The default label is the provider's host name.
+    const d = render(ON);
+    expect(/return 200 '([^']*)';/.exec(d.locations)[1]).toContain('"label":"openrouter.ai"');
+  });
+
+  it('the key reaches ONE file, mode 0600, and never a message of the script', () => {
+    const r = render(ON);
+    expect(r.locations).toContain(KEY);
+    for (const other of [r.http, r.main]) expect(other).not.toContain(KEY);
+    expect(r.out).not.toContain(KEY);
+    expect(r.modes).toEqual({ locations: 0o600, http: 0o600, main: 0o600 });
+    expect(r.locations).not.toContain('@@');
+  });
+
+  it('refuses to start if the key is found in any other rendered file (access log, headers, config)', () => {
+    const r = render(ON, { pre: { 'ai-nutrition-coach-access-log.inc': `# leaked ${KEY}\n` } });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('leaked into');
+    expect(r.out).toContain('ai-nutrition-coach-access-log.inc');
+    expect(r.out).not.toContain(KEY);
+  });
+
+  it('every bad value refuses to start and is never printed', () => {
+    const SECRETISH = 'ZZSECRETVALUEZZ';
+    const bad = [
+      { AI_PROXY_KEY: `${SECRETISH} with space` },
+      { AI_PROXY_KEY: `${SECRETISH}"; add_header X-Evil 1; #` },
+      { AI_PROXY_KEY: `${SECRETISH}$x` },
+      { AI_PROXY_KEY: `${SECRETISH}\nsecond-line` },
+      { AI_PROXY_KEY: 'short' },
+      { AI_PROXY_UPSTREAM: `http://${SECRETISH}.test/v1` },
+      { AI_PROXY_UPSTREAM: `https://${SECRETISH}.test/v1?key=1` },
+      { AI_PROXY_UPSTREAM: `https://${SECRETISH}.test/v1;x` },
+      { AI_PROXY_UPSTREAM: `https://user:${SECRETISH}@x.test/v1` },
+      { AI_PROXY_UPSTREAM: `https://${SECRETISH}.test/../v1` },
+      { AI_PROXY_UPSTREAM: '' },
+      { AI_PROXY_MODEL: `${SECRETISH}'; return 200` },
+      { AI_PROXY_MODEL: '' },
+      { AI_PROXY_LABEL: `${SECRETISH}"}` },
+      { AI_PROXY_RATE: `${SECRETISH}` },
+      { AI_PROXY_RATE: '10r/h' },
+      { AI_PROXY_BURST: `-${SECRETISH}` },
+      { AI_PROXY_MAX_TOKENS: '0' },
+      { AI_PROXY_RESOLVER: `${SECRETISH}` },
+    ];
+    for (const over of bad) {
+      const r = render({ ...ON, ...over });
+      expect(r.code, JSON.stringify(Object.keys(over))).toBe(1);
+      expect(r.out).toContain('refusing to start');
+      expect(r.out).not.toContain(SECRETISH);
+      expect(r.out).not.toContain(KEY);
+      expect(r.locations).toBe('');
+    }
+  });
+
+  it('accepts a real-world setup: a port, a path, a label with spaces, tuned limits', () => {
+    const r = render({
+      ...ON,
+      AI_PROXY_UPSTREAM: 'https://llm.internal.example.test:8443/openai/v1/',
+      AI_PROXY_MODEL: 'google/gemini-2.0-flash-001',
+      AI_PROXY_LABEL: 'Our LLM (EU)',
+      AI_PROXY_RATE: '2r/s',
+      AI_PROXY_BURST: '8',
+      AI_PROXY_MAX_TOKENS: '1500',
+      AI_PROXY_RESOLVER: '10.0.0.2',
+    });
+    expect(r.code, r.out).toBe(0);
+    expect(r.locations).toContain(
+      '"https://llm.internal.example.test:8443/openai/v1/chat/completions"',
+    );
+    expect(r.locations).toContain('proxy_set_header Host "llm.internal.example.test:8443";');
+    expect(r.locations).toContain('proxy_ssl_name "llm.internal.example.test:8443";');
+    expect(r.locations).toContain('resolver 10.0.0.2 valid=30s');
+    expect(r.locations).toContain('burst=8 nodelay');
+    expect(r.locations).toContain('set $anc_ai_max_tokens "1500";');
+    expect(r.http).toContain('rate=2r/s');
+  });
+
+  it('the server-level config lets POST through to exactly one path and holds no proxy of its own', () => {
+    expect(conf).toContain('include /tmp/ai-nutrition-coach-ai-locations.inc;');
+    const nginxConf = readCode('infra/nginx/nginx.conf');
+    expect(nginxConf).toContain('include /tmp/ai-nutrition-coach-ai-main.inc;');
+    expect(nginxConf).toContain('include /tmp/ai-nutrition-coach-ai-http.inc;');
+    // The static template itself never proxies, resolves or holds a key.
+    expect(readCode('infra/nginx/templates/ai-nutrition-coach.conf.template')).not.toMatch(
+      /^\s*(proxy_pass|resolver|proxy_set_header)\b/m,
+    );
+    // The rendered files live in /tmp (a tmpfs): the image holds no key and no rendered proxy.
+    expect(dockerfile).toContain('COPY infra/nginx/ai-proxy/ /etc/ai-nutrition-coach/ai-proxy/');
+    expect(dockerfile).toContain('40-render-ai-proxy.sh');
+    expect(dockerfile).not.toMatch(/\b(ARG|ENV)\b[^\n]*AI_PROXY_(KEY|UPSTREAM|MODEL)/);
+    // The stock envsubst step only touches AI_NUTRITION_COACH_* variables, so it never sees the key.
+    expect(dockerfile).toContain('NGINX_ENVSUBST_FILTER=AI_NUTRITION_COACH_');
+  });
+
+  it('no config, template or script logs a header, a body or a query string', () => {
+    for (const f of [
+      'infra/nginx/ai-proxy/ai-proxy.locations.inc.template',
+      'infra/nginx/ai-proxy/ai-proxy.http.inc.template',
+      'infra/nginx/ai-proxy/ai-proxy.disabled.inc.template',
+      'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh',
+    ]) {
+      const text = readCode(f);
+      expect(text, f).not.toMatch(/\baccess_log\b|\$http_|\$request_body|\$args\b|\$query_string/);
+      expect(text, f).not.toMatch(/set -x|echo [^\n]*\$key|printf [^\n]*\$key[^\n]*>&2/);
+    }
+    // And the access-log formats never include a header (the key travels only in one).
+    for (const mode of ['on', 'full']) {
+      const dir = mkdtempSync(join(tmpdir(), 'anc_log_'));
+      try {
+        const out = join(dir, 'log.inc');
+        spawnSync('sh', [join(root, 'infra/nginx/docker-entrypoint.d/10-render-access-log.sh')], {
+          env: { PATH, AI_NUTRITION_COACH_ACCESS_LOG: mode, AI_NUTRITION_COACH_ACCESS_LOG_OUT: out },
+        });
+        const format = /^log_format .*$/m.exec(readFileSync(out, 'utf8'))[0];
+        expect(format).not.toMatch(
+          /\$http_|authorization|\$request_body|\$args|\$query_string|\$request /i,
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('compose and the installer pass the settings through, off by default, and never print the key', () => {
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const text = read(file);
+      expect(text, file).toContain('AI_PROXY_ENABLED: ${AI_PROXY_ENABLED:-0}');
+      for (const v of ['UPSTREAM', 'KEY', 'MODEL', 'LABEL']) {
+        expect(text, file).toContain(`AI_PROXY_${v}: \${AI_PROXY_${v}:-}`);
+      }
+    }
+    const example = read('infra/server.env.example');
+    expect(example).toMatch(/^AI_PROXY_ENABLED=0$/m);
+    // Every other AI_PROXY_ line is a comment (no key, ever, in the example).
+    expect(example).not.toMatch(/^AI_PROXY_(?!ENABLED=0)/m);
+    expect(example).toMatch(/^#AI_PROXY_UPSTREAM=https:\/\//m);
+    expect(example).toMatch(/spend|abuse/i);
+    const bin = read('bin/ai-nutrition-coach');
+    // The key goes to `docker run` by NAME (inherited), never as a value in an argument.
+    expect(bin).toContain('-e AI_PROXY_KEY');
+    expect(bin).not.toMatch(/AI_PROXY_KEY=/);
+    const run = (env) =>
+      spawnSync('sh', [join(root, 'bin/ai-nutrition-coach'), 'up'], {
+        env: { PATH, ...env },
+        encoding: 'utf8',
+      });
+    const noKey = run({
+      AI_PROXY_ENABLED: '1',
+      AI_PROXY_UPSTREAM: 'https://x.test/v1',
+      AI_PROXY_MODEL: 'm',
+    });
+    expect(noKey.status).toBe(42);
+    expect(noKey.stderr).toContain('AI_PROXY_KEY');
+    const plainHttp = run({ ...ON, AI_PROXY_UPSTREAM: 'http://x.test/v1' });
+    expect(plainHttp.status).toBe(42);
+    expect(`${plainHttp.stdout}${plainHttp.stderr}`).not.toContain(KEY);
+    const noModel = run({ ...ON, AI_PROXY_MODEL: '' });
+    expect(noModel.status).toBe(42);
+  });
+
+  it('/ai/config.json is never precached: nothing under public/ai, and the generator names no /ai/ file', () => {
+    expect(existsSync(join(root, 'apps/web/public/ai'))).toBe(false);
+    expect(readCode('tools/generate_precache_manifest.mjs')).not.toMatch(/['"`/]ai\/config/);
+  });
+});
+
+describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
+  const run = async (body, vars = { anc_ai_model: 'vendor/model-x', anc_ai_max_tokens: '2000' }) => {
+    const { default: mod } = await import('../../infra/nginx/ai-proxy/ai-proxy.js');
+    return mod.body({ variables: vars, requestText: body });
+  };
+
+  it('forces the model, caps max_tokens and keeps only the safe fields', async () => {
+    const out = JSON.parse(
+      await run(
+        JSON.stringify({
+          model: 'vendor/expensive-model',
+          messages: [{ role: 'user', content: 'hi' }],
+          max_tokens: 99999,
+          temperature: 0.2,
+          top_p: 0.9,
+          stream: true,
+          n: 8,
+          tools: [{}],
+          logprobs: true,
+          response_format: { type: 'json_object' },
+        }),
+      ),
+    );
+    expect(out).toEqual({
+      model: 'vendor/model-x',
+      messages: [{ role: 'user', content: 'hi' }],
+      max_tokens: 2000,
+      temperature: 0.2,
+      top_p: 0.9,
+      response_format: { type: 'json_object' },
+    });
+  });
+
+  it('sets max_tokens when the client sent none and keeps a smaller one', async () => {
+    const m = [{ role: 'user', content: 'x' }];
+    expect(JSON.parse(await run(JSON.stringify({ messages: m }))).max_tokens).toBe(2000);
+    expect(JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: 50 }))).max_tokens).toBe(
+      50,
+    );
+    expect(JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: -5 }))).max_tokens).toBe(
+      2000,
+    );
+    const small = { anc_ai_model: 'm', anc_ai_max_tokens: '300' };
+    expect(
+      JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: 9999 }), small)).max_tokens,
+    ).toBe(300);
+  });
+
+  it('turns anything that is not a chat request into an empty object the provider refuses', async () => {
+    for (const body of ['not json', '[]', 'null', '"x"', '{}', '{"messages":"x"}', undefined]) {
+      expect(await run(body)).toBe('{}');
+    }
   });
 });

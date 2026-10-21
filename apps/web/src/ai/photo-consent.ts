@@ -1,4 +1,5 @@
 import type { AiSettingsController } from './ai-settings-controller';
+import type { InstanceAiView } from './instance-config';
 import { photoUploadHost } from './rung-registry';
 
 /**
@@ -10,6 +11,8 @@ import { photoUploadHost } from './rung-registry';
  */
 export function photoFlowConsentDeps(
   controller: Pick<AiSettingsController, 'getSnapshot' | 'grantPhotoConsent'>,
+  /** What this server offers; needed for the instance rung (its host is this page's). */
+  instance?: () => InstanceAiView,
 ): {
   readonly uploadHost: () => string | null;
   readonly askBeforeEveryPhoto: () => boolean;
@@ -17,7 +20,7 @@ export function photoFlowConsentDeps(
   readonly grantHostConsent: (host: string) => Promise<void>;
 } {
   return {
-    uploadHost: () => photoUploadHost(controller.getSnapshot()),
+    uploadHost: () => photoUploadHost(controller.getSnapshot(), instance?.()),
     askBeforeEveryPhoto: () => controller.getSnapshot().askBeforeEveryPhoto,
     hasHostConsent: (host) => controller.getSnapshot().hasConsentFor(host),
     grantHostConsent: (host) => controller.grantPhotoConsent(host),
