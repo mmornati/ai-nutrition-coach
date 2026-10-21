@@ -64,7 +64,7 @@ export function RecipePaste({
 
   const runLocal = async (why: Message | null): Promise<void> => {
     setWorking(true);
-    const prefill = await recipeFromText(text, catalog);
+    const prefill = await recipeFromText(text, catalog, locale);
     if (abort.current.signal.aborted) return;
     setWorking(false);
     finish(prefill, why);
@@ -77,7 +77,7 @@ export function RecipePaste({
     if (abort.current.signal.aborted) return;
     switch (out.kind) {
       case 'recipe': {
-        const prefill = await prefillFromAi(out.recipe, catalog);
+        const prefill = await prefillFromAi(out.recipe, catalog, locale);
         if (abort.current.signal.aborted) return;
         setWorking(false);
         finish(prefill, null);

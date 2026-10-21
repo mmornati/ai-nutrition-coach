@@ -22,9 +22,15 @@ import { Button, TextField } from '../../components/primitives';
 import { QuantityPicker, Sheet } from '../../components/sheets';
 import { fill, useLocale, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { useSession } from '../../app/session';
-import type { RecipePrefill } from '../../capture';
+import type { NotAddedLine, PrefillIngredient, RecipePrefill } from '../../capture';
 import { MatchList } from './MatchList';
 import { RecipePaste } from './RecipePaste';
+
+/** An ingredient of the form and, when it came from a pasted recipe, the line it was matched from. */
+interface IngredientRow {
+  readonly draft: FoodEntryDraft;
+  readonly from?: string;
+}
 
 /** A typed whole number of servings; `null` for anything else. */
 function parseServings(text: string): number | null {
@@ -81,11 +87,13 @@ export function RecipeEditor({
   const [name, setName] = useState('');
   const [servings, setServings] = useState('4');
   const [cooked, setCooked] = useState('');
-  const [ingredients, setIngredients] = useState<readonly FoodEntryDraft[]>([]);
+  // Each ingredient, with the pasted line it was matched from (shown next to the matched name).
+  const [rows, setRows] = useState<readonly IngredientRow[]>([]);
+  const ingredients = useMemo<readonly FoodEntryDraft[]>(() => rows.map((r) => r.draft), [rows]);
   const [weightValid, setWeightValid] = useState(true);
   const [busy, setBusy] = useState(false);
   const [pasting, setPasting] = useState(false);
-  const [notAdded, setNotAdded] = useState<readonly string[]>([]);
+  const [notAdded, setNotAdded] = useState<readonly NotAddedLine[]>([]);
   const [estimatedNote, setEstimatedNote] = useState(false);
   const [note, setNote] = useMessage();
 
@@ -111,7 +119,7 @@ export function RecipeEditor({
       return;
     }
     setNote(null);
-    setIngredients((all) => [...all, { databaseFood: selected.food, quantity: chosen }]);
+    setRows((all) => [...all, { draft: { databaseFood: selected.food, quantity: chosen } }]);
     session.clear();
   };
 
@@ -119,11 +127,27 @@ export function RecipeEditor({
   const applyPaste = (prefill: RecipePrefill, why: Message) => {
     if (prefill.name !== undefined && cleanSavedName(name) === null) setName(prefill.name);
     if (prefill.servings !== undefined) setServings(String(prefill.servings));
-    setIngredients((current) => [...current, ...prefill.ingredients].slice(0, MAX_INGREDIENTS));
+    setRows((current) =>
+      [...current, ...prefill.ingredients.map((i) => ({ draft: i.draft, from: i.from }))].slice(
+        0,
+        MAX_INGREDIENTS,
+      ),
+    );
     setNotAdded(prefill.notAdded);
     setEstimatedNote(prefill.anyEstimated);
     setPasting(false);
     setNote(why);
+  };
+
+  /** One tap on a suggestion: it becomes an ingredient and its line leaves the list. */
+  const pickSuggestion = (index: number, suggestion: PrefillIngredient) => {
+    setRows((current) =>
+      current.length >= MAX_INGREDIENTS
+        ? current
+        : [...current, { draft: suggestion.draft, from: suggestion.from }],
+    );
+    setNotAdded((current) => current.filter((_, i) => i !== index));
+    setNote(null);
   };
 
   const save = async () => {
@@ -218,7 +242,7 @@ export function RecipeEditor({
           <p className="text-body-small text-porcelain-dim">{t.none}</p>
         ) : (
           <ul className="border-porcelain border-t-2">
-            {ingredients.map((item, i) => {
+            {rows.map(({ draft: item, from }, i) => {
               const itemName = foodName(item.databaseFood, locale);
               return (
                 <li
@@ -226,6 +250,11 @@ export function RecipeEditor({
                   className="border-rule flex items-center justify-between gap-3 border-b py-2"
                 >
                   <span className="min-w-0 text-lead">
+                    {from !== undefined && (
+                      <span className="text-body-small text-porcelain-dim block">
+                        {fill(t.matchedFrom, { line: from })}
+                      </span>
+                    )}
                     {itemName}
                     <span className="text-body-small text-porcelain-dim block">
                       {entryQuantityText(item.quantity, locale)}
@@ -234,7 +263,7 @@ export function RecipeEditor({
                   <button
                     type="button"
                     aria-label={fill(t.removeIngredientOf, { name: itemName })}
-                    onClick={() => setIngredients((all) => all.filter((_, j) => j !== i))}
+                    onClick={() => setRows((all) => all.filter((_, j) => j !== i))}
                     className="text-body-small text-porcelain-dim min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                   >
                     {t.removeIngredient}
@@ -251,9 +280,34 @@ export function RecipeEditor({
               {t.notAddedTitle}
             </h4>
             <p className="text-body-small text-porcelain-dim">{t.notAddedBody}</p>
-            <ul className="text-body-small list-disc pl-5">
+            <ul className="flex flex-col gap-2">
               {notAdded.map((line, i) => (
-                <li key={`${i}:${line}`}>{line}</li>
+                <li key={`${i}:${line.raw}`} className="text-body-small flex flex-col gap-1">
+                  <span>{line.raw}</span>
+                  {line.suggestions.length > 0 && (
+                    <span className="flex flex-col gap-1">
+                      <span className="text-porcelain-dim">{t.suggestions}</span>
+                      {line.suggestions.map((suggestion) => {
+                        const suggestedName = foodName(suggestion.draft.databaseFood, locale);
+                        return (
+                          <Button
+                            key={suggestion.draft.databaseFood.sourceRef}
+                            variant="outline-porcelain"
+                            fullWidth
+                            disabled={rows.length >= MAX_INGREDIENTS}
+                            aria-label={fill(t.useSuggestionFor, {
+                              name: suggestedName,
+                              line: line.raw,
+                            })}
+                            onClick={() => pickSuggestion(i, suggestion)}
+                          >
+                            {suggestedName}
+                          </Button>
+                        );
+                      })}
+                    </span>
+                  )}
+                </li>
               ))}
             </ul>
           </div>

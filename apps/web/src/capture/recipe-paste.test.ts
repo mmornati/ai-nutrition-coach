@@ -3,6 +3,7 @@
 // servings, accents, and what is left "not added". Offline, nothing sent.
 import { databaseFood, type CatalogResult, type FoodCatalog, type FoodMatch } from '@anc/core';
 import { describe, expect, it } from 'vitest';
+import { foldText } from '../catalog/fold';
 import {
   gramsOfLine,
   isLiquid,
@@ -26,7 +27,7 @@ const food = (ref: string, name: string) =>
 function catalogOf(known: Readonly<Record<string, string>>): FoodCatalog {
   return {
     async search(query): Promise<CatalogResult> {
-      const q = query.toLowerCase();
+      const q = foldText(query);
       const hit = Object.entries(known).find(([key]) => q.includes(key));
       if (hit === undefined) return { kind: 'rankedMatches', matches: [] };
       const match: FoodMatch = {
@@ -45,22 +46,23 @@ function catalogOf(known: Readonly<Record<string, string>>): FoodCatalog {
   };
 }
 
+// Names in the language of the key, as the real catalogue words them (the matcher reads the words).
 const CATALOG = catalogOf({
-  farine: 'Wheat flour',
+  farine: 'Farine de blé',
   flour: 'Wheat flour',
-  lait: 'Milk',
+  lait: 'Lait',
   milk: 'Milk',
-  oeuf: 'Egg',
-  egg: 'Egg',
-  sucre: 'Sugar',
-  sugar: 'Sugar',
+  oeuf: 'Oeuf cru',
+  egg: 'Egg, raw',
+  sucre: 'Sucre blanc',
+  sugar: 'Sugar, white',
   oil: 'Olive oil',
-  huile: 'Olive oil',
-  tomat: 'Tomato',
+  huile: 'Huile d’olive',
+  tomat: 'Tomate',
   salt: 'Salt',
-  sel: 'Salt',
+  sel: 'Sel',
   honey: 'Honey',
-  rice: 'Rice',
+  rice: 'Rice, white, raw',
 });
 
 describe('numberOf', () => {
@@ -146,7 +148,7 @@ describe('parseIngredientLine: amounts and units', () => {
     // A unit followed by an accented letter is a word, not that unit.
     expect(parseIngredientLine('4 cécile')?.amount).toBeUndefined();
     // "oeufs" keeps its name and no weight.
-    expect(parseIngredientLine('3 œufs')).toEqual({ raw: '3 œufs', term: 'œufs' });
+    expect(parseIngredientLine('3 œufs')).toEqual({ raw: '3 œufs', term: 'œufs', count: 3 });
   });
 
   it('gives nothing for an empty or very long line', () => {
@@ -298,17 +300,19 @@ describe('recipeFromText: against the catalogue', () => {
     expect(prefill.servings).toBe(4);
     expect(
       prefill.ingredients.map((i) => [
-        i.databaseFood.displayName,
-        i.quantity.grams,
-        i.quantity.gramsEstimated,
+        i.draft.databaseFood.displayName,
+        i.draft.quantity.grams,
+        i.draft.quantity.gramsEstimated,
       ]),
     ).toEqual([
-      ['Wheat flour', 250, false],
-      ['Sugar', 30, true],
-      ['Milk', 500, true],
+      ['Farine de blé', 250, false],
+      ['Sucre blanc', 30, true],
+      ['Lait', 500, true],
+      // A bare count: 3 pieces of 55 g, an estimate.
+      ['Oeuf cru', 165, true],
     ]);
-    // "3 œufs" has no weight to use ("oeuf" is not "œuf" for this stub) and saffron matches nothing.
-    expect(prefill.notAdded).toEqual(['3 œufs', '1 pincée de safran']);
+    // Saffron matches nothing.
+    expect(prefill.notAdded).toEqual([{ raw: '1 pincée de safran', suggestions: [] }]);
     expect(prefill.anyEstimated).toBe(true);
   });
 
@@ -325,7 +329,7 @@ describe('recipeFromText: against the catalogue', () => {
     };
     const prefill = await recipeFromText('Ingredients\n200 g flour', broken);
     expect(prefill.ingredients).toEqual([]);
-    expect(prefill.notAdded).toEqual(['200 g flour']);
+    expect(prefill.notAdded).toEqual([{ raw: '200 g flour', suggestions: [] }]);
   });
 
   it('keeps at most 40 ingredients', async () => {
@@ -352,12 +356,15 @@ describe('prefillFromAi: names and weights from the AI, nutrients from the catal
     expect(prefill.name).toBe('Pancakes');
     expect(prefill.servings).toBe(4);
     expect(
-      prefill.ingredients.map((i) => [i.databaseFood.source, i.quantity.gramsEstimated]),
+      prefill.ingredients.map((i) => [
+        i.draft.databaseFood.source,
+        i.draft.quantity.gramsEstimated,
+      ]),
     ).toEqual([
       ['seed', false],
       ['seed', true],
     ]);
-    expect(prefill.notAdded).toEqual(['dragon fruit (≈50 g)']);
+    expect(prefill.notAdded).toEqual([{ raw: 'dragon fruit (≈50 g)', suggestions: [] }]);
     expect(prefill.anyEstimated).toBe(true);
   });
 });

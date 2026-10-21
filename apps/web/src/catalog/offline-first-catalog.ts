@@ -234,11 +234,14 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     return this.barcodeCache.length;
   }
 
-  async search(query: string, options?: { readonly limit?: number }): Promise<CatalogResult> {
+  async search(
+    query: string,
+    options?: { readonly limit?: number; readonly locale?: Locale },
+  ): Promise<CatalogResult> {
     try {
       const limit = options?.limit ?? DEFAULT_LIMIT;
       const normalized = query.trim().toLowerCase();
-      const locale = this.locale();
+      const locale = options?.locale ?? this.locale();
       // An empty query is an empty list; a not-found here would push the person into the manual
       // path on the very first keystroke.
       if (normalized.length === 0) return rankedMatches([]);

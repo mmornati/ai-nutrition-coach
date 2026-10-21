@@ -901,6 +901,9 @@ export const fr: Strings = {
       cookedImplausible:
         'Ce poids cuit est très éloigné du poids des ingrédients (de un cinquième à trois fois). Vérifiez les grammes.',
       tooMany: 'Une recette compte au plus {max} ingrédients.',
+      suggestions: 'Voulez-vous dire l’un de ceux-ci ?',
+      useSuggestionFor: 'Utiliser {name} pour « {line} »',
+      matchedFrom: '{line} →',
       pasteOpen: 'Coller une recette',
       pasteTitle: 'Coller une recette',
       pasteIntro:

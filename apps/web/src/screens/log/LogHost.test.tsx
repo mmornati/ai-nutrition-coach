@@ -1,6 +1,6 @@
 // Ports of capture_sheet_test, manual_entry_screen_test, capture_barcode_screen_test and
 // capture_photo_screen_test: the three ways to log, as the person meets them.
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,7 @@ const s = strings();
 const NUTELLA = '3017620422003';
 
 beforeEach(() => {
+  grabbed = null;
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 12, 10) });
 });
 afterEach(() => {
@@ -33,7 +34,11 @@ afterEach(() => {
 let grabbed: Session | null = null;
 function Grab() {
   const session = useSession();
-  useEffect(() => {
+  // A LAYOUT effect: it runs inside the commit, before the DOM change is observable, so a test that
+  // waits for the screen and then reads `grabbed` always gets THIS render's session. A passive
+  // effect can lag behind `findByText`, leaving the previous test's disposed session here (the
+  // cause of the intermittent "noAi" failures under load: the AI was set up on a dead session).
+  useLayoutEffect(() => {
     grabbed = session;
   });
   return null;

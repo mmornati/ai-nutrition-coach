@@ -1,7 +1,7 @@
 // Paste a recipe, as the person meets it in the recipe editor: read on the device with no AI (nothing
 // sent), through their AI only after the Describe yes for that destination, falling back to the
 // device when the AI fails; the result only PREFILLS the editor and nothing is saved by itself.
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +17,7 @@ const t = s.relog.recipe;
 const d = s.describe;
 
 beforeEach(() => {
+  grabbed = null;
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 12, 10) });
 });
 afterEach(() => {
@@ -27,7 +28,11 @@ afterEach(() => {
 let grabbed: Session | null = null;
 function Grab() {
   const session = useSession();
-  useEffect(() => {
+  // A LAYOUT effect: it runs inside the commit, before the DOM change is observable, so a test that
+  // waits for the screen and then reads `grabbed` always gets THIS render's session. A passive
+  // effect can lag behind `findByText`, leaving the previous test's disposed session here (the
+  // cause of the intermittent "noAi" failures under load: the AI was set up on a dead session).
+  useLayoutEffect(() => {
     grabbed = session;
   });
   return null;

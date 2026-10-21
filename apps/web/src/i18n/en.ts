@@ -907,6 +907,9 @@ export const en = {
         'That cooked weight is far from the weight of the ingredients (a fifth to three times as much). Check the grams.',
       tooMany: 'A recipe holds up to {max} ingredients.',
       heavy: 'That makes more than 5 kg a serving. Check the servings and the cooked weight.',
+      suggestions: 'Did you mean one of these?',
+      useSuggestionFor: 'Use {name} for “{line}”',
+      matchedFrom: '{line} →',
       pasteOpen: 'Paste a recipe',
       pasteTitle: 'Paste a recipe',
       pasteIntro:

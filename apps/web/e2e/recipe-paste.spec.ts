@@ -56,8 +56,12 @@ test('paste a French recipe with no AI, review the prefilled editor, save it and
   // Prefilled for review: name, servings, two weighed ingredients (the litre is an estimate).
   await expect(editor.getByLabel('Recipe name')).toHaveValue('Riz au lait');
   await expect(editor.getByLabel('Servings')).toHaveValue('4');
-  await expect(editor.getByRole('listitem').filter({ hasText: /Rice.*200 g/ })).toBeVisible();
-  await expect(editor.getByRole('listitem').filter({ hasText: /milk.*≈1000 g/i })).toBeVisible();
+  await expect(
+    editor.getByRole('listitem').filter({ hasText: /200 g de riz →.*Riz blanc, cru.*200 g/ }),
+  ).toBeVisible();
+  await expect(
+    editor.getByRole('listitem').filter({ hasText: /1 l de lait →.*(Lait|Milk).*≈1000 g/ }),
+  ).toBeVisible();
   await expect(editor.getByText(/Weights marked ≈ are estimates/)).toBeVisible();
   // The line nothing matched stays listed for a manual pick.
   await expect(editor.getByRole('heading', { name: 'Not matched yet' })).toBeVisible();

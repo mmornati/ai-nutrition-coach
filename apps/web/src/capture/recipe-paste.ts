@@ -35,6 +35,8 @@ import {
   type FoodMatch,
   type QuantityRange,
 } from '@anc/core';
+import { indexTokens } from '../catalog/ciqual-index';
+import { detectRecipeLanguage, matchIngredient, type RecipeLanguage } from './recipe-match';
 
 /** The longest pasted text, in characters. */
 export const MAX_RECIPE_TEXT_LENGTH = 8000;
@@ -58,6 +60,8 @@ export interface ParsedIngredientLine {
   readonly exactGrams?: number;
   /** An amount in a unit that needs the ingredient's kind to become grams. */
   readonly amount?: { readonly value: number; readonly unit: Exclude<RecipeUnit, 'g'> };
+  /** A bare count ("3 eggs"): turned into grams with the matched food's piece weight, an estimate. */
+  readonly count?: number;
 }
 
 export interface ParsedRecipeText {
@@ -66,14 +70,28 @@ export interface ParsedRecipeText {
   readonly lines: readonly ParsedIngredientLine[];
 }
 
-/** A line of the pasted recipe that became an ingredient, or did not. */
+/** An ingredient ready for the editor, with the line it came from (shown next to the matched name). */
+export interface PrefillIngredient {
+  readonly draft: FoodEntryDraft;
+  /** The line as pasted ("200 g de riz"), or the AI's ingredient name. */
+  readonly from: string;
+}
+
+/** A line the matcher would not pick for the person: listed, with up to three one-tap suggestions. */
+export interface NotAddedLine {
+  readonly raw: string;
+  /** Candidates with this line's weight, when the line has one the app can use. */
+  readonly suggestions: readonly PrefillIngredient[];
+}
+
+/** What a pasted recipe fills in. Nothing here is saved. */
 export interface RecipePrefill {
   readonly name?: string;
   readonly servings?: number;
-  /** Matched in the catalogue and weighed: ready for the editor (`gramsEstimated` says if guessed). */
-  readonly ingredients: readonly FoodEntryDraft[];
-  /** The lines nothing matched, or that have no weight to use: for the person to pick by hand. */
-  readonly notAdded: readonly string[];
+  /** Matched in the catalogue with confidence and weighed: ready for the editor. */
+  readonly ingredients: readonly PrefillIngredient[];
+  /** The lines that were not matched with confidence, or have no weight to use. */
+  readonly notAdded: readonly NotAddedLine[];
   /** True when at least one ingredient's weight is converted or guessed. */
   readonly anyEstimated: boolean;
 }
@@ -240,9 +258,9 @@ export function parseIngredientLine(rawLine: string): ParsedIngredientLine | nul
     }
     return { raw, term, amount: { value: total, unit: spec.kind } };
   }
-  // A count ("3 eggs", "2 gâteaux"): the amount is not a weight; the whole line is the name.
+  // A count ("3 eggs", "2 gâteaux"): not a weight; the whole line is the name.
   const term = termOf(rest.replace(LEADING_FILLER, ''));
-  return term === '' ? null : { raw, term };
+  return term === '' ? null : { raw, term, count: total };
 }
 
 /** Reads the pasted text: a name (when the first line looks like a title), servings and ingredient lines. */
@@ -331,52 +349,101 @@ export function gramsQuantity(grams: number, estimated: boolean): QuantityRange 
   };
 }
 
-// ───────────────────────── the catalogue ─────────────────────────
+// ───────────────────────── pieces ─────────────────────────
 
-/** The names tried for one ingredient: the whole name, then its first two words. */
-function searchTerms(term: string): readonly string[] {
-  const words = term.split(' ');
-  return [...new Set([term, words.slice(0, 2).join(' ')])].filter((t) => t.length >= 2);
-}
+/**
+ * Grams of one piece of a few common foods, when neither the seed nor the catalogue says (CIQUAL
+ * lists per-100 g values and no pieces). Round household figures: ESTIMATES, flagged as such.
+ */
+const PIECE_GRAMS: Readonly<Record<string, number>> = {
+  oeuf: 55,
+  egg: 55,
+  oignon: 110,
+  onion: 110,
+  carotte: 80,
+  carrot: 80,
+  tomate: 120,
+  tomato: 120,
+  banane: 120,
+  banana: 120,
+  pomme: 150,
+  apple: 150,
+  citron: 80,
+  lemon: 80,
+};
 
-/** The catalogue's best match for an ingredient name, or `null`. Never throws. */
-export async function bestMatch(term: string, catalog: FoodCatalog): Promise<FoodMatch | null> {
-  for (const t of searchTerms(term)) {
-    try {
-      const result = await catalog.search(t, { limit: 3 });
-      if (result.kind === 'rankedMatches' && result.matches[0] !== undefined) {
-        return result.matches[0];
-      }
-    } catch {
-      // This name cannot be looked up; the others still can.
+/** One piece of the matched food: a seed's own piece preset first, then the table above. */
+export function pieceGrams(term: string, match: FoodMatch): number | undefined {
+  for (const preset of match.presets) {
+    if (preset.unit === 'piece' && preset.low === preset.high && preset.low > 0) {
+      const g = preset.grams;
+      if (g !== undefined && g > 0) return g / preset.low;
     }
   }
-  return null;
+  const tokens = indexTokens(term);
+  const head = tokens[0];
+  // "pomme de terre" is a potato, not an apple.
+  if (head === undefined || (head === 'pomme' && tokens.length > 1)) return undefined;
+  return PIECE_GRAMS[head];
 }
 
 /**
- * Looks every parsed line up and weighs it. A line that matches nothing, or has no weight, goes to
- * `notAdded` with its text. At most {@link MAX_INGREDIENTS} ingredients are returned.
+ * The weight of a line once its food is known: grams the text gave or the units imply, else a count
+ * times one piece (an estimate). `undefined` when there is nothing to weigh with.
+ */
+export function weightFor(
+  line: ParsedIngredientLine,
+  match: FoodMatch,
+): { readonly grams: number; readonly estimated: boolean } | undefined {
+  const direct = gramsOfLine(line);
+  if (direct !== undefined || line.count === undefined) return direct;
+  const piece = pieceGrams(line.term, match);
+  if (piece === undefined) return undefined;
+  const grams = Math.round(line.count * piece * 10) / 10;
+  return grams >= 0.1 && grams <= MAX_GRAMS ? { grams, estimated: true } : undefined;
+}
+
+// ───────────────────────── the catalogue ─────────────────────────
+
+const ingredientOf = (
+  match: FoodMatch,
+  weight: { readonly grams: number; readonly estimated: boolean },
+  from: string,
+): PrefillIngredient => ({
+  draft: { databaseFood: match.food, quantity: gramsQuantity(weight.grams, weight.estimated) },
+  from,
+});
+
+/**
+ * Looks every parsed line up (in `language`, the recipe's) and weighs it. A line the matcher is not
+ * sure of, or that has no weight, goes to `notAdded` with its text (and up to three suggestions when
+ * it has a weight). At most {@link MAX_INGREDIENTS} ingredients are returned.
  */
 export async function prefillFromParsed(
   parsed: ParsedRecipeText,
   catalog: FoodCatalog,
+  language: RecipeLanguage = 'en',
 ): Promise<RecipePrefill> {
-  const ingredients: FoodEntryDraft[] = [];
-  const notAdded: string[] = [];
+  const ingredients: PrefillIngredient[] = [];
+  const notAdded: NotAddedLine[] = [];
   let anyEstimated = false;
   for (const line of parsed.lines) {
-    const weight = gramsOfLine(line);
-    const match = await bestMatch(line.term, catalog);
-    if (match === null || weight === undefined || ingredients.length >= MAX_INGREDIENTS) {
-      notAdded.push(line.raw);
-      continue;
+    const found = await matchIngredient(line.term, catalog, language);
+    if (found.kind === 'matched' && ingredients.length < MAX_INGREDIENTS) {
+      const weight = weightFor(line, found.match);
+      if (weight !== undefined) {
+        if (weight.estimated) anyEstimated = true;
+        ingredients.push(ingredientOf(found.match, weight, line.raw));
+        continue;
+      }
     }
-    if (weight.estimated) anyEstimated = true;
-    ingredients.push({
-      databaseFood: match.food,
-      quantity: gramsQuantity(weight.grams, weight.estimated),
+    const candidates =
+      found.kind === 'matched' ? [found.match] : found.kind === 'unsure' ? found.suggestions : [];
+    const suggestions = candidates.flatMap((m) => {
+      const weight = weightFor(line, m);
+      return weight === undefined ? [] : [ingredientOf(m, weight, line.raw)];
     });
+    notAdded.push({ raw: line.raw, suggestions });
   }
   return {
     ...(parsed.name === undefined ? {} : { name: parsed.name }),
@@ -387,9 +454,14 @@ export async function prefillFromParsed(
   };
 }
 
-/** The whole local path: read the text, look the lines up. */
-export async function recipeFromText(text: string, catalog: FoodCatalog): Promise<RecipePrefill> {
-  return prefillFromParsed(parseRecipeText(text), catalog);
+/** The whole local path: read the text, detect its language, look the lines up. */
+export async function recipeFromText(
+  text: string,
+  catalog: FoodCatalog,
+  fallbackLanguage: RecipeLanguage = 'en',
+): Promise<RecipePrefill> {
+  const language = detectRecipeLanguage(text, fallbackLanguage);
+  return prefillFromParsed(parseRecipeText(text), catalog, language);
 }
 
 /** A recipe read by an AI: names and weights only (structurally `ReadRecipe` of `ai/describe-recipe`). */
@@ -404,27 +476,32 @@ export interface AiReadRecipe {
 }
 
 /**
- * The AI's names and weights, with the ingredients matched in the on-device catalogue. No nutrient
- * of the AI is used: a name nothing matches goes to `notAdded` (with its weight) for the person to
- * pick by hand.
+ * The AI's names and weights, with the ingredients matched in the on-device catalogue by the same
+ * rules as the local path, in the app's language (the language the AI was asked to name them in).
+ * No nutrient of the AI is used: a name the matcher is not sure of goes to `notAdded` (with its
+ * weight and suggestions) for the person to pick by hand.
  */
 export async function prefillFromAi(
   recipe: AiReadRecipe,
   catalog: FoodCatalog,
+  language: RecipeLanguage = 'en',
 ): Promise<RecipePrefill> {
-  const ingredients: FoodEntryDraft[] = [];
-  const notAdded: string[] = [];
+  const ingredients: PrefillIngredient[] = [];
+  const notAdded: NotAddedLine[] = [];
   let anyEstimated = false;
   for (const item of recipe.ingredients) {
-    const match = await bestMatch(item.name, catalog);
-    if (match === null || ingredients.length >= MAX_INGREDIENTS) {
-      notAdded.push(`${item.name} (${item.estimated ? '≈' : ''}${item.grams} g)`);
+    const weight = { grams: item.grams, estimated: item.estimated };
+    const found = await matchIngredient(item.name, catalog, language);
+    if (found.kind === 'matched' && ingredients.length < MAX_INGREDIENTS) {
+      if (item.estimated) anyEstimated = true;
+      ingredients.push(ingredientOf(found.match, weight, item.name));
       continue;
     }
-    if (item.estimated) anyEstimated = true;
-    ingredients.push({
-      databaseFood: match.food,
-      quantity: gramsQuantity(item.grams, item.estimated),
+    const candidates =
+      found.kind === 'matched' ? [found.match] : found.kind === 'unsure' ? found.suggestions : [];
+    notAdded.push({
+      raw: `${item.name} (${item.estimated ? '≈' : ''}${item.grams} g)`,
+      suggestions: candidates.map((m) => ingredientOf(m, weight, item.name)),
     });
   }
   return {

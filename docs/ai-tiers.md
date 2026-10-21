@@ -474,6 +474,12 @@ text.
   is read strictly (at most 40 ingredients, grams 0.1 to 5000, names at most 100 characters; anything else is a failure and
   the text is read on the device instead). The ingredient names are then matched in the on-device food list: **no
   nutrient of the AI is used**.
+- **Matching (both paths):** a recipe line is searched in the language the recipe is written in (detected from the pasted
+  text), re-scored (head noun first, fewest extra words, a different main food such as "coco" penalised), raw weights
+  preferred for rice, pasta, grains, pulses and potatoes unless the line says cooked, and only picked at a score of 0.60
+  or more; below that the line is listed "not matched yet" with up to three one-tap suggestions. Each matched line shows
+  the pasted line next to the matched name. A bare count ("3 eggs") uses the food's piece weight (a seed's piece preset,
+  else a small table: egg 55 g, onion 110 g ...), marked ≈.
 - Either way the result only fills in the recipe editor (name, servings, ingredients with grams and the ≈ mark) for review;
   nothing is saved automatically.
 
