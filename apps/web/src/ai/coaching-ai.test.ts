@@ -1,6 +1,6 @@
 // The text chat for BYOK, the separate coaching consent and the gate in front of every coaching
 // call: no call without the person's yes for THIS destination, no key on the instance path.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ByokChat } from './byok-chat';
 import { InMemoryByokKeyStore } from './byok-key-store';
 import { CoachingConsent } from './coaching-consent';
@@ -199,7 +199,7 @@ describe('CoachingAi: the coaching consent gate', () => {
     expect(ai.coaching.getSnapshot().kind).toBe('ready');
   });
 
-  it('instance consent is keyed host|label|model: a new provider or model asks again', async () => {
+  it('instance consent is keyed host|label|model: a new provider or model asks again, for good', async () => {
     const { ai, fake, kv } = await services({ instance: true });
     await ai.coaching.grant();
     expect(kv.map.get('ai.coachingConsent')).toBe(
@@ -211,14 +211,37 @@ describe('CoachingAi: the coaching consent gate', () => {
     await ai.instance.refresh();
     expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
     expect(await ai.coaching.complete(messages)).toEqual({ kind: 'consentRequired' });
+    // The old yes is cleared, not just ignored.
+    await vi.waitFor(() => expect(kv.map.has('ai.coachingConsent')).toBe(false));
 
-    fake.instanceConfig = { enabled: true, model: 'm2', label: 'Acme AI' };
+    // Going back to the old provider does not revive it.
+    fake.instanceConfig = { enabled: true, model: 'm1', label: 'Acme AI' };
     await ai.instance.refresh();
     expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
 
-    fake.instanceConfig = { enabled: true, model: 'm1', label: 'Acme AI' };
+    await ai.coaching.grant();
+    fake.instanceConfig = { enabled: true, model: 'm2', label: 'Acme AI' };
     await ai.instance.refresh();
-    expect(ai.coaching.getSnapshot().kind).toBe('ready');
+    expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
+  });
+
+  it('BYOK consent is keyed by the endpoint host alone, and cleared when it changes', async () => {
+    const { ai, kv } = await services({ byok: true });
+    await ai.coaching.grant();
+    expect(kv.map.get('ai.coachingConsent')).toBe('{"host":"api.example.com"}');
+    await ai.settings.setByokTarget({ endpointUrl: 'https://api.elsewhere.test/v1', model: 'm' });
+    await vi.waitFor(() => expect(kv.map.has('ai.coachingConsent')).toBe(false));
+    await ai.settings.setByokTarget({ endpointUrl: 'https://api.example.com/v1', model: 'm' });
+    expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
+  });
+
+  it('revoke fails closed: the agreement is gone in memory even if the delete throws', async () => {
+    const { ai, kv } = await services({ byok: true });
+    await ai.coaching.grant();
+    kv.failWrites = true;
+    await expect(ai.coaching.revoke()).rejects.toThrow();
+    expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
+    expect(await ai.coaching.complete(messages)).toEqual({ kind: 'consentRequired' });
   });
 
   it('notifies subscribers when the status changes', async () => {

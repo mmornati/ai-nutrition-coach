@@ -54,7 +54,10 @@ describe('Ask the coach: safety first', () => {
     ['I have been starving myself all week', 'eatingWorry'],
     ['je me fais vomir après chaque repas', 'eatingWorry'],
     ['J’ai des crises de boulimie', 'eatingWorry'],
-    ['I get chest pain after eating', 'medicalSymptom'],
+    ['I get chest pain after eating', 'urgent'],
+    ['My throat is swelling after peanuts', 'urgent'],
+    ['I want to kill myself', 'selfHarm'],
+    ['je veux mourir', 'selfHarm'],
     ['J’ai eu un malaise après le déjeuner', 'medicalSymptom'],
   ])('routes %s to the support line and never calls the AI', async (text, signal) => {
     const coaching = scriptedCoaching(() => aiText(ANSWER));
@@ -77,10 +80,11 @@ describe('Ask the coach: a question and its answer', () => {
     const c = chat(coaching);
     expect(await c.send('  Is my week   varied? ', plates)).toBe('answered');
     const messages = coaching.calls[0]?.messages ?? [];
-    expect(messages.map((m) => m.role)).toEqual(['system', 'user']);
-    expect(messages[1]?.content).toBe('Is my week varied?');
-    expect(messages[0]?.content).toContain('"Lentils"');
-    expect(messages[0]?.content).toContain('"vegan"');
+    expect(messages.map((m) => m.role)).toEqual(['system', 'user', 'user']);
+    expect(messages[2]?.content).toBe('Is my week varied?');
+    expect(messages[0]?.content).not.toContain('Lentils');
+    expect(messages[1]?.content).toContain('"Lentils"');
+    expect(messages[1]?.content).toContain('"vegan"');
     expect(c.getSnapshot().entries.map((e) => e.role)).toEqual(['user', 'assistant']);
     expect(c.getSnapshot().entries[1]).toMatchObject({ kind: 'answer', text: ANSWER });
     expect(c.getSnapshot().pending).toBeNull();
@@ -93,6 +97,7 @@ describe('Ask the coach: a question and its answer', () => {
     await c.send('Second question?', plates);
     expect(coaching.calls[1]?.messages.map((m) => [m.role, m.content])).toEqual([
       ['system', expect.any(String)],
+      ['user', expect.stringContaining('Data about the person')],
       ['user', 'First question?'],
       ['assistant', ANSWER],
       ['user', 'Second question?'],
@@ -145,7 +150,7 @@ describe('Ask the coach: a question and its answer', () => {
     const coaching = scriptedCoaching(() => aiText('You had about 18 g of fibre.'));
     const c = chat(coaching, { numbersOn: () => false });
     expect(await c.send('How much fibre?', plates)).toBe('unsure');
-    const system = coaching.calls[0]?.messages[0]?.content ?? '';
+    const system = coaching.calls[0]?.messages[1]?.content ?? '';
     expect(system).not.toMatch(/"kcal"|"fibre_g"|dailyGuide|"grams"/);
   });
 

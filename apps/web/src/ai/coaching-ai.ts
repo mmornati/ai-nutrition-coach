@@ -112,6 +112,11 @@ export class CoachingAi {
       next.kind === 'noAi'
         ? 'noAi'
         : `${next.kind}|${next.destination.kind}|${next.destination.consentKey}|${next.destination.label ?? ''}`;
+    // A yes given for another destination is forgotten for good, not just ignored: switching back
+    // must ask again. (An unknown destination, e.g. the server's offer not read yet, clears nothing.)
+    if (next.kind === 'needsConsent' && this.#consent.getSnapshot() !== null) {
+      void this.#consent.revoke().catch(() => undefined);
+    }
     if (key === this.#cachedKey) return false;
     this.#cached = next;
     this.#cachedKey = key;

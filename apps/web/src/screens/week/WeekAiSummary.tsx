@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { WeeklyReview } from '@anc/core';
+import { containsNumberWithUnit, type WeeklyReview } from '@anc/core';
 
 import { hrefs } from '../../app/router';
 import { useSession } from '../../app/session';
 import { useSessionCoachingStatus, type WeekSummaryResult } from '../../coaching';
 import { Button } from '../../components/primitives';
+import { useShowNumbers } from '../../components/nutrition';
 import { fill, useStrings, type Strings } from '../../i18n';
 
 type Phase =
@@ -38,6 +39,7 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
   const s = useStrings().week.review.ai;
   const { summariseWeek } = useSession();
   const status = useSessionCoachingStatus();
+  const showNumbers = useShowNumbers();
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
 
   const ask = () => {
@@ -49,6 +51,8 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
   const ready = status.kind === 'ready';
   const result = phase.kind === 'done' ? phase.result : null;
   const text = result?.kind === 'text' ? result.text : '';
+  // A paragraph that quotes amounts waits while numbers are turned off.
+  const hidden = text !== '' && !showNumbers && containsNumberWithUnit(text);
 
   return (
     <div className="mt-6">
@@ -81,7 +85,9 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
         {text !== '' ? (
           <>
             <h3 className="text-lead mb-1 font-semibold">{s.heading}</h3>
-            <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">{text}</p>
+            <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">
+              {hidden ? s.hiddenByNumbers : text}
+            </p>
             <p className="text-body-small text-porcelain-dim mt-1">{s.mark}</p>
           </>
         ) : result !== null ? (

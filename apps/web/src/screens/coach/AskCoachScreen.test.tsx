@@ -1,6 +1,6 @@
 // Ask the coach: off without an AI or a yes (with a way to turn it on), a text chat when it is on,
 // the support line for a worry (nothing sent), limits, calm failures, axe.
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +12,7 @@ import { setCurrentLocale } from '../../i18n';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { KV_KEYS } from '../../storage';
+import { useSession, type Session } from '../../app/session';
 import { SUPPORT_URL } from '../../components/nutrition';
 import { AskCoachScreen } from './AskCoachScreen';
 
@@ -111,7 +112,7 @@ describe('Ask the coach: the chat', () => {
 
     const body = JSON.parse(fake.last.body) as { messages: { role: string; content: string }[] };
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'Is my week varied?' });
-    expect(body.messages[0]?.content).toContain('Lentils');
+    expect(body.messages[1]?.content).toContain('Lentils');
     expect(fake.last.headers['authorization']).toMatch(/^Bearer /);
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -145,7 +146,7 @@ describe('Ask the coach: the chat', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('a symptom is sent to a doctor, not answered, and nothing is sent', async () => {
+  it('a possible emergency is answered with the emergency numbers, and nothing is sent', async () => {
     const user = userEvent.setup();
     const { fake } = await open();
     await user.type(
@@ -153,7 +154,7 @@ describe('Ask the coach: the chat', () => {
       'I get chest pain after eating',
     );
     await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(await screen.findByText(/check with a doctor or a pharmacist/)).toBeVisible();
+    expect(await screen.findByText(/call your local emergency number now/)).toBeVisible();
     expect(fake.requests).toHaveLength(0);
   });
 
@@ -241,5 +242,120 @@ describe('AskCoachScreen: accessibility', () => {
     });
     await screen.findByRole('textbox', { name: 'Your question' });
     expect(await axe(view.container)).toHaveNoViolations();
+  });
+});
+
+describe('Ask the coach: safety copy, numbers off, the log', () => {
+  const ask = async (user: ReturnType<typeof userEvent.setup>, text: string, name = 'Ask') => {
+    await user.type(screen.getByRole('textbox', { name: /Your question|Votre question/ }), text);
+    await user.click(screen.getByRole('button', { name }));
+  };
+
+  it('a possible emergency says to call the emergency number now (EN)', async () => {
+    const user = userEvent.setup();
+    const { fake } = await open();
+    await ask(user, 'My throat is swelling after peanuts');
+    expect(
+      await screen.findByText(
+        'This could be urgent. Please call your local emergency number now: 112 in the EU, 999 in the UK, 911 in the US, 15 or 112 in France. I cannot give advice on symptoms.',
+      ),
+    ).toBeVisible();
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  it('a possible emergency says to call the secours (FR)', async () => {
+    const user = userEvent.setup();
+    const { fake } = await open({
+      french: true,
+      heading: 'Interroger le coach',
+      wrapper: ({ children }) => <LocaleProvider initial="fr">{children}</LocaleProvider>,
+    });
+    await ask(user, 'Je me suis évanoui', 'Demander');
+    expect(await screen.findByText(/Appelez les secours maintenant/)).toBeVisible();
+    expect(screen.getByText(/le 15 ou le 112 en France/)).toBeVisible();
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  it('thoughts of self-harm get the crisis lines, in both languages, and nothing is sent', async () => {
+    const user = userEvent.setup();
+    const en = await open();
+    await ask(user, 'I want to kill myself');
+    const line = await screen.findByText(/3114/);
+    expect(line).toHaveTextContent(/Samaritans are on 116 123/);
+    expect(line).toHaveTextContent(/call or text 988/);
+    expect(en.fake.requests).toHaveLength(0);
+    cleanup();
+
+    const fr = await open({
+      french: true,
+      heading: 'Interroger le coach',
+      wrapper: ({ children }) => <LocaleProvider initial="fr">{children}</LocaleProvider>,
+    });
+    await ask(user, 'je veux mourir', 'Demander');
+    expect(
+      await screen.findByText(/appeler le 3114, le numéro national de prévention du suicide/),
+    ).toBeVisible();
+    expect(fr.fake.requests).toHaveLength(0);
+  });
+
+  it('an eating worry shows the support line; another symptom says to see a doctor', async () => {
+    const user = userEvent.setup();
+    await open();
+    await ask(user, 'I feel dizzy after lunch');
+    expect(await screen.findByText(/check with a doctor or a pharmacist/)).toBeVisible();
+  });
+
+  it('numbers off afterwards: an answer with an amount is hidden, and shown again when they are back', async () => {
+    const user = userEvent.setup();
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply('You had about 18 g of fibre. Which meal?');
+    const bundle = await unlockedBundle();
+    await configureByokCoaching(bundle);
+    let session: Session | undefined;
+    function Probe() {
+      session = useSession();
+      return null;
+    }
+    await renderInSession(
+      <>
+        <Probe />
+        <AskCoachScreen />
+      </>,
+      { bundle, session: { fetch: fake.fetch } },
+    );
+    await ask(user, 'How much fibre?');
+    expect(await screen.findByText(/You had about 18 g of fibre/)).toBeVisible();
+
+    await act(async () => session?.numbers.set(false));
+    expect(screen.queryByText(/18 g/)).toBeNull();
+    expect(
+      screen.getByText(
+        'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
+      ),
+    ).toBeVisible();
+
+    // And it is not sent back as history while numbers are off.
+    fake.jsonBody = chatReply('Fine. Anything else?');
+    await ask(user, 'And salt?');
+    await screen.findByText('Fine. Anything else?');
+    const sent = JSON.parse(fake.last.body) as { messages: { content: string }[] };
+    expect(JSON.stringify(sent.messages)).not.toMatch(/18 g|How much fibre/);
+
+    await act(async () => session?.numbers.set(true));
+    expect(screen.getByText(/You had about 18 g of fibre/)).toBeVisible();
+  });
+
+  it('shows the question once while it is answered, and offers a new conversation once there is history', async () => {
+    const user = userEvent.setup();
+    await open();
+    expect(screen.queryByRole('button', { name: 'Start a new conversation' })).toBeNull();
+    await ask(user, 'Is my week varied?');
+    await screen.findByText(ANSWER);
+    const log = screen.getByRole('log');
+    expect(within(log).getAllByText('Is my week varied?')).toHaveLength(1);
+    expect(screen.queryAllByText('Is my week varied?')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Start a new conversation' }));
+    expect(within(screen.getByRole('log')).queryAllByRole('listitem')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Start a new conversation' })).toBeNull();
   });
 });

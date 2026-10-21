@@ -3,8 +3,6 @@
 // leaves the template note exactly as it was.
 import { describe, expect, it, vi } from 'vitest';
 import {
-  AI_FOLLOW_UP_QUESTION_KEY,
-  AI_NOTE_QUESTION_KEY,
   coachNoteDismissalKey,
   type CoachNote,
   type CoachNoteGenerationResult,
@@ -92,8 +90,8 @@ describe('AI coach note: the upgrade', () => {
     const notes = await t.notes();
     expect(notes.map((n) => [n.anchor, n.questionKey])).toEqual([
       ['postResolve', 'post.resolve.vegLight'],
-      ['postResolve', AI_NOTE_QUESTION_KEY],
-      ['depthFollowUp', AI_FOLLOW_UP_QUESTION_KEY],
+      ['postResolve', 'post.resolve.ai?lang=en'],
+      ['depthFollowUp', 'depth.followUp.ai?lang=en'],
     ]);
     expect(notes[1]?.text).toBe(GOOD);
     expect(notes[2]?.text).toBe('Do you like roasted vegetables?');
@@ -314,7 +312,7 @@ describe('withAiNotes: the log never waits for the AI', () => {
     release?.();
     await vi.waitFor(() => expect(outcomes).toEqual(['upgraded']));
     expect(outcomes).toEqual(['upgraded']);
-    expect((await t.notes()).map((n) => n.questionKey)).toContain(AI_NOTE_QUESTION_KEY);
+    expect((await t.notes()).map((n) => n.questionKey)).toContain('post.resolve.ai?lang=en');
   });
 
   it('a plate with no template note gets no AI call (silence stays silence)', async () => {
@@ -336,5 +334,89 @@ describe('withAiNotes: the log never waits for the AI', () => {
     await withAiNotes(base, upgrader).generateFor(t.plate, {});
     await new Promise((r) => setTimeout(r, 10));
     expect(coaching.calls).toHaveLength(0);
+  });
+});
+
+describe('AI coach note: races after the call', () => {
+  it('a tap on Sure before the call: nothing is asked', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD));
+    const t = await setup(coaching, { hasInteracted: () => true });
+    expect(await t.run()).toBe('interacted');
+    expect(coaching.calls).toHaveLength(0);
+  });
+
+  it('a tap on Sure while the AI thinks: no AI note, no second follow-up', async () => {
+    let tapped = false;
+    const coaching = scriptedCoaching(() => {
+      tapped = true;
+      return aiNote(GOOD, 'Do you like roasted vegetables?');
+    });
+    const t = await setup(coaching, { hasInteracted: () => tapped });
+    expect(await t.run()).toBe('interacted');
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it('a follow-up appended while the AI thinks (Sure on the template note): nothing is added', async () => {
+    const holder: { notes?: StoreBundle['notes'] } = {};
+    let plateId = 0;
+    const coaching = scriptedCoaching(async () => {
+      await holder.notes?.append({
+        id: 0,
+        plateLogId: plateId,
+        anchor: 'depthFollowUp',
+        questionKey: 'depth.followUp.vegLight',
+        text: 'A bounded follow-up.',
+        generatedAt: at(12, 33),
+      });
+      return aiNote(GOOD, 'Another follow-up?');
+    });
+    const t = await setup(coaching);
+    holder.notes = t.bundle.notes;
+    plateId = t.plate.id;
+    expect(await t.run()).toBe('alreadyFollowedUp');
+    const rows = await t.notes();
+    expect(rows.filter((n) => n.anchor === 'depthFollowUp')).toHaveLength(1);
+    expect(rows.some((n) => n.questionKey.startsWith('post.resolve.ai'))).toBe(false);
+  });
+
+  it('a plate removed while the AI thinks gets no orphan rows', async () => {
+    let exists = true;
+    const coaching = scriptedCoaching(() => {
+      exists = false;
+      return aiNote(GOOD, 'Do you like roasted vegetables?');
+    });
+    const t = await setup(coaching, { plateExists: async () => exists });
+    expect(await t.run()).toBe('plateGone');
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it('writes the language the note was written in, with French typography', async () => {
+    const t = await setup(
+      scriptedCoaching(() => aiNote('Quelques légumes de plus ?', 'Lesquels aimez-vous ?')),
+      {
+        locale: () => 'fr',
+      },
+    );
+    expect(await t.run()).toBe('upgraded');
+    const rows = await t.notes();
+    expect(rows.map((n) => n.questionKey)).toEqual([
+      'post.resolve.vegLight',
+      'post.resolve.ai?lang=fr',
+      'depth.followUp.ai?lang=fr',
+    ]);
+    expect(rows[1]?.text).toBe('Quelques légumes de plus ?');
+    expect(rows[2]?.text).toBe('Lesquels aimez-vous ?');
+  });
+
+  it('refuses harmful advice and an instruction smuggled in a food name reaches no note', async () => {
+    for (const bad of [
+      'Skip dinner tonight and fast until lunch.',
+      'Eat 800 kcal a day for a while.',
+      'Sautez le dîner ce soir.',
+    ]) {
+      const t = await setup(scriptedCoaching(() => aiNote(bad)));
+      expect(await t.run()).toBe('invalid');
+      expect(await t.notes()).toEqual([t.template]);
+    }
   });
 });

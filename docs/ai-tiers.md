@@ -365,19 +365,22 @@ The coach works without any AI: its built-in notes and weekly review are rules o
 Photos and meal data are different things, so this is its own switch in *Settings, Your AI, AI coaching*
 ("Let the AI write coach notes and answer questions"). It is **off by default**, it is recorded for one destination
 only (your endpoint host, or for this server's AI the host, provider label and model together, like the photo
-consent), so it lapses by itself when the destination changes, and no coaching call is made without it (checked at
-call time, so turning it off takes effect at once). The photo consent never counts for it and it never counts for
+consent), and when the destination changes the stored yes is **cleared** (going back to the old destination asks
+again). No coaching call is made without it (checked at call time; revoking forgets it in memory first, so it takes
+effect at once even if the write fails). The Ask the coach conversation is also cleared whenever the destination or
+the yes changes. The photo consent never counts for it and it never counts for
 photos. With **No AI** nothing is sent.
 
 | Feature | When it runs | Exactly what is sent |
 | --- | --- | --- |
-| Coach note | After a plate is logged, only if the template coach had a note | Food names, weights, per-plate and day-so-far nutrient totals against the daily guide, time slot (breakfast / lunch / dinner), the optional profile, the template coach's pattern name as a hint |
-| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days (per day: food names, food groups, nutrient totals; top foods), the daily guide, the optional profile, and the conversation so far (the last three answered questions at most) |
-| Weekly paragraph | Only when you tap "Ask the coach about this week" | The week's counts, daily averages, the daily guide, the keys of the rule-based remarks, the optional profile |
+| Coach note | After a plate is logged, only if the template coach had a note | Per food on the plate: name, food group, weight, nutrients; the plate's and the day so far's nutrient totals against the daily guide; the names (deduplicated, at most 12) of what you ate earlier that day; the number of plates; the meal slot (breakfast / lunch / dinner / late); the optional profile; the template coach's pattern name as a hint |
+| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days as one JSON document sent as a labelled data message (per day: its date without a time, number of plates, food groups, food names, nutrient totals; the top foods), the daily guide, the optional profile, your typed questions and the earlier answers of the conversation (the last two answered questions at most) |
+| Weekly paragraph | Only when you tap "Ask the coach about this week" | The number of days logged, the daily averages, the days each food group appeared, the daily guide, the keys of the rule-based remarks, the optional profile |
 
 The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. **Never sent**:
 photos, your passphrase, your key (it goes only in the request header to your own endpoint, never to this server's
-proxy), IDs, dates of birth, timestamps. With *nutrition numbers turned off*, weights, nutrients and the guide are left out
+proxy), database ids, birth dates, or any time of day. Ask the coach sends the dates of the days (year-month-day) and the
+meal slot of a note is a name, not a time. With *nutrition numbers turned off*, weights, nutrients and the guide are left out
 altogether and the system prompt forbids amounts. Food names are cleaned (one line, 60 characters) and the system
 prompt tells the model that everything in the document is data, not instructions.
 
@@ -387,10 +390,13 @@ scolds; no exclamation marks, streaks, scores, points, "remaining" or "over budg
 advice (never diagnose, treat or cure, no medication or doses; for a symptom or a worry about eating or the body, say
 that talking to a doctor or a support service can help); respect diet and allergies; no links.
 
-**Every AI text is validated** (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
+**Every AI text is validated** (and normalised first: NFKC, invisible characters removed, so a fullwidth "！" or a zero-width
+character cannot slip through; French output gets the narrow no-break space before `? ; :` and inside « ») (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
 (160 for its follow-up), 800 for a chat answer, 600 for the weekly paragraph; no link or web address; no exclamation
 mark; none of the pressure vocabulary of the No-Dark-Patterns Standard (EN and FR); no medical-claim words (diagnose,
-cure, treatment, prescribe, and the French equivalents); at most one question (two in a chat answer); and, while
+cure, treatment, prescribe, and the French equivalents); no harmful advice (skipping meals or breakfast, fasting,
+losing weight, a calorie deficit or cutting calories, purging, laxatives, a daily energy figure under 1200 kcal, and
+the French equivalents, for example "sauter le dîner", "jeûne", "perdre du poids"); no link or bare domain; at most one question (two in a chat answer); and, while
 numbers are off, no amount (digits followed by g, kcal or %). A note must be the JSON object
 `{ "note": string, "followUp": string }`. Anything else is dropped.
 
@@ -404,7 +410,10 @@ was already dismissed or its follow-up opened. A late answer after a lock writes
 
 **Safety routing is local.** In Ask the coach, a question about an eating worry or a health symptom (EN/FR keywords:
 binge, purge, starving, vomiting, "je me fais vomir", "crise de boulimie", chest pain, "malaise", ...) is answered on
-the device with the calm support line and is never sent; such a question is also never part of the context of later
+the device and is never sent. Four routes, in this order: thoughts of self-harm (calm words and the crisis lines below),
+a possibly urgent symptom (chest pain, trouble breathing, a swelling throat, an allergic reaction, fainting: "call your
+local emergency number now"), an eating worry (the existing support line), any other symptom (see a doctor or a
+pharmacist). Keywords are matched on accent-folded text in English and French; such a question is also never part of the context of later
 questions. The conversation is kept in memory for the unlocked session only: not stored, not exported, gone on a lock.
 
 **Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text): the oldest turns of a

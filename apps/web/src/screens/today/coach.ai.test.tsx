@@ -4,7 +4,12 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
-import { AI_FOLLOW_UP_QUESTION_KEY, AI_NOTE_QUESTION_KEY, coachNoteDismissalKey } from '@anc/core';
+import {
+  AI_FOLLOW_UP_QUESTION_KEY,
+  AI_NOTE_QUESTION_KEY,
+  aiQuestionKey,
+  coachNoteDismissalKey,
+} from '@anc/core';
 import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testing';
 import { KV_KEYS, type StoreBundle } from '../../storage';
 import { strings } from '../../i18n';
@@ -42,7 +47,7 @@ async function seed(options: { aiText?: string; numbersOff?: boolean; followUp?:
       id: 0,
       plateLogId: 1,
       anchor: 'postResolve',
-      questionKey: AI_NOTE_QUESTION_KEY,
+      questionKey: aiQuestionKey(AI_NOTE_QUESTION_KEY, 'en'),
       text: options.aiText,
       generatedAt: at(12, 7),
     });
@@ -52,7 +57,7 @@ async function seed(options: { aiText?: string; numbersOff?: boolean; followUp?:
       id: 0,
       plateLogId: 1,
       anchor: 'depthFollowUp',
-      questionKey: AI_FOLLOW_UP_QUESTION_KEY,
+      questionKey: aiQuestionKey(AI_FOLLOW_UP_QUESTION_KEY, 'en'),
       text: 'Do you like roasted vegetables?',
       generatedAt: at(12, 7),
     });
@@ -93,7 +98,7 @@ describe('Today: the AI coach note under a plate', () => {
       id: 0,
       plateLogId: 1,
       anchor: 'postResolve',
-      questionKey: AI_NOTE_QUESTION_KEY,
+      questionKey: aiQuestionKey(AI_NOTE_QUESTION_KEY, 'en'),
       text: AI_TEXT,
       generatedAt: at(12, 8),
     });
@@ -144,5 +149,79 @@ describe('Today: the AI coach note under a plate', () => {
     expect(within(card).getByText(TEMPLATE)).toBeVisible();
     expect(screen.queryByText(/40 g of protein/)).toBeNull();
     expect(within(card).queryByText('Written by AI')).toBeNull();
+  });
+});
+
+describe('Today: AI note edge cases', () => {
+  const addAi = (bundle: StoreBundle, key: string, text = AI_TEXT) =>
+    bundle.notes.append({
+      id: 0,
+      plateLogId: 1,
+      anchor: 'postResolve',
+      questionKey: key,
+      text,
+      generatedAt: at(12, 7),
+    });
+
+  it('an AI note written in another language than the interface is not shown', async () => {
+    const { bundle } = await seed();
+    await addAi(
+      bundle,
+      aiQuestionKey(AI_NOTE_QUESTION_KEY, 'fr'),
+      'Un peu de vert ? Pourquoi pas.',
+    );
+    await renderInSession(<TodayScreen />, { bundle });
+    const card = await screen.findByRole('group', { name: s.coach.group });
+    expect(within(card).getByText(TEMPLATE)).toBeVisible();
+    expect(screen.queryByText(/Un peu de vert/)).toBeNull();
+  });
+
+  it('an AI note stored without a language is not shown either', async () => {
+    const { bundle } = await seed();
+    await addAi(bundle, AI_NOTE_QUESTION_KEY);
+    await renderInSession(<TodayScreen />, { bundle });
+    const card = await screen.findByRole('group', { name: s.coach.group });
+    expect(within(card).getByText(TEMPLATE)).toBeVisible();
+  });
+
+  it('numbers off: an AI follow-up with an amount is not opened under the AI note', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await seed({ aiText: AI_TEXT, numbersOff: true });
+    await bundle.notes.append({
+      id: 0,
+      plateLogId: 1,
+      anchor: 'depthFollowUp',
+      questionKey: aiQuestionKey(AI_FOLLOW_UP_QUESTION_KEY, 'en'),
+      text: 'Could 30 g of beans join it?',
+      generatedAt: at(12, 8),
+    });
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByRole('group', { name: s.coach.group });
+    await user.click(screen.getByRole('button', { name: 'Sure' }));
+    const depth = await screen.findByRole('group', { name: s.coach.depthGroup });
+    expect(within(depth).queryByText(/30 g of beans/)).toBeNull();
+  });
+
+  it('an AI note that lands after Sure was tapped does not swap the open panel', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await seed();
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByRole('group', { name: s.coach.group });
+    await user.click(screen.getByRole('button', { name: 'Sure' }));
+    await screen.findByRole('group', { name: s.coach.depthGroup });
+    await addAi(bundle, aiQuestionKey(AI_NOTE_QUESTION_KEY, 'en'));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.getByRole('group', { name: s.coach.depthGroup })).toBeVisible();
+    expect(screen.queryByRole('group', { name: s.coach.group })).toBeNull();
+    // Close retires the question for good; the late AI note never shows as a fresh card.
+    await user.click(
+      within(screen.getByRole('group', { name: s.coach.depthGroup })).getByRole('button', {
+        name: 'Close',
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: s.coach.depthGroup })).toBeNull(),
+    );
+    expect(screen.queryByRole('group', { name: s.coach.group })).toBeNull();
   });
 });

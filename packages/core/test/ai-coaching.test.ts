@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   AI_NOTE_QUESTION_KEY,
+  aiNoteLocale,
+  aiQuestionKey,
   COACH_LIMITS,
   containsNumberWithUnit,
   detectSupportSignal,
@@ -119,46 +121,184 @@ describe('parseAiCoachNote', () => {
 describe('detectSupportSignal', () => {
   it.each([
     'I binge at night and then purge',
+    'I keep binging',
     'I have been starving myself',
     'I keep making myself throw up after dinner',
+    'I threw up after dinner',
     'I think I have an eating disorder',
     'I take laxatives after meals',
     'I hate my body when I eat',
+    'I skip meals to lose weight',
+    'how can I eat 600 calories a day',
+    "I haven't eaten in 3 days",
+    'I have been fasting for 3 days',
     'je me fais vomir après les repas',
     'Je fais des crises de boulimie',
     'Je me prive de manger depuis des jours',
     'je pense avoir un trouble du comportement alimentaire',
     'Je ne mange plus du tout',
+    'je mange plus rien',
+    'je saute des repas',
+    'Je jeûne depuis 2 jours',
+    'Je jeune depuis 2 jours',
+    'J’ai de l’hyperphagie',
+    'Comment manger 800 calories par jour ?',
   ])('routes an eating worry: %s', (text) => {
     expect(detectSupportSignal(text)).toBe('eatingWorry');
   });
 
   it.each([
+    'I want to kill myself',
+    'I think about suicide',
+    'I want to die',
+    'self harm',
+    'je veux mourir',
+    'Je veux me faire du mal',
+    'j’ai envie d’en finir',
+  ])('routes thoughts of self-harm: %s', (text) => {
+    expect(detectSupportSignal(text)).toBe('selfHarm');
+  });
+
+  it.each([
     'I get chest pain after eating',
     'I almost fainted at lunch',
+    'I passed out after dinner',
+    "I can't breathe after the nuts",
+    'My throat is swelling after peanuts',
+    'I think it is anaphylaxis',
+    'I had a severe allergic reaction',
     "J'ai des douleurs à la poitrine après manger",
-    "J'ai eu un malaise hier soir",
-  ])('routes a symptom: %s', (text) => {
-    expect(detectSupportSignal(text)).toBe('medicalSymptom');
+    'Je me suis évanoui',
+    'Je me suis evanoui hier',
+    'reaction allergique aux cacahuètes',
+    'Ma gorge gonfle après les noix',
+    'Je n’arrive pas à respirer',
+  ])('routes a possible emergency: %s', (text) => {
+    expect(detectSupportSignal(text)).toBe('urgent');
   });
+
+  it.each(['I feel dizzy after lunch', "J'ai eu un malaise hier soir", 'J’ai des vertiges'])(
+    'routes another symptom: %s',
+    (text) => {
+      expect(detectSupportSignal(text)).toBe('medicalSymptom');
+    },
+  );
 
   it.each([
     'What could I eat with lentils?',
     'Comment manger plus de légumes ?',
     'Is my breakfast varied enough?',
+    'Un jeune de 20 ans peut-il manger des lentilles ?',
+    'Is 2000 calories a day the guide?',
   ])('lets an ordinary question through: %s', (text) => {
     expect(detectSupportSignal(text)).toBeNull();
   });
 
-  it('says eating worry first when both are present', () => {
+  it('puts self-harm before an emergency before an eating worry before a symptom', () => {
+    expect(detectSupportSignal('I purge and want to die')).toBe('selfHarm');
+    expect(detectSupportSignal('I purge and have chest pain')).toBe('urgent');
     expect(detectSupportSignal('I purge and feel dizzy')).toBe('eatingWorry');
+  });
+
+  it('sees through fullwidth letters and invisible characters', () => {
+    expect(detectSupportSignal('ｂｉｎｇｅ')).toBe('eatingWorry');
+    expect(detectSupportSignal('chest​ pain')).toBe('urgent');
+  });
+});
+
+describe('validateCoachText: harmful advice', () => {
+  it.each([
+    'Skip dinner tonight and fast until lunch.',
+    'You could skip breakfast tomorrow.',
+    'Try intermittent fasting.',
+    'Eat 800 kcal a day for a while.',
+    'Aim for 1000 calories per day.',
+    'This helps you lose weight.',
+    'A calorie deficit is the way.',
+    'Cut calories at dinner.',
+    'Sautez le dîner ce soir.',
+    'Vous pouvez sauter un repas.',
+    'Un jeûne de quelques heures aide.',
+    'Pour perdre du poids, mangez moins.',
+    'Un déficit calorique est utile.',
+    'Un laxatif peut aider.',
+  ])('refuses %s', (text) => {
+    expect(validateCoachText(text, on)).toEqual({ ok: false, problem: 'harmfulAdvice' });
+  });
+
+  it('allows an ordinary energy figure and words that only look similar', () => {
+    expect(validateCoachText('About 2000 kcal a day is the guide.', on).ok).toBe(true);
+    expect(validateCoachText('Un jeune pousse de soja.', on).ok).toBe(true);
+    expect(validateCoachText('A breakfast with oats suits you.', on).ok).toBe(true);
+  });
+});
+
+describe('validateCoachText: normalisation and numbers', () => {
+  it.each([
+    'About 400 calories here.',
+    'About 400 kilocalories here.',
+    'About 20 percent of the guide.',
+    'About 20 pour cent du repère.',
+    'About ２０ g of sugars.',
+    'About 2​0 g of sugars.',
+    'About 18g of sugars.',
+  ])('refuses an amount while numbers are off: %s', (text) => {
+    expect(validateCoachText(text, off)).toEqual({ ok: false, problem: 'numbersOff' });
+    expect(containsNumberWithUnit(text)).toBe(true);
+  });
+
+  it('refuses the same text with an invisible character or a fullwidth mark', () => {
+    expect(validateCoachText('Lovely plate​!', on)).toMatchObject({ problem: 'exclamation' });
+    expect(validateCoachText('Lovely plate！', on)).toMatchObject({ problem: 'exclamation' });
+    expect(validateCoachText('Lovely plate‼', on)).toMatchObject({ problem: 'exclamation' });
+    expect(validateCoachText('¡Lovely plate', on)).toMatchObject({ problem: 'exclamation' });
+    expect(validateCoachText('Visit exa​mple.com', on)).toMatchObject({ problem: 'url' });
+    expect(validateCoachText('Visit example.museum', on)).toMatchObject({ problem: 'url' });
+    expect(validateCoachText('Visit www.example', on)).toMatchObject({ problem: 'url' });
+  });
+
+  it.each([
+    'Great work today.',
+    'You nailed it.',
+    'A perfect plate.',
+    'Un repas parfait.',
+    'Bien joué.',
+    'Il vous reste de la place.',
+    'Plenty of kcal left.',
+  ])('refuses praise and pressure: %s', (text) => {
+    expect(validateCoachText(text, on)).toMatchObject({ ok: false, problem: 'bannedWord' });
+  });
+
+  it('keeps non-breaking spaces and returns the normalised text', () => {
+    const r = validateCoachText('Des  légumes ?', { ...on, locale: 'fr' });
+    expect(r).toEqual({ ok: true, text: 'Des légumes\u202f?' });
+  });
+
+  it('French typography: U+202F before ? ; : and inside « », not inside a time', () => {
+    const r = validateCoachText('Un peu de vert ? À 12:30, « des légumes »; non :', {
+      ...on,
+      locale: 'fr',
+      maxQuestions: 2,
+    });
+    expect(r).toEqual({
+      ok: true,
+      text: 'Un peu de vert\u202f? À 12:30, «\u202fdes légumes\u202f»\u202f; non\u202f:',
+    });
+    expect(validateCoachText('Des légumes ?', on)).toEqual({ ok: true, text: 'Des légumes ?' });
   });
 });
 
 describe('AI note keys', () => {
-  it('recognise the rows the AI coach writes', () => {
+  it('recognise the rows the AI coach writes, with or without the language', () => {
     expect(isAiCoachNote({ questionKey: AI_NOTE_QUESTION_KEY })).toBe(true);
     expect(isAiCoachNote({ questionKey: 'depth.followUp.ai' })).toBe(true);
+    expect(isAiCoachNote({ questionKey: aiQuestionKey(AI_NOTE_QUESTION_KEY, 'fr') })).toBe(true);
     expect(isAiCoachNote({ questionKey: 'post.resolve.vegLight' })).toBe(false);
+  });
+
+  it('carry the language they were written in', () => {
+    expect(aiNoteLocale({ questionKey: aiQuestionKey(AI_NOTE_QUESTION_KEY, 'fr') })).toBe('fr');
+    expect(aiNoteLocale({ questionKey: aiQuestionKey('depth.followUp.ai', 'en') })).toBe('en');
+    expect(aiNoteLocale({ questionKey: AI_NOTE_QUESTION_KEY })).toBeNull();
   });
 });

@@ -420,7 +420,9 @@ describe('YourAiScreen: AI coaching consent', () => {
     expect(toggle).not.toBeChecked();
     expect(toggle).toBeEnabled();
     expect(
-      screen.getByText(/the names of your foods, their weights, nutrient totals/),
+      screen.getByText(
+        /the names and food groups of your foods, their weights and nutrient totals/,
+      ),
     ).toBeVisible();
     expect(screen.getByText(/Never your photos, never your passphrase/)).toBeVisible();
     expect(screen.getByText('Destination: api.example.com, the service you chose.')).toBeVisible();

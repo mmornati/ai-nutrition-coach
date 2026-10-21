@@ -6,9 +6,10 @@ import { KV_KEYS, type KeyValueStore } from '../storage/key-value-store';
  * questions. It is NOT the photo consent: photos and meal data are different things, so a yes to
  * one never counts as a yes to the other (and the photo flow never reads this).
  *
- * The agreement names the destination it was given for (the host the data goes to). It lapses on
- * its own if the destination changes (another endpoint, another rung): the switch reads "off"
- * again and no coaching call is made until it is turned on for the new destination. Default OFF.
+ * The agreement names the destination it was given for (the host the data goes to). It lapses when
+ * the destination changes (another endpoint, another rung, another provider or model): the stored
+ * agreement is then CLEARED, so going back to the old destination asks again. Until it is turned on
+ * for the new destination no coaching call is made. Default OFF.
  * One row of the encrypted store; it goes with "Erase all local data".
  */
 export class CoachingConsent {
@@ -63,9 +64,13 @@ export class CoachingConsent {
     this.#set(lower);
   }
 
+  /**
+   * Fails closed: the agreement is forgotten in memory FIRST (so no further call is made), then the
+   * row is deleted. If the delete throws, the caller hears of it but nothing more is sent.
+   */
   async revoke(): Promise<void> {
-    await this.#kv.delete(KV_KEYS.aiCoachingConsent);
     this.#set(null);
+    await this.#kv.delete(KV_KEYS.aiCoachingConsent);
   }
 
   #set(host: string | null): void {

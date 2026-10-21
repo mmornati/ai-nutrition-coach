@@ -21,6 +21,7 @@ import {
   createRecordPlate,
   createRecordSyncOp,
   createTemplateCoach,
+  localDayRange,
   systemClock,
   type Clock,
   type CoachParams,
@@ -175,15 +176,55 @@ export async function createSession(
     profile: profile.current,
   };
   let live = true;
+  // Notes the person already answered this session: an AI note must not land on top of them.
+  const interacted = new Set<number>();
+  const baseInteractions = createRecordCoachInteraction({ coach, store: notes, clock });
+  const coachInteractions: RecordCoachInteraction = {
+    ...baseInteractions,
+    record: (input) => {
+      interacted.add(input.note.id);
+      return baseInteractions.record(input);
+    },
+  };
   // The template note is written first, as ever; an AI-written one (only with the person's
   // coaching consent) replaces it in place if it arrives in time.
   const generator = withAiNotes(
     templateGenerator,
-    createAiNoteUpgrader({ ...coachAiDeps, notes, clock, naming, live: () => live }),
+    createAiNoteUpgrader({
+      ...coachAiDeps,
+      notes,
+      clock,
+      naming,
+      live: () => live,
+      hasInteracted: (noteId) => interacted.has(noteId),
+      plateExists: async (plate) => {
+        try {
+          const day = await store.readRange(localDayRange(plate.loggedAtUtc));
+          return day.kind === 'platesRead' && day.plates.some((p) => p.id === plate.id);
+        } catch {
+          return false;
+        }
+      },
+    }),
   );
   const record = createRecordPlate({
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
+  });
+
+  const askCoach = new AskCoachConversation({ ...coachAiDeps, naming, live: () => live });
+  // A conversation belongs to one destination: when the AI, the destination or the coaching consent
+  // changes, it starts again (nothing of it is sent to a service the person did not agree to).
+  const destinationOf = (): string => {
+    const status = ai.coaching.getSnapshot();
+    return status.kind === 'ready' ? status.destination.consentKey : '';
+  };
+  let chatDestination = destinationOf();
+  const stopWatching = ai.coaching.subscribe(() => {
+    const now = destinationOf();
+    if (now === chatDestination) return;
+    chatDestination = now;
+    askCoach.reset();
   });
 
   return {
@@ -202,8 +243,8 @@ export async function createSession(
     ai,
     coach,
     targets: profile.targets,
-    coachInteractions: createRecordCoachInteraction({ coach, store: notes, clock }),
-    askCoach: new AskCoachConversation({ ...coachAiDeps, naming, live: () => live }),
+    coachInteractions,
+    askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
     recordPlate: (entries) => record({ entries, store }),
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
@@ -212,6 +253,7 @@ export async function createSession(
       if (!live) return;
       live = false;
       abort.abort();
+      stopWatching();
       ai.coaching.dispose();
       catalog.clearCaches();
       ai.permit.close();

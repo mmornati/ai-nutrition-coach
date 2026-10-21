@@ -60,6 +60,7 @@ export async function requestWeekSummary(
         const checked = validateCoachText(result.text, {
           maxChars: COACH_LIMITS.weekChars,
           numbersOn,
+          locale: deps.locale(),
         });
         return checked.ok ? { kind: 'text', text: checked.text } : { kind: 'unsure' };
       }

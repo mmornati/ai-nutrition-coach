@@ -340,7 +340,7 @@ export const en = {
       coachingSwitchHelpOn:
         'On: after you log a plate, and when you ask the coach, your meal data goes to the destination below. You can turn this off at any time.',
       coachingSent:
-        'What is sent: the names of your foods, their weights, nutrient totals and what you ate earlier in the week, plus your profile if you filled it in (goal, diet, allergies, age band, sex, activity). Never your photos, never your passphrase. With nutrition numbers turned off, weights and nutrients are left out.',
+        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), and what you type in Ask the coach along with the earlier answers of that conversation. Never your photos, never your passphrase. With nutrition numbers turned off, weights and nutrients are left out.',
       coachingDestinationInstance:
         'Destination: {host}, this server, which passes it on to {label}.',
       coachingDestinationByok: 'Destination: {host}, the service you chose.',
@@ -528,12 +528,14 @@ export const en = {
         busy: 'The AI is busy. Try again in a moment.',
         failure: 'The coach could not answer just now. You can try again.',
         unsure: 'The coach did not find words it was happy with. You can try again.',
+        hiddenByNumbers:
+          'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
         needsSetup:
           'To ask the coach about your week, choose an AI and turn on AI coaching in Settings, Your AI.',
         needsConsent:
           'To ask the coach about your week, turn on AI coaching in Settings, Your AI. Your meals are sent only after you say yes.',
         open: 'Open Your AI',
-        note: 'This sends the counts and daily averages of the week to {host}. The review above stays as it is.',
+        note: 'This sends the week’s counts, daily averages and daily guide to {host}, with your profile if you filled it in. The review above stays as it is.',
       },
     },
   },
@@ -730,7 +732,7 @@ export const en = {
   askCoach: {
     title: 'Ask the coach',
     intro:
-      'Ask about your last seven days of meals. The AI sees the names of your foods, their weights, nutrient totals and your profile, never your photos. This is not medical advice.',
+      'Ask about your last seven days of meals. The AI sees the names of your foods, their food groups, the nutrient totals of each day and your profile, never your photos. This is not medical advice.',
     memory:
       'This conversation is kept only while the app is unlocked. It is not saved or exported, and it is gone when you lock the app.',
     offTitle: 'The AI coach is off',
@@ -760,6 +762,12 @@ export const en = {
       'It sounds like food or your body may be weighing on you. I cannot give advice on that.',
     supportMedical:
       'That sounds like something to check with a doctor or a pharmacist. I cannot give advice on symptoms.',
+    supportUrgent:
+      'This could be urgent. Please call your local emergency number now: 112 in the EU, 999 in the UK, 911 in the US, 15 or 112 in France. I cannot give advice on symptoms.',
+    supportSelfHarm:
+      'I am sorry you are feeling this way, and I am glad you said it. You do not have to carry it alone. In France you can call 3114, the national suicide prevention line, free and open day and night. In the UK, Samaritans are on 116 123, free, any time. In the US, call or text 988. Elsewhere, please call your local emergency number or a crisis line near you.',
+    hiddenByNumbers:
+      'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
   },
   coachQuestions: {
     'post.resolve.vegLight':
@@ -923,7 +931,7 @@ export const en = {
     leavesInstance:
       'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
     leavesCoaching:
-      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names of your foods, their weights, nutrient totals, the day or week so far and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, and the conversation is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
+      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:

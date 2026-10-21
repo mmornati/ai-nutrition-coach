@@ -1,6 +1,7 @@
 import {
   AI_FOLLOW_UP_QUESTION_KEY,
   AI_NOTE_QUESTION_KEY,
+  aiQuestionKey,
   buildNoteMessages,
   COACH_LIMITS,
   coachNoteDismissalKey,
@@ -28,6 +29,8 @@ export type AiNoteOutcome =
   | 'noTemplateNote'
   | 'dismissed'
   | 'alreadyFollowedUp'
+  | 'interacted'
+  | 'plateGone'
   | 'aiFailed'
   | 'invalid'
   | 'timedOut'
@@ -44,6 +47,10 @@ export interface AiNoteDeps {
   readonly targets: () => Required<Nutrients>;
   readonly profile: () => Profile | undefined;
   readonly naming: PromptNaming;
+  /** Whether the person already answered the template note (Sure, Ask later, Close) this session. */
+  readonly hasInteracted?: (noteId: number) => boolean;
+  /** Whether the plate still exists (it may have been removed while the AI thought). */
+  readonly plateExists?: (plate: PlateLog) => Promise<boolean>;
   /** False once the session ended: a late answer must write nothing. */
   readonly live: () => boolean;
   /** Test seam. Default `COACH_LIMITS.noteTimeoutMs`. */
@@ -104,10 +111,13 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
         if (dismissed.has(coachNoteDismissalKey(template.id))) return 'dismissed';
         if (existing.some((n) => n.anchor === 'depthFollowUp')) return 'alreadyFollowedUp';
 
+        if (deps.hasInteracted?.(template.id) === true) return 'interacted';
+
         const numbersOn = deps.numbersOn();
+        const locale = deps.locale();
         const messages = buildNoteMessages({
           ...deps.naming,
-          locale: deps.locale(),
+          locale,
           numbersOn,
           plate,
           earlierPlates: otherPlatesOfSameDay(plate, dayPlates),
@@ -142,18 +152,26 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
         if (!deps.live()) return 'sessionEnded';
         if (result.kind !== 'text') return 'aiFailed';
 
-        const parsed = parseAiCoachNote(result.text, numbersOn);
+        const parsed = parseAiCoachNote(result.text, numbersOn, locale);
         if (parsed === null) return 'invalid';
 
-        // Look again: a lock, a dismissal or a follow-up may have happened while the AI thought.
-        if ((await readDismissals(deps.notes)).has(coachNoteDismissalKey(template.id))) {
-          return 'dismissed';
-        }
+        // Look again: a dismissal, a tap on Sure, a follow-up or the plate's removal may have
+        // happened while the AI thought. Never swap the question under the person, never append a
+        // second follow-up, never write a row for a plate that is gone.
+        const [dismissedNow, rows] = await Promise.all([
+          readDismissals(deps.notes),
+          deps.notes.forPlate(plate.id),
+        ]);
+        if (dismissedNow.has(coachNoteDismissalKey(template.id))) return 'dismissed';
+        if (rows.some((n) => n.anchor === 'depthFollowUp')) return 'alreadyFollowedUp';
+        if (deps.hasInteracted?.(template.id) === true) return 'interacted';
+        if (deps.plateExists !== undefined && !(await deps.plateExists(plate))) return 'plateGone';
+        if (!deps.live()) return 'sessionEnded';
         const appended = await deps.notes.append({
           id: 0,
           plateLogId: plate.id,
           anchor: 'postResolve',
-          questionKey: AI_NOTE_QUESTION_KEY,
+          questionKey: aiQuestionKey(AI_NOTE_QUESTION_KEY, locale),
           text: parsed.note,
           generatedAt: clock(),
         });
@@ -165,7 +183,7 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
               id: 0,
               plateLogId: plate.id,
               anchor: 'depthFollowUp',
-              questionKey: AI_FOLLOW_UP_QUESTION_KEY,
+              questionKey: aiQuestionKey(AI_FOLLOW_UP_QUESTION_KEY, locale),
               text: parsed.followUp,
               generatedAt: clock(),
             })

@@ -1,7 +1,6 @@
 // The whole path: log a plate, the template note is stored first, the AI note arrives after and
 // replaces it in place; any failure, a missing yes or a lock leaves the template note alone.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AI_FOLLOW_UP_QUESTION_KEY, AI_NOTE_QUESTION_KEY } from '@anc/core';
 import { chatReply, FakeFetch } from '../ai/testing';
 import { configureByokCoaching } from '../coaching/testing';
 import { KV_KEYS } from '../storage';
@@ -48,13 +47,13 @@ describe('logging a plate with AI coaching on', () => {
     expect((await notesOf(session, id))[0]).toMatch(/^post\.resolve\./);
 
     await vi.waitFor(async () =>
-      expect(await notesOf(session, id)).toContain(AI_NOTE_QUESTION_KEY),
+      expect((await notesOf(session, id)).some((k) => k.startsWith('post.resolve.ai'))).toBe(true),
     );
     const keys = await notesOf(session, id);
     expect(keys[0]).toMatch(/^post\.resolve\.(?!ai)/);
-    expect(keys).toContain(AI_FOLLOW_UP_QUESTION_KEY);
+    expect(keys).toContain('depth.followUp.ai?lang=en');
     const stored = (await session.notes.forPlate(id)).find(
-      (n) => n.questionKey === AI_NOTE_QUESTION_KEY,
+      (n) => n.questionKey === 'post.resolve.ai?lang=en',
     );
     expect(stored?.text).toBe(NOTE);
 
@@ -146,6 +145,74 @@ describe('logging a plate with AI coaching on', () => {
     expect(sent.messages[1]?.content).not.toMatch(/kcal|grams/);
     await new Promise((r) => setTimeout(r, 20));
     expect(await notesOf(session, result.plateLog.id)).toHaveLength(1);
+    session.dispose();
+  });
+});
+
+describe('races around the AI note', () => {
+  async function gated() {
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply(JSON.stringify({ note: NOTE, followUp: 'Do you cook them?' }));
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const bundle = await unlockedBundle();
+    await configureByokCoaching(bundle);
+    const session = await createSession(bundle, {
+      fetch: async (url, init) => {
+        await gate;
+        return fake.fetch(url, init);
+      },
+    });
+    return { fake, session, open };
+  }
+
+  it('Sure tapped while the AI thinks: no AI note and no second follow-up', async () => {
+    const { fake, session, open } = await gated();
+    const result = await log(session);
+    if (result.kind !== 'recordPlateSuccess') throw new Error('not logged');
+    const [template] = await session.notes.forPlate(result.plateLog.id);
+    if (template === undefined) throw new Error('no template note');
+    await session.coachInteractions.record({ note: template, kind: 'sure' });
+    open();
+    await new Promise((r) => setTimeout(r, 40));
+    expect(fake.requests.length).toBeLessThanOrEqual(1);
+    const rows = await session.notes.forPlate(result.plateLog.id);
+    expect(rows.some((n) => n.questionKey.startsWith('post.resolve.ai'))).toBe(false);
+    expect(rows.filter((n) => n.anchor === 'depthFollowUp').length).toBeLessThanOrEqual(1);
+    session.dispose();
+  });
+
+  it('a plate removed while the AI thinks leaves no orphan AI rows', async () => {
+    const { session, open } = await gated();
+    const result = await log(session);
+    if (result.kind !== 'recordPlateSuccess') throw new Error('not logged');
+    await session.deletePlate(result.plateLog.id);
+    open();
+    await new Promise((r) => setTimeout(r, 40));
+    expect(await session.notes.forPlate(result.plateLog.id)).toEqual([]);
+    session.dispose();
+  });
+});
+
+describe('the Ask the coach conversation follows the destination', () => {
+  it('is cleared when coaching is switched off or its destination changes', async () => {
+    const { fake, session } = await setup();
+    fake.jsonBody = chatReply('Lentils came up twice. Which dish did you like?');
+    expect(await session.askCoach.send('Is my week varied?', [])).toBe('answered');
+    expect(session.askCoach.getSnapshot().entries).toHaveLength(2);
+
+    await session.ai.coaching.revoke();
+    expect(session.askCoach.getSnapshot().entries).toEqual([]);
+
+    await session.ai.coaching.grant();
+    expect(await session.askCoach.send('Again?', [])).toBe('answered');
+    await session.ai.settings.setByokTarget({
+      endpointUrl: 'https://api.elsewhere.test/v1',
+      model: 'm',
+    });
+    expect(session.askCoach.getSnapshot().entries).toEqual([]);
     session.dispose();
   });
 });

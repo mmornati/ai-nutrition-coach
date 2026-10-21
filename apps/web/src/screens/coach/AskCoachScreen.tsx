@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore, type FormEvent } from 'react';
-import { COACH_LIMITS } from '@anc/core';
+import { COACH_LIMITS, containsNumberWithUnit, type SupportSignal } from '@anc/core';
 
 import { useDay } from '../../app/day-context';
 import { hrefs } from '../../app/router';
@@ -7,7 +7,7 @@ import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
 import { useSessionCoachingStatus, type AskCoachNotice, type ChatEntry } from '../../coaching';
 import { Button, TextField } from '../../components/primitives';
-import { SupportLine } from '../../components/nutrition';
+import { SupportLine, useShowNumbers } from '../../components/nutrition';
 import { fill, useStrings, type Strings } from '../../i18n';
 
 /** The calm line for the reason the last question got no answer. */
@@ -24,7 +24,22 @@ function noticeText(s: Strings['askCoach'], notice: AskCoachNotice): string {
   }
 }
 
-function Entry({ entry, s }: { readonly entry: ChatEntry; readonly s: Strings['askCoach'] }) {
+const SUPPORT_COPY: Readonly<Record<SupportSignal, keyof Strings['askCoach']>> = {
+  eatingWorry: 'supportEating',
+  medicalSymptom: 'supportMedical',
+  urgent: 'supportUrgent',
+  selfHarm: 'supportSelfHarm',
+};
+
+function Entry({
+  entry,
+  s,
+  showNumbers,
+}: {
+  readonly entry: ChatEntry;
+  readonly s: Strings['askCoach'];
+  readonly showNumbers: boolean;
+}) {
   const who = entry.role === 'user' ? s.you : s.coach;
   return (
     <li className="border-rule border-b py-3 last:border-b-0">
@@ -33,14 +48,15 @@ function Entry({ entry, s }: { readonly entry: ChatEntry; readonly s: Strings['a
         <p className="text-lead [overflow-wrap:anywhere]">{entry.text}</p>
       ) : entry.kind === 'answer' ? (
         <>
-          <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">{entry.text}</p>
+          {/* An answer that quotes amounts waits while numbers are turned off. */}
+          <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">
+            {!showNumbers && containsNumberWithUnit(entry.text) ? s.hiddenByNumbers : entry.text}
+          </p>
           <p className="text-body-small text-porcelain-dim mt-1">{s.aiMark}</p>
         </>
       ) : entry.kind === 'support' ? (
         <>
-          <p className="text-lead">
-            {entry.signal === 'eatingWorry' ? s.supportEating : s.supportMedical}
-          </p>
+          <p className="text-lead">{s[SUPPORT_COPY[entry.signal]]}</p>
           {entry.signal === 'eatingWorry' && <SupportLine className="mt-2" />}
         </>
       ) : (
@@ -64,6 +80,7 @@ export function AskCoachScreen() {
   const { plates } = useDay();
   const status = useSessionCoachingStatus();
   const state = useSyncExternalStore(askCoach.subscribe, askCoach.getSnapshot);
+  const showNumbers = useShowNumbers();
   const [draft, setDraft] = useState('');
 
   const ready = status.kind === 'ready';
@@ -118,13 +135,20 @@ export function AskCoachScreen() {
               <div role="log" aria-live="polite" aria-relevant="additions">
                 <ol className="flex flex-col">
                   {state.entries.map((entry) => (
-                    <Entry key={entry.id} entry={entry} s={s} />
+                    <Entry key={entry.id} entry={entry} s={s} showNumbers={showNumbers} />
                   ))}
-                  {state.pending !== null && (
-                    <Entry entry={{ id: 0, role: 'user', text: state.pending }} s={s} />
-                  )}
                 </ol>
               </div>
+              {/* The question being answered: shown, but not announced twice (it joins the log
+                  above once it has its answer). */}
+              {state.pending !== null && (
+                <p
+                  aria-hidden="true"
+                  className="text-porcelain-dim py-3 text-lead [overflow-wrap:anywhere]"
+                >
+                  {s.you}: {state.pending}
+                </p>
+              )}
               <p role="status" className="text-body-small text-porcelain-dim mt-2 empty:hidden">
                 {busy ? s.thinking : ''}
               </p>
@@ -167,6 +191,17 @@ export function AskCoachScreen() {
                   >
                     {s.send}
                   </Button>
+                  {state.entries.length > 0 && (
+                    <Button
+                      variant="outline-porcelain"
+                      onClick={() => {
+                        askCoach.reset();
+                        setDraft('');
+                      }}
+                    >
+                      {s.newConversation}
+                    </Button>
+                  )}
                   <p className="text-body-small text-porcelain-dim">
                     {fill(s.asked, { count: state.asked, max: COACH_LIMITS.chatTurns })}
                   </p>

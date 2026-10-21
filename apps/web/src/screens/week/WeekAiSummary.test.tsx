@@ -1,6 +1,7 @@
 // "Ask the coach about this week": an optional AI paragraph under the rule-based review, only on
 // a tap, never instead of the review; with no AI (or no yes) it says how to turn it on.
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { useSession, type Session } from '../../app/session';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -78,7 +79,7 @@ describe('WeekAiSummary', () => {
     const { fake, container } = await openWeek({ configure: 'ready' });
     expect(fake.requests).toHaveLength(0);
     expect(
-      screen.getByText(/counts and daily averages of the week to api\.example\.com/i),
+      screen.getByText(/week’s counts, daily averages and daily guide to api\.example\.com/i),
     ).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Ask the coach about this week' }));
     await waitFor(() => expect(screen.getByText(PARAGRAPH)).toBeVisible());
@@ -163,5 +164,35 @@ describe('WeekAiSummary: accessibility', () => {
       .click(await screen.findByRole('button', { name: 'Ask the coach about this week' }));
     await screen.findByText(PARAGRAPH);
     expect(await axe(view.container)).toHaveNoViolations();
+  });
+});
+
+describe('WeekAiSummary: numbers switched off afterwards', () => {
+  it('hides a paragraph that quotes an amount, and shows it again with the numbers', async () => {
+    const user = userEvent.setup();
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply('Fibre averaged about 9 g a day. Which meal helped?');
+    const bundle = await unlockedBundle();
+    await configureByokCoaching(bundle);
+    let session: Session | undefined;
+    function Probe() {
+      session = useSession();
+      return null;
+    }
+    const review = weeklyReview({ plates: [], targets: EU_REFERENCE_INTAKES });
+    await renderInSession(
+      <>
+        <Probe />
+        <WeekAiSummary review={review} />
+      </>,
+      { bundle, session: { fetch: fake.fetch } },
+    );
+    await user.click(await screen.findByRole('button', { name: 'Ask the coach about this week' }));
+    expect(await screen.findByText(/about 9 g a day/)).toBeVisible();
+    await act(async () => session?.numbers.set(false));
+    expect(screen.queryByText(/9 g/)).toBeNull();
+    expect(screen.getByText(/hidden while nutrition numbers are turned off/)).toBeVisible();
+    await act(async () => session?.numbers.set(true));
+    expect(screen.getByText(/about 9 g a day/)).toBeVisible();
   });
 });

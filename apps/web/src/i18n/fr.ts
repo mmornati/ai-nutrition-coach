@@ -339,7 +339,7 @@ export const fr: Strings = {
       coachingSwitchHelpOn:
         'Activé : après l’enregistrement d’une assiette, et quand vous interrogez le coach, vos données de repas partent vers la destination indiquée plus bas. Vous pouvez le désactiver à tout moment.',
       coachingSent:
-        'Ce qui est envoyé : les noms de vos aliments, leurs poids, les totaux de nutriments et ce que vous avez mangé plus tôt dans la semaine, ainsi que votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité). Jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids et les nutriments ne sont pas envoyés.',
+        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids et les nutriments ne sont pas envoyés.',
       coachingDestinationInstance: 'Destination : {host}, ce serveur, qui la transmet à {label}.',
       coachingDestinationByok: 'Destination : {host}, le service que vous avez choisi.',
       coachingNeedsAi:
@@ -531,12 +531,14 @@ export const fr: Strings = {
         busy: 'L’IA est occupée. Réessayez dans un instant.',
         failure: 'Le coach n’a pas pu répondre à l’instant. Vous pouvez réessayer.',
         unsure: 'Le coach n’a pas trouvé de mots dont il soit satisfait. Vous pouvez réessayer.',
+        hiddenByNumbers:
+          'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
         needsSetup:
           'Pour interroger le coach sur votre semaine, choisissez une IA et activez le coaching par IA dans Réglages, Votre IA.',
         needsConsent:
           'Pour interroger le coach sur votre semaine, activez le coaching par IA dans Réglages, Votre IA. Vos repas ne sont envoyés qu’après votre accord.',
         open: 'Ouvrir Votre IA',
-        note: 'Cela envoie à {host} le nombre de jours et les moyennes quotidiennes de la semaine. Le bilan ci-dessus reste tel quel.',
+        note: 'Cela envoie à {host} le nombre de jours, les moyennes quotidiennes et le repère quotidien de la semaine, avec votre profil si vous l’avez rempli. Le bilan ci-dessus reste tel quel.',
       },
     },
   },
@@ -717,7 +719,7 @@ export const fr: Strings = {
   askCoach: {
     title: 'Interroger le coach',
     intro:
-      'Posez une question sur vos sept derniers jours de repas. L’IA voit les noms de vos aliments, leurs poids, les totaux de nutriments et votre profil, jamais vos photos. Ce n’est pas un avis médical.',
+      'Posez une question sur vos sept derniers jours de repas. L’IA voit les noms de vos aliments, leurs groupes, les totaux de nutriments de chaque jour et votre profil, jamais vos photos. Ce n’est pas un avis médical.',
     memory:
       'Cette conversation n’est gardée que pendant que l’application est déverrouillée. Elle n’est ni enregistrée ni exportée, et elle disparaît quand vous verrouillez l’application.',
     offTitle: 'Le coach IA est désactivé',
@@ -751,6 +753,12 @@ export const fr: Strings = {
       'Il semble que la nourriture ou votre corps vous préoccupent. Je ne peux pas vous conseiller là-dessus.',
     supportMedical:
       'Cela mérite l’avis d’un médecin ou d’un pharmacien. Je ne peux pas donner de conseil sur des symptômes.',
+    supportUrgent:
+      'Cela peut être urgent. Appelez les secours maintenant : le 15 ou le 112 en France, le 112 dans l’Union européenne. Je ne peux pas donner de conseil sur des symptômes.',
+    supportSelfHarm:
+      'Je suis désolé que vous vous sentiez ainsi, et je suis content que vous en parliez. Vous n’avez pas à porter cela sans aide. En France, vous pouvez appeler le 3114, le numéro national de prévention du suicide, gratuit et ouvert jour et nuit. Ailleurs, appelez le numéro d’urgence local (le 112 dans l’Union européenne) ou une ligne d’écoute près de chez vous.',
+    hiddenByNumbers:
+      'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
   },
   coachQuestions: {
     'post.resolve.vegLight':
@@ -915,7 +923,7 @@ export const fr: Strings = {
     leavesInstance:
       'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
     leavesCoaching:
-      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms de vos aliments, leurs poids, les totaux de nutriments, la journée ou la semaine en cours et, si vous l’avez rempli, votre profil. Les poids et les nutriments sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, et la conversation n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
+      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil. Les poids et les nutriments sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',
     offToggleOn: 'Activé : un code-barres scanné est recherché en ligne.',
     offToggleOff:

@@ -1,6 +1,7 @@
 import {
   buildChatMessages,
   COACH_LIMITS,
+  containsNumberWithUnit,
   detectSupportSignal,
   validateCoachText,
   type ChatTurn,
@@ -141,7 +142,13 @@ export class AskCoachConversation {
     const { entries } = this.#state;
     entries.forEach((e, i) => {
       const next = entries[i + 1];
-      if (e.role === 'user' && next?.role === 'assistant' && next.kind === 'answer') {
+      if (
+        e.role === 'user' &&
+        next?.role === 'assistant' &&
+        next.kind === 'answer' &&
+        // An answer that quotes amounts is not sent back as history while numbers are off.
+        (this.#deps.numbersOn() || !containsNumberWithUnit(next.text))
+      ) {
         turns.push({ role: 'user', text: e.text }, { role: 'assistant', text: next.text });
       }
     });
@@ -212,6 +219,7 @@ export class AskCoachConversation {
             maxChars: COACH_LIMITS.answerChars,
             numbersOn,
             maxQuestions: 2,
+            locale: this.#deps.locale(),
           });
           const userEntry = { id: this.#nextId++, role: 'user', text } as const;
           const answer: ChatEntry = checked.ok
