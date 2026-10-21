@@ -114,7 +114,7 @@ describe('fr typography', () => {
 
   it('carries none of the banned pressure vocabulary (the No-Dark-Patterns Standard)', () => {
     const BANNED =
-      /séries?\b|compte à rebours|badge|bravo|félicitations|calorie|kcal|culpabilit|objectif|score|record|\bsuper\b|\bgénial|\bréussi|\béchec|\braté|\bmanqué/i;
+      /séries?\b|compte à rebours|badge|bravo|félicitations|culpabilit|score|\bpoints\b|record|\brestantes?\b|dépassé|hors budget|\bsuper\b|\bgénial|\bréussi|\béchec|\braté|\bmanqué/i;
     const bad = [...frLeaves]
       .filter(([path]) => path !== 'week.noStreaks') // the footnote that names the ban
       .filter(([, text]) => BANNED.test(text))

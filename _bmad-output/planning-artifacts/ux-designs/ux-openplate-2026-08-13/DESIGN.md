@@ -183,7 +183,7 @@ Three voices with **strict roles**:
 | Day title | `{typography.day-title}` | Sans light, unhurried — "Tue · dinner *done*" |
 | Meal name | `{typography.meal}` | Sans, quiet |
 | Plate label | `{typography.label}` | Sans medium, tracked uppercase — "Breakfast" |
-| Quantity | `{typography.qty}` | Mono — honest ranges only: "~2 fists", never fake-exact kcal (PRD FR-1) |
+| Quantity | `{typography.qty}` | Mono — honest ranges only: "~2 fists", never fake-exact kcal (PRD FR-1) *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)* |
 | Grace line | `{typography.grace}` | Serif italic — the per-meal whisper ("A soft start, remembered.") |
 | Coach paragraph | `{typography.coach}` | Serif italic, leading 1.6 — the one true voice of the coach |
 | Status chip | `{typography.chip}` | Mono — "· local" / "· synced", ~9.5px, never louder than the coach |
@@ -241,7 +241,7 @@ Behavior, states, and flows for all of the above live in `EXPERIENCE.md`.
 | One muted sage accent, used for coaching states and the fab | Color-code by sentiment; red as a guilt signal for the user (there are no red days) |
 | Hairline rules at lowest legible contrast | Card fills, shadows as hierarchy, gradient surfaces |
 | Big quiet sans type, serif italic reserved for the coach | Set UI text in the serif; set coach text in the sans |
-| Honest quantity ranges ("~2 fists") | Fake-exact kcal or false-decimal precision (FR-1, UJ-4 honesty) |
+| Honest quantity ranges ("~2 fists") | Fake-exact kcal or false-decimal precision (FR-1, UJ-4 honesty) *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)* |
 | Tiny mono status chips that whisper self-host pride | Loud branding, header badges, marketing copy in the chrome |
 | One calm, generous day at a time | Card-dense "Today" dashboards that bury the plate (anti-model: MFP, competitor digest) |
 | Gentle quiet states: shimmer, fade, flip | Spinners, countdowns, celebratory pop-ups, streak chrome |

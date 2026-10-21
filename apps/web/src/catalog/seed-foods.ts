@@ -5,7 +5,7 @@
  * across the four balance-arc groups plus a handful of `other` entries. Each entry carries a
  * stable `id` (its name in every language lives in the catalogue, `foods.names.<id>`), a
  * `FoodGroup` tag, and one or more honest portion presets `(low, high, unit)`; the `~1–2 cups`
- * label is built from them in the person's language (see `food-display.ts`), never a kcal figure.
+ * label is built from them in the person's language (see `food-display.ts`). Nutrient values per 100 g arrive in schema v2 (docs/adr/0006).
  *
  * `sourceRef` is what a logged plate keeps, so it is FROZEN: `seed:<English name, lower-cased>`,
  * exactly as before the ids existed. A stored plate's ref therefore resolves to the same seed

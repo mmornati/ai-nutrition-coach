@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../common';
 
-/** An honest range ("~1-2 pieces"), never a kcal float. */
+/** A portion range ("~1-2 pieces") for presets and estimates. Grams and nutrients arrive in schema v2 (docs/adr/0006). */
 export interface QuantityRange {
   readonly low: number;
   readonly high: number;

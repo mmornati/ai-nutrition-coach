@@ -118,6 +118,14 @@ describe('No-Dark-Patterns Standard, code half', () => {
     expect(hits(/(?:^|\W)animation(?:-name)?:\s*[^;]*spin/i)).toEqual([]);
   });
 
+  it('no guilt framing of numbers: no over-budget, remaining-calories or allowance vocabulary in the UI', () => {
+    expect(
+      hits(
+        /over[- ]?budget|calories? (?:left|remaining)|remaining calories|daily allowance spent/i,
+      ),
+    ).toEqual([]);
+  });
+
   it('no card grid on the Day Board: the board is one hairline-divided stack, no Card component', () => {
     expect(hits(/\bCard(?:Grid)?\b/)).toEqual([]);
   });
@@ -132,6 +140,7 @@ describe('No-Dark-Patterns Standard, code half', () => {
       'push-notification re-engagement',
       'card sprawl',
       'red-guilt',
+      'over-budget',
       'resolve spinners',
     ]) {
       expect(doc).toContain(term);

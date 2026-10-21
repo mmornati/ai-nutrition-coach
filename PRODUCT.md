@@ -14,7 +14,7 @@ React 19 + Vite + TypeScript + Tailwind v4 + a hardened hand-written service wor
 
 ## Users
 
-Public open-source self-hosters and the people they share their instance with. Primary user: an adult who cooks for a household and wants to understand what they eat, not count it. Logs meals in the moment (at the table, in a shop aisle, after the fact from memory), usually one-handed on a phone; reviews the day or week on phone or desktop. v1 is adults-only: no child profiles, no under-13 language, no biometrics.
+Public open-source self-hosters and the people they share their instance with. Primary user: an adult who cooks for a household and wants to understand what they eat, with real numbers to hand and no pressure attached. Logs meals in the moment (at the table, in a shop aisle, after the fact from memory), usually one-handed on a phone; reviews the day or week on phone or desktop. v1 is adults-only: no child profiles, no under-13 language, no biometrics.
 
 ## Product Purpose
 
@@ -22,7 +22,7 @@ AI Nutrition Coach (formerly OpenPlate) records what you ate — photo, barcode,
 
 ## Positioning
 
-A coach, not a calculator. Trust is architectural: no account, local encrypted store, optional sync only to the user's own infrastructure, zero telemetry, AI optional (free quota → bring your own key → local model in v2). The no-AI core is a complete product.
+A coach with real numbers, calmly framed. Since 2026-10-21 (`docs/adr/0006-nutrition-numbers-calm-framing.md`) the app stores grams and nutrients and shows them per plate and per day, against reference intakes, without scores, streaks or guilt. The earlier "a coach, not a calculator" stance, which showed no numbers at all, is superseded. Trust is architectural: no account, local encrypted store, optional sync only to the user's own infrastructure, zero telemetry, AI optional (free quota → bring your own key → local model in v2). The no-AI core is a complete product.
 
 ## Operating Context
 
@@ -34,7 +34,7 @@ A coach, not a calculator. Trust is architectural: no account, local encrypted s
 
 ## Capabilities and Constraints
 
-- Balanced-plate model: four food groups (veg & fruit, protein, starch, dairy) marked present/absent per plate; portions as honest ranges ("~2 fists"), never fake-exact kcal.
+- Balanced-plate model: four food groups (veg & fruit, protein, starch, dairy) marked present/absent per plate; portions as ranges ("~2 fists") for presets and uncertain estimates. Direction (ADR 0006, rolling out in schema v2): grams per food entry and per-100 g nutrients (energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt) shown per plate and per day as plain values and neutral bars against EU Reference Intakes or an optional personal target. Estimates are labelled "~"; ranges stay allowed where data is uncertain. Open Food Facts Nutri-Score and NOVA may appear as attributed third-party product information, never as a score of the person.
 - Photo recognition ≤3s, barcode ≤2s budgets; ambiguous food falls back to closest matches + manual quantity, never fails the log.
 - Quota exhaustion offers three calm paths (keep logging without AI / bring your own key / wait), no countdown.
 - Voice input is v1 transcription-only and currently not implemented.
@@ -45,7 +45,8 @@ A coach, not a calculator. Trust is architectural: no account, local encrypted s
 
 - Name: AI Nutrition Coach (formerly OpenPlate). Footmark: "yours to run · open source".
 - Voice: warm-but-reserved calm kitchen friend; asks, never tells; no exclamation marks, no celebratory language, no streak vocabulary.
-- No-Dark-Patterns Standard (`docs/no-dark-patterns-standard.md`) is binding: no streaks, scores, badges, countdowns, celebratory pop-ups, red-guilt states, push re-engagement, or spinners for resolve.
+- No-Dark-Patterns Standard (`docs/no-dark-patterns-standard.md`) is binding: no streaks, app-invented scores, points or grades, badges, countdowns, celebratory pop-ups, red or guilt states ("over budget"), "calories remaining" framing, push re-engagement, or spinners for resolve. Numbers are allowed; pressure is not.
+- The coach still asks rather than scolds, but gives specific nutrition information ("This yogurt has about 18 g of sugars, around a fifth of a day's reference intake.").
 - Energy in the visuals is welcome; the behavioral rules above constrain devices, not exuberance.
 
 ## Evidence on Hand
@@ -56,7 +57,7 @@ A coach, not a calculator. Trust is architectural: no account, local encrypted s
 
 ## Product Principles
 
-1. Understanding over numbers: every surface should teach something about the plate, not total it.
+1. Understanding with numbers: every surface should teach something concrete about the plate, using real values (grams, nutrients) shown plainly against a reference, never as a verdict, a score or a limit the person has failed.
 2. Never fail the log: offline, no AI, unknown barcode — the meal still lands.
 3. Ownership is visible: where the data lives and which AI is used are always legible.
 4. Ask, don't judge: the coach offers one question; dismissing costs nothing.
@@ -64,4 +65,4 @@ A coach, not a calculator. Trust is architectural: no account, local encrypted s
 
 ## Accessibility & Inclusion
 
-Touch targets ≥48px; keyboard and screen-reader parity (balance arcs announce food groups, not counts); reduced motion collapses to fades; color never the sole signal; dynamic type without truncation; all strings localizable. See `docs/accessibility.md`.
+Touch targets ≥48px; keyboard and screen-reader parity (balance arcs announce food groups; nutrient bars always carry their value, unit and reference in text); reduced motion collapses to fades; color never the sole signal; dynamic type without truncation; all strings localizable. See `docs/accessibility.md`.

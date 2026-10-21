@@ -114,7 +114,9 @@ describe('TodayScreen: the day as a map', () => {
     expect(name).toMatch(/Lunch, 12:45/);
     expect(name).toMatch(/veg & fruit and protein stopped/i);
     expect(name).toMatch(/starch and dairy passed through/i);
-    expect(document.body.textContent).not.toMatch(/\d+\s*(%|kcal|points?|of 4 filled)/i);
+    expect(document.body.textContent).not.toMatch(
+      /\d+\s*(points?|pts|of 4 filled)|\b(score|streak|remaining|over budget)\b|!/i,
+    );
   });
 
   it('has a Settings entry and the calm "On this device" chip', async () => {

@@ -32,7 +32,7 @@ Why now: MyFitnessPal moved core photo logging behind a paywall (2026-05-01) ami
 ### 2.2 Non-Users (v1)
 
 - **Under-13 children** — v1 has no under-13 accounts, no child-facing calorie language, no kids' data collected. See §4.6 (Kid-Smart Design) for the rationale `[9][37][38][47]`.
-- **Serious macro optimizers** (bodybuilders, competition dieters) — they need precision tracking; OpenPlate trades exact macros for balance and understanding (Cronometer, MacroFactor serve them well).
+- **Serious macro optimizers** (bodybuilders, competition dieters) — they need precision tracking; OpenPlate trades exact macros for balance and understanding (Cronometer, MacroFactor serve them well). *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 - **Clinical/diet-plan patients** — no prescribed meal plans, no medical advice, not a medical device.
 
 ### 2.3 Key User Journeys
@@ -79,7 +79,7 @@ Why now: MyFitnessPal moved core photo logging behind a paywall (2026-05-01) ami
 - **Food Entry** — a single item in a Plate Log, resolved to a database food (OFF or USDA) with an estimated quantity.
 - **Database Food** — a canonical record from Open Food Facts (OFF, barcode-led, ~4M products) or USDA FoodData Central (incl. the Child Nutrition DB `[b2]`). Local resolution layer in front of both `[19]`.
 - **Coach Note** — the point of contact for learning: a question or observation the app asks about balance/composition, never a verdict. No calorie shaming, ever.
-- **Balanced-Plate** — the coach's core model: visible balance across food groups/colors, in plain language, no mandatory calorie number.
+- **Balanced-Plate** — the coach's core model: visible balance across food groups/colors, in plain language, no mandatory calorie number. *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 - **AI Tier** — one rung of the AI ladder: (1) no-AI core, (2) free-model quota, (3) BYOK (bring-your-own-key, OpenAI-compatible), (4) local model (v2). Each rung is fully optional; the ladder never degrades the no-AI core.
 - **BYOK Key** — a user-supplied OpenAI-compatible API key, stored encrypted on-device (Keychain / encrypted shared prefs) and never uploaded.
 - **Coach Question** — an interactive prompt in a Coach Note ("how's the balance?" / "want the fiber breakdown?"), the mechanism for coaching rather than counting.
@@ -101,7 +101,7 @@ A user can log a Plate Log by photographing it; the system recognizes foods (~85
 
 **Consequences (testable):**
 - A single well-lit plate photo returns recognized Food Entries in ≤3 s on a midrange device.
-- Portion-size estimates carry an explicit uncertainty treatment (`[ASSUMPTION: we display a confidence/high-range rather than a false-exact kcal figure; the research flags portion-size as the dominant error source, ~15–25% on single 2D photos — see research OQ6]`).
+- Portion-size estimates carry an explicit uncertainty treatment (`[ASSUMPTION: we display a confidence/high-range rather than a false-exact kcal figure; the research flags portion-size as the dominant error source, ~15–25% on single 2D photos — see research OQ6]`). *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 - Ambiguous/unrecognizable photos fall back to a pick-from-closest-matches or manual entry flow without failing the log.
 
 **Out of Scope:**
@@ -261,12 +261,12 @@ The system enforces, by template and review, that no surface uses countdown pres
 
 ## 5. Non-Goals (Explicit)
 
-- **Not** a calorie-counting calculator with a score and a streak.
+- **Not** a calorie-counting calculator with a score and a streak. *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 - **Not** a kids' app in v1; no under-13 accounts, no child-facing calorie content.
 - **Not** a diet-plan dispenser (no prescribed meal plans), no medical device, no weight-loss prescriptions.
 - **Not** a hosted cloud service in v1 — the brief explicitly parks hosted tiers `[b2]`; self-host is the shipped posture and community growth channel.
 - **Not** deep gamification (levels, badges, quests) — gamification is deliberately limited to gentle consistency; `[b1]` reframes it to adult consistency/streaks-not-guilt.
-- **Not** a macro playbook (precision calorimetry is Cronometer/MacroFactor's lane).
+- **Not** a macro playbook (precision calorimetry is Cronometer/MacroFactor's lane). *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 - **Not** building its own food database — OFF (read-only at launch, contribution decision in Open Question 3) + USDA are the data layer.
 
 ## 6. MVP Scope

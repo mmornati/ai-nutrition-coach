@@ -36,6 +36,15 @@ The v2 `local` rung exists in the type system and the rung registry; it
 cannot be selected and returns a typed failure, so the seam is declared
 without crashing the core.
 
+### Planned: instance-wide key (Phase 4)
+
+Not built. A self-hoster will be able to hold one AI key on the server,
+used through a server-side proxy and configured in `infra/server.env`, so
+the people sharing an instance need not each bring a key. It would appear
+as a rung in the same ladder, under the same no-pressure rules, and the
+key would never reach the browser. See
+`docs/adr/0006-nutrition-numbers-calm-framing.md`.
+
 ### Where settings live
 
 The rung, the BYOK endpoint and model, and the per-host photo consents
