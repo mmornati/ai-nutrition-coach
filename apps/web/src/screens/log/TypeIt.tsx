@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { FoodEntryDraft, RecordPlateResult } from '@anc/core';
 import { fill, useLocale, useMessage, useStrings } from '../../i18n';
 import { Button, GroupMarker, TextField } from '../../components/primitives';
-import { PortionPresets, Sheet } from '../../components/sheets';
+import { QuantityPicker, Sheet } from '../../components/sheets';
 import { foodName, useManualEntry } from '../../catalog';
 import type { LogOutcome } from '../../catalog';
 import { useSession } from '../../app/session';
@@ -130,7 +130,9 @@ export function TypeIt({
         </div>
       )}
       {selected && chosen && (
-        <PortionPresets
+        <QuantityPicker
+          key={selected.food.sourceRef}
+          food={selected.food}
           presets={selected.presets}
           value={chosen}
           onChange={(preset) => session.selectPreset(preset)}

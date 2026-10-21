@@ -2,6 +2,7 @@ import type { QuantityRange } from '@anc/core';
 import { quantityLabel } from '../../catalog';
 import { useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
+import { formatWeight } from '../nutrition/format';
 import { effectivePresets, sameQuantity } from './foods';
 
 export interface PortionPresetsProps {
@@ -14,7 +15,10 @@ export interface PortionPresetsProps {
   readonly raised?: boolean;
 }
 
-/** Honest portion ranges as toggle buttons (>= 48px). The selected one flips to porcelain. */
+/**
+ * Honest portion ranges as toggle buttons (>= 48px), with the weight a preset stands for when the
+ * catalogue knows it ("~1 fist · ≈150 g"). The selected one flips to porcelain.
+ */
 export function PortionPresets({
   presets,
   value,
@@ -46,6 +50,7 @@ export function PortionPresets({
             )}
           >
             {quantityLabel(preset, locale)}
+            {preset.grams !== undefined && ` · ${formatWeight(preset.grams, true, locale)}`}
           </button>
         );
       })}

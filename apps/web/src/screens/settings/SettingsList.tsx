@@ -8,7 +8,7 @@ import { SECTIONS } from './sections';
 
 /**
  * Settings, as a departures board: one row per place, a line segment, a title, a calm subtitle
- * (the Your AI row shows the live rung) and a chevron. No tip jar, no toggles here.
+ * (the Your AI row shows the live rung) and a chevron. No tip jar, no toggles here (the one switch lives in Nutrition).
  */
 export function SettingsList() {
   const all = useStrings();
@@ -50,6 +50,14 @@ export function SettingsList() {
         subtitle: s.rowLanguageSubtitle,
         status: '',
         onSelect: go(SECTIONS.language),
+      },
+      {
+        id: SECTIONS.nutrition,
+        line: 'protein',
+        title: s.rowNutrition,
+        subtitle: s.rowNutritionSubtitle,
+        status: '',
+        onSelect: go(SECTIONS.nutrition),
       },
       {
         id: SECTIONS.install,

@@ -27,6 +27,8 @@ export const KV_KEYS = Object.freeze({
   privacyOffLookup: 'privacy.offLookup',
   /** `system` | `en` | `fr`: the interface language ("Match my device" when absent or `system`). */
   uiLocale: 'ui.locale',
+  /** `off` when the person hid nutrition numbers; absent means shown (the default). */
+  uiShowNumbers: 'ui.showNumbers',
 } as const);
 
 export interface KeyValueStore {

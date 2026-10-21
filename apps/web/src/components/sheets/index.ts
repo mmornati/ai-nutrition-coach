@@ -7,3 +7,4 @@ export { LineBar } from './LineBar';
 export { EntryList, type EntryItem } from './EntryList';
 export { oneServing, manualFood, effectivePresets } from './foods';
 export { AiSetupLink } from './AiSetupLink';
+export { QuantityPicker, parseGrams, type QuantityPickerProps } from './QuantityPicker';
