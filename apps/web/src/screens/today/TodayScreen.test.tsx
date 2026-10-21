@@ -463,3 +463,66 @@ describe('TodayScreen: the day in nutrients', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('TodayScreen: nutrient-aware coach', () => {
+  const addNote = async (bundle: StoreBundle, plateLogId: number, questionKey: string) =>
+    bundle.notes.append({
+      id: 0,
+      plateLogId,
+      anchor: 'postResolve',
+      questionKey,
+      text: 'fallback',
+      generatedAt: Date.now(),
+    });
+  const KEY = 'post.resolve.sugarsHighItem?food=Yogurt&g=18&pct=20&est=1';
+
+  it('a stored nutrient note reads with its numbers, "~" when estimated', async () => {
+    const bundle = await unlockedBundle();
+    const plate = await seedPlate(bundle, at(12, 0), [['Yogurt', 'dairy']]);
+    await addNote(bundle, plate.id, KEY);
+    await renderInSession(<TodayScreen />, { bundle });
+    const card = await screen.findByRole('group', { name: s.coach.group });
+    expect(
+      within(card).getByText(
+        'This Yogurt has ~18 g of sugars, around 20% of a day’s guide. Is it a treat today, or a habit worth a look?',
+      ),
+    ).toBeVisible();
+  });
+
+  it('the note is not shown while numbers are off', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
+    const plate = await seedPlate(bundle, at(12, 0), [['Yogurt', 'dairy']]);
+    await addNote(bundle, plate.id, KEY);
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByText('Yogurt');
+    expect(screen.queryByRole('group', { name: s.coach.group })).toBeNull();
+  });
+
+  it('the open-station hint quotes the day’s protein when it is low', async () => {
+    const bundle = await unlockedBundle();
+    await seedMeasuredPlate(bundle, at(8, 0), [
+      { name: 'Banana', group: 'vegFruit', grams: 100, per100g: { protein: 1.3, energyKcal: 90 } },
+    ]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(
+      await screen.findByText(
+        'Protein so far today is 1.3 g, around 3% of a day’s guide. Could this meal have eggs, beans, tofu or fish?',
+      ),
+    ).toBeVisible();
+  });
+
+  it('with numbers off the open-station hint falls back to the food-group wording', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
+    await seedMeasuredPlate(bundle, at(8, 0), [
+      { name: 'Banana', group: 'vegFruit', grams: 100, per100g: { protein: 1.3, energyKcal: 90 } },
+    ]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(
+      await screen.findByText(
+        'No protein logged yet today. Could this meal have eggs, beans, tofu or fish?',
+      ),
+    ).toBeVisible();
+  });
+});

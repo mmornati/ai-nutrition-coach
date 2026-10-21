@@ -21,8 +21,10 @@ import {
   createRecordPlate,
   createRecordSyncOp,
   createTemplateCoach,
+  EU_REFERENCE_INTAKES,
   systemClock,
   type Clock,
+  type CoachParams,
   type Coach,
   type CoachNoteStore,
   type DeletePlate,
@@ -30,6 +32,7 @@ import {
   type FoodCatalog,
   type FoodEntryDraft,
   type LocalDataEraser,
+  type Nutrients,
   type RecordCoachInteraction,
   type RecordPlateResult,
 } from '@anc/core';
@@ -48,6 +51,7 @@ import { strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
+import { coachCopy } from './coach-copy';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
 import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
@@ -69,6 +73,11 @@ export interface Session {
   readonly syncQueue: InMemorySyncQueue;
   readonly ai: AiServices;
   readonly coach: Coach;
+  /**
+   * The daily reference amounts the nutrient-aware coach and the weekly review compare against
+   * (`coachTargets()` below). A function so a profile change is picked up on the next read.
+   */
+  readonly targets: () => Required<Nutrients>;
   readonly coachInteractions: RecordCoachInteraction;
   /** Records one plate (coach note and outbox op are best-effort post-commit steps). */
   readonly recordPlate: (drafts: readonly FoodEntryDraft[]) => Promise<RecordPlateResult>;
@@ -85,10 +94,15 @@ export interface SessionOptions {
 }
 
 /** The v1 template coach reads its questions from the typed copy catalogue by key. */
-const coachLookup = (key: string): string | undefined => {
-  const questions = strings().coachQuestions as Readonly<Record<string, string>>;
-  return Object.hasOwn(questions, key) ? questions[key] : undefined;
-};
+const coachLookup = (key: string, params: CoachParams): string | undefined =>
+  coachCopy(strings(), key, params);
+
+/**
+ * THE seam for the coach's reference amounts. Replaced by the profile's daily targets
+ * (`dailyTargetsFor(profile)`) once the optional profile lands; until then everyone is compared
+ * with the EU Reference Intakes (docs/adr/0006).
+ */
+export const coachTargets = (): Required<Nutrients> => EU_REFERENCE_INTAKES;
 
 export async function createSession(
   bundle: StoreBundle,
@@ -136,6 +150,8 @@ export async function createSession(
     store: notes,
     clock,
     groupsOf: foodGroupsOfFood,
+    // No numbers in a note while the person has numbers turned off.
+    targets: () => (numbers.current() ? coachTargets() : undefined),
   });
   const record = createRecordPlate({
     generator,
@@ -158,6 +174,7 @@ export async function createSession(
     syncQueue,
     ai,
     coach,
+    targets: coachTargets,
     coachInteractions: createRecordCoachInteraction({ coach, store: notes, clock }),
     recordPlate: (entries) => record({ entries, store }),
     deletePlate: createDeletePlate({ store, coachNotes: notes }),

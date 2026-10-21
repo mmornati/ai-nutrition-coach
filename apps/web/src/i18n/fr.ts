@@ -444,6 +444,44 @@ export const fr: Strings = {
     noteQuietDays: 'La ligne {name} est restée calme {days}.',
     noteQuietAll: 'La ligne {name} est restée calme toute la semaine.',
     noteQuietMany: 'Les lignes {names} sont restées calmes cette semaine.',
+    review: {
+      title: 'La semaine en bref',
+      daysLogged: {
+        zero: 'Aucun jour avec des repas notés pour l’instant',
+        one: '{count} jour avec des repas notés',
+        other: '{count} jours avec des repas notés',
+      },
+      averagesTitle: 'Moyenne par jour',
+      averagesNote: {
+        one: 'Moyenne sur le {count} jour qui a des poids et des données nutritionnelles.',
+        other: 'Moyenne sur les {count} jours qui ont des poids et des données nutritionnelles.',
+      },
+      wentWellTitle: 'Ce qui s’est bien passé',
+      tryTitle: 'Une chose à essayer',
+      positives: {
+        vegMostDays: 'Des légumes ou des fruits sont apparus {days} jours sur {of} notés.',
+        proteinSteady:
+          'Les protéines ont fait {approx}{g} g par jour en moyenne, une quantité régulière.',
+        fibreSteady:
+          'Les fibres ont fait {approx}{g} g par jour en moyenne, une quantité régulière.',
+        saltModerate: 'Le sel a fait {approx}{g} g par jour en moyenne, plutôt léger.',
+        sugarsModerate: 'Les sucres ont fait {approx}{g} g par jour en moyenne, plutôt léger.',
+        variedWeek:
+          'Légumes, protéines, féculents et produits laitiers sont chacun apparus au moins deux jours.',
+      },
+      suggestions: {
+        moreVeg:
+          'Des légumes ou des fruits sont apparus {days} jours sur {of} notés. Une poignée pourrait-elle rejoindre un repas de plus la semaine prochaine ?',
+        moreProtein:
+          'Les protéines ont fait {approx}{g} g par jour en moyenne. Des œufs, des légumineuses, du tofu ou du poisson au déjeuner pourraient en ajouter la semaine prochaine.',
+        moreFibre:
+          'Les fibres ont fait {approx}{g} g par jour en moyenne. Les légumineuses, l’avoine ou le pain complet sont des débuts faciles.',
+        easeSalt:
+          'Le sel a fait {approx}{g} g par jour en moyenne. Goûter avant de saler est un début tout doux.',
+        easeSugars:
+          'Les sucres ont fait {approx}{g} g par jour en moyenne. Un fruit ou un yaourt nature à la place d’une douceur est un petit changement.',
+      },
+    },
   },
   about: {
     title: 'À propos de cette application',
@@ -615,6 +653,8 @@ export const fr: Strings = {
   plate: {
     removeAction: 'Retirer cette assiette',
   },
+  /** How a share of the day's reference reads inside a coach note. */
+  coachShare: { around: 'environ {pct} %', underOne: 'moins de 1 %' },
   coachQuestions: {
     'post.resolve.vegLight':
       'Pas de légumes ni de fruits pour l’instant aujourd’hui. Une poignée pourrait-elle se glisser dans ce repas, même à côté ?',
@@ -658,6 +698,42 @@ export const fr: Strings = {
       'Des œufs, un yaourt ou une poignée de noix tiennent plus longtemps que le pain ou les céréales seuls, si l’envie de changer vous prend.',
     'depth.followUp.proteinMissingDay':
       'Le poisson en boîte, les œufs et les haricots en conserve se gardent bien et ne demandent aucune cuisson.',
+    'post.resolve.sugarsHighItem':
+      'Cet aliment ({food}) contient {approx}{g} g de sucres, soit {share} de la référence d’une journée. Un petit plaisir aujourd’hui, ou une habitude à regarder ?',
+    'post.resolve.saltHighPlate':
+      'Cette assiette contient {approx}{g} g de sel, soit {share} de la référence d’une journée. Le reste de la journée pourrait-il être plus léger en sel ?',
+    'post.resolve.satFatHighPlate':
+      'Cette assiette contient {approx}{g} g d’acides gras saturés, soit {share} de la référence d’une journée. Quelque chose de plus léger en graisses saturées irait-il pour le prochain repas ?',
+    'post.resolve.energyDenseSnack':
+      'Cette collation fait {approx}{kcal} kcal, sans protéines ni légumes à côté. Un fruit ou un verre de lait irait-il avec ?',
+    'post.resolve.proteinLowDay':
+      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Des œufs, des légumineuses, du tofu ou du poisson pourraient-ils trouver leur place au prochain repas ?',
+    'post.resolve.fibreLowDay':
+      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Un fruit ou une poignée de noix irait-il ce soir, ou au petit-déjeuner demain ?',
+    'openPlate.proteinLowDay':
+      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+    'openPlate.fibreLowDay':
+      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir des légumineuses, du pain complet ou un fruit ?',
+    'depth.followUp.sugarsHighItem':
+      'Un yaourt nature avec quelques morceaux de fruit, sucré par vous-même d’une cuillère de confiture, vous laisse choisir le degré de douceur.',
+    'depth.followUp.saltHighPlate':
+      'Goûter avant de saler, et rincer les légumes ou les légumineuses en conserve, fait baisser le sel sans changer le repas.',
+    'depth.followUp.satFatHighPlate':
+      'De l’huile d’olive ou un peu moins de fromage ou de beurre dans la prochaine assiette change l’équilibre, et une poignée de noix remplace bien une collation.',
+    'depth.followUp.energyDenseSnack':
+      'Un fruit avec quelques noix, ou un yaourt, se prépare aussi vite qu’un biscuit et cale plus longtemps.',
+    'depth.followUp.proteinLowDay':
+      'Le poisson en boîte, les œufs, les légumineuses en conserve ou un yaourt nature apportent des protéines en deux minutes, sans cuisson.',
+    'depth.followUp.fibreLowDay':
+      'Les flocons d’avoine, une boîte de lentilles ou de pois chiches, ou une pomme avec sa peau sont des sources de fibres faciles.',
+    'post.resolve.proteinLowDay.none':
+      'Pas encore de protéines notées aujourd’hui. Des œufs, des légumineuses, du tofu ou du poisson pourraient-ils trouver leur place au prochain repas ?',
+    'post.resolve.fibreLowDay.none':
+      'Pas encore de fibres notées aujourd’hui. Un fruit ou une poignée de noix irait-il ce soir, ou au petit-déjeuner demain ?',
+    'openPlate.proteinLowDay.none':
+      'Pas encore de protéines notées aujourd’hui. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+    'openPlate.fibreLowDay.none':
+      'Pas encore de fibres notées aujourd’hui. Ce repas pourrait-il avoir des légumineuses, du pain complet ou un fruit ?',
   },
   settings: {
     aiTier: 'Niveau d’IA',

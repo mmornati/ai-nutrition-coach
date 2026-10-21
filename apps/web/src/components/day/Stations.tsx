@@ -89,52 +89,56 @@ export function PlateRow({
 
   return (
     <>
-      <h2 data-station-anchor className={NAME_CLASS}>
-        {meal}
-        <span className="font-display text-signal-muted text-aside font-semibold tracking-[0.06em]">
-          {time}
-        </span>
-      </h2>
-      <p className="text-signal-muted text-body-small mt-1">{summary}</p>
-      <p className="text-porcelain-dim mt-1.5 text-meta">{stopsText}</p>
-      <div className="mt-2">
-        <StatusChip hasTransport={hasTransport} status={syncStatus} />
+      {/* The tap target covers the plate's own text only: a coach note below it (which can be
+          several lines) must never sit over it. */}
+      <div className="relative">
+        <h2 data-station-anchor className={NAME_CLASS}>
+          {meal}
+          <span className="font-display text-signal-muted text-aside font-semibold tracking-[0.06em]">
+            {time}
+          </span>
+        </h2>
+        <p className="text-signal-muted text-body-small mt-1">{summary}</p>
+        <p className="text-porcelain-dim mt-1.5 text-meta">{stopsText}</p>
+        <div className="mt-2">
+          <StatusChip hasTransport={hasTransport} status={syncStatus} />
+        </div>
+        <button
+          type="button"
+          data-testid={`open-plate-${plate.id}`}
+          aria-label={stationLabel({
+            meal,
+            time,
+            present: lineNames(present),
+            passed: lineNames(passed),
+          })}
+          className="absolute inset-0 min-h-12 w-full cursor-pointer touch-manipulation bg-transparent select-none"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={cancel}
+          onPointerLeave={cancel}
+          onPointerCancel={cancel}
+          onContextMenu={(e) => {
+            if (held.current || timer.current !== null) e.preventDefault();
+          }}
+          onClick={(e) => {
+            if (held.current) {
+              // The hold already opened the confirm; swallow the click that follows release.
+              held.current = false;
+              e.preventDefault();
+              return;
+            }
+            onOpen(plate.id);
+          }}
+        />
+        <Button
+          variant="framed-enamel"
+          onClick={() => onRequestDelete(plate.id)}
+          className="sr-only z-20 focus:not-sr-only focus:absolute focus:top-2 focus:right-0"
+        >
+          {removePlateFor(meal, time)}
+        </Button>
       </div>
-      <button
-        type="button"
-        data-testid={`open-plate-${plate.id}`}
-        aria-label={stationLabel({
-          meal,
-          time,
-          present: lineNames(present),
-          passed: lineNames(passed),
-        })}
-        className="absolute inset-0 min-h-12 w-full cursor-pointer touch-manipulation bg-transparent select-none"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={cancel}
-        onPointerLeave={cancel}
-        onPointerCancel={cancel}
-        onContextMenu={(e) => {
-          if (held.current || timer.current !== null) e.preventDefault();
-        }}
-        onClick={(e) => {
-          if (held.current) {
-            // The hold already opened the confirm; swallow the click that follows release.
-            held.current = false;
-            e.preventDefault();
-            return;
-          }
-          onOpen(plate.id);
-        }}
-      />
-      <Button
-        variant="framed-enamel"
-        onClick={() => onRequestDelete(plate.id)}
-        className="sr-only z-20 focus:not-sr-only focus:absolute focus:top-2 focus:right-0"
-      >
-        {removePlateFor(meal, time)}
-      </Button>
       {children}
     </>
   );
