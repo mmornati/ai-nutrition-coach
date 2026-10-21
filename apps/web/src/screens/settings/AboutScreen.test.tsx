@@ -87,6 +87,11 @@ describe('AboutScreen', () => {
     const sqlite = read(join(pub, 'licenses/sqlite3-multiple-ciphers.txt'));
     expect(sqlite).toContain('MIT License');
     expect(sqlite).toMatch(/public domain/i);
+    const ciqual = read(join(pub, 'licenses/ciqual-Etalab-2.0.txt'));
+    expect(ciqual).toContain(
+      'Anses. 2025. Table de composition nutritionnelle des aliments Ciqual',
+    );
+    expect(ciqual).toContain('Open Licence');
     expect(read(join(pub, 'fonts/OFL.txt'))).toContain('SIL Open Font License');
   });
 
