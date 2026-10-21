@@ -129,8 +129,8 @@ describe('YourAi.saveByok', () => {
     expect(t.settings.getSnapshot().byokKeyHost).toBe('');
     // The live rung therefore cannot release the key.
     expect(await t.services.rung.recognize(photoBytes(1))).toEqual({
-      kind: 'recognizedPlate',
-      foods: [],
+      kind: 'recognitionFailure',
+      cause: 'noAi',
     });
   });
 });

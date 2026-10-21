@@ -450,6 +450,75 @@ describe('RecognizedMatchSheet', () => {
     }
   });
 
+  it('No AI: a distinct title and hint, the Set up AI link, and the no-AI core still offered', async () => {
+    const onClose = vi.fn();
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={onClose}
+        result={{ kind: 'recognitionFailure', cause: 'noAi' }}
+        closestMatches={closest}
+        onLog={() => undefined}
+        aiSetupHref="#/settings/ai"
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: 'No AI connected' })).toBeInTheDocument();
+    expect(screen.getByText(/Photos aren't analysed without AI/)).toBeInTheDocument();
+    expect(screen.queryByText('Nothing matched')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Set up AI' });
+    expect(link).toHaveAttribute('href', '#/settings/ai');
+    await userEvent.click(link);
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: /Apple/ })).toBeInTheDocument();
+  });
+
+  it('a failure shows its own message; configuration causes link to Your AI, others do not', () => {
+    const cases: [RecognitionResult, boolean][] = [
+      [
+        { kind: 'recognitionFailure', cause: 'keyMissing', message: 'your own key is missing' },
+        true,
+      ],
+      [{ kind: 'recognitionFailure', cause: 'notConfigured', message: 'endpoint not set' }, true],
+      [{ kind: 'recognitionFailure', cause: 'consentRequired', message: 'not agreed' }, true],
+      [{ kind: 'recognitionFailure', cause: 'httpError', message: 'http 503 from x' }, false],
+      [{ kind: 'recognitionFailure', cause: 'network' }, false],
+    ];
+    for (const [result, linked] of cases) {
+      const { unmount } = render(
+        <RecognizedMatchSheet
+          open
+          onClose={() => undefined}
+          result={result}
+          closestMatches={closest}
+          onLog={() => undefined}
+          aiSetupHref="#/settings/ai"
+        />,
+      );
+      expect(screen.getByRole('dialog', { name: /Search isn't available/ })).toBeInTheDocument();
+      if (result.kind === 'recognitionFailure' && result.message !== undefined) {
+        const shown = result.message.charAt(0).toUpperCase() + result.message.slice(1);
+        expect(screen.getByText(shown)).toBeInTheDocument();
+      }
+      expect(!!screen.queryByRole('link', { name: 'Set up AI' })).toBe(linked);
+      unmount();
+    }
+  });
+
+  it('an empty AI result keeps "Nothing matched" and shows no setup link', () => {
+    render(
+      <RecognizedMatchSheet
+        open
+        onClose={() => undefined}
+        result={{ kind: 'recognizedPlate', foods: [] }}
+        closestMatches={closest}
+        onLog={() => undefined}
+        aiSetupHref="#/settings/ai"
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: 'Nothing matched' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Set up AI' })).not.toBeInTheDocument();
+  });
+
   it('Log custom food needs a name, then logs one custom food as a manual entry', async () => {
     const onLog = vi.fn();
     render(

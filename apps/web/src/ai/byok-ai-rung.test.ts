@@ -115,9 +115,9 @@ describe('ByokAiRung', () => {
 });
 
 describe('NoopAiRung and the unavailable rungs', () => {
-  it('No AI answers an empty recognized plate (never a failure), whatever the bytes', async () => {
+  it('No AI answers the distinct "noAi" cause (no message, no request), whatever the bytes', async () => {
     const rung = new NoopAiRung();
-    expect(await rung.recognize()).toEqual({ kind: 'recognizedPlate', foods: [] });
+    expect(await rung.recognize()).toEqual({ kind: 'recognitionFailure', cause: 'noAi' });
   });
 
   it('hosted and local make no request and answer "unsupported", never throw', async () => {

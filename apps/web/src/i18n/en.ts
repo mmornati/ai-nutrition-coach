@@ -116,6 +116,8 @@ export const en = {
     takePhoto: 'Take a photo',
     choosePhoto: 'Choose a photo',
     aimHint: 'Aim at your plate, then tap the shutter.',
+    noAiNote:
+      'Photo recognition needs an AI connection. Without one, you can still pick or type what is on the plate.',
     reading: 'Reading your plate…',
     retake: 'Retake',
     typeManually: 'Type it manually',
@@ -170,6 +172,10 @@ export const en = {
     quotaTitle: "the free quota is done — choose what you'd like to do.",
     quotaHint: 'You can still pick a closest match or type it manually.',
     failureTitle: "Search isn't available right now.",
+    noAiTitle: 'No AI connected',
+    noAiHint:
+      "Photos aren't analysed without AI. Pick a recent food, type it, or set up AI in Settings.",
+    setUpAi: 'Set up AI',
     recognizedLabel: 'Recognized foods',
     closestMatches: 'Closest matches',
     confidenceLikely: 'likely',
@@ -300,7 +306,7 @@ export const en = {
       photoNotSendable: 'This photo format cannot be sent without its metadata.',
       responseTooLarge: 'the provider response was too large',
       timedOut: 'the request to {host} timed out',
-      httpStatus: 'http {status} from {host}',
+      httpStatus: 'error {status} from {host}',
       couldNotConnect: 'could not connect to {host}',
       unreachable: 'the provider could not be reached',
       unavailableRung: 'Not available yet',
