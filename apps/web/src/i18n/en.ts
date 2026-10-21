@@ -746,7 +746,7 @@ export const en = {
     thinking: 'The coach is thinking…',
     conversation: 'Conversation',
     you: 'You',
-    coach: 'Coach',
+    coach: 'The coach',
     aiMark: 'Written by AI',
     asked: '{count} of {max} questions asked',
     limit: 'That is the end of this conversation: {max} questions. Start a new one to keep going.',

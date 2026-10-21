@@ -8,6 +8,8 @@ import { chatReply, FakeFetch } from '../../ai/testing';
 import { at, renderInSession, seedMeasuredPlate, unlockedBundle } from '../../app/testing';
 import { configureByokCoaching } from '../../coaching/testing';
 import { KV_KEYS } from '../../storage';
+import { EU_REFERENCE_INTAKES, weeklyReview } from '@anc/core';
+import { WeekAiSummary } from './WeekAiSummary';
 import { WeekScreen } from './WeekScreen';
 
 beforeEach(() => {
@@ -136,5 +138,30 @@ describe('WeekAiSummary', () => {
   it('the week screen links to Ask the coach', async () => {
     await openWeek();
     expect(screen.getByRole('link', { name: 'Ask the coach' })).toHaveAttribute('href', '#/coach');
+  });
+});
+
+describe('WeekAiSummary: accessibility', () => {
+  it('has no axe violations (off, and ready with a paragraph)', async () => {
+    const review = weeklyReview({ plates: [], targets: EU_REFERENCE_INTAKES });
+    const bundle = await unlockedBundle();
+    const off = await renderInSession(<WeekAiSummary review={review} />, { bundle });
+    await screen.findByText(/choose an AI and turn on AI coaching/);
+    expect(await axe(off.container)).toHaveNoViolations();
+    off.unmount();
+
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply(PARAGRAPH);
+    const ready = await unlockedBundle();
+    await configureByokCoaching(ready);
+    const view = await renderInSession(<WeekAiSummary review={review} />, {
+      bundle: ready,
+      session: { fetch: fake.fetch },
+    });
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Ask the coach about this week' }));
+    await screen.findByText(PARAGRAPH);
+    expect(await axe(view.container)).toHaveNoViolations();
   });
 });

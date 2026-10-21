@@ -239,7 +239,10 @@ export interface WeekContextInput extends PromptNaming {
 }
 
 /** The last seven days as a JSON document: daily totals, food groups and the top foods. */
-export function weekContextJson(input: WeekContextInput): Record<string, unknown> {
+export function weekContextJson(
+  input: WeekContextInput,
+  foodsPerDay = 12,
+): Record<string, unknown> {
   const groupsOf = input.groupsOf ?? storedGroupOnly;
   const byDay = new Map<number, PlateLog[]>();
   for (const plate of input.plates) {
@@ -267,7 +270,7 @@ export function weekContextJson(input: WeekContextInput): Record<string, unknown
         date: dayLabel(day),
         plates: plates.length,
         groups: [...groups],
-        foods: [...new Set(foods)].slice(0, 20),
+        foods: [...new Set(foods)].slice(0, foodsPerDay),
       };
       if (input.numbersOn) {
         const totals = dayNutrients(plates);
@@ -293,22 +296,60 @@ export interface ChatTurn {
 }
 
 /**
+ * What the same-origin AI proxy accepts (infra/nginx/ai-proxy/ai-proxy.js): at most 8 messages and
+ * 24 KB of text in all. Every request built here fits, by construction and by `fitsProxyBudget`.
+ */
+export const PROMPT_BUDGET = Object.freeze({ messages: 8, textBytes: 24 * 1024 });
+
+/** UTF-8 byte length (the core has no `TextEncoder`): what the proxy counts. */
+function utf8Bytes(s: string): number {
+  let n = 0;
+  for (const ch of s) {
+    const c = ch.codePointAt(0) ?? 0;
+    n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+  }
+  return n;
+}
+
+/** True when the messages stay inside `PROMPT_BUDGET`. */
+export function fitsProxyBudget(messages: readonly PromptMessage[]): boolean {
+  return (
+    messages.length <= PROMPT_BUDGET.messages &&
+    messages.reduce((n, m) => n + utf8Bytes(m.content), 0) <= PROMPT_BUDGET.textBytes
+  );
+}
+
+/**
  * The messages of one "Ask the coach" call: the system prompt with the seven-day document, then
- * the conversation so far (at most the last `COACH_LIMITS.chatTurns` questions are ever held).
+ * the conversation so far. To stay inside `PROMPT_BUDGET` (system + at most the last three answered
+ * questions + the new one = 8 messages) the OLDEST turns are dropped first, then the foods listed
+ * per day, then the oldest days. The newest question is always kept.
  */
 export function buildChatMessages(input: {
   readonly locale: CoachLocale;
   readonly context: WeekContextInput;
   readonly turns: readonly ChatTurn[];
 }): readonly PromptMessage[] {
-  const system = [
-    coachSystemPrompt('chat', input.locale),
-    JSON.stringify(weekContextJson(input.context)),
-  ].join('\n\n');
-  return [
-    msg('system', system),
-    ...input.turns.map((t) => msg(t.role, t.text.slice(0, COACH_LIMITS.answerChars))),
+  const clipped = input.turns.map((t) => ({
+    ...t,
+    text: t.text.slice(0, COACH_LIMITS.answerChars),
+  }));
+  // Whole question/answer pairs go first; the last turn is the new question.
+  let turns = clipped;
+  while (turns.length + 1 > PROMPT_BUDGET.messages) turns = turns.slice(2);
+  const head = coachSystemPrompt('chat', input.locale);
+  const build = (context: Record<string, unknown>, kept: readonly ChatTurn[]) => [
+    msg('system', [head, JSON.stringify(context)].join('\n\n')),
+    ...kept.map((t) => msg(t.role, t.text)),
   ];
+  for (const foodsPerDay of [12, 6, 0]) {
+    const messages = build(weekContextJson(input.context, foodsPerDay), turns);
+    if (fitsProxyBudget(messages)) return messages;
+  }
+  // Still too big (multi-byte names everywhere): keep only the newest question and the newest days.
+  const context = weekContextJson(input.context, 0);
+  const days = (context['days'] as unknown[]).slice(-3);
+  return build({ ...context, days }, turns.slice(-1));
 }
 
 /**

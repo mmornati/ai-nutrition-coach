@@ -7,6 +7,7 @@ import {
   COACH_LIMITS,
   coachSystemPrompt,
   databaseFood,
+  fitsProxyBudget,
   EU_REFERENCE_INTAKES,
   gramsQuantity,
   plateLog,
@@ -236,5 +237,68 @@ describe('buildChatMessages and buildWeekMessages', () => {
       targets: EU_REFERENCE_INTAKES,
     })[1];
     expect(off?.content).not.toMatch(/dailyAverages|dailyGuide/);
+  });
+});
+
+describe('the proxy budget (8 messages, 24 KB of text)', () => {
+  const big = (id: number): PlateLog =>
+    plateLog({
+      id,
+      loggedAtUtc: when - id * 86_400_000,
+      entries: Array.from({ length: 25 }, (_, i) => ({
+        id: i + 1,
+        plateLogId: id,
+        databaseFood: databaseFood({
+          sourceRef: `t:${id}:${i}`,
+          displayName: `日本語の食べ物${i}`.repeat(6),
+          source: 'manual',
+          foodGroup: 'protein',
+          nutrientsPer100g: { energyKcal: 100 },
+        }),
+        quantity: gramsQuantity(100),
+      })),
+    });
+  const plates = [0, 1, 2, 3, 4, 5, 6].map(big);
+  const context = {
+    ...naming,
+    numbersOn: true,
+    plates,
+    targets: EU_REFERENCE_INTAKES,
+    profile: { allergies: ['peanut'] },
+  } as const;
+
+  it('a full 6-turn conversation with the heaviest week fits, and keeps the newest question', () => {
+    const turns = Array.from({ length: 11 }, (_, i) => ({
+      role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      text: 'é'.repeat(i % 2 === 0 ? COACH_LIMITS.inputChars : COACH_LIMITS.answerChars),
+    }));
+    const messages = buildChatMessages({ locale: 'fr', context, turns });
+    expect(fitsProxyBudget(messages)).toBe(true);
+    expect(messages.length).toBeLessThanOrEqual(8);
+    expect(messages[0]?.role).toBe('system');
+    expect(messages.at(-1)).toEqual({ role: 'user', content: turns[10]?.text });
+    // Roles alternate after the system message.
+    expect(messages.slice(1).map((m) => m.role)).toEqual(
+      messages.slice(1).map((_, i) => (i % 2 === 0 ? 'user' : 'assistant')),
+    );
+  });
+
+  it('notes and the week paragraph fit too', () => {
+    const note = buildNoteMessages({
+      ...naming,
+      locale: 'en',
+      numbersOn: true,
+      plate: big(1),
+      earlierPlates: [big(2), big(3)],
+      slot: 'lunch',
+      targets: EU_REFERENCE_INTAKES,
+    });
+    expect(fitsProxyBudget(note)).toBe(true);
+    const review = weeklyReview({ plates, targets: EU_REFERENCE_INTAKES });
+    expect(
+      fitsProxyBudget(
+        buildWeekMessages({ locale: 'en', numbersOn: true, review, targets: EU_REFERENCE_INTAKES }),
+      ),
+    ).toBe(true);
   });
 });

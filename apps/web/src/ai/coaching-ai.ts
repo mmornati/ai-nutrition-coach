@@ -2,7 +2,7 @@ import type { Unsubscribe } from '@anc/core';
 import type { AiSettings } from './ai-settings';
 import { validateByokEndpoint } from './byok-endpoint';
 import type { CoachingConsent } from './coaching-consent';
-import type { InstanceAiView } from './instance-config';
+import { instanceConsentKey, type InstanceAiView } from './instance-config';
 import type { ChatMessage, ChatOptions, ChatResult, TextCompletionPort } from './types';
 
 /** Where meal data would go: the host the consent names, and a short label when the server has one. */
@@ -12,6 +12,11 @@ export interface CoachingDestination {
   readonly host: string;
   /** The provider label this server shows for its AI (instance only), else `null`. */
   readonly label: string | null;
+  /**
+   * What the consent is recorded against: the host for your own key, and for this server's AI the
+   * host, provider label and model together, so the yes lapses if the operator changes either.
+   */
+  readonly consentKey: string;
 }
 
 /**
@@ -35,12 +40,19 @@ export function coachingDestination(
 ): CoachingDestination | null {
   if (settings.rung.kind === 'instance') {
     if (!instance.config.enabled || instance.host === '') return null;
-    return { kind: 'instance', host: instance.host, label: instance.config.label };
+    return {
+      kind: 'instance',
+      host: instance.host,
+      label: instance.config.label,
+      consentKey: instanceConsentKey(instance.host, instance.config),
+    };
   }
   if (settings.rung.kind === 'byok') {
     if (settings.byokModel.trim() === '') return null;
     const endpoint = validateByokEndpoint(settings.byokEndpointUrl);
-    return endpoint.kind === 'valid' ? { kind: 'byok', host: endpoint.host, label: null } : null;
+    return endpoint.kind === 'valid'
+      ? { kind: 'byok', host: endpoint.host, label: null, consentKey: endpoint.host }
+      : null;
   }
   return null;
 }
@@ -88,7 +100,7 @@ export class CoachingAi {
       this.#instance.getSnapshot(),
     );
     if (destination === null) return { kind: 'noAi' };
-    return this.#consent.grantedFor(destination.host)
+    return this.#consent.grantedFor(destination.consentKey)
       ? { kind: 'ready', destination }
       : { kind: 'needsConsent', destination };
   }
@@ -99,7 +111,7 @@ export class CoachingAi {
     const key =
       next.kind === 'noAi'
         ? 'noAi'
-        : `${next.kind}|${next.destination.kind}|${next.destination.host}|${next.destination.label ?? ''}`;
+        : `${next.kind}|${next.destination.kind}|${next.destination.consentKey}|${next.destination.label ?? ''}`;
     if (key === this.#cachedKey) return false;
     this.#cached = next;
     this.#cachedKey = key;
@@ -119,7 +131,7 @@ export class CoachingAi {
   async grant(): Promise<boolean> {
     const status = this.#compute();
     if (status.kind === 'noAi') return false;
-    await this.#consent.grant(status.destination.host);
+    await this.#consent.grant(status.destination.consentKey);
     return true;
   }
 

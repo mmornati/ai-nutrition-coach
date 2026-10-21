@@ -259,15 +259,15 @@ describe('AI coach note: the upgrade', () => {
   });
 
   it('a note that is dismissed while the AI thinks is not added', async () => {
-    let bundle: StoreBundle | undefined;
     let templateId = 0;
+    const holder: { bundle?: StoreBundle } = {};
     const t = await setup(
       scriptedCoaching(async () => {
-        await bundle?.notes.recordDismissal(coachNoteDismissalKey(templateId));
+        await holder.bundle?.notes.recordDismissal(coachNoteDismissalKey(templateId));
         return aiNote(GOOD);
       }),
     );
-    bundle = t.bundle;
+    holder.bundle = t.bundle;
     templateId = t.template.id;
     expect(await t.run()).toBe('dismissed');
     expect(await t.notes()).toEqual([t.template]);

@@ -14,6 +14,7 @@ export const READY_DESTINATION: CoachingDestination = {
   kind: 'byok',
   host: 'api.example.com',
   label: null,
+  consentKey: 'api.example.com',
 };
 export const READY: CoachingStatus = { kind: 'ready', destination: READY_DESTINATION };
 

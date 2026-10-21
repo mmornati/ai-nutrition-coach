@@ -353,7 +353,8 @@ up() {
         -e "AI_NUTRITION_COACH_SW_KILL=${AI_NUTRITION_COACH_SW_KILL:-}" \
         -e "AI_NUTRITION_COACH_ACCESS_LOG=${AI_NUTRITION_COACH_ACCESS_LOG:-off}" \
         -e AI_PROXY_ENABLED -e AI_PROXY_UPSTREAM -e AI_PROXY_KEY -e AI_PROXY_MODEL -e AI_PROXY_LABEL \
-        -e AI_PROXY_RATE -e AI_PROXY_BURST -e AI_PROXY_MAX_TOKENS \
+        -e AI_PROXY_RATE -e AI_PROXY_RATE_ALL -e AI_PROXY_BURST -e AI_PROXY_CONN -e AI_PROXY_MAX_TOKENS \
+        -e AI_PROXY_TOKEN_PARAM \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
     printf 'ai-nutrition-coach: docker run failed (is port %s already in use? try AI_NUTRITION_COACH_PORT=...).\n' "$PORT" >&2
@@ -419,7 +420,8 @@ Environment:
   AI_PROXY_ENABLED                      1 = offer ONE AI key to everyone on this instance
                                (default: off). Needs AI_PROXY_UPSTREAM (https://...),
                                AI_PROXY_KEY and AI_PROXY_MODEL; optional AI_PROXY_LABEL,
-                               AI_PROXY_RATE, AI_PROXY_BURST, AI_PROXY_MAX_TOKENS. The key
+                               AI_PROXY_RATE, AI_PROXY_RATE_ALL, AI_PROXY_BURST, AI_PROXY_CONN, AI_PROXY_MAX_TOKENS,
+                               AI_PROXY_TOKEN_PARAM. The key
                                stays on the server and is never printed. Anyone who can
                                reach the instance can spend it: use a sign-in or an
                                allow-list (docs/self-host.md)

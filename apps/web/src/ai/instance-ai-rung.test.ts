@@ -5,7 +5,7 @@ import { InMemoryAiSettingsStore } from './ai-settings-store';
 import { InMemoryByokKeyStore } from './byok-key-store';
 import { rungChoices, rungStatusLine } from './copy';
 import { createAiServices } from './create-ai-services';
-import { InstanceAiSource } from './instance-config';
+import { InstanceAiSource, describeInstanceConsent, instanceConsentKey } from './instance-config';
 import { OpenAiCompatibleByokProvider } from './openai-compatible-provider';
 import { PhotoUploadPermit } from './photo-upload-permit';
 import {
@@ -31,6 +31,7 @@ import { decodeAiSettings } from './ai-settings';
 
 const ORIGIN = 'https://plate.example.test';
 const OFFER = { enabled: true, model: 'vendor/model-x', label: 'Acme AI' };
+const KEY = instanceConsentKey('plate.example.test', OFFER);
 const FOODS = '[{"name":"Rice","quantityHint":"1 cup","group":"starch","confidence":0.9}]';
 
 async function world(
@@ -51,7 +52,7 @@ async function world(
       new AiSettings({
         rung: { kind: 'instance' },
         askBeforeEveryPhoto: false,
-        photoConsentHosts: ['plate.example.test'],
+        photoConsentHosts: [KEY],
       }),
   });
   const instance = new InstanceAiSource({ fetch: fake.fetch, origin: () => ORIGIN });
@@ -126,9 +127,11 @@ describe('the instance rung in the ladder', () => {
 
   it('names THIS server as the upload host, and nothing while it offers no AI', async () => {
     const w = await world();
-    expect(photoUploadHost(w.settings.getSnapshot(), w.instance.getSnapshot())).toBe(
-      'plate.example.test',
-    );
+    // The consent key is this host AND the provider label AND the model.
+    expect(KEY).toBe('instance:plate.example.test|Acme AI|vendor/model-x');
+    expect(photoUploadHost(w.settings.getSnapshot(), w.instance.getSnapshot())).toBe(KEY);
+    expect(describeInstanceConsent(KEY)).toBe('plate.example.test — Acme AI');
+    expect(describeInstanceConsent('api.example.com')).toBeNull();
     expect(photoUploadHost(w.settings.getSnapshot())).toBeNull();
     const off = await world({ offer: { enabled: false } });
     expect(photoUploadHost(off.settings.getSnapshot(), off.instance.getSnapshot())).toBeNull();
@@ -171,12 +174,29 @@ describe('recognising a photo through the same-origin proxy', () => {
     });
     expect(w.fake.requests).toHaveLength(0);
 
-    await w.deps.permit.grant({ host: 'plate.example.test', bytes: photoBytes(1) });
+    await w.deps.permit.grant({ host: KEY, bytes: photoBytes(1) });
     expect((await rung.recognize(photoBytes(1))).kind).toBe('recognizedPlate');
     expect(w.fake.requests).toHaveLength(1);
     // A permit for another host is not enough.
     await w.deps.permit.grant({ host: 'other.example.test', bytes: photoBytes(2) });
     expect(await rung.recognize(photoBytes(2))).toMatchObject({ cause: 'consentRequired' });
+  });
+
+  it('changing the provider label or the model asks again (the agreement was for the old combination)', async () => {
+    const w = await world();
+    const rung = createLiveAiRung(w.deps);
+    expect((await rung.recognize(photoBytes(1))).kind).toBe('recognizedPlate');
+    for (const changed of [
+      { ...OFFER, label: 'Other AI' },
+      { ...OFFER, model: 'vendor/model-y' },
+    ]) {
+      w.fake.instanceConfig = changed;
+      await w.instance.refresh();
+      expect(await rung.recognize(photoBytes(2))).toMatchObject({ cause: 'consentRequired' });
+    }
+    w.fake.instanceConfig = OFFER;
+    await w.instance.refresh();
+    expect((await rung.recognize(photoBytes(3))).kind).toBe('recognizedPlate');
   });
 
   it('429 is "busy, try again in a moment" with no countdown, even when the proxy sends Retry-After', async () => {

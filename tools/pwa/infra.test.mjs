@@ -607,7 +607,7 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
     expect(loc).not.toMatch(/proxy_set_header (Cookie|X-Forwarded-For|X-Real-IP|Origin|Referer)\b/);
     // POST only; GET and anything else is a 405 inside the location (the server-level map lets only
     // GET/HEAD and this one POST through).
-    expect(loc).toContain('if ($request_method != POST) { return 405; }');
+    expect(loc).toContain(`if ($request_method != POST) { return 405 '{"error":"method_not_allowed"}'; }`);
     expect(loc).toContain('location = /ai/v1/chat/completions {');
     expect(loc).toContain('set $anc_ai_upstream "https://openrouter.ai/api/v1/chat/completions";');
     expect(loc).toContain('proxy_pass $anc_ai_upstream;');
@@ -637,7 +637,7 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
     expect(r.main).toContain('load_module /usr/lib/nginx/modules/ngx_http_js_module.so;');
     expect(r.http).toContain('js_import anc_ai from ai-proxy.js;');
     // An upstream 401/403 (a refused key) must not echo the provider's message to a visitor.
-    expect(loc).toContain('error_page 401 403 = @ai_nutrition_coach_ai_refused;');
+    expect(loc).toMatch(/error_page 401 402 403 404 [0-9 ]+ = @ai_nutrition_coach_ai_refused;/);
     expect(loc).toContain('proxy_hide_header Set-Cookie;');
     // No body, header or query ever reaches a log.
     expect(loc).not.toMatch(/\baccess_log\b|\$request_body|\$query_string|\$args/);
@@ -759,7 +759,9 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
       'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh',
     ]) {
       const text = readCode(f);
-      expect(text, f).not.toMatch(/\baccess_log\b|\$http_|\$request_body|\$args\b|\$query_string/);
+      expect(text, f).not.toMatch(/\baccess_log\b|\$request_body|\$args\b|\$query_string/);
+      // Only the three request headers the same-origin check needs; never a credential or an identifier.
+      expect(text, f).not.toMatch(/\$http_(?!sec_fetch_site|origin|host)/);
       expect(text, f).not.toMatch(/set -x|echo [^\n]*\$key|printf [^\n]*\$key[^\n]*>&2/);
     }
     // And the access-log formats never include a header (the key travels only in one).
@@ -823,6 +825,155 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
   });
 });
 
+describe('instance AI proxy: same origin, input budget, quiet upstream', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh');
+  const tplDir = join(root, 'infra/nginx/ai-proxy');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+  const KEY = 'sk-test-abcdef123456';
+  const ON = {
+    AI_PROXY_ENABLED: '1',
+    AI_PROXY_UPSTREAM: 'https://openrouter.ai/api/v1',
+    AI_PROXY_KEY: KEY,
+    AI_PROXY_MODEL: 'vendor/model-x',
+  };
+  const render = (env, resolvText = 'nameserver 127.0.0.11\n') => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_ai2_'));
+    try {
+      const resolv = join(dir, 'resolv.conf');
+      writeFileSync(resolv, resolvText);
+      const r = spawnSync('sh', [script], {
+        env: { PATH, AI_PROXY_OUT_DIR: dir, AI_PROXY_TEMPLATE_DIR: tplDir, AI_PROXY_RESOLV_CONF: resolv, ...env },
+        encoding: 'utf8',
+      });
+      const f = (n) => {
+        const q = join(dir, `ai-nutrition-coach-ai-${n}.inc`);
+        return existsSync(q) ? readFileSync(q, 'utf8') : '';
+      };
+      return { code: r.status, out: `${r.stdout}${r.stderr}`, loc: f('locations'), http: f('http') };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('refuses cross-site use: JSON only, Sec-Fetch-Site and Origin checked before anything is spent', () => {
+    const { loc, http } = render(ON);
+    expect(loc).toContain(`if ($content_type !~* "^application/json(;|$)") { return 415 '{"error":"json_only"}'; }`);
+    expect(loc).toContain(`if ($anc_ai_sfs_bad) { return 403 '{"error":"same_origin_only"}'; }`);
+    expect(loc).toContain(`if ($anc_ai_origin_bad) { return 403 '{"error":"same_origin_only"}'; }`);
+    // The checks come before the rate limit (a refused request costs nothing) and before the proxy.
+    for (const check of ['json_only', 'same_origin_only']) {
+      expect(loc.indexOf(check)).toBeLessThan(loc.indexOf('limit_req zone='));
+    }
+    expect(http).toMatch(/map \$http_sec_fetch_site \$anc_ai_sfs_bad \{\s+default\s+1;\s+""\s+0;\s+"same-origin"\s+0;/);
+    expect(http).toContain('map $http_origin $anc_ai_origin_host');
+    expect(http).toContain('map "$anc_ai_origin_host|$http_host" $anc_ai_origin_bad');
+    // Host is kept by the repo's Traefik and Caddy setups, so X-Forwarded-Host is not consulted.
+    expect(http + loc).not.toContain('x_forwarded_host');
+  });
+
+  it('the Origin map accepts the same host[:port] and nothing else (the regexes, as PCRE)', () => {
+    const { http } = render(ON);
+    const hostRe = /"~\*\^https\?:\/\/\(\?<ah>\[\^\/\]\+\)\$"/;
+    expect(http).toMatch(hostRe);
+    const originHost = (origin) => {
+      if (origin === '') return '';
+      const m = /^https?:\/\/(?<ah>[^/]+)$/i.exec(origin);
+      return m ? m.groups.ah : 'bad';
+    };
+    const bad = (origin, host) => {
+      const key = `${originHost(origin)}|${host}`;
+      if (/^\|/.test(key)) return 0;
+      if (/^([^|]+)\|\1$/i.test(key)) return 0;
+      return 1;
+    };
+    expect(bad('', 'plate.example.test')).toBe(0);
+    expect(bad('https://plate.example.test', 'plate.example.test')).toBe(0);
+    expect(bad('https://Plate.Example.Test', 'plate.example.test')).toBe(0);
+    expect(bad('http://127.0.0.1:8080', '127.0.0.1:8080')).toBe(0);
+    expect(bad('https://evil.test', 'plate.example.test')).toBe(1);
+    expect(bad('https://plate.example.test.evil.test', 'plate.example.test')).toBe(1);
+    expect(bad('http://127.0.0.1:9999', '127.0.0.1:8080')).toBe(1);
+    expect(bad('null', 'plate.example.test')).toBe(1);
+    expect(bad('https://plate.example.test/x', 'plate.example.test')).toBe(1);
+  });
+
+  it('never lets a provider header through, and turns provider error text into generic JSON', () => {
+    const { loc } = render(ON);
+    for (const h of [
+      'Access-Control-Allow-Origin', 'Access-Control-Allow-Credentials', 'Access-Control-Allow-Headers',
+      'Access-Control-Allow-Methods', 'Access-Control-Expose-Headers', 'OpenAI-Organization', 'OpenAI-Project',
+      'OpenAI-Processing-Ms', 'X-Request-Id', 'X-RateLimit-Limit-Requests', 'X-RateLimit-Remaining-Tokens',
+      'X-RateLimit-Reset', 'Location', 'Set-Cookie', 'Server',
+    ]) {
+      expect(loc, h).toContain(`proxy_hide_header ${h};`);
+    }
+    expect(loc).toContain('error_page 400 = @ai_nutrition_coach_ai_badrequest;');
+    expect(loc).toContain('error_page 429 = @ai_nutrition_coach_ai_busy;');
+    const refused = /error_page ([0-9 ]+) = @ai_nutrition_coach_ai_refused;/.exec(loc)[1].split(' ');
+    for (const code of ['401', '402', '403', '404', '500', '503']) expect(refused).toContain(code);
+    // 400 and 429 have their own handlers; 413 is nginx's own answer to an oversized body.
+    for (const code of ['400', '429', '413']) expect(refused).not.toContain(code);
+    expect(loc).toContain(`return 502 '{"error":"ai_provider_error"}';`);
+    expect(loc).toContain(`return 400 '{"error":"ai_bad_request"}';`);
+    expect(loc).toMatch(/add_header Retry-After \$upstream_http_retry_after always;/);
+    // Upstream failures are logged at crit only, so no client address reaches the container log.
+    expect(loc).toContain('error_log /dev/stderr crit;');
+  });
+
+  it('applies a per-address AND an instance-wide rate limit, both configurable', () => {
+    const d = render(ON);
+    expect(d.http).toMatch(/limit_req_zone \$binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=10r\/m;/);
+    expect(d.http).toMatch(/limit_req_zone \$server_name zone=ai_nutrition_coach_ai_rall:64k rate=30r\/m;/);
+    expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_ai burst=5 nodelay;');
+    expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_ai_rall burst=5 nodelay;');
+    expect(d.loc).toContain('limit_conn ai_nutrition_coach_ai_ip 2;');
+    const t = render({ ...ON, AI_PROXY_RATE: '3r/m', AI_PROXY_RATE_ALL: '9r/m', AI_PROXY_CONN: '4' });
+    expect(t.http).toContain('rate=3r/m');
+    expect(t.http).toContain('zone=ai_nutrition_coach_ai_rall:64k rate=9r/m');
+    expect(t.loc).toContain('limit_conn ai_nutrition_coach_ai_ip 4;');
+    for (const over of [{ AI_PROXY_RATE_ALL: 'lots' }, { AI_PROXY_RATE_ALL: '0r/m' }, { AI_PROXY_CONN: '0' }, { AI_PROXY_CONN: '1000' }]) {
+      expect(render({ ...ON, ...over }).code, JSON.stringify(over)).toBe(1);
+    }
+  });
+
+  it('AI_PROXY_TOKEN_PARAM is validated and reaches njs', () => {
+    expect(render(ON).loc).toContain('set $anc_ai_token_param "max_tokens";');
+    expect(render({ ...ON, AI_PROXY_TOKEN_PARAM: 'max_completion_tokens' }).loc).toContain(
+      'set $anc_ai_token_param "max_completion_tokens";',
+    );
+    expect(render({ ...ON, AI_PROXY_TOKEN_PARAM: 'max_tokens; x' }).code).toBe(1);
+    expect(render({ ...ON, AI_PROXY_TOKEN_PARAM: 'tokens' }).code).toBe(1);
+  });
+
+  it('rejects a placeholder inside a value, truncates a long default label and skips a scoped nameserver', () => {
+    const r = render({ ...ON, AI_PROXY_MODEL: 'a@@ANC_AI_KEY@@b' });
+    expect(r.code).toBe(1);
+    expect(r.out).not.toContain(KEY);
+    expect(r.loc).toBe('');
+    const longHost = `${'a'.repeat(50)}.${'b'.repeat(50)}.example.test`;
+    const l = render({ ...ON, AI_PROXY_UPSTREAM: `https://${longHost}/v1` });
+    expect(l.code, l.out).toBe(0);
+    const label = JSON.parse(/return 200 '([^']*)';/.exec(l.loc)[1]).label;
+    expect(label).toBe(longHost.slice(0, 60));
+    const s = render(ON, 'nameserver fe80::1%eth0\nnameserver 10.1.2.3\n');
+    expect(s.code, s.out).toBe(0);
+    expect(s.loc).toContain('resolver 10.1.2.3 valid=30s');
+    expect(render(ON, 'nameserver fe80::1%eth0\n').code).toBe(1);
+  });
+
+  it('the docs say what is bounded and where the limits are shared', () => {
+    const self = read('docs/self-host.md');
+    expect(self).toMatch(/per-address\s+limit[^.]*instance-wide/i);
+    expect(self).toContain('max_completion_tokens');
+    expect(self).toContain('/etc/hosts');
+    expect(self).toContain('Sec-Fetch-Site');
+    const sec = read('SECURITY.md');
+    expect(sec).toMatch(/input is bounded/i);
+    expect(sec).not.toMatch(/caps the reply size, but cannot/);
+    expect(read('docs/telemetry-posture.md')).toContain('error_log');
+  });
+});
+
 describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
   const run = async (body, vars = { anc_ai_model: 'vendor/model-x', anc_ai_max_tokens: '2000' }) => {
     const { default: mod } = await import('../../infra/nginx/ai-proxy/ai-proxy.js');
@@ -869,6 +1020,70 @@ describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
     expect(
       JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: 9999 }), small)).max_tokens,
     ).toBe(300);
+  });
+
+  it('clamps max_tokens to at least 1, and honours max_completion_tokens for reasoning models', async () => {
+    const m = [{ role: 'user', content: 'x' }];
+    expect(JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: 0.5 }))).max_tokens).toBe(1);
+    const reasoning = { anc_ai_model: 'm', anc_ai_max_tokens: '800', anc_ai_token_param: 'max_completion_tokens' };
+    const out = JSON.parse(await run(JSON.stringify({ messages: m, max_tokens: 5000 }), reasoning));
+    expect(out).toEqual({ model: 'm', messages: m, max_completion_tokens: 800 });
+    expect(out).not.toHaveProperty('max_tokens');
+    expect(
+      JSON.parse(await run(JSON.stringify({ messages: m, max_completion_tokens: 7 }), reasoning)).max_completion_tokens,
+    ).toBe(7);
+  });
+
+  const IMG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+  const photo = (url = IMG) => ({
+    role: 'user',
+    content: [
+      { type: 'text', text: 'What is on the plate?' },
+      { type: 'image_url', image_url: { url, detail: 'high', extra: 1 } },
+    ],
+  });
+  const send = async (messages) => run(JSON.stringify({ messages }));
+
+  it('accepts exactly the shapes the app sends and strips unknown keys', async () => {
+    const out = JSON.parse(await send([{ role: 'system', content: 'Be kind.', name: 'x' }, photo(), { role: 'assistant', content: 'ok' }]));
+    expect(out.messages).toEqual([
+      { role: 'system', content: 'Be kind.' },
+      { role: 'user', content: [{ type: 'text', text: 'What is on the plate?' }, { type: 'image_url', image_url: { url: IMG } }] },
+      { role: 'assistant', content: 'ok' },
+    ]);
+    for (const type of ['png', 'webp']) {
+      expect(JSON.parse(await send([photo(`data:image/${type};base64,AAAA`)])).messages).toHaveLength(1);
+    }
+  });
+
+  it('bounds the input: 8 messages, known roles, 24 KB of text, one data: image and no remote URL', async () => {
+    const user = (content) => ({ role: 'user', content });
+    const refused = async (messages) => expect(await send(messages)).toBe('{}');
+    await refused([]);
+    await refused(Array.from({ length: 9 }, () => user('x')));
+    expect(JSON.parse(await send(Array.from({ length: 8 }, () => user('x')))).messages).toHaveLength(8);
+    await refused([{ role: 'tool', content: 'x' }]);
+    await refused([{ role: 'constructor', content: 'x' }]);
+    await refused([{ role: 'user' }]);
+    await refused([user(7)]);
+    await refused([user([{ type: 'input_audio', input_audio: {} }])]);
+    await refused([user([{ type: 'text', text: 7 }])]);
+    await refused([user([])]);
+    // Text budget: 24 KB across messages and parts, counted in UTF-8 bytes.
+    expect(JSON.parse(await send([user('a'.repeat(24 * 1024))])).messages).toHaveLength(1);
+    await refused([user('a'.repeat(24 * 1024 + 1))]);
+    await refused([user('a'.repeat(12 * 1024)), user('b'.repeat(12 * 1024 + 1))]);
+    await refused([user('é'.repeat(12 * 1024 + 1))]);
+    // Images: one only, and only an inline jpeg/png/webp.
+    await refused([photo('https://evil.test/x.png')]);
+    await refused([photo('http://127.0.0.1/x.png')]);
+    await refused([photo('data:image/gif;base64,AAAA')]);
+    await refused([photo('data:text/html;base64,AAAA')]);
+    await refused([photo('data:image/jpeg;base64,AA AA')]);
+    await refused([photo('data:image/jpeg,AAAA')]);
+    await refused([photo(), photo()]);
+    await refused([user([{ type: 'image_url', image_url: { url: IMG } }, { type: 'image_url', image_url: { url: IMG } }])]);
+    await refused([user([{ type: 'image_url', image_url: 'x' }])]);
   });
 
   it('turns anything that is not a chat request into an empty object the provider refuses', async () => {

@@ -199,6 +199,28 @@ describe('CoachingAi: the coaching consent gate', () => {
     expect(ai.coaching.getSnapshot().kind).toBe('ready');
   });
 
+  it('instance consent is keyed host|label|model: a new provider or model asks again', async () => {
+    const { ai, fake, kv } = await services({ instance: true });
+    await ai.coaching.grant();
+    expect(kv.map.get('ai.coachingConsent')).toBe(
+      '{"host":"instance:coach.example.org|acme ai|m1"}',
+    );
+    expect(ai.coaching.getSnapshot().kind).toBe('ready');
+
+    fake.instanceConfig = { enabled: true, model: 'm1', label: 'Other AI' };
+    await ai.instance.refresh();
+    expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
+    expect(await ai.coaching.complete(messages)).toEqual({ kind: 'consentRequired' });
+
+    fake.instanceConfig = { enabled: true, model: 'm2', label: 'Acme AI' };
+    await ai.instance.refresh();
+    expect(ai.coaching.getSnapshot().kind).toBe('needsConsent');
+
+    fake.instanceConfig = { enabled: true, model: 'm1', label: 'Acme AI' };
+    await ai.instance.refresh();
+    expect(ai.coaching.getSnapshot().kind).toBe('ready');
+  });
+
   it('notifies subscribers when the status changes', async () => {
     const { ai } = await services({ byok: true });
     let calls = 0;

@@ -222,3 +222,24 @@ describe('Ask the coach: the chat', () => {
     expect(screen.queryByText(/example\.org/)).toBeNull();
   });
 });
+
+describe('AskCoachScreen: accessibility', () => {
+  it('has no axe violations (the enable-AI path, and the open chat)', async () => {
+    const bundle = await unlockedBundle();
+    const { container, unmount } = await renderInSession(<AskCoachScreen />, { bundle });
+    await screen.findByRole('heading', { level: 2, name: 'The AI coach is off' });
+    expect(await axe(container)).toHaveNoViolations();
+    unmount();
+
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply(ANSWER);
+    const ready = await unlockedBundle();
+    await configureByokCoaching(ready);
+    const view = await renderInSession(<AskCoachScreen />, {
+      bundle: ready,
+      session: { fetch: fake.fetch },
+    });
+    await screen.findByRole('textbox', { name: 'Your question' });
+    expect(await axe(view.container)).toHaveNoViolations();
+  });
+});

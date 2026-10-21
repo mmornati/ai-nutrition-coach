@@ -161,7 +161,9 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_PROXY_KEY` | – | The provider key. A **secret**: never in the image or the bundle; rendered at start into a private file. |
 | `AI_PROXY_MODEL` | – | The model every request uses (forced server-side). |
 | `AI_PROXY_LABEL` | the upstream host | What people are told their photos go to after this server. |
-| `AI_PROXY_RATE` / `AI_PROXY_BURST` / `AI_PROXY_MAX_TOKENS` | `10r/m` / `5` / `2000` | Per-client-address request rate and burst, and the cap on a reply. |
+| `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL` | `10r/m` / `30r/m` | Request rate per client address, and for the whole instance. Both apply. |
+| `AI_PROXY_BURST` / `AI_PROXY_CONN` | `5` / `2` | Burst allowance, and concurrent requests per client address. |
+| `AI_PROXY_MAX_TOKENS` / `AI_PROXY_TOKEN_PARAM` | `2000` / `max_tokens` | Cap on a reply, and the parameter that carries it (`max_completion_tokens` for reasoning models). |
 | `AI_NUTRITION_COACH_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
 | `AI_NUTRITION_COACH_IMAGE_TAG` | `ai-nutrition-coach:dev` | Image tag to build/run. |
 | `AI_NUTRITION_COACH_CONTAINER_NAME` | `ai-nutrition-coach` | Container name for plain `up`. |
@@ -266,17 +268,33 @@ CSP needs no change: `connect-src 'self'`). It forwards the request to `${AI_PRO
 `Authorization: Bearer <key>` added, and it forwards nothing the browser sent: no `Authorization`, `Cookie`, `Origin`,
 `Referer`, `X-Forwarded-For` or `User-Agent` (a whitelist of headers, not a blacklist). Per request it also:
 
+- accepts only requests **from this site**: `Content-Type` must be `application/json` (else `415`; a cross-site page
+  cannot send that without a preflight, and `OPTIONS` is refused), a `Sec-Fetch-Site` header other than `same-origin`
+  is a `403`, and so is an `Origin` whose host[:port] differs from the `Host` header (Traefik and Caddy keep `Host`, so
+  `X-Forwarded-Host` is not consulted; a proxy that rewrites `Host` would need the header kept). The provider's own
+  CORS headers are removed, so another site cannot read a reply either. Refused requests cost nothing;
 - rewrites the body with njs (the one nginx module the image's base ships with): the model is **forced** to
-  `AI_PROXY_MODEL`, `max_tokens` is capped at `AI_PROXY_MAX_TOKENS`, and only `messages`, `temperature`, `top_p` and
-  `response_format` are kept (no `stream`, `n`, `tools`, ...). Someone calling the endpoint directly cannot pick a dearer model;
+  `AI_PROXY_MODEL`, the reply cap is clamped to 1..`AI_PROXY_MAX_TOKENS` (sent as `max_tokens`, or as
+  `max_completion_tokens` with `AI_PROXY_TOKEN_PARAM` for reasoning models, which reject the former), and only `messages`,
+  `temperature`, `top_p` and `response_format` are kept (no `stream`, `n`, `tools`, ...). The **input** is bounded to what
+  the app sends: at most 8 messages, roles system/user/assistant, content as text or parts of type `text` /
+  `image_url`, at most 24 KB of text in all, at most **one** image and only as an inline `data:image/jpeg|png|webp;base64,`
+  URI (a remote URL is never forwarded). Anything else becomes `{}`, which the provider refuses with a 400 (njs cannot
+  change the status). Someone calling the endpoint directly cannot pick a dearer model, send a long prompt or have the
+  provider fetch a URL;
 - accepts at most 2 MiB (one downscaled photo is a fraction of that), POST only, and answers `429` beyond the rate
-  limit (default 10 requests a minute per client address, burst 5, 2 connections per address, 16 in total);
+  limits: **per client address** (default 10 requests a minute, burst 5, 2 concurrent) **and for the whole instance**
+  (default 30 a minute, 16 concurrent). Behind Traefik or Caddy the client address is the proxy's, so the per-address
+  limit (requests and concurrency) is effectively instance-wide too, unless you configure nginx's `real_ip` for your
+  proxy (not done here: trusting a forwarded address is a decision for you to make);
 - talks TLS to the provider and **verifies** its certificate against the system CA bundle; resolves its name at
   request time (cached 30 s), so a long-running container follows the provider's DNS; times out just after the app's
   own 45 s;
-- hides the provider's refusal: a `401`/`403` from the provider becomes a plain `502`, so a provider's message that
-  quotes part of your key never reaches a visitor;
-- logs no header, body or query string. The access log is off by default and, when on, never has a query string
+- shows no provider text: every provider error is replaced by a generic JSON body (`400` stays 400, `429` stays 429 with
+  its `Retry-After`, everything else, a refused or empty-balance key included, becomes a bare `502`), and the provider's
+  account, project, request-id and rate-limit headers (`openai-*`, `x-request-id`, the known `x-ratelimit-*` names,
+  `Location`, cookies) are dropped;
+- logs no header, body or query string, and upstream failures are logged at `crit` only (no client address). The access log is off by default and, when on, never has a query string
   (see [Logs](#logs)); a rate-limit rejection is logged below the container's log level, so no client address is written.
 
 **How the key is protected.** `AI_PROXY_KEY` is read **only when the container starts**. It is never an image layer, a
@@ -300,8 +318,11 @@ Therefore:
    repository ([Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel), [Behind your own
    Traefik](#behind-your-own-traefik)). Forward auth covers `/ai/` too, because it is the same host.
 2. **Set a spend limit at the provider** (a monthly cap or a prepaid balance), and use a key created for this instance.
-3. Know the limits of the model lock: njs forces the model and the token cap, but it cannot tell a photo question from
-   any other question, so a visitor can still ask the model anything within the caps.
+3. Know the limits of the model lock: njs forces the model, caps the reply and bounds the input (messages, text, one
+   inline image), but it cannot tell a photo question from any other question, so a visitor can still ask the model
+   anything within those bounds, at the rate limits above. The nameserver nginx uses is the first plain address in
+   `/etc/resolv.conf` (or `AI_PROXY_RESOLVER`); it ignores `/etc/hosts` and Docker's `--add-host`, so the provider's
+   name must resolve through DNS.
 4. The provider sees the photo and the instruction coming from **your server**, not from the person's device; the
    person's internet address stays with your server. Whoever runs the server chooses the provider and answers for it:
    the consent dialog says so.

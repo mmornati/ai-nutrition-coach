@@ -73,7 +73,8 @@ same-origin, so it needs no CSP change; see
   on, the model name and a provider label; no key, no identifier, no body) and, per photo you
   agree to send, `POST /ai/v1/chat/completions` (the shrunk, metadata-free photo and the same
   fixed instruction as the other rungs). The browser sends **no Authorization header**: the
-  container's nginx adds the operator's key, strips your cookies and headers, forces the
+  container's nginx (it logs upstream failures at `crit` only, through a location-level `error_log`, so no client address
+  is written) adds the operator's key, strips your cookies and headers, forces the
   configured model and passes the request to the provider. The key never reaches the browser,
   the bundle, the image or the logs (see `SECURITY.md`). `apps/web/src/ai/instance-config.ts`
   (the config read) is on the `check:telemetry` allow-list; the POST goes through the same
@@ -86,6 +87,16 @@ same-origin, so it needs no CSP change; see
   has configured a self-host relay. v1 ships the no-op
   `LocalOnlySyncAdapter` — it opens zero sockets; a real relay
   drops in behind the same `SyncAdapter` port in v1.1.
+
+## Coaching
+
+Three optional features send meal data to the AI you chose, only after the separate "AI coaching" yes in *Settings,
+Your AI* (off by default, per destination): an AI-written coach note after a plate is logged, "Ask the coach" (a text
+chat about the last seven days), and an optional weekly paragraph. They send food names, weights, nutrient totals, the
+day or week so far, the optional profile and what you typed; never photos, never your passphrase, never your key to
+this server. No analytics are added: the requests go to the same destination as photo recognition (your endpoint, or
+this server's same-origin AI proxy) and nowhere else, and the conversation is kept in memory only. Exactly what is sent
+per feature is in [`docs/ai-tiers.md`](./ai-tiers.md), "Coaching".
 
 ## Barcode scanning
 

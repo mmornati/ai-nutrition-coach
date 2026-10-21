@@ -92,7 +92,7 @@ export class AiSettings {
 
 /** Bounds applied when decoding a blob someone could have hand-edited. */
 const MAX_CONSENT_HOSTS = 64;
-const MAX_HOST_LENGTH = 255;
+const MAX_HOST_LENGTH = 512;
 const MAX_ENDPOINT_LENGTH = 2048;
 const MAX_MODEL_LENGTH = 200;
 

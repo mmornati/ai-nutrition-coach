@@ -358,6 +358,58 @@ The `local` rung is reserved for v2. It is declared in the type system and the
 rung registry and cannot be selected, so a future implementation drops in
 behind the same port without touching the core or the UI.
 
+## Coaching (AI coach notes, Ask the coach, the weekly paragraph)
+
+The coach works without any AI: its built-in notes and weekly review are rules on the device. With an AI rung chosen
+(this server's AI, or your own key) and **a separate yes**, three optional features use a text chat on top of them.
+Photos and meal data are different things, so this is its own switch in *Settings, Your AI, AI coaching*
+("Let the AI write coach notes and answer questions"). It is **off by default**, it is recorded for one destination
+only (your endpoint host, or for this server's AI the host, provider label and model together, like the photo
+consent), so it lapses by itself when the destination changes, and no coaching call is made without it (checked at
+call time, so turning it off takes effect at once). The photo consent never counts for it and it never counts for
+photos. With **No AI** nothing is sent.
+
+| Feature | When it runs | Exactly what is sent |
+| --- | --- | --- |
+| Coach note | After a plate is logged, only if the template coach had a note | Food names, weights, per-plate and day-so-far nutrient totals against the daily guide, time slot (breakfast / lunch / dinner), the optional profile, the template coach's pattern name as a hint |
+| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days (per day: food names, food groups, nutrient totals; top foods), the daily guide, the optional profile, and the conversation so far (the last three answered questions at most) |
+| Weekly paragraph | Only when you tap "Ask the coach about this week" | The week's counts, daily averages, the daily guide, the keys of the rule-based remarks, the optional profile |
+
+The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. **Never sent**:
+photos, your passphrase, your key (it goes only in the request header to your own endpoint, never to this server's
+proxy), IDs, dates of birth, timestamps. With *nutrition numbers turned off*, weights, nutrients and the guide are left out
+altogether and the system prompt forbids amounts. Food names are cleaned (one line, 60 characters) and the system
+prompt tells the model that everything in the document is data, not instructions.
+
+**Prompts** live in one module, `packages/core/src/coach/ai-prompts.ts` (English and French, matching the interface
+language), with tests that pin the safety rules and the output contract. They say: a calm friend who asks rather than
+scolds; no exclamation marks, streaks, scores, points, "remaining" or "over budget"; no good or bad foods; not medical
+advice (never diagnose, treat or cure, no medication or doses; for a symptom or a worry about eating or the body, say
+that talking to a doctor or a support service can help); respect diet and allergies; no links.
+
+**Every AI text is validated** (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
+(160 for its follow-up), 800 for a chat answer, 600 for the weekly paragraph; no link or web address; no exclamation
+mark; none of the pressure vocabulary of the No-Dark-Patterns Standard (EN and FR); no medical-claim words (diagnose,
+cure, treatment, prescribe, and the French equivalents); at most one question (two in a chat answer); and, while
+numbers are off, no amount (digits followed by g, kcal or %). A note must be the JSON object
+`{ "note": string, "followUp": string }`. Anything else is dropped.
+
+**Fallbacks.** The log never waits for the AI: the template note is stored first and returned, then the AI call runs in
+the background with an 8 second limit. On busy, offline, timeout, invalid JSON or any validator failure, the template
+note stays and nothing is said. An AI note is stored as an ordinary coach-note row (`questionKey` `post.resolve.ai`,
+the validated text in `text`; its optional follow-up is a `depthFollowUp` row, `depth.followUp.ai`), so there is no
+schema change; the card (which watches the plate's notes) shows it in place of the template note, marked "Written by
+AI", and falls back to the template note if numbers were turned off since. It is not swapped in if the template note
+was already dismissed or its follow-up opened. A late answer after a lock writes nothing.
+
+**Safety routing is local.** In Ask the coach, a question about an eating worry or a health symptom (EN/FR keywords:
+binge, purge, starving, vomiting, "je me fais vomir", "crise de boulimie", chest pain, "malaise", ...) is answered on
+the device with the calm support line and is never sent; such a question is also never part of the context of later
+questions. The conversation is kept in memory for the unlocked session only: not stored, not exported, gone on a lock.
+
+**Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text): the oldest turns of a
+chat go first, then the foods listed per day.
+
 ## Related docs
 
 - `ARCHITECTURE-SPINE.md` — §AD-5 (AI tier ladder) and §AD-8
