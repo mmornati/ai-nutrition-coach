@@ -717,6 +717,11 @@ export const en = {
       { id: 'zxing', name: 'zxing-wasm', licence: 'MIT licence' },
       { id: 'zxingcpp', name: 'zxing-cpp (inside zxing-wasm)', licence: 'Apache licence 2.0' },
       { id: 'react', name: 'React', licence: 'MIT licence' },
+      {
+        id: 'ciqual',
+        name: 'Ciqual French food composition table (Anses, 2025)',
+        licence: 'Etalab Open Licence 2.0',
+      },
     ],
   },
   sync: {
