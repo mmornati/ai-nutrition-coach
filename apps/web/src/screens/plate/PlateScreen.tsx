@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { mealSlotForHour } from '@anc/core';
+import { mealSlotForHour, plateNutrients } from '@anc/core';
 import { Button, groupsOfPlate } from '../../components/primitives';
 import { LineBar, EntryList } from '../../components/sheets';
 import { StatusChip } from '../../components/day';
 import { formatTime } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { foodName, quantityLabel } from '../../catalog';
+import { foodName } from '../../catalog';
+import { entryQuantityText, NutritionSection } from '../../components/nutrition';
 import { useLocale, useStrings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
 import { useDay } from '../../app/day-context';
@@ -71,10 +72,11 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
           entries={plate.entries.map((e) => ({
             id: String(e.id),
             name: foodName(e.databaseFood, locale),
-            quantity: quantityLabel(e.quantity, locale),
+            quantity: entryQuantityText(e.quantity, locale),
             group: e.databaseFood.foodGroup,
           }))}
         />
+        <NutritionSection title={all.nutrition.sectionTitle} nutrition={plateNutrients(plate)} />
         <PlateCoach plate={plate} dismissed={dismissed} />
         <div className="flex flex-wrap items-center gap-3">
           <StatusChip hasTransport={false} />

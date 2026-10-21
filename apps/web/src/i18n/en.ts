@@ -531,6 +531,52 @@ export const en = {
     networkHeading: 'This week’s network',
     seeWeekNetwork: "See the week's network",
   },
+  /** Nutrition numbers (docs/adr/0006): grams, previews, Nutrient Bars. */
+  nutrition: {
+    sectionTitle: 'Nutrition',
+    sectionTitleToday: 'Today’s nutrition',
+    gramsLabel: 'Grams',
+    gramsInvalid: 'Type a weight from 1 to 5000 g.',
+    /** A weight the person typed or weighed. */
+    weight: '{value} g',
+    /** A weight that is a guess (a preset, a photo): never shown as exact. */
+    weightApprox: '≈{value} g',
+    /** The one-line preview under the grams field. */
+    previewLead: '≈ {parts}',
+    previewEnergy: '{value} kcal',
+    previewProtein: '{value} g protein',
+    previewSugars: '{value} g sugars',
+    valueKcal: '{value} kcal',
+    valueGrams: '{value} g',
+    /** An estimated value: the number carries a tilde. */
+    estimatedValue: '~{value}',
+    names: {
+      energyKcal: 'Energy',
+      protein: 'Protein',
+      carbohydrate: 'Carbohydrate',
+      sugars: 'of which sugars',
+      fat: 'Fat',
+      saturatedFat: 'of which saturates',
+      fibre: 'Fibre',
+      salt: 'Salt',
+    },
+    reference: 'about {percent}% of the {reference} reference',
+    barsLabel: 'Nutrient amounts against reference intakes',
+    coverage: {
+      one: 'Based on {count} food with nutrition data; {missing} without.',
+      other: 'Based on {count} foods with nutrition data; {missing} without.',
+    },
+    whatAre: 'What are reference intakes?',
+    whatAreBody:
+      'Reference intakes are the daily amounts set in EU Regulation 1169/2011 for an average adult eating 2000 kcal a day. Fibre has no EU value; 25 g is a general recommendation. Your own needs may differ, and the bars are information, not a target.',
+  },
+  nutritionSettings: {
+    title: 'Nutrition',
+    switchTitle: 'Show nutrition numbers',
+    switchHelp:
+      'If numbers about food feel stressful, you can turn them off. Your meals are still logged.',
+    saveFailed: 'That did not save just now. The switch stays where it was.',
+  },
   /** The Plate screen. */
   plate: {
     removeAction: 'Remove this plate',
@@ -587,6 +633,8 @@ export const en = {
     rowDataSubtitle: 'export · lock · erase',
     rowPrivacy: 'Privacy',
     rowPrivacySubtitle: 'what is stored · what is sent',
+    rowNutrition: 'Nutrition',
+    rowNutritionSubtitle: 'show or hide numbers',
     rowLanguage: 'Language',
     rowLanguageSubtitle: 'match your device · or choose',
     rowInstall: 'Install on your phone',

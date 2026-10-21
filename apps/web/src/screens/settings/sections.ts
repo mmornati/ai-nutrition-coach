@@ -4,6 +4,7 @@ export const SECTIONS = {
   data: 'data',
   privacy: 'privacy',
   language: 'language',
+  nutrition: 'nutrition',
   install: 'install',
   about: 'about',
 } as const;

@@ -5,7 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import { plateDeleteFailed, storeFailure } from '@anc/core';
 import type { StoreBundle } from '../../storage';
-import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testing';
+import {
+  at,
+  renderInSession,
+  seedMeasuredPlate,
+  seedPlate,
+  unlockedBundle,
+} from '../../app/testing';
+import { KV_KEYS } from '../../storage';
 import { strings } from '../../i18n';
 import { TodayScreen } from './TodayScreen';
 
@@ -386,5 +393,71 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
     expect(
       screen.queryByText('No veg or fruit logged yet today. Could this meal have a handful?'),
     ).toBeNull();
+  });
+});
+
+describe('TodayScreen: the day in nutrients', () => {
+  const NUTRIENTS = { energyKcal: 60, protein: 4, sugars: 5, fat: 3, saturatedFat: 1.5 };
+
+  it('adds the nutrients of every plate of the day, below the map', async () => {
+    const bundle = await unlockedBundle();
+    await seedMeasuredPlate(bundle, at(8, 0), [
+      { name: 'Yogurt', group: 'dairy', grams: 200, per100g: NUTRIENTS },
+    ]);
+    await seedMeasuredPlate(bundle, at(12, 30), [
+      { name: 'Skyr', group: 'dairy', grams: 100, per100g: NUTRIENTS },
+      { name: 'Bread', group: 'starch' },
+    ]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Today’s nutrition' }),
+    ).toBeVisible();
+    const bars = screen.getByRole('list', { name: /Nutrient amounts/ });
+    expect(within(bars).getByText('180 kcal')).toBeVisible();
+    expect(within(bars).getByText('12 g')).toBeVisible();
+    expect(screen.getByText('Based on 2 foods with nutrition data; 1 without.')).toBeVisible();
+    // The plate map is still there and nothing turned into a count or a verdict.
+    expect(screen.getByText('Yogurt')).toBeVisible();
+    expect(document.body.textContent).not.toMatch(
+      /\d+\s*(points?|pts|of 4 filled)|\b(score|streak|remaining|over budget|exceeded)\b|!/i,
+    );
+    expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+
+  it('is absent when no entry of the day has data', async () => {
+    const bundle = await unlockedBundle();
+    await seedMeasuredPlate(bundle, at(8, 0), [{ name: 'Yogurt', group: 'dairy', grams: 200 }]);
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByText('Yogurt');
+    expect(screen.queryByRole('heading', { name: /nutrition/i })).toBeNull();
+    expect(screen.queryByText(/reference/)).toBeNull();
+  });
+
+  it('is absent on an empty day', async () => {
+    await renderInSession(<TodayScreen />, { bundle: await unlockedBundle() });
+    await screen.findByText('Breakfast');
+    expect(screen.queryByRole('heading', { name: /nutrition/i })).toBeNull();
+  });
+
+  it('is hidden when numbers are turned off, and the plate stays', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
+    await seedMeasuredPlate(bundle, at(8, 0), [
+      { name: 'Yogurt', group: 'dairy', grams: 200, per100g: NUTRIENTS },
+    ]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(await screen.findByText('Yogurt')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: /nutrition/i })).toBeNull();
+    expect(screen.queryByText(/kcal/)).toBeNull();
+  });
+
+  it('has no axe violations with the section open', async () => {
+    const bundle = await unlockedBundle();
+    await seedMeasuredPlate(bundle, at(8, 0), [
+      { name: 'Yogurt', group: 'dairy', grams: 200, per100g: NUTRIENTS },
+    ]);
+    const { container } = await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByRole('heading', { level: 2, name: 'Today’s nutrition' });
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

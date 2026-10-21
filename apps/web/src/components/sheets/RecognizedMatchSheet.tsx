@@ -15,7 +15,7 @@ import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { TextField } from '../primitives/TextField';
 import { effectivePresets, manualFood, oneServing, sameFood, uniqueQuantities } from './foods';
-import { PortionPresets } from './PortionPresets';
+import { QuantityPicker } from './QuantityPicker';
 import { Sheet } from './Sheet';
 
 export interface RecognizedMatchSheetProps {
@@ -253,7 +253,8 @@ function Body({
         </Checkbox>
         {choice.checked && (
           <div className="pr-0 pb-3 pl-9">
-            <PortionPresets
+            <QuantityPicker
+              food={c.food}
               presets={c.presets}
               value={choice.quantity}
               onChange={(quantity) => update(c.key, { quantity })}

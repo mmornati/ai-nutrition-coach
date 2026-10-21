@@ -48,6 +48,7 @@ import { strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
+import { NumbersPref } from './numbers-pref';
 import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
 
 export interface Session {
@@ -60,6 +61,8 @@ export interface Session {
   readonly catalog: FoodCatalog;
   readonly privacy: PrivacyPrefs;
   readonly localePrefs: LocalePrefs;
+  /** "Show nutrition numbers": read once at the unlock, live afterwards. */
+  readonly numbers: NumbersPref;
   readonly syncQueue: InMemorySyncQueue;
   readonly ai: AiServices;
   readonly coach: Coach;
@@ -119,6 +122,9 @@ export async function createSession(
     signal: abort.signal,
   });
 
+  const numbers = new NumbersPref(kv);
+  await numbers.load();
+
   const coach = createTemplateCoach(coachLookup);
   const generator = createCoachNoteGenerator({
     coach,
@@ -142,6 +148,7 @@ export async function createSession(
     catalog,
     privacy,
     localePrefs: new LocalePrefs(kv),
+    numbers,
     syncQueue,
     ai,
     coach,
