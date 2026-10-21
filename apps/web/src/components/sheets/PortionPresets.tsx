@@ -69,7 +69,10 @@ export function PortionPresets({
 export function gramHint(preset: QuantityRange, locale: Locale): string {
   if (preset.grams === undefined) return '';
   const hint = formatWeight(preset.grams, preset.gramsEstimated === true, locale);
-  const label = quantityLabel(preset, locale);
-  const plain = formatWeight(preset.grams, false, locale);
-  return label === hint || label === plain ? '' : ` · ${hint}`;
+  // Compare without spacing: labels and the formatter may use a plain, no-break or narrow space.
+  const label = squash(quantityLabel(preset, locale));
+  const plain = squash(formatWeight(preset.grams, false, locale));
+  return label === squash(hint) || label === plain ? '' : ` · ${hint}`;
 }
+
+const squash = (text: string): string => text.replace(/\s/g, '');

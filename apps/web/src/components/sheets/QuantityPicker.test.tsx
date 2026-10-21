@@ -9,6 +9,7 @@ import { setCurrentLocale } from '../../i18n';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
 import { KV_KEYS } from '../../storage';
 import { BarcodeMatchSheet } from './BarcodeMatchSheet';
+import { gramHint } from './PortionPresets';
 import { QuantityPicker, parseGrams } from './QuantityPicker';
 
 afterEach(() => {
@@ -181,6 +182,14 @@ describe('QuantityPicker', () => {
     expect(screen.getByRole('button', { name: '1 portion · 150 g' })).toBeVisible();
     // Already the weight: no "100 g · ≈100 g".
     expect(screen.getByRole('button', { name: '100 g' })).toBeVisible();
+  });
+
+  it('a weight label is not repeated when the label and the formatter space it differently', () => {
+    // French formats "100\u202Fg" while catalogue labels may carry a plain or no-break space.
+    for (const label of ['100 g', '100\u00A0g', '100\u202Fg']) {
+      expect(gramHint(gramsQuantity(100, { displayLabel: label }), 'fr')).toBe('');
+    }
+    expect(gramHint(gramsQuantity(150, { displayLabel: '1 portion' }), 'fr')).toMatch(/^ · 150/);
   });
 
   it('choosing a preset clears the field and selects it', async () => {
