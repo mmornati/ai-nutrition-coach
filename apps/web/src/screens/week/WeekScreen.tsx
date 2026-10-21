@@ -9,6 +9,7 @@ import { formatDaySpan } from '../../components/day/format';
 import { useStrings } from '../../i18n';
 import { useDay } from '../../app/day-context';
 import { navigate, TODAY_HASH } from '../../app/router';
+import { WeekReview } from './WeekReview';
 import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 
 /**
@@ -36,6 +37,7 @@ export function WeekScreen() {
       <div className="max-w-3xl px-5 pt-6 pb-6 lg:px-7">
         <WeekNetwork days={day.days} />
         <WeekNoteText lead={note.lead} detail={note.detail} className="mt-4" />
+        <WeekReview className="mt-8" />
         <h2 className="font-display text-section text-signal-muted mt-8 mb-2 uppercase">
           {w.dayByDay}
         </h2>

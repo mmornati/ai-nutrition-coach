@@ -7,7 +7,9 @@ import type {
   CoachNoteGenerationResult,
   CoachQuestionResult,
 } from '../results/coach';
-import { compositionPatternFor, otherPlatesOfSameDay, type GroupsOf } from '../coach/day-coaching';
+import { otherPlatesOfSameDay, type GroupsOf } from '../coach/day-coaching';
+import { coachSuggestionFor } from '../coach/nutrient-coaching';
+import type { Nutrients } from '../value-types/nutrients';
 import type { CoachNote } from '../entities/coach-note';
 import {
   parseCompositionPattern,
@@ -54,6 +56,11 @@ export function createCoachNoteGenerator(deps: {
   readonly clock?: Clock;
   /** Groups a food counts in (mixed dishes count in several). Default: its stored group. */
   readonly groupsOf?: GroupsOf;
+  /**
+   * The day's reference amounts, read at each note (a profile can change them). Absent: the
+   * nutrient layer is off and notes come from the food-group patterns alone.
+   */
+  readonly targets?: () => Required<Nutrients> | undefined;
 }): CoachNoteGenerator {
   const clock = deps.clock ?? systemClock;
   return {
@@ -68,16 +75,21 @@ export function createCoachNoteGenerator(deps: {
       } catch {
         // No history is the same as a first note of the day.
       }
-      const pattern = compositionPatternFor(plate, {
+      const suggestion = coachSuggestionFor(plate, {
         dayPlates: others,
         previousPattern,
         groupsOf: deps.groupsOf,
+        targets: deps.targets?.(),
       });
-      if (pattern === null) return { kind: 'noCoachNoteGenerated', reason: 'unknownPattern' };
+      if (suggestion === null) return { kind: 'noCoachNoteGenerated', reason: 'unknownPattern' };
 
       let result: CoachQuestionResult;
       try {
-        result = deps.coach.questionFor({ anchor: 'postResolve', pattern });
+        result = deps.coach.questionFor({
+          anchor: 'postResolve',
+          pattern: suggestion.pattern,
+          params: suggestion.params,
+        });
       } catch {
         return { kind: 'noCoachNoteGenerated', reason: 'coachEmpty' };
       }

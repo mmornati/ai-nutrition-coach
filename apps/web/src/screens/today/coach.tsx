@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { CoachNote, CoachNoteStore, PlateLog } from '@anc/core';
 import { CoachCard, DepthPanel } from '../../components/day';
+import { coachCopy, coachKeyHasNumbers } from '../../app/coach-copy';
 import { useSession } from '../../app/session';
-import { useStrings, type Strings } from '../../i18n';
+import { useShowNumbers } from '../../components/nutrition';
+import { currentLocale, useLocale, useStrings, type Strings } from '../../i18n';
+import type { Locale } from '../../i18n/locale';
 
 /**
  * A stored note's question in the CURRENT language: looked up by its key, so a note written while
@@ -12,11 +15,8 @@ import { useStrings, type Strings } from '../../i18n';
 export const noteQuestion = (
   all: Strings,
   note: Pick<CoachNote, 'questionKey' | 'text'>,
-): string => {
-  const questions = all.coachQuestions as Readonly<Record<string, string>>;
-  // Own keys only: a key like `toString` must not read an inherited property.
-  return Object.hasOwn(questions, note.questionKey) ? questions[note.questionKey]! : note.text;
-};
+  locale: Locale = currentLocale(),
+): string => coachCopy(all, note.questionKey, {}, locale) ?? note.text;
 
 /** Durable dismissal markers (`note:<id>`, `openPlate:<day>:<slot>`), live. */
 export function useDismissals(notes: CoachNoteStore): ReadonlySet<string> {
@@ -63,12 +63,16 @@ export function PlateCoach({
 }) {
   const { notes, coachInteractions } = useSession();
   const all = useStrings();
+  const { locale } = useLocale();
   const list = usePlateNotes(notes, plate.id);
   const [phase, setPhase] = useState<Phase>({ kind: 'card' });
   const [gone, setGone] = useState(false);
+  const showNumbers = useShowNumbers();
 
   const note = list.find((n) => n.anchor === 'postResolve');
   if (gone || !note || dismissed.has(`note:${note.id}`)) return null;
+  // A note that quotes nutrient numbers stays out of sight while numbers are turned off.
+  if (!showNumbers && coachKeyHasNumbers(note.questionKey)) return null;
 
   const sure = async () => {
     let followUp: CoachNote | null;
@@ -97,13 +101,13 @@ export function PlateCoach({
 
   return phase.kind === 'card' ? (
     <CoachCard
-      question={noteQuestion(all, note)}
+      question={noteQuestion(all, note, locale)}
       onSure={() => void sure()}
       onAskLater={askLater}
     />
   ) : (
     <DepthPanel
-      followUp={phase.followUp === null ? null : noteQuestion(all, phase.followUp)}
+      followUp={phase.followUp === null ? null : noteQuestion(all, phase.followUp, locale)}
       onClose={close}
     />
   );

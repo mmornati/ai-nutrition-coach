@@ -7,7 +7,7 @@ import {
   MEAL_SLOTS,
   mealSlotForHour,
   openPlateDismissalKey,
-  openPlatePatternFor,
+  openPlateSuggestionFor,
   visibleSlots,
   type MealSlot,
   type PlateLog,
@@ -24,7 +24,7 @@ import {
   type LineMapStation,
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
-import { NutritionSection } from '../../components/nutrition';
+import { NutritionSection, useShowNumbers, useTargets } from '../../components/nutrition';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
 import { capitalise, useLocale, useStrings } from '../../i18n';
@@ -96,6 +96,8 @@ export function TodayScreen() {
   const { locale } = useLocale();
   const s = all.today;
   const { deletePlate, coach, coachInteractions, notes } = useSession();
+  const targets = useTargets();
+  const showNumbers = useShowNumbers();
   const day = useDay();
   const log = useLog();
   const dismissed = useDismissals(notes);
@@ -161,16 +163,21 @@ export function TodayScreen() {
   const hintSlot = hintStation === undefined ? undefined : slotOf.get(hintStation)?.slot;
   const hintQuestion = useMemo(() => {
     if (hintSlot === undefined) return null;
-    const pattern = openPlatePatternFor({
+    const suggestion = openPlateSuggestionFor({
       dayPlates: day.plates,
       slot: hintSlot,
       groupsOf: foodGroupsOfFood,
+      targets: showNumbers ? targets : undefined,
     });
-    if (pattern === null) return null;
-    const r = coach.questionFor({ anchor: 'openPlate', pattern });
+    if (suggestion === null) return null;
+    const r = coach.questionFor({
+      anchor: 'openPlate',
+      pattern: suggestion.pattern,
+      params: suggestion.params,
+    });
     return r.kind === 'coachFound' ? r.question.text : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
-  }, [coach, locale, hintSlot, day.plates]);
+  }, [coach, locale, hintSlot, day.plates, showNumbers, targets]);
 
   const remove = async () => {
     const plate = removing;
