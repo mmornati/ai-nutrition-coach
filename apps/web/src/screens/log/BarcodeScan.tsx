@@ -54,7 +54,7 @@ export function BarcodeScan({
     [],
   );
 
-  const { state, videoRef, dismissResult } = useBarcodeScanner({
+  const { state, videoRef, extras, dismissResult, toggleTorch, submitCode } = useBarcodeScanner({
     catalog,
     prefs: privacy,
     askOffNotice,
@@ -82,6 +82,9 @@ export function BarcodeScan({
         videoRef={videoRef}
         onTypeInstead={onTypeInstead}
         onScanAgain={dismissResult}
+        extras={extras}
+        onToggleTorch={toggleTorch}
+        onManualCode={submitCode}
       />
       <OffLookupNotice
         open={noticeOpen}

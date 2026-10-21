@@ -2,6 +2,7 @@
 // lifecycle. Ported from the earlier client ("no local
 // barcode detector", "camera lifecycle (F10)", PERMISSION_DENIED, CAMERA_INIT_FAILURE).
 import { describe, expect, it, vi } from 'vitest';
+import { NO_EXTRAS, type ScannerExtras } from './scanner-controller';
 import { databaseFood, rankedMatches, type FoodMatch } from '@anc/core';
 import type { CameraResult } from './camera';
 import {
@@ -213,5 +214,132 @@ describe('camera lifecycle (F10)', () => {
     t.controller.pauseCamera();
     await t.controller.resumeCamera();
     expect(t.controller.state.kind).toBe('unavailable');
+  });
+});
+
+// ── tuning, torch, the slow hint, typed codes ──
+
+function tunableCamera(caps: unknown) {
+  const applied: unknown[] = [];
+  const track = {
+    getCapabilities: () => caps,
+    applyConstraints: vi.fn(async (c: unknown) => {
+      applied.push(c);
+    }),
+  };
+  const raw = {
+    stopped: 0,
+    getTracks: () => [{ stop: () => void raw.stopped++ }],
+    getVideoTracks: () => [track],
+  };
+  const result = (): CameraResult => ({ kind: 'granted', stream: raw as unknown as MediaStream });
+  return { track, applied, result };
+}
+
+class FakeTimers {
+  fn: (() => void) | undefined;
+  setTimeout(fn: () => void): unknown {
+    this.fn = fn;
+    return 1;
+  }
+  clearTimeout(): void {
+    this.fn = undefined;
+  }
+  fire(): void {
+    const fn = this.fn;
+    this.fn = undefined;
+    fn?.();
+  }
+}
+
+describe('track tuning and the torch', () => {
+  it('zoom and continuous focus are applied after the camera starts, and again after a resume', async () => {
+    const cam = tunableCamera({ zoom: { min: 1, max: 5 }, focusMode: ['continuous'], torch: true });
+    const extras: ScannerExtras[] = [];
+    const t = setup({ camera: async () => cam.result(), onExtras: (e) => extras.push(e) });
+    await t.controller.start();
+    expect(cam.applied).toEqual([
+      { advanced: [{ zoom: 2 }] },
+      { advanced: [{ focusMode: 'continuous' }] },
+    ]);
+    expect(t.controller.extras.torchAvailable).toBe(true);
+
+    t.controller.pauseCamera();
+    expect(t.controller.extras).toEqual(NO_EXTRAS);
+    await t.controller.resumeCamera();
+    expect(cam.applied).toHaveLength(4);
+    expect(t.controller.extras.torchAvailable).toBe(true);
+  });
+
+  it('a camera that refuses every constraint still scans', async () => {
+    const cam = tunableCamera({ zoom: { min: 1, max: 5 } });
+    cam.track.applyConstraints.mockRejectedValue(new Error('no'));
+    const t = setup({ camera: async () => cam.result() });
+    await t.controller.start();
+    expect(t.controller.state.kind).toBe('scanning');
+    expect(t.scheduler.pending).toBe(true);
+  });
+
+  it('toggleTorch applies the constraint and flips the state; a refusal leaves it off', async () => {
+    const cam = tunableCamera({ torch: true });
+    const t = setup({ camera: async () => cam.result() });
+    await t.controller.start();
+    await t.controller.toggleTorch();
+    expect(cam.applied).toContainEqual({ advanced: [{ torch: true }] });
+    expect(t.controller.extras.torchOn).toBe(true);
+    await t.controller.toggleTorch();
+    expect(t.controller.extras.torchOn).toBe(false);
+    cam.track.applyConstraints.mockRejectedValueOnce(new Error('no'));
+    await t.controller.toggleTorch();
+    expect(t.controller.extras.torchOn).toBe(false);
+  });
+
+  it('no torch capability: toggling does nothing', async () => {
+    const cam = tunableCamera({});
+    const t = setup({ camera: async () => cam.result() });
+    await t.controller.start();
+    await t.controller.toggleTorch();
+    expect(cam.applied).toEqual([]);
+  });
+});
+
+describe('the slow hint', () => {
+  it('appears after the quiet period, goes away on a decode, and returns after Scan again', async () => {
+    const timers = new FakeTimers();
+    const t = setup({ slowScheduler: timers });
+    await t.controller.start();
+    expect(t.controller.extras.slow).toBe(false);
+    timers.fire();
+    expect(t.controller.extras.slow).toBe(true);
+
+    t.decoder.emit('3017620422003');
+    await t.scheduler.run();
+    expect(t.controller.extras.slow).toBe(false);
+    expect(timers.fn).toBeUndefined(); // no timer runs while a result is up
+
+    t.controller.dismissResult();
+    expect(timers.fn).toBeDefined();
+  });
+});
+
+describe('a typed barcode', () => {
+  it('takes the same lookup path as a camera decode', async () => {
+    const t = setup();
+    await t.controller.start();
+    await t.controller.submitCode('3017620422003');
+    expect(t.catalog.calls).toEqual(['3017620422003']);
+    expect(t.controller.state).toMatchObject({ kind: 'scanning', lookup: { kind: 'match' } });
+  });
+
+  it('is ignored when not scanning (denied, disposed)', async () => {
+    const denied = setup({ camera: async () => ({ kind: 'denied' }) });
+    await denied.controller.start();
+    await denied.controller.submitCode('3017620422003');
+    expect(denied.catalog.calls).toEqual([]);
+    const t = setup();
+    await t.controller.start();
+    t.controller.dispose();
+    await t.controller.submitCode('3017620422003');
+    expect(t.catalog.calls).toEqual([]);
   });
 });
