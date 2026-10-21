@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import { weeklyReview, type WeeklyHighlight } from '@anc/core';
 import { coachCopyVars } from '../../app/coach-copy';
 import { useDay } from '../../app/day-context';
-import { useSession } from '../../app/session';
 import { foodGroupsOfFood } from '../../catalog';
-import { hasNutrition, NutrientBars, useShowNumbers } from '../../components/nutrition';
+import { hasNutrition, NutrientBars, useShowNumbers, useTargets } from '../../components/nutrition';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
 
 /**
@@ -17,11 +16,11 @@ export function WeekReview({ className }: { readonly className?: string }) {
   const all = useStrings();
   const { locale } = useLocale();
   const { plates } = useDay();
-  const { targets } = useSession();
+  const targets = useTargets();
   const showNumbers = useShowNumbers();
   const t = all.week.review;
   const review = useMemo(
-    () => weeklyReview({ plates, targets: targets(), groupsOf: foodGroupsOfFood }),
+    () => weeklyReview({ plates, targets, groupsOf: foodGroupsOfFood }),
     [plates, targets],
   );
   if (review.daysLogged === 0) return null;
@@ -61,7 +60,7 @@ export function WeekReview({ className }: { readonly className?: string }) {
           <p className="text-body-small text-porcelain-dim mb-2">
             {plural(t.averagesNote, review.daysWithData, locale)}
           </p>
-          <NutrientBars nutrition={bars} />
+          <NutrientBars nutrition={bars} targets={targets} />
         </div>
       )}
       {wentWell.length > 0 && (

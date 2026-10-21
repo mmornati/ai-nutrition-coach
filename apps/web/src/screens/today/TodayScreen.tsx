@@ -24,7 +24,7 @@ import {
   type LineMapStation,
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
-import { NutritionSection, useShowNumbers } from '../../components/nutrition';
+import { NutritionSection, useShowNumbers, useTargets } from '../../components/nutrition';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
 import { capitalise, useLocale, useStrings } from '../../i18n';
@@ -95,7 +95,8 @@ export function TodayScreen() {
   const all = useStrings();
   const { locale } = useLocale();
   const s = all.today;
-  const { deletePlate, coach, coachInteractions, notes, targets } = useSession();
+  const { deletePlate, coach, coachInteractions, notes } = useSession();
+  const targets = useTargets();
   const showNumbers = useShowNumbers();
   const day = useDay();
   const log = useLog();
@@ -166,7 +167,7 @@ export function TodayScreen() {
       dayPlates: day.plates,
       slot: hintSlot,
       groupsOf: foodGroupsOfFood,
-      targets: showNumbers ? targets() : undefined,
+      targets: showNumbers ? targets : undefined,
     });
     if (suggestion === null) return null;
     const r = coach.questionFor({

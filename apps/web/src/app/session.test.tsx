@@ -2,6 +2,7 @@
 // after it (src/app/session.tsx).
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { dailyTargetsFor, EU_REFERENCE_INTAKES } from '@anc/core';
 import { FakeFetch, photoBytes, TEST_KEY } from '../ai/testing';
 import { KV_KEYS } from '../storage';
 import { createSession } from './session';
@@ -89,5 +90,19 @@ describe('Session.dispose', () => {
     const session = await createSession(await unlockedBundle());
     session.dispose();
     expect(() => session.dispose()).not.toThrow();
+  });
+});
+
+describe('Session.targets', () => {
+  it('follows the profile: the EU reference intakes without one, the daily guide with one', async () => {
+    const session = await createSession(await unlockedBundle());
+    expect(session.targets()).toBe(EU_REFERENCE_INTAKES);
+    const profile = { sex: 'female', ageBand: '65+', activity: 'low' } as const;
+    await session.profile.set(profile);
+    expect(session.targets()).toEqual(dailyTargetsFor(profile));
+    expect(session.targets().energyKcal).toBe(1600);
+    await session.profile.clear();
+    expect(session.targets()).toBe(EU_REFERENCE_INTAKES);
+    session.dispose();
   });
 });

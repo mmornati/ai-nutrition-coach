@@ -21,7 +21,6 @@ import {
   createRecordPlate,
   createRecordSyncOp,
   createTemplateCoach,
-  EU_REFERENCE_INTAKES,
   systemClock,
   type Clock,
   type CoachParams,
@@ -75,7 +74,7 @@ export interface Session {
   readonly coach: Coach;
   /**
    * The daily reference amounts the nutrient-aware coach and the weekly review compare against
-   * (`coachTargets()` below). A function so a profile change is picked up on the next read.
+   * (the profile's daily guide, or the EU reference intakes without one). A function so a profile change is picked up on the next read.
    */
   readonly targets: () => Required<Nutrients>;
   readonly coachInteractions: RecordCoachInteraction;
@@ -96,13 +95,6 @@ export interface SessionOptions {
 /** The v1 template coach reads its questions from the typed copy catalogue by key. */
 const coachLookup = (key: string, params: CoachParams): string | undefined =>
   coachCopy(strings(), key, params);
-
-/**
- * THE seam for the coach's reference amounts. Replaced by the profile's daily targets
- * (`dailyTargetsFor(profile)`) once the optional profile lands; until then everyone is compared
- * with the EU Reference Intakes (docs/adr/0006).
- */
-export const coachTargets = (): Required<Nutrients> => EU_REFERENCE_INTAKES;
 
 export async function createSession(
   bundle: StoreBundle,
@@ -151,7 +143,7 @@ export async function createSession(
     clock,
     groupsOf: foodGroupsOfFood,
     // No numbers in a note while the person has numbers turned off.
-    targets: () => (numbers.current() ? coachTargets() : undefined),
+    targets: () => (numbers.current() ? profile.targets() : undefined),
   });
   const record = createRecordPlate({
     generator,
@@ -174,7 +166,7 @@ export async function createSession(
     syncQueue,
     ai,
     coach,
-    targets: coachTargets,
+    targets: profile.targets,
     coachInteractions: createRecordCoachInteraction({ coach, store: notes, clock }),
     recordPlate: (entries) => record({ entries, store }),
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
