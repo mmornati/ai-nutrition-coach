@@ -22,7 +22,7 @@ const vegLight: CoachQuestion = {
 };
 
 describe('CompositionPattern + CoachAnchor (NFR3)', () => {
-  it('CompositionPattern ships the exact v1 six-entry taxonomy', () => {
+  it('CompositionPattern ships the exact eight-entry taxonomy', () => {
     expect(COMPOSITION_PATTERNS).toEqual([
       'vegLight',
       'proteinHeavy',
@@ -30,6 +30,8 @@ describe('CompositionPattern + CoachAnchor (NFR3)', () => {
       'dairyLight',
       'vegRich',
       'balanced',
+      'breakfastSimple',
+      'proteinMissingDay',
     ]);
   });
 
@@ -45,6 +47,8 @@ describe('CompositionPattern + CoachAnchor (NFR3)', () => {
       'dairyLight',
       'vegRich',
       'balanced',
+      'breakfastSimple',
+      'proteinMissingDay',
     ]);
   });
 

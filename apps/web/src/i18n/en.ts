@@ -528,24 +528,43 @@ export const en = {
   },
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   coachQuestions: {
-    'post.resolve.vegLight': 'A handful of greens would round this plate out.',
-    'post.resolve.proteinHeavy': 'A small bowl of greens or roasted veg would lighten this up.',
-    'post.resolve.starchHeavy': 'Some veg on the side would balance this nicely.',
-    'post.resolve.dairyLight': 'If you have a bit of dairy around, it would round this off.',
-    'post.resolve.vegRich': 'A protein on the side would complete this plate.',
+    'post.resolve.vegLight':
+      'No veg or fruit so far today. Could a handful join this meal, even on the side?',
+    'post.resolve.proteinHeavy':
+      'Quite a bit of protein here. Would a little more veg alongside suit you?',
+    'post.resolve.starchHeavy':
+      'Plenty of starch here. Is there a bit more veg you could tuck in beside it?',
+    'post.resolve.dairyLight': 'Would a spoonful of yogurt or a little cheese fit with this?',
+    'post.resolve.vegRich':
+      'Lots of veg here. Is there some protein nearby, like eggs, beans or fish?',
     'post.resolve.balanced': 'Nice plate — anything you would change next time?',
-    'openPlate.vegLight': 'Greens would round this plate out.',
-    'openPlate.proteinHeavy': 'A handful of greens or veg would lighten this up.',
-    'openPlate.starchHeavy': 'Some veg on the side would balance this nicely.',
+    'post.resolve.breakfastSimple': 'A simple start. What usually keeps you going until lunch?',
+    'post.resolve.proteinMissingDay':
+      'No protein logged yet today. Could eggs, beans, tofu or fish fit into this meal?',
+    'openPlate.vegLight': 'No veg or fruit logged yet today. Could this meal have a handful?',
+    'openPlate.proteinHeavy': 'Protein-forward so far. A side of veg would sit well.',
+    'openPlate.starchHeavy': 'Starch-forward so far. A side of veg would sit well.',
     'openPlate.dairyLight': 'A bit of dairy would round this off if you have some.',
-    'openPlate.vegRich': 'A protein on the side would complete this plate.',
-    'openPlate.balanced': 'A calm, varied plate — anything you want to add?',
-    'depth.followUp.vegLight': 'A handful of greens would round this plate out.',
-    'depth.followUp.proteinHeavy': 'A small bowl of greens or roasted veg would lighten this up.',
-    'depth.followUp.starchHeavy': 'Some veg on the side would balance this nicely.',
-    'depth.followUp.dairyLight': 'If you have a bit of dairy around, it would round this off.',
-    'depth.followUp.vegRich': 'A protein on the side would complete this plate.',
-    'depth.followUp.balanced': 'Nice plate — anything you would change next time?',
+    'openPlate.vegRich': 'Plenty of veg so far. Some protein would go well with it.',
+    'openPlate.balanced': 'A calm, varied day so far. Anything you want to add?',
+    'openPlate.breakfastSimple': 'A simple breakfast can be enough. What do you usually reach for?',
+    'openPlate.proteinMissingDay':
+      'No protein logged yet today. Could this meal have eggs, beans, tofu or fish?',
+    'depth.followUp.vegLight': 'Frozen peas or a bagged salad take two minutes and keep for days.',
+    'depth.followUp.proteinHeavy':
+      'Frozen spinach or a tray of roasted veg goes alongside almost anything.',
+    'depth.followUp.starchHeavy':
+      'A handful of frozen veg stirred into the pasta or rice pot for the last few minutes needs no extra pan.',
+    'depth.followUp.dairyLight':
+      'Plain yogurt or a little grated cheese is easy to add at the table.',
+    'depth.followUp.vegRich':
+      'A boiled egg, a tin of beans or some tofu turns a veg plate into a meal in a few minutes.',
+    'depth.followUp.balanced':
+      'If this one worked, cooking a bit extra means tomorrow’s lunch is already sorted.',
+    'depth.followUp.breakfastSimple':
+      'Eggs, yogurt or a handful of nuts tend to last longer than bread or cereal alone, if you ever want a change.',
+    'depth.followUp.proteinMissingDay':
+      'Tinned fish, eggs and canned beans keep well and need no cooking.',
   },
   /** SettingsStrings (the earlier client) and the Settings rows of app_en.arb. */
   settings: {

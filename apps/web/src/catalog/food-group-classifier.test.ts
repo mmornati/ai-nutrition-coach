@@ -1,7 +1,13 @@
 // `classifyFoodGroup`: OFF category tags and food names. Ported one-to-one from
 // Ported from the earlier client.
 import { describe, expect, it } from 'vitest';
-import { classifyFoodByName, classifyFoodGroup } from './food-group-classifier';
+import {
+  classifyFoodByName,
+  classifyFoodGroup,
+  classifyFoodGroupsByName,
+  foodGroupsOfFood,
+} from './food-group-classifier';
+import { databaseFood } from '@anc/core';
 import { seedName } from './food-display';
 import { seedFoods } from './seed-foods';
 import { SUPPORTED_LOCALES } from '../i18n/locale';
@@ -351,7 +357,9 @@ describe('common English foods are unchanged', () => {
     ['apple', 'vegFruit'],
     ['banana', 'vegFruit'],
     ['broccoli', 'vegFruit'],
-    ['green beans', 'protein'],
+    ['green beans', 'vegFruit'],
+    ['beans', 'protein'],
+    ['baked beans', 'protein'],
     ['chicken breast', 'protein'],
     ['salmon', 'protein'],
     ['eggs', 'protein'],
@@ -375,5 +383,158 @@ describe('common English foods are unchanged', () => {
   ];
   it.each(cases)('%s is %s', (name, expected) => {
     expect(classifyFoodByName(name)).toBe(expected);
+  });
+});
+
+describe('English -es plurals', () => {
+  it('tomatoes, potatoes, peaches, radishes, sandwiches', () => {
+    expect(classifyFoodByName('tomatoes')).toBe('vegFruit');
+    expect(classifyFoodByName('potatoes')).toBe('starch');
+    expect(classifyFoodByName('peaches')).toBe('vegFruit');
+    expect(classifyFoodByName('radishes')).toBe('vegFruit');
+    expect(classifyFoodByName('ham sandwiches')).toBe('protein');
+    expect(classifyFoodGroupsByName('ham sandwiches')).toEqual(['protein', 'starch']);
+    expect(classifyFoodByName('pêches')).toBe('vegFruit');
+  });
+});
+
+describe('expanded vegetable and fruit vocabulary (English and French)', () => {
+  const veg = [
+    'zucchini',
+    'courgette',
+    'kale',
+    'cabbage',
+    'cauliflower',
+    'mushrooms',
+    'peas',
+    'sweet corn',
+    'asparagus',
+    'butternut squash',
+    'pumpkin',
+    'eggplant',
+    'leek',
+    'beetroot',
+    'radishes',
+    'celery',
+    'fennel',
+    'artichoke',
+    'blueberries',
+    'blackberries',
+    'cherries',
+    'pineapple',
+    'green beans',
+    'runner beans',
+    'French beans',
+    'string beans',
+    'rocket',
+    'watercress',
+    // French
+    'haricots verts',
+    'chou-fleur',
+    'champignons de Paris',
+    'petits pois',
+    'poireaux',
+    'betteraves',
+    'radis',
+    'fenouil',
+    'asperges',
+    'potimarron',
+    'courgettes',
+    'maïs',
+    'mûres',
+    'ratatouille',
+    'crudités',
+    'compote de pommes',
+  ];
+  it.each(veg)('%s is vegFruit', (name) => {
+    expect(classifyFoodByName(name)).toBe('vegFruit');
+  });
+
+  it('legumes stay protein: beans alone, split peas, chickpeas, lentils', () => {
+    for (const name of [
+      'beans',
+      'black beans',
+      'split peas',
+      'chickpeas',
+      'lentilles',
+      'haricots rouges',
+    ]) {
+      expect(classifyFoodByName(name)).toBe('protein');
+    }
+  });
+
+  it('corn products that are not vegetables stay out of vegFruit', () => {
+    expect(classifyFoodByName('corn flakes')).toBe('starch');
+    expect(classifyFoodByName('corn oil')).toBe('other');
+  });
+});
+
+describe('classifyFoodGroupsByName (mixed dishes count in several groups)', () => {
+  const cases: readonly (readonly [string, readonly string[]])[] = [
+    ['chicken salad', ['protein', 'vegFruit']],
+    ['tomato pasta', ['starch', 'vegFruit']],
+    ['pasta salad', ['starch', 'vegFruit']],
+    ['lasagne', ['starch', 'protein']],
+    ['lasagne', ['starch', 'protein']],
+    ['pizza', ['starch', 'dairy']],
+    ['salade de poulet', ['vegFruit', 'protein']],
+    ['pâtes à la tomate', ['starch', 'vegFruit']],
+    ['croque-monsieur', ['starch', 'dairy', 'protein']],
+    ['hachis parmentier', ['protein', 'starch']],
+    ['green beans with chicken', ['vegFruit', 'protein']],
+    ['cheese and tomato sandwich', ['dairy', 'vegFruit', 'starch']],
+    ['strawberry yogurt', ['dairy']],
+    ['yaourt aux fraises', ['dairy']],
+    ['apple', ['vegFruit']],
+    ['peanut butter', ['protein']],
+    ['oat milk', ['dairy']],
+    ['pain d’épices', []],
+    ['mystery thing', []],
+    ['', []],
+  ];
+  it.each(cases)('%s -> %j', (name, expected) => {
+    expect([...classifyFoodGroupsByName(name)].sort()).toEqual([...expected].sort());
+  });
+
+  it('puts the single-group answer first, so the stored primary group is unchanged', () => {
+    for (const name of ['chicken salad', 'tomato pasta', 'cheese and tomato sandwich', 'apple']) {
+      expect(classifyFoodGroupsByName(name)[0]).toBe(classifyFoodGroup([name]));
+    }
+  });
+
+  it('classifyFoodByName is the primary group, or other', () => {
+    expect(classifyFoodByName('pizza')).toBe('starch');
+    expect(classifyFoodByName('mystery thing')).toBe('other');
+  });
+});
+
+describe('foodGroupsOfFood (what the coach counts)', () => {
+  const food = (
+    displayName: string,
+    foodGroup: 'protein' | 'other' | 'starch',
+    source: 'manual' | 'off' | 'seed',
+  ) => databaseFood({ sourceRef: `${source}:${displayName}`, displayName, source, foodGroup });
+
+  it('adds the groups of a typed dish to its stored group', () => {
+    expect(foodGroupsOfFood(food('chicken salad', 'protein', 'manual'))).toEqual([
+      'protein',
+      'vegFruit',
+    ]);
+  });
+
+  it('classifies an old typed food stored as other', () => {
+    expect(foodGroupsOfFood(food('Tomato pasta', 'other', 'manual'))).toEqual([
+      'starch',
+      'vegFruit',
+    ]);
+  });
+
+  it('leaves Open Food Facts products with their category group', () => {
+    expect(foodGroupsOfFood(food('Tomato Ketchup Heinz', 'other', 'off'))).toEqual(['other']);
+    expect(foodGroupsOfFood(food('Chicken salad wrap', 'starch', 'off'))).toEqual(['starch']);
+  });
+
+  it('an unclassifiable typed food stays other', () => {
+    expect(foodGroupsOfFood(food('xyzzy', 'other', 'manual'))).toEqual(['other']);
   });
 });

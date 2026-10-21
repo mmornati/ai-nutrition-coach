@@ -46,22 +46,23 @@ describe('TodayScreen follows the locale without a remount', () => {
   it('the open-plate hint (a memoised coach question) is re-worded after setLocale', async () => {
     const user = userEvent.setup();
     const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(8, 0), [['Porridge', 'starch']]);
     await renderInSession(ui, { bundle, wrapper });
 
     await screen.findByRole('button', {
-      name: /A calm, varied plate — anything you want to add\?\. Tap to dismiss\./,
+      name: /No veg or fruit logged yet today\. Could this meal have a handful\?\. Tap to dismiss\./,
     });
     await user.click(screen.getByRole('button', { name: 'to-fr' }));
 
     await waitFor(() =>
       // Keep French narrow no-break spaces as they are (the default normalizer folds them).
       expect(
-        screen.getByText(fr.coachQuestions['openPlate.balanced'], {
+        screen.getByText(fr.coachQuestions['openPlate.vegLight'], {
           normalizer: getDefaultNormalizer({ collapseWhitespace: false }),
         }),
       ).toBeInTheDocument(),
     );
-    expect(screen.queryByText(/A calm, varied plate/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No veg or fruit logged yet today/)).not.toBeInTheDocument();
   });
 
   it('a notice already on screen is re-worded after setLocale', async () => {
@@ -92,12 +93,16 @@ describe('TodayScreen follows the locale without a remount', () => {
       generatedAt: Date.now(),
     });
     await renderInSession(ui, { bundle, wrapper });
-    expect(await screen.findByText(/greens or roasted veg/)).toBeVisible();
+    expect(await screen.findByText(/Quite a bit of protein/)).toBeVisible();
 
     await act(async () => {
       setCurrentLocale('fr');
     });
-    expect(await screen.findByText(fr.coachQuestions['post.resolve.proteinHeavy'])).toBeVisible();
-    expect(screen.queryByText(/greens or roasted veg/)).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(fr.coachQuestions['post.resolve.proteinHeavy'], {
+        normalizer: getDefaultNormalizer({ collapseWhitespace: false }),
+      }),
+    ).toBeVisible();
+    expect(screen.queryByText(/Quite a bit of protein/)).not.toBeInTheDocument();
   });
 });
