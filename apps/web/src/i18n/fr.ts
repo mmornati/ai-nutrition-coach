@@ -507,29 +507,48 @@ export const fr: Strings = {
     removeAction: 'Retirer cette assiette',
   },
   coachQuestions: {
-    'post.resolve.vegLight': 'Une poignée de légumes verts compléterait bien cette assiette.',
+    'post.resolve.vegLight':
+      'Pas de légumes ni de fruits pour l’instant aujourd’hui. Une poignée pourrait-elle se glisser dans ce repas, même à côté ?',
     'post.resolve.proteinHeavy':
-      'Un petit bol de légumes verts ou de légumes rôtis apporterait de la légèreté.',
-    'post.resolve.starchHeavy': 'Quelques légumes à côté équilibreraient bien l’ensemble.',
-    'post.resolve.dairyLight':
-      'Si vous avez un produit laitier sous la main, il compléterait bien le tout.',
-    'post.resolve.vegRich': 'Une source de protéines à côté compléterait cette assiette.',
+      'Pas mal de protéines ici. Un peu plus de légumes à côté vous conviendrait-il ?',
+    'post.resolve.starchHeavy':
+      'Beaucoup de féculents ici. Auriez-vous quelques légumes de plus à glisser à côté ?',
+    'post.resolve.dairyLight': 'Une cuillère de yaourt ou un peu de fromage irait-il avec ça ?',
+    'post.resolve.vegRich':
+      'Beaucoup de légumes ici. Auriez-vous des protéines sous la main, comme des œufs, des légumineuses ou du poisson ?',
     'post.resolve.balanced': 'Jolie assiette — changeriez-vous quelque chose la prochaine fois ?',
-    'openPlate.vegLight': 'Des légumes verts compléteraient bien cette assiette.',
-    'openPlate.proteinHeavy':
-      'Une poignée de légumes verts ou d’autres légumes apporterait de la légèreté.',
-    'openPlate.starchHeavy': 'Quelques légumes à côté équilibreraient bien l’ensemble.',
+    'post.resolve.breakfastSimple':
+      'Un début simple. Qu’est-ce qui vous fait tenir jusqu’au déjeuner d’habitude ?',
+    'post.resolve.proteinMissingDay':
+      'Pas encore de protéines aujourd’hui. Des œufs, des légumineuses, du tofu ou du poisson iraient-ils dans ce repas ?',
+    'openPlate.vegLight':
+      'Pas de légumes ni de fruits pour l’instant aujourd’hui. Ce repas pourrait-il en avoir une poignée ?',
+    'openPlate.proteinHeavy': 'Plutôt protéiné jusqu’ici. Des légumes à côté iraient bien.',
+    'openPlate.starchHeavy': 'Plutôt féculents jusqu’ici. Des légumes à côté iraient bien.',
     'openPlate.dairyLight': 'Un produit laitier compléterait bien le tout, si vous en avez.',
-    'openPlate.vegRich': 'Une source de protéines à côté compléterait cette assiette.',
-    'openPlate.balanced': 'Une assiette variée — vous aimeriez ajouter quelque chose ?',
-    'depth.followUp.vegLight': 'Une poignée de légumes verts compléterait bien cette assiette.',
+    'openPlate.vegRich': 'Pas mal de légumes jusqu’ici. Des protéines iraient bien avec.',
+    'openPlate.balanced':
+      'Une journée plutôt variée jusqu’ici. Vous aimeriez ajouter quelque chose ?',
+    'openPlate.breakfastSimple':
+      'Un petit-déjeuner simple peut suffire. Vous prenez quoi d’habitude ?',
+    'openPlate.proteinMissingDay':
+      'Pas encore de protéines aujourd’hui. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+    'depth.followUp.vegLight':
+      'Des petits pois surgelés ou une salade en sachet, c’est prêt en deux minutes et ça se garde des jours.',
     'depth.followUp.proteinHeavy':
-      'Un petit bol de légumes verts ou de légumes rôtis apporterait de la légèreté.',
-    'depth.followUp.starchHeavy': 'Quelques légumes à côté équilibreraient bien l’ensemble.',
+      'Des épinards surgelés ou une plaque de légumes rôtis vont avec presque tout.',
+    'depth.followUp.starchHeavy':
+      'Une poignée de légumes surgelés jetée dans la casserole de pâtes ou de riz pour les dernières minutes, sans autre poêle à laver.',
     'depth.followUp.dairyLight':
-      'Si vous avez un produit laitier sous la main, il compléterait bien le tout.',
-    'depth.followUp.vegRich': 'Une source de protéines à côté compléterait cette assiette.',
-    'depth.followUp.balanced': 'Jolie assiette — changeriez-vous quelque chose la prochaine fois ?',
+      'Un yaourt nature ou un peu de fromage râpé, c’est facile à ajouter à table.',
+    'depth.followUp.vegRich':
+      'Un œuf dur, une boîte de haricots ou un peu de tofu font d’une assiette de légumes un vrai repas en quelques minutes.',
+    'depth.followUp.balanced':
+      'Si celui-ci a bien marché, en cuisiner un peu plus règle déjà le déjeuner de demain.',
+    'depth.followUp.breakfastSimple':
+      'Des œufs, un yaourt ou une poignée de noix tiennent plus longtemps que le pain ou les céréales seuls, si l’envie de changer vous prend.',
+    'depth.followUp.proteinMissingDay':
+      'Le poisson en boîte, les œufs et les haricots en conserve se gardent bien et ne demandent aucune cuisson.',
   },
   settings: {
     aiTier: 'Niveau d’IA',

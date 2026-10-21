@@ -143,6 +143,11 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   page,
 }) => {
   test.setTimeout(240_000);
+  // The coach reads the meal slot from the clock (no veg nudge at breakfast), so the plates below
+  // are logged at lunch whatever time the run starts. The browser shares this host's time zone.
+  const lunch = new Date();
+  lunch.setHours(12, 30, 0, 0);
+  await page.clock.setFixedTime(lunch);
   const errors = await freshStart(page);
   await createStore(page);
   await logSalmonByTypingIt(page);

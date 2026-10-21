@@ -1,4 +1,8 @@
-/** The six composition patterns of the bounded coach taxonomy. */
+/**
+ * The eight composition patterns of the bounded coach taxonomy. The first six describe a plate;
+ * `breakfastSimple` is the calm remark for a morning plate (never a nudge) and
+ * `proteinMissingDay` fires when nothing with protein has been logged all day.
+ */
 export const COMPOSITION_PATTERNS = [
   'vegLight',
   'proteinHeavy',
@@ -6,6 +10,8 @@ export const COMPOSITION_PATTERNS = [
   'dairyLight',
   'vegRich',
   'balanced',
+  'breakfastSimple',
+  'proteinMissingDay',
 ] as const;
 export type CompositionPattern = (typeof COMPOSITION_PATTERNS)[number];
 

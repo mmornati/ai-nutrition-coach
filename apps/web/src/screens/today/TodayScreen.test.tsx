@@ -36,9 +36,9 @@ describe('TodayScreen: the day as a map', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
     expect(await screen.findByText('Breakfast')).toBeVisible();
     expect(stationNames()).toEqual(['Breakfast', 'Lunch', 'Dinner']);
-    // One whisper (the coach's open-plate hint, on the next open meal), the rest are quiet.
-    expect(screen.getAllByText(QUIET)).toHaveLength(2);
-    expect(screen.getByText('A calm, varied plate — anything you want to add?')).toBeVisible();
+    // An empty day says nothing about the person's eating: no hint, every open meal is quiet.
+    expect(screen.getAllByText(QUIET)).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /Tap to dismiss/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId(/^open-plate-/)).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
@@ -298,7 +298,7 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
     });
     await renderInSession(<TodayScreen />, { bundle });
     const card = await screen.findByRole('group', { name: s.coach.group });
-    expect(within(card).getByText(/greens or roasted veg/)).toBeVisible();
+    expect(within(card).getByText(/Quite a bit of protein/)).toBeVisible();
 
     await user.click(within(card).getByRole('button', { name: 'Sure' }));
     const depth = await screen.findByRole('group', { name: s.coach.depthGroup });
@@ -308,6 +308,36 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
       expect(screen.queryByRole('group', { name: s.coach.depthGroup })).toBeNull(),
     );
     expect(screen.queryByRole('group', { name: s.coach.group })).not.toBeInTheDocument();
+  });
+
+  it('the open-station hint follows the day: protein when veg is covered, hidden when both are', async () => {
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(8, 0), [['Banana', 'vegFruit']]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(
+      await screen.findByText(
+        'No protein logged yet today. Could this meal have eggs, beans, tofu or fish?',
+      ),
+    ).toBeVisible();
+  });
+
+  it('the open-station hint is hidden once the day has veg and protein', async () => {
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(8, 0), [
+      ['Banana', 'vegFruit'],
+      ['Eggs', 'protein'],
+    ]);
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByText(/Banana/);
+    expect(screen.queryByRole('button', { name: /Tap to dismiss/ })).not.toBeInTheDocument();
+  });
+
+  it('a custom dish counts in several groups: a chicken salad covers the day`s veg', async () => {
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(8, 0), [['Chicken salad', 'protein']]);
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByText('Chicken salad');
+    expect(screen.queryByRole('button', { name: /Tap to dismiss/ })).not.toBeInTheDocument();
   });
 
   it('Ask later dismisses durably: it is still gone after the screen is built again', async () => {
@@ -336,20 +366,25 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
   it('the open-station hint is one tap target that dismisses durably', async () => {
     const user = userEvent.setup();
     const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(8, 0), [['Porridge', 'starch']]);
     const first = await renderInSession(<TodayScreen />, { bundle });
     const hint = await screen.findByRole('button', {
-      name: /A calm, varied plate — anything you want to add\?\. Tap to dismiss\./,
+      name: /No veg or fruit logged yet today\. Could this meal have a handful\?\. Tap to dismiss\./,
     });
     expect(hint).toHaveClass('min-h-12');
     // A hint is not a question: no Sure / Ask later.
     expect(screen.queryByRole('button', { name: 'Sure' })).not.toBeInTheDocument();
     await user.click(hint);
     await waitFor(() =>
-      expect(screen.queryByText('A calm, varied plate — anything you want to add?')).toBeNull(),
+      expect(
+        screen.queryByText('No veg or fruit logged yet today. Could this meal have a handful?'),
+      ).toBeNull(),
     );
     first.unmount();
     await renderInSession(<TodayScreen />, { bundle });
     await screen.findByText('Breakfast');
-    expect(screen.queryByText('A calm, varied plate — anything you want to add?')).toBeNull();
+    expect(
+      screen.queryByText('No veg or fruit logged yet today. Could this meal have a handful?'),
+    ).toBeNull();
   });
 });

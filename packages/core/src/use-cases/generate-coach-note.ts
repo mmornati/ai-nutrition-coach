@@ -7,62 +7,72 @@ import type {
   CoachNoteGenerationResult,
   CoachQuestionResult,
 } from '../results/coach';
-import type { CompositionPattern } from '../value-types/composition-pattern';
-
-/**
- * The pattern of a plate from its food-group tally, or `null` when no entry has a major group
- * (only `other`), in which case there is nothing to say.
- */
-export function compositionPatternFor(plate: PlateLog): CompositionPattern | null {
-  let veg = 0;
-  let protein = 0;
-  let starch = 0;
-  let dairy = 0;
-  for (const entry of plate.entries) {
-    switch (entry.databaseFood.foodGroup) {
-      case 'vegFruit':
-        veg++;
-        break;
-      case 'protein':
-        protein++;
-        break;
-      case 'starch':
-        starch++;
-        break;
-      case 'dairy':
-        dairy++;
-        break;
-      case 'other':
-        break;
-    }
-  }
-  if (veg + protein + starch + dairy === 0) return null;
-  const majorGroupCount = (veg > 0 ? 1 : 0) + (protein > 0 ? 1 : 0) + (starch > 0 ? 1 : 0);
-  if (veg === 0) return 'vegLight';
-  if (protein >= 2 && protein > veg) return 'proteinHeavy';
-  if (starch >= 2 && starch > veg) return 'starchHeavy';
-  if (veg >= 2 && protein === 0) return 'vegRich';
-  if (dairy === 0 && majorGroupCount <= 1) return 'dairyLight';
-  return 'balanced';
-}
+import { compositionPatternFor, otherPlatesOfSameDay, type GroupsOf } from '../coach/day-coaching';
+import type { CoachNote } from '../entities/coach-note';
+import {
+  parseCompositionPattern,
+  type CompositionPattern,
+} from '../value-types/composition-pattern';
 
 export interface CoachNoteGenerator {
-  /** Never throws: every failure is a `noCoachNoteGenerated` with a reason. */
-  generateFor(plate: PlateLog): Promise<CoachNoteGenerationResult>;
+  /**
+   * Never throws: every failure is a `noCoachNoteGenerated` with a reason. `dayPlates` are the
+   * plates of the same local day (the plate itself may be included); without them the plate is
+   * judged alone.
+   */
+  generateFor(
+    plate: PlateLog,
+    context?: { readonly dayPlates?: readonly PlateLog[] },
+  ): Promise<CoachNoteGenerationResult>;
+}
+
+const POST_RESOLVE_PREFIX = 'post.resolve.';
+
+/** The pattern of the most recent post-resolve note among the given plates' notes, if any. */
+async function previousPatternOf(
+  store: CoachNoteStore,
+  plates: readonly PlateLog[],
+): Promise<CompositionPattern | null> {
+  const lists = await Promise.all(
+    plates.map((p) => store.forPlate(p.id).catch((): readonly CoachNote[] => [])),
+  );
+  let latest: CoachNote | null = null;
+  for (const note of lists.flat()) {
+    if (note.anchor !== 'postResolve' || !note.questionKey.startsWith(POST_RESOLVE_PREFIX)) {
+      continue;
+    }
+    if (latest === null || note.generatedAt > latest.generatedAt) latest = note;
+  }
+  return latest === null
+    ? null
+    : parseCompositionPattern(latest.questionKey.slice(POST_RESOLVE_PREFIX.length));
 }
 
 export function createCoachNoteGenerator(deps: {
   readonly coach: Coach;
   readonly store: CoachNoteStore;
   readonly clock?: Clock;
+  /** Groups a food counts in (mixed dishes count in several). Default: its stored group. */
+  readonly groupsOf?: GroupsOf;
 }): CoachNoteGenerator {
   const clock = deps.clock ?? systemClock;
   return {
-    async generateFor(plate) {
+    async generateFor(plate, context) {
       if (plate.entries.length === 0) {
         return { kind: 'noCoachNoteGenerated', reason: 'emptyPlate' };
       }
-      const pattern = compositionPatternFor(plate);
+      const others = otherPlatesOfSameDay(plate, context?.dayPlates ?? []);
+      let previousPattern: CompositionPattern | null = null;
+      try {
+        previousPattern = await previousPatternOf(deps.store, others);
+      } catch {
+        // No history is the same as a first note of the day.
+      }
+      const pattern = compositionPatternFor(plate, {
+        dayPlates: others,
+        previousPattern,
+        groupsOf: deps.groupsOf,
+      });
       if (pattern === null) return { kind: 'noCoachNoteGenerated', reason: 'unknownPattern' };
 
       let result: CoachQuestionResult;
