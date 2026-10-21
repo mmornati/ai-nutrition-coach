@@ -37,6 +37,7 @@ import { createAiServices, type AiServices } from '../ai';
 import { photoDigest, sanitizePhotoForUpload } from '../capture';
 import {
   classifyFoodByName,
+  createCiqualFetchLoader,
   createOffBarcodeSource,
   foodGroupsOfFood,
   offLookupGate,
@@ -101,6 +102,8 @@ export async function createSession(
   // The catalog may only send a barcode while the stored answer to the one-time notice is `allowed`.
   const catalog = new OfflineFirstFoodCatalog({
     onlineLookupAllowed: offLookupGate(privacy),
+    // The CIQUAL table is a same-origin, precached asset, read on the first search.
+    ciqual: createCiqualFetchLoader(),
     offSource: createOffBarcodeSource({
       ...(options.fetch ? { fetchImpl: options.fetch } : {}),
       signal: abort.signal,

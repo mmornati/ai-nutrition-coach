@@ -2,9 +2,13 @@
  * `OfflineFirstFoodCatalog`: the `FoodCatalog` adapter (port of the earlier client).
  *
  * Searches an in-memory seeded list of common foods (curated, shipped with the app, source `seed`)
- * with a small LRU cache for offline replay (NFR5). The ranking is plain string matching,
- * exact > prefix > substring > token overlap, and the cache key is the case-folded, trimmed query
- * so a previously-seen search resolves identically offline.
+ * and then the CIQUAL table (3.4k generic foods, source `ciqual`, loaded once from the app's own
+ * precached asset on the first search; see `ciqual-index.ts`), with a small LRU cache for offline
+ * replay (NFR5). The seeds come first: their ranking is plain string matching, exact > prefix >
+ * substring > token overlap; CIQUAL follows by token score. The cache key is the case-folded,
+ * trimmed query so a previously-seen search resolves identically offline. Both kinds carry their
+ * per-100 g nutrients and gram presets (docs/adr/0006). If the table cannot be loaded the search
+ * still answers with the seeds (and is not cached, so a later search retries).
  *
  * `lookupByBarcode` fans out to the Open Food Facts source, behind two gates:
  *  - a barcode already resolved in this process is answered from its own LRU (64 entries; separate
@@ -37,11 +41,21 @@ import {
 } from '@anc/core';
 import { currentLocale } from '../i18n';
 import type { Locale } from '../i18n/locale';
+import {
+  CIQUAL_SOURCE_PREFIX,
+  CiqualIndex,
+  ciqualDatabaseFood,
+  type CiqualLoader,
+} from './ciqual-index';
 import { foldText } from './fold';
-import { seedName, seedPresets } from './food-display';
+import { ciqualPresets, offPresets, seedName, seedPresets } from './food-display';
 import { classifyFoodGroup } from './food-group-classifier';
 import { LruCache } from './lru-cache';
-import { createOffBarcodeSource, type OffBarcodeSource } from './off-barcode-source';
+import {
+  createOffBarcodeSource,
+  type OffBarcodeResult,
+  type OffBarcodeSource,
+} from './off-barcode-source';
 import { seedFoods, type SeedFood } from './seed-foods';
 
 export const SEARCH_CACHE_CAPACITY = 32;
@@ -53,6 +67,14 @@ export interface OfflineFirstFoodCatalogOptions {
   readonly searchCacheCapacity?: number;
   readonly barcodeCacheCapacity?: number;
   readonly offSource?: OffBarcodeSource;
+  /**
+   * Where the CIQUAL table comes from, called lazily on the first search. Omitted = no CIQUAL
+   * (the curated seeds only: what unit tests of the seed ranking want). The app passes
+   * `createCiqualFetchLoader()`.
+   */
+  readonly ciqual?: CiqualLoader;
+  /** Wait this long (ms) after a failed CIQUAL load before trying again. Default 30 s. */
+  readonly ciqualRetryMs?: number;
   /**
    * The language names, portion labels and Open Food Facts names are worded in, asked at call time
    * (so a language switch takes effect on the next search). Defaults to the app's current one.
@@ -67,8 +89,14 @@ export interface OfflineFirstFoodCatalogOptions {
   readonly onlineLookupAllowed: () => Promise<boolean>;
 }
 
-function toDatabaseFood(seed: SeedFood, displayName: string): DatabaseFood {
+function toDatabaseFood(
+  seed: SeedFood,
+  displayName: string,
+  index: CiqualIndex | null,
+): DatabaseFood {
+  const nutrients = seed.ciqual === undefined ? undefined : index?.byCode(seed.ciqual)?.nutrients;
   return databaseFood({
+    ...(nutrients ? { nutrientsPer100g: nutrients } : {}),
     sourceRef: seed.sourceRef,
     // The text is kept with the plate (exports stay readable); the plate itself is shown from the
     // catalogue's name for `sourceRef`, so a later language switch still reads right.
@@ -104,6 +132,11 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   private readonly onlineLookupAllowed: () => Promise<boolean>;
   private readonly locale: () => Locale;
   private readonly nameOf: (seed: SeedFood, locale: Locale) => string;
+  private readonly ciqualLoader: CiqualLoader | undefined;
+  private readonly ciqualRetryMs: number;
+  private ciqualIndex: CiqualIndex | null = null;
+  private ciqualLoading: Promise<CiqualIndex | null> | null = null;
+  private ciqualFailedAt = Number.NEGATIVE_INFINITY;
   /** Display name and folded name per seed, per locale; built lazily (seeds and `nameOf` are fixed). */
   private readonly folded = new Map<Locale, readonly { name: string; folded: string }[]>();
 
@@ -115,6 +148,37 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     this.onlineLookupAllowed = options.onlineLookupAllowed;
     this.locale = options.locale ?? currentLocale;
     this.nameOf = options.nameOf ?? seedName;
+    this.ciqualLoader = options.ciqual;
+    this.ciqualRetryMs = options.ciqualRetryMs ?? 30_000;
+  }
+
+  /**
+   * The CIQUAL index, loading it on first use. `null` when there is no loader or the load failed
+   * (then retried no sooner than `ciqualRetryMs` later). Never throws; concurrent callers share
+   * one load.
+   */
+  private async ciqual(): Promise<CiqualIndex | null> {
+    if (this.ciqualIndex !== null) return this.ciqualIndex;
+    const loader = this.ciqualLoader;
+    if (loader === undefined) return null;
+    if (this.ciqualLoading === null) {
+      if (Date.now() - this.ciqualFailedAt < this.ciqualRetryMs) return null;
+      this.ciqualLoading = this.loadCiqual(loader);
+    }
+    try {
+      return await this.ciqualLoading;
+    } finally {
+      this.ciqualLoading = null;
+    }
+  }
+
+  private async loadCiqual(loader: CiqualLoader): Promise<CiqualIndex | null> {
+    try {
+      this.ciqualIndex = CiqualIndex.fromTable(await loader());
+    } catch {
+      this.ciqualFailedAt = Date.now();
+    }
+    return this.ciqualIndex;
   }
 
   /** Forgets every remembered query and barcode (the session ended). */
@@ -150,9 +214,17 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       const cached = this.searchCache.get(cacheKey);
       if (cached !== undefined) return rankedMatches(cached);
 
-      const trimmed = this.rank(foldText(normalized), locale).slice(0, Math.max(0, limit));
+      const index = await this.ciqual();
+      const trimmed = this.rank(foldText(normalized), locale, index, limit).slice(
+        0,
+        Math.max(0, limit),
+      );
       if (trimmed.length === 0) return notFound(normalized);
-      this.searchCache.put(cacheKey, trimmed);
+      // A list built without the table (not loaded yet, or the load failed) is not remembered, so
+      // the next search gets the full one.
+      if (index !== null || this.ciqualLoader === undefined) {
+        this.searchCache.put(cacheKey, trimmed);
+      }
       return rankedMatches(trimmed);
     } catch (error) {
       return catalogFailure('unknown', describe(error));
@@ -162,8 +234,13 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
   async lookupBySourceRef(sourceRef: string): Promise<DatabaseFood | null> {
     const needle = sourceRef.toLowerCase();
     const locale = this.locale();
+    const index = await this.ciqual();
     for (const seed of this.seeds) {
-      if (seed.sourceRef === needle) return toDatabaseFood(seed, this.nameOf(seed, locale));
+      if (seed.sourceRef === needle) return toDatabaseFood(seed, this.nameOf(seed, locale), index);
+    }
+    if (index !== null && needle.startsWith(CIQUAL_SOURCE_PREFIX)) {
+      const entry = index.byCode(needle.slice(CIQUAL_SOURCE_PREFIX.length));
+      if (entry !== undefined) return ciqualDatabaseFood(index, entry, locale);
     }
     return null;
   }
@@ -197,9 +274,7 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       let resolved: CatalogResult;
       switch (result.kind) {
         case 'match':
-          resolved = rankedMatches([
-            toBarcodeMatch(trimmed, result.displayName, result.categoryTags),
-          ]);
+          resolved = rankedMatches([toBarcodeMatch(trimmed, result, locale)]);
           break;
         case 'notFound':
           resolved = notFound(trimmed);
@@ -235,10 +310,16 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
     return list;
   }
 
-  private rank(query: string, locale: Locale): FoodMatch[] {
+  private rank(
+    query: string,
+    locale: Locale,
+    index: CiqualIndex | null,
+    limit: number,
+  ): FoodMatch[] {
     const scored: { match: FoodMatch; score: number }[] = [];
     const names = this.foldedNames(locale);
     const english = locale === 'en' ? null : this.foldedNames('en');
+    const matchedCodes = new Set<string>();
     for (const [i, seed] of this.seeds.entries()) {
       const { name, folded } = names[i] as { name: string; folded: string };
       const s = Math.max(
@@ -246,9 +327,10 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
         english === null ? 0 : score(query, (english[i] as { folded: string }).folded),
       );
       if (s > 0) {
+        if (seed.ciqual !== undefined) matchedCodes.add(seed.ciqual);
         scored.push({
           match: {
-            food: toDatabaseFood(seed, name),
+            food: toDatabaseFood(seed, name, index),
             confidence: s,
             presets: seedPresets(seed, locale),
           },
@@ -257,30 +339,47 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       }
     }
     scored.sort((a, b) => b.score - a.score);
-    return scored.map((s) => s.match);
+    const matches = scored.map((s) => s.match);
+    if (index === null) return matches;
+
+    // The curated foods first, then the table; the table's version of a seed already listed is left
+    // out. Table confidence stays below a curated exact match: 0.3 + 0.45 x score.
+    for (const hit of index.search(query, limit, { exclude: matchedCodes, locale })) {
+      matches.push({
+        food: ciqualDatabaseFood(index, hit.entry, locale),
+        confidence: Math.round((0.3 + 0.45 * hit.score) * 1000) / 1000,
+        presets: ciqualPresets(hit.entry.subgroupCode, locale),
+      });
+    }
+    return matches;
   }
 }
 
 /**
  * The `FoodMatch` for a barcode-resolved product. The group comes from OFF's `categories_tags`;
  * with no usable tag the food lands in `other` so the arc still renders. `sourceRef` is the
- * verbatim barcode. OFF ships no curated presets, so the list is empty and the UI falls back to a
- * single `~1 serving` placeholder.
+ * verbatim barcode. Nutrients and Nutri-Score / NOVA are whatever OFF knows (unknown stays
+ * absent). Presets are the product's serving, "100 g" and the whole pack, in grams.
  */
 function toBarcodeMatch(
   barcode: string,
-  displayName: string,
-  categoryTags: readonly string[],
+  product: Extract<OffBarcodeResult, { kind: 'match' }>,
+  locale: Locale,
 ): FoodMatch {
   return {
     food: databaseFood({
       sourceRef: barcode,
-      displayName,
+      displayName: product.displayName,
       source: 'off',
-      foodGroup: classifyFoodGroup(categoryTags),
+      foodGroup: classifyFoodGroup(product.categoryTags),
+      ...(product.nutrientsPer100g ? { nutrientsPer100g: product.nutrientsPer100g } : {}),
+      ...(product.extra ? { extra: product.extra } : {}),
     }),
     confidence: 1.0,
-    presets: [],
+    presets: offPresets(
+      { servingGrams: product.servingGrams, packGrams: product.packGrams },
+      locale,
+    ),
   };
 }
 

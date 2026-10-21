@@ -26,7 +26,7 @@ import {
   type FoodMatch,
   type RecognitionResult,
 } from '@anc/core';
-import { closestMatches } from './closest-matches';
+import { closestMatches, enrichRecognition } from './closest-matches';
 import type { PhotoUploadPermit } from '../ai/photo-upload-permit';
 import type { PhotoCapture } from './photo-capture';
 
@@ -144,6 +144,10 @@ export async function runPhotoFlow(deps: PhotoFlowDeps): Promise<PhotoFlowState>
     // An unspent one-shot permit must not outlive this photo.
     if (deps.isSuperseded?.() !== true) deps.permit.revoke();
   }
+  if (cancelled()) return { kind: 'denied' };
+
+  // The model names foods and guesses grams; the catalogue lends per-100 g nutrients when confident.
+  recognition = await enrichRecognition(recognition, deps.catalog);
   if (cancelled()) return { kind: 'denied' };
 
   const closest = await closestMatches(recognition, deps.catalog, deps.recentMatches);

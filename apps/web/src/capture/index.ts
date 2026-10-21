@@ -28,7 +28,13 @@ export {
   type PhotoSource,
 } from './photo-capture';
 export { runPhotoFlow, type PhotoFlowDeps, type PhotoFlowState } from './photo-flow';
-export { closestMatches, MAX_CLOSEST_MATCHES } from './closest-matches';
+export {
+  closestMatches,
+  enrichRecognition,
+  namesAgree,
+  MAX_CLOSEST_MATCHES,
+  NUTRIENT_MATCH_MIN_CONFIDENCE,
+} from './closest-matches';
 export { usePhotoFlow, type UsePhotoFlowDeps } from './usePhotoFlow';
 export { PhotoCapture } from './PhotoCapture';
 export { CameraNotice } from './CameraNotice';

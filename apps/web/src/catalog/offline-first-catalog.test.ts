@@ -363,7 +363,8 @@ describe('OfflineFirstFoodCatalog.lookupByBarcode', () => {
       sourceRef: '3017620422003',
       source: 'off',
     });
-    expect(matches[0]!.presets).toEqual([]);
+    // OFF ships no serving or pack here: only "100 g".
+    expect(matches[0]!.presets.map((q) => q.grams)).toEqual([100]);
     expect(off.callCount('3017620422003')).toBe(1);
   });
 
