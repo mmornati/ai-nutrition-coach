@@ -648,6 +648,77 @@ export const storeContractCases: readonly ContractCase[] = [
 
   // ── key/value ───────────────────────────────────────────────────────────────────────────────
   {
+    name: 'grams and per-100 g nutrients round-trip through the store (snapshot at log time)',
+    async run({ store }) {
+      const weighed: FoodEntryDraft = {
+        databaseFood: {
+          sourceRef: 'off:123',
+          displayName: 'Yogurt',
+          source: 'off',
+          foodGroup: 'dairy',
+          nutrientsPer100g: { energyKcal: 61, protein: 3.5, salt: 0 },
+          extra: { nutriscoreGrade: 'b', novaGroup: 3 },
+        },
+        quantity: {
+          low: 125,
+          high: 125,
+          unit: 'g',
+          displayLabel: '125 g',
+          grams: 125.5,
+          gramsEstimated: true,
+        },
+      };
+      const typed: FoodEntryDraft = {
+        ...draft('Apple'),
+        quantity: {
+          low: 80,
+          high: 80,
+          unit: 'g',
+          displayLabel: '80 g',
+          grams: 80,
+          gramsEstimated: false,
+        },
+      };
+      const plain = draft('Bread');
+      const recorded = await record(store, [weighed, typed, plain], T0);
+      same(
+        recorded.entries[0]?.databaseFood.nutrientsPer100g,
+        { energyKcal: 61, protein: 3.5, salt: 0 },
+        'returned nutrients',
+      );
+      const [back] = await read(store);
+      const [a, b, c] = back?.entries ?? [];
+      same(a?.quantity.grams, 125.5, 'grams');
+      same(a?.quantity.gramsEstimated, true, 'estimated');
+      same(
+        a?.databaseFood.nutrientsPer100g,
+        { energyKcal: 61, protein: 3.5, salt: 0 },
+        'nutrients',
+      );
+      same(a?.databaseFood.extra, { nutriscoreGrade: 'b', novaGroup: 3 }, 'extra');
+      same(b?.quantity.gramsEstimated, false, 'typed weight is not an estimate');
+      assert(b?.databaseFood.nutrientsPer100g === undefined, 'unknown nutrients stay unknown');
+      assert(
+        c !== undefined &&
+          c.quantity.grams === undefined &&
+          c.quantity.gramsEstimated === undefined,
+        'no grams stays absent',
+      );
+      assert(c?.databaseFood.extra === undefined, 'no extra stays absent');
+    },
+  },
+  {
+    name: 'an invalid grams value is refused with a typed invalidQuantity result',
+    async run({ store }) {
+      const bad: FoodEntryDraft = {
+        ...draft('Bad'),
+        quantity: { low: 1, high: 1, unit: 'g', displayLabel: 'x', grams: 0 },
+      };
+      const result = await store.recordPlate({ entries: [bad], loggedAtUtc: T0 });
+      assert(result.kind !== 'recordPlateSuccess', 'zero grams is refused');
+    },
+  },
+  {
     name: 'kv: reads null, writes, overwrites and deletes',
     async run({ kv }) {
       assert((await kv.read('a.b')) === null, 'absent');

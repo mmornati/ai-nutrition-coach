@@ -13,6 +13,11 @@ export interface EntryInsert {
   readonly quantityHigh: string;
   readonly quantityUnit: string;
   readonly quantityDisplayLabel: string;
+  /** Schema v2, all nullable: weight in grams (text, verbatim), 0/1 estimate flag, JSON text. */
+  readonly quantityGrams?: string | null;
+  readonly quantityGramsEstimated?: number | null;
+  readonly nutrientsPer100g?: string | null;
+  readonly foodExtra?: string | null;
 }
 
 export interface InsertedPlate {
