@@ -6,7 +6,7 @@
  * name) keeps the text it was logged with. A portion is worded from `(low, high, unit)` with the
  * locale's unit names and number format ("~1,5 tasse", "~1–2 tasses"), but only for units the
  * catalogue knows: a model's free-text hint ("about 2 fists") is not rebuilt, the stored
- * `displayLabel` stays. The label is always an honest range, never a kcal figure.
+ * `displayLabel` stays. The label is a portion range; grams and nutrient values arrive in schema v2 (docs/adr/0006).
  */
 import type { DatabaseFood, QuantityRange } from '@anc/core';
 import { currentLocale, plural, type PluralForms } from '../i18n';

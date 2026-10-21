@@ -75,7 +75,7 @@ export function dayRouteLabel(d: WeekDayData): string {
   return routeStop(weekdayName(d.date), dayState(d), d.isToday);
 }
 
-/** Text alternative for a whole day: which lines stopped and which were quiet. Never a score. */
+/** Text alternative for a whole day: which lines stopped and which were quiet. No app-invented score. */
 export function describeDay(d: WeekDayData): string {
   const w = strings().week;
   if (isEmptyDay(d)) return w.dayNothing;

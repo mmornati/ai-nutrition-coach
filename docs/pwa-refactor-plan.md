@@ -20,7 +20,7 @@ React 19 + Vite + TypeScript + Tailwind v4 + a hardened service worker (`tools/p
 
 Chosen on 2026-10-13 from four directions (Crate Label, Thali Table, Food Lines, Plate Tiles). It replaces the earlier "Sage & Cream calm" visual world. The behavior rules (EXPERIENCE.md, No-Dark-Patterns Standard) are unchanged.
 
-**Idea:** the day is a transit map. The four food groups are four coloured lines; each meal is a station where lines stop or pass through. Balance reads as "which lines stopped here", never as a score, ring or calorie total.
+**Idea:** the day is a transit map. The four food groups are four coloured lines; each meal is a station where lines stop or pass through. Balance reads as "which lines stopped here", never as an app-invented score or a ring. (Updated 2026-10-21, ADR 0006: real nutrient values are now planned, shown as plain bars against a reference, never as a ring or a score.)
 
 - **Prototype:** [`docs/design/food-lines/index.html`](design/food-lines/index.html). Open it in a browser and resize between phone and desktop.
 - **Direction contract:** `.impeccable/surfaces/docs-design-food-lines-index-html.md`

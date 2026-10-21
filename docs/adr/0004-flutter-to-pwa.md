@@ -43,7 +43,7 @@ Accepted trade-offs:
 - **No-Dark-Patterns Standard** (`docs/no-dark-patterns-standard.md`): no streaks, countdowns, badges, celebratory pop-ups, push re-engagement, card sprawl, red-guilt states or resolve spinners; named-reviewer sign-off.
 - **Zero telemetry** by default; only user-initiated network paths (Open Food Facts barcode lookup, the user's own BYOK endpoint). Pinned by an import-based gate and a built-bundle host scan.
 - **Adults-only, no biometrics, no under-13 profiles.**
-- **Honest quantities** (`QuantityRange`, never false-exact kcal).
+- **Honest quantities** (`QuantityRange`, never false-exact kcal). Superseded 2026-10-21 by ADR 0006: grams and nutrients are now planned, labelled as estimates where uncertain.
 - **Self-host first:** one command, hardened static nginx container, strict CSP, no server-side user data, HTTPS via Caddy or Traefik.
 
 ## Alternatives considered

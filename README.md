@@ -5,7 +5,8 @@ _(formerly OpenPlate)_
 AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you
 ate via photo, barcode, or voice/typing, and it lands on your Day
 Board as one honest row per meal. No streaks, no scores, no
-false-exact calories.
+guilt. Real numbers (grams, nutrients) are planned and will be shown
+plainly and calmly, as estimates where they are estimates (ADR 0006).
 
 The project is open-source (MIT — see [`LICENSE`](./LICENSE)) and
 self-hostable with one command. The trust mechanic is architecture,

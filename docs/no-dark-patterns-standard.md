@@ -28,9 +28,35 @@ not ship. The named reviewer ticks each one off on every PR.
 - **Red-guilt states** — no red on failure (FR-15); muted amber
   only, and only as a calm accent; the failure state is the same
   mono voice as the rest of the chrome.
+  Nutrient values never turn red, amber or any warning colour,
+  whatever their size.
+- **Over-budget framing** — no "over budget", "exceeded", "calories
+  remaining" or "left today" copy, no allowance being spent down, and
+  no guilt-coloured numbers. App-invented scores, points and grades are
+  banned with it.
 - **Resolve spinners** — no `CircularProgressIndicator` on the
   resolve path; a quiet inline shimmer at most (UX-DR6); the
   chip-flip is `Opacity`-only.
+
+## Allowed: real numbers, calmly framed
+
+Since 2026-10-21 (ADR 0006, `docs/adr/0006-nutrition-numbers-calm-framing.md`)
+the app may show grams, kcal and nutrient values. Allowed, with the
+reviewer checking each use:
+
+- Plain value + unit text ("about 18 g of sugars"), with "~" on estimates
+  and ranges where data is uncertain.
+- Neutral horizontal bars against a named reference (EU Reference Intake
+  or the person's own target): one neutral colour, the same at every
+  amount, with the value always in text (see `DESIGN.md`, Nutrient Bars).
+- Open Food Facts Nutri-Score and NOVA as attributed third-party product
+  information, never as a score of the person.
+- A coach that states specific nutrition facts while still asking rather
+  than scolding.
+
+A number is information against a reference, never an allowance being
+spent down. Rings, donuts, grades, points, red bars and "calories
+remaining" stay banned.
 
 ## Named reviewer
 

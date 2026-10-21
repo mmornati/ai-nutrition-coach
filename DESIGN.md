@@ -157,11 +157,11 @@ components:
 
 **Creative North Star: "The Night Line Map"**
 
-The day is a transit diagram printed on midnight enamel. The four food groups are four coloured lines running the full height of the day; each meal is a station where some lines stop and others pass through. Balance is read the way a rider reads a map, by which lines served a station, never as a score, ring, donut or calorie total. Everything else is signage: porcelain ink, condensed uppercase station names, square outlined buttons, thick porcelain rules under headers.
+The day is a transit diagram printed on midnight enamel. The four food groups are four coloured lines running the full height of the day; each meal is a station where some lines stop and others pass through. Balance is read the way a rider reads a map, by which lines served a station, never as a score, ring or donut. Real nutrient values (grams, kcal, per-100 g facts) are planned as plain text and neutral horizontal bars against a reference intake, drawn as quiet signage beside the station and never as a verdict (ADR 0006). Everything else is signage: porcelain ink, condensed uppercase station names, square outlined buttons, thick porcelain rules under headers.
 
 Density is wayfinding-calm rather than dashboard-busy: one diagram, a few station names, one coach question at a time. The energy comes from the saturated line inks against a deep ground and from the condensed display type, not from motion or decoration. The world is dark-first; a porcelain-ground light variant is unresolved and has not been built.
 
-The system rejects the category default of white cards with macro donuts and progress rings.
+The system rejects the category default of white cards with macro donuts, progress rings and red over-budget states. Numbers are welcome; pressure is not.
 
 **Key Characteristics:**
 - Four line inks are the only chromatic colours; everything else is enamel and porcelain.
@@ -283,12 +283,22 @@ Days across, four horizontal lines down, each with terminus ticks. A stop is an 
 ### Capture Sheet
 Bottom sheet on raised enamel with a 4px porcelain top rule, sliding up (0.35s, cubic-bezier(.16,1,.3,1)) over a 60% dark scrim; becomes a centred dialog on desktop. The snapshot option is a full-width porcelain tile (132px tall); barcode and typing are outlined tiles (96px) side by side.
 
+### Nutrient Bars (planned, schema v2)
+Per plate and per day, each nutrient (energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt) is one row: label, value with unit ("18 g"), and a thin horizontal bar against a reference. The reference is the EU Reference Intake (energy 2000 kcal, fat 70 g, saturates 20 g, carbohydrate 260 g, sugars 90 g, protein 50 g, salt 6 g; fibre about 25-30 g recommended) or, later, a target from the person's optional profile, and its source is named in text ("of the EU reference intake"). Rules:
+- Track in Night Rule, fill in one neutral colour (porcelain-dim), a 1px reference tick in porcelain. The fill is a single colour for every nutrient and every value, including above the reference: it never turns red, amber or any line ink, and it never changes with the amount.
+- The bar is clamped at the track end and, past the reference, says so in plain words ("about 120% of the reference"), with no exclamation, no "over budget", no "remaining".
+- The value and unit are always text, and the bar is `aria-hidden` or exposed as a `meter` with the same sentence. Colour and length are never the only signal. Do not use `role="progressbar"` (the No-Dark-Patterns test bans it for spinners).
+- Estimates carry "~" ("~18 g"); uncertain ones may be a range ("~15-20 g").
+- No rings, donuts or radial gauges, no per-meal grades, no summed "score". Nutri-Score and NOVA appear only as Open Food Facts product information, attributed ("Nutri-Score B, from Open Food Facts"), never as a grade of the person.
+- Square-ended bars, no shadow, no animation beyond the reduced-motion-safe fade.
+
 ### Arrival Motion
 When a plate resolves, the station capsule draws in (0.55s) and each present line's stop dot pops onto it in line order, staggered 60ms. While resolving, an amber condensed "Reading the plate…" line replaces the hint; no spinner. Reduced motion skips to the end state.
 
 ## Do's and Don'ts
 
 ### Do:
+- **Do** show real nutrient values as value + unit text with a neutral bar against a named reference, with "~" on estimates (see Nutrient Bars).
 - **Do** express balance only as which lines stopped at a station: dots on lines, line-bar cells, day-list segments.
 - **Do** pair every line colour with its name or a text summary ("Dairy passed through without a stop") so colour is never the only signal.
 - **Do** draw absent or pending states dashed and neutral (open station, missed stop, passed line).
@@ -297,7 +307,8 @@ When a plate resolves, the station capsule draws in (0.55s) and each present lin
 - **Do** put Barlow Condensed uppercase on names and actions and Barlow on sentences.
 
 ### Don't:
-- **Don't** introduce rings, donuts, progress bars, scores or calorie totals to show balance.
+- **Don't** introduce rings, donuts, radial gauges, scores, grades or points. Balance is shown by lines; nutrient quantities by the neutral Nutrient Bars only.
+- **Don't** colour a nutrient value red, amber or any line ink, or write "over budget", "remaining", "exceeded" or "calories left"; numbers are information, not a limit the person has failed.
 - **Don't** use a line ink for anything other than its food group, and don't use protein scarlet as an error or warning colour.
 - **Don't** round the corners of buttons, cards, chips, fields or sheets; roundness belongs to stops, rings and station capsules.
 - **Don't** add drop shadows or blur for depth; use the raised enamel plane or a rule.

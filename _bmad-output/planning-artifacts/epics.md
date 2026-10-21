@@ -64,7 +64,7 @@ NFR4 (Privacy by architecture): At-rest data encrypted (mobile: ChaCha20-Poly130
 
 NFR5 (Offline-first): Full feature set works with network revoked; sync retries silently on reconnection; never drops or duplicates data (UJ-5, FR-9, FR-10).
 
-NFR6 (Honest quantities): Quantities stored and rendered as honest ranges ("~2 fists"), never false-exact kcal; portion estimates carry uncertainty treatment; no red-as-guilt color, no score, no streak across any surface.
+NFR6 (Honest quantities): Quantities stored and rendered as honest ranges ("~2 fists"), never false-exact kcal; portion estimates carry uncertainty treatment; no red-as-guilt color, no score, no streak across any surface. *(Superseded 2026-10-21 by `docs/adr/0006-nutrition-numbers-calm-framing.md`: real numbers, calm framing.)*
 
 NFR7 (Accessibility floor): Touch targets ≥48px; keyboard + screen-reader parity (balance arc announces food groups, not just counts; status chips announce transitions); reduced-motion collapses to fade; color never the sole signal (arc always paired with text labels); localization key store for translation; dynamic type honored without truncation at largest setting.
 
