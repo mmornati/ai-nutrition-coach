@@ -16,9 +16,9 @@ const strings = new Map(COACH_TAXONOMY_KEYS.map((k) => [k, `copy for ${k}`]));
 const lookup = (key: string): string | undefined => strings.get(key);
 
 describe('coach taxonomy (bounded and curated)', () => {
-  it('ships exactly 3 anchors x 8 patterns = 24 keys, all distinct', () => {
-    expect(COACH_TAXONOMY).toHaveLength(24);
-    expect(new Set(COACH_TAXONOMY_KEYS).size).toBe(24);
+  it('ships exactly 3 anchors x 14 patterns = 42 keys, all distinct', () => {
+    expect(COACH_TAXONOMY).toHaveLength(42);
+    expect(new Set(COACH_TAXONOMY_KEYS).size).toBe(42);
     for (const anchor of COACH_ANCHORS) {
       for (const pattern of COMPOSITION_PATTERNS) {
         expect(COACH_TAXONOMY_KEYS).toContain(coachQuestionKey(anchor, pattern));

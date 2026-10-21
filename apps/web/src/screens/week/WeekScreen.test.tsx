@@ -75,7 +75,7 @@ describe('WeekScreen', () => {
     await openWeek();
     const text = document.body.textContent ?? '';
     expect(text).toContain('No streaks, no countdowns, no guilt.');
-    expect(text).not.toMatch(/\bstreak(?!s)\b|\bscore\b|\bbadge\b|\bgoal\b|\d+ ?day/i);
+    expect(text).not.toMatch(/\bstreak(?!s)\b|\bscore\b|\bbadge\b|\bgoal\b|in a row/i);
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 

@@ -444,6 +444,41 @@ export const en = {
     noteQuietDays: '{name} was quiet on {days}.',
     noteQuietAll: '{name} stayed quiet all week.',
     noteQuietMany: '{names} were quiet this week.',
+    review: {
+      title: 'The week, in short',
+      daysLogged: {
+        zero: 'No days with meals logged yet',
+        one: '{count} day with meals logged',
+        other: '{count} days with meals logged',
+      },
+      averagesTitle: 'Daily average',
+      averagesNote: {
+        one: 'Averaged over the {count} day that has weights and nutrition data.',
+        other: 'Averaged over the {count} days that have weights and nutrition data.',
+      },
+      wentWellTitle: 'What went well',
+      tryTitle: 'One thing to try',
+      positives: {
+        vegMostDays: 'Veg or fruit came up on {days} of {of} logged days.',
+        proteinSteady: 'Protein averaged {approx}{g} g a day, a steady amount.',
+        fibreSteady: 'Fibre averaged {approx}{g} g a day, a steady amount.',
+        saltModerate: 'Salt averaged {approx}{g} g a day, on the lighter side.',
+        sugarsModerate: 'Sugars averaged {approx}{g} g a day, on the lighter side.',
+        variedWeek: 'Veg, protein, starch and dairy each showed up on at least two days.',
+      },
+      suggestions: {
+        moreVeg:
+          'Veg or fruit came up on {days} of {of} logged days. Could a handful join one more meal next week?',
+        moreProtein:
+          'Protein averaged {approx}{g} g a day. Eggs, beans, tofu or fish at lunch could add some next week.',
+        moreFibre:
+          'Fibre averaged {approx}{g} g a day. Beans, oats or wholegrain bread are easy places to start.',
+        easeSalt:
+          'Salt averaged {approx}{g} g a day. Tasting before salting is a gentle place to start.',
+        easeSugars:
+          'Sugars averaged {approx}{g} g a day. Fruit or plain yogurt in place of one sweet item is a small change.',
+      },
+    },
   },
   /** AboutNoticeScreen (app_en.arb): the one-time notice before the first passphrase screen. */
   about: {
@@ -584,6 +619,8 @@ export const en = {
     removeAction: 'Remove this plate',
   },
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
+  /** How a share of the day's reference reads inside a coach note. */
+  coachShare: { around: 'around {pct}%', underOne: 'less than 1%' },
   coachQuestions: {
     'post.resolve.vegLight':
       'No veg or fruit so far today. Could a handful join this meal, even on the side?',
@@ -622,6 +659,42 @@ export const en = {
       'Eggs, yogurt or a handful of nuts tend to last longer than bread or cereal alone, if you ever want a change.',
     'depth.followUp.proteinMissingDay':
       'Tinned fish, eggs and canned beans keep well and need no cooking.',
+    'post.resolve.sugarsHighItem':
+      'This {food} has {approx}{g} g of sugars, {share} of a day’s guide. Is it a treat today, or a habit worth a look?',
+    'post.resolve.saltHighPlate':
+      'This plate has {approx}{g} g of salt, {share} of a day’s guide. Might the rest of the day go lighter on salt?',
+    'post.resolve.satFatHighPlate':
+      'This plate has {approx}{g} g of saturated fat, {share} of a day’s guide. Would something lighter on it suit your next meal?',
+    'post.resolve.energyDenseSnack':
+      'That snack comes to {approx}{kcal} kcal, with no protein or veg alongside. Would some fruit or a glass of milk sit well with it?',
+    'post.resolve.proteinLowDay':
+      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could eggs, beans, tofu or fish find a place in your next meal?',
+    'post.resolve.fibreLowDay':
+      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Would a piece of fruit or a handful of nuts fit in tonight, or at breakfast tomorrow?',
+    'openPlate.proteinLowDay':
+      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have eggs, beans, tofu or fish?',
+    'openPlate.fibreLowDay':
+      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have beans, wholegrain bread or fruit?',
+    'depth.followUp.sugarsHighItem':
+      'Plain yogurt with a few pieces of fruit, or sweetening it yourself with a spoon of jam, lets you choose how sweet it is.',
+    'depth.followUp.saltHighPlate':
+      'Tasting before adding salt, and rinsing tinned beans or vegetables, quietly lowers it without changing the meal.',
+    'depth.followUp.satFatHighPlate':
+      'Olive oil or a little less cheese or butter on the next plate shifts the balance, and a handful of nuts is a good swap for a snack.',
+    'depth.followUp.energyDenseSnack':
+      'A piece of fruit with a few nuts, or yogurt, is as quick as a biscuit and lasts longer.',
+    'depth.followUp.proteinLowDay':
+      'Tinned fish, eggs, canned beans or a pot of plain yogurt add protein in two minutes and need no cooking.',
+    'depth.followUp.fibreLowDay':
+      'Porridge oats, a tin of lentils or chickpeas, or an apple with its skin are easy sources of fibre.',
+    'post.resolve.proteinLowDay.none':
+      'No protein logged so far today. Could eggs, beans, tofu or fish find a place in your next meal?',
+    'post.resolve.fibreLowDay.none':
+      'No fibre logged so far today. Would a piece of fruit or a handful of nuts fit in tonight, or at breakfast tomorrow?',
+    'openPlate.proteinLowDay.none':
+      'No protein logged so far today. Could this meal have eggs, beans, tofu or fish?',
+    'openPlate.fibreLowDay.none':
+      'No fibre logged so far today. Could this meal have beans, wholegrain bread or fruit?',
   },
   /** SettingsStrings (the earlier client) and the Settings rows of app_en.arb. */
   settings: {
