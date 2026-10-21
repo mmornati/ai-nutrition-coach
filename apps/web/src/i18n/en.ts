@@ -561,6 +561,9 @@ export const en = {
       salt: 'Salt',
     },
     reference: 'about {percent}% of the EU reference intake ({reference})',
+    /** The same, when a profile drives the guide. */
+    referencePersonal: 'about {percent}% of your daily guide ({reference})',
+    referenceUnderOnePersonal: 'less than 1% of your daily guide ({reference})',
     /** A value above zero that rounds to 0%. */
     referenceUnderOne: 'less than 1% of the EU reference intake ({reference})',
     barsLabel: 'Nutrient amounts against reference intakes',
@@ -571,6 +574,50 @@ export const en = {
     whatAre: 'What are reference intakes?',
     whatAreBody:
       'Reference intakes are the daily amounts set in EU Regulation 1169/2011 for an average adult eating 2000 kcal a day. Fibre has no EU value; 25 g is a general recommendation. Your own needs may differ, and the bars are information, not a target.',
+    whatAreBodyPersonal:
+      'The bars use your daily guide, worked out from the profile you chose in Settings: energy from European (EFSA) reference values for your age range, sex and activity, and the other nutrients scaled from it. It is an estimate for an average adult, not advice, and the bars are information, not a target. Without a profile, the EU reference intakes are used (2000 kcal a day).',
+  },
+  /** Eating-disorder support: always available, calm, one canonical organisation per language. */
+  support: {
+    line: 'If food or weight worries take up a lot of your thoughts, talking to someone can help.',
+    linkLabel: 'Beat, the UK eating disorder charity',
+    newTab: '(opens in a new tab)',
+  },
+  profile: {
+    title: 'Profile',
+    intro:
+      'Optional. It only tunes the daily guide and the coach. It stays encrypted on this device.',
+    notSet: 'Not set',
+    ageBand: 'Age range',
+    sex: 'Sex',
+    activity: 'Activity',
+    goal: 'Goal',
+    diet: 'Diet',
+    sexOptions: { female: 'Female', male: 'Male', unspecified: 'Prefer not to say' },
+    activityOptions: { low: 'Mostly seated', moderate: 'Some movement', high: 'Very active' },
+    goalOptions: {
+      eatBetter: 'Eat better',
+      maintain: 'Stay as I am',
+      lose: 'Lose a little weight',
+      gain: 'Gain a little weight',
+    },
+    dietOptions: {
+      omnivore: 'Everything',
+      vegetarian: 'Vegetarian',
+      vegan: 'Vegan',
+      pescatarian: 'Fish, no meat',
+    },
+    allergiesLabel: 'Allergies or foods to avoid',
+    allergiesHelp: 'Type one at a time, then add it.',
+    allergyAdd: 'Add',
+    allergyRemove: 'Remove {tag}',
+    guideComplete: 'Your daily guide is about {energy} kcal.',
+    guideIncomplete:
+      'Set sex, age range and activity to tailor the daily guide. Until then the EU reference intake is used.',
+    goalNote: 'A goal only moves the energy guide by 10 %, and never below 1500 kcal.',
+    clear: 'Clear profile',
+    cleared: 'Profile cleared.',
+    saveFailed: 'That did not save just now. Nothing changed.',
   },
   nutritionSettings: {
     title: 'Nutrition',
@@ -637,6 +684,8 @@ export const en = {
     rowPrivacySubtitle: 'what is stored · what is sent',
     rowNutrition: 'Nutrition',
     rowNutritionSubtitle: 'show or hide numbers',
+    rowProfile: 'Profile',
+    rowProfileSubtitle: 'optional · tunes the daily guide',
     rowLanguage: 'Language',
     rowLanguageSubtitle: 'match your device · or choose',
     rowInstall: 'Install on your phone',

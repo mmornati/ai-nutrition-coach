@@ -40,6 +40,11 @@ NETWORK_HOSTS=(world.openfoodfacts.org)
 #                           scripts/fetch_web_sqlite3mc.sh); text only, never requested. The
 #                           trailing-colon forms are how the scanner sees "https://sqlite.org:" in
 #                           the licence prose.
+#   beateatingdisorders.org.uk, ffab.fr   the two eating-disorder support links of the "talking to
+#                           someone can help" line (apps/web/src/components/nutrition/support.ts):
+#                           plain `<a href target=_blank rel="noopener noreferrer">` links the person
+#                           may click, never fetched by the app; allowed as EXACT URLs only
+#                           (docs/no-dark-patterns-standard.md, "Support").
 #   tailwindcss.com         the MIT licence banner Tailwind writes into the built CSS
 #                           (`/*! tailwindcss vX | MIT License | https://tailwindcss.com */`);
 #                           text only, never requested.
@@ -54,6 +59,8 @@ INERT_URLS=(
   "https://sqlite.org:"
   "https://sqlite.org/wasm/doc/trunk/persistence.md#coop-coep"
   "https://tailwindcss.com"
+  "https://www.beateatingdisorders.org.uk/get-information-and-support/get-help-for-myself/support-now/"
+  "https://www.ffab.fr/trouver-de-l-aide/permanence-telephonique"
 )
 INERT_URL_PREFIXES=(
   "https://react.dev/errors/"

@@ -21,7 +21,7 @@ async function openSettings(hash = '#/settings') {
 const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
 
 describe('SettingsScreen', () => {
-  it('lists Your AI, Your data, Privacy, Language, Nutrition, Install on your phone and About, in that order, with their subtitles', async () => {
+  it('lists Your AI, Your data, Privacy, Language, Nutrition, Profile, Install on your phone and About, in that order, with their subtitles', async () => {
     await openSettings();
     await heading('Settings');
     const rows = screen
@@ -33,6 +33,7 @@ describe('SettingsScreen', () => {
       'Privacy',
       'Language',
       'Nutrition',
+      'Profile',
       'Install on your phone',
       'About',
     ]);
@@ -41,6 +42,7 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('what is stored · what is sent')).toBeVisible();
     expect(screen.getByText('match your device · or choose')).toBeVisible();
     expect(screen.getByText('show or hide numbers')).toBeVisible();
+    expect(screen.getByText('optional · tunes the daily guide')).toBeVisible();
     expect(screen.getByText('offline · own icon')).toBeVisible();
     expect(document.body.textContent?.toLowerCase()).not.toContain('tip jar');
   });

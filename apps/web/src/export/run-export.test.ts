@@ -40,13 +40,10 @@ function setup(
       return Promise.resolve();
     },
   };
-  const run = createRunExport({
-    exporters: { csv: createCsvExporter(store), json: createJsonExporter(store) },
-    destination,
-    history: createExportHistory(kv),
-    clock: () => NOW,
-  });
-  return { run, written, data };
+  const exporters = { csv: createCsvExporter(store), json: createJsonExporter(store) };
+  const history = createExportHistory(kv);
+  const run = createRunExport({ exporters, destination, history, clock: () => NOW });
+  return { run, written, data, exporters, destination, history };
 }
 
 describe('runExport', () => {
@@ -64,6 +61,30 @@ describe('runExport', () => {
     await t.run({ format: 'json', scope: ALL_HISTORY_SCOPE });
     expect(t.written[0]?.mimeType).toBe('application/json');
     expect(Object.keys(JSON.parse(t.written[0]?.text ?? '{}') as object)).toEqual(['plates']);
+  });
+
+  it('puts the profile in the json export only, and a failing read just leaves it out', async () => {
+    const t = setup();
+    const withProfile = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readProfile: () => Promise.resolve({ sex: 'female' }),
+    });
+    await withProfile({ format: 'json', scope: ALL_HISTORY_SCOPE });
+    await withProfile({ format: 'csv', scope: ALL_HISTORY_SCOPE });
+    expect(JSON.parse(t.written[0]?.text ?? '{}')).toMatchObject({ profile: { sex: 'female' } });
+    expect(t.written[1]?.text).not.toContain('female');
+    const failing = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readProfile: () => Promise.reject(new Error('locked')),
+    });
+    await failing({ format: 'json', scope: ALL_HISTORY_SCOPE });
+    expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
   });
 
   it('failing to remember the date never turns a successful export into an error', async () => {

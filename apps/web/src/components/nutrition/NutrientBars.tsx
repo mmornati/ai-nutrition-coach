@@ -1,12 +1,14 @@
 import {
   NUTRIENT_KEYS,
   EU_REFERENCE_INTAKES,
+  type DailyTargets,
   type NutrientKey,
   type NutrientTotals,
 } from '@anc/core';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { formatNutrient, formatReference, formatWhole } from './format';
+import { SupportLine } from './SupportLine';
 
 /** The two sub-rows that sit under their parent nutrient. */
 const SUB_ROWS: ReadonlySet<NutrientKey> = new Set(['sugars', 'saturatedFat']);
@@ -37,7 +39,15 @@ export const hasNutrition = (nutrition: NutrientTotals): boolean =>
  * colour for every nutrient and every amount, so a value past the reference only fills the track
  * and says its number. No red, no warning, no "over". Not a `progressbar`.
  */
-export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals }) {
+export function NutrientBars({
+  nutrition,
+  targets = EU_REFERENCE_INTAKES,
+}: {
+  readonly nutrition: NutrientTotals;
+  /** The daily guide the bars are drawn against; the EU reference intakes by default. */
+  readonly targets?: DailyTargets;
+}) {
+  const personal = targets !== EU_REFERENCE_INTAKES;
   const all = useStrings();
   const { locale } = useLocale();
   const t = all.nutrition;
@@ -49,7 +59,7 @@ export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals
       <ul aria-label={t.barsLabel} className="border-porcelain flex flex-col border-t-2">
         {present.map((key) => {
           const value = nutrition.totals[key] ?? 0;
-          const reference = EU_REFERENCE_INTAKES[key];
+          const reference = targets[key];
           const percent = Math.round((value / reference) * 100);
           // Above zero but under half a percent: say so instead of "about 0%".
           const underOne = value > 0 && percent === 0;
@@ -72,10 +82,19 @@ export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals
                 <div className="bg-porcelain absolute inset-y-0 right-0 w-px" />
               </div>
               <p className="text-body-small text-signal-muted mt-1">
-                {fill(underOne ? t.referenceUnderOne : t.reference, {
-                  percent: formatWhole(percent, locale),
-                  reference: formatReference(key, reference, locale),
-                })}
+                {fill(
+                  underOne
+                    ? personal
+                      ? t.referenceUnderOnePersonal
+                      : t.referenceUnderOne
+                    : personal
+                      ? t.referencePersonal
+                      : t.reference,
+                  {
+                    percent: formatWhole(percent, locale),
+                    reference: formatReference(key, reference, locale),
+                  },
+                )}
               </p>
             </li>
           );
@@ -90,7 +109,8 @@ export function NutrientBars({ nutrition }: { readonly nutrition: NutrientTotals
         <summary className="min-h-12 cursor-pointer py-3 underline underline-offset-4">
           {t.whatAre}
         </summary>
-        <p className="pb-2">{t.whatAreBody}</p>
+        <p className="pb-2">{personal ? t.whatAreBodyPersonal : t.whatAreBody}</p>
+        <SupportLine className="pb-2" />
       </details>
     </div>
   );

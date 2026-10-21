@@ -58,6 +58,27 @@ A number is information against a reference, never an allowance being
 spent down. Rings, donuts, grades, points, red bars and "calories
 remaining" stay banned.
 
+## Support
+
+Food and weight can weigh on people. The app carries one calm, always-available line, in
+*Settings → Nutrition* (under the numbers switch), in the "What are reference intakes?"
+disclosure under the bars, and next to the goal choice in *Settings → Profile* when the goal is to
+lose weight: "If food or weight worries take up a lot of your thoughts, talking to someone can
+help." followed by a link. It never tells anyone they have a problem, and it is not conditioned on
+anything the person logged. The link opens in a new tab (`rel="noopener noreferrer"`) and is never
+fetched by the app; the exact URLs are allow-listed in `tools/check_no_external_hosts.sh`
+(the scanner reads the built bundle, hrefs included) and defined in
+`apps/web/src/components/nutrition/support.ts`.
+
+One well-known organisation per language, verified 2026-10-21 (page loaded, correct organisation):
+
+| Language | Organisation | URL |
+| --- | --- | --- |
+| English | Beat, the UK eating disorder charity (its helpline serves the UK only and the page tells visitors elsewhere to look for a local service) | https://www.beateatingdisorders.org.uk/get-information-and-support/get-help-for-myself/support-now/ |
+| French | FFAB, Fédération Française Anorexie Boulimie (écoute téléphonique) | https://www.ffab.fr/trouver-de-l-aide/permanence-telephonique |
+
+Re-verify both links at each release and update the date here.
+
 ## Named reviewer
 
 The named reviewer owns the pass on every PR that touches

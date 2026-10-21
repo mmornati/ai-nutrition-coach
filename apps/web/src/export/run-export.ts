@@ -6,6 +6,7 @@ import {
   type ExportFormat,
   type ExportScope,
   type Exporter,
+  type Profile,
 } from '@anc/core';
 import { serializePlatesToCsv } from './csv-exporter';
 import type { ExportDestination } from './export-destination';
@@ -41,6 +42,8 @@ export function createRunExport(deps: {
   readonly destination: ExportDestination;
   readonly history: ExportHistory;
   readonly clock?: Clock;
+  /** The optional profile, included in the JSON export only. Failure reads as none. */
+  readonly readProfile?: () => Promise<Profile | undefined>;
 }): (input: {
   readonly format: ExportFormat;
   readonly scope: ExportScope;
@@ -49,8 +52,18 @@ export function createRunExport(deps: {
   return async ({ format, scope }) => {
     const result = await deps.exporters[format].readPlates({ scope });
     if (isExportFailure(result)) return { kind: 'failed', failure: result };
+    let profile: Profile | undefined;
+    if (format === 'json' && deps.readProfile) {
+      try {
+        profile = await deps.readProfile();
+      } catch {
+        profile = undefined;
+      }
+    }
     const text =
-      format === 'csv' ? serializePlatesToCsv(result.plates) : serializePlatesToJson(result.plates);
+      format === 'csv'
+        ? serializePlatesToCsv(result.plates)
+        : serializePlatesToJson(result.plates, profile);
     const now = clock();
     const filename = exportFilename(format, now);
     let outcome;

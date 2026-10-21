@@ -89,6 +89,20 @@ describe('NutritionScreen', () => {
     expect(await screen.findByText('Yogurt')).toBeVisible();
   });
 
+  it('always offers the calm support line under the switch, even with numbers hidden', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<NutritionScreen />, { bundle });
+    await userEvent.click(screen.getByRole('switch', SWITCH));
+    await waitFor(() => expect(screen.getByRole('switch', SWITCH)).not.toBeChecked());
+    expect(
+      screen.getByText(/If food or weight worries take up a lot of your thoughts/),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: /Beat/ })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer',
+    );
+  });
+
   it('has no axe violations', async () => {
     await renderInSession(<NutritionScreen />, { bundle: await unlockedBundle() });
     expect(await axe(document.body)).toHaveNoViolations();

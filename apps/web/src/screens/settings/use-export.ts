@@ -13,7 +13,7 @@ import type { Session } from '../../app/session';
 
 /** The export pieces for one unlocked session, built over its store and its encrypted key/value table. */
 export function useExportServices(session: Session, destination?: ExportDestination) {
-  const { store, kv, clock } = session;
+  const { store, kv, clock, profile } = session;
   return useMemo(() => {
     const history = createExportHistory(kv);
     return {
@@ -24,9 +24,10 @@ export function useExportServices(session: Session, destination?: ExportDestinat
         destination: destination ?? createWebExportDestination(),
         history,
         clock,
+        readProfile: () => profile.read(),
       }),
     };
-  }, [store, kv, clock, destination]);
+  }, [store, kv, clock, profile, destination]);
 }
 
 export interface ExportInfo {

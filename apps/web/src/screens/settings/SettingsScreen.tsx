@@ -3,7 +3,7 @@
 //   (none)   the departures board           ai       Your AI
 //   data     Your data                      privacy  What this app stores and sends
 //   install  Install on your phone          about    About
-//   language Language                       nutrition Nutrition numbers
+//   language Language                       nutrition Nutrition numbers  profile  Optional profile
 //
 // `#/privacy` is the same Privacy page and is the one screen reachable BEFORE the unlock, when
 // there is no session (and so no shell, no AI services and no Open Food Facts switch). Everything
@@ -14,6 +14,7 @@ import { AboutScreen } from './AboutScreen';
 import { InstallScreen } from './InstallScreen';
 import { LanguageScreen } from './LanguageScreen';
 import { NutritionScreen } from './NutritionScreen';
+import { ProfileScreen } from './ProfileScreen';
 import { parseSection, SECTIONS } from './sections';
 import { PrivacyScreen } from './PrivacyScreen';
 import { SettingsList } from './SettingsList';
@@ -40,6 +41,8 @@ function SessionSection({
         return <LanguageScreen />;
       case SECTIONS.nutrition:
         return <NutritionScreen />;
+      case SECTIONS.profile:
+        return <ProfileScreen />;
       case SECTIONS.install:
         return <InstallScreen />;
       case SECTIONS.about:

@@ -5,7 +5,9 @@ import type { NutrientTotals } from '@anc/core';
 import { setCurrentLocale } from '../../i18n';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
+import { EU_REFERENCE_INTAKES, dailyTargetsFor } from '@anc/core';
 import { NutrientBars, barFill } from './NutrientBars';
+import { SupportLine } from './SupportLine';
 import { NutritionSection } from './NutritionSection';
 
 afterEach(() => {
@@ -230,5 +232,72 @@ describe('NutritionSection', () => {
   it('is absent when no entry has data', () => {
     const { container } = render(<NutritionSection title="Nutrition" nutrition={totals({})} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('NutrientBars with a profile', () => {
+  const personal = dailyTargetsFor({ sex: 'female', ageBand: '30-49', activity: 'moderate' });
+
+  it('says "daily guide" and uses the personal values', () => {
+    render(<NutrientBars nutrition={totals({ energyKcal: 1000, salt: 0.1 })} targets={personal} />);
+    const [energy] = screen.getAllByRole('listitem');
+    expect(energy).toHaveTextContent('about 50% of your daily guide (2000 kcal)');
+    expect(screen.queryByText(/EU reference intake \(/)).toBeNull();
+  });
+
+  it('keeps the EU wording without a profile or with the EU targets', () => {
+    render(
+      <NutrientBars nutrition={totals({ energyKcal: 1000 })} targets={EU_REFERENCE_INTAKES} />,
+    );
+    expect(screen.getByText('about 50% of the EU reference intake (2000 kcal)')).toBeVisible();
+  });
+
+  it('"less than 1%" has a personal form too', () => {
+    render(<NutrientBars nutrition={totals({ protein: 0.1 })} targets={personal} />);
+    expect(screen.getByText('less than 1% of your daily guide (49 g)')).toBeVisible();
+  });
+
+  it('the disclosure explains which reference is used, and carries the support link', () => {
+    const { rerender } = render(<NutrientBars nutrition={totals({ protein: 1 })} />);
+    expect(screen.getByText(/Regulation 1169\/2011/)).toBeInTheDocument();
+    rerender(<NutrientBars nutrition={totals({ protein: 1 })} targets={personal} />);
+    expect(screen.getByText(/The bars use your daily guide/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Beat/ })).toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<NutrientBars nutrition={totals(ALL)} targets={personal} />);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('SupportLine', () => {
+  it('is a calm sentence and an external link that opens safely, in English', () => {
+    render(<SupportLine />);
+    expect(
+      screen.getByText(/If food or weight worries take up a lot of your thoughts/),
+    ).toBeVisible();
+    const link = screen.getByRole('link', { name: /Beat, the UK eating disorder charity/ });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.beateatingdisorders.org.uk/get-information-and-support/get-help-for-myself/support-now/',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.className).toContain('min-h-12');
+  });
+
+  it('points to the French organisation in French', () => {
+    render(
+      <LocaleProvider initial="fr">
+        <SupportLine />
+      </LocaleProvider>,
+    );
+    const link = screen.getByRole('link', { name: /FFAB/ });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.ffab.fr/trouver-de-l-aide/permanence-telephonique',
+    );
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });

@@ -74,6 +74,15 @@ What this means in practice:
   passphrase-derived key, deleted by *Erase all local data*, never in
   `localStorage` or `sessionStorage`.
 
+## Your profile
+
+*Settings → Profile* is optional: an age range, sex, activity, a goal, a diet and a few free
+allergy tags, all "Not set" by default. There is no name, no birth date, no weight and no height.
+It only tunes the daily guide (the reference the nutrient bars are drawn against) and the coach.
+It is one row in the encrypted key/value table (`profile`), readable only after you unlock,
+deleted by *Clear profile* and by *Erase all local data*, and included in the JSON export (see
+below). Without a profile the bars use the EU Reference Intakes.
+
 ## Your language
 
 *Settings → Language* offers *Match my device* (the default; the app follows your
@@ -165,8 +174,9 @@ for that entry (per 100 g scaled by the weight), with a dot decimal and at most 
 food's per-100 g `nutrientsPer100g` and product `extra` (Nutri-Score and NOVA from Open Food Facts)
 when known.
 
-Exports cover plates only: coach notes, AI settings, the language and these notices are not
-exported, and **there is no import** (an installed iOS web app keeps its data
+Exports cover plates, plus the **optional profile** under a top-level `profile` key in the JSON
+export (only when you set one; the CSV has none). Coach notes, AI settings, the language and these
+notices are not exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).
 
 Food names are stored in the language they were logged in, so an export can mix languages; the stable `sourceRef` identifies built-in foods.
