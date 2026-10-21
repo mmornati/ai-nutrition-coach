@@ -94,6 +94,15 @@ export const en = {
       square: { one: 'square', other: 'squares' },
       serving: { one: 'serving', other: 'servings' },
     },
+    /** Gram presets on catalogue matches; the grams are shown by the UI beside the label. */
+    portions: {
+      small: 'Small portion',
+      portion: '1 portion',
+      large: 'Large portion',
+      per100: '100 g',
+      serving: '1 serving',
+      pack: 'Whole pack',
+    },
   },
   /** Shared by the photo capture and the barcode scanner: one calm camera-problem copy. */
   camera: {

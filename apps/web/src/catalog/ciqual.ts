@@ -1,24 +1,21 @@
 /**
  * Typed view of the generated CIQUAL table (`public/catalog/ciqual-<year>.json`, produced by
- * `tools/ciqual/build-ciqual.mjs`; source and licence in `tools/ciqual/README.md`). Not wired into
- * search yet. A value the table does not know is `null` in the file and ABSENT here, never zero.
+ * `tools/ciqual/build-ciqual.mjs`; source and licence in `tools/ciqual/README.md`), searched through
+ * `ciqual-index.ts`. A value the table does not know is `null` in the file and ABSENT here, never zero.
  */
 
-export const CIQUAL_NUTRIENT_KEYS = [
-  'energyKcal',
-  'protein',
-  'carbohydrate',
-  'sugars',
-  'fat',
-  'saturatedFat',
-  'fibre',
-  'salt',
-] as const;
+import { NUTRIENT_KEYS, type NutrientKey, type Nutrients } from '@anc/core';
 
-export type CiqualNutrientKey = (typeof CIQUAL_NUTRIENT_KEYS)[number];
+/** The shipped file (under `public/catalog/`); update with `tools/ciqual/README.md`. */
+export const CIQUAL_FILE = 'ciqual-2025.json';
+
+/** The file's column order is the core nutrient order. */
+export const CIQUAL_NUTRIENT_KEYS = NUTRIENT_KEYS;
+
+export type CiqualNutrientKey = NutrientKey;
 
 /** Per-100 g values; a key is present only when CIQUAL has a value. */
-export type CiqualPer100g = Partial<Record<CiqualNutrientKey, number>>;
+export type CiqualPer100g = Nutrients;
 
 /** One compact food row: code, FR name, EN name, group, sub-group ('' if none), then 8 values. */
 export type CiqualRecord = readonly [
@@ -56,7 +53,7 @@ export function ciqualFood(record: CiqualRecord): CiqualFood {
   if (values.length !== CIQUAL_NUTRIENT_KEYS.length) {
     throw new Error(`CIQUAL record ${code}: expected ${CIQUAL_NUTRIENT_KEYS.length} values`);
   }
-  const per100g: CiqualPer100g = {};
+  const per100g: Partial<Record<NutrientKey, number>> = {};
   CIQUAL_NUTRIENT_KEYS.forEach((key, i) => {
     const v = values[i];
     if (typeof v === 'number' && Number.isFinite(v) && v >= 0) per100g[key] = v;

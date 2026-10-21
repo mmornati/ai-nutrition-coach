@@ -65,6 +65,8 @@ export const ALLOW_LIST = {
   'apps/web/src/net/capped-fetch.ts': { kinds: ['network'], reason: 'capped-response helper' },
   // Barcode lookup against world.openfoodfacts.org (user taps "scan"), through the helper.
   'apps/web/src/catalog/off-barcode-source.ts': { kinds: ['network'], reason: 'Open Food Facts lookup' },
+  // The CIQUAL food table: a same-origin GET of our own precached file (catalog/ciqual-2025.json).
+  'apps/web/src/catalog/ciqual-index.ts': { kinds: ['network'], reason: 'same-origin CIQUAL table (precached)' },
   // The BYOK OpenAI-compatible endpoint the user configures, through the helper.
   'apps/web/src/ai/openai-compatible-provider.ts': { kinds: ['network'], reason: 'BYOK AI endpoint' },
   // The service worker precaches OUR files (same-origin GET) and never intercepts anything else.

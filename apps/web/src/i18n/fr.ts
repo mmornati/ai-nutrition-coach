@@ -92,6 +92,14 @@ export const fr: Strings = {
       square: { one: 'carré', other: 'carrés' },
       serving: { one: 'portion', other: 'portions' },
     },
+    portions: {
+      small: 'Petite portion',
+      portion: '1 portion',
+      large: 'Grande portion',
+      per100: '100 g',
+      serving: '1 portion',
+      pack: 'Paquet entier',
+    },
   },
   camera: {
     deniedTitle: 'Caméra refusée — saisissez à la main',

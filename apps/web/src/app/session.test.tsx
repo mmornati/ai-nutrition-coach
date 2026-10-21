@@ -1,6 +1,7 @@
 // The session is thrown away on every lock: requests in flight are aborted and nothing lands
 // after it (src/app/session.tsx).
-import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeFetch, photoBytes, TEST_KEY } from '../ai/testing';
 import { KV_KEYS } from '../storage';
 import { createSession } from './session';
@@ -9,6 +10,7 @@ import { unlockedBundle } from './testing';
 const NUTELLA = '3017620422003';
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   window.location.hash = '';
 });
 
@@ -56,6 +58,9 @@ describe('Session.dispose', () => {
   });
 
   it('empties the catalog caches', async () => {
+    // The catalogue reads its CIQUAL table from the app's own origin (a precached asset).
+    const table = readFileSync('public/catalog/ciqual-2025.json', 'utf8');
+    vi.stubGlobal('fetch', async () => new Response(table));
     const bundle = await unlockedBundle();
     const session = await createSession(bundle);
     await session.catalog.search('rice');

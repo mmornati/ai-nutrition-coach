@@ -128,6 +128,19 @@ be changed in *Settings → Privacy*. Nothing is sent until you have answered: t
 catalog itself refuses to send a barcode unless the stored answer is "OK". The
 camera frames are decoded on your device and never leave it.
 
+What is read back from Open Food Facts for a scanned product is limited to the fields the app
+uses: its name (in several languages), brand, categories, the per-100 g nutrition values
+(energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt or sodium), the serving
+and pack size, and its Nutri-Score and NOVA group. Those are third-party product information and
+are kept with the plate you log (a missing value stays missing, never zero). The request itself is
+unchanged: the barcode only.
+
+## The built-in food table (CIQUAL)
+
+Searching foods also uses the CIQUAL table (ANSES, Etalab Open Licence 2.0): about 3,500 generic
+foods with per-100 g nutrition, shipped with the app as one file from this app's own address, saved
+for offline use and read on your first search. Nothing is sent anywhere to search it.
+
 ## Photos
 
 A photo you take or pick is held in memory only for the recognition call: it is

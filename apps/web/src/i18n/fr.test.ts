@@ -62,7 +62,7 @@ describe('fr catalogue parity with en', () => {
 
   it('translates the copy (only names, formats and technical values may stay identical)', () => {
     const SAME_ALLOWED =
-      /^(?:shell\.brand|export\.format(?:Csv|Json|Label)|yourData\.exportHeading|offNotice\.ok|portion\.label|foods\.names\.(?:orange|tofu|quinoa|tortilla)|install\.(?:android|ios)Title|ai\.yourAi\.(?:endpointHint)|week\.(?:networkDescription|noteJoin|sentences|routeStop)|aboutScreen\.licences\[\d\]\.(?:id|name|licence)|session\.lockAfterOptions\[\d\]|ai\.failure\.httpStatus)$/;
+      /^(?:shell\.brand|export\.format(?:Csv|Json|Label)|yourData\.exportHeading|offNotice\.ok|portion\.label|foods\.portions\.portion|foods\.names\.(?:orange|tofu|quinoa|tortilla)|install\.(?:android|ios)Title|ai\.yourAi\.(?:endpointHint)|week\.(?:networkDescription|noteJoin|sentences|routeStop)|aboutScreen\.licences\[\d\]\.(?:id|name|licence)|session\.lockAfterOptions\[\d\]|ai\.failure\.httpStatus)$/;
     const untranslated = [...enLeaves]
       .filter(([path, text]) => frLeaves.get(path) === text && !SAME_ALLOWED.test(path))
       .filter(([, text]) => /[a-z]{3}/i.test(text.replace(/\{\w+\}/g, '')))
