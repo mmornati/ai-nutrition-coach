@@ -112,6 +112,8 @@ export const fr: Strings = {
     takePhoto: 'Prendre une photo',
     choosePhoto: 'Choisir une photo',
     aimHint: 'Cadrez votre assiette, puis touchez le déclencheur.',
+    noAiNote:
+      'La reconnaissance de photo demande une connexion à une IA. Sans elle, vous pouvez toujours choisir ou saisir ce qui se trouve dans l’assiette.',
     reading: 'Lecture de votre assiette…',
     retake: 'Reprendre',
     typeManually: 'Saisir à la main',
@@ -168,6 +170,10 @@ export const fr: Strings = {
     quotaHint:
       'Vous pouvez toujours choisir la correspondance la plus proche ou saisir l’aliment à la main.',
     failureTitle: 'La recherche n’est pas disponible pour le moment.',
+    noAiTitle: 'Aucune IA connectée',
+    noAiHint:
+      'Sans IA, les photos ne sont pas analysées. Choisissez un aliment récent, saisissez-le, ou configurez une IA dans les réglages.',
+    setUpAi: 'Configurer l’IA',
     recognizedLabel: 'Aliments reconnus',
     closestMatches: 'Correspondances les plus proches',
     confidenceLikely: 'probable',
@@ -301,7 +307,7 @@ export const fr: Strings = {
       photoNotSendable: 'Ce format de photo ne peut pas être envoyé sans ses métadonnées.',
       responseTooLarge: 'la réponse du fournisseur était trop volumineuse',
       timedOut: 'la requête vers {host} a expiré',
-      httpStatus: 'http {status} de {host}',
+      httpStatus: 'erreur {status} renvoyée par {host}',
       couldNotConnect: 'impossible de se connecter à {host}',
       unreachable: 'le fournisseur est injoignable',
       unavailableRung: 'Pas encore disponible',

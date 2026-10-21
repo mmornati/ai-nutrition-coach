@@ -81,7 +81,10 @@ describe('the live rung', () => {
           fetch: fake.fetch,
         }),
     });
-    expect(await rung.recognize(photoBytes(1))).toEqual({ kind: 'recognizedPlate', foods: [] });
+    expect(await rung.recognize(photoBytes(1))).toEqual({
+      kind: 'recognitionFailure',
+      cause: 'noAi',
+    });
     expect(fake.requests).toHaveLength(0);
 
     await controller.setRung({ kind: 'byok', previousRung: { previousKind: 'noOp' } });

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type {
   DatabaseFood,
   FoodEntryDraft,
@@ -10,6 +10,7 @@ import { foodName } from '../../catalog';
 import { plural, useLocale, useMessage, useStrings, type Strings } from '../../i18n';
 import { portionFor } from '../../i18n/sentences';
 import { Button } from '../primitives/Button';
+import { AiSetupLink } from './AiSetupLink';
 import { Checkbox } from '../primitives/Checkbox';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { TextField } from '../primitives/TextField';
@@ -29,6 +30,8 @@ export interface RecognizedMatchSheetProps {
    */
   readonly onLog: (drafts: readonly FoodEntryDraft[]) => void | Promise<void>;
   readonly errorMessage?: string | undefined;
+  /** In-app route to Settings → Your AI. When given, results that need AI set up link to it. */
+  readonly aiSetupHref?: string | undefined;
 }
 
 interface Candidate {
@@ -46,24 +49,49 @@ interface Choice {
   readonly quantity: QuantityRange;
 }
 
+/** Failures the person can fix in Settings → Your AI. */
+const NEEDS_SETUP = new Set<string>([
+  'noAi',
+  'notConfigured',
+  'keyMissing',
+  'keyRejected',
+  'consentRequired',
+]);
+
+/** The ai layer words failures as short lower-case lines; as a subtitle they start a sentence. */
+const sentence = (text: string): string => text.charAt(0).toLocaleUpperCase() + text.slice(1);
+
 function describe(
   result: RecognitionResult,
   s: Strings,
-): { title: string; subtitle: string | undefined } {
+  errorMessage: string | undefined,
+): { title: string; subtitle: string | undefined; needsSetup: boolean } {
   const r = s.recognized;
   switch (result.kind) {
     case 'recognizedPlate':
-      if (result.foods.length === 0) return { title: r.nothingMatched, subtitle: r.pickOrType };
+      if (result.foods.length === 0) {
+        return { title: r.nothingMatched, subtitle: r.pickOrType, needsSetup: false };
+      }
       return {
         title: plural(r.lookedLike, result.foods.length),
         subtitle: r.tickHint,
+        needsSetup: false,
       };
     case 'noMatch':
-      return { title: r.nothingOnPlate, subtitle: r.pickOrType };
+      return { title: r.nothingOnPlate, subtitle: r.pickOrType, needsSetup: false };
     case 'quotaExhausted':
-      return { title: r.quotaTitle, subtitle: r.quotaHint };
-    case 'recognitionFailure':
-      return { title: r.failureTitle, subtitle: undefined };
+      return { title: r.quotaTitle, subtitle: r.quotaHint, needsSetup: false };
+    case 'recognitionFailure': {
+      if (result.cause === 'noAi') {
+        return { title: r.noAiTitle, subtitle: r.noAiHint, needsSetup: true };
+      }
+      const detail = errorMessage ?? result.message;
+      return {
+        title: r.failureTitle,
+        subtitle: detail === undefined || detail === '' ? undefined : sentence(detail),
+        needsSetup: NEEDS_SETUP.has(result.cause),
+      };
+    }
   }
 }
 
@@ -127,7 +155,10 @@ function Body({
   closestMatches,
   onLog,
   errorMessage,
-}: Omit<RecognizedMatchSheetProps, 'open' | 'onClose'>) {
+  setupLink,
+}: Omit<RecognizedMatchSheetProps, 'open' | 'onClose' | 'aiSetupHref'> & {
+  readonly setupLink: ReactNode;
+}) {
   const s = useStrings();
   const { locale } = useLocale();
   const r = s.recognized;
@@ -236,6 +267,7 @@ function Body({
 
   return (
     <>
+      {setupLink}
       {recognized.length > 0 && (
         <ul aria-label={r.recognizedLabel} className="border-porcelain border-t-2">
           {recognized.map(row)}
@@ -304,16 +336,23 @@ export function RecognizedMatchSheet({
   closestMatches,
   onLog,
   errorMessage,
+  aiSetupHref,
 }: RecognizedMatchSheetProps) {
   const s = useStrings();
-  const { title, subtitle } = describe(result, s);
+  const { title, subtitle, needsSetup } = describe(result, s, errorMessage);
+  const shownInSubtitle = result.kind === 'recognitionFailure' && result.cause !== 'noAi';
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={subtitle} focusTitle>
       <Body
         result={result}
         closestMatches={closestMatches}
         onLog={onLog}
-        errorMessage={errorMessage}
+        errorMessage={shownInSubtitle ? undefined : errorMessage}
+        setupLink={
+          needsSetup && aiSetupHref !== undefined ? (
+            <AiSetupLink href={aiSetupHref} onNavigate={onClose} />
+          ) : null
+        }
       />
     </Sheet>
   );

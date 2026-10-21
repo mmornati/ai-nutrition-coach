@@ -44,6 +44,8 @@ interface PostResult {
 export const MAX_RECOGNIZED_FOODS = 20;
 /** Longest food name / quantity hint kept (characters). */
 export const MAX_FOOD_TEXT_LENGTH = 100;
+/** Used when the model gave no usable confidence for a food. */
+const DEFAULT_CONFIDENCE = 0.5;
 export const RECOGNITION_MAX_TOKENS = 800;
 export const RECOGNITION_TEMPERATURE = 0.2;
 
@@ -56,21 +58,23 @@ export const RECOGNITION_TEMPERATURE = 0.2;
 export const RECOGNITION_PROMPTS: Readonly<Record<Locale, string>> = {
   en:
     'Look at the plate in the photo. Return a JSON array of the foods you see. For each food, ' +
-    'return an object with three string fields: `name` (the food name, plain English), ' +
+    'return an object with these fields: `name` (the food name, plain English), ' +
     '`quantityHint` (an honest quantity range the user could commit to, e.g. "1 piece", ' +
-    '"about 2 fists", "~1 cup") and `group` (the food group, EXACTLY one of: `vegFruit`, ' +
+    '"about 2 fists", "~1 cup"), `group` (the food group, EXACTLY one of: `vegFruit`, ' +
     '`protein`, `starch`, `dairy`, `other` — `other` for oils, sweets, drinks and mixed dishes ' +
-    'that fit none of the four). Return an empty array `[]` if the plate is empty or the photo ' +
+    'that fit none of the four) and `confidence` (a number from 0 to 1: how sure you are ' +
+    'of this food, 1 being certain). Return an empty array `[]` if the plate is empty or the photo ' +
     'is unreadable. Return ONLY the JSON array — no prose, no markdown fences, no commentary.',
   fr:
     'Regardez l’assiette sur la photo. Renvoyez un tableau JSON des aliments que vous voyez. Pour ' +
-    'chaque aliment, renvoyez un objet avec trois champs texte : `name` (le nom de l’aliment, ' +
+    'chaque aliment, renvoyez un objet avec ces champs : `name` (le nom de l’aliment, ' +
     'en français courant), `quantityHint` (une estimation honnête de la quantité, en ' +
     'français, que la personne peut confirmer, par ' +
-    'ex. « 1 pièce », « environ 2 poings », « ~1 tasse ») et `group` (le groupe alimentaire, ' +
+    'ex. « 1 pièce », « environ 2 poings », « ~1 tasse »), `group` (le groupe alimentaire, ' +
     'EXACTEMENT l’un de : `vegFruit`, `protein`, `starch`, `dairy`, `other` — ces ' +
     'identifiants restent en anglais ; `other` pour les huiles, les sucreries, les boissons et ' +
-    'les plats composés qui n’entrent dans aucun des quatre). Renvoyez un tableau vide `[]` si ' +
+    'les plats composés qui n’entrent dans aucun des quatre) et `confidence` (un nombre de 0 à 1 : votre degré de ' +
+    'certitude sur cet aliment, 1 étant certain). Renvoyez un tableau vide `[]` si ' +
     'l’assiette est vide ou la photo illisible. Renvoyez UNIQUEMENT le tableau JSON — pas de ' +
     'prose, pas de bloc de code markdown, pas de commentaire.',
 };
@@ -363,7 +367,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           source: 'manual',
           foodGroup: group,
         },
-        confidence: 0.5,
+        confidence: parseConfidence(entry.confidence),
         quantity: {
           low: 1,
           high: 1,
@@ -379,6 +383,13 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
   toString(): string {
     return 'OpenAiCompatibleByokProvider(endpointUrl: redacted, model: redacted)';
   }
+}
+
+/** A model's own confidence: finite, clamped to 0..1; 0.5 ("maybe") when absent or unusable. */
+function parseConfidence(value: unknown): number {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_CONFIDENCE;
+  return Math.min(1, Math.max(0, n));
 }
 
 function resetAtOf(headers: Headers): EpochMs | undefined {

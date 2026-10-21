@@ -183,6 +183,7 @@ describe('what leaves the device (privacy audit, automated check 1)', () => {
       }
       expect(prompt).toContain('`name`');
       expect(prompt).toContain('`quantityHint`');
+      expect(prompt).toContain('`confidence`');
       // Fixed text: no placeholder a caller could fill with anything.
       expect(prompt).not.toMatch(/\{\w+\}|\$\{/);
     }
@@ -426,6 +427,23 @@ describe('recognize', () => {
         'Apple',
       );
     }
+  });
+
+  it('reads a per-food confidence defensively: clamped to 0..1, 0.5 when missing or unusable', async () => {
+    const f = new FakeFetch();
+    f.jsonBody = chatReply(
+      JSON.stringify([
+        { name: 'A', confidence: 0.9 },
+        { name: 'B', confidence: 7 },
+        { name: 'C', confidence: -2 },
+        { name: 'D', confidence: 'high' },
+        { name: 'E', confidence: '0.8' },
+        { name: 'F', confidence: null },
+        { name: 'G' },
+      ]),
+    );
+    const foods = recognizedFoods(await recognize(provider(f)));
+    expect(foods.map((x) => x.confidence)).toEqual([0.9, 1, 0, 0.5, 0.8, 0.5, 0.5]);
   });
 
   it('a recognised food carries a manual-source database food and an honest quantity', async () => {

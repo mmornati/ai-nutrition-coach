@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { CameraNotice, PhotoCapture, type PhotoSource } from '../../capture';
-import { Sheet } from '../../components/sheets';
+import { AiSetupLink, Sheet } from '../../components/sheets';
 import { Button } from '../../components/primitives';
 import { useStrings } from '../../i18n';
 
@@ -13,16 +13,27 @@ export function SnapSheet({
   onClose,
   onSource,
   onTypeInstead,
+  aiSetupHref,
 }: {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onSource: (source: PhotoSource) => void;
   readonly onTypeInstead: () => void;
+  /** Set when no AI is connected: a calm note and a link to Settings → Your AI. */
+  readonly aiSetupHref?: string | undefined;
 }) {
   const s = useStrings().capture;
   return (
     <Sheet open={open} onClose={onClose} title={s.snapTitle}>
       <PhotoCapture onSource={onSource} />
+      {aiSetupHref !== undefined && (
+        <div className="flex flex-col gap-1">
+          <p role="note" className="text-body-small text-porcelain-dim">
+            {s.noAiNote}
+          </p>
+          <AiSetupLink href={aiSetupHref} onNavigate={onClose} />
+        </div>
+      )}
       <Button variant="outline-porcelain" fullWidth onClick={onTypeInstead}>
         {s.typeManually}
       </Button>
