@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FoodEntryDraft, FoodUse, RecordPlateResult } from '@anc/core';
 import { useMessage, useStrings } from '../../i18n';
 import { Button, TextField } from '../../components/primitives';
@@ -31,6 +31,10 @@ export function TypeIt({
   const [weightValid, setWeightValid] = useState(true);
   // A one-tap log from the recent lists is in flight: a second tap must not make a second plate.
   const [rowBusy, setRowBusy] = useState(false);
+  // The selection came from a recent food's "Change": the lists step aside and focus goes to the
+  // amount, so the person lands where the editing is.
+  const [fromRecent, setFromRecent] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (prefill) void session.prefill(prefill);
@@ -74,6 +78,13 @@ export function TypeIt({
     }
   };
 
+  const selectedRef = state.selected?.food.sourceRef;
+  useEffect(() => {
+    if (fromRecent && selectedRef !== undefined) {
+      pickerRef.current?.querySelector<HTMLElement>('input')?.focus();
+    }
+  }, [fromRecent, selectedRef]);
+
   const hasMatches = state.matches.length > 0;
   const showCustom =
     !hasMatches &&
@@ -93,6 +104,7 @@ export function TypeIt({
         spellCheck={false}
         onChange={(e) => {
           setNote(null);
+          setFromRecent(false);
           void session.updateQuery(e.target.value);
         }}
       />
@@ -126,14 +138,16 @@ export function TypeIt({
         </div>
       )}
       {selected && chosen && (
-        <QuantityPicker
-          key={selected.food.sourceRef}
-          food={selected.food}
-          presets={selected.presets}
-          value={chosen}
-          onChange={(preset) => session.selectPreset(preset)}
-          onValidityChange={setWeightValid}
-        />
+        <div ref={pickerRef}>
+          <QuantityPicker
+            key={selected.food.sourceRef}
+            food={selected.food}
+            presets={selected.presets}
+            value={chosen}
+            onChange={(preset) => session.selectPreset(preset)}
+            onValidityChange={setWeightValid}
+          />
+        </div>
       )}
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
       <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
@@ -150,11 +164,14 @@ export function TypeIt({
           {s.common.log}
         </Button>
       )}
-      {!hasMatches && state.query.trim() === '' && (
+      {!hasMatches && state.query.trim() === '' && selected === null && (
         <RecentFoods
           busy={state.submitting || rowBusy}
           onLog={(use) => void logRecent(use)}
-          onEdit={(match) => session.selectMatch(match)}
+          onEdit={(match) => {
+            setFromRecent(true);
+            session.selectMatch(match);
+          }}
         />
       )}
     </div>

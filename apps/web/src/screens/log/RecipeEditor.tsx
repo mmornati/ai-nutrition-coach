@@ -3,6 +3,8 @@ import {
   cleanSavedName,
   computeRecipe,
   MAX_COOKED_WEIGHT_GRAMS,
+  MAX_INGREDIENTS,
+  MAX_SERVINGS,
   recipeProblem,
   type FoodEntryDraft,
   type Recipe,
@@ -11,13 +13,14 @@ import {
 import { foodName, useManualEntry } from '../../catalog';
 import {
   entryQuantityText,
+  formatWhole,
   formatWeight,
   previewLine,
   useShowNumbers,
 } from '../../components/nutrition';
 import { Button, TextField } from '../../components/primitives';
 import { QuantityPicker, Sheet } from '../../components/sheets';
-import { fill, useLocale, useMessage, useStrings, type Message } from '../../i18n';
+import { fill, useLocale, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { useSession } from '../../app/session';
 import { MatchList } from './MatchList';
 
@@ -36,12 +39,20 @@ function parseCooked(text: string): number | undefined | null {
   return Number.isFinite(n) && n > 0 && n <= MAX_COOKED_WEIGHT_GRAMS ? n : null;
 }
 
+const servingsText = (a: Strings): string =>
+  fill(a.relog.recipe.badServings, { max: formatWhole(MAX_SERVINGS) });
+const cookedText = (a: Strings): string =>
+  fill(a.relog.recipe.badCooked, { max: formatWhole(MAX_COOKED_WEIGHT_GRAMS) });
+const tooManyText = (a: Strings): string =>
+  fill(a.relog.recipe.tooMany, { max: formatWhole(MAX_INGREDIENTS) });
+
 const PROBLEM: Readonly<Record<RecipeProblem, Message>> = {
   noIngredients: (a) => a.relog.recipe.needsIngredient,
-  tooManyIngredients: (a) => a.relog.recipe.needsIngredient,
+  tooManyIngredients: tooManyText,
   ingredientWithoutGrams: (a) => a.relog.recipe.needsGrams,
-  badServings: (a) => a.relog.recipe.badServings,
-  badCookedWeight: (a) => a.relog.recipe.badCooked,
+  badServings: servingsText,
+  badCookedWeight: cookedText,
+  cookedWeightImplausible: (a) => a.relog.recipe.cookedImplausible,
   servingTooHeavy: (a) => a.relog.recipe.heavy,
 };
 
@@ -52,7 +63,8 @@ const PROBLEM: Readonly<Record<RecipeProblem, Message>> = {
  * never counted as zero.
  */
 export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) => void }) {
-  const t = useStrings().relog.recipe;
+  const all = useStrings();
+  const t = all.relog.recipe;
   const { locale } = useLocale();
   const { catalog, saved } = useSession();
   const showNumbers = useShowNumbers();
@@ -98,11 +110,11 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
       return;
     }
     if (servingsN === null) {
-      setNote((a) => a.relog.recipe.badServings);
+      setNote(servingsText);
       return;
     }
     if (cookedN === null) {
-      setNote((a) => a.relog.recipe.badCooked);
+      setNote(cookedText);
       return;
     }
     const input = {
@@ -225,10 +237,18 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
               onChange={(preset) => session.selectPreset(preset)}
               onValidityChange={setWeightValid}
             />
-            <Button variant="outline-porcelain" fullWidth disabled={!weightValid} onClick={add}>
+            <Button
+              variant="outline-porcelain"
+              fullWidth
+              disabled={!weightValid || ingredients.length >= MAX_INGREDIENTS}
+              onClick={add}
+            >
               {t.add}
             </Button>
           </>
+        )}
+        {ingredients.length >= MAX_INGREDIENTS && (
+          <p className="text-body-small text-porcelain-dim">{tooManyText(all)}</p>
         )}
       </section>
 

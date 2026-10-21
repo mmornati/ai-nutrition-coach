@@ -732,8 +732,12 @@ export const fr: Strings = {
       one: '{count} assiette copiée sur aujourd’hui.',
       other: '{count} assiettes copiées sur aujourd’hui.',
     },
-    copiedDayPartial:
-      '{done} assiettes copiées sur {total}. Les autres n’ont pas été enregistrées ; vous pouvez réessayer.',
+    copiedDayPartial: {
+      one: '{count} assiette copiée sur {total}. Les autres n’ont pas été enregistrées ; vous pouvez réessayer.',
+      other:
+        '{count} assiettes copiées sur {total}. Les autres n’ont pas été enregistrées ; vous pouvez réessayer.',
+    },
+    copyDayLater: 'Plus tard que maintenant, non copiées',
     saveMeal: 'Garder comme repas',
     saveMealIntro: 'Gardez ces aliments et ces quantités pour les noter à nouveau d’un geste.',
     mealName: 'Nom',
@@ -795,9 +799,12 @@ export const fr: Strings = {
       needsName: 'Donnez un nom à la recette.',
       needsIngredient: 'Ajoutez au moins un ingrédient.',
       needsGrams: 'Chaque ingrédient a besoin d’un poids en grammes.',
-      badServings: 'Les portions sont un nombre entier de 1 à 100.',
-      badCooked: 'Le poids cuit est un nombre de grammes, jusqu’à 20000.',
-      heavy: 'Cela fait plus de 5 kg par portion. Vérifiez le nombre de portions et le poids cuit.',
+      badServings: 'Les portions sont un nombre entier de 1 à {max}.',
+      badCooked: 'Le poids cuit est un nombre de grammes, jusqu’à {max}.',
+      cookedImplausible:
+        'Ce poids cuit est très éloigné du poids des ingrédients (de un cinquième à trois fois). Vérifiez les grammes.',
+      tooMany: 'Une recette compte au plus {max} ingrédients.',
+      heavy: 'Cela fait plus de 5 kg par portion. Vérifiez le nombre de portions et le poids cuit.',
     },
   },
   plate: {
@@ -1000,6 +1007,8 @@ export const fr: Strings = {
       'Vos assiettes n’ont pas pu être lues pour le moment. Rien n’est perdu ; vous pouvez réessayer.',
     failedFormat: 'Ce format de fichier n’est pas disponible.',
     failedDelivery: 'l’export a échoué — réessayez',
+    failedSaved:
+      'Vos repas et recettes gardés n’ont pas pu être lus pour le moment, donc rien n’a été exporté. Rien n’est perdu\u202F; vous pouvez réessayer.',
   },
   privacy: {
     title: 'Ce que l’application stocke et envoie',

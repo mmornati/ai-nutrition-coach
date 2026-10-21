@@ -87,7 +87,7 @@ describe('runExport', () => {
     expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
   });
 
-  it('puts saved meals and recipes in the json export only, and a failing read leaves them out', async () => {
+  it('puts saved meals and recipes in the json export only, and a failing read fails the export', async () => {
     const t = setup();
     const entry = {
       databaseFood: {
@@ -123,11 +123,20 @@ describe('runExport', () => {
       savedMeals: [{ name: 'Usual' }],
     });
     expect(t.written[1]?.text).not.toContain('Usual');
-    await make(() => Promise.reject(new Error('locked')))({
+    const before = t.written.length;
+    const failed = await make(() => Promise.reject(new Error('locked')))({
       format: 'json',
       scope: ALL_HISTORY_SCOPE,
     });
-    expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
+    // Not a quietly incomplete file: the export fails, calmly, and delivers nothing.
+    expect(failed).toEqual({ kind: 'failed', failure: { kind: 'savedUnavailable' } });
+    expect(t.written).toHaveLength(before);
+    // The CSV has none of these, so it does not depend on them.
+    const csv = await make(() => Promise.reject(new Error('locked')))({
+      format: 'csv',
+      scope: ALL_HISTORY_SCOPE,
+    });
+    expect(csv.kind).toBe('exported');
   });
 
   it('failing to remember the date never turns a successful export into an error', async () => {

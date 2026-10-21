@@ -743,7 +743,11 @@ export const en = {
       one: 'Copied {count} plate to today.',
       other: 'Copied {count} plates to today.',
     },
-    copiedDayPartial: 'Copied {done} of {total} plates. The rest did not save; you can try again.',
+    copiedDayPartial: {
+      one: 'Copied {count} of {total} plates. The rest did not save; you can try again.',
+      other: 'Copied {count} of {total} plates. The rest did not save; you can try again.',
+    },
+    copyDayLater: 'Later than now, not copied',
     saveMeal: 'Save as a meal',
     saveMealIntro: 'Keep these foods and amounts to log them again in a tap.',
     mealName: 'Name',
@@ -804,8 +808,11 @@ export const en = {
       needsName: 'Give the recipe a name.',
       needsIngredient: 'Add at least one ingredient.',
       needsGrams: 'Every ingredient needs a weight in grams.',
-      badServings: 'Servings is a whole number from 1 to 100.',
-      badCooked: 'Cooked weight is a number of grams, up to 20000.',
+      badServings: 'Servings is a whole number from 1 to {max}.',
+      badCooked: 'Cooked weight is a number of grams, up to {max}.',
+      cookedImplausible:
+        'That cooked weight is far from the weight of the ingredients (a fifth to three times as much). Check the grams.',
+      tooMany: 'A recipe holds up to {max} ingredients.',
       heavy: 'That makes more than 5 kg a serving. Check the servings and the cooked weight.',
     },
   },
@@ -1005,6 +1012,8 @@ export const en = {
     failedRead: 'Your plates could not be read just now. Nothing was lost; you can try again.',
     failedFormat: 'That file format is not available.',
     failedDelivery: 'export failed — try again',
+    failedSaved:
+      'Your saved meals and recipes could not be read just now, so nothing was exported. Nothing was lost; you can try again.',
   },
   /** Privacy ("What this app stores and sends"), app_en.arb. */
   privacy: {

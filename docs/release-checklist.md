@@ -24,8 +24,9 @@ named reviewer records the human sign-off.
 - [ ] A browser tab still running the previous (v1) build and left open across the update meets a
   v2 store and gets `SchemaTooNewError`; the fix is to reload the tab, which picks up the new
   build. Nothing is lost.
-- [ ] Rollback plan: restore from an export (Settings → Your data). Rolling the deploy back does not
-  restore a v2 store to v1; a person who exported before the update re-imports that file.
+- [ ] Rollback is honest: the export is a readable copy of the plates, not a way back (there is no
+  import). Rolling the deploy back means the older build cannot open a v2 store; the person keeps
+  the export for reference and the store stays for the newer build.
 
 ## Gate A3 — Schema v3 is forward-only
 
@@ -34,8 +35,10 @@ named reviewer records the human sign-off.
 - [ ] A browser tab still running the previous (v2) build and left open across the update meets a
   v3 store and gets `SchemaTooNewError`; the fix is to reload the tab, which picks up the new
   build. Nothing is lost.
-- [ ] Rollback plan: restore from an export (Settings → Your data); the JSON export carries the
-  saved meals and recipes. Rolling the deploy back does not restore a v3 store to v2.
+- [ ] Rollback is honest: the export (Settings → Your data) is a readable copy, and the JSON one
+  also carries the saved meals and recipes, but there is no import. Rolling the deploy back means
+  the older build cannot open this v3 store; keep the export for reference and keep the store for
+  the newer build.
 
 ## Gate B — Self-host
 

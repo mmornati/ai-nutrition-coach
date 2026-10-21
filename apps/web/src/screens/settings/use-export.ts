@@ -27,10 +27,9 @@ export function useExportServices(session: Session, destination?: ExportDestinat
         readProfile: () => profile.read(),
         readSaved: async () => {
           const [meals, recipes] = await Promise.all([saved.listMeals(), saved.listRecipes()]);
-          return {
-            meals: meals.kind === 'saved' ? meals.value : [],
-            recipes: recipes.kind === 'saved' ? recipes.value : [],
-          };
+          // A list that cannot be read is an error, never an empty list.
+          if (meals.kind !== 'saved' || recipes.kind !== 'saved') throw new Error('saved');
+          return { meals: meals.value, recipes: recipes.value };
         },
       }),
     };

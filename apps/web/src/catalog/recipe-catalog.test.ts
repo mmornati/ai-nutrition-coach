@@ -128,12 +128,6 @@ describe('RecipeFoodCatalog', () => {
       'Chicken soup',
       'Chicken and rice',
     ]);
-    const plain = new RecipeFoodCatalog(base, store([recipe(7, 'Lentil stew')]).api, () => 'en');
-    expect(names(await plain.search('chicken'))).toEqual([
-      'Chicken breast',
-      'Chicken soup',
-      'Chicken, roasted',
-    ]);
   });
 
   it('reads the recipes once until they change, and again after invalidate()', async () => {
@@ -174,16 +168,52 @@ describe('RecipeFoodCatalog', () => {
 });
 
 describe('recipePresets', () => {
-  it('flags the serving as an estimate without a cooked weight', () => {
+  it('always flags the serving as an estimate: cooked weight divided by servings is an assumption', () => {
     const { cookedWeightGrams: _unused, ...rest } = recipe(1, 'x');
     void _unused;
-    const [serving] = recipePresets({ ...rest }, 'en');
-    expect(serving?.grams).toBe(125);
-    expect(serving?.gramsEstimated).toBe(true);
-    expect(recipePresets(recipe(1, 'x'), 'en')[0]?.gramsEstimated).toBe(false);
+    expect(recipePresets({ ...rest }, 'en')[0]?.grams).toBe(125);
+    expect(recipePresets({ ...rest }, 'en')[0]?.gramsEstimated).toBe(true);
+    expect(recipePresets(recipe(1, 'x'), 'en')[0]?.gramsEstimated).toBe(true);
+    // 100 g is exact.
+    expect(recipePresets(recipe(1, 'x'), 'en')[1]?.gramsEstimated).toBe(false);
   });
 
   it('words the serving in the language', () => {
     expect(recipePresets(recipe(1, 'x'), 'fr')[0]?.displayLabel).toBe('~1 portion');
+  });
+});
+
+describe('RecipeFoodCatalog: room for recipes', () => {
+  const crowded: FoodCatalog = {
+    ...base,
+    search: () =>
+      Promise.resolve(
+        rankedMatches([
+          ...Array.from({ length: 12 }, (_, i) => match(`seed:${i}`, `Chicken dish ${i}`, 'seed')),
+          match('ciqual:1', 'Chicken, roasted', 'ciqual'),
+        ]),
+      ),
+  };
+
+  it('a recipe whose name matches is kept when twelve seeds already fill the limit', async () => {
+    const catalog = new RecipeFoodCatalog(
+      crowded,
+      store([recipe(7, 'Chicken and rice')]).api,
+      () => 'en',
+    );
+    const listed = names(await catalog.search('chicken', { limit: 10 }));
+    expect(listed).toHaveLength(10);
+    expect(listed[9]).toBe('Chicken and rice');
+    expect(listed.slice(0, 9)).toEqual(Array.from({ length: 9 }, (_, i) => `Chicken dish ${i}`));
+  });
+
+  it('with more recipes than room, only recipes are listed', async () => {
+    const many = Array.from({ length: 4 }, (_, i) => recipe(i + 1, `Chicken bake ${i}`));
+    const catalog = new RecipeFoodCatalog(crowded, store(many).api, () => 'en');
+    expect(names(await catalog.search('chicken', { limit: 3 }))).toEqual([
+      'Chicken bake 0',
+      'Chicken bake 1',
+      'Chicken bake 2',
+    ]);
   });
 });

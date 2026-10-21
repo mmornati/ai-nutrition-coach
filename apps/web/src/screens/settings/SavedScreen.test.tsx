@@ -169,4 +169,55 @@ describe('SavedScreen', () => {
     expect(screen.getByRole('button', { name: 'Nouvelle recette' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Renommer Lunch box' })).toBeVisible();
   });
+
+  describe('focus', () => {
+    it('opening a rename puts focus in the field; saving or cancelling returns it to that row’s Rename button', async () => {
+      const user = userEvent.setup();
+      await setup();
+      await user.click(screen.getByRole('button', { name: 'Rename Lunch box' }));
+      expect(screen.getByLabelText('New name')).toHaveFocus();
+      await user.keyboard(' 2');
+      await user.click(screen.getByRole('button', { name: 'Save name' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Rename Lunch box 2' })).toHaveFocus(),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Rename Lunch box 2' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByRole('button', { name: 'Rename Lunch box 2' })).toHaveFocus();
+    });
+
+    const confirmDelete = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+      await user.click(screen.getByRole('button', { name: `Delete ${name}` }));
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }),
+      );
+    };
+
+    it('after a delete focus moves to the next row, else the section heading, else New recipe', async () => {
+      const user = userEvent.setup();
+      await setup();
+      // Meals are listed newest first: Lunch box, then Usual breakfast.
+      await confirmDelete(user, 'Lunch box');
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Rename Usual breakfast' })).toHaveFocus(),
+      );
+      // The last meal: the section heading takes focus.
+      await confirmDelete(user, 'Usual breakfast');
+      await waitFor(() => expect(screen.queryByText('Usual breakfast')).not.toBeInTheDocument());
+      // No meals left: the Meals section is gone, so the recipes heading is not it either; the
+      // recipe row's own delete is the next stop only while it exists.
+      await confirmDelete(user, 'Rice bake');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'New recipe' })).toHaveFocus());
+    });
+
+    it('deleting the last meal of several moves focus to the Meals heading', async () => {
+      const user = userEvent.setup();
+      await setup();
+      await confirmDelete(user, 'Usual breakfast'); // the second and last row
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 2, name: 'Meals' })).toHaveFocus(),
+      );
+    });
+  });
 });

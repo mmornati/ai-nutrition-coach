@@ -1,7 +1,7 @@
 import type { EpochMs } from '../common';
 import type { FoodEntry } from '../entities/food-entry';
 import type { PlateLog } from '../entities/plate-log';
-import { MEAL_SLOTS, mealSlotForHour, type MealSlot } from '../day/meal-slot';
+import { mealSlotForHour, type MealSlot } from '../day/meal-slot';
 import { isSameLocalDay, startOfLocalDay } from './calendar-day';
 import type { FoodEntryDraft } from './food-entry-draft';
 
@@ -45,21 +45,39 @@ export function instantForSlot(input: {
   return at.getTime();
 }
 
+/**
+ * The meals a copy can land in without ending up in the future: on today, the slots whose landing
+ * time is not after `now` (the current meal lands at `now`, earlier ones at their usual hour); on
+ * any other day, every candidate.
+ */
+export function slotsAvailable(input: {
+  readonly day: EpochMs;
+  readonly now: EpochMs;
+  readonly candidates: readonly MealSlot[];
+}): readonly MealSlot[] {
+  return input.candidates.filter(
+    (slot) => instantForSlot({ day: input.day, slot, now: input.now }) <= input.now,
+  );
+}
+
 export interface PlannedPlate {
   readonly sourcePlateId: number;
   readonly slot: MealSlot;
   readonly loggedAtUtc: EpochMs;
   readonly entries: readonly FoodEntryDraft[];
+  /** True when its clock time is later than `now` on the target day: copying it would make a future plate. */
+  readonly later: boolean;
 }
 
 /**
- * Copy every plate of a day onto `targetDay`, slot order first and then time, keeping each plate's
- * clock time (so a 19:30 dinner copied at breakfast time lands at 19:30 and stays a dinner).
- * Plates without entries are left out.
+ * Copy every plate of a day onto `targetDay` in time order, keeping each plate's clock time (so a
+ * 19:30 dinner stays a dinner). A plate whose time on the target day is after `now` is marked
+ * `later`: the app never creates a plate in the future. Plates without entries are left out.
  */
 export function planDayCopy(
   plates: readonly PlateLog[],
   targetDay: EpochMs,
+  now: EpochMs = Number.POSITIVE_INFINITY,
 ): readonly PlannedPlate[] {
   const start = startOfLocalDay(targetDay);
   const planned: PlannedPlate[] = [];
@@ -73,12 +91,8 @@ export function planDayCopy(
       slot: mealSlotForHour(from.getHours()),
       loggedAtUtc: to.getTime(),
       entries: copyDrafts(plate.entries),
+      later: to.getTime() > now,
     });
   }
-  return planned.sort(
-    (a, b) =>
-      MEAL_SLOTS.indexOf(a.slot) - MEAL_SLOTS.indexOf(b.slot) ||
-      a.loggedAtUtc - b.loggedAtUtc ||
-      a.sourcePlateId - b.sourcePlateId,
-  );
+  return planned.sort((a, b) => a.loggedAtUtc - b.loggedAtUtc || a.sourcePlateId - b.sourcePlateId);
 }

@@ -9,6 +9,7 @@ import {
   openPlateDismissalKey,
   openPlateSuggestionFor,
   planDayCopy,
+  type PlannedPlate,
   visibleSlots,
   type MealSlot,
   type PlateLog,
@@ -97,7 +98,7 @@ export function TodayScreen() {
   const all = useStrings();
   const { locale } = useLocale();
   const s = all.today;
-  const { deletePlate, coach, coachInteractions, notes, recordPlates } = useSession();
+  const { deletePlate, coach, coachInteractions, notes, recordPlates, clock } = useSession();
   const targets = useTargets();
   const showNumbers = useShowNumbers();
   const day = useDay();
@@ -199,20 +200,26 @@ export function TodayScreen() {
     }
   };
 
-  // "Copy this day to today": a past day's plates, kept in slot order and at their own clock times.
-  const copyPlan = useMemo(
-    () =>
-      viewingToday
-        ? []
-        : planDayCopy(
-            board.slots.flatMap((entry) => entry.plates),
-            day.today,
-          ),
-    [viewingToday, board, day.today],
+  // "Copy this day to today": a past day's plates, in time order at their own clock times. A
+  // plate whose time has not come yet today is listed but not copied (no plates in the future).
+  const [retry, setRetry] = useState<{
+    readonly day: number;
+    readonly plates: readonly PlannedPlate[];
+  } | null>(null);
+  const dayPlates = useMemo(() => board.slots.flatMap((entry) => entry.plates), [board]);
+  const fullPlan = useMemo(
+    () => (viewingToday ? [] : planDayCopy(dayPlates, day.today, clock())),
+    // `copying` re-reads the clock each time the dialog opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewingToday, dayPlates, day.today, clock, copying],
   );
-  const copyLines = useMemo(() => {
-    const byId = new Map(board.slots.flatMap((entry) => entry.plates).map((p) => [p.id, p]));
-    return copyPlan.map((planned) => {
+  // After a partial failure only the plates that did not land are offered again.
+  const retrying = retry !== null && retry.day === day.selected;
+  const copyPlan = retrying ? retry.plates : fullPlan.filter((p) => !p.later);
+  const laterPlan = retrying ? [] : fullPlan.filter((p) => p.later);
+  const linesOf = (plan: readonly PlannedPlate[]) => {
+    const byId = new Map(dayPlates.map((p) => [p.id, p]));
+    return plan.map((planned) => {
       const source = byId.get(planned.sourcePlateId);
       return {
         id: planned.sourcePlateId,
@@ -221,33 +228,35 @@ export function TodayScreen() {
         foods: source === undefined ? '' : plateSummary(source),
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
-  }, [copyPlan, board, locale]);
+  };
   const copyDay = async () => {
     if (busy || copyPlan.length === 0) return;
     setBusy(true);
-    let recorded = 0;
+    const batch = copyPlan;
+    let recorded: number;
+    let failedPlates: readonly PlannedPlate[];
     try {
-      // One calm coach note for the whole batch (the last plate's); see Session.recordPlates.
-      recorded = (
-        await recordPlates(
-          copyPlan.map((p) => ({ entries: p.entries, loggedAtUtc: p.loggedAtUtc })),
-        )
-      ).recorded;
+      // One calm coach note for the whole batch (the last plate that landed); see Session.recordPlates.
+      const result = await recordPlates(batch);
+      recorded = result.recorded;
+      failedPlates = result.failedPlates;
     } catch {
       recorded = 0;
+      failedPlates = batch;
     }
     setBusy(false);
     setCopying(false);
-    const total = copyPlan.length;
+    setRetry(failedPlates.length > 0 ? { day: day.selected, plates: failedPlates } : null);
+    const total = batch.length;
     day.setNotice((a) =>
       recorded === total
         ? plural(a.relog.copiedDay, recorded)
         : recorded > 0
-          ? fill(a.relog.copiedDayPartial, { done: recorded, total })
+          ? fill(plural(a.relog.copiedDayPartial, recorded), { total })
           : a.common.logFailed,
     );
-    if (recorded > 0) day.select(day.today);
+    // Only a complete copy moves on to today: after a failure the rest can be tried again here.
+    if (failedPlates.length === 0) day.select(day.today);
   };
 
   const dayTotals = useMemo(
@@ -346,7 +355,8 @@ export function TodayScreen() {
       </div>
       <CopyDayDialog
         open={copying}
-        lines={copyLines}
+        lines={linesOf(copyPlan)}
+        laterLines={linesOf(laterPlan)}
         busy={busy}
         onKeep={() => setCopying(false)}
         onCopy={() => void copyDay()}

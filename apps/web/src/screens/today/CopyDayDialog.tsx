@@ -18,12 +18,15 @@ export interface CopyLine {
 export function CopyDayDialog({
   open,
   lines,
+  laterLines = [],
   busy,
   onKeep,
   onCopy,
 }: {
   readonly open: boolean;
   readonly lines: readonly CopyLine[];
+  /** Plates whose time has not come today: listed, not copied. */
+  readonly laterLines?: readonly CopyLine[];
   readonly busy: boolean;
   readonly onKeep: () => void;
   readonly onCopy: () => void;
@@ -47,6 +50,25 @@ export function CopyDayDialog({
               </li>
             ))}
           </ul>
+          {laterLines.length > 0 && (
+            <>
+              <p className="text-porcelain-dim">{t.copyDayLater}</p>
+              <ul aria-label={t.copyDayLater} className="border-rule border-t">
+                {laterLines.map((line) => (
+                  <li
+                    key={line.id}
+                    className="border-rule text-body-small text-porcelain-dim border-b py-2"
+                  >
+                    {fill(t.copyDayLine, {
+                      meal: slotName(line.slot),
+                      time: line.time,
+                      foods: line.foods,
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       }
       confirmLabel={t.copyDayConfirm}

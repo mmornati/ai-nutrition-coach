@@ -18,7 +18,8 @@ export type RunExportResult =
   | { readonly kind: 'cancelled' }
   | {
       readonly kind: 'failed';
-      readonly failure: ExportFailure | { readonly kind: 'deliveryFailed' };
+      readonly failure:
+        ExportFailure | { readonly kind: 'deliveryFailed' } | { readonly kind: 'savedUnavailable' };
     };
 
 const MIME: Readonly<Record<ExportFormat, string>> = {
@@ -44,7 +45,10 @@ export function createRunExport(deps: {
   readonly clock?: Clock;
   /** The optional profile, included in the JSON export only. Failure reads as none. */
   readonly readProfile?: () => Promise<Profile | undefined>;
-  /** The saved meals and recipes, included in the JSON export only. Failure reads as none. */
+  /**
+   * The saved meals and recipes, included in the JSON export only. A failed read (a rejection)
+   * fails the export with a calm message: an export that quietly left them out would look whole.
+   */
   readonly readSaved?: () => Promise<SavedExport | undefined>;
 }): (input: {
   readonly format: ExportFormat;
@@ -67,7 +71,7 @@ export function createRunExport(deps: {
       try {
         saved = await deps.readSaved();
       } catch {
-        saved = undefined;
+        return { kind: 'failed', failure: { kind: 'savedUnavailable' } };
       }
     }
     const text =

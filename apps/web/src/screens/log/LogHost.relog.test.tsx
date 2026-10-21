@@ -1,6 +1,6 @@
 // The capture flow's re-logging paths: recent and often foods in Type it, saved meals, and the
 // recipe editor (opened from the capture sheet), as the person meets them.
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -107,6 +107,10 @@ describe('Type it: recent and often foods', () => {
       await within(sheet).findByRole('button', { name: 'Change the amount of Rice' }),
     );
     const grams = within(sheet).getByLabelText(s.nutrition.gramsLabel);
+    // The lists step aside and focus lands on the amount.
+    expect(within(sheet).queryByRole('region', { name: 'Recent' })).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole('region', { name: 'Often' })).not.toBeInTheDocument();
+    expect(grams).toHaveFocus();
     expect(
       within(within(sheet).getByRole('group', { name: s.portion.label })).getByRole('button', {
         name: /180 g/,
@@ -287,6 +291,57 @@ describe('The recipe editor', () => {
     const listed = await bundle.saved.listRecipes();
     expect(listed.kind === 'saved' && listed.value).toEqual([]);
   });
+
+  it('refuses a cooked weight far from the ingredients, with a calm line, and saves nothing', async () => {
+    const bundle = await unlockedBundle();
+    const { user, editor } = await openEditor(bundle);
+    await addIngredient(user, editor, 'rice', /^Rice/, '200');
+    await user.type(within(editor).getByLabelText('Recipe name'), 'Typo');
+    await user.type(within(editor).getByLabelText('Cooked weight, in grams (optional)'), '20');
+    await user.click(within(editor).getByRole('button', { name: 'Save recipe' }));
+    expect(
+      await within(editor).findByText(
+        'That cooked weight is far from the weight of the ingredients (a fifth to three times as much). Check the grams.',
+      ),
+    ).toBeVisible();
+    const listed = await bundle.saved.listRecipes();
+    expect(listed.kind === 'saved' && listed.value).toEqual([]);
+    // The cap on the field itself still speaks of the limit.
+    await user.clear(within(editor).getByLabelText('Cooked weight, in grams (optional)'));
+    await user.type(within(editor).getByLabelText('Cooked weight, in grams (optional)'), '99999');
+    await user.click(within(editor).getByRole('button', { name: 'Save recipe' }));
+    expect(
+      await within(editor).findByText('Cooked weight is a number of grams, up to 20000.'),
+    ).toBeVisible();
+  });
+
+  it('stops at 40 ingredients: Add is off and the limit is said in words', async () => {
+    const bundle = await unlockedBundle();
+    const { editor } = await openEditor(bundle);
+    for (let i = 0; i < 40; i++) {
+      fireEvent.change(within(editor).getByLabelText('Search an ingredient'), {
+        target: { value: 'rice' },
+      });
+      const pick = (
+        await within(editor).findAllByRole('button', { name: /^Rice/ })
+      )[0] as HTMLElement;
+      fireEvent.click(pick);
+      fireEvent.change(within(editor).getByLabelText(s.nutrition.gramsLabel), {
+        target: { value: '10' },
+      });
+      fireEvent.click(within(editor).getByRole('button', { name: 'Add to recipe' }));
+      await within(editor).findAllByRole('listitem');
+    }
+    expect(within(editor).getAllByRole('listitem')).toHaveLength(40);
+    fireEvent.change(within(editor).getByLabelText('Search an ingredient'), {
+      target: { value: 'rice' },
+    });
+    fireEvent.click(
+      (await within(editor).findAllByRole('button', { name: /^Rice/ }))[0] as HTMLElement,
+    );
+    expect(within(editor).getByRole('button', { name: 'Add to recipe' })).toBeDisabled();
+    expect(within(editor).getByText('A recipe holds up to 40 ingredients.')).toBeVisible();
+  }, 60_000);
 
   it('a food no catalog knows (so it has no weight) cannot be added as an ingredient', async () => {
     const bundle = await unlockedBundle();

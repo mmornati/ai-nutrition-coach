@@ -5,6 +5,7 @@ import {
   instantForSlot,
   isSameLocalDay,
   mealSlotForHour,
+  slotsAvailable,
   type EpochMs,
   type MealSlot,
   type PlateLog,
@@ -57,10 +58,22 @@ export function CopyPlateSheet({
       }),
     [day.today, t.dayToday],
   );
-  const slots: readonly MealSlot[] =
-    originalSlot === 'late'
+  // Never a plate in the future: on today only the meals that have started are offered (the
+  // current one lands at now, earlier ones at their usual hour). "Late" is offered when the
+  // plate was late or it is late now.
+  const now = clock();
+  const clockSlot = mealSlotForHour(new Date(now).getHours());
+  const candidates: readonly MealSlot[] =
+    originalSlot === 'late' || clockSlot === 'late'
       ? ['breakfast', 'lunch', 'dinner', 'late']
       : ['breakfast', 'lunch', 'dinner'];
+  const slots = slotsAvailable({ day: target, now, candidates });
+  // The chosen meal is always one of the radios: else the plate's own, else the first offered.
+  const chosen: MealSlot = slots.includes(slot)
+    ? slot
+    : slots.includes(originalSlot)
+      ? originalSlot
+      : (slots[0] ?? clockSlot);
 
   const submit = async () => {
     if (busy) return;
@@ -69,7 +82,7 @@ export function CopyPlateSheet({
     try {
       const result = await recordPlate(
         copyDrafts(plate.entries),
-        instantForSlot({ day: target, slot, now: clock() }),
+        instantForSlot({ day: target, slot: chosen, now }),
       );
       recorded = result.kind === 'recordPlateSuccess';
     } catch {
@@ -80,7 +93,7 @@ export function CopyPlateSheet({
       setNote((a) => a.common.logFailed);
       return;
     }
-    const meal = slotName(slot);
+    const meal = slotName(chosen);
     const today = isSameLocalDay(target, day.today);
     const label = `${weekdayName(target)} ${formatDayMonth(target)}`;
     day.select(target);
@@ -105,7 +118,7 @@ export function CopyPlateSheet({
       <ChoiceGroup
         label={t.whichMeal}
         choices={slots.map((s) => ({ value: s, label: slotName(s) }))}
-        value={slot}
+        value={chosen}
         onChange={setSlot}
       />
       <p role="status" className="text-body-small text-porcelain-dim empty:hidden">

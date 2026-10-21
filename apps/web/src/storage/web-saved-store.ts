@@ -6,6 +6,7 @@
 
 import {
   cleanSavedName,
+  databaseFood,
   isValidQuantity,
   recipeProblem,
   savedFailed,
@@ -24,6 +25,12 @@ import { isProgrammingError, SessionClosedError } from './errors';
 import { mapRecipes, mapSavedMeals, toStoredInstant } from './row-mapping';
 import type { StoreSource } from './store-source';
 import { toInsert } from './web-encrypted-store';
+
+/** What was actually stored: the food went through the same sanitisers as a logged plate. */
+const stored = (draft: FoodEntryDraft): FoodEntryDraft => ({
+  databaseFood: databaseFood(draft.databaseFood),
+  quantity: { ...draft.quantity },
+});
 
 const entriesValid = (entries: readonly FoodEntryDraft[]): boolean =>
   entries.length > 0 && entries.every((e) => isValidQuantity(e.quantity));
@@ -70,7 +77,7 @@ export class WebSavedStore implements SavedStore {
         toStoredInstant(createdAtUtc),
         input.entries.map(toInsert),
       );
-      return savedOk({ id, name, createdAtUtc, entries: input.entries });
+      return savedOk({ id, name, createdAtUtc, entries: input.entries.map(stored) });
     });
   }
 
@@ -116,7 +123,7 @@ export class WebSavedStore implements SavedStore {
         ...(input.cookedWeightGrams === undefined
           ? {}
           : { cookedWeightGrams: input.cookedWeightGrams }),
-        ingredients: input.ingredients,
+        ingredients: input.ingredients.map(stored),
       });
     });
   }

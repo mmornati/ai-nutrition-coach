@@ -35,6 +35,7 @@ import {
   type FoodCatalog,
   type FoodEntryDraft,
   type LocalDataEraser,
+  type PlateLog,
   type Nutrients,
   type WeeklyReview,
   type RecordCoachInteraction,
@@ -112,19 +113,28 @@ export interface Session {
   ) => Promise<RecordPlateResult>;
   /**
    * Records several plates in order (copying a day). Every plate goes through the same path as
-   * `recordPlate`, but only the LAST one is coached: one calm note for the batch, written with the
-   * whole day in view, instead of a note (and an AI call) per plate.
+   * `recordPlate`, but only the last plate that was actually committed is coached: one calm note
+   * for the batch, written with the whole day in view, instead of a note (and an AI call) per
+   * plate. A plate that fails does not stop the others; `failedPlates` hands back exactly those
+   * that did not land, so a retry copies only them.
    */
-  readonly recordPlates: (
-    plates: readonly {
-      readonly entries: readonly FoodEntryDraft[];
-      readonly loggedAtUtc: EpochMs;
-    }[],
-  ) => Promise<{ readonly recorded: number; readonly failed: number }>;
+  readonly recordPlates: <P extends PlateToRecord>(
+    plates: readonly P[],
+  ) => Promise<{
+    readonly recorded: number;
+    readonly failed: number;
+    readonly failedPlates: readonly P[];
+  }>;
   readonly deletePlate: DeletePlate;
   /** False once the session was disposed: late async results must not touch the UI. */
   readonly live: () => boolean;
   dispose(): void;
+}
+
+/** One plate of a batch: its entries and the instant it lands at. */
+export interface PlateToRecord {
+  readonly entries: readonly FoodEntryDraft[];
+  readonly loggedAtUtc: EpochMs;
 }
 
 export interface SessionOptions {
@@ -306,23 +316,39 @@ export async function createSession(
     saved,
     recordPlate: (entries, loggedAtUtc) => record({ entries, store, loggedAtUtc }),
     recordPlates: async (plates) => {
-      let recorded = 0;
-      for (const [i, plate] of plates.entries()) {
-        const last = i === plates.length - 1;
+      const failedPlates: (typeof plates)[number][] = [];
+      let lastCommitted: PlateLog | null = null;
+      for (const plate of plates) {
         let result: RecordPlateResult;
         try {
-          result = await (last ? record : recordQuietly)({
+          result = await recordQuietly({
             entries: plate.entries,
             store,
             loggedAtUtc: plate.loggedAtUtc,
           });
         } catch {
-          break;
+          failedPlates.push(plate);
+          continue;
         }
-        if (result.kind !== 'recordPlateSuccess') break;
-        recorded++;
+        if (result.kind === 'recordPlateSuccess') lastCommitted = result.plateLog;
+        else failedPlates.push(plate);
       }
-      return { recorded, failed: plates.length - recorded };
+      if (lastCommitted !== null) {
+        // The one note of the batch, for the last plate that landed, read in its whole day.
+        try {
+          let dayPlates: readonly PlateLog[] = [];
+          const day = await store.readRange(localDayRange(lastCommitted.loggedAtUtc));
+          if (day.kind === 'platesRead') dayPlates = day.plates;
+          await generator.generateFor(lastCommitted, { dayPlates });
+        } catch {
+          // A missing note never undoes a committed plate.
+        }
+      }
+      return {
+        recorded: plates.length - failedPlates.length,
+        failed: failedPlates.length,
+        failedPlates,
+      };
     },
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
     live: () => live,
@@ -333,6 +359,7 @@ export async function createSession(
       stopWatching();
       ai.coaching.dispose();
       baseCatalog.clearCaches();
+      catalog.invalidate();
       ai.permit.close();
       stopScoping();
       syncQueue.clear();

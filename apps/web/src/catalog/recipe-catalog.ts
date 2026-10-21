@@ -42,7 +42,8 @@ export function recipePresets(
       ...serving,
       displayLabel: quantityLabel(serving, locale),
       grams: n.perServingGrams,
-      gramsEstimated: !n.cookedWeightKnown,
+      // Cooked weight divided by servings is an assumption (a serving is rarely exactly even).
+      gramsEstimated: true,
     },
     gramsQuantity(100, { estimated: false, displayLabel: per100Label }),
   ];
@@ -113,12 +114,16 @@ export class RecipeFoodCatalog implements FoodCatalog {
       .map((r) => ({ food: recipeAsFood(r), confidence: 0.5, presets: recipePresets(r, locale) }));
     if (found.length === 0) return result;
     const base = result.kind === 'rankedMatches' ? result.matches : [];
-    // After the seeds (which the base lists first), before the rest.
+    // Seeds first, then the recipes, then the rest. Room for the recipes is reserved before the
+    // limit cuts anything, so a name match is never pushed out by a long list of seeds.
     let at = 0;
     base.forEach((m, i) => {
       if (m.food.source === 'seed') at = i + 1;
     });
-    const merged = [...base.slice(0, at), ...found, ...base.slice(at)].slice(0, Math.max(0, limit));
+    const room = Math.max(0, limit);
+    const mine = found.slice(0, room);
+    const seeds = base.slice(0, at).slice(0, Math.max(0, room - mine.length));
+    const merged = [...seeds, ...mine, ...base.slice(at)].slice(0, room);
     return rankedMatches(merged);
   }
 

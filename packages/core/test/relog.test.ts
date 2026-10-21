@@ -5,6 +5,7 @@ import {
   instantForSlot,
   localTime,
   planDayCopy,
+  slotsAvailable,
   plateLog,
   type FoodEntry,
 } from '../src/index';
@@ -95,5 +96,68 @@ describe('planDayCopy', () => {
 
   it('is empty for a day with nothing on it', () => {
     expect(planDayCopy([], target)).toEqual([]);
+  });
+});
+
+describe('planDayCopy: order and the future', () => {
+  const target = localTime(2026, 10, 21);
+  const mk = (id: number, h: number, m = 0) =>
+    plateLog({
+      id,
+      loggedAtUtc: localTime(2026, 10, 19, h, m),
+      entries: [entry(id * 10, id, `f${id}`)],
+    });
+
+  it('orders by clock time only: a 01:00 late plate comes before the 19:30 dinner', () => {
+    const plan = planDayCopy([mk(1, 19, 30), mk(2, 1, 0), mk(3, 12)], target);
+    expect(plan.map((p) => [p.sourcePlateId, p.slot])).toEqual([
+      [2, 'late'],
+      [3, 'lunch'],
+      [1, 'dinner'],
+    ]);
+  });
+
+  it('marks plates whose time is after now as later, and leaves the rest alone', () => {
+    const now = localTime(2026, 10, 21, 13, 0);
+    const plan = planDayCopy([mk(1, 7, 45), mk(2, 12, 59), mk(3, 13, 0), mk(4, 19)], target, now);
+    expect(plan.map((p) => [p.sourcePlateId, p.later])).toEqual([
+      [1, false],
+      [2, false],
+      [3, false],
+      [4, true],
+    ]);
+    // Without a "now" nothing is later.
+    expect(planDayCopy([mk(4, 19)], target).every((p) => !p.later)).toBe(true);
+  });
+});
+
+describe('slotsAvailable', () => {
+  const today = localTime(2026, 10, 21);
+  const all = ['breakfast', 'lunch', 'dinner', 'late'] as const;
+
+  it('on today offers only the meals that have started', () => {
+    expect(
+      slotsAvailable({ day: today, now: localTime(2026, 10, 21, 13, 40), candidates: all }),
+    ).toEqual(['breakfast', 'lunch']);
+    expect(
+      slotsAvailable({ day: today, now: localTime(2026, 10, 21, 23, 30), candidates: all }),
+    ).toEqual(['breakfast', 'lunch', 'dinner', 'late']);
+  });
+
+  it('after midnight only the late meal has started, and it lands at now', () => {
+    expect(
+      slotsAvailable({ day: today, now: localTime(2026, 10, 21, 2, 0), candidates: all }),
+    ).toEqual(['late']);
+  });
+
+  it('on another day every candidate is offered', () => {
+    const earlier = localTime(2026, 10, 19);
+    expect(
+      slotsAvailable({
+        day: earlier,
+        now: localTime(2026, 10, 21, 9, 0),
+        candidates: all.slice(0, 3),
+      }),
+    ).toEqual(['breakfast', 'lunch', 'dinner']);
   });
 });

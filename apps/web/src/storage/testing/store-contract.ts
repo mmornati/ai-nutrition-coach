@@ -832,6 +832,48 @@ export const storeContractCases: readonly ContractCase[] = [
     },
   },
   {
+    name: 'saved meals and recipes: what a save returns is what is stored (sanitised)',
+    async run({ saved }) {
+      const odd: FoodEntryDraft = {
+        databaseFood: {
+          sourceRef: 'off:1',
+          displayName: 'Odd',
+          source: 'off',
+          foodGroup: 'other',
+          // 99999 kcal per 100 g is implausible: the store drops it, and says so in what it returns.
+          nutrientsPer100g: { energyKcal: 99999, protein: 10 },
+        },
+        quantity: { low: 1, high: 1, unit: 'g', displayLabel: '100 g', grams: 100 },
+      };
+      const meal = await saved.saveMeal({ name: 'Odd meal', entries: [odd] });
+      const recipe = await saved.saveRecipe({
+        name: 'Odd recipe',
+        servings: 1,
+        ingredients: [odd],
+      });
+      assert(meal.kind === 'saved' && recipe.kind === 'saved', 'saved');
+      if (meal.kind !== 'saved' || recipe.kind !== 'saved') return;
+      same(meal.value.entries[0]?.databaseFood.nutrientsPer100g, { protein: 10 }, 'meal returned');
+      same(
+        recipe.value.ingredients[0]?.databaseFood.nutrientsPer100g,
+        { protein: 10 },
+        'recipe returned',
+      );
+      const meals = await saved.listMeals();
+      const recipes = await saved.listRecipes();
+      same(
+        meals.kind === 'saved' ? meals.value[0]?.entries : null,
+        meal.value.entries,
+        'the meal read back is the meal returned',
+      );
+      same(
+        recipes.kind === 'saved' ? recipes.value[0]?.ingredients : null,
+        recipe.value.ingredients,
+        'the recipe read back is the recipe returned',
+      );
+    },
+  },
+  {
     name: 'saved meals: rename and delete touch only that meal; delete is idempotent',
     async run({ saved }) {
       const a = await saved.saveMeal({ name: 'A', entries: [draft('One'), draft('Two')] });

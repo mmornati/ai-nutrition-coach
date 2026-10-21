@@ -96,7 +96,8 @@ and are estimates: an ingredient with no nutrient data adds nothing and is named
 counted as zero. A plate you log from a meal or a recipe keeps its own copy of the foods, so
 renaming or deleting the template never changes your history.
 
-Recent and frequent foods in *Type it* are worked out on the fly from your last 30 days of plates;
+The JSON export is a readable copy of all this (there is no import, so it is for your own
+reference and for other tools, not a way to restore a store). Recent and frequent foods in *Type it* are worked out on the fly from your last 30 days of plates;
 nothing extra is stored for them.
 
 ## Your language

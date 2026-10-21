@@ -538,3 +538,23 @@ describe('foodGroupsOfFood (what the coach counts)', () => {
     expect(foodGroupsOfFood(food('xyzzy', 'other', 'manual'))).toEqual(['other']);
   });
 });
+
+describe('foodGroupsOfFood: recipes carry their own groups', () => {
+  it('counts every group a recipe stores, with its main one first, and never invents other', () => {
+    const stew = databaseFood({
+      sourceRef: 'recipe:1',
+      displayName: 'Zzz bake',
+      source: 'recipe',
+      foodGroup: 'protein',
+      extra: { groups: ['vegFruit', 'starch'] },
+    });
+    expect(foodGroupsOfFood(stew)).toEqual(['protein', 'vegFruit', 'starch']);
+    const plain = databaseFood({
+      sourceRef: 'recipe:2',
+      displayName: 'Zzz mash',
+      source: 'recipe',
+      foodGroup: 'starch',
+    });
+    expect(foodGroupsOfFood(plain)).toEqual(['starch']);
+  });
+});

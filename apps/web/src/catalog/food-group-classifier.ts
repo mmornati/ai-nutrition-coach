@@ -117,6 +117,8 @@ export function classifyFoodGroupsByName(name: string): readonly FoodGroup[] {
 export function foodGroupsOfFood(food: DatabaseFood): readonly FoodGroup[] {
   if (food.source === 'off') return [food.foodGroup];
   const out: FoodGroup[] = food.foodGroup === 'other' ? [] : [food.foodGroup];
+  // A recipe says itself which groups it carries (each a real share of its weight).
+  for (const g of food.extra?.groups ?? []) if (!out.includes(g)) out.push(g);
   for (const g of classifyFoodGroupsByName(food.displayName)) if (!out.includes(g)) out.push(g);
   return out.length > 0 ? out : ['other'];
 }

@@ -5,6 +5,8 @@ import {
   databaseFood,
   recipeAsFood,
   recipeFoodGroup,
+  recipeFoodGroups,
+  sanitizeFoodExtra,
   recipeProblem,
   recipeSourceRef,
   type FoodEntryDraft,
@@ -121,9 +123,13 @@ describe('recipeProblem', () => {
     expect(recipeProblem({ ingredients: [rice], servings: 1, cookedWeightGrams: 30_000 })).toBe(
       'badCookedWeight',
     );
-    expect(recipeProblem({ ingredients: [rice], servings: 1, cookedWeightGrams: 9000 })).toBe(
-      'servingTooHeavy',
-    );
+    expect(
+      recipeProblem({
+        ingredients: [ingredient('big', 5000)],
+        servings: 1,
+        cookedWeightGrams: 9000,
+      }),
+    ).toBe('servingTooHeavy');
     const many = Array.from({ length: 41 }, () => rice);
     expect(recipeProblem({ ingredients: many, servings: 50 })).toBe('tooManyIngredients');
   });
@@ -183,5 +189,123 @@ describe('cleanSavedName', () => {
     expect(cleanSavedName('  My   usual \n breakfast ')).toBe('My usual breakfast');
     expect(cleanSavedName('   ')).toBeNull();
     expect(Array.from(cleanSavedName('x'.repeat(200)) ?? '')).toHaveLength(80);
+  });
+});
+
+describe('implausible cooked weight', () => {
+  const raw = [ingredient('a', 300), ingredient('b', 200)]; // 500 g raw
+
+  it('is refused outside a fifth to three times the raw weight, and accepted inside it', () => {
+    for (const cooked of [90, 1600]) {
+      expect(recipeProblem({ ingredients: raw, servings: 2, cookedWeightGrams: cooked })).toBe(
+        'cookedWeightImplausible',
+      );
+    }
+    for (const cooked of [100, 400, 1500]) {
+      expect(
+        recipeProblem({ ingredients: raw, servings: 2, cookedWeightGrams: cooked }),
+      ).toBeNull();
+    }
+  });
+
+  it('a dropped (implausible) value marks the result partial instead of vanishing silently', () => {
+    // 500 g of pure oil cooked down to 100 g: 900 kcal/100 g x 5 = 4500 kcal per 100 g, over the cap.
+    const oil = ingredient('oil', 500, { energyKcal: 900, fat: 100 });
+    const n = computeRecipe({ ingredients: [oil], servings: 1, cookedWeightGrams: 100 });
+    expect(n.per100g).toBeUndefined();
+    expect(n.partial).toBe(true);
+    expect(n.totals.energyKcal).toBe(4500);
+    // A normal recipe is not flagged by the same check.
+    expect(computeRecipe({ ingredients: [oil], servings: 1 }).partial).toBe(false);
+  });
+});
+
+describe('estimates in the ingredients', () => {
+  const full = { energyKcal: 100, protein: 10 };
+  const guessed = (name: string): FoodEntryDraft => {
+    const base = ingredient(name, 100, full);
+    return { ...base, quantity: { ...base.quantity, gramsEstimated: true } };
+  };
+  const aiFood = (): FoodEntryDraft => {
+    const base = ingredient('ai', 100, full);
+    return {
+      ...base,
+      databaseFood: databaseFood({
+        ...base.databaseFood,
+        nutrientsPer100g: full,
+        extra: { nutrientsEstimated: true },
+      }),
+    };
+  };
+  const recipeOf = (ingredients: readonly FoodEntryDraft[]): Recipe => ({
+    id: 1,
+    name: 'r',
+    createdAtUtc: 0,
+    servings: 2,
+    cookedWeightGrams: 200,
+    ingredients,
+  });
+
+  it('exact ingredients, a cooked weight and complete data read as exact', () => {
+    const r = recipeOf([ingredient('a', 100, full), ingredient('b', 100, full)]);
+    expect(computeRecipe(r).anyEstimated).toBe(false);
+    expect(recipeAsFood(r).extra).toBeUndefined();
+  });
+
+  it('a guessed weight or an estimated food makes the whole recipe an estimate', () => {
+    for (const r of [
+      recipeOf([guessed('a'), ingredient('b', 100, full)]),
+      recipeOf([aiFood(), ingredient('b', 100, full)]),
+    ]) {
+      expect(computeRecipe(r).anyEstimated).toBe(true);
+      expect(recipeAsFood(r).extra?.nutrientsEstimated).toBe(true);
+    }
+  });
+
+  it('an estimated sub-recipe (a recipe food used as an ingredient) carries its flag', () => {
+    const inner = recipeAsFood({ ...recipeOf([guessed('a')]), id: 2, name: 'inner' });
+    const asIngredient: FoodEntryDraft = {
+      databaseFood: inner,
+      quantity: { low: 100, high: 100, unit: 'g', displayLabel: '100 g', grams: 100 },
+    };
+    expect(recipeAsFood(recipeOf([asIngredient, ingredient('b', 100, full)])).extra).toMatchObject({
+      nutrientsEstimated: true,
+    });
+  });
+});
+
+describe('recipe food groups', () => {
+  it('keeps every group above a 15 % share of the weight, heaviest first, never other', () => {
+    const groups = recipeFoodGroups([
+      ingredient('beans', 400, undefined, 'protein'),
+      ingredient('carrot', 300, undefined, 'vegFruit'),
+      ingredient('rice', 200, undefined, 'starch'),
+      ingredient('cheese', 50, undefined, 'dairy'),
+      ingredient('salt', 50, undefined, 'other'),
+    ]);
+    expect(groups).toEqual(['protein', 'vegFruit', 'starch']);
+  });
+
+  it('a recipe food carries them in extra.groups (when more than one), and they survive sanitising', () => {
+    const recipe: Recipe = {
+      id: 3,
+      name: 'Stew',
+      createdAtUtc: 0,
+      servings: 2,
+      ingredients: [
+        ingredient('beans', 300, { energyKcal: 100 }, 'protein'),
+        ingredient('carrot', 300, { energyKcal: 40 }, 'vegFruit'),
+      ],
+    };
+    const food = recipeAsFood(recipe);
+    expect(food.extra?.groups).toEqual(['protein', 'vegFruit']);
+    expect(sanitizeFoodExtra(JSON.parse(JSON.stringify(food.extra)))?.groups).toEqual([
+      'protein',
+      'vegFruit',
+    ]);
+    expect(sanitizeFoodExtra({ groups: ['other', 'bogus', 'dairy', 'dairy'] })?.groups).toEqual([
+      'dairy',
+    ]);
+    expect(sanitizeFoodExtra({ groups: ['other'] })).toBeUndefined();
   });
 });

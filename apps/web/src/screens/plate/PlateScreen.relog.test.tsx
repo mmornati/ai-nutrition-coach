@@ -104,6 +104,73 @@ describe('Log this again', () => {
   });
 });
 
+describe('Log this again: never a plate in the future', () => {
+  const radios = (group: HTMLElement) =>
+    within(group)
+      .getAllByRole('radio')
+      .map((r) => [
+        (r as HTMLInputElement).labels?.[0]?.textContent,
+        (r as HTMLInputElement).checked,
+      ]);
+
+  async function openSheet(hour: number, minute = 0) {
+    vi.setSystemTime(new Date(2026, 9, 14, hour, minute));
+    const user = userEvent.setup();
+    const view = await openPlate();
+    await user.click(screen.getByRole('button', { name: 'Log this again' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Log this again' });
+    return { user, sheet, ...view };
+  }
+
+  it('at 13:40 only breakfast and lunch are offered today, lunch chosen; another day offers dinner too', async () => {
+    const { user, sheet, bundle, plate } = await openSheet(13, 40);
+    const meal = within(sheet).getByRole('group', { name: 'Which meal' });
+    expect(radios(meal)).toEqual([
+      ['Breakfast', false],
+      ['Lunch', true],
+    ]);
+    await user.click(within(sheet).getByRole('radio', { name: /^Monday/ }));
+    expect(radios(within(sheet).getByRole('group', { name: 'Which meal' }))).toEqual([
+      ['Breakfast', false],
+      ['Lunch', true],
+      ['Dinner', false],
+    ]);
+    await user.click(within(sheet).getByRole('radio', { name: 'Today' }));
+    await user.click(within(sheet).getByRole('radio', { name: 'Breakfast' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Log this plate' }));
+    await screen.findByText('Logged again: Breakfast.');
+    const copy = (await allPlates(bundle)).find((p) => p.id !== plate.id);
+    // An earlier meal today lands at its usual hour, never later than now.
+    expect(copy?.loggedAtUtc).toBe(at(8, 0));
+  });
+
+  it('at 23:30 on a lunch plate "Late" is offered and is the chosen radio (never a hidden choice)', async () => {
+    const { sheet, bundle, user, plate } = await openSheet(23, 30);
+    const meal = within(sheet).getByRole('group', { name: 'Which meal' });
+    expect(radios(meal)).toEqual([
+      ['Breakfast', false],
+      ['Lunch', false],
+      ['Dinner', false],
+      ['Late', true],
+    ]);
+    await user.click(within(sheet).getByRole('button', { name: 'Log this plate' }));
+    await screen.findByText('Logged again: Late.');
+    const copy = (await allPlates(bundle)).find((p) => p.id !== plate.id);
+    expect(copy?.loggedAtUtc).toBe(at(23, 30));
+  });
+
+  it('after midnight only the late meal has started today; the other days still offer all', async () => {
+    const { sheet, user } = await openSheet(2, 0);
+    expect(radios(within(sheet).getByRole('group', { name: 'Which meal' }))).toEqual([
+      ['Late', true],
+    ]);
+    await user.click(within(sheet).getByRole('radio', { name: /^Monday/ }));
+    const other = radios(within(sheet).getByRole('group', { name: 'Which meal' }));
+    expect(other.map(([name]) => name)).toEqual(['Breakfast', 'Lunch', 'Dinner', 'Late']);
+    expect(other.filter(([, checked]) => checked)).toHaveLength(1);
+  });
+});
+
 describe('Log this again, in French', () => {
   it('asks and confirms in French, with the narrow no-break space before the colon', async () => {
     const user = userEvent.setup();

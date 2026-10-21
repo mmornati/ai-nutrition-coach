@@ -8,6 +8,11 @@ export const MAX_SERVINGS = 100;
 /** A pot of stew can outweigh one plate: the cooked weight of a whole dish goes higher. */
 export const MAX_COOKED_WEIGHT_GRAMS = 20_000;
 export const MAX_INGREDIENTS = 40;
+/** A cooked weight outside this range of the raw ingredient sum is more likely a typo than cooking. */
+export const COOKED_WEIGHT_MIN_RATIO = 0.2;
+export const COOKED_WEIGHT_MAX_RATIO = 3;
+/** A food group is kept on a recipe when it holds at least this share of the weight. */
+export const GROUP_SHARE_MIN = 0.15;
 
 /** The first reason a recipe cannot be saved. */
 export type RecipeProblem =
@@ -16,6 +21,7 @@ export type RecipeProblem =
   | 'ingredientWithoutGrams'
   | 'badServings'
   | 'badCookedWeight'
+  | 'cookedWeightImplausible'
   | 'servingTooHeavy';
 
 export interface RecipeNutrition {
@@ -37,6 +43,8 @@ export interface RecipeNutrition {
    * nutrient some ingredients do not know. The totals then read low, so they are only an estimate.
    */
   readonly partial: boolean;
+  /** True when any ingredient's weight or nutrients are themselves a guess (a preset, an AI reading). */
+  readonly anyEstimated: boolean;
   /** False when no cooked weight was given: the weight basis is the raw sum. */
   readonly cookedWeightKnown: boolean;
 }
@@ -69,7 +77,14 @@ export function recipeProblem(input: RecipeInput): RecipeProblem | null {
   ) {
     return 'badCookedWeight';
   }
-  const basis = cooked ?? input.ingredients.reduce((sum, i) => sum + (gramsOf(i) ?? 0), 0);
+  const raw = input.ingredients.reduce((sum, i) => sum + (gramsOf(i) ?? 0), 0);
+  if (
+    cooked !== undefined &&
+    (cooked < raw * COOKED_WEIGHT_MIN_RATIO || cooked > raw * COOKED_WEIGHT_MAX_RATIO)
+  ) {
+    return 'cookedWeightImplausible';
+  }
+  const basis = cooked ?? raw;
   if (basis / input.servings > MAX_GRAMS) return 'servingTooHeavy';
   return null;
 }
@@ -107,9 +122,12 @@ export function computeRecipe(input: RecipeInput): RecipeNutrition {
     if (known.size > 0) counted++;
     perIngredient.push(known);
   }
-  const partial =
+  let partial =
     counted < input.ingredients.length ||
     perIngredient.some((known) => [...keysSeen].some((key) => !known.has(key)));
+  const anyEstimated = input.ingredients.some(
+    (i) => i.quantity.gramsEstimated === true || i.databaseFood.extra?.nutrientsEstimated === true,
+  );
 
   const servings = input.servings >= 1 ? input.servings : 1;
   const cooked = input.cookedWeightGrams;
@@ -124,6 +142,16 @@ export function computeRecipe(input: RecipeInput): RecipeNutrition {
     return Object.freeze(out);
   };
 
+  const rawPer100 = basisGrams > 0 ? scaled(100 / basisGrams) : undefined;
+  const per100g = rawPer100 === undefined ? undefined : sanitizeNutrients(rawPer100);
+  // A value the plausibility caps dropped is unknown now, not zero: say the figures are partial.
+  if (
+    rawPer100 !== undefined &&
+    Object.keys(rawPer100).some((k) => per100g?.[k as NutrientKey] === undefined)
+  ) {
+    partial = true;
+  }
+
   return {
     ingredientGrams: round2(ingredientGrams),
     basisGrams: round2(basisGrams),
@@ -131,24 +159,29 @@ export function computeRecipe(input: RecipeInput): RecipeNutrition {
     perServingGrams: round2(basisGrams / servings),
     totals: scaled(1),
     perServing: scaled(1 / servings),
-    per100g: basisGrams > 0 ? sanitizeNutrients(scaled(100 / basisGrams)) : undefined,
+    per100g,
     ingredientsCounted: counted,
     ingredientsTotal: input.ingredients.length,
     partial,
+    anyEstimated,
     cookedWeightKnown,
   };
 }
 
-/** The food group that holds the most weight in the recipe (`other` only when nothing else does). */
-export function recipeFoodGroup(ingredients: readonly FoodEntryDraft[]): FoodGroup {
+function groupWeights(ingredients: readonly FoodEntryDraft[]): Map<FoodGroup, number> {
   const weight = new Map<FoodGroup, number>();
   for (const i of ingredients) {
     const group = i.databaseFood.foodGroup;
     weight.set(group, (weight.get(group) ?? 0) + (gramsOf(i) ?? 0));
   }
+  return weight;
+}
+
+/** The food group that holds the most weight in the recipe (`other` only when nothing else does). */
+export function recipeFoodGroup(ingredients: readonly FoodEntryDraft[]): FoodGroup {
   let best: FoodGroup = 'other';
   let bestWeight = 0;
-  for (const [group, grams] of weight) {
+  for (const [group, grams] of groupWeights(ingredients)) {
     if (group === 'other') continue;
     if (grams > bestWeight) {
       best = group;
@@ -156,6 +189,20 @@ export function recipeFoodGroup(ingredients: readonly FoodEntryDraft[]): FoodGro
     }
   }
   return best;
+}
+
+/**
+ * The groups, heaviest first, that each hold at least `GROUP_SHARE_MIN` of the recipe's weight
+ * (never `other`): the lines a mixed dish really stops at.
+ */
+export function recipeFoodGroups(ingredients: readonly FoodEntryDraft[]): readonly FoodGroup[] {
+  const weights = groupWeights(ingredients);
+  const total = [...weights.values()].reduce((a, b) => a + b, 0);
+  if (total <= 0) return [];
+  return [...weights]
+    .filter(([group, grams]) => group !== 'other' && grams / total >= GROUP_SHARE_MIN)
+    .sort((a, b) => b[1] - a[1])
+    .map(([group]) => group);
 }
 
 /** `recipe:<id>`: the stable reference a plate keeps for a recipe's food. */
@@ -168,13 +215,21 @@ export const recipeSourceRef = (id: number): string => `recipe:${id}`;
  */
 export function recipeAsFood(recipe: Recipe): DatabaseFood {
   const n = computeRecipe(recipe);
-  const estimated = n.partial || !n.cookedWeightKnown;
+  const estimated = n.partial || !n.cookedWeightKnown || n.anyEstimated;
+  const groups = recipeFoodGroups(recipe.ingredients);
   return databaseFood({
     sourceRef: recipeSourceRef(recipe.id),
     displayName: recipe.name,
     source: 'recipe',
     foodGroup: recipeFoodGroup(recipe.ingredients),
     ...(n.per100g ? { nutrientsPer100g: n.per100g } : {}),
-    ...(estimated ? { extra: { nutrientsEstimated: true } } : {}),
+    ...(estimated || groups.length > 1
+      ? {
+          extra: {
+            ...(estimated ? { nutrientsEstimated: true } : {}),
+            ...(groups.length > 1 ? { groups } : {}),
+          },
+        }
+      : {}),
   });
 }

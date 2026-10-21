@@ -566,6 +566,23 @@ describe('SQL behaviour', () => {
     }
   }
 
+  it('a failing item insert leaves no saved meal and no recipe row: each is one transaction', async () => {
+    await withDb((db, raw) => {
+      const bad = { ...entry('Broken'), sourceRef: null as unknown as string };
+      expect(() =>
+        db.insertSavedMeal('Usual', '2026-08-17T07:00:00.000Z', [entry('Fine'), bad]),
+      ).toThrow();
+      expect(() =>
+        db.insertRecipe('Stew', 2, null, '2026-08-17T07:00:00.000Z', [entry('Fine'), bad]),
+      ).toThrow();
+      for (const table of ['saved_meal', 'saved_meal_item', 'recipe', 'recipe_item']) {
+        expect(raw.all(`SELECT count(*) AS n FROM ${table}`)[0]?.['n']).toBe(0);
+      }
+      // The database is still usable after the rollback.
+      expect(db.insertSavedMeal('Again', '2026-08-17T07:00:00.000Z', [entry('Fine')])).toBe(1);
+    });
+  });
+
   it('the range read SEARCHes by index and never SCANs the plates (cost follows the range)', async () => {
     await withDb((db, raw) => {
       const seen: string[] = [];
