@@ -56,6 +56,9 @@ export type OffBarcodeResult =
       readonly displayName: string;
       /** Lower-cased category tags, e.g. `en:spreads`. Empty when OFF ships none. */
       readonly categoryTags: readonly string[];
+      /** Per-100 g nutrients and Nutri-Score / NOVA when OFF ships them (sanitised downstream). */
+      readonly nutrientsPer100g?: unknown;
+      readonly extra?: unknown;
     }
   | { readonly kind: 'notFound'; readonly barcode: string }
   | {

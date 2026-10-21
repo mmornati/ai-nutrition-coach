@@ -4,7 +4,7 @@ import { useStrings } from '../../i18n';
 import { Button } from '../primitives/Button';
 import { GroupMarker } from '../primitives/GroupMarker';
 import { effectivePresets, oneServing } from './foods';
-import { PortionPresets } from './PortionPresets';
+import { QuantityPicker } from './QuantityPicker';
 import { Sheet } from './Sheet';
 
 export interface BarcodeMatchSheetProps {
@@ -43,7 +43,7 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
 
   return (
     <>
-      <PortionPresets presets={presets} value={chosen} onChange={setChosen} />
+      <QuantityPicker presets={presets} value={chosen} onChange={setChosen} food={match.food} />
       {/* Always mounted: a live region is only announced reliably when its text changes. */}
       <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
         {message}

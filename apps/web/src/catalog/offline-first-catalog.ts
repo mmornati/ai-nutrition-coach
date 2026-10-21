@@ -198,7 +198,10 @@ export class OfflineFirstFoodCatalog implements FoodCatalog {
       switch (result.kind) {
         case 'match':
           resolved = rankedMatches([
-            toBarcodeMatch(trimmed, result.displayName, result.categoryTags),
+            toBarcodeMatch(trimmed, result.displayName, result.categoryTags, {
+              nutrientsPer100g: result.nutrientsPer100g,
+              extra: result.extra,
+            }),
           ]);
           break;
         case 'notFound':
@@ -271,6 +274,7 @@ function toBarcodeMatch(
   barcode: string,
   displayName: string,
   categoryTags: readonly string[],
+  facts: { readonly nutrientsPer100g?: unknown; readonly extra?: unknown } = {},
 ): FoodMatch {
   return {
     food: databaseFood({
@@ -278,6 +282,8 @@ function toBarcodeMatch(
       displayName,
       source: 'off',
       foodGroup: classifyFoodGroup(categoryTags),
+      nutrientsPer100g: facts.nutrientsPer100g,
+      extra: facts.extra,
     }),
     confidence: 1.0,
     presets: [],

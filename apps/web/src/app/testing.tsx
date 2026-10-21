@@ -8,6 +8,7 @@ import {
   databaseFood,
   type FoodGroup,
   type FoodEntryDraft,
+  type Nutrients,
   type PlateLog,
   type QuantityRange,
 } from '@anc/core';
@@ -129,6 +130,40 @@ export async function seedPlate(
 ): Promise<PlateLog> {
   const result = await bundle.store.recordPlate({
     entries: foods.map(([name, group]) => draft(name, group)),
+    loggedAtUtc: when,
+  });
+  if (result.kind !== 'recordPlateSuccess') throw new Error('could not seed a plate');
+  return result.plateLog;
+}
+
+/** A food logged with a weight (and, optionally, per-100 g nutrients) for the nutrition screens. */
+export interface MeasuredFood {
+  readonly name: string;
+  readonly group: FoodGroup;
+  readonly grams?: number;
+  readonly estimated?: boolean;
+  readonly per100g?: Nutrients;
+}
+
+export async function seedMeasuredPlate(
+  bundle: StoreBundle,
+  when: number,
+  foods: readonly MeasuredFood[],
+): Promise<PlateLog> {
+  const result = await bundle.store.recordPlate({
+    entries: foods.map((f) => ({
+      databaseFood: databaseFood({
+        sourceRef: `test:${f.name.toLowerCase()}`,
+        displayName: f.name,
+        source: 'seed',
+        foodGroup: f.group,
+        nutrientsPer100g: f.per100g,
+      }),
+      quantity:
+        f.grams === undefined
+          ? oneFist
+          : { ...oneFist, grams: f.grams, gramsEstimated: f.estimated ?? false },
+    })),
     loggedAtUtc: when,
   });
   if (result.kind !== 'recordPlateSuccess') throw new Error('could not seed a plate');

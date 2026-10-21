@@ -63,7 +63,7 @@ describe('what leaves the device (privacy audit, automated check 1)', () => {
 
     expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'temperature']);
     expect(body.model).toBe('vision-1');
-    expect(body.max_tokens).toBe(800);
+    expect(body.max_tokens).toBe(1600);
     expect(body.temperature).toBe(0.2);
 
     const messages = body.messages as Record<string, unknown>[];
@@ -184,6 +184,20 @@ describe('what leaves the device (privacy audit, automated check 1)', () => {
       expect(prompt).toContain('`name`');
       expect(prompt).toContain('`quantityHint`');
       expect(prompt).toContain('`confidence`');
+      expect(prompt).toContain('`grams`');
+      expect(prompt).toContain('`per100g`');
+      for (const key of [
+        'energyKcal',
+        'protein',
+        'carbohydrate',
+        'sugars',
+        'fat',
+        'saturatedFat',
+        'fibre',
+        'salt',
+      ]) {
+        expect(prompt, key).toContain(`\`${key}\``);
+      }
       // Fixed text: no placeholder a caller could fill with anything.
       expect(prompt).not.toMatch(/\{\w+\}|\$\{/);
     }
@@ -444,6 +458,66 @@ describe('recognize', () => {
     );
     const foods = recognizedFoods(await recognize(provider(f)));
     expect(foods.map((x) => x.confidence)).toEqual([0.9, 1, 0, 0.5, 0.8, 0.5, 0.5]);
+  });
+
+  describe('estimated grams and per-100 g nutrients', () => {
+    const one = async (entry: Record<string, unknown>) => {
+      const f = new FakeFetch();
+      f.jsonBody = chatReply(JSON.stringify([{ name: 'Yogurt', quantityHint: '1 pot', ...entry }]));
+      return recognizedFoods(await recognize(provider(f)))[0];
+    };
+
+    it('keeps the hint label and marks the weight as an estimate', async () => {
+      const food = await one({
+        grams: 125,
+        per100g: { energyKcal: 60, protein: 4.1, sugars: 5, carbohydrate: 6, salt: 0.1 },
+      });
+      expect(food?.quantity).toEqual({
+        low: 1,
+        high: 1,
+        unit: '1 pot',
+        displayLabel: '1 pot',
+        grams: 125,
+        gramsEstimated: true,
+      });
+      expect(food?.databaseFood.nutrientsPer100g).toEqual({
+        energyKcal: 60,
+        protein: 4.1,
+        sugars: 5,
+        carbohydrate: 6,
+        salt: 0.1,
+      });
+    });
+
+    it('reads a numeric-string weight', async () => {
+      expect((await one({ grams: '80' }))?.quantity.grams).toBe(80);
+    });
+
+    it.each([0, -5, 5001, 'a lot', null, Number.NaN, [], {}])(
+      'omits a weight of %j',
+      async (grams) => {
+        const food = await one({ grams });
+        expect(food?.quantity).not.toHaveProperty('grams');
+        expect(food?.quantity).not.toHaveProperty('gramsEstimated');
+      },
+    );
+
+    it('drops implausible or unknown nutrient keys and never invents a value', async () => {
+      const food = await one({
+        per100g: { energyKcal: 5000, protein: -1, fat: 'lots', fibre: 2, vitaminC: 9 },
+      });
+      expect(food?.databaseFood.nutrientsPer100g).toEqual({ fibre: 2 });
+      const none = await one({ per100g: { energyKcal: 'n/a' } });
+      expect(none?.databaseFood).not.toHaveProperty('nutrientsPer100g');
+      const wrongShape = await one({ per100g: [1, 2, 3] });
+      expect(wrongShape?.databaseFood).not.toHaveProperty('nutrientsPer100g');
+    });
+
+    it('a reply without the new fields parses exactly as before', async () => {
+      const food = await one({});
+      expect(food?.quantity).toEqual({ low: 1, high: 1, unit: '1 pot', displayLabel: '1 pot' });
+      expect(food?.databaseFood).not.toHaveProperty('nutrientsPer100g');
+    });
   });
 
   it('a recognised food carries a manual-source database food and an honest quantity', async () => {
