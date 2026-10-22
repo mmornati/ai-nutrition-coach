@@ -120,6 +120,8 @@ export const en = {
     barcodeHint: 'Packaged food',
     type: 'Type it',
     typeHint: 'Works offline',
+    describe: 'Describe',
+    describeHint: 'Say it or write it',
     // Phase 5: photo capture (the earlier client).
     snapTitle: 'Snap a plate',
     takePhoto: 'Take a photo',
@@ -203,6 +205,73 @@ export const en = {
     customFoodName: 'Custom food name',
     logCustomFood: 'Log custom food',
     typeNameFirst: 'Type a name first',
+    describedLooked: {
+      one: 'Found {count} food in your words',
+      other: 'Found {count} foods in your words',
+    },
+    describedHint: 'All are ticked. Check the amounts and untick anything you did not eat.',
+    describedUnmatched: 'No match for: {names}. You can add those with a custom food below.',
+  },
+  describe: {
+    title: 'Describe a meal',
+    intro: 'Write what you ate, or say it, in your own words.',
+    fieldLabel: 'What did you eat?',
+    placeholder: 'Two eggs, toast with butter, a coffee with milk',
+    limit: 'Up to {max} characters.',
+    dictation: "You can also use your keyboard's microphone to dictate.",
+    find: 'Find these foods',
+    finding: 'Reading…',
+    typeInstead: 'Type it instead',
+    matchHere: 'Match on this device',
+    noAiNote:
+      'No AI is set up, so your words are matched with the food list on this device. Nothing is sent anywhere.',
+    aiNoteByok:
+      'Your words are sent to {host} to be understood. You can change this in Settings → Your AI.',
+    aiNoteInstance:
+      'Your words are sent to this server ({host}), which passes them to {label}. You can change this in Settings → Your AI.',
+    consentTitle: 'Send your words to {host}?',
+    consentTitleInstance: 'Send your words to this server?',
+    consentSent:
+      'What is sent: the text you write or dictate, or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods it mentions and in which language to answer (English or French, the app language). Nothing else: not your name, your history or your other plates. This app does not store the recording. AI Nutrition Coach does not run that service and never sees your words.',
+    consentSentInstance:
+      'What is sent: the text you write or dictate, or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods it mentions and in which language to answer (English or French, the app language). It goes to this server ({host}), which adds its own AI key and passes it on to {label}. Nothing else: not your name, your history or your other plates. This app does not store the recording.',
+    consentVisible:
+      'Also visible to {host}: your internet address, your browser type and the address of this site, as with any website.',
+    consentVisibleInstance:
+      'Also visible to whoever runs {host}: your internet address and your browser type, as with any website. {label} receives your words from this server, not from your device.',
+    consentRetention:
+      "{host} may keep requests under its own terms: check your provider's data policy.",
+    consentRetentionInstance:
+      '{label} may keep requests under its own terms, and whoever runs this server chose it: ask them about its data policy.',
+    consentChange: 'You can change this any time in Settings → Your AI.',
+    consentAllow: 'Allow {host}',
+    consentAllowInstance: 'Allow this server',
+    consentDecline: 'Not now',
+    declined: 'Nothing was sent. Your words are matched on this device instead.',
+    busy: 'The AI is busy. Try again in a moment, or match on this device.',
+    failed: 'The AI could not read that just now. Try again, or match on this device.',
+    nothingFound: 'No food found in that. Try other words, or use Type it.',
+    empty: 'Write or say what you ate first.',
+    talk: 'Talk',
+    recordHint: 'Tap Talk, say what you ate, then tap the button again.',
+    listening: 'Listening. Tap the button again when you are done.',
+    askFirstNote:
+      'Before anything is sent to an AI you are asked first. Without it, your words are matched on this device.',
+    transcribing: 'Turning your voice into text…',
+    transcribed: 'Here is what was heard. Check it, then find the foods.',
+    heardNothing: 'Nothing was heard. You can try again, or type instead.',
+    micDenied:
+      'Microphone access is off for this site. You can turn it on in your browser settings, or type instead.',
+    micUnavailable:
+      "No microphone is available here. You can type, or use your keyboard's microphone.",
+    voiceBusy: 'The AI is busy. Try again in a moment, or type instead.',
+    voiceFailed:
+      'That recording could not be turned into text. You can try again, or type instead.',
+    voiceKey: 'The service did not accept your key. Check it in Settings → Your AI.',
+    voiceTooLong: 'That recording is too long. Try a shorter one, or type instead.',
+    voiceUnsupported:
+      'This service cannot turn voice into text, so the microphone button is hidden. You can type instead.',
+    recordingLabel: 'Voice recording',
   },
   consent: {
     title: 'Send this photo to {host}?',
@@ -331,6 +400,27 @@ export const en = {
       askEveryPhotoLabel: 'Ask before every photo upload',
       askEveryPhotoHelp:
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
+      voiceModelLabel: 'Voice model',
+      voiceModelHint: 'e.g. whisper-1',
+      voiceModelInvalid:
+        'Use letters, digits and . _ : / @ + - only (128 characters at most), or leave it empty.',
+      voiceModelHelp:
+        'Turns a short recording into text for Describe, at the same endpoint. Leave it empty for whisper-1. If your service has no such model, the microphone button stays hidden.',
+      instanceVoice: 'Voice to text: {model}',
+      describeHeading: 'Describing a meal with AI',
+      describeIntro:
+        'When you describe a meal, the words you write or say can be sent to an AI to be understood. That is a different thing from a photo or from coaching, so it has its own switch.',
+      describeSwitch: 'Let the AI read what I describe',
+      describeSwitchHelpOff:
+        'Off: Describe matches your words with the food list on this device and nothing is sent.',
+      describeSwitchHelpOn:
+        'On: the text you write or dictate, or a short voice recording turned into text, goes to the destination below. You can turn this off at any time.',
+      describeDestinationInstance: 'Goes to {host}, this server, which passes it on to {label}.',
+      describeDestinationByok: 'Goes to {host}, the service you chose.',
+      describeNeedsAi:
+        'Without an AI chosen above, Describe works on this device and nothing is sent.',
+      describeSent:
+        'What is sent: only that text (500 characters at most) or recording (30 seconds at most, turned into text and not stored by this app), and a fixed instruction. Never your name, your history, your other plates or your photos.',
       coachingHeading: 'AI coaching',
       coachingIntro:
         'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch.',

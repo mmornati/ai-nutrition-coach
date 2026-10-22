@@ -86,6 +86,11 @@ export class AiSettingsController {
     );
   }
 
+  /** The speech-to-text model for "Describe a meal" by voice; empty means the default. */
+  setByokTranscriptionModel(model: string): Promise<void> {
+    return this.update((s) => s.copyWith({ byokTranscriptionModel: model.trim() }));
+  }
+
   /** Remembers that the person agreed to send photos to `host`. */
   grantPhotoConsent(host: string): Promise<void> {
     return this.update((s) =>

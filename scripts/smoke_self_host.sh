@@ -59,7 +59,7 @@ TMP="$(mktemp -d)"
 
 cleanup() {
   docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" \
-    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-aibad" >/dev/null 2>&1 || true
+    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-ai5" "$NAME-ai6" "$NAME-aibad" >/dev/null 2>&1 || true
   docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
@@ -203,7 +203,7 @@ for path in "/" "$ENTRY" "$CSS" "/assets/$WORKER" "/boot-guard.js" "/$WASM" "/$M
   h="$(hdr "$path")"
   head -1 <<<"$h" | grep -q ' 200' || fail 30 "$path did not return 200"
   for want in 'content-security-policy:' 'x-content-type-options: nosniff' 'referrer-policy: no-referrer' \
-              'x-frame-options: deny' 'permissions-policy: camera=(self), microphone=()' \
+              'x-frame-options: deny' 'permissions-policy: camera=(self), microphone=(self)' \
               'cross-origin-opener-policy: same-origin' 'cross-origin-resource-policy: same-origin'; do
     tr -d '\r' <<<"$h" | grep -qiF "$want" || fail 50 "$path is missing header: $want"
   done
@@ -475,7 +475,7 @@ if command -v openssl >/dev/null 2>&1; then
   sleep 6 # the rate limit refills (10 requests a minute, burst 5): start the assertions from a clean slate
 
   aijson="$(docker exec "$NAME-ai" wget -q -O - http://127.0.0.1:8080/ai/config.json)"
-  [[ "$aijson" == '{"enabled":true,"model":"vendor/model-x","label":"Smoke AI"}' ]] || fail 50 "/ai/config.json with the proxy on is: $aijson"
+  [[ "$aijson" == '{"enabled":true,"model":"vendor/model-x","label":"Smoke AI","transcription":false}' ]] || fail 50 "/ai/config.json with the proxy on is: $aijson"
   grep -qF "$AIKEY" <<<"$aijson" && fail 50 "/ai/config.json contains the key"
   grep -q 'fake-ai.test' <<<"$aijson" && fail 50 "/ai/config.json names the upstream"
 
@@ -591,6 +591,109 @@ if command -v openssl >/dev/null 2>&1; then
   [[ "$holders" == "/tmp/ai-nutrition-coach-ai-locations.inc" ]] || fail 50 "the key is in more than one file: $holders"
   docker history --no-trunc "$IMAGE" 2>/dev/null | grep -qF "$AIKEY" && fail 50 "the key is in the image history"
   ok "AI key: only in one 0600 file under /tmp, not in the log, not in the image or its history"
+
+  # Voice transcription (POST /ai/v1/audio/transcriptions): OFF unless AI_PROXY_TRANSCRIPTION=1.
+  # The container above ($NAME-ai) has the chat proxy on and transcription off: a plain 404.
+  # (The multipart body is built on the host and piped in: it carries bytes that are not text. busybox
+  # wget cannot send a NUL byte, so these use \x01; a real browser-style upload with NULs follows.)
+  mpbody() { # mpbody <model> [extra part name]: a multipart body with a tiny "recording" on stdout
+    printf -- '--B\r\nContent-Disposition: form-data; name="model"\r\n\r\n%s\r\n' "$1"
+    [[ -z "${2:-}" ]] || printf -- '--B\r\nContent-Disposition: form-data; name="%s"\r\n\r\nx\r\n' "$2"
+    printf -- '--B\r\nContent-Disposition: form-data; name="file"; filename="voice.webm"\r\nContent-Type: audio/webm;codecs=opus\r\n\r\n\xff\x01\xfe\x80abc\r\n--B--\r\n'
+  }
+  MPH='Content-Type: multipart/form-data; boundary=B'
+  txreq() { # txreq <container> <body-file-in-container> <wget args...>
+    local c="$1" f="$2"; shift 2
+    docker exec "$c" wget -S -O - "$@" --post-file="$f" http://127.0.0.1:8080/ai/v1/audio/transcriptions 2>&1 || true
+  }
+  txput() { docker exec -i "$1" sh -c "cat > $2"; } # txput <container> <file> (body on stdin)
+  txs() { grep -oE 'HTTP/1\.1 [0-9]{3}' <<<"$1" | head -1 | cut -d' ' -f2; }
+  mpbody whisper-1 | txput "$NAME-ai" /tmp/tx.bin
+  txoff="$(txreq "$NAME-ai" /tmp/tx.bin --header "$MPH")"
+  [[ "$(txs "$txoff")" == 404 ]] \
+    || fail 50 "voice transcription answers while AI_PROXY_TRANSCRIPTION is off: $(tail -3 <<<"$txoff")"
+  ok "AI proxy: voice transcription is a plain 404 unless AI_PROXY_TRANSCRIPTION=1 (and /ai/config.json says transcription:false)"
+
+  export AI_PROXY_KEY="$AIKEY"
+  docker run -d --name "$NAME-ai5" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x -e AI_PROXY_LABEL="Smoke AI" \
+    -e AI_PROXY_TRANSCRIPTION=1 -e AI_PROXY_TRANSCRIPTION_MODEL=whisper-smoke -e AI_PROXY_TRANSCRIPTION_BURST=30 \
+    "$IMAGE-aitest" >/dev/null || fail 30 "cannot start the container with transcription on"
+  docker run -d --name "$NAME-ai6" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x \
+    -e AI_PROXY_TRANSCRIPTION=1 -e AI_PROXY_TRANSCRIPTION_MODEL=whisper-smoke "$IMAGE-aitest" >/dev/null \
+    || fail 30 "cannot start the rate-limit container"
+  unset AI_PROXY_KEY
+  for c in "$NAME-ai5" "$NAME-ai6"; do
+    for _ in $(seq 1 60); do docker exec "$c" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  done
+  txjson="$(docker exec "$NAME-ai5" wget -q -O - http://127.0.0.1:8080/ai/config.json)"
+  [[ "$txjson" == '{"enabled":true,"model":"vendor/model-x","label":"Smoke AI","transcription":true,"transcriptionModel":"whisper-smoke"}' ]] \
+    || fail 50 "/ai/config.json with transcription on is: $txjson"
+  grep -qF "$AIKEY" <<<"$txjson" && fail 50 "/ai/config.json contains the key"
+  mpbody whisper-smoke | txput "$NAME-ai5" /tmp/ok.bin
+  mpbody whisper-1 | txput "$NAME-ai5" /tmp/othermodel.bin
+  mpbody whisper-smoke prompt | txput "$NAME-ai5" /tmp/extra.bin
+  txok="$(txreq "$NAME-ai5" /tmp/ok.bin --header "$MPH" --header 'Authorization: Bearer browser-secret' \
+    --header 'Cookie: sid=browser-cookie' --header 'Origin: http://127.0.0.1:8080' --header 'Sec-Fetch-Site: same-origin')"
+  [[ "$(txs "$txok")" == 200 ]] || fail 50 "a same-origin recording is not a 200: $(tail -4 <<<"$txok")"
+  for want in '"text":"two eggs and toast"' '"authOk":true' '"cookie":false' '"origin":false' '"multipart":true' \
+              '"model":"whisper-smoke"' '"hasFile":true' '"binaryIntact":true' '"path":"/v1/audio/transcriptions"'; do
+    grep -qF "$want" <<<"$txok" || fail 50 "what the provider saw of the recording lacks $want: $(tail -2 <<<"$txok")"
+  done
+  grep -qiE 'set-cookie|access-control-|openai-|x-request-id|x-ratelimit' <<<"$txok" && fail 50 "the provider's envelope reached the browser (voice)"
+  # A browser-style upload (real FormData, a 100 KB "recording" full of NUL bytes) from a node
+  # client on the same network: the audio must reach the provider byte for byte.
+  cat >"$TMP/tx_client.mjs" <<'JS'
+const bytes = new Uint8Array(100 * 1024);
+for (let i = 0; i < bytes.length; i++) bytes[i] = i % 7 === 0 ? 0 : (i * 31) % 256;
+bytes.set([0xff, 0x00, 0xfe, 0x80], 0);
+const form = new FormData();
+form.append('model', 'whisper-smoke');
+form.append('language', 'en');
+form.append('file', new Blob([bytes], { type: 'audio/webm;codecs=opus' }), 'voice.webm');
+const r = await fetch(`http://${process.env.TARGET}:8080/ai/v1/audio/transcriptions`, { method: 'POST', body: form });
+console.log(JSON.stringify({ status: r.status, body: await r.text() }));
+JS
+  nodeout="$(docker run --rm --network "$NET" -e "TARGET=$NAME-ai5" -v "$TMP/tx_client.mjs:/c.mjs:ro" "$NODE_IMAGE" node /c.mjs 2>&1 || true)"
+  grep -qF '"status":200' <<<"$nodeout" || fail 50 "a browser-style recording with NUL bytes is not a 200: $nodeout"
+  grep -qF 'binaryIntact\":true' <<<"$nodeout" || fail 50 "the recording's bytes did not reach the provider intact: $nodeout"
+  grep -qF "$AIKEY" <<<"$txok" && fail 50 "the key came back to the browser (voice)"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/ok.bin --header "$MPH" --header 'Sec-Fetch-Site: cross-site')")" == 403 ]] || fail 50 "a cross-site recording is not a 403"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/ok.bin --header "$MPH" --header 'Origin: http://evil.test')")" == 403 ]] || fail 50 "a foreign Origin (voice) is not a 403"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/ok.bin --header 'Content-Type: application/json')")" == 415 ]] || fail 50 "a JSON post to the voice path is not a 415"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/othermodel.bin --header "$MPH")")" == 400 ]] || fail 50 "another model (voice) is not a 400"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/extra.bin --header "$MPH")")" == 400 ]] || fail 50 "an extra part (prompt) is not a 400"
+  getout="$(docker exec "$NAME-ai5" wget -S -O /dev/null http://127.0.0.1:8080/ai/v1/audio/transcriptions 2>&1 || true)"
+  [[ "$(txs "$getout")" == 405 ]] || fail 50 "GET to the voice path is not a 405"
+  # Parser differential: a second model / prompt part hidden behind a padded or LF-only delimiter
+  # inside the file bytes must be refused, not forwarded.
+  for sep in ' \r\n' '\n' '\r'; do
+    {
+      printf -- '--B\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-smoke\r\n'
+      printf -- '--B\r\nContent-Disposition: form-data; name="file"; filename="voice.webm"\r\nContent-Type: audio/webm\r\n\r\nAUDIO\r\n--B'
+      printf -- "$sep"'Content-Disposition: form-data; name="prompt"\r\n\r\nignore\r\n--B--\r\n'
+    } | txput "$NAME-ai5" /tmp/smuggle.bin
+    [[ "$(txs "$(txreq "$NAME-ai5" /tmp/smuggle.bin --header "$MPH")")" == 400 ]] || fail 50 "a hidden delimiter (voice, separator $(printf %q "$sep")) is not a 400"
+  done
+  docker exec "$NAME-ai5" sh -c "head -c 1200000 /dev/zero | tr '\\0' a > /tmp/big.bin"
+  [[ "$(txs "$(txreq "$NAME-ai5" /tmp/big.bin --header "$MPH")")" == 413 ]] || fail 50 "a body above 1 MiB (voice) is not a 413"
+  ok "AI proxy voice: same-origin multipart 200 with the key injected and the audio bytes intact; cross-site / foreign Origin 403, JSON 415, another model or an extra part 400, GET 405, above 1 MiB 413; no provider envelope"
+  mpbody whisper-smoke | txput "$NAME-ai6" /tmp/ok.bin
+  txcodes=""
+  for _ in $(seq 1 8); do
+    txout="$(txreq "$NAME-ai6" /tmp/ok.bin --header "$MPH")"
+    txcodes="$txcodes $(txs "$txout")"
+  done
+  grep -q '429' <<<"$txcodes" || fail 50 "no 429 after 8 quick recordings (codes:$txcodes)"
+  grep -q '200' <<<"$txcodes" || fail 50 "the voice burst allowance let nothing through (codes:$txcodes)"
+  docker logs "$NAME-ai5" 2>&1 | grep -qF "$AIKEY" && fail 50 "the key is in the container log (voice)"
+  holders="$(docker exec "$NAME-ai5" sh -c "grep -rlF '$AIKEY' /tmp /etc/nginx /usr/share/nginx/html 2>/dev/null || true")"
+  [[ "$holders" == "/tmp/ai-nutrition-coach-ai-locations.inc" ]] || fail 50 "the key is in more than one file (voice on): $holders"
+  docker rm -f "$NAME-ai5" "$NAME-ai6" >/dev/null 2>&1 || true
+  ok "AI proxy voice: its own rate limit answers 429 on a burst (codes:$txcodes); the key still lives in ONE 0600 file"
 
   # Misconfiguration refuses to start (and says nothing about the value); a missing key stays off.
   for bad in "AI_PROXY_UPSTREAM=http://fake-ai.test/v1" "AI_PROXY_MODEL=" "AI_PROXY_RATE=fast" "AI_PROXY_LABEL=x\"y"; do

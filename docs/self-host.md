@@ -23,7 +23,7 @@ can reach it.
 
 > **Plain HTTP over a network is unsupported.** AI Nutrition Coach's encrypted web
 > store needs the browser's WebCrypto API (`crypto.subtle`), which browsers only expose on a
-> *secure context*: `https://…` or `http://localhost`. Opened over
+> _secure context_: `https://…` or `http://localhost`. Opened over
 > `http://192.168.x.y:8080/` the app reports the store as unavailable instead
 > of running unprotected; the camera (barcode, photo) is blocked too, and the service worker
 > (offline use, the update line) cannot register. Plain HTTP would
@@ -95,12 +95,12 @@ the middleware and outpost variables are set.
 **Updating:** `git -C .. pull --ff-only && docker compose up -d --build`. Installed apps pick the new build up
 through their update prompt.
 
-**Authentik:** with a *domain-level* forward-auth provider the new host is covered already. With
-*single application* mode, create a *Proxy* provider (forward auth, single application, external host
-`https://ai-nutrition-coach.example.org`), an *Application* using it, and add it to the embedded outpost.
+**Authentik:** with a _domain-level_ forward-auth provider the new host is covered already. With
+_single application_ mode, create a _Proxy_ provider (forward auth, single application, external host
+`https://ai-nutrition-coach.example.org`), an _Application_ using it, and add it to the embedded outpost.
 Bind the application to the people who should use the app (a group of the household's adults).
 
-**Cloudflare:** Zero Trust → Networks → Tunnels → your tunnel → *Public Hostname*: the new name, type
+**Cloudflare:** Zero Trust → Networks → Tunnels → your tunnel → _Public Hostname_: the new name, type
 `HTTP`, URL the same Traefik target as your other names.
 
 What the sign-in does and does not do, for this app specifically:
@@ -111,7 +111,7 @@ What the sign-in does and does not do, for this app specifically:
   not noticed until an update is fetched: that fetch fails quietly and is retried after the next sign-in
   (open the address in the browser). The service worker never answers `/outpost.goauthentik.io/` from its
   cache, so the sign-in callback always reaches Authentik.
-- The web manifest is requested *with* the session cookie (`crossorigin="use-credentials"`), so
+- The web manifest is requested _with_ the session cookie (`crossorigin="use-credentials"`), so
   installation works behind the sign-in. (Plain basic auth is still discouraged — see
   [`docs/pwa.md`](./pwa.md#family-only-access).)
 - Forward auth and the IP allow-list overlay both set the router's middlewares: use one of them.
@@ -141,32 +141,35 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 
 ## Configuration
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `AI_NUTRITION_COACH_BIND` | `127.0.0.1` | Host interface for the app port. |
-| `AI_NUTRITION_COACH_PORT` | `8080` | Host port (`AI_NUTRITION_COACH_HOST_PORT` is a deprecated alias). |
-| `AI_NUTRITION_COACH_DOMAIN` | – | DNS name for `--tls` and `--traefik` (required there). |
-| `AI_NUTRITION_COACH_TRAEFIK_NETWORK` | `traefik` | `--traefik`: existing Docker network shared with Traefik. |
-| `AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT` | `websecure` | `--traefik`: Traefik's HTTPS entrypoint. |
-| `AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER` | – | `--traefik`: ACME resolver name (optional overlay). |
-| `AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST` | – | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay). |
-| `AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS` | `false` | `--traefik`: add `includeSubdomains` to HSTS. |
-| `AI_NUTRITION_COACH_TRAEFIK_TLS` | `true` | `--traefik`: the router serves HTTPS. `false` only when HTTPS ends before Traefik (a tunnel). |
-| `AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE` | – | `--traefik`: forward-auth middleware in front of the app, e.g. `authentik@file` (optional overlay). |
-| `AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE` | – | `--traefik`: Traefik service of Authentik's outpost, e.g. `sso@file`; needs the middleware. |
-| `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` | empty | Extra CSP `connect-src` origins (see below). |
-| `AI_NUTRITION_COACH_ACCESS_LOG` | `off` | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs). |
-| `AI_PROXY_ENABLED` | `0` | `1` offers ONE AI key to everyone on this instance (needs the four below). Off otherwise; see [Offer AI to everyone on your instance](#offer-ai-to-everyone-on-your-instance). |
-| `AI_PROXY_UPSTREAM` | – | The provider's OpenAI-compatible base, `https://` only, e.g. `https://openrouter.ai/api/v1`. |
-| `AI_PROXY_KEY` | – | The provider key. A **secret**: never in the image or the bundle; rendered at start into a private file. |
-| `AI_PROXY_MODEL` | – | The model every request uses (forced server-side). |
-| `AI_PROXY_LABEL` | the upstream host | What people are told their photos go to after this server. |
-| `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL` | `10r/m` / `30r/m` | Request rate per client address, and for the whole instance. Both apply. |
-| `AI_PROXY_BURST` / `AI_PROXY_CONN` | `5` / `2` | Burst allowance, and concurrent requests per client address. |
-| `AI_PROXY_MAX_TOKENS` / `AI_PROXY_TOKEN_PARAM` | `2000` / `max_tokens` | Cap on a reply, and the parameter that carries it (`max_completion_tokens` for reasoning models). |
-| `AI_NUTRITION_COACH_SW_KILL` | – | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)). |
-| `AI_NUTRITION_COACH_IMAGE_TAG` | `ai-nutrition-coach:dev` | Image tag to build/run. |
-| `AI_NUTRITION_COACH_CONTAINER_NAME` | `ai-nutrition-coach` | Container name for plain `up`. |
+| Variable                                               | Default                  | Meaning                                                                                                                                                                                                                 |
+| ------------------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AI_NUTRITION_COACH_BIND`                              | `127.0.0.1`              | Host interface for the app port.                                                                                                                                                                                        |
+| `AI_NUTRITION_COACH_PORT`                              | `8080`                   | Host port (`AI_NUTRITION_COACH_HOST_PORT` is a deprecated alias).                                                                                                                                                       |
+| `AI_NUTRITION_COACH_DOMAIN`                            | –                        | DNS name for `--tls` and `--traefik` (required there).                                                                                                                                                                  |
+| `AI_NUTRITION_COACH_TRAEFIK_NETWORK`                   | `traefik`                | `--traefik`: existing Docker network shared with Traefik.                                                                                                                                                               |
+| `AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT`                | `websecure`              | `--traefik`: Traefik's HTTPS entrypoint.                                                                                                                                                                                |
+| `AI_NUTRITION_COACH_TRAEFIK_CERTRESOLVER`              | –                        | `--traefik`: ACME resolver name (optional overlay).                                                                                                                                                                     |
+| `AI_NUTRITION_COACH_TRAEFIK_ALLOWLIST`                 | –                        | `--traefik`: comma-separated CIDRs allowed to connect (optional overlay).                                                                                                                                               |
+| `AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS`           | `false`                  | `--traefik`: add `includeSubdomains` to HSTS.                                                                                                                                                                           |
+| `AI_NUTRITION_COACH_TRAEFIK_TLS`                       | `true`                   | `--traefik`: the router serves HTTPS. `false` only when HTTPS ends before Traefik (a tunnel).                                                                                                                           |
+| `AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE`           | –                        | `--traefik`: forward-auth middleware in front of the app, e.g. `authentik@file` (optional overlay).                                                                                                                     |
+| `AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE`         | –                        | `--traefik`: Traefik service of Authentik's outpost, e.g. `sso@file`; needs the middleware.                                                                                                                             |
+| `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`                 | empty                    | Extra CSP `connect-src` origins (see below).                                                                                                                                                                            |
+| `AI_NUTRITION_COACH_ACCESS_LOG`                        | `off`                    | nginx access log: `off` (nothing logged), `on` (time, method, path; address truncated; no User-Agent / Referer / query), `full` (whole address). Anything else refuses to start. See [Logs](#logs).                     |
+| `AI_PROXY_ENABLED`                                     | `0`                      | `1` offers ONE AI key to everyone on this instance (needs the four below). Off otherwise; see [Offer AI to everyone on your instance](#offer-ai-to-everyone-on-your-instance).                                          |
+| `AI_PROXY_UPSTREAM`                                    | –                        | The provider's OpenAI-compatible base, `https://` only, e.g. `https://openrouter.ai/api/v1`.                                                                                                                            |
+| `AI_PROXY_KEY`                                         | –                        | The provider key. A **secret**: never in the image or the bundle; rendered at start into a private file.                                                                                                                |
+| `AI_PROXY_MODEL`                                       | –                        | The model every request uses (forced server-side).                                                                                                                                                                      |
+| `AI_PROXY_LABEL`                                       | the upstream host        | What people are told their photos go to after this server.                                                                                                                                                              |
+| `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL`                  | `10r/m` / `30r/m`        | Request rate per client address, and for the whole instance. Both apply.                                                                                                                                                |
+| `AI_PROXY_BURST` / `AI_PROXY_CONN`                     | `5` / `2`                | Burst allowance, and concurrent requests per client address.                                                                                                                                                            |
+| `AI_PROXY_MAX_TOKENS` / `AI_PROXY_TOKEN_PARAM`         | `2000` / `max_tokens`    | Cap on a reply, and the parameter that carries it (`max_completion_tokens` for reasoning models).                                                                                                                       |
+| `AI_PROXY_TRANSCRIPTION`                               | `0`                      | `1` also offers voice to text for _Describe a meal_ (`POST /ai/v1/audio/transcriptions`, see [Voice to text](#voice-to-text-describe-a-meal-by-voice)). Needs the proxy on and a provider with `/audio/transcriptions`. |
+| `AI_PROXY_TRANSCRIPTION_MODEL`                         | `whisper-1`              | The one model a recording may name (the app reads it from `/ai/config.json`; any other is refused).                                                                                                                     |
+| `AI_PROXY_TRANSCRIPTION_RATE` / `_RATE_ALL` / `_BURST` | `6r/m` / `20r/m` / `2`   | The voice route's own limits: per client address, for the whole instance, and the burst. Both rates apply.                                                                                                              |
+| `AI_NUTRITION_COACH_SW_KILL`                           | –                        | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)).                                                                                         |
+| `AI_NUTRITION_COACH_IMAGE_TAG`                         | `ai-nutrition-coach:dev` | Image tag to build/run.                                                                                                                                                                                                 |
+| `AI_NUTRITION_COACH_CONTAINER_NAME`                    | `ai-nutrition-coach`     | Container name for plain `up`.                                                                                                                                                                                          |
 
 `bin/ai-nutrition-coach up --compose` runs the same container through
 `infra/docker-compose.yml`. If the container name is taken, `up` stops with a
@@ -256,11 +259,11 @@ AI_PROXY_LABEL=OpenRouter              # optional: what people are told their ph
 With plain `bin/ai-nutrition-coach up` export the same variables first (the key is passed to Docker by name, so it is not
 in the command line or the output); with compose they come from `.env`.
 
-**What people see.** Settings → Your AI gains a choice, *Provided by this server*; it is the starting choice on a
+**What people see.** Settings → Your AI gains a choice, _Provided by this server_; it is the starting choice on a
 **new** install (someone who already chose No AI or their own key keeps their choice). The consent dialog before each
-photo says plainly that the photo goes to *this server* and from there to the provider you named in `AI_PROXY_LABEL`.
+photo says plainly that the photo goes to _this server_ and from there to the provider you named in `AI_PROXY_LABEL`.
 Nothing about it is pressured; No AI stays one tap away. The app learns the offer from `GET /ai/config.json`, which
-says only `{ "enabled": true, "model": "…", "label": "…" }` (no key, no upstream address) and is never cached or
+says only `{ "enabled": true, "model": "…", "label": "…", "transcription": false }` (plus `"transcriptionModel"` when voice to text is on; no key, no upstream address) and is never cached or
 precached. With the proxy off it says `{ "enabled": false }`.
 
 **How it works.** nginx, in the same container, answers `POST /ai/v1/chat/completions` on **your own origin** (so the
@@ -309,7 +312,7 @@ key is still in the container's environment, so anyone who can run `docker inspe
 it: that is the same trust as reading `.env`.
 
 **Cost and abuse: read this.** Anyone who can reach the instance can use this key, within the rate limit. The limit is
-per client address *as nginx sees it*: behind Traefik or Caddy that address is the proxy's, so in effect it caps the
+per client address _as nginx sees it_: behind Traefik or Caddy that address is the proxy's, so in effect it caps the
 whole instance (10 requests a minute by default, which is a ceiling on spend, not a fairness rule between people).
 Therefore:
 
@@ -330,6 +333,44 @@ Therefore:
 Turn it off by unsetting `AI_PROXY_ENABLED` (or the key) and restarting. A missing key with `AI_PROXY_ENABLED=1` leaves
 the AI off and says so in the container log. Rotating the key is a restart with the new value; nothing in a browser
 needs to change.
+
+### Voice to text (Describe a meal, by voice)
+
+_Describe a meal_ lets a person say what they ate. With **their own key** the recording goes to their endpoint's
+`/audio/transcriptions` (Whisper-compatible; the model is set in Your AI, default `whisper-1`). On **this server's AI**
+it goes through the proxy, **only if you turn this on**:
+
+```sh
+AI_PROXY_TRANSCRIPTION=1              # default 0: the route does not exist (404)
+AI_PROXY_TRANSCRIPTION_MODEL=whisper-1
+#AI_PROXY_TRANSCRIPTION_RATE=6r/m  AI_PROXY_TRANSCRIPTION_RATE_ALL=20r/m  AI_PROXY_TRANSCRIPTION_BURST=2
+```
+
+It needs a provider that offers `/audio/transcriptions` under `AI_PROXY_UPSTREAM` (OpenAI does; many OpenAI-compatible
+gateways do not). If yours has none, leave it off: the app then offers no microphone button on this server (it reads
+`"transcription": false` from `/ai/config.json`; with it on the file also names `transcriptionModel`). Typing, and the
+keyboard's own dictation, always work.
+
+`POST /ai/v1/audio/transcriptions` is handled like the chat route, with its own tighter limits: POST only; same origin
+only (`Sec-Fetch-Site` and `Origin` checked, `403` otherwise); `Content-Type` must be `multipart/form-data` (`415`); the
+body at most **1 MiB** (`413`; a 30 s recording is about 120 KB); `429` beyond **6 requests a minute per client address
+and 20 a minute for the whole instance** (burst 2, both configurable, validated at start); the key is added server-side
+and the browser's headers are not forwarded (only the multipart `Content-Type`, which carries the boundary); the
+provider's headers are removed and its errors become generic JSON bodies; upstream failures are logged at `crit` only.
+
+**The model is forced by validation, not by rewriting.** A multipart body holds binary audio, which njs cannot rewrite
+safely (it has no byte-preserving string type and a round trip through text corrupts audio). So the njs script
+(`ai-proxy.js`, `txGate`) _parses_ the body as bytes and lets it through, unchanged, **only if** it holds exactly one
+`file` part (an audio or video blob with a plain file name), exactly one `model` part equal to
+`AI_PROXY_TRANSCRIPTION_MODEL`, and optionally a short `language` and `response_format=json`. Any other model, any
+other part (`prompt`, `temperature`, timestamp options, a repeated part), a malformed or truncated body or a header
+smuggled into a field gets the generic `400` and **never reaches the provider**. The cost of a call is therefore bounded
+by the single configured model, 1 MiB of audio and the rate limits above. As for chat, the voice limits are per address
+_as nginx sees it_: behind a reverse proxy that is the proxy's address, so they are effectively instance-wide.
+
+What the provider receives: the recording (not stored by this app or by this server's software), the model name and the
+app's language code. What this server logs: nothing of it. Who can spend the key is the same story as for chat: put the
+instance behind a sign-in or an allow-list.
 
 `scripts/smoke_self_host.sh` runs the real container twice for this: with the proxy off (`/ai/config.json` says
 `{"enabled":false}`, `/ai/v1/chat/completions` is a 404, no `proxy_pass` exists in the rendered config) and with it on

@@ -69,6 +69,10 @@ export const ALLOW_LIST = {
   'apps/web/src/catalog/ciqual-index.ts': { kinds: ['network'], reason: 'same-origin CIQUAL table (precached)' },
   // The BYOK OpenAI-compatible endpoint the user configures, through the helper.
   'apps/web/src/ai/openai-compatible-provider.ts': { kinds: ['network'], reason: 'BYOK AI endpoint' },
+  // "Describe a meal" by voice: one multipart POST of a short recording to the BYOK endpoint's
+  // /audio/transcriptions, or to this server's same-origin /ai/v1/audio/transcriptions, through the
+  // helper and only after the describe consent (docs/ai-tiers.md "Describe a meal").
+  'apps/web/src/ai/transcription.ts': { kinds: ['network'], reason: 'voice to text for Describe (BYOK endpoint or same-origin proxy)' },
   // The instance-wide AI offer (docs/ai-tiers.md): a same-origin GET of `/ai/config.json` through
   // the helper (no key, no query, no identifier); the container renders the file.
   'apps/web/src/ai/instance-config.ts': { kinds: ['network'], reason: 'same-origin /ai/config.json (the instance AI offer)' },

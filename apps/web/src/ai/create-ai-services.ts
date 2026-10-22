@@ -8,7 +8,10 @@ import { PhotoUploadPermit } from './photo-upload-permit';
 import { InstanceAiSource } from './instance-config';
 import { CoachingAi } from './coaching-ai';
 import { CoachingConsent } from './coaching-consent';
+import { DescribeAi } from './describe-ai';
 import { createLiveAiRung, createLiveChat } from './rung-registry';
+import { createLiveTranscriber } from './transcription';
+import { KV_KEYS } from '../storage/key-value-store';
 import type { FetchLike } from '../net/capped-fetch';
 import type { ClassifyFoodGroup, PhotoDigest, PhotoSanitizer, TextCompletionPort } from './types';
 import { YourAi } from './your-ai';
@@ -34,6 +37,11 @@ export interface AiServices {
    * agreed to coaching for that destination. Separate from the photo consent.
    */
   readonly coaching: CoachingAi;
+  /**
+   * "Describe a meal" (typed or spoken): the text, or a short recording, goes to the person's AI
+   * only when they agreed for that destination. Its own consent, apart from photos and coaching.
+   */
+  readonly describe: DescribeAi;
 }
 
 export interface CreateAiServicesOptions {
@@ -114,6 +122,23 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
   await consent.load();
   const coaching = new CoachingAi({ settings, instance, consent, chat });
 
+  // "Describe a meal" has its own agreement (its own row), the same gate and the same chat.
+  const describeConsent = new CoachingConsent(options.kv, KV_KEYS.aiDescribeConsent);
+  await describeConsent.load();
+  const describe = new DescribeAi({
+    gate: new CoachingAi({ settings, instance, consent: describeConsent, chat }),
+    transcriber: createLiveTranscriber({
+      getSettings: settings.getSnapshot,
+      keyStore,
+      instance: instance.getSnapshot,
+      fetch: options.fetch,
+      signal: options.signal,
+    }),
+    classifyFoodGroup: options.classifyFoodGroup,
+    settings,
+    instance,
+  });
+
   return {
     settings,
     keyStore,
@@ -122,6 +147,7 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
     instance,
     chat,
     coaching,
+    describe,
     yourAi: new YourAi({ settings, keyStore, createTester: provider, instance }),
   };
 }

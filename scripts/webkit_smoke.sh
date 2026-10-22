@@ -87,6 +87,12 @@ proxy_reply="$(docker exec "$SERVER" wget -S -O /dev/null --post-data '{}' \
 grep -q 'HTTP/1.1 404' <<<"$proxy_reply" \
   || { echo "✗ the disabled AI proxy path is not a 404" >&2; exit 1; }
 
+# Voice transcription is part of the same off-by-default offer: a 404 as well.
+voice_reply="$(docker exec "$SERVER" wget -S -O /dev/null --post-data '{}' \
+  http://127.0.0.1:8080/ai/v1/audio/transcriptions 2>&1 || true)"
+grep -q 'HTTP/1.1 404' <<<"$voice_reply" \
+  || { echo "✗ the disabled voice transcription path is not a 404" >&2; exit 1; }
+
 echo "▶ running the smoke in: $BROWSERS"
 docker run --rm --network "container:$SERVER" --ipc=host \
   -v "$ROOT/tools/webkit_smoke":/src:ro -v "$PWA":/pwa \

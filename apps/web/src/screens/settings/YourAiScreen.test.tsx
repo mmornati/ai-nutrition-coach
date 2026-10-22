@@ -471,3 +471,90 @@ describe('YourAiScreen: the server’s AI in the consent list', () => {
     expect(await storedSettings(bundle)).not.toContain('instance:');
   });
 });
+
+describe('YourAiScreen: describing a meal with AI', () => {
+  const byok = () =>
+    new AiSettings({
+      rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'gpt-test',
+      byokKeyHost: 'api.example.com',
+    });
+  const SWITCH = 'Let the AI read what I describe';
+
+  it('on No AI the switch is off and disabled', async () => {
+    await openAi();
+    const toggle = screen.getByRole('switch', { name: SWITCH });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toBeDisabled();
+    expect(screen.getByText(/Describe works on this device and nothing is sent/)).toBeVisible();
+  });
+
+  it('is its own switch: off by default, saved on its own row, and not the coaching consent', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    const toggle = screen.getByRole('switch', { name: SWITCH });
+    expect(toggle).not.toBeChecked();
+    expect(
+      screen.getByText(/What is sent: only that text \(500 characters at most\)/),
+    ).toBeVisible();
+    expect(screen.getByText('Goes to api.example.com, the service you chose.')).toBeVisible();
+    expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBeNull();
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBe('{"host":"api.example.com"}');
+    // Neither the coaching switch nor the photo list moved.
+    expect(await bundle.kv.read(KV_KEYS.aiCoachingConsent)).toBeNull();
+    expect(
+      screen.getByRole('switch', { name: 'Let the AI write coach notes and answer questions' }),
+    ).not.toBeChecked();
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBeNull();
+  });
+
+  it('keeps the voice model with the key settings; empty means the default', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    const field = screen.getByLabelText('Voice model');
+    expect(field).toHaveValue('');
+    expect(screen.getByText(/Leave it empty for whisper-1/)).toBeVisible();
+    await user.type(field, 'whisper-large-v3');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () =>
+      expect(JSON.parse(await storedSettings(bundle))).toMatchObject({
+        txModel: 'whisper-large-v3',
+      }),
+    );
+  });
+
+  it('refuses a voice model that is not a model name, calmly, and saves nothing', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    await user.type(screen.getByLabelText('Voice model'), 'bad model;');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(/Use letters, digits and/)).toBeVisible();
+    expect(await storedSettings(bundle)).not.toContain('bad model');
+    expect(screen.getByLabelText('Voice model')).toHaveAttribute('maxlength', '128');
+  });
+
+  it('names the server’s voice model when it offers one', async () => {
+    const fake = new FakeFetch();
+    fake.instanceConfig = {
+      enabled: true,
+      model: 'm1',
+      label: 'Acme AI',
+      transcription: true,
+      transcriptionModel: 'whisper-x',
+    };
+    await openAi({ fake, seed: new AiSettings({ rung: { kind: 'instance' } }) });
+    expect(await screen.findByText('Voice to text: whisper-x')).toBeVisible();
+  });
+
+  it('has no axe violations', async () => {
+    await openAi({ seed: byok(), seedKey: SECRET });
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});

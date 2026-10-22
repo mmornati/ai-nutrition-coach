@@ -9,6 +9,10 @@
 # are logged at `info`, below the error_log level, so no client address reaches the container log.
 limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=@@ANC_AI_RATE@@;
 limit_req_zone $server_name zone=ai_nutrition_coach_ai_rall:64k rate=@@ANC_AI_RATE_ALL@@;
+# Voice transcription (POST /ai/v1/audio/transcriptions, off unless AI_PROXY_TRANSCRIPTION=1) has
+# its own, tighter pair: a recording costs more than a chat line.
+limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_tx:1m rate=@@ANC_AI_TX_RATE@@;
+limit_req_zone $server_name zone=ai_nutrition_coach_tx_rall:64k rate=@@ANC_AI_TX_RATE_ALL@@;
 limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_ai_ip:1m;
 limit_conn_zone $server_name zone=ai_nutrition_coach_ai_all:64k;
 limit_req_log_level info;

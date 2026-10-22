@@ -11,14 +11,7 @@
  * templates (English, French) that asks for the food names in that language; no free text goes in.
  * A new field has to be argued in the diff and in docs/ai-tiers.md.
  */
-import {
-  isValidGrams,
-  parseFoodGroup,
-  sanitizeNutrients,
-  type EpochMs,
-  type FoodGroup,
-  type RecognizedFood,
-} from '@anc/core';
+import type { EpochMs } from '@anc/core';
 import { currentLocale, strings, fill } from '../i18n';
 import type { Locale } from '../i18n/locale';
 import { validateByokEndpoint, type ByokEndpointProblem } from './byok-endpoint';
@@ -30,6 +23,7 @@ import {
   type FetchLike,
 } from '../net/capped-fetch';
 import { parseRateLimitReset } from './rate-limit-reset';
+import { parseRecognizedFoods } from './recognition-parse';
 import type {
   ByokOutcome,
   ByokProvider,
@@ -54,12 +48,7 @@ interface PostResult {
   readonly json: unknown;
 }
 
-/** At most this many foods are kept from one model response. */
-export const MAX_RECOGNIZED_FOODS = 20;
-/** Longest food name / quantity hint kept (characters). */
-export const MAX_FOOD_TEXT_LENGTH = 100;
-/** Used when the model gave no usable confidence for a food. */
-const DEFAULT_CONFIDENCE = 0.5;
+export { MAX_FOOD_TEXT_LENGTH, MAX_RECOGNIZED_FOODS } from './recognition-parse';
 export const RECOGNITION_MAX_TOKENS = 1600;
 export const RECOGNITION_TEMPERATURE = 0.2;
 
@@ -152,20 +141,6 @@ function base64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   }
   return btoa(binary);
-}
-
-/** Control characters become spaces, whitespace runs collapse, the result is capped. */
-function cleanText(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const cleaned = raw
-    .replace(/\p{Cc}/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (cleaned === '') return null;
-  const points = Array.from(cleaned);
-  return points.length <= MAX_FOOD_TEXT_LENGTH
-    ? cleaned
-    : points.slice(0, MAX_FOOD_TEXT_LENGTH).join('').trim();
 }
 
 function extractText(data: Record<string, unknown>): string | null {
@@ -432,85 +407,18 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
     }
   }
 
-  /**
-   * Parses the model's text as a JSON array of `{name, quantityHint, grams, per100g, group}`. `group` is
-   * validated against the closed enum; a missing or unknown value falls back to the classifier
-   * on the cleaned name, never to a guess. The output is untrusted: at most 20 entries are kept
-   * and every string is cleaned and capped at 100 characters.
-   */
+  /** The model's text as recognised foods (see `parseRecognizedFoods`). */
   #parseFoods(text: string): ByokOutcome {
-    const jsonText = text
-      .trim()
-      // Strip a leading/trailing markdown fence if the model added one despite the prompt.
-      .replace(/^```(?:json)?\s*|\s*```$/gm, '')
-      .trim();
-    let decoded: unknown;
-    try {
-      decoded = JSON.parse(jsonText);
-    } catch {
-      // Some models wrap the array in prose: try the outer `[` ... `]` slice as a last resort.
-      const start = jsonText.indexOf('[');
-      const end = jsonText.lastIndexOf(']');
-      if (start < 0 || end <= start) return { kind: 'noMatch' };
-      try {
-        decoded = JSON.parse(jsonText.slice(start, end + 1));
-      } catch {
-        return { kind: 'noMatch' };
-      }
-    }
-    if (!Array.isArray(decoded) || decoded.length === 0) return { kind: 'noMatch' };
-    const foods: RecognizedFood[] = [];
-    for (const entry of decoded as unknown[]) {
-      if (foods.length >= MAX_RECOGNIZED_FOODS) break;
-      if (!isRecord(entry)) continue;
-      const name = cleanText(entry.name);
-      const hint = cleanText(entry.quantityHint);
-      if (name === null) continue;
-      const group: FoodGroup = parseFoodGroup(entry.group) ?? this.#opts.classifyFoodGroup(name);
-      const grams = parseGramsEstimate(entry.grams);
-      const nutrients = sanitizeNutrients(entry.per100g);
-      foods.push({
-        databaseFood: {
-          sourceRef: `byok-${this.#opts.model}-${name}`,
-          displayName: name,
-          source: 'manual',
-          foodGroup: group,
-          // The model's per-100 g values are a guess; a confident catalogue match replaces them.
-          ...(nutrients === undefined
-            ? {}
-            : { nutrientsPer100g: nutrients, extra: { nutrientsEstimated: true } }),
-        },
-        confidence: parseConfidence(entry.confidence),
-        quantity: {
-          low: 1,
-          high: 1,
-          unit: hint ?? 'serving',
-          displayLabel: hint ?? '1 serving',
-          // The model's weight is a guess, and says so.
-          ...(grams === undefined ? {} : { grams, gramsEstimated: true }),
-        },
-      });
-    }
-    return foods.length === 0 ? { kind: 'noMatch' } : { kind: 'recognized', foods };
+    return parseRecognizedFoods(text, {
+      classifyFoodGroup: this.#opts.classifyFoodGroup,
+      sourceRefPrefix: `byok-${this.#opts.model}-`,
+    });
   }
 
   /** Redacted: never the endpoint, the model or the key. */
   toString(): string {
     return 'OpenAiCompatibleByokProvider(endpointUrl: redacted, model: redacted)';
   }
-}
-
-/** A model's weight guess: a valid number of grams (a numeric string is read), else absent. */
-function parseGramsEstimate(value: unknown): number | undefined {
-  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  return isValidGrams(n) ? n : undefined;
-}
-
-/** A model's own confidence: finite, clamped to 0..1; 0.5 ("maybe") when absent or unusable. */
-function parseConfidence(value: unknown): number {
-  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_CONFIDENCE;
-  return Math.min(1, Math.max(0, n));
 }
 
 /** An outer cancel (the session ended) plus a per-call one (the caller gave up). */

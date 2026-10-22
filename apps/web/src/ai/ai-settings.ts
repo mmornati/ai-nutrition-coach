@@ -14,6 +14,11 @@ export interface AiSettingsInit {
   readonly byokEndpointUrl?: string;
   readonly byokModel?: string;
   /**
+   * The speech-to-text model asked of the BYOK endpoint for "Describe a meal" by voice (a
+   * Whisper-compatible `/audio/transcriptions`). Empty means the default, {@link DEFAULT_TRANSCRIPTION_MODEL}.
+   */
+  readonly byokTranscriptionModel?: string;
+  /**
    * The host the STORED key was entered for (lower-case; empty when unknown). The key is only
    * ever sent to that host, so editing the endpoint can never ship it to a server it was not
    * given to. Host only: not scheme, port or path.
@@ -25,10 +30,14 @@ export interface AiSettingsInit {
   readonly askBeforeEveryPhoto?: boolean;
 }
 
+/** The speech-to-text model used when none was set. */
+export const DEFAULT_TRANSCRIPTION_MODEL = 'whisper-1';
+
 export class AiSettings {
   readonly rung: AiRungConfig;
   readonly byokEndpointUrl: string;
   readonly byokModel: string;
+  readonly byokTranscriptionModel: string;
   readonly byokKeyHost: string;
   readonly photoConsentHosts: ReadonlySet<string>;
   readonly askBeforeEveryPhoto: boolean;
@@ -37,6 +46,7 @@ export class AiSettings {
     this.rung = init.rung ?? { kind: 'noOp' };
     this.byokEndpointUrl = init.byokEndpointUrl ?? '';
     this.byokModel = init.byokModel ?? '';
+    this.byokTranscriptionModel = init.byokTranscriptionModel ?? '';
     this.byokKeyHost = (init.byokKeyHost ?? '').toLowerCase();
     this.photoConsentHosts = new Set(
       [...(init.photoConsentHosts ?? [])].map((h) => h.toLowerCase()),
@@ -52,6 +62,7 @@ export class AiSettings {
       rung: patch.rung ?? this.rung,
       byokEndpointUrl: patch.byokEndpointUrl ?? this.byokEndpointUrl,
       byokModel: patch.byokModel ?? this.byokModel,
+      byokTranscriptionModel: patch.byokTranscriptionModel ?? this.byokTranscriptionModel,
       byokKeyHost: patch.byokKeyHost ?? this.byokKeyHost,
       photoConsentHosts: patch.photoConsentHosts ?? this.photoConsentHosts,
       askBeforeEveryPhoto: patch.askBeforeEveryPhoto ?? this.askBeforeEveryPhoto,
@@ -69,6 +80,7 @@ export class AiSettings {
       aiRungConfigEquals(this.rung, other.rung) &&
       other.byokEndpointUrl === this.byokEndpointUrl &&
       other.byokModel === this.byokModel &&
+      other.byokTranscriptionModel === this.byokTranscriptionModel &&
       other.byokKeyHost === this.byokKeyHost &&
       other.askBeforeEveryPhoto === this.askBeforeEveryPhoto
     );
@@ -103,6 +115,7 @@ export function encodeAiSettings(settings: AiSettings): string {
     previous: settings.rung.previousRung?.previousKind ?? null,
     endpoint: settings.byokEndpointUrl,
     model: settings.byokModel,
+    txModel: settings.byokTranscriptionModel,
     keyHost: settings.byokKeyHost,
     consents: [...settings.photoConsentHosts].sort(),
     askEveryPhoto: settings.askBeforeEveryPhoto,
@@ -140,12 +153,14 @@ export function decodeAiSettings(raw: string | null | undefined): AiSettings {
       }
     }
   }
-  const { endpoint, model, keyHost, askEveryPhoto } = blob;
+  const { endpoint, model, txModel, keyHost, askEveryPhoto } = blob;
   return new AiSettings({
     rung,
     byokEndpointUrl:
       typeof endpoint === 'string' && endpoint.length <= MAX_ENDPOINT_LENGTH ? endpoint : '',
     byokModel: typeof model === 'string' && model.length <= MAX_MODEL_LENGTH ? model : '',
+    byokTranscriptionModel:
+      typeof txModel === 'string' && txModel.length <= MAX_MODEL_LENGTH ? txModel : '',
     byokKeyHost:
       typeof keyHost === 'string' && keyHost.length <= MAX_HOST_LENGTH ? keyHost.toLowerCase() : '',
     photoConsentHosts: consents,
