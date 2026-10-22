@@ -131,11 +131,11 @@ export function QuantityPicker({
           />
         </div>
         {presetWeight !== null && (
-          <span className="text-lead text-porcelain-dim pb-4">{presetWeight}</span>
+          <span className="text-lead text-ink-soft pb-4">{presetWeight}</span>
         )}
       </div>
       {message !== null && (
-        <p id={messageId} role="status" className="text-body-small text-porcelain-dim">
+        <p id={messageId} role="status" className="text-body-small text-ink-soft">
           {message}
         </p>
       )}

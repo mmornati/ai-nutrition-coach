@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Standard — mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F9;--card:#fff;--ink:#111827;--mute:#6B7280;--acc:#16A34A;--line:#E5E7EB;
+--veg:#22C55E;--pro:#EF4444;--sta:#F59E0B;--dai:#3B82F6}
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,sans-serif;position:relative}
+header{padding:56px 20px 12px;display:flex;justify-content:space-between;align-items:center}
+h1{font-weight:700;font-size:28px;letter-spacing:-.02em}.date{color:var(--mute);font-size:14px;margin-top:2px}
+.pill{background:#DCFCE7;color:#166534;font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px}
+.card{background:var(--card);margin:0 16px 12px;border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04)}
+.row{display:flex;justify-content:space-between;align-items:center}
+.t{font-weight:600;font-size:16px}.m{color:var(--mute);font-size:13px}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:#9CA3AF}
+.nut{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-top:12px;font-size:13px}
+.dots{display:flex;gap:5px;margin-top:8px}.dots i{width:10px;height:10px;border-radius:50%}.dots i.off{border:1.5px solid #D1D5DB}
+.coach{background:#F0FDF4;border:1px solid #BBF7D0}
+.btn{display:inline-block;margin-top:10px;margin-right:6px;font-weight:600;font-size:14px;padding:9px 14px;border-radius:10px;background:var(--acc);color:#fff}
+.btn.g{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.tabs{position:absolute;bottom:0;left:0;right:0;height:84px;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding-top:12px;font-size:11px;color:var(--mute)}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:4px}.tabs b{width:22px;height:22px;border-radius:6px;background:#E5E7EB}
+.tabs .on{color:var(--acc)}.tabs .on b{background:var(--acc)}
+.fab{position:absolute;right:20px;bottom:100px;width:56px;height:56px;border-radius:50%;background:var(--acc);display:grid;place-items:center;box-shadow:0 6px 16px rgba(22,163,74,.35)}
+</style></head><body>
+<header><div><h1>Aujourd’hui</h1><div class="date">Mardi 21 octobre</div></div><span class="pill">● Local</span></header>
+<div class="card"><div class="row"><span class="t">Énergie</span><span class="m">~1 050 / 2 000 kcal réf.</span></div><div class="bar"><i style="width:52%"></i></div>
+<div class="nut"><div>Protéines 52 g<div class="bar"><i style="width:100%"></i></div></div><div>Glucides 128 g<div class="bar"><i style="width:49%"></i></div></div><div>Lipides 34 g<div class="bar"><i style="width:48%"></i></div></div><div>Fibres 9 g<div class="bar"><i style="width:33%"></i></div></div></div></div>
+<div class="card"><div class="row"><span class="t">Petit-déjeuner</span><span class="m">8:10 · ~410 kcal</span></div><div class="m" style="margin-top:4px">Flocons d’avoine, lait, banane</div><div class="dots"><i style="background:var(--veg)"></i><i class="off"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div></div>
+<div class="card"><div class="row"><span class="t">Déjeuner</span><span class="m">12:45 · ~640 kcal</span></div><div class="m" style="margin-top:4px">Poulet rôti, riz, salade de tomates</div><div class="dots"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i class="off"></i></div></div>
+<div class="card coach"><div class="t" style="font-size:14px">Question du coach</div><div style="font-size:15px;margin-top:4px;line-height:1.4">Le laitier n’est passé qu’au petit-déjeuner. Un yaourt ce soir&nbsp;?</div><span class="btn">Peut-être</span><span class="btn g">Pas aujourd’hui</span></div>
+<div class="fab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+<div class="tabs"><div class="on"><b></b>Jour</div><div><b></b>Semaine</div><div><b></b>Coach</div><div><b></b>Réglages</div></div>
+</body></html>

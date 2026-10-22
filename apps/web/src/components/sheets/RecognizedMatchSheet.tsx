@@ -246,7 +246,7 @@ function Body({
     const choice = choices[c.key];
     if (!choice) return null;
     return (
-      <li key={c.key} className="border-rule border-b">
+      <li key={c.key} className="border-seam border-b">
         <Checkbox
           checked={choice.checked}
           onChange={(e) => update(c.key, { checked: e.target.checked })}
@@ -255,7 +255,7 @@ function Body({
           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <GroupMarker group={c.food.foodGroup} />
             {c.confidence !== undefined && (
-              <span className="text-body-small text-signal-muted">
+              <span className="text-body-small text-thread">
                 {c.confidence >= LIKELY_AT ? r.confidenceLikely : r.confidenceMaybe}
               </span>
             )}
@@ -289,20 +289,18 @@ function Body({
     <>
       {setupLink}
       {recognized.length > 0 && (
-        <ul aria-label={r.recognizedLabel} className="border-porcelain border-t-2">
+        <ul aria-label={r.recognizedLabel} className="border-ink border-t-2">
           {recognized.map(row)}
         </ul>
       )}
       {extra.length > 0 && (
         <section className="flex flex-col gap-1">
-          <h3 className="font-display text-section text-signal-muted uppercase">
-            {r.closestMatches}
-          </h3>
-          <ul className="border-porcelain border-t-2">{extra.map(row)}</ul>
+          <h3 className="font-display text-section text-thread">{r.closestMatches}</h3>
+          <ul className="border-ink border-t-2">{extra.map(row)}</ul>
         </section>
       )}
       {/* Always mounted: a live region is only announced reliably when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
+      <p role="status" className="text-body-small text-ink-soft empty:-mt-4">
         {errorMessage ?? (failed ? s.common.logFailed : undefined)}
       </p>
       <Button
@@ -326,7 +324,7 @@ function Body({
           }}
         />
         <Button
-          variant="outline-porcelain"
+          variant="secondary"
           fullWidth
           busy={submitting === 'custom'}
           aria-disabled={submitting === 'ticked' ? true : undefined}

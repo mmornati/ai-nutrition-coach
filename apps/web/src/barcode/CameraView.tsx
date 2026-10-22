@@ -93,7 +93,7 @@ export function CameraView({
         <div
           aria-hidden="true"
           data-testid="scan-guide"
-          className="border-porcelain/70 pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2"
+          className="border-ink/70 pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2"
           style={{ width: `${GUIDE_WIDTH * 100}%`, height: `${GUIDE_HEIGHT * 100}%` }}
         />
         {extras.torchAvailable && (
@@ -103,20 +103,20 @@ export function CameraView({
             aria-pressed={extras.torchOn}
             onClick={onToggleTorch}
             className={
-              'border-porcelain absolute top-3 right-3 grid size-12 cursor-pointer place-items-center border-2 ' +
-              (extras.torchOn ? 'bg-porcelain text-enamel' : 'bg-enamel/85 text-porcelain')
+              'border-ink absolute top-3 right-3 grid size-12 cursor-pointer place-items-center border-2 ' +
+              (extras.torchOn ? 'bg-ink text-cloth' : 'bg-cloth/85 text-ink')
             }
           >
             <TorchIcon />
           </button>
         )}
-        <p className="text-small bg-enamel/85 text-porcelain-dim absolute bottom-3 left-1/2 w-[calc(100%-1.5rem)] -translate-x-1/2 px-3 py-1 text-center">
+        <p className="text-small bg-cloth/85 text-ink-soft absolute bottom-3 left-1/2 w-[calc(100%-1.5rem)] -translate-x-1/2 px-3 py-1 text-center">
           {s.holdDistance}
         </p>
       </div>
 
       {state.kind === 'checking' && (
-        <p role="status" className="text-body text-porcelain-dim">
+        <p role="status" className="text-body text-ink-soft">
           {s.checkingCamera}
         </p>
       )}
@@ -149,19 +149,17 @@ export function CameraView({
       {scanning && (
         <div role="status" className="flex flex-col gap-3">
           {(lookup?.kind === 'idle' || lookup?.kind === 'match') && (
-            <p className="text-body text-porcelain-dim">{s.aimHint}</p>
+            <p className="text-body text-ink-soft">{s.aimHint}</p>
           )}
           {lookup?.kind === 'lookingUp' && (
-            <p className="text-body text-porcelain-dim">
-              {fill(s.lookingUp, { code: lookup.code })}
-            </p>
+            <p className="text-body text-ink-soft">{fill(s.lookingUp, { code: lookup.code })}</p>
           )}
           {lookup?.kind === 'notFound' && (
             <>
               <p className="text-lead">{s.notFoundTypeIt}</p>
               <div className="flex gap-3">
                 <Button
-                  variant="outline-porcelain"
+                  variant="secondary"
                   className="flex-1"
                   onClick={() => {
                     onScanAgain();
@@ -177,12 +175,8 @@ export function CameraView({
           )}
           {lookup?.kind === 'failure' && (
             <>
-              <p className="text-body text-porcelain-dim">{s.searchUnavailable}</p>
-              <Button
-                variant="outline-porcelain"
-                fullWidth
-                onClick={() => onTypeInstead(lookup.code)}
-              >
+              <p className="text-body text-ink-soft">{s.searchUnavailable}</p>
+              <Button variant="secondary" fullWidth onClick={() => onTypeInstead(lookup.code)}>
                 {s.typeManually}
               </Button>
             </>
@@ -192,7 +186,7 @@ export function CameraView({
 
       {scanning && (
         <div className="flex flex-col gap-3">
-          {extras.slow && !typing && <p className="text-body text-porcelain-dim">{s.slowHint}</p>}
+          {extras.slow && !typing && <p className="text-body text-ink-soft">{s.slowHint}</p>}
           {typing ? (
             <form ref={form} onSubmit={submitDigits} className="flex flex-col gap-3" noValidate>
               <TextField
@@ -213,7 +207,7 @@ export function CameraView({
             </form>
           ) : (
             <Button
-              variant={extras.slow ? 'solid-porcelain' : 'outline-porcelain'}
+              variant={extras.slow ? 'primary' : 'secondary'}
               fullWidth
               onClick={() => setTyping(true)}
             >

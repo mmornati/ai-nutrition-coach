@@ -222,7 +222,7 @@ test('the web manifest and icons are valid; the worker registers and precaches e
     orientation: 'portrait',
     scope: '/',
     start_url: '/',
-    theme_color: '#0E1A3A',
+    theme_color: '#FBFBF8',
     categories: ['health', 'food', 'lifestyle'],
   });
   const purposes = manifest.icons.map((i) => `${i.sizes}:${i.purpose}`).sort();

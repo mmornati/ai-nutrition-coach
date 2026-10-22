@@ -14,7 +14,7 @@ export interface CoachCardProps {
   readonly className?: string;
 }
 
-/** The one inverted surface: a porcelain card with one question and two plain choices. */
+/** A sewn label: white, an ink edge and a dashed stitch, one question and two plain choices. */
 export function CoachCard({
   question,
   title,
@@ -28,20 +28,16 @@ export function CoachCard({
     <div
       role="group"
       aria-label={s.group}
-      className={`day-enter on-porcelain bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
+      className={`day-enter stitched bg-raised text-ink border-ink rounded-cloth relative z-10 mt-3 border-2 px-4.5 pt-4 pb-4 ${className}`}
     >
-      {title ? (
-        <p className="font-display mb-1 text-aside font-bold tracking-[0.12em] uppercase">
-          {title}
-        </p>
-      ) : null}
+      {title ? <p className="font-display mb-1 text-ui font-extrabold">{title}</p> : null}
       <p className="text-body">{question}</p>
-      {aiMark ? <p className="mt-1 text-aside">{aiMark}</p> : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="solid-enamel" onClick={onSure}>
+      {aiMark ? <p className="text-thread mt-1 text-aside">{aiMark}</p> : null}
+      <div className="relative mt-3.5 flex flex-wrap gap-2">
+        <Button variant="primary" onClick={onSure}>
           {s.sure}
         </Button>
-        <Button variant="ghost-enamel" onClick={onAskLater}>
+        <Button variant="secondary" onClick={onAskLater}>
           {s.askLater}
         </Button>
       </div>
@@ -66,12 +62,12 @@ export function DepthPanel({ followUp, aiMark, onClose, className = '' }: DepthP
     <div
       role="group"
       aria-label={s.depthGroup}
-      className={`day-enter on-porcelain bg-porcelain text-enamel relative z-10 mt-3 px-3.5 pt-3.5 pb-3 ${className}`}
+      className={`day-enter stitched bg-raised text-ink border-ink rounded-cloth relative z-10 mt-3 border-2 px-4.5 pt-4 pb-4 ${className}`}
     >
       {followUp ? <p className="text-body">{followUp}</p> : null}
-      {followUp && aiMark ? <p className="mt-1 text-aside">{aiMark}</p> : null}
-      <div className={followUp ? 'mt-3' : ''}>
-        <Button variant="solid-enamel" onClick={onClose}>
+      {followUp && aiMark ? <p className="text-thread mt-1 text-aside">{aiMark}</p> : null}
+      <div className={followUp ? 'relative mt-3.5' : 'relative'}>
+        <Button variant="primary" onClick={onClose}>
           {s.close}
         </Button>
       </div>

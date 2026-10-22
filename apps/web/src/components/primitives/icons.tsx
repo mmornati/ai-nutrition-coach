@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 
 /**
- * Authored inline icons. One stroke weight (2), square caps and mitred joins, straight lines that
- * bend at 45 or 90 degrees only (DESIGN.md, the 45/90 Rule). Icons are decorative: the control
- * that holds one always carries the accessible name.
+ * Authored inline icons. One stroke weight (2), round caps and round joins, like a running stitch.
+ * Icons are decorative: the control that holds one always carries the accessible name.
  */
 export interface IconProps {
   /** Pixel size; defaults to 22. */
@@ -20,8 +19,8 @@ function Icon({ size = 22, className, children }: IconProps & { children: ReactN
       fill="none"
       stroke="currentColor"
       strokeWidth={2}
-      strokeLinecap="square"
-      strokeLinejoin="miter"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
       className={className}
@@ -50,9 +49,10 @@ export const TypeIcon = (p: IconProps) => (
   </Icon>
 );
 
+// Cog outline after Lucide's "settings" (ISC licence).
 export const GearIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M9 3h6l6 6v6l-6 6H9l-6-6V9z" />
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
     <circle cx="12" cy="12" r="3" />
   </Icon>
 );
@@ -97,15 +97,19 @@ export const CheckIcon = (p: IconProps) => (
 /** Rail navigation: the day (four lines) and the week (two tracks). */
 export const TodayIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M6 3v18M12 3v18M18 3v18" />
+    {/* One towel, three stripes: the day. */}
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <path d="M5 9h14M5 12.5h14M5 16h14" />
   </Icon>
 );
 
 export const WeekIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M3 8h18M3 16h18" />
-    <circle cx="7" cy="8" r="2" />
-    <circle cx="17" cy="16" r="2" />
+    {/* Towels hung side by side on a line: the week. */}
+    <path d="M2 4h20" />
+    <rect x="3.5" y="4" width="4.5" height="14" rx="1" />
+    <rect x="9.75" y="4" width="4.5" height="16" rx="1" />
+    <rect x="16" y="4" width="4.5" height="12" rx="1" />
   </Icon>
 );
 

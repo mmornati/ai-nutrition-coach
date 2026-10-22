@@ -3,7 +3,7 @@
 //
 //   capture sheet -> Snapshot -> "Snap a plate" (a tap opens the camera or file picker)
 //                      -> consent dialog (when the photo would leave the device)
-//                      -> the open station says "Reading the plate…" on Today
+//                      -> the open meal says "Reading the plate…" on Today
 //                      -> recognised match sheet (or the calm no-AI core: closest matches, type it)
 //                 -> Barcode  -> camera view -> one-time Open Food Facts notice
 //                      -> barcode match sheet, or "not found" and manual entry prefilled

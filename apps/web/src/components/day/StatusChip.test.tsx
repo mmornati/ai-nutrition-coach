@@ -59,7 +59,7 @@ describe('StatusChip', () => {
       </>,
     );
     const dots = Array.from(container.querySelectorAll('[aria-hidden="true"]'));
-    expect(dots[0]).toHaveClass('border-solid', 'border-porcelain');
+    expect(dots[0]).toHaveClass('border-solid', 'border-ink');
     expect(dots[0]).not.toHaveClass('border-dashed');
     expect(dots[1]).toHaveClass('border-dashed');
   });
@@ -67,7 +67,7 @@ describe('StatusChip', () => {
   it('is not a button and never red', () => {
     const { container } = render(<StatusChip hasTransport status="failed" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(container.innerHTML).not.toMatch(/line-protein|red/);
+    expect(container.innerHTML).not.toMatch(/protein|red/);
   });
 
   it('has no axe violations in any state', async () => {

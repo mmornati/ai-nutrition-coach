@@ -14,13 +14,13 @@ export interface PortionPresetsProps {
   readonly deselected?: boolean;
   /** Accessible name of the group; defaults to "Portion". */
   readonly label?: string;
-  /** On raised enamel (sheets): uses the raised control edge. Default true. */
+  /** On a white sheet: uses the raised control edge. Default true. */
   readonly raised?: boolean;
 }
 
 /**
  * Honest portion ranges as toggle buttons (>= 48px), with the weight a preset stands for when the
- * catalogue knows it ("~1 fist · ≈150 g"). The selected one flips to porcelain.
+ * catalogue knows it ("~1 fist · ≈150 g"). The selected one fills with ink.
  */
 export function PortionPresets({
   presets,
@@ -44,11 +44,11 @@ export function PortionPresets({
             aria-pressed={selected}
             onClick={() => onChange(preset)}
             className={cn(
-              'font-display quantity min-h-12 min-w-12 cursor-pointer rounded-none border-2 px-3.5 text-ui font-semibold tracking-[0.05em]',
+              'font-display quantity min-h-12 min-w-12 cursor-pointer rounded-full border-2 px-4 text-ui font-semibold',
               selected
-                ? 'border-porcelain bg-porcelain text-enamel'
+                ? 'on-ink border-ink bg-ink text-cloth'
                 : cn(
-                    'text-porcelain bg-transparent',
+                    'text-ink bg-transparent',
                     raised ? 'border-control-raised' : 'border-control',
                   ),
             )}

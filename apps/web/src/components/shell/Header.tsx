@@ -16,19 +16,19 @@ export interface HeaderProps {
   readonly settingsHref?: string;
 }
 
-/** Screen header: display-type name over a 4px porcelain rule. */
+/** Screen header: the screen name in heavy display type, the storage tag beside it. */
 export function Header({ title, sub, back, chip, actions, settingsHref }: HeaderProps) {
   const s = useStrings();
   return (
-    <header className="border-porcelain flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b-4 px-5 pt-[max(env(safe-area-inset-top),28px)] pb-3 lg:px-7 lg:pt-7">
+    <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-5 pt-[max(env(safe-area-inset-top),2.5rem)] pb-4 lg:px-7 lg:pt-9">
       <div className="min-w-0">
         {back}
-        <h1 className="font-display text-display lg:text-display-desktop [overflow-wrap:anywhere] uppercase">
+        <h1 className="font-display text-display lg:text-display-desktop [overflow-wrap:anywhere]">
           {title}
         </h1>
-        {sub && <div className="text-signal-muted mt-1.5 text-aside font-medium">{sub}</div>}
+        {sub && <div className="text-thread mt-2 text-lead font-medium">{sub}</div>}
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
         {chip}
         {actions}
         {settingsHref && (

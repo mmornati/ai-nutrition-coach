@@ -158,10 +158,7 @@ describe('No-Dark-Patterns Standard, code half', () => {
     expect(matching({ streak: bad.streak, badge: bad.badge }, STREAK)).toEqual(['streak', 'badge']);
     expect(matching({ red: bad.red, redHex: bad.redHex }, RED_LITERAL)).toEqual(['red', 'redHex']);
     expect(matching({ spin: bad.spin }, SPINNER)).toEqual(['spin']);
-    const clean = withoutComments(
-      'f.css',
-      '.ok { color: var(--color-porcelain); } /* red streak */',
-    );
+    const clean = withoutComments('f.css', '.ok { color: var(--color-ink); } /* red streak */');
     expect([STREAK, RED_LITERAL, SPINNER].some((p) => p.test(clean))).toBe(false);
   });
 

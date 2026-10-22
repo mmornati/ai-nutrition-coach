@@ -88,12 +88,7 @@ const CLOSEST: readonly FoodMatch[] = [
   { food: BROCCOLI, confidence: 0.3, presets: [] },
 ];
 
-const BUTTON_VARIANTS: readonly ButtonVariant[] = [
-  'solid-porcelain',
-  'outline-porcelain',
-  'solid-enamel',
-  'ghost-enamel',
-];
+const BUTTON_VARIANTS: readonly ButtonVariant[] = ['primary', 'secondary', 'floating'];
 
 type Overlay =
   | 'capture'
@@ -110,24 +105,26 @@ type Overlay =
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="border-rule border-b-2 px-5 py-6 lg:px-7">
-      <h2 className="font-display text-section text-signal-muted mb-4 uppercase">{title}</h2>
+    <section className="border-seam border-b-2 px-5 py-6 lg:px-7">
+      <h2 className="font-display text-section text-thread mb-4">{title}</h2>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
   );
 }
 
 function OnCard({ children }: { children: ReactNode }) {
-  return <div className="bg-porcelain text-enamel flex flex-wrap gap-2 p-3.5">{children}</div>;
+  return (
+    <div className="stitched bg-raised border-ink rounded-cloth flex flex-wrap gap-2 border-2 p-4">
+      {children}
+    </div>
+  );
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** Fake page content for the dock slot. */
 function RouteSlot() {
-  return (
-    <p className="text-signal-muted flex min-h-19 items-center px-4 text-small">Week route slot</p>
-  );
+  return <p className="text-thread flex min-h-19 items-center px-4 text-small">Week route slot</p>;
 }
 
 export function Gallery() {
@@ -147,7 +144,7 @@ export function Gallery() {
   };
   const logOne = (draft: FoodEntryDraft) => logDrafts([draft]);
   const opener = (name: Overlay, label: string) => (
-    <Button variant="outline-porcelain" onClick={() => setOverlay(name)}>
+    <Button variant="secondary" onClick={() => setOverlay(name)}>
       {label}
     </Button>
   );
@@ -172,7 +169,7 @@ export function Gallery() {
 
       <Section title="Buttons">
         <div className="flex flex-wrap gap-2">
-          {(['solid-porcelain', 'outline-porcelain'] as const).map((v) => (
+          {(['primary', 'secondary'] as const).map((v) => (
             <Button key={v} variant={v}>
               {v}
             </Button>
@@ -183,12 +180,12 @@ export function Gallery() {
           </Button>
         </div>
         <OnCard>
-          {BUTTON_VARIANTS.filter((v) => v.endsWith('enamel')).map((v) => (
+          {BUTTON_VARIANTS.filter((v) => v !== 'floating').map((v) => (
             <Button key={v} variant={v}>
               {v}
             </Button>
           ))}
-          <Button variant="solid-enamel" disabled>
+          <Button variant="primary" disabled>
             Disabled
           </Button>
         </OnCard>
@@ -199,7 +196,7 @@ export function Gallery() {
           <IconButton label="Settings, current page" current>
             <GearIcon />
           </IconButton>
-          <div className="bg-enamel-raised p-2">
+          <div className="bg-raised p-2">
             <IconButton label="Close, raised" raised>
               {ICONS.close({})}
             </IconButton>
@@ -207,7 +204,7 @@ export function Gallery() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <StatusChip hasTransport={false} />
-          <span className="font-display text-title uppercase">
+          <span className="font-display text-title">
             Local model
             <VersionTag spoken="coming in version 2">v2</VersionTag>
           </span>
@@ -270,7 +267,6 @@ export function Gallery() {
           rows={[
             {
               id: 'ai',
-              line: 'dairy',
               title: 'Your AI',
               subtitle: 'Reads your plate photos',
               status: 'Free quota',
@@ -278,7 +274,6 @@ export function Gallery() {
             },
             {
               id: 'data',
-              line: 'vegFruit',
               title: 'Your data',
               subtitle: 'Export and sync',
               status: 'Local',
@@ -321,7 +316,7 @@ export function Gallery() {
           <LockButton unlocked onLock={() => setLast('Locked')} />
           <LockButton unlocked={false} onLock={() => undefined} />
         </div>
-        <div className="border-rule border-2">
+        <div className="border-seam border-2">
           <UpdateBanner onReload={() => undefined} onLater={() => undefined} />
         </div>
       </Section>

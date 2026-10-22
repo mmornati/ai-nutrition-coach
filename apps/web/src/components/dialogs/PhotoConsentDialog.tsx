@@ -60,21 +60,19 @@ export function PhotoConsentDialog({
         </p>
         <p>{fill(instance ? s.instanceRetention : s.retention, vars)}</p>
         <p>{s.notSent}</p>
-        <p className="text-body-small text-porcelain-dim">
-          {perPhoto ? s.askEveryHint : s.revokeHint}
-        </p>
+        <p className="text-body-small text-ink-soft">{perPhoto ? s.askEveryHint : s.revokeHint}</p>
         <a
           href={privacyHref}
-          className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
+          className="text-ink inline-flex min-h-12 items-center underline underline-offset-4"
         >
           {s.learnMore}
         </a>
       </div>
       <div className="flex gap-3">
-        <Button variant="outline-porcelain" className="flex-1" data-autofocus onClick={onDecline}>
+        <Button variant="secondary" className="flex-1" data-autofocus onClick={onDecline}>
           {s.decline}
         </Button>
-        <Button variant="outline-porcelain" className="flex-1" onClick={onAllow}>
+        <Button variant="secondary" className="flex-1" onClick={onAllow}>
           {perPhoto ? s.allowOnce : instance ? s.instanceAllow : fill(s.allow, vars)}
         </Button>
       </div>

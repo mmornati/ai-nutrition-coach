@@ -109,7 +109,7 @@ describe('TodayScreen: the day as a map', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Sunday' })).toBeVisible();
   });
 
-  it('a station names the lines that stopped, never a count or a score', async () => {
+  it('a meal names the groups on the plate, never a count or a score', async () => {
     const bundle = await unlockedBundle();
     await seedPlate(bundle, at(12, 45), [
       ['Lentil salad', 'protein'],
@@ -119,8 +119,8 @@ describe('TodayScreen: the day as a map', () => {
     const open = await screen.findByTestId(/^open-plate-/);
     const name = open.getAttribute('aria-label') ?? '';
     expect(name).toMatch(/Lunch, 12:45/);
-    expect(name).toMatch(/veg & fruit and protein stopped/i);
-    expect(name).toMatch(/starch and dairy passed through/i);
+    expect(name).toMatch(/veg & fruit and protein on the plate/i);
+    expect(name).toMatch(/without starch and dairy/i);
     expect(document.body.textContent).not.toMatch(
       /\d+\s*(points?|pts|of 4 filled)|\b(score|streak|remaining|over budget)\b|!/i,
     );

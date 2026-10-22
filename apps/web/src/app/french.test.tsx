@@ -68,7 +68,7 @@ async function expectFrenchOnly() {
 }
 
 describe('the app in French', () => {
-  it('Today: header, stations, the plate and its lines', async () => {
+  it('Today: header, meals, the plate and its groups', async () => {
     await openInFrench('#/');
     await h1(fr.today.today);
     await screen.findByText('Porridge');
@@ -78,21 +78,21 @@ describe('the app in French', () => {
     expect(screen.getByRole('heading', { level: 2, name: /^Petit-déjeuner/ })).toBeVisible();
     const plate = screen.getByTestId(/^open-plate-/);
     expect(plate.getAttribute('aria-label')).toMatch(/^Ouvrir Petit-déjeuner, 08:00/);
-    expect(plate.getAttribute('aria-label')).toContain('arrêt pour féculents');
+    expect(plate.getAttribute('aria-label')).toContain('féculents dans l’assiette');
     expect(screen.getAllByRole('button', { name: fr.shell.logAPlate }).length).toBeGreaterThan(0);
     await expectFrenchOnly();
   });
 
-  it('Week: the network, the day list and the note, in words', async () => {
+  it('Week: the towels, the day list and the note, in words', async () => {
     await openInFrench('#/week');
     await h1(fr.week.title);
-    await screen.findByRole('button', { name: 'Mardi, les quatre lignes' }, { timeout: 5000 });
+    await screen.findByRole('button', { name: 'Mardi, les quatre groupes' }, { timeout: 5000 });
     expect(screen.getByText(fr.week.noStreaks)).toBeVisible();
     expect(screen.getByText('8 – 14 octobre')).toBeVisible();
     const route = screen.getByRole('navigation', { name: /^Cette semaine/ });
     expect(within(route).getAllByRole('button')).toHaveLength(7);
     expect(screen.getByRole('img').getAttribute('aria-label')).toMatch(
-      /^Réseau de la semaine\. .*Mardi\u202F: les quatre lignes\. Aujourd’hui\u202F: féculents\u202F; .* au calme\.$/,
+      /^La semaine\. .*Mardi\u202F: les quatre groupes\. Aujourd’hui\u202F: féculents\u202F; .*\.$/,
     );
     await expectFrenchOnly();
   });

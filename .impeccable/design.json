@@ -1,442 +1,477 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-13T05:59:31.993990+00:00",
-  "title": "Design System: AI Nutrition Coach (formerly OpenPlate)",
+  "generatedAt": "2026-10-22T05:50:01.571181+00:00",
+  "title": "Design System: AI Nutrition Coach",
   "extensions": {
     "colorMeta": {
-      "enamel": {
-        "role": "neutral",
-        "displayName": "Midnight Enamel",
-        "canonical": "#0E1A3A",
-        "oklch": "oklch(22.8% 0.064 266.0)",
+      "ink": {
+        "role": "primary",
+        "displayName": "Torchon Ink",
+        "canonical": "#262421",
+        "oklch": "oklch(26.1% 0.006 78.2)",
         "tonalRamp": [
-          "#020726",
-          "#152243",
-          "#303E62",
-          "#4D5D82",
-          "#6B7DA4",
-          "#8C9EC7",
-          "#B1C4EF",
-          "#E7EFFF"
+          "#0D0B08",
+          "#272522",
+          "#44423E",
+          "#63615D",
+          "#84827E",
+          "#A7A5A1",
+          "#CBC9C5",
+          "#F1EEEA"
         ]
       },
-      "enamel-raised": {
+      "ink-soft": {
         "role": "neutral",
-        "displayName": "Raised Enamel",
-        "canonical": "#15244B",
-        "oklch": "oklch(27.1% 0.075 265.8)",
+        "displayName": "Soft Ink",
+        "canonical": "#4A453F",
+        "oklch": "oklch(39.3% 0.012 72.5)",
         "tonalRamp": [
-          "#01062A",
-          "#122148",
-          "#2D3E67",
-          "#495C88",
-          "#687CAB",
-          "#889ECE",
-          "#ADC4F6",
-          "#E7EFFF"
+          "#0E0A06",
+          "#29241F",
+          "#46413B",
+          "#66605A",
+          "#87817B",
+          "#AAA49D",
+          "#CEC8C1",
+          "#F4EDE6"
         ]
       },
-      "rule": {
+      "thread": {
         "role": "neutral",
-        "displayName": "Night Rule",
-        "canonical": "#2C3F72",
-        "oklch": "oklch(37.9% 0.091 266.7)",
+        "displayName": "Thread Grey",
+        "canonical": "#6B655E",
+        "oklch": "oklch(51.0% 0.013 71.8)",
         "tonalRamp": [
-          "#010330",
-          "#101F4F",
-          "#2A3D6F",
-          "#465B91",
-          "#657BB4",
-          "#859DD7",
-          "#ACC3FB",
-          "#E8EEFE"
+          "#0F0A06",
+          "#29241E",
+          "#47413A",
+          "#666059",
+          "#87817A",
+          "#AAA49C",
+          "#CFC8C0",
+          "#F4EDE5"
+        ]
+      },
+      "veg": {
+        "role": "secondary",
+        "displayName": "Garden Green",
+        "canonical": "#1F7A4D",
+        "oklch": "oklch(51.5% 0.110 156.8)",
+        "tonalRamp": [
+          "#001301",
+          "#003012",
+          "#00512C",
+          "#197347",
+          "#489469",
+          "#74B68E",
+          "#9FD9B5",
+          "#CAFDDD"
+        ]
+      },
+      "protein": {
+        "role": "secondary",
+        "displayName": "Basque Red",
+        "canonical": "#B5262E",
+        "oklch": "oklch(50.7% 0.178 23.9)",
+        "tonalRamp": [
+          "#2E0000",
+          "#560000",
+          "#820011",
+          "#AF222B",
+          "#D25251",
+          "#F27D78",
+          "#FFA8A1",
+          "#FFD2CC"
+        ]
+      },
+      "starch": {
+        "role": "secondary",
+        "displayName": "Ochre",
+        "canonical": "#C08420",
+        "oklch": "oklch(65.8% 0.130 74.2)",
+        "tonalRamp": [
+          "#1B0400",
+          "#3C1C00",
+          "#603800",
+          "#865600",
+          "#AE7512",
+          "#D29943",
+          "#F3BF76",
+          "#FFE6A6"
+        ]
+      },
+      "dairy": {
+        "role": "secondary",
+        "displayName": "Indigo Blue",
+        "canonical": "#2D5DA8",
+        "oklch": "oklch(48.5% 0.131 259.1)",
+        "tonalRamp": [
+          "#000430",
+          "#002157",
+          "#153F80",
+          "#305FAA",
+          "#5682C8",
+          "#7EA6E6",
+          "#A6CBFF",
+          "#D0F0FF"
+        ]
+      },
+      "cloth": {
+        "role": "neutral",
+        "displayName": "White Cotton",
+        "canonical": "#FBFBF8",
+        "oklch": "oklch(98.7% 0.004 106.5)",
+        "tonalRamp": [
+          "#0B0B09",
+          "#252523",
+          "#424240",
+          "#61615F",
+          "#828280",
+          "#A5A5A2",
+          "#C9C9C6",
+          "#EFEFEC"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Label White",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "#E4E1DA",
+        "oklch": "oklch(91.0% 0.010 87.5)",
+        "tonalRamp": [
+          "#0D0B07",
+          "#272520",
+          "#44423C",
+          "#64615B",
+          "#85827C",
+          "#A8A59E",
+          "#CCC9C2",
+          "#F1EEE7"
         ]
       },
       "control": {
         "role": "neutral",
         "displayName": "Control Edge",
-        "canonical": "#5B6C9C",
-        "oklch": "oklch(52.0% 0.075 268.0)",
+        "canonical": "#8A847B",
+        "oklch": "oklch(61.6% 0.015 78.2)",
         "tonalRamp": [
-          "#010330",
-          "#101F4F",
-          "#2A3D6F",
-          "#465B91",
-          "#657BB4",
-          "#859DD7",
-          "#ACC3FB",
-          "#E8EEFE"
+          "#0F0A05",
+          "#29241D",
+          "#464139",
+          "#666058",
+          "#878178",
+          "#AAA49B",
+          "#CFC8BE",
+          "#F4EDE3"
         ]
       },
       "control-raised": {
         "role": "neutral",
-        "displayName": "Raised Control Edge",
-        "canonical": "#6474A6",
-        "oklch": "oklch(56.7% 0.080 270.1)",
+        "displayName": "Control Edge, Raised",
+        "canonical": "#857F76",
+        "oklch": "oklch(59.9% 0.015 78.2)",
         "tonalRamp": [
-          "#010330",
-          "#101F4F",
-          "#2A3D6F",
-          "#465B91",
-          "#657BB4",
-          "#859DD7",
-          "#ACC3FB",
-          "#E8EEFE"
+          "#0F0A05",
+          "#29241D",
+          "#474139",
+          "#666058",
+          "#878178",
+          "#AAA49B",
+          "#CFC8BE",
+          "#F4EDE3"
         ]
       },
-      "porcelain": {
-        "role": "primary",
-        "displayName": "Porcelain",
-        "canonical": "#F3F1EA",
-        "oklch": "oklch(95.8% 0.010 93.6)",
-        "tonalRamp": [
-          "#0C0B07",
-          "#25241F",
-          "#41403A",
-          "#5F5E58",
-          "#7F7D77",
-          "#A09E98",
-          "#C6C4BD",
-          "#F0EEE7"
-        ]
-      },
-      "porcelain-dim": {
+      "scrim": {
         "role": "neutral",
-        "displayName": "Porcelain Dim",
-        "canonical": "#C9CFE0",
-        "oklch": "oklch(85.5% 0.024 270.3)",
+        "displayName": "Scrim",
+        "canonical": "rgb(38 36 33 / 0.45)",
         "tonalRamp": [
-          "#070B15",
-          "#1F2430",
-          "#3B3F4D",
-          "#585D6C",
-          "#777D8C",
-          "#989EAE",
-          "#BEC4D5",
-          "#E8EEFE"
-        ]
-      },
-      "signal-muted": {
-        "role": "neutral",
-        "displayName": "Signal Muted",
-        "canonical": "#A3AFCF",
-        "oklch": "oklch(75.5% 0.048 269.0)",
-        "tonalRamp": [
-          "#04091F",
-          "#1A233B",
-          "#353F59",
-          "#525D79",
-          "#717D9B",
-          "#929EBD",
-          "#B7C4E4",
-          "#E8EEFE"
-        ]
-      },
-      "line-veg": {
-        "role": "line",
-        "displayName": "Veg & Fruit Green",
-        "canonical": "#3FAE5A",
-        "oklch": "oklch(66.8% 0.158 148.4)",
-        "tonalRamp": [
-          "#001101",
-          "#002D0D",
-          "#034E1D",
-          "#0A712E",
-          "#1E9543",
-          "#4BB864",
-          "#74E089",
-          "#CAFED1"
-        ]
-      },
-      "line-protein": {
-        "role": "line",
-        "displayName": "Protein Scarlet",
-        "canonical": "#E5432F",
-        "oklch": "oklch(61.7% 0.202 30.6)",
-        "tonalRamp": [
-          "#220000",
-          "#4A0200",
-          "#7A0A01",
-          "#AE1605",
-          "#DB3926",
-          "#FC6853",
-          "#FCAD9F",
-          "#FFE9E4"
-        ]
-      },
-      "line-starch": {
-        "role": "line",
-        "displayName": "Starch Amber",
-        "canonical": "#F2A41C",
-        "oklch": "oklch(77.6% 0.159 73.6)",
-        "tonalRamp": [
-          "#160700",
-          "#351F00",
-          "#573905",
-          "#7E540E",
-          "#A97005",
-          "#D48E0C",
-          "#FCB448",
-          "#FFEBD3"
-        ]
-      },
-      "line-dairy": {
-        "role": "line",
-        "displayName": "Dairy Cobalt",
-        "canonical": "#5C9CF5",
-        "oklch": "oklch(69.0% 0.148 257.0)",
-        "tonalRamp": [
-          "#00062C",
-          "#002151",
-          "#063D80",
-          "#1B5BAE",
-          "#3E7DD3",
-          "#5F9FF8",
-          "#9FC7FE",
-          "#E5EFFF"
+          "#0D0B08",
+          "#272522",
+          "#44423E",
+          "#63615D",
+          "#84827E",
+          "#A7A5A1",
+          "#CBC9C5",
+          "#F1EEEA"
         ]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Screen name in the header; 64px at >=1024px, 48px on unlock."
+        "purpose": "The screen's name, top left; one per screen."
+      },
+      "display-desktop": {
+        "displayName": "Display (desktop)",
+        "purpose": "The screen's name from 1024px."
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "Station names on the day map (34px desktop); capture sheet title."
+        "purpose": "Meal names beside each band, sheet titles."
+      },
+      "headline-desktop": {
+        "displayName": "Headline (desktop)",
+        "purpose": "Meal names from 1024px."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Settings rows, AI tiers, capture options, week day codes (20-24px)."
+        "purpose": "Dialog titles, the rail's app name."
       },
       "section": {
         "displayName": "Section",
-        "purpose": "Muted uppercase block labels."
+        "purpose": "Section headings in Thread Grey over real content."
       },
       "button": {
         "displayName": "Button",
-        "purpose": "Every button label; 19px on the full-width unlock button."
+        "purpose": "Every pill label."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Legend, line bar cells, times, chips, route day letters (13-15px)."
+        "purpose": "Sewn labels, field labels, group names in legends."
       },
       "quantity": {
         "displayName": "Quantity",
-        "purpose": "Honest-range portions with tabular figures."
+        "purpose": "Nutrient values and portions, right-aligned, proportional figures."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Coach copy and sentences; hints 34ch, notes 40ch."
+        "purpose": "Sentences and the coach's question."
       },
       "body-small": {
         "displayName": "Body small",
-        "purpose": "Meta lines, descriptions, sub-headers (14.5-15px)."
+        "purpose": "Reference sentences under bars, captions, field messages."
       }
     },
     "shadows": [
       {
-        "name": "interchange-ring",
-        "value": "0 0 0 3px #15244B, 0 0 0 5px #F2A41C",
-        "purpose": "Today's station in the week route: a drawn double ring, not elevation."
-      },
-      {
-        "name": "scrim",
-        "value": "rgba(5,10,25,.6)",
-        "purpose": "Backdrop behind the capture sheet (background, not shadow)."
+        "name": "floating-pill",
+        "value": "0 10px 22px -10px rgb(38 36 33 / 0.7)",
+        "purpose": "The phone's floating Log pill only."
       }
     ],
+    "textures": [
+      {
+        "name": "cotton-weave",
+        "value": "repeating-linear-gradient(0deg, rgb(38 36 33 / 0.025) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(38 36 33 / 0.02) 0 1px, transparent 1px 3px)",
+        "purpose": "The barely visible weave on the page ground."
+      },
+      {
+        "name": "bare-cotton",
+        "value": "repeating-linear-gradient(90deg, #E4E1DA 0 6px, transparent 6px 10px)",
+        "purpose": "A food group absent from a plate; the Nutrient Bars track."
+      }
+    ],
+    "focus": {
+      "value": "3px solid #262421, offset 2px",
+      "onInk": "3px solid #FBFBF8, offset 2px"
+    },
     "motion": [
       {
-        "name": "ease-out-expo",
-        "value": "cubic-bezier(.16,1,.3,1)",
-        "purpose": "All transitions and the arrival animation."
+        "name": "ease-weave",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Weave-in, entrances, sheet slide."
       },
       {
-        "name": "sheet",
-        "value": "transform .35s (desktop .3s + opacity .2s)",
-        "purpose": "Capture sheet enter/exit."
+        "name": "weave-in",
+        "value": "scaleX 0 to 1 from the left edge, 0.5s, 60ms stagger in group order",
+        "purpose": "A resolved plate's stripes."
       },
       {
-        "name": "scrim",
-        "value": "opacity .25s",
-        "purpose": "Scrim fade."
+        "name": "weave-breathe",
+        "value": "opacity 1 to 0.45, 1.2s ease-in-out, alternate",
+        "purpose": "A plate being read; replaces any spinner."
       },
       {
-        "name": "station-draw",
-        "value": "stroke-dashoffset 260 to 0, .55s",
-        "purpose": "Resolved station capsule draws in."
+        "name": "day-rise",
+        "value": "opacity 0 and translateY(8px) to rest, 0.35s",
+        "purpose": "Coach label and panels entering. Reduced motion: 0.2s fade."
       },
       {
-        "name": "stop-pop",
-        "value": "scale 0 > 1.25 > 1, .45s, delay 200ms + 60ms per present line",
-        "purpose": "Stop dots land in line order."
+        "name": "sheet-slide",
+        "value": "translateY(100%) to 0, 350ms ease-weave",
+        "purpose": "Bottom sheets on phones."
       },
       {
-        "name": "reduced-motion",
-        "value": "durations .01ms",
-        "purpose": "prefers-reduced-motion skips to the end state."
+        "name": "press",
+        "value": "scale(0.98), 150ms",
+        "purpose": "Pill buttons while pressed."
       }
     ],
     "breakpoints": [
       {
-        "name": "phone",
-        "value": "0px",
-        "note": "designed at 390px"
-      },
-      {
-        "name": "desktop",
-        "value": "1024px",
-        "note": "left rail, two-column views, centred sheet"
+        "name": "lg",
+        "value": "1024px"
       }
-    ],
-    "implementation": {
-      "reference": "docs/design/food-lines/index.html",
-      "production": "apps/web (React 19 + Tailwind v4 PWA, tokens via @theme); see docs/pwa-refactor-plan.md",
-      "excluded": "The fixed top 'proto' screen switcher is a prototype-only aid, not part of the system."
-    }
+    ]
   },
   "components": [
     {
-      "name": "Porcelain Button",
+      "name": "Primary Pill",
       "kind": "button",
-      "refersTo": "button-porcelain",
-      "description": "Primary action on enamel: Log a plate, Unlock.",
-      "html": "<div class=\"ds-bg\"><button class=\"ds-btn ds-btn-porc\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>Log a plate</button></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-btn{font-family:var(--display,'Barlow Condensed',system-ui,sans-serif);font-weight:700;font-size:16px;letter-spacing:.08em;text-transform:uppercase;min-height:48px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:2px solid currentColor;border-radius:0;cursor:pointer}.ds-btn:focus-visible{outline:3px solid #F2A41C;outline-offset:2px}.ds-btn-porc{background:#F3F1EA;color:#0E1A3A;border-color:#F3F1EA}.ds-btn-porc:hover{background:#fff;border-color:#fff}.ds-btn-porc:active{transform:translateY(1px)}"
+      "refersTo": "button-primary",
+      "description": "Ink-filled pill: the one action that moves the task on.",
+      "html": "<button class=\"ds-btn-primary\">Log a plate</button>",
+      "css": ".ds-btn-primary{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;min-width:48px;padding:6px 20px;border-radius:9999px;border:2px solid #262421;font-size:1rem;font-weight:700;line-height:1.15;cursor:pointer;transition:background-color .15s,transform .15s;background:#262421;color:#FBFBF8}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:3px solid #FBFBF8;outline-offset:2px}"
     },
     {
-      "name": "Line Button",
+      "name": "Secondary Pill",
       "kind": "button",
-      "refersTo": "button-line",
-      "description": "Secondary action on enamel: porcelain outline, transparent fill.",
-      "html": "<div class=\"ds-bg\"><button class=\"ds-btn ds-btn-line\">See the week’s network<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><path d=\"M9 5l7 7-7 7\"/></svg></button></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-btn{font-family:var(--display,'Barlow Condensed',system-ui,sans-serif);font-weight:700;font-size:16px;letter-spacing:.08em;text-transform:uppercase;min-height:48px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:2px solid currentColor;border-radius:0;cursor:pointer}.ds-btn:focus-visible{outline:3px solid #F2A41C;outline-offset:2px}.ds-btn-line{background:transparent;color:#F3F1EA;border-color:#F3F1EA}.ds-btn-line:hover{background:#15244B}"
+      "refersTo": "button-secondary",
+      "description": "Ink-outlined pill on cloth or a white label.",
+      "html": "<button class=\"ds-btn-secondary\">Ask later</button>",
+      "css": ".ds-btn-secondary{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;min-width:48px;padding:6px 20px;border-radius:9999px;border:2px solid #262421;font-size:1rem;font-weight:700;line-height:1.15;cursor:pointer;transition:background-color .15s,transform .15s;background:transparent;color:#262421}.ds-btn-secondary:active{transform:scale(.98)}.ds-btn-secondary:focus-visible{outline:3px solid #262421;outline-offset:2px;}.ds-btn-secondary[aria-disabled=true]{border-style:dashed;opacity:.6;cursor:not-allowed}"
     },
     {
-      "name": "Coach Card",
-      "kind": "card",
-      "refersTo": "coach-card",
-      "description": "The one inverted porcelain surface; one question with solid and ghost actions.",
-      "html": "<div class=\"ds-bg\"><div class=\"ds-coach\">Two colours of veg and a lentil protein. Want to know why lentils count twice?<div class=\"ds-acts\"><button class=\"ds-btn ds-btn-solid\">Sure</button><button class=\"ds-btn ds-btn-ghost\">Ask later</button></div></div></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-coach{background:#F3F1EA;color:#0E1A3A;padding:14px 14px 12px;font-family:Barlow,system-ui,sans-serif;font-size:16px;line-height:1.45;max-width:360px}.ds-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.ds-btn{font-family:var(--display,'Barlow Condensed',system-ui,sans-serif);font-weight:700;font-size:16px;letter-spacing:.08em;text-transform:uppercase;min-height:48px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:2px solid currentColor;border-radius:0;cursor:pointer}.ds-btn:focus-visible{outline:3px solid #F2A41C;outline-offset:2px}.ds-btn-solid{background:#0E1A3A;color:#F3F1EA;border-color:#0E1A3A}.ds-btn-solid:hover{background:#15244B;border-color:#15244B}.ds-btn-ghost{background:transparent;color:#0E1A3A}.ds-btn-ghost:hover{background:#E4E1D6}"
-    },
-    {
-      "name": "Status Chip",
-      "kind": "chip",
-      "refersTo": "chip-status",
-      "description": "Square outlined chip stating where data lives.",
-      "html": "<div class=\"ds-bg\"><span class=\"ds-chip\"><i></i>Local</span></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-chip{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;font-size:14px;letter-spacing:.08em;color:#F3F1EA;border:2px solid #F3F1EA;padding:6px 10px;min-height:36px;display:inline-flex;align-items:center;gap:7px;text-transform:uppercase}.ds-chip i{width:9px;height:9px;border-radius:50%;background:#3FAE5A}"
+      "name": "Floating Log Pill",
+      "kind": "button",
+      "refersTo": "button-log",
+      "description": "Phone only: the ink Log pill floating bottom right above the dock; the system's only shadow.",
+      "html": "<button class=\"ds-btn-log\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>Log</button>",
+      "css": ".ds-btn-log{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:inline-flex;align-items:center;gap:8px;height:56px;min-width:56px;padding:0 22px 0 18px;border:0;border-radius:9999px;background:#262421;color:#FBFBF8;font-size:1rem;font-weight:700;box-shadow:0 10px 22px -10px rgb(38 36 33/.7);cursor:pointer;transition:transform .15s}.ds-btn-log:active{transform:scale(.97)}.ds-btn-log:focus-visible{outline:3px solid #262421;outline-offset:2px}"
     },
     {
       "name": "Portion Presets",
       "kind": "chip",
       "refersTo": "preset",
-      "description": "Honest-range portion toggles; selected flips to porcelain.",
-      "html": "<div class=\"ds-bg\"><div class=\"ds-presets\" role=\"group\" aria-label=\"Portion\"><button aria-pressed=\"false\">~1 fist</button><button aria-pressed=\"true\">~2 fists</button><button aria-pressed=\"false\">~3 fists</button></div></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-presets{display:flex;gap:8px;flex-wrap:wrap}.ds-presets button{min-height:44px;padding:0 14px;border:2px solid #2C3F72;border-radius:0;background:transparent;color:#F3F1EA;font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;font-size:16px;letter-spacing:.05em;cursor:pointer}.ds-presets button:hover{border-color:#C9CFE0}.ds-presets button[aria-pressed=true]{border-color:#F3F1EA;background:#F3F1EA;color:#0E1A3A}.ds-presets button:focus-visible{outline:3px solid #F2A41C;outline-offset:2px}"
+      "description": "Pressable portion pills; the selected one fills ink.",
+      "html": "<div class=\"ds-presets\"><button class=\"ds-preset\" aria-pressed=\"false\">½ plate</button><button class=\"ds-preset\" aria-pressed=\"true\">1 plate</button><button class=\"ds-preset\" aria-pressed=\"false\">2 plates</button></div>",
+      "css": ".ds-presets{display:flex;gap:8px;flex-wrap:wrap}.ds-preset{font-family:'Schibsted Grotesk',system-ui,sans-serif;min-height:48px;min-width:48px;padding:0 16px;border-radius:9999px;border:2px solid #8A847B;background:transparent;color:#262421;font-size:1rem;font-weight:600;cursor:pointer}.ds-preset:hover{border-color:#262421}.ds-preset[aria-pressed=true]{background:#262421;border-color:#262421;color:#FBFBF8}.ds-preset:focus-visible{outline:3px solid #262421;outline-offset:2px;}"
     },
     {
-      "name": "Passphrase Field",
+      "name": "Sewn Label",
+      "kind": "chip",
+      "refersTo": "sewn-label",
+      "description": "States a fact (where data lives); not pressable. Dot paired with words.",
+      "html": "<span class=\"ds-label ds-stitched\"><span class=\"ds-dot\"></span>On this device</span>",
+      "css": ".ds-stitched{position:relative}.ds-stitched::before{content:'';position:absolute;inset:3px;border:1.5px dashed color-mix(in srgb,currentColor 35%,transparent);border-radius:inherit;pointer-events:none}.ds-label{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 12px;border:2px solid #262421;border-radius:4px;background:#fff;color:#262421;font-size:.875rem;font-weight:700;white-space:nowrap}.ds-dot{width:9px;height:9px;border-radius:50%;background:#1F7A4D}"
+    },
+    {
+      "name": "Text Field",
       "kind": "input",
-      "refersTo": "field",
-      "description": "Square porcelain-framed field; amber outline on focus-within.",
-      "html": "<div class=\"ds-bg\"><div class=\"ds-field\"><input type=\"password\" placeholder=\"Passphrase\" aria-label=\"Passphrase\"></div></div>",
-      "css": ":host{--enamel:#0E1A3A;--enamel-2:#15244B;--rule:#2C3F72;--porc:#F3F1EA;--porc-dim:#C9CFE0;--muted:#A3AFCF;--veg:#3FAE5A;--pro:#E5432F;--sta:#F2A41C;--dai:#5C9CF5;--display:'Barlow Condensed',system-ui,sans-serif;--body:Barlow,system-ui,sans-serif;--ease:cubic-bezier(.16,1,.3,1)}.ds-bg{background:#0E1A3A;padding:20px}.ds-field{display:flex;border:2px solid #F3F1EA;min-height:56px;max-width:360px}.ds-field input{flex:1;background:transparent;border:0;padding:0 14px;font-family:Barlow,system-ui,sans-serif;font-size:17px;color:#F3F1EA;outline:none;min-width:0}.ds-field input::placeholder{color:#A3AFCF}.ds-field:focus-within{outline:3px solid #F2A41C;outline-offset:2px}"
+      "refersTo": "text-field",
+      "description": "White field, 2px control edge, 56px tall; the frame takes the ink focus ring.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Food name</span><span class=\"ds-field-frame\"><input placeholder=\"e.g. lentil soup\"></span></label>",
+      "css": ".ds-field{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:flex;flex-direction:column;gap:6px}.ds-field-label{font-size:.875rem;font-weight:600;color:#4A453F}.ds-field-frame{display:flex;min-height:56px;border:2px solid #8A847B;border-radius:8px;background:#fff}.ds-field-frame:focus-within{border-color:#262421;outline:3px solid #262421;outline-offset:2px;}.ds-field-frame input{flex:1;min-width:0;border:0;background:transparent;padding:0 14px;font:inherit;font-size:1.0625rem;color:#262421;outline:none}.ds-field-frame input::placeholder{color:#6B655E}"
     },
     {
-      "name": "Week Route Dock",
-      "kind": "nav",
-      "refersTo": "dock",
-      "description": "Phone day switcher: seven station rings on a track, plus the porcelain Log block.",
-      "html": "<nav class=\"ds-dock\" aria-label=\"This week\"><div class=\"ds-route\"><button class=\"full\"><b></b>W</button><button class=\"full\"><b></b>T</button><button><b></b>F</button><button class=\"full\"><b></b>S</button><button><b></b>S</button><button class=\"full\"><b></b>M</button><button aria-current=\"date\"><b></b>Today</button></div><button class=\"ds-log\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>Log</button></nav>",
-      "css": ".ds-dock{display:grid;grid-template-columns:1fr 92px;background:#15244B;border-top:2px solid #2C3F72;max-width:390px}.ds-route{display:flex;align-items:center;padding:0 6px 0 12px;position:relative}.ds-route::before{content:'';position:absolute;left:24px;right:22px;top:29px;height:4px;background:#2C3F72}.ds-route button{flex:1;min-width:0;min-height:76px;display:flex;flex-direction:column;align-items:center;padding-top:20px;gap:6px;position:relative;background:none;border:0;cursor:pointer;font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#A3AFCF}.ds-route b{width:20px;height:20px;border-radius:50%;border:3.5px solid #F3F1EA;background:#15244B;box-sizing:border-box}.ds-route button.full b{background:#F3F1EA}.ds-route button[aria-current=date]{color:#F3F1EA}.ds-route button[aria-current=date] b{border-color:#F2A41C;background:#F2A41C;box-shadow:0 0 0 3px #15244B,0 0 0 5px #F2A41C}.ds-route button:focus-visible,.ds-log:focus-visible{outline:3px solid #F2A41C;outline-offset:-3px}.ds-log{background:#F3F1EA;color:#0E1A3A;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;font-size:16px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}"
+      "name": "Coach Label",
+      "kind": "card",
+      "refersTo": "coach-label",
+      "description": "A sewn label holding one question and two plain choices.",
+      "html": "<div class=\"ds-coach ds-stitched\"><p>A simple start. What usually keeps you going until lunch?</p><div class=\"ds-coach-actions\"><button class=\"ds-btn-primary\">Sure</button><button class=\"ds-btn-secondary\">Ask later</button></div></div>",
+      "css": ".ds-stitched{position:relative}.ds-stitched::before{content:'';position:absolute;inset:3px;border:1.5px dashed color-mix(in srgb,currentColor 35%,transparent);border-radius:inherit;pointer-events:none}.ds-coach{font-family:'Schibsted Grotesk',system-ui,sans-serif;max-width:22rem;padding:16px 18px;border:2px solid #262421;border-radius:8px;background:#fff;color:#262421;font-size:1rem;line-height:1.45}.ds-coach p{margin:0}.ds-coach-actions{position:relative;display:flex;gap:8px;margin-top:14px}.ds-coach .ds-btn-primary,.ds-coach .ds-btn-secondary{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;min-width:48px;padding:6px 20px;border-radius:9999px;border:2px solid #262421;font-size:1rem;font-weight:700;line-height:1.15;cursor:pointer;transition:background-color .15s,transform .15s;}.ds-coach .ds-btn-primary{background:#262421;color:#FBFBF8}.ds-coach .ds-btn-secondary{background:transparent;color:#262421}.ds-coach button:focus-visible{outline:3px solid #262421;outline-offset:2px;}"
     },
     {
       "name": "Rail Navigation",
       "kind": "nav",
-      "description": "Desktop rail items; current item porcelain with a 64x4px amber underline.",
-      "html": "<nav class=\"ds-rail\" aria-label=\"Main\"><button aria-current=\"page\">Today</button><button>Week</button><button>Settings</button></nav>",
-      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;background:#0E1A3A;padding:16px;width:240px}.ds-rail button{display:flex;align-items:center;min-height:52px;padding:0 10px;background:none;border:0;cursor:pointer;font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:#C9CFE0;text-align:left;position:relative}.ds-rail button:hover{color:#F3F1EA}.ds-rail button[aria-current=page]{color:#F3F1EA}.ds-rail button[aria-current=page]::after{content:'';position:absolute;left:10px;width:64px;bottom:6px;height:4px;background:#F2A41C}.ds-rail button:focus-visible{outline:3px solid #F2A41C;outline-offset:2px}"
+      "refersTo": "rail-item-current",
+      "description": "Desktop rail: 48px items; the current page is a white pill with an ink edge.",
+      "html": "<nav class=\"ds-rail\"><a href=\"#\" aria-current=\"page\">Today</a><a href=\"#\">Week</a><a href=\"#\">Settings</a></nav>",
+      "css": ".ds-rail{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:flex;flex-direction:column;gap:4px;width:204px;padding:16px;background:#fff;border-right:2px solid #E4E1DA}.ds-rail a{display:flex;align-items:center;min-height:48px;padding:0 16px;border:2px solid transparent;border-radius:9999px;color:#4A453F;font-size:1.125rem;font-weight:600;text-decoration:none}.ds-rail a:hover{color:#262421}.ds-rail a[aria-current=page]{border-color:#262421;background:#fff;color:#262421}.ds-rail a:focus-visible{outline:3px solid #262421;outline-offset:2px;}"
     },
     {
-      "name": "Day Map Station",
+      "name": "Day Towel Band",
       "kind": "custom",
-      "description": "Signature: four line inks, a porcelain station capsule, stop dots on the lines that stopped.",
-      "html": "<div class=\"ds-map\"><svg width=\"132\" height=\"120\" viewBox=\"0 0 132 120\" aria-hidden=\"true\"><rect x=\"18\" y=\"52\" width=\"96\" height=\"16\" rx=\"8\" fill=\"#F3F1EA\"/><path d=\"M30 0V120\" stroke=\"#3FAE5A\" stroke-width=\"8\"/><path d=\"M54 0V120\" stroke=\"#E5432F\" stroke-width=\"8\"/><path d=\"M78 0V120\" stroke=\"#F2A41C\" stroke-width=\"8\"/><path d=\"M102 0V120\" stroke=\"#5C9CF5\" stroke-width=\"8\"/><circle cx=\"30\" cy=\"60\" r=\"10\" fill=\"#F3F1EA\" stroke=\"#0E1A3A\" stroke-width=\"3.5\"/><circle cx=\"54\" cy=\"60\" r=\"10\" fill=\"#F3F1EA\" stroke=\"#0E1A3A\" stroke-width=\"3.5\"/><circle cx=\"78\" cy=\"60\" r=\"10\" fill=\"#F3F1EA\" stroke=\"#0E1A3A\" stroke-width=\"3.5\"/></svg><div><h3>Lunch <span>12:55</span></h3><p class=\"m\">Lentil salad, sourdough</p><p class=\"s\">Dairy passed through without a stop</p></div></div>",
-      "css": ".ds-map{display:flex;align-items:center;gap:0;background:#0E1A3A;padding:0 16px 0 0;color:#F3F1EA;font-family:Barlow,system-ui,sans-serif}.ds-map h3{margin:0;font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;font-size:28px;letter-spacing:.03em;text-transform:uppercase;line-height:1}.ds-map h3 span{font-weight:600;font-size:15px;letter-spacing:.06em;color:#A3AFCF;margin-left:8px}.ds-map .m{margin:4px 0 0;color:#A3AFCF;font-size:15px}.ds-map .s{margin:6px 0 0;color:#C9CFE0;font-size:14.5px}"
+      "description": "Signature: one meal's woven band. Dyed stripes for groups on the plate, dashed bare cotton for the rest; stripes weave in from the left.",
+      "html": "<div class=\"ds-band\"><span class=\"ds-weave\"><span class=\"ds-stripe\" style=\"background:#1F7A4D\"></span><span class=\"ds-stripe\" style=\"background:#B5262E\"></span><span class=\"ds-stripe ds-bare\"></span><span class=\"ds-stripe\" style=\"background:#2D5DA8\"></span></span><div class=\"ds-band-text\"><h3>Lunch <small>12:40</small></h3><p>Chicken, salad, yoghurt</p><p class=\"ds-meta\">Without starch · ~540 kcal</p></div></div>",
+      "css": ".ds-band{font-family:'Schibsted Grotesk',system-ui,sans-serif;display:grid;grid-template-columns:104px 1fr;min-height:132px;border-top:1px solid #E4E1DA;border-bottom:1px solid #E4E1DA;background:#FBFBF8;color:#262421}.ds-weave{display:flex;flex-direction:column;gap:6px;padding:24px 0 20px}.ds-stripe{display:block;height:10px;transform-origin:left center;animation:ds-weave .5s cubic-bezier(.16,1,.3,1) both}.ds-stripe:nth-child(2){animation-delay:60ms}.ds-stripe:nth-child(4){animation-delay:120ms}.ds-bare{background:repeating-linear-gradient(90deg,#E4E1DA 0 6px,transparent 6px 10px);animation:none}.ds-band-text{padding:16px 20px 16px 16px}.ds-band-text h3{display:flex;justify-content:space-between;align-items:baseline;margin:0;font-size:1.5rem;font-weight:800;line-height:1.05;letter-spacing:-.02em}.ds-band-text small{font-size:.9375rem;font-weight:500;color:#6B655E;letter-spacing:0}.ds-band-text p{margin:4px 0 0;font-size:1rem}.ds-band-text .ds-meta{color:#6B655E;font-size:.90625rem}@keyframes ds-weave{from{transform:scaleX(0)}to{transform:scaleX(1)}}@media (prefers-reduced-motion:reduce){.ds-stripe{animation:none}}"
+    },
+    {
+      "name": "Nutrient Bar",
+      "kind": "custom",
+      "description": "One nutrient row: value as text, a neutral Soft Ink fill on a bare-cotton track, a 1px ink reference tick, and the reference in words.",
+      "html": "<div class=\"ds-nutrient\"><div class=\"ds-nutrient-head\"><span>Protein</span><b>~33 g</b></div><div class=\"ds-track\" aria-hidden=\"true\"><span class=\"ds-fill\" style=\"width:65%\"></span><span class=\"ds-tick\"></span></div><p>about 65% of the EU reference intake (50 g)</p></div>",
+      "css": ".ds-nutrient{font-family:'Schibsted Grotesk',system-ui,sans-serif;max-width:28rem;padding:10px 0;border-bottom:1px solid #E4E1DA;color:#262421}.ds-nutrient-head{display:flex;justify-content:space-between;align-items:baseline;font-size:1.0625rem}.ds-nutrient-head b{font-size:1.1875rem;font-weight:700;letter-spacing:-.01em}.ds-track{position:relative;height:4px;margin-top:8px;background:repeating-linear-gradient(90deg,#E4E1DA 0 6px,transparent 6px 10px)}.ds-fill{position:absolute;inset:0 auto 0 0;border-radius:9999px;background:#4A453F}.ds-tick{position:absolute;top:-4px;bottom:-4px;right:0;width:1px;background:#262421}.ds-nutrient p{margin:4px 0 0;font-size:.9375rem;color:#6B655E}"
     }
   ],
   "narrative": {
-    "northStar": "The Night Line Map",
-    "overview": "The day is a transit diagram printed on midnight enamel. The four food groups are four coloured lines running the full height of the day; each meal is a station where some lines stop and others pass through. Balance is read the way a rider reads a map, by which lines served a station, never as a score, ring, donut or calorie total. Everything else is signage: porcelain ink, condensed uppercase station names, square outlined buttons, thick porcelain rules under headers.\n\nDensity is wayfinding-calm rather than dashboard-busy: one diagram, a few station names, one coach question at a time. The energy comes from the saturated line inks against a deep ground and from the condensed display type, not from motion or decoration. The world is dark-first; a porcelain-ground light variant is unresolved and has not been built.\n\nThe system rejects the category default of white cards with macro donuts and progress rings.",
+    "northStar": "The Torchon",
+    "overview": "**Creative North Star: \"The Torchon\"**\n\nThe day is a kitchen towel laid on the table. Each meal weaves one band across it; every food group on the plate is a dyed stripe across that band, and a group that is not there leaves bare cotton, drawn as a dashed seam. Balance is read from which stripes a band carries, never from a score, a ring or a countdown. The week is seven towels, folded in the phone dock and hung side by side on the week screen.\n\nThe ground is bright white cotton with a barely visible weave, set in warm near-black ink. Colour is rationed to the four dyes, and the dyes are rationed to food groups. Everything a person can press is a pill or a circle with a 2px edge; everything that states a fact is a small sewn label with a dashed stitch inside its edge. One grotesque family carries the whole interface: very heavy and tight for names, plain for sentences, sentence case throughout. The mood is daylight in a kitchen: calm, legible at arm's length, one-handed.\n\nMotion is the weave itself. When a plate resolves its stripes are woven in from the left edge one after another; a plate being read breathes; nothing spins. Under reduced motion, stripes appear at once and entrances become a plain fade.",
     "keyCharacteristics": [
-      "Four line inks are the only chromatic colours; everything else is enamel and porcelain.",
-      "Station dots, interchange rings and capsules are the only rounded forms; every control is square-cornered.",
-      "Barlow Condensed uppercase for anything you read like a sign; Barlow for anything you read like a sentence.",
-      "Structure is drawn with rules and outlines, not shadows.",
-      "Lines run straight and bend only at 45° or 90°."
+      "White cotton ground with a two-way 1px thread texture; ink text and ink rules.",
+      "Four dyes, one per food group, in fixed order: veg and fruit, protein, starch, dairy.",
+      "Absence is a dashed seam or a dashed outline, never a colour.",
+      "Pill buttons with 2px ink edges, 4px sewn labels with a dashed stitch, 8px cloth panels.",
+      "One family (Schibsted Grotesk), heavy names, plain sentences, sentence case.",
+      "Flat cloth; a single white raised plane; one soft shadow, on the floating Log pill only."
     ],
     "rules": [
       {
-        "name": "The One Line, One Group Rule",
-        "body": "Green, scarlet, amber and cobalt each belong to one food group. They never decorate, never mark success or failure, and never appear as backgrounds behind text.",
+        "name": "The One Dye, One Group Rule",
+        "body": "A dye appears only where its food group is meant, always beside the group's name or a sentence naming it. The single standing exception is the small 9px \"On this device\" dot in Garden Green, which always sits beside its words.",
         "section": "colors"
       },
       {
-        "name": "The Amber Signal Rule",
-        "body": "Starch amber doubles as the \"you are here\" and focus signal, so it always arrives with a shape (3px outline, interchange ring, 4px underline) and never as a colour change alone.",
+        "name": "The Bare Cotton Rule",
+        "body": "Absence is drawn, not coloured: a dashed Seam stripe where a group is missing, a dashed Control Edge band where a meal is still open.",
         "section": "colors"
       },
       {
-        "name": "The No Red Guilt Rule",
-        "body": "Protein scarlet is a line colour, not an error state. An absent line is drawn dashed and neutral, never in red.",
-        "section": "colors"
-      },
-      {
-        "name": "The Signage Rule",
-        "body": "Anything uppercase is Barlow Condensed with positive tracking (0.01–0.12em, wider as size drops). Barlow body text is never uppercased.",
+        "name": "The Sentence Case Rule",
+        "body": "Every name, button and heading is sentence case with no added tracking. Weight, not capitals, makes a name.",
         "section": "typography"
       },
       {
-        "name": "The Self-Hosted Rule",
-        "body": "Fonts ship with the app as woff2 with `font-display: swap`; no font CDN, so the map renders identically offline.",
+        "name": "The Heavy Name Rule",
+        "body": "Display and headline go heavy (900/800) with negative tracking; body text never goes above 400 except for a bold lead phrase.",
         "section": "typography"
       },
       {
-        "name": "The 45/90 Rule",
-        "body": "Lines are straight. Where a diagram bends (brand mark, unlock map), it bends at 45° or 90° only. No curves, no organic paths.",
-        "section": "layout"
-      },
-      {
-        "name": "The Printed Map Rule",
-        "body": "Surfaces lie flat like a printed diagram. Separate planes with a rule (1–4px) or the raised enamel tone, never with blur.",
+        "name": "The Laid-Flat Rule",
+        "body": "Nothing casts a shadow except the floating Log pill. A new surface is raised by turning it white and giving it an edge.",
         "section": "elevation"
       },
       {
-        "name": "The Round Means Map Rule",
-        "body": "If it is round, it is part of the diagram (a stop, a ring, a station). UI chrome stays square.",
+        "name": "The Stitch Rule",
+        "body": "A sewn label carries a 1.5px dashed line inset 3px inside its edge, in its text colour at 35%, following its corners. It decorates labels that state something (storage status, the coach); it is never added to a button.",
         "section": "shapes"
+      },
+      {
+        "name": "The Weave-In Rule",
+        "body": "When a plate resolves, its dyed stripes grow from the left edge one after another (0.5s each, 60ms stagger, the weave easing `cubic-bezier(0.16, 1, 0.3, 1)`). While it is being read, the empty band breathes between full and 45% opacity every 1.2s. Reduced motion shows the end state at once.",
+        "section": "components"
+      },
+      {
+        "name": "The Neutral Thread Rule",
+        "body": "A nutrient bar is never dyed, never red and never changes colour with its amount.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Do express balance only as which lines stopped at a station: dots on lines, line-bar cells, day-list segments.",
-      "Do pair every line colour with its name or a text summary (\"Dairy passed through without a stop\") so colour is never the only signal.",
-      "Do draw absent or pending states dashed and neutral (open station, missed stop, passed line).",
-      "Do keep controls square with 2px outlines and at least 48px targets (44px only for inline portion presets).",
-      "Do use starch amber for focus and \"you are here\", always with an outline, ring or underline shape.",
-      "Do put Barlow Condensed uppercase on names and actions and Barlow on sentences."
+      "Do show balance only as which dyed stripes a band, towel or day row carries.",
+      "Do pair every dye with its group's name or a sentence, so colour is never the only signal.",
+      "Do draw absent and pending states dashed and neutral (bare cotton, open band, empty towel, disabled pill).",
+      "Do show nutrient values as value and unit text with a neutral Soft Ink bar against a named reference, with \"~\" on estimates.",
+      "Do make every control at least 48×48px, pills and circles with a 2px edge (Control Edge unselected, ink selected or current).",
+      "Do use the ink focus ring (3px at 2px offset), turning White Cotton on ink surfaces.",
+      "Do honour reduced motion: no weaving, no breathing, entrances collapse to a fade.",
+      "Do self-host the type; Schibsted Grotesk ships from the app."
     ],
     "donts": [
-      "Don't introduce rings, donuts, progress bars, scores or calorie totals to show balance.",
-      "Don't use a line ink for anything other than its food group, and don't use protein scarlet as an error or warning colour.",
-      "Don't round the corners of buttons, cards, chips, fields or sheets; roundness belongs to stops, rings and station capsules.",
-      "Don't add drop shadows or blur for depth; use the raised enamel plane or a rule.",
-      "Don't bend a line at any angle other than 45° or 90°.",
-      "Don't load fonts from a CDN.",
-      "**Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge (the raised control edge on the sheet and the dock); selected ones use porcelain."
+      "Don't introduce rings, donuts, radial gauges, scores, grades, streaks, points or countdowns.",
+      "Don't colour a nutrient value or bar red, ochre or any dye, or write \"over budget\", \"remaining\", \"exceeded\" or \"calories left\".",
+      "Don't use a dye for anything other than its food group, and never use Basque Red as an error or warning colour.",
+      "Don't outline a control with Seam; it is for dividers and bare cotton only.",
+      "Don't add shadows or blur for depth; the floating Log pill is the only shadow.",
+      "Don't set names in uppercase or with added letter-spacing.",
+      "Don't show a spinner; a resolving band breathes and a busy button says what it is doing.",
+      "Don't load fonts from a CDN."
     ]
   }
 }

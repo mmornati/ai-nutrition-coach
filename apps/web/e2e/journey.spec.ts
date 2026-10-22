@@ -1,6 +1,6 @@
 // The first journey on the REAL encrypted store (sqlite3mc in the OPFS worker, Web Locks, the
 // production CSP), through the real screens: first run -> About -> create passphrase -> Today
-// (empty) -> log a plate by Type it -> it is on the line map -> lock -> unlock -> still there.
+// (empty) -> log a plate by Type it -> it is on the day towel -> lock -> unlock -> still there.
 // Port of the earlier client.
 //
 // The Settings half of the journey (part B): Your data (export), lock, Your AI (own key), Erase,
@@ -32,16 +32,16 @@ test('first run -> About -> create -> Today -> log by Type it -> lock -> unlock 
   await expect(page.getByRole('button')).toHaveCount(1);
   await createStore(page);
 
-  // 2. Today is empty: three open stations, no plates.
+  // 2. Today is empty: three open meals, no plates.
   await expect(plates(page)).toHaveCount(0);
   for (const meal of ['Breakfast', 'Lunch', 'Dinner']) {
     await expect(page.getByRole('heading', { level: 2, name: meal })).toBeVisible();
   }
 
-  // 3. Log a plate by typing it: it lands on the line map as a station.
+  // 3. Log a plate by typing it: it lands on the day towel as a band.
   await logSalmonByTypingIt(page);
   await expect(plates(page)).toHaveCount(1);
-  await expect(plates(page).first()).toHaveAttribute('aria-label', /protein stopped/);
+  await expect(plates(page).first()).toHaveAttribute('aria-label', /protein on the plate/);
   await expect(page.getByText('Salmon')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Log another plate' })).toBeVisible();
 
@@ -359,7 +359,7 @@ test('every interactive element is at least 48 x 48 on Today, Week, Plate, the c
   }
 });
 
-test('Week is reachable on a phone: Today links to the week network below the line map', async ({
+test('Week is reachable on a phone: Today links to the week below the day towel', async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -367,7 +367,7 @@ test('Week is reachable on a phone: Today links to the week network below the li
   await createStore(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  const link = page.getByRole('link', { name: "See the week's network" });
+  const link = page.getByRole('link', { name: 'See the whole week' });
   await expect(link).toBeVisible();
   await link.click();
   await expect(page.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
@@ -383,7 +383,7 @@ test('Week is reachable on a phone: Today links to the week network below the li
   expect(fab && fab.width >= 56 && fab.height >= 56).toBe(true);
   expect(last && fab && last.y + last.height <= fab.y).toBe(true);
   expect(main).not.toBeNull();
-  // And on a wide screen the link is not shown (the rail and the network column are).
+  // And on a wide screen the link is not shown (the rail and the week column are).
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(link).toBeHidden();
 });
@@ -428,7 +428,7 @@ test('every licence link returns its text (not the app shell) and is in the offl
   const names = await links.evaluateAll((as) => as.map((a) => a.getAttribute('aria-label') ?? ''));
   for (const expected of [
     'AI Nutrition Coach',
-    'Barlow and Barlow Condensed (fonts)',
+    'Schibsted Grotesk (font)',
     'SQLite3 Multiple Ciphers',
     'zxing-wasm',
     'zxing-cpp',

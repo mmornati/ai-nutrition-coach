@@ -2,6 +2,7 @@ import type { EpochMs } from '@anc/core';
 import { isSameLocalDay } from '@anc/core';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useStrings } from '../../i18n';
+import { LINES } from '../primitives';
 import { weekdayAbbr } from './format';
 import { dayKind, dayRouteLabel } from './week';
 import type { WeekDayData } from './week';
@@ -15,39 +16,27 @@ export interface WeekRouteProps {
   readonly className?: string;
 }
 
-const DOT_TODAY =
-  'border-line-starch bg-line-starch shadow-[0_0_0_3px_var(--color-enamel-raised),0_0_0_5px_var(--color-line-starch)]';
-const DOT_FULL = 'border-porcelain bg-porcelain';
-const DOT_PARTIAL = 'border-porcelain bg-enamel-raised';
-/** Nothing logged: dashed and neutral, distinct from the hollow partial dot. */
-const DOT_EMPTY = 'border-signal-muted border-dashed bg-enamel-raised';
-/** Hollow like empty, but with a solid core: something was logged, no line stopped. */
-const DOT_LOGGED = 'border-porcelain bg-enamel-raised';
-const RING = 'shadow-[0_0_0_3px_var(--color-enamel-raised),0_0_0_5px_var(--color-porcelain)]';
+/** A towel with nothing logged: dashed and neutral. */
+const EDGE_EMPTY = 'border-control border-dashed';
+const EDGE = 'border-ink';
+/** The day showing is outlined in ink: a shape around the towel, never a colour change alone. */
+const SELECTED = 'outline outline-2 outline-offset-[3px] outline-ink';
 
-function dotClass(d: WeekDayData, current: boolean): string {
-  const kind = dayKind(d);
-  const base = d.isToday
-    ? DOT_TODAY
-    : kind === 'full'
-      ? DOT_FULL
-      : kind === 'loggedNoLine'
-        ? DOT_LOGGED
-        : kind === 'empty'
-          ? DOT_EMPTY
-          : DOT_PARTIAL;
-  return current && !d.isToday ? `${base} ${RING}` : base;
+function foldClass(d: WeekDayData, current: boolean): string {
+  const edge = dayKind(d) === 'empty' ? EDGE_EMPTY : EDGE;
+  return current ? `${edge} ${SELECTED}` : edge;
 }
 
 /**
- * The phone dock's day switcher: seven stops on a track. Filled means all four lines stopped
- * that day, hollow means fewer; a hollow stop with a solid core means logged but no line
- * stopped; a dashed dot means nothing logged; today is amber. Each stop is one button.
+ * The phone dock's day switcher: seven folded towels. Each shows a stripe for every food group
+ * that appeared that day, in fixed order; a towel with a small ink knot means logged but no group;
+ * a dashed towel means nothing logged. The day showing is outlined; today's label is underlined.
+ * Each towel is one button.
  *
  * ARIA: the stop showing is `aria-current="true"` (the nav's current item); "today" is part of the
  * accessible name, never a second aria-current value, so today and the selection never collide.
  *
- * Reflow: seven 48 px stops need 336 px (21rem). Narrower than that (a 320 px phone, or 400 %
+ * Reflow: seven 48 px towels need 336 px (21rem). Narrower than that (a 320 px phone, or 400 %
  * zoom) the route scrolls sideways inside the dock instead of sticking out of it: the selected
  * stop (today, unless another day was picked) is kept fully in view and the far stop peeks in at
  * the edge, so the route reads as one that goes on. Tab and a tap on the peeking stop bring it in.
@@ -93,7 +82,7 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
       data-scroll-x
       className={`overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
     >
-      <div className="relative flex w-full min-w-[21rem] items-center before:absolute before:top-7.25 before:right-[calc(100%/14)] before:left-[calc(100%/14)] before:h-1 before:bg-rule before:content-['']">
+      <div className="relative flex w-full min-w-[21rem] items-center">
         {days.map((d) => {
           const current = isSameLocalDay(d.date, selected);
           return (
@@ -103,36 +92,43 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
               aria-label={dayRouteLabel(d)}
               aria-current={current ? 'true' : undefined}
               onClick={() => onSelectDay(d.date)}
-              className={`font-display relative flex min-h-19 min-w-[48px] flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-5 text-tag font-semibold tracking-[0.08em] uppercase ${current ? 'text-porcelain' : 'text-signal-muted'}`}
+              className={`font-display relative flex min-h-19 min-w-[48px] flex-1 cursor-pointer flex-col items-center justify-start gap-1.5 bg-transparent pt-3.5 text-tag ${current || d.isToday ? 'text-ink font-bold' : 'text-thread font-semibold'}`}
             >
               <span
                 aria-hidden="true"
                 data-day-kind={dayKind(d)}
-                className={`relative block h-5 w-5 rounded-full border-[3.5px] ${dotClass(d, current)}`}
+                className={`bg-raised relative flex h-8 w-6.5 flex-col justify-center gap-[3px] rounded-[3px] border-[1.5px] ${foldClass(d, current)}`}
               >
+                {LINES.map((l) => (
+                  <span
+                    key={l.group}
+                    className={`block h-[3px] ${d.groups.includes(l.group) ? l.bg : 'bg-transparent'}`}
+                  />
+                ))}
                 {dayKind(d) === 'loggedNoLine' && (
                   <span
                     data-logged-core
-                    className={`absolute inset-1 rounded-full ${d.isToday ? 'bg-enamel' : 'bg-porcelain'}`}
+                    className="bg-ink absolute top-1/2 left-1/2 size-1.5 -translate-1/2 rounded-full"
                   />
                 )}
               </span>
               {/* Today's word only where its stop is wide enough for it (measured, since the word's
-                length depends on the language); otherwise the day's initial (drawn by CSS from
+                length depends on the language); otherwise the day's short name (drawn by CSS from
                 data-initial, so the text stays "Today"). All hidden from AT: the button's name
                 already says "today". */}
               <span
                 aria-hidden="true"
                 data-route-label
-                data-initial={weekdayAbbr(d.date).charAt(0)}
-                className={
-                  d.isToday && !wordFits ? 'before:content-[attr(data-initial)]' : undefined
-                }
+                data-initial={weekdayAbbr(d.date)}
+                className={[
+                  d.isToday && !wordFits ? 'before:content-[attr(data-initial)]' : '',
+                  d.isToday ? 'decoration-ink underline decoration-2 underline-offset-4' : '',
+                ].join(' ')}
               >
                 {d.isToday ? (
                   <span className={wordFits ? undefined : 'hidden'}>{s.today}</span>
                 ) : (
-                  weekdayAbbr(d.date).charAt(0)
+                  weekdayAbbr(d.date)
                 )}
               </span>
               {d.isToday && (

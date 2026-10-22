@@ -36,10 +36,10 @@ export function ConfirmDialog({
         {body}
       </div>
       <div className="flex gap-3">
-        <Button variant="solid-porcelain" className="flex-1" data-autofocus onClick={onDismiss}>
+        <Button variant="primary" className="flex-1" data-autofocus onClick={onDismiss}>
           {dismissLabel}
         </Button>
-        <Button variant="outline-porcelain" className="flex-1" busy={busy} onClick={onConfirm}>
+        <Button variant="secondary" className="flex-1" busy={busy} onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </div>

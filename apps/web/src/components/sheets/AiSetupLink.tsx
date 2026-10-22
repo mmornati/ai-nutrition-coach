@@ -17,7 +17,7 @@ export function AiSetupLink({
     <a
       href={href}
       onClick={onNavigate}
-      className="text-porcelain inline-flex min-h-12 items-center self-start underline underline-offset-4"
+      className="text-ink inline-flex min-h-12 items-center self-start underline underline-offset-4"
     >
       {s.setUpAi}
     </a>

@@ -16,7 +16,7 @@ export interface WeekNetworkProps {
   readonly className?: string;
 }
 
-/** Text alternative: every day, by line name. */
+/** Text alternative: every day, by group name. */
 export function weekNetworkDescription(days: readonly WeekDayData[]): string {
   const w = strings().week;
   return networkDescription(
@@ -27,7 +27,7 @@ export function weekNetworkDescription(days: readonly WeekDayData[]): string {
 /** The plot is drawn in user units; 680 of them are 42.5rem, so the drawing scales with text. */
 const MAX_W = 680;
 const MIN_W = 140;
-/** Height of the plot: 30 units above the first line and below the last, for labels and rings. */
+/** Height of the plot: 30 units above the first stripe and below the last, for the towel hems. */
 const PAD = 30;
 
 /** Root font size relative to 16px: 2 at 200% text. 1 where layout is not available (jsdom). */
@@ -38,9 +38,10 @@ function remScale(): number {
 }
 
 /**
- * Four lines across seven days: a stop where the line served the day, a dashed hollow where not.
+ * Seven towels hung side by side: each day's towel carries a dyed stripe for every food group
+ * that appeared that day, and a dashed bare-cotton seam where it did not. Today is outlined.
  *
- * Only the lines and stops are SVG, in user units, so the drawing scales as a whole. Every piece
+ * Only the towels and stripes are SVG, in user units, so the drawing scales as a whole. Every piece
  * of text (day headers, line names) is HTML laid out by CSS grid, so it reflows with the text
  * size instead of colliding (WCAG 1.4.4). The wording is on the wrapper as one image label.
  */
@@ -50,16 +51,17 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
   const measured = useElementWidth(ref, 360);
   // Measured in rem-relative units, so the drawing is never scaled up past the text around it.
   const W = Math.min(Math.max(measured / remScale(), MIN_W), MAX_W);
-  const H = compact ? 294 : 314;
+  const H = compact ? 214 : 234;
   const gap = (H - 2 * PAD) / 3;
   const colW = W / 7;
   const x = (i: number) => (i + 0.5) * colW;
   const lineY = (j: number) => PAD + j * gap;
-  const ring = Math.min(32, colW - 2);
-  // Label rows: a zero-height row at each line's y, so the name centres on (or sits above) it.
+  // A towel is most of its column, with room between towels for the today outline.
+  const towel = Math.max(12, Math.min(56, colW - 16));
+  // Label rows: a zero-height row at each stripe's y, so the name centres on (or sits above) it.
   const labelRows = labelRowTemplate(LINES.length, PAD, gap);
   // Container query in rem (so it moves with text size; spelled out so Tailwind sees it): from
-  // 21rem up the line names sit left of the plot, below it above each line.
+  // 21rem up the group names sit left of the plot, below it above each stripe.
   const PLOT = 'col-start-1 w-full max-w-[42.5rem] @min-[21rem]:col-start-2';
 
   return (
@@ -68,13 +70,35 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
       aria-label={weekNetworkDescription(days)}
       className={`@container w-full ${className}`}
     >
+      {/* Under 21rem the towels fill their columns, so the group names cannot sit beside the
+          stripes: they become a legend above the plot instead. */}
+      <ul
+        aria-hidden="true"
+        className="font-display text-small text-ink-soft m-0 mb-3 flex list-none flex-wrap gap-x-4 gap-y-1.5 p-0 font-semibold @min-[21rem]:hidden"
+      >
+        {LINES.map((l) => (
+          <li key={l.group} className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-5 rounded-[1px] ${l.bg}`} />
+            <span data-line-name className="leading-none">
+              {groups[l.group]}
+            </span>
+          </li>
+        ))}
+      </ul>
       <div className="grid grid-cols-1 justify-start @min-[21rem]:grid-cols-[auto_minmax(0,42.5rem)]">
         <div
           aria-hidden="true"
-          className={`font-display text-ui row-start-1 grid grid-cols-7 pb-1 text-center leading-none font-bold tracking-[0.1em] uppercase ${PLOT}`}
+          className={`font-display text-ui row-start-1 grid grid-cols-7 pb-1 text-center leading-none font-bold ${PLOT}`}
         >
           {days.map((d) => (
-            <div key={d.date} className={d.isToday ? 'text-line-starch' : 'text-signal-muted'}>
+            <div
+              key={d.date}
+              className={
+                d.isToday
+                  ? 'text-ink decoration-ink underline decoration-2 underline-offset-4'
+                  : 'text-thread'
+              }
+            >
               <span data-week-day-header>
                 <span className={`@min-[21rem]:hidden`}>{weekdayAbbr(d.date).charAt(0)}</span>
                 {d.isToday ? (
@@ -93,83 +117,84 @@ export function WeekNetwork({ days, compact = false, className = '' }: WeekNetwo
         </div>
         <div ref={ref} aria-hidden="true" className={`row-start-2 ${PLOT}`}>
           <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full">
-            {days.map((d, i) =>
-              dayKind(d) === 'loggedNoLine' ? (
-                <path
-                  key={`l-${d.date}`}
-                  data-logged-no-line
-                  d={`M${x(i)} ${lineY(0)} V${lineY(3)}`}
-                  className="stroke-porcelain"
-                  strokeWidth={2}
-                  fill="none"
-                />
-              ) : null,
-            )}
-            {LINES.map((l, j) => {
-              const y = lineY(j);
-              const x0 = x(0);
-              const x1 = x(6);
+            {days.map((d, i) => {
+              const left = x(i) - towel / 2;
+              const top = lineY(0) - 18;
+              const height = 3 * gap + 36;
+              const empty = dayKind(d) === 'empty';
               return (
-                <g key={l.group}>
-                  <path d={`M${x0} ${y} H${x1}`} className={l.stroke} strokeWidth={7} fill="none" />
-                  <path
-                    d={`M${x0} ${y - 9} V${y + 9} M${x1} ${y - 9} V${y + 9}`}
-                    className={l.stroke}
-                    strokeWidth={5}
-                    fill="none"
+                <g key={d.date} data-week-towel={d.date}>
+                  <rect
+                    x={left}
+                    y={top}
+                    width={towel}
+                    height={height}
+                    rx={4}
+                    strokeWidth={1.5}
+                    className={
+                      empty
+                        ? 'fill-raised stroke-control [stroke-dasharray:4_3]'
+                        : 'fill-raised stroke-ink'
+                    }
                   />
-                  {days.map((d, i) =>
+                  {LINES.map((l, j) =>
                     d.groups.includes(l.group) ? (
-                      <circle
-                        key={d.date}
-                        cx={x(i)}
-                        cy={y}
-                        r={8}
-                        strokeWidth={3}
-                        className="fill-porcelain stroke-enamel"
+                      <rect
+                        key={l.group}
+                        data-week-stripe={`${i}:${l.group}`}
+                        x={left + 0.75}
+                        y={lineY(j) - 9}
+                        width={towel - 1.5}
+                        height={18}
+                        className={l.fill}
                       />
                     ) : (
-                      <circle
-                        key={d.date}
-                        cx={x(i)}
-                        cy={y}
-                        r={7}
+                      <path
+                        key={l.group}
+                        d={`M${left + 6} ${lineY(j)} H${left + towel - 6}`}
                         strokeWidth={2}
-                        className="fill-enamel stroke-signal-muted [stroke-dasharray:3_3]"
+                        className="stroke-seam [stroke-dasharray:5_4]"
+                        fill="none"
                       />
                     ),
                   )}
+                  {dayKind(d) === 'loggedNoLine' ? (
+                    <circle
+                      data-logged-no-line
+                      cx={x(i)}
+                      cy={top + height / 2}
+                      r={4}
+                      className="fill-ink"
+                    />
+                  ) : null}
+                  {d.isToday ? (
+                    <rect
+                      data-today-ring
+                      x={left - 5}
+                      y={top - 5}
+                      width={towel + 10}
+                      height={height + 10}
+                      rx={7}
+                      fill="none"
+                      strokeWidth={2.5}
+                      className="stroke-ink"
+                    />
+                  ) : null}
                 </g>
               );
             })}
-            {days.map((d, i) =>
-              d.isToday ? (
-                <rect
-                  key={`t-${d.date}`}
-                  data-today-ring
-                  x={x(i) - ring / 2}
-                  y={lineY(0) - 14}
-                  width={ring}
-                  height={3 * gap + 28}
-                  rx={ring / 2}
-                  fill="none"
-                  strokeWidth={2.5}
-                  className="stroke-line-starch"
-                />
-              ) : null,
-            )}
           </svg>
         </div>
         <div
           aria-hidden="true"
           style={{ gridTemplateRows: labelRows }}
-          className={`font-display text-small text-porcelain-dim pointer-events-none col-start-1 row-start-2 grid font-semibold tracking-[0.06em] uppercase @min-[21rem]:col-start-1 @min-[21rem]:pr-3`}
+          className={`font-display text-small text-ink-soft pointer-events-none col-start-1 row-start-2 hidden font-semibold @min-[21rem]:grid @min-[21rem]:pr-3`}
         >
           {LINES.map((l, j) => (
             <div
               key={l.group}
               style={{ gridRow: 2 * j + 2 }}
-              className={`col-start-1 flex h-0 items-end -translate-y-3 @min-[21rem]:translate-y-0 @min-[21rem]:items-center`}
+              className="col-start-1 flex h-0 items-center"
             >
               <span data-line-name className="leading-none">
                 {groups[l.group]}
@@ -189,7 +214,7 @@ export interface DayListProps {
   readonly className?: string;
 }
 
-/** Day by day: four line segments (dashed when the line was absent) and the plate count. */
+/** Day by day: four stripes (a dashed seam when the group was absent) and the plate count. */
 export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
   const w = useStrings().week;
   return (
@@ -197,7 +222,7 @@ export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
     // label ("AUJOURD’HUI" in French) and at least 4rem, and the bars stay aligned across rows.
     // Without subgrid support each row falls back to the fixed 4rem label column.
     <ul
-      className={`border-porcelain m-0 grid list-none grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)_auto] gap-x-3 border-t-2 p-0 ${className}`}
+      className={`border-ink m-0 grid list-none grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)_auto] gap-x-3 border-t-2 p-0 ${className}`}
     >
       {days.map((d) => {
         const row = (
@@ -207,7 +232,7 @@ export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
             <span className="sr-only">
               {dayDescription(d.isToday ? w.today : weekdayName(d.date), describeDay(d))}
             </span>
-            <span className="font-display text-subtitle font-bold tracking-[0.06em] uppercase">
+            <span className="font-display text-subtitle font-bold">
               {d.isToday ? w.today : weekdayAbbr(d.date)}
             </span>
             <span className="flex gap-1">
@@ -215,17 +240,17 @@ export function DayList({ days, onSelectDay, className = '' }: DayListProps) {
                 <i
                   key={l.group}
                   aria-hidden="true"
-                  className={`block h-1.5 w-7 min-w-0 ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-porcelain border-[1.5px] border-dashed' : 'border-signal-muted border-[1.5px] border-dashed'}`}
+                  className={`block h-2 w-7 min-w-0 rounded-[1px] ${d.groups.includes(l.group) ? l.bg : dayKind(d) === 'loggedNoLine' ? 'border-ink border-[1.5px] border-dashed' : 'border-control border-[1.5px] border-dashed'}`}
                 />
               ))}
             </span>
-            <span className="text-signal-muted text-meta">{platesCount(d.plateCount)}</span>
+            <span className="text-thread text-meta">{platesCount(d.plateCount)}</span>
           </>
         );
         return (
           <li
             key={d.date}
-            className="border-rule col-span-3 grid grid-cols-[4rem_minmax(0,1fr)_auto] supports-[grid-template-columns:subgrid]:grid-cols-subgrid border-b"
+            className="border-seam col-span-3 grid grid-cols-[4rem_minmax(0,1fr)_auto] supports-[grid-template-columns:subgrid]:grid-cols-subgrid border-b"
           >
             {onSelectDay ? (
               <button
@@ -257,8 +282,8 @@ export interface WeekNoteTextProps {
 /** The observation paragraph: bold lead, quiet detail, held to 40ch. */
 export function WeekNoteText({ lead, detail, className = '' }: WeekNoteTextProps) {
   return (
-    <p className={`text-porcelain-dim m-0 max-w-[40ch] text-lead ${className}`}>
-      <b className="text-porcelain font-semibold">{lead}</b>
+    <p className={`text-ink-soft m-0 max-w-[40ch] text-lead ${className}`}>
+      <b className="text-ink font-semibold">{lead}</b>
       {detail ? ' ' : null}
       {detail}
     </p>
@@ -267,5 +292,5 @@ export function WeekNoteText({ lead, detail, className = '' }: WeekNoteTextProps
 
 export function NoStreaksLine({ className = '' }: { readonly className?: string }) {
   const w = useStrings().week;
-  return <p className={`text-signal-muted m-0 text-meta ${className}`}>{w.noStreaks}</p>;
+  return <p className={`text-thread m-0 text-meta ${className}`}>{w.noStreaks}</p>;
 }

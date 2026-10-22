@@ -15,7 +15,7 @@ export interface SheetProps {
 }
 
 /**
- * Raised-enamel sheet with a 4px porcelain top rule: a bottom sheet on phones and a centred
+ * A white sheet with a 2px ink top edge and 16px top corners: a bottom sheet on phones and a centred
  * 560px dialog from 1024px. Built on the native `<dialog>` (see Dialog).
  */
 export function Sheet({
@@ -41,7 +41,7 @@ export function Sheet({
         </IconButton>
       }
     >
-      {subtitle && <div className="text-body-small text-signal-muted -mt-3">{subtitle}</div>}
+      {subtitle && <div className="text-body-small text-thread -mt-3">{subtitle}</div>}
       {children}
     </Dialog>
   );

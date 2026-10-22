@@ -4,9 +4,9 @@ import { cn } from './cn';
 interface Common {
   /** Required: an icon alone has no name. */
   readonly label: string;
-  /** This is the current page (porcelain edge). */
+  /** This is the current page (ink edge). */
   readonly current?: boolean;
-  /** The button sits on raised enamel (sheet, dock): uses the raised control edge. */
+  /** The button sits on a white label (sheet, dock): uses the raised control edge. */
   readonly raised?: boolean;
   readonly className?: string;
   readonly children: ReactNode;
@@ -24,12 +24,12 @@ export type IconButtonProps =
       readonly disabled?: undefined;
     });
 
-/** 48x48 square with a 2px control-edge border. Renders an anchor when `href` is given. */
+/** 48x48 circle with a 2px control-edge border. Renders an anchor when `href` is given. */
 export function IconButton(props: IconButtonProps) {
   const { label, current = false, raised = false, className, children } = props;
   const classes = cn(
-    'grid size-12 shrink-0 cursor-pointer place-items-center rounded-none border-2 bg-transparent text-porcelain',
-    current ? 'border-porcelain' : raised ? 'border-control-raised' : 'border-control',
+    'grid size-12 shrink-0 cursor-pointer place-items-center rounded-full border-2 bg-transparent text-ink',
+    current ? 'border-ink' : raised ? 'border-control-raised' : 'border-control',
     'disabled:cursor-not-allowed disabled:opacity-60',
     className,
   );

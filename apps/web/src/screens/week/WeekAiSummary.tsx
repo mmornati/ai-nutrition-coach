@@ -59,14 +59,14 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
       {ready ? (
         <>
           <Button
-            variant="outline-porcelain"
+            variant="secondary"
             busy={phase.kind === 'asking'}
             busyLabel={s.reading}
             onClick={ask}
           >
             {s.button}
           </Button>
-          <p className="text-body-small text-porcelain-dim mt-2">
+          <p className="text-body-small text-ink-soft mt-2">
             {fill(s.note, { host: status.destination.host })}
           </p>
         </>
@@ -75,7 +75,7 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
           <p className="text-lead">{status.kind === 'noAi' ? s.needsSetup : s.needsConsent}</p>
           <a
             href={hrefs.section('ai')}
-            className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
+            className="text-ink inline-flex min-h-12 items-center underline underline-offset-4"
           >
             {s.open}
           </a>
@@ -88,10 +88,10 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
             <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">
               {hidden ? s.hiddenByNumbers : text}
             </p>
-            <p className="text-body-small text-porcelain-dim mt-1">{s.mark}</p>
+            <p className="text-body-small text-ink-soft mt-1">{s.mark}</p>
           </>
         ) : result !== null ? (
-          <p className="text-body text-porcelain">{problemText(s, result)}</p>
+          <p className="text-body text-ink">{problemText(s, result)}</p>
         ) : null}
       </div>
     </div>

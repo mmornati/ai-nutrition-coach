@@ -27,9 +27,7 @@ export function ChoiceGroup<T extends string>({
   const name = useId();
   return (
     <fieldset className="m-0 min-w-0 border-0 p-0">
-      <legend className="font-display text-label text-signal-muted mb-1.5 p-0 uppercase">
-        {label}
-      </legend>
+      <legend className="font-display text-label text-thread mb-1.5 p-0">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {choices.map((choice) => (
           <label key={choice.value} className="cursor-pointer">
@@ -43,10 +41,10 @@ export function ChoiceGroup<T extends string>({
             />
             <span
               className={[
-                'font-display text-button inline-flex min-h-12 min-w-16 items-center justify-center gap-2 border-2 px-4 uppercase',
-                'border-control text-porcelain',
-                'peer-checked:border-porcelain peer-checked:bg-porcelain peer-checked:text-enamel',
-                'peer-focus-visible:outline-line-starch peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2',
+                'font-display text-button inline-flex min-h-12 min-w-16 items-center justify-center gap-2 rounded-full border-2 px-4.5',
+                'border-control text-ink',
+                'peer-checked:border-ink peer-checked:bg-ink peer-checked:text-cloth',
+                'peer-focus-visible:outline-ink peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2',
                 '[&>svg]:hidden peer-checked:[&>svg]:block',
               ].join(' ')}
             >

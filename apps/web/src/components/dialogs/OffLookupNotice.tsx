@@ -25,21 +25,16 @@ export function OffLookupNotice({
         <p>{s.alsoWeb}</p>
         <a
           href={privacyHref}
-          className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
+          className="text-ink inline-flex min-h-12 items-center underline underline-offset-4"
         >
           {s.privacyLink}
         </a>
       </div>
       <div className="flex gap-3">
-        <Button
-          variant="outline-porcelain"
-          className="flex-1"
-          data-autofocus
-          onClick={onOfflineOnly}
-        >
+        <Button variant="secondary" className="flex-1" data-autofocus onClick={onOfflineOnly}>
           {s.offline}
         </Button>
-        <Button variant="outline-porcelain" className="flex-1" onClick={onAllow}>
+        <Button variant="secondary" className="flex-1" onClick={onAllow}>
           {s.ok}
         </Button>
       </div>

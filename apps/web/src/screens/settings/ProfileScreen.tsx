@@ -97,13 +97,10 @@ export function ProfileScreen() {
         {group('diet', s.diet, DIETS, (v) => s.dietOptions[v])}
 
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="profile-allergy"
-            className="font-display text-label text-signal-muted uppercase"
-          >
+          <label htmlFor="profile-allergy" className="font-display text-label text-thread">
             {s.allergiesLabel}
           </label>
-          <p className="text-body-small text-porcelain-dim">{s.allergiesHelp}</p>
+          <p className="text-body-small text-ink-soft">{s.allergiesHelp}</p>
           <div className="flex gap-2">
             <input
               id="profile-allergy"
@@ -118,12 +115,12 @@ export function ProfileScreen() {
                   addTag();
                 }
               }}
-              className="border-control bg-enamel text-porcelain min-h-12 min-w-0 flex-1 border-2 px-3"
+              className="border-control bg-cloth text-ink min-h-12 min-w-0 flex-1 border-2 px-3"
             />
             <button
               type="button"
               onClick={addTag}
-              className="font-display text-button border-control text-porcelain min-h-12 border-2 px-4 uppercase"
+              className="font-display text-button border-control text-ink min-h-12 border-2 px-4"
             >
               {s.allergyAdd}
             </button>
@@ -138,7 +135,7 @@ export function ProfileScreen() {
                     onClick={() =>
                       withField('allergies', sanitizeAllergyTags(tags.filter((t) => t !== tag)))
                     }
-                    className="border-control text-porcelain min-h-12 border-2 px-3"
+                    className="border-control text-ink min-h-12 border-2 px-3"
                   >
                     {tag} ×
                   </button>
@@ -159,11 +156,11 @@ export function ProfileScreen() {
             type="button"
             disabled={profile === undefined}
             onClick={() => void save(undefined, s.cleared)}
-            className="font-display text-button border-control text-porcelain min-h-12 border-2 px-4 uppercase disabled:opacity-50"
+            className="font-display text-button border-control text-ink min-h-12 border-2 px-4 disabled:opacity-50"
           >
             {s.clear}
           </button>
-          <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+          <p role="status" className="text-body-small text-ink-soft empty:hidden">
             {status}
           </p>
         </div>

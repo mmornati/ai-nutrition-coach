@@ -1,42 +1,36 @@
-/* Day-map motion. Colours come from Tailwind token classes; this file holds keyframes only. */
+/* Day-towel motion. Colours come from Tailwind token classes; this file holds the weave and its
+   keyframes only. */
 
-.day-stopdot {
-  transform-box: fill-box;
-  transform-origin: center;
+/* A plate being read: its empty band breathes once a second, no spinner. */
+.weave-resolving {
+  animation: weave-breathe 1.2s ease-in-out infinite alternate;
 }
 
-.day-ring-draw {
-  stroke-dasharray: 260;
-  stroke-dashoffset: 260;
-}
-
-.day-arrive .day-ring-draw {
-  animation: day-draw 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.day-arrive .day-stopdot {
-  animation: day-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* Arrival: each dyed stripe is woven in from the left edge, one after another. */
+.weave-in .weave-stripe {
+  transform-origin: left center;
+  animation: weave-in 0.5s var(--ease-weave) both;
 }
 
 .day-enter {
-  animation: day-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: day-rise 0.35s var(--ease-weave) both;
 }
 
-@keyframes day-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes day-pop {
+@keyframes weave-in {
   from {
-    transform: scale(0);
-  }
-  60% {
-    transform: scale(1.25);
+    transform: scaleX(0);
   }
   to {
-    transform: scale(1);
+    transform: scaleX(1);
+  }
+}
+
+@keyframes weave-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
   }
 }
 
@@ -60,13 +54,10 @@
   }
 }
 
-/* Reduced motion: no drawing, no popping, entrance collapses to a fade. */
+/* Reduced motion: no weaving, no breathing, entrance collapses to a fade. */
 @media (prefers-reduced-motion: reduce) {
-  .day-ring-draw {
-    stroke-dashoffset: 0;
-  }
-  .day-arrive .day-ring-draw,
-  .day-arrive .day-stopdot {
+  .weave-in .weave-stripe,
+  .weave-resolving {
     animation: none;
   }
   .day-enter {

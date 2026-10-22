@@ -2,18 +2,14 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cn } from './cn';
 
 export type ButtonVariant =
-  | 'solid-porcelain' // primary on enamel
-  | 'outline-porcelain' // secondary on enamel
-  | 'solid-enamel' // primary inside a porcelain card
-  | 'ghost-enamel' // secondary inside a porcelain card
-  | 'framed-enamel'; // enamel-filled with a porcelain frame (a control floating over the map)
+  | 'primary' // ink-filled pill: the one action that moves the task on
+  | 'secondary' // ink-outlined pill on cloth or a white label
+  | 'floating'; // white pill with an ink edge, for a control that floats over content
 
 const VARIANT: Record<ButtonVariant, string> = {
-  'solid-porcelain': 'bg-porcelain text-enamel border-porcelain',
-  'outline-porcelain': 'bg-transparent text-porcelain border-porcelain',
-  'solid-enamel': 'bg-enamel text-porcelain border-enamel',
-  'ghost-enamel': 'bg-transparent text-enamel border-enamel',
-  'framed-enamel': 'bg-enamel text-porcelain border-porcelain',
+  primary: 'on-ink bg-ink text-cloth border-ink',
+  secondary: 'bg-transparent text-ink border-ink',
+  floating: 'bg-raised text-ink border-ink',
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -27,9 +23,9 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   readonly children: ReactNode;
 }
 
-/** Signage button: square, 2px frame, 48px minimum, condensed uppercase label. */
+/** A pill: 2px ink edge, 48px minimum, bold sentence-case label. */
 export function Button({
-  variant = 'solid-porcelain',
+  variant = 'primary',
   busy = false,
   busyLabel,
   icon,
@@ -59,8 +55,8 @@ export function Button({
         onClick?.(e);
       }}
       className={cn(
-        'font-display text-button inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-2.5 rounded-none border-2 px-4.5 uppercase',
-        'disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-60',
+        'font-display text-button inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-2.5 rounded-full border-2 px-5 py-1.5 text-center transition-[background-color,transform] duration-150 active:scale-[0.98]',
+        'disabled:cursor-not-allowed disabled:border-dashed disabled:opacity-60 disabled:active:scale-100',
         'aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:opacity-60',
         VARIANT[variant],
         fullWidth && 'w-full',

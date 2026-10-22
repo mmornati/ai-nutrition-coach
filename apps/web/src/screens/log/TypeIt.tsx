@@ -79,14 +79,14 @@ export function TypeIt({
         }}
       />
       {state.query.trim() === '' && !hasMatches && (
-        <p className="text-body-small text-porcelain-dim">{c.typeHint}</p>
+        <p className="text-body-small text-ink-soft">{c.typeHint}</p>
       )}
       {hasMatches && (
-        <ul aria-label={c.results} className="border-porcelain border-t-2">
+        <ul aria-label={c.results} className="border-ink border-t-2">
           {state.matches.map((match) => {
             const isSelected = selected === match;
             return (
-              <li key={match.food.sourceRef} className="border-rule border-b">
+              <li key={match.food.sourceRef} className="border-seam border-b">
                 <button
                   type="button"
                   aria-pressed={isSelected}
@@ -104,7 +104,7 @@ export function TypeIt({
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`size-3 shrink-0 rounded-full border-2 ${isSelected ? 'bg-porcelain border-porcelain' : 'border-control-raised'}`}
+                    className={`size-3 shrink-0 rounded-full border-2 ${isSelected ? 'bg-ink border-ink' : 'border-control-raised'}`}
                   />
                 </button>
               </li>
@@ -114,14 +114,14 @@ export function TypeIt({
       )}
       {showCustom && (
         <div className="flex flex-col gap-3">
-          <p className="text-body-small text-porcelain-dim">{c.customHint}</p>
+          <p className="text-body-small text-ink-soft">{c.customHint}</p>
           <TextField
             label={c.customFoodName}
             value={state.customName}
             onChange={(e) => session.setCustomName(e.target.value)}
           />
           <Button
-            variant="outline-porcelain"
+            variant="secondary"
             fullWidth
             busy={state.submitting}
             busyLabel={s.common.logging}
@@ -142,7 +142,7 @@ export function TypeIt({
         />
       )}
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {message}
       </p>
       {hasMatches && (

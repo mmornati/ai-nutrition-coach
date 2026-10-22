@@ -35,18 +35,18 @@ async function openWeek() {
   await screen.findByRole('heading', { level: 1, name: 'This week' });
   // The heading renders before the week's plates have been read from the store; every assertion
   // below depends on them, so wait for the seeded day to show up (a slow, loaded run needs this).
-  await screen.findByRole('button', { name: /Tuesday: all four lines/ }, { timeout: 5000 });
+  await screen.findByRole('button', { name: /Tuesday: all four groups/ }, { timeout: 5000 });
   return { bundle, ...view };
 }
 
 describe('WeekScreen', () => {
-  it('shows seven days, in words as well as colour, with the date span', async () => {
+  it('shows seven towels, in words as well as colour, with the date span', async () => {
     await openWeek();
     expect(screen.getByText('8 – 14 October')).toBeVisible();
     const network = screen.getByRole('img');
     await waitFor(() => {
-      expect(network.getAttribute('aria-label')).toMatch(/Week network\./);
-      expect(network.getAttribute('aria-label')).toMatch(/Tuesday: all four lines\./);
+      expect(network.getAttribute('aria-label')).toMatch(/The week\./);
+      expect(network.getAttribute('aria-label')).toMatch(/Tuesday: all four groups\./);
     });
     const list = screen.getByRole('button', { name: /Today/ }).closest('ul') as HTMLElement;
     expect(within(list).getAllByRole('listitem')).toHaveLength(7);
@@ -55,7 +55,7 @@ describe('WeekScreen', () => {
   it('tapping a day selects it and shows it on Today', async () => {
     const user = userEvent.setup();
     await openWeek();
-    await user.click(screen.getByRole('button', { name: /Tuesday: all four lines/ }));
+    await user.click(screen.getByRole('button', { name: /Tuesday: all four groups/ }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Yesterday' })).toBeVisible();
     expect(await screen.findByText('Eggs, Spinach, Toast, Milk')).toBeVisible();
     await waitFor(() => expect(['', '#/']).toContain(window.location.hash));

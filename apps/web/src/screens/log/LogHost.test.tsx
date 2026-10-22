@@ -67,7 +67,7 @@ describe('LogHost: the capture sheet', () => {
       expect(tiles[1]).toContain('Snapshot');
       expect(tiles.some((t) => t?.includes('Barcode'))).toBe(true);
       expect(tiles.some((t) => t?.includes('Type it'))).toBe(true);
-      expect(within(dialog).getByText('Next station: Lunch')).toBeVisible();
+      expect(within(dialog).getByText('Next meal: Lunch')).toBeVisible();
       await user.keyboard('{Escape}');
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       // Esc returns focus to the button that opened it.

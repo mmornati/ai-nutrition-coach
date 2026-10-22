@@ -42,8 +42,8 @@ function Entry({
 }) {
   const who = entry.role === 'user' ? s.you : s.coach;
   return (
-    <li className="border-rule border-b py-3 last:border-b-0">
-      <p className="font-display text-label text-signal-muted uppercase">{who}</p>
+    <li className="border-seam border-b py-3 last:border-b-0">
+      <p className="font-display text-label text-thread">{who}</p>
       {entry.role === 'user' ? (
         <p className="text-lead [overflow-wrap:anywhere]">{entry.text}</p>
       ) : entry.kind === 'answer' ? (
@@ -52,7 +52,7 @@ function Entry({
           <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">
             {!showNumbers && containsNumberWithUnit(entry.text) ? s.hiddenByNumbers : entry.text}
           </p>
-          <p className="text-body-small text-porcelain-dim mt-1">{s.aiMark}</p>
+          <p className="text-body-small text-ink-soft mt-1">{s.aiMark}</p>
         </>
       ) : entry.kind === 'support' ? (
         <>
@@ -103,14 +103,11 @@ export function AskCoachScreen() {
     <ScreenFrame current="today" header={<ScreenHeader back={<BackToToday />} title={s.title} />}>
       <div className="flex max-w-3xl flex-col gap-5 px-5 pt-6 pb-8 lg:px-7">
         <p className="text-lead">{s.intro}</p>
-        <p className="text-body-small text-porcelain-dim">{s.memory}</p>
+        <p className="text-body-small text-ink-soft">{s.memory}</p>
 
         {!ready ? (
           <section aria-labelledby="ask-coach-off" className="flex flex-col gap-3">
-            <h2
-              id="ask-coach-off"
-              className="font-display text-section text-signal-muted uppercase"
-            >
+            <h2 id="ask-coach-off" className="font-display text-section text-thread">
               {s.offTitle}
             </h2>
             <p className="text-lead">
@@ -120,7 +117,7 @@ export function AskCoachScreen() {
             </p>
             <a
               href={hrefs.section('ai')}
-              className="text-porcelain inline-flex min-h-12 items-center self-start underline underline-offset-4"
+              className="text-ink inline-flex min-h-12 items-center self-start underline underline-offset-4"
             >
               {s.openYourAi}
             </a>
@@ -144,12 +141,12 @@ export function AskCoachScreen() {
               {state.pending !== null && (
                 <p
                   aria-hidden="true"
-                  className="text-porcelain-dim py-3 text-lead [overflow-wrap:anywhere]"
+                  className="text-ink-soft py-3 text-lead [overflow-wrap:anywhere]"
                 >
                   {s.you}: {state.pending}
                 </p>
               )}
-              <p role="status" className="text-body-small text-porcelain-dim mt-2 empty:hidden">
+              <p role="status" className="text-body-small text-ink-soft mt-2 empty:hidden">
                 {busy ? s.thinking : ''}
               </p>
             </section>
@@ -158,7 +155,7 @@ export function AskCoachScreen() {
               <div className="flex flex-col items-start gap-3">
                 <p className="text-lead">{fill(s.limit, { max: COACH_LIMITS.chatTurns })}</p>
                 <Button
-                  variant="outline-porcelain"
+                  variant="secondary"
                   onClick={() => {
                     askCoach.reset();
                     setDraft('');
@@ -183,17 +180,12 @@ export function AskCoachScreen() {
                   }}
                 />
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="submit"
-                    variant="solid-porcelain"
-                    busy={busy}
-                    busyLabel={s.thinking}
-                  >
+                  <Button type="submit" variant="primary" busy={busy} busyLabel={s.thinking}>
                     {s.send}
                   </Button>
                   {state.entries.length > 0 && (
                     <Button
-                      variant="outline-porcelain"
+                      variant="secondary"
                       onClick={() => {
                         askCoach.reset();
                         setDraft('');
@@ -202,13 +194,13 @@ export function AskCoachScreen() {
                       {s.newConversation}
                     </Button>
                   )}
-                  <p className="text-body-small text-porcelain-dim">
+                  <p className="text-body-small text-ink-soft">
                     {fill(s.asked, { count: state.asked, max: COACH_LIMITS.chatTurns })}
                   </p>
                 </div>
               </form>
             )}
-            <p role="status" className="text-body text-porcelain empty:hidden">
+            <p role="status" className="text-body text-ink empty:hidden">
               {state.notice === null ? '' : noticeText(s, state.notice)}
             </p>
           </>

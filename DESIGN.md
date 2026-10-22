@@ -1,317 +1,372 @@
 ---
-name: AI Nutrition Coach (formerly OpenPlate)
-description: The day drawn as a transit map. Four food lines, each meal a station, on midnight enamel.
+name: AI Nutrition Coach
+description: The day as a striped kitchen towel. Each meal weaves one band; each food group on the plate is a dyed stripe across it.
 colors:
-  enamel: "#0E1A3A"
-  enamel-raised: "#15244B"
-  rule: "#2C3F72"
-  control: "#5B6C9C"
-  control-raised: "#6474A6"
-  porcelain: "#F3F1EA"
-  porcelain-dim: "#C9CFE0"
-  signal-muted: "#A3AFCF"
-  line-veg: "#3FAE5A"
-  line-protein: "#E5432F"
-  line-starch: "#F2A41C"
-  line-dairy: "#5C9CF5"
+  ink: "#262421"
+  ink-soft: "#4A453F"
+  thread: "#6B655E"
+  veg: "#1F7A4D"
+  protein: "#B5262E"
+  starch: "#C08420"
+  dairy: "#2D5DA8"
+  cloth: "#FBFBF8"
+  raised: "#FFFFFF"
+  seam: "#E4E1DA"
+  control: "#8A847B"
+  control-raised: "#857F76"
+  scrim: "rgb(38 36 33 / 0.45)"
 typography:
   display:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "44px"
-    fontWeight: 700
-    lineHeight: 0.95
-    letterSpacing: "0.01em"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "3.125rem"
+    fontWeight: 900
+    lineHeight: 0.9
+    letterSpacing: "-0.035em"
+  display-desktop:
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "4.25rem"
+    fontWeight: 900
+    lineHeight: 0.9
+    letterSpacing: "-0.04em"
   headline:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "28px"
-    fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "0.03em"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 800
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+  headline-desktop:
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1.875rem"
+    fontWeight: 800
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
   title:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "22px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1.25rem"
     fontWeight: 700
-    lineHeight: 1.1
-    letterSpacing: "0.05em"
+    lineHeight: 1.15
+    letterSpacing: "-0.01em"
   section:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "17px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "0.9375rem"
     fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "0.12em"
+    lineHeight: 1.25
+    letterSpacing: "0"
   button:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "16px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1rem"
     fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "0.08em"
+    lineHeight: 1.15
+    letterSpacing: "0"
   label:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "14px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "0.875rem"
     fontWeight: 600
-    lineHeight: 1.2
-    letterSpacing: "0.06em"
+    lineHeight: 1.25
+    letterSpacing: "0"
   quantity:
-    fontFamily: "Barlow Condensed, system-ui, sans-serif"
-    fontSize: "19px"
-    fontWeight: 600
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1.1875rem"
+    fontWeight: 700
     lineHeight: 1.2
-    letterSpacing: "0.03em"
-    fontFeature: "tnum"
+    letterSpacing: "-0.01em"
   body:
-    fontFamily: "Barlow, system-ui, sans-serif"
-    fontSize: "16px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.45
   body-small:
-    fontFamily: "Barlow, system-ui, sans-serif"
-    fontSize: "15px"
+    fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
+    fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.45
 rounded:
-  none: "0px"
-  station: "14px"
-  full: "9999px"
+  tag: "4px"
+  cloth: "8px"
+  sheet: "16px"
+  pill: "9999px"
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
   gutter: "20px"
   gutter-desktop: "28px"
   column-gap: "36px"
+  fab-size: "56px"
+  fab-offset: "92px"
+  fab-gap: "32px"
 components:
-  button-solid:
-    backgroundColor: "{colors.enamel}"
-    textColor: "{colors.porcelain}"
+  button-primary:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.cloth}"
     typography: "{typography.button}"
-    rounded: "{rounded.none}"
-    padding: "0 18px"
+    rounded: "{rounded.pill}"
+    padding: "6px 20px"
     height: "48px"
-  button-porcelain:
-    backgroundColor: "{colors.porcelain}"
-    textColor: "{colors.enamel}"
-    typography: "{typography.button}"
-    rounded: "{rounded.none}"
-    padding: "0 18px"
-    height: "48px"
-  button-line:
+  button-secondary:
     backgroundColor: "transparent"
-    textColor: "{colors.porcelain}"
+    textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.none}"
-    padding: "0 18px"
+    rounded: "{rounded.pill}"
+    padding: "6px 20px"
     height: "48px"
-  button-ghost-on-porcelain:
-    backgroundColor: "transparent"
-    textColor: "{colors.enamel}"
+  button-floating:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.none}"
-    padding: "0 18px"
+    rounded: "{rounded.pill}"
+    padding: "6px 20px"
     height: "48px"
-  chip-status:
+  button-log:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.cloth}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: "0 22px 0 18px"
+    height: "{spacing.fab-size}"
+  icon-button:
     backgroundColor: "transparent"
-    textColor: "{colors.porcelain}"
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
-    padding: "6px 10px"
-    height: "36px"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    size: "48px"
   preset:
     backgroundColor: "transparent"
-    textColor: "{colors.porcelain}"
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
-    padding: "0 14px"
-    height: "44px"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    padding: "0 16px"
+    height: "48px"
   preset-selected:
-    backgroundColor: "{colors.porcelain}"
-    textColor: "{colors.enamel}"
-  coach-card:
-    backgroundColor: "{colors.porcelain}"
-    textColor: "{colors.enamel}"
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.cloth}"
+    rounded: "{rounded.pill}"
+    padding: "0 16px"
+    height: "48px"
+  sewn-label:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
+    typography: "{typography.label}"
+    rounded: "{rounded.tag}"
+    padding: "6px 12px"
+    height: "36px"
+  coach-label:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
     typography: "{typography.body}"
-    rounded: "{rounded.none}"
-    padding: "14px 14px 12px"
-  field:
-    backgroundColor: "transparent"
-    textColor: "{colors.porcelain}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.cloth}"
+    padding: "16px 18px"
+  text-field:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.cloth}"
     padding: "0 14px"
     height: "56px"
-  dock:
-    backgroundColor: "{colors.enamel-raised}"
-    textColor: "{colors.signal-muted}"
-    height: "76px"
-  dock-log:
-    backgroundColor: "{colors.porcelain}"
-    textColor: "{colors.enamel}"
-    typography: "{typography.button}"
-    width: "92px"
+  sheet:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sheet}"
+    padding: "20px"
+  dialog:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.cloth}"
+    padding: "20px"
+    width: "480px"
+  rail-item-current:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    padding: "0 16px"
+    height: "48px"
 ---
 
-# Design System: AI Nutrition Coach (formerly OpenPlate)
-
-> Reference implementation: `docs/design/food-lines/index.html` (self-hosted Barlow and Barlow Condensed in `docs/design/food-lines/fonts/`). Production target: the React 19 + Tailwind v4 PWA in `apps/web` (see `docs/pwa-refactor-plan.md`); the tokens above port to Tailwind `@theme` variables. The fixed "proto" screen switcher at the top of the prototype is a prototype-only navigation aid and is not part of this system. This file supersedes the visual layer of the earlier "Sage & Cream calm" DESIGN.md; its behavior rules still hold.
+# Design System: AI Nutrition Coach
 
 ## Overview
 
-**Creative North Star: "The Night Line Map"**
+**Creative North Star: "The Torchon"**
 
-The day is a transit diagram printed on midnight enamel. The four food groups are four coloured lines running the full height of the day; each meal is a station where some lines stop and others pass through. Balance is read the way a rider reads a map, by which lines served a station, never as a score, ring or donut. Real nutrient values (grams, kcal, per-100 g facts) are planned as plain text and neutral horizontal bars against a reference intake, drawn as quiet signage beside the station and never as a verdict (ADR 0006). Everything else is signage: porcelain ink, condensed uppercase station names, square outlined buttons, thick porcelain rules under headers.
+The day is a kitchen towel laid on the table. Each meal weaves one band across it; every food group on the plate is a dyed stripe across that band, and a group that is not there leaves bare cotton, drawn as a dashed seam. Balance is read from which stripes a band carries, never from a score, a ring or a countdown. The week is seven towels, folded in the phone dock and hung side by side on the week screen.
 
-Density is wayfinding-calm rather than dashboard-busy: one diagram, a few station names, one coach question at a time. The energy comes from the saturated line inks against a deep ground and from the condensed display type, not from motion or decoration. The world is dark-first; a porcelain-ground light variant is unresolved and has not been built.
+The ground is bright white cotton with a barely visible weave, set in warm near-black ink. Colour is rationed to the four dyes, and the dyes are rationed to food groups. Everything a person can press is a pill or a circle with a 2px edge; everything that states a fact is a small sewn label with a dashed stitch inside its edge. One grotesque family carries the whole interface: very heavy and tight for names, plain for sentences, sentence case throughout. The mood is daylight in a kitchen: calm, legible at arm's length, one-handed.
 
-The system rejects the category default of white cards with macro donuts, progress rings and red over-budget states. Numbers are welcome; pressure is not.
+Motion is the weave itself. When a plate resolves its stripes are woven in from the left edge one after another; a plate being read breathes; nothing spins. Under reduced motion, stripes appear at once and entrances become a plain fade.
 
 **Key Characteristics:**
-- Four line inks are the only chromatic colours; everything else is enamel and porcelain.
-- Station dots, interchange rings and capsules are the only rounded forms; every control is square-cornered.
-- Barlow Condensed uppercase for anything you read like a sign; Barlow for anything you read like a sentence.
-- Structure is drawn with rules and outlines, not shadows.
-- Lines run straight and bend only at 45° or 90°.
+
+- White cotton ground with a two-way 1px thread texture; ink text and ink rules.
+- Four dyes, one per food group, in fixed order: veg and fruit, protein, starch, dairy.
+- Absence is a dashed seam or a dashed outline, never a colour.
+- Pill buttons with 2px ink edges, 4px sewn labels with a dashed stitch, 8px cloth panels.
+- One family (Schibsted Grotesk), heavy names, plain sentences, sentence case.
+- Flat cloth; a single white raised plane; one soft shadow, on the floating Log pill only.
 
 ## Colors
 
-A midnight enamel ground with porcelain ink and four saturated transit-line colours that each mean exactly one food group.
+A white-cotton and warm-ink palette with four saturated dyes that each mean exactly one food group.
 
 ### Primary
-- **Porcelain** (porcelain): all primary text, station ticks and stop dots, the 4px header rule, outlined button borders, the coach card ground and filled primary buttons. It is the system's "ink" and its strongest action colour.
 
-### Line inks (food groups)
-- **Veg & Fruit Green** (line-veg): the veg & fruit line, its legend swatch, tag bars; also the "Local" status dot.
-- **Protein Scarlet** (line-protein): the protein line and its swatches.
-- **Starch Amber** (line-starch): the starch line and its swatches. Also the system's "you are here / attention" signal: the focus ring, text selection, today's interchange in the week route and network map, the active rail-nav underline, and the "Reading the plate…" resolving line.
-- **Dairy Cobalt** (line-dairy): the dairy line and its swatches.
+- **Torchon Ink** (#262421): all primary text, the 2px edge of every button and sewn label, the filled primary pill and the floating Log pill, the 2px rule over day totals and the week's day list, the reference tick on Nutrient Bars, and the focus ring. 15.2:1 on cloth.
+
+### Secondary (the four dyes)
+
+Each dye is a food group and nothing else, always paired with the group's name in text. All four reach at least 3:1 on cloth as non-text stripes.
+
+- **Garden Green** (#1F7A4D): vegetables and fruit.
+- **Basque Red** (#B5262E): protein. Never an error or warning colour.
+- **Ochre** (#C08420): starch. Shipped darker than the first proposal so the stripe clears 3:1 on cloth (3.09:1).
+- **Indigo Blue** (#2D5DA8): dairy.
+
+The "other" group has no dye: its stripe is a 3px dashed control-grey line.
 
 ### Neutral
-- **Midnight Enamel** (enamel): page ground, text on porcelain surfaces, the hollow centre of station rings, `theme-color`.
-- **Raised Enamel** (enamel-raised): the bottom dock and the capture sheet, the only raised planes.
-- **Night Rule** (rule): dividers between list rows, the rail border, the week-route track. Never a control outline.
-- **Control Edge** (control, #5B6C9C, ≥3:1 on enamel): outlines of unselected controls (portion presets, AI tiers, icon buttons).
-- **Raised Control Edge** (control-raised, #6474A6, 3.3:1 on raised enamel, 3.7:1 on enamel): the same outlines when the control sits on a raised enamel plane (capture sheet, bottom dock), where the plain control edge falls to 2.9:1.
-- **Porcelain Dim** (porcelain-dim): secondary sentences (stop summaries, hints, tier descriptions, back links, inactive rail items).
-- **Signal Muted** (signal-muted): metadata, times, sub-headers, section labels, inactive week-route days, placeholders.
+
+- **White Cotton** (#FBFBF8): the page ground, under the weave texture; also the text colour on ink surfaces.
+- **Label White** (#FFFFFF): the one raised plane: sewn labels, coach label, sheets, dialogs, the phone dock, the desktop rail, the floating button variant.
+- **Soft Ink** (#4A453F): secondary sentences (hints, plate summaries, group names in legends) and the Nutrient Bars fill. 9.6:1 on cloth.
+- **Thread Grey** (#6B655E): metadata, times, section headings, placeholders, "Written by AI" marks. 5.6:1 on cloth.
+- **Seam** (#E4E1DA): dividers between rows and the dashes of bare cotton. Too faint to outline a control.
+- **Control Edge** (#8A847B): the 2px outline of an unselected control on cloth (3.6:1), dashed empty bands, the scrollbar thumb.
+- **Control Edge, Raised** (#857F76): the same outline on a white label, sheet or dock (3.7:1).
+- **Scrim** (ink at 45%): behind sheets and dialogs.
 
 ### Named Rules
-**The One Line, One Group Rule.** Green, scarlet, amber and cobalt each belong to one food group. They never decorate, never mark success or failure, and never appear as backgrounds behind text.
 
-**The Amber Signal Rule.** Starch amber doubles as the "you are here" and focus signal, so it always arrives with a shape (3px outline, interchange ring, 4px underline) and never as a colour change alone.
+**The One Dye, One Group Rule.** A dye appears only where its food group is meant, always beside the group's name or a sentence naming it.
 
-**The No Red Guilt Rule.** Protein scarlet is a line colour, not an error state. An absent line is drawn dashed and neutral, never in red.
+**The Bare Cotton Rule.** Absence is drawn, not coloured: a dashed Seam stripe where a group is missing, a dashed Control Edge band where a meal is still open.
 
 ## Typography
 
-**Display Font:** Barlow Condensed (500/600/700, self-hosted woff2, fallback system-ui)
-**Body Font:** Barlow (400/500/600, self-hosted woff2, fallback system-ui)
+**Display Font:** Schibsted Grotesk (with system-ui, sans-serif), variable 400–900, self-hosted (Latin and Latin Extended subsets).
+**Body Font:** the same family.
 
-**Character:** Condensed grotesque signage over a plain, friendly grotesque. The condensed face names places (days, meals, lines, actions); the regular face speaks in sentences.
+**Character:** One grotesque doing two jobs. Names are set very heavy and tight, so a day name reads like a woven label; sentences are set plain at 400 with generous leading.
 
 ### Hierarchy
-- **Display** (700, 44px phone / 64px desktop, 0.95, uppercase): the screen name in the header: the day, "This week", "Settings", a meal name on plate detail; 48px on the unlock screen.
-- **Headline** (700, 28px phone / 34px desktop, 1, uppercase): station names on the day map; the capture sheet title (26px).
-- **Title** (700, 20–24px, uppercase): settings rows, AI tiers, capture options, week day codes.
-- **Section** (700, 17px, 0.12em, uppercase, signal-muted): labels heading a block ("On the plate", "Day by day", "This week's network").
-- **Button** (700, 16px, 0.08em, uppercase): every button label; 19px on the full-width unlock button.
-- **Label** (600, 13–15px, 0.05–0.1em, uppercase): legend, line bar cells, station times, chip text, route day letters, tags.
-- **Quantity** (600, 19px, tabular figures): honest-range portions ("~2 fists").
-- **Body** (400, 16px, 1.45): coach copy and sentences; hints held to 34ch, week notes to 40ch.
-- **Body small** (400, 14.5–15px): meta lines, descriptions, sub-headers.
+
+- **Display** (900, 3.125rem / 4.25rem from 1024px, line-height 0.9, -0.035em / -0.04em): the screen's name ("Today", "This week"), top left; one per screen.
+- **Headline** (800, 1.5rem / 1.875rem from 1024px, 1.05, -0.02em): meal names beside each band, sheet titles.
+- **Title** (700, 1.25rem, 1.15, -0.01em): dialog titles, the rail's app name.
+- **Section** (700, 0.9375rem, 1.25): section headings in Thread Grey ("Today's nutrition", "Day by day"), always real headings over real content.
+- **Button** (700, 1rem, 1.15): every pill label.
+- **Label** (600, 0.875rem, 1.25): sewn labels, field labels, group names in legends.
+- **Quantity** (700, 1.1875rem, 1.2, -0.01em): nutrient values and portions, proportional figures, right-aligned.
+- **Body** (400, 1rem, 1.45): sentences, the coach's question. Hints are capped near 34–40ch.
+- **Body small** (400, 0.9375rem, 1.45): reference sentences under bars, captions, field messages.
+
+Every size is in rem, so the whole interface follows the browser's text size.
 
 ### Named Rules
-**The Signage Rule.** Anything uppercase is Barlow Condensed with positive tracking (0.01–0.12em, wider as size drops). Barlow body text is never uppercased.
 
-**The Self-Hosted Rule.** Fonts ship with the app as woff2 with `font-display: swap`; no font CDN, so the map renders identically offline.
+**The Sentence Case Rule.** Every name, button and heading is sentence case with no added tracking. Weight, not capitals, makes a name.
+
+**The Heavy Name Rule.** Display and headline go heavy (900/800) with negative tracking; body text never goes above 400 except for a bold lead phrase.
 
 ## Layout
 
-Phone first at 390px. A single column: header with the screen name and status chip over a 4px porcelain rule, a legend row, then the day map: a 132px lane on the left where four vertical lines run at fixed x-positions (30/54/78/102px, 8px strokes), with station names, contents and the coach card in the column to the right. Stations are at least 120px tall (140px desktop). A fixed bottom dock holds the week route (seven stations on a 4px track) and a 92px porcelain Log block; views carry 110px bottom padding to clear it. Side gutters are 20px (16px around the map), 28px on desktop.
+Phone first at 390px with a 20px gutter (28px from 1024px). The day is a stack of full-width bands separated by Seam rules; each band is a two-column grid: the stripe field on the left (104px, 136px from 1024px), bleeding to the screen edge, and the meal text on the right (headline name with the time at the far end, summary, one plain nutrient line). A band is at least 132px tall (144px on desktop).
 
-At ≥1024px the shell becomes a 240px left rail (brand, nav, Log button, storage status pinned to the bottom) plus content; the dock is removed. Today becomes two columns: the day map (420–560px) and the week drawn as a seven-station network map, divided by a 2px rule. Plate detail, week and settings become two-column grids with a 36px column gap; the capture sheet becomes a centred 560px dialog.
+On the phone a white dock fixed to the bottom under a 2px ink edge holds only the week of folded towels; the ink Log pill floats bottom right above it. The page's bottom padding is the dock offset plus the pill size plus 32px of air, and the same sum sets scroll padding so a focused control is never hidden behind the pill.
 
-Spacing is a loose 4px-based rhythm (4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 28px); vertical breathing room comes mostly from station height, not from margins.
-
-**The 45/90 Rule.** Lines are straight. Where a diagram bends (brand mark, unlock map), it bends at 45° or 90° only. No curves, no organic paths.
+From 1024px a 240px white rail sits on the left (app name, navigation pills, a full-width Log pill, the storage note at its foot); the dock disappears. The week screen hangs seven towels side by side under weekday names, with group names down the left, followed by a day list ruled in 2px ink. Gate screens (unlock, create passphrase) are a single centred 440px column under a drawn towel.
 
 ## Elevation & Depth
 
-Flat. Depth is conveyed by the raised enamel plane (dock, sheet), rules and outlines, and a dark scrim behind the capture sheet. There are no drop shadows. The only `box-shadow` in the system is a zero-blur concentric ring around today's route station, which is a drawn interchange ring, not elevation.
+Flat cloth. Depth comes from two planes only: White Cotton with its faint weave, and Label White for anything laid on top (labels, sheets, dock, rail). Edges are 2px ink or a Seam rule, not shadow. Sheets and dialogs sit over the ink scrim.
 
-**The Printed Map Rule.** Surfaces lie flat like a printed diagram. Separate planes with a rule (1–4px) or the raised enamel tone, never with blur.
+### Shadow Vocabulary
+
+- **Floating pill** (`box-shadow: 0 10px 22px -10px rgb(38 36 33 / 0.7)`): the phone's floating Log pill only, because it floats over scrolling content.
+
+### Named Rules
+
+**The Laid-Flat Rule.** Nothing casts a shadow except the floating Log pill. A new surface is raised by turning it white and giving it an edge.
 
 ## Shapes
 
-Every control, card, field, chip and sheet is square-cornered (0px). Roundness is reserved for the map vocabulary: stop dots and interchange rings are circles, a station is a capsule (rx 8 on a 16px resolved bar, rx 14 on a 28px open station), and radio indicators in the AI tier list are rings. Borders carry the structure: 2px outlines on controls, 4px porcelain rules under headers and on top of the sheet, 1px night rules between list rows. Absent or pending things are dashed: an open station is a dashed porcelain capsule, an absent line is a dashed segment or dashed hollow dot.
+Three corner families. Pills and circles (fully round) for everything pressable: buttons, presets, icon buttons, the current rail item. Small sewn corners (4px) for labels, tags and tick boxes. Cloth corners (8px) for panels: the coach label, fields, dialogs, the open-meal band's right end. Bottom sheets take 16px top corners on phones and become 8px dialogs from 1024px. Stripes are square-ended bands; a folded towel in the dock is a 26×32px white rectangle with 3px corners.
 
-**The Round Means Map Rule.** If it is round, it is part of the diagram (a stop, a ring, a station). UI chrome stays square.
+**The Stitch Rule.** A sewn label carries a 1.5px dashed line inset 3px inside its edge, in its text colour at 35%, following its corners. It decorates labels that state something (storage status, the coach); it is never added to a button.
 
 ## Components
 
 ### Buttons
-Signage buttons: uppercase condensed labels in a square 2px frame.
-- **Shape:** square (0px), 2px border in the current colour, at least 48px tall, 0 18px padding, icon gap 10px.
-- **Porcelain (primary on enamel):** porcelain fill, enamel text. Used for Log a plate and Unlock.
-- **Line (secondary on enamel):** transparent, porcelain text and border ("See the week's network", "Add a food").
-- **Solid / Ghost (inside the porcelain coach card):** solid is enamel fill with porcelain text; ghost is an enamel-outlined, transparent button.
-- **Focus:** 3px starch-amber outline, 2px offset, on every interactive element.
-- **Icon button:** 48×48 square, 2px control-edge border; porcelain border when it is the current page.
+
+Bold, plain pills.
+
+- **Shape:** fully round, 2px edge, at least 48×48px.
+- **Primary:** ink fill, White Cotton label: the one action that moves the task on.
+- **Secondary:** transparent with an ink edge and ink label.
+- **Floating:** Label White with an ink edge, for a control over content.
+- **Press / busy / disabled:** pressing scales to 0.98 over 150ms. Busy keeps focus, swaps the label for a progress phrase ("Logging…") and never shows a spinner. Disabled and busy turn the edge dashed at 60% opacity.
+- **Icon button:** a 48px circle with a Control Edge outline (Raised variant on white); the current page takes an ink edge.
 
 ### Chips
-- **Status chip:** a square 2px porcelain outline, condensed 700 14px, a 9px veg-green dot before "Local". It states where data lives; it is not a filter.
-- **Version tag:** a 1.5px muted outline at 13px ("v2") next to an unavailable tier.
+
+- **Sewn label:** Label White, 2px ink edge, 4px corners, the stitch, Label type, at least 36px tall, with an optional 9px status dot. It states a fact and is not pressable.
+- **Status dots:** on this device, an ink dot; synced, an ink dot with a thin ink ring; pending, an ink ring; retry later, a dashed Thread Grey ring. Each sits beside its words, so state never rests on colour.
+- **Version tag:** a 1.5px Thread Grey outline, 4px corners, beside an unavailable choice.
+- **Portion presets:** pills with a Control Edge outline; the selected preset fills ink with White Cotton text and is marked `aria-pressed`.
 
 ### Cards / Containers
-- **Coach card:** the one inverted surface. Porcelain ground, enamel body text at 16px, square, 14px padding, actions underneath. It asks one question; its title, when present, is a short condensed uppercase line.
-- **Line bar (plate detail):** a four-cell grid in a 2px porcelain frame; each cell shows its line swatch (8px bar) and name; an absent line becomes a muted dashed stroke with "· passed".
-- **Lists (entries, day list, settings board):** a 2px porcelain top rule, then rows separated by 1px night rules; no card backgrounds.
+
+- **Coach label:** Label White, 2px ink edge, 8px corners, the stitch, 16–18px padding. One question in body type, an optional heavy title, an optional "Written by AI" line in Thread Grey, then a primary and a secondary pill. It rises in once (0.35s, 8px).
+- **Sheets:** Label White with a 2px ink edge; a bottom sheet with 16px top corners that slides up over 350ms on phones, a centred 560px dialog with 8px corners from 1024px. A headline title and a 48px close circle head every sheet.
+- **Dialogs:** Label White, 2px ink edge, 8px corners, 480px wide at most.
 
 ### Inputs / Fields
-- **Style:** square 2px porcelain frame, 56px tall, transparent fill, 17px text, muted placeholder.
-- **Focus:** the frame takes the 3px amber outline at 2px offset (`:focus-within`).
-- **Presets (portion ranges):** 44px square outlined buttons in condensed 16px; selected flips to porcelain fill with enamel text and `aria-pressed`.
-- **Radio tiers:** full-width outlined rows with a 24px porcelain ring; checked rows take a porcelain border and a filled 10px centre; disabled rows drop to 0.75 opacity and carry a version tag.
+
+- **Style:** Label White, 2px Control Edge, 8px corners, 56px tall, Label-type label above in Soft Ink.
+- **Focus:** the frame turns ink and takes the ink focus ring.
+- **Messages:** a calm Body-small line in Soft Ink, never red.
+- **Tick boxes:** 24px, 4px corners, Control Edge Raised outline; checked fills ink with a drawn tick.
 
 ### Navigation
-- **Phone:** the bottom dock's week route is the day switcher: seven 20px station rings on a 4px rule track; a full day (all four lines) is a filled porcelain dot, a partial day is hollow; today is amber with a double interchange ring and porcelain label (the word where it fits its stop, the day's initial where it does not). Below 336px (seven 48px stops) the route scrolls sideways inside the dock, the selected stop kept in view and the far stop peeking in at the edge; stops never shrink under 48px. Settings is a header icon button; back links are condensed uppercase with a chevron.
-- **Desktop rail:** brand mark plus condensed 18px uppercase items at 52px; inactive items porcelain-dim, the current item porcelain with a 64×4px amber underline.
 
-### Day Map (signature)
-Four 8px vertical lines in line order (veg, protein, starch, dairy). A resolved station is a porcelain capsule across the lane with a 10px porcelain stop dot (3.5px enamel stroke) on each line that stopped; lines that did not stop pass behind. The open station is a dashed porcelain capsule on enamel. Beside each station: name and time, contents in porcelain-dim, and a plain sentence naming which lines passed through. The whole station is one ≥48px hit target.
+- **Desktop rail:** Label White with a 2px Seam edge. Items are 48px rows of icon plus 1.125rem semibold name in Soft Ink; the current page becomes a white pill with a 2px ink edge and ink text.
+- **Phone dock:** seven folded towels, each a small white towel with a 1.5px edge carrying 3px stripes for the groups logged that day. A dashed edge means nothing logged; a small ink knot means logged with no group. The day showing is outlined in ink; today's name is bold and underlined.
 
-### Week Network Map (signature)
-Days across, four horizontal lines down, each with terminus ticks. A stop is an 8px porcelain dot; a missed stop is a hollow dashed dot. Today is enclosed in an amber capsule spanning all four lines. Labelled with an accessible summary ("Wed 4 of 4 lines").
+### Day Towel (signature)
 
-### Capture Sheet
-Bottom sheet on raised enamel with a 4px porcelain top rule, sliding up (0.35s, cubic-bezier(.16,1,.3,1)) over a 60% dark scrim; becomes a centred dialog on desktop. The snapshot option is a full-width porcelain tile (132px tall); barcode and typing are outlined tiles (96px) side by side.
+The day's meals as woven bands. A logged band shows four stripe rows (10px tall, 6px apart) in fixed group order: dyed where the group is on the plate, a dashed Seam row where it is not. An open meal is an empty band with a dashed Control Edge outline, open at the screen edge and rounded at its right end. A legend of the four dyes with their names sits above the bands. The weave is `aria-hidden`; each band's text carries its meaning.
 
-### Nutrient Bars (planned, schema v2)
-Per plate and per day, each nutrient (energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt) is one row: label, value with unit ("18 g"), and a thin horizontal bar against a reference. The reference is the EU Reference Intake (energy 2000 kcal, fat 70 g, saturates 20 g, carbohydrate 260 g, sugars 90 g, protein 50 g, salt 6 g; fibre about 25-30 g recommended) or, with the optional profile set (sex, age range and activity), the person's daily guide (`dailyTargetsFor`, ADR 0006), and its source is named in text ("of the EU reference intake" / "of your daily guide"). A calm support line sits in the "What are reference intakes?" disclosure. Rules:
-- Track in Night Rule, fill in one neutral colour (porcelain-dim), a 1px reference tick in porcelain. The fill is a single colour for every nutrient and every value, including above the reference: it never turns red, amber or any line ink, and it never changes with the amount.
-- The bar is clamped at the track end and, past the reference, says so in plain words ("about 120% of the reference"), with no exclamation, no "over budget", no "remaining".
-- The value and unit are always text, and the bar is `aria-hidden` or exposed as a `meter` with the same sentence. Colour and length are never the only signal. Do not use `role="progressbar"` (the No-Dark-Patterns test bans it for spinners).
-- Estimates carry "~" ("~18 g"); uncertain ones may be a range ("~15-20 g").
-- No rings, donuts or radial gauges, no per-meal grades, no summed "score". Nutri-Score and NOVA appear only as Open Food Facts product information, attributed ("Nutri-Score B, from Open Food Facts"), never as a grade of the person.
-- Square-ended bars, no shadow, no animation beyond the reduced-motion-safe fade.
+**The Weave-In Rule.** When a plate resolves, its dyed stripes grow from the left edge one after another (0.5s each, 60ms stagger, the weave easing `cubic-bezier(0.16, 1, 0.3, 1)`). While it is being read, the empty band breathes between full and 45% opacity every 1.2s. Reduced motion shows the end state at once.
 
-### Arrival Motion
-When a plate resolves, the station capsule draws in (0.55s) and each present line's stop dot pops onto it in line order, staggered 60ms. While resolving, an amber condensed "Reading the plate…" line replaces the hint; no spinner. Reduced motion skips to the end state.
+### Week Towels (signature)
+
+Seven towels side by side under weekday names, group names down the left, each towel showing a dyed stripe for every group that appeared that day and a dashed Seam row for the rest; today's towel takes an ink outline. A plain sentence under it says which groups showed up. Below, a day list under a 2px ink rule: heavy day name, four small stripe segments (dashed when absent), and the plate count in Thread Grey.
+
+### Nutrient Bars
+
+Per plate, per day and as a weekly daily average, each nutrient with data (energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt) is one row between Seam rules: the name, the value with its unit in Quantity type at the right, a bar, and a sentence naming the reference ("about 24% of the EU reference intake (2000 kcal)" or "of your daily guide" when a profile is set). Sugars and saturates are indented under their parent in Soft Ink. Coverage gaps are said in a sentence, and "What are reference intakes?" opens a disclosure with a drawn chevron.
+
+- The track is bare cotton (a 4px dashed Seam line); the fill is one neutral colour, Soft Ink, round-ended, for every nutrient and every amount; a 1px ink tick marks the reference.
+- The fill is clamped at the track end; past the reference the sentence says so in plain words ("about 120% of the reference"), with no exclamation, no "over budget", no "remaining".
+- Value and unit are always text and the bar is `aria-hidden`; colour and length are never the only signal. Never `role="progressbar"`.
+- Estimates carry "~"; uncertain values may be a range.
+- No rings, donuts, radial gauges, grades or summed scores. Nutri-Score and NOVA appear only as attributed Open Food Facts product information.
+- The bar does not animate.
+
+**The Neutral Thread Rule.** A nutrient bar is never dyed, never red and never changes colour with its amount.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** show real nutrient values as value + unit text with a neutral bar against a named reference, with "~" on estimates (see Nutrient Bars).
-- **Do** express balance only as which lines stopped at a station: dots on lines, line-bar cells, day-list segments.
-- **Do** pair every line colour with its name or a text summary ("Dairy passed through without a stop") so colour is never the only signal.
-- **Do** draw absent or pending states dashed and neutral (open station, missed stop, passed line).
-- **Do** keep controls square with 2px outlines and at least 48px targets (44px only for inline portion presets).
-- **Do** use starch amber for focus and "you are here", always with an outline, ring or underline shape.
-- **Do** put Barlow Condensed uppercase on names and actions and Barlow on sentences.
+
+- **Do** show balance only as which dyed stripes a band, towel or day row carries.
+- **Do** pair every dye with its group's name or a sentence, so colour is never the only signal.
+- **Do** draw absent and pending states dashed and neutral (bare cotton, open band, empty towel, disabled pill).
+- **Do** show nutrient values as value and unit text with a neutral Soft Ink bar against a named reference, with "~" on estimates.
+- **Do** make every control at least 48×48px, pills and circles with a 2px edge (Control Edge unselected, ink selected or current).
+- **Do** use the ink focus ring (3px at 2px offset), turning White Cotton on ink surfaces.
+- **Do** honour reduced motion: no weaving, no breathing, entrances collapse to a fade.
+- **Do** self-host the type; Schibsted Grotesk ships from the app.
 
 ### Don't:
-- **Don't** introduce rings, donuts, radial gauges, scores, grades or points. Balance is shown by lines; nutrient quantities by the neutral Nutrient Bars only.
-- **Don't** colour a nutrient value red, amber or any line ink, or write "over budget", "remaining", "exceeded" or "calories left"; numbers are information, not a limit the person has failed.
-- **Don't** use a line ink for anything other than its food group, and don't use protein scarlet as an error or warning colour.
-- **Don't** round the corners of buttons, cards, chips, fields or sheets; roundness belongs to stops, rings and station capsules.
-- **Don't** add drop shadows or blur for depth; use the raised enamel plane or a rule.
-- **Don't** bend a line at any angle other than 45° or 90°.
+
+- **Don't** introduce rings, donuts, radial gauges, scores, grades, streaks, points or countdowns.
+- **Don't** colour a nutrient value or bar red, ochre or any dye, or write "over budget", "remaining", "exceeded" or "calories left".
+- **Don't** use a dye for anything other than its food group, and never use Basque Red as an error or warning colour.
+- **Don't** outline a control with Seam; it is for dividers and bare cotton only.
+- **Don't** add shadows or blur for depth; the floating Log pill is the only shadow.
+- **Don't** set names in uppercase or with added letter-spacing.
+- **Don't** show a spinner; a resolving band breathes and a busy button says what it is doing.
 - **Don't** load fonts from a CDN.
-- **Don't** outline a control with the night rule (1.7:1). Unselected controls use the control edge (the raised control edge on the sheet and the dock); selected ones use porcelain.

@@ -1,9 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FoodGroup, PlateLog } from '@anc/core';
 import './day.css';
 import { useStrings } from '../../i18n';
-import { LINES, groupsOfPlate, lineDef, orderedGroups } from '../primitives';
+import { LINES, groupsOfPlate, orderedGroups } from '../primitives';
 import { usePrefersReducedMotion } from './hooks';
 
 export type StationStatus = 'logged' | 'open' | 'resolving';
@@ -11,55 +11,34 @@ export type StationStatus = 'logged' | 'open' | 'resolving';
 export interface LineMapStation {
   readonly id: string;
   readonly status: StationStatus;
-  /** The logged plate; its stopped lines are derived from it. Preferred over `groups`. */
+  /** The logged plate; its groups are derived from it. Preferred over `groups`. */
   readonly plate?: PlateLog;
-  /** Groups that stopped here, when there is no plate to derive them from. */
+  /** Groups on the plate, when there is no plate to derive them from. */
   readonly groups?: readonly FoodGroup[];
 }
 
-/** Groups that stopped at a station, in line order. Ignored unless `status` is `logged`. */
+/** Groups on a plate, in stripe order. Ignored unless `status` is `logged`. */
 const stoppedGroups = (s: LineMapStation) =>
   s.plate ? groupsOfPlate(s.plate) : orderedGroups(s.groups ?? []);
 
 export interface LineMapProps {
   readonly stations: readonly LineMapStation[];
-  /** Renders the text beside a station. Mark the element the station sits on `data-station-anchor`. */
+  /** Renders the text beside a meal's band. */
   readonly renderStation: (station: LineMapStation) => ReactNode;
   readonly className?: string;
 }
 
-const LANE = 132;
-const FALLBACK_ROW = 140;
-const FALLBACK_TOP = 8;
-
-interface Geometry {
-  readonly ys: readonly number[];
-  readonly height: number;
-}
-
-function fallbackGeometry(count: number): Geometry {
-  return {
-    ys: Array.from({ length: count }, (_, i) => FALLBACK_TOP + i * FALLBACK_ROW + 32),
-    height: FALLBACK_TOP + count * FALLBACK_ROW,
-  };
-}
-
-const sameGeometry = (a: Geometry, b: Geometry): boolean =>
-  a.height === b.height && a.ys.length === b.ys.length && a.ys.every((y, i) => y === b.ys[i]);
-
 /**
- * Four vertical food-group lines with a station per meal. Stations are positioned from the
- * measured rows (ResizeObserver); where layout is unavailable (jsdom) fixed rows are used.
- * The SVG is decorative: each station row carries its own accessible name.
+ * The day as a kitchen towel: one woven band per meal. Each food group on the plate is a dyed
+ * stripe across the band's left field, in fixed order (veg, protein, starch, dairy); a group that
+ * is not on the plate leaves bare cotton, drawn as a dashed seam. An open meal is an empty dashed
+ * band. The weave is decorative; each band's text carries its own accessible name.
  */
 export function LineMap({ stations, renderStation, className = '' }: LineMapProps) {
   const copy = useStrings().day;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLOListElement>(null);
   const reduced = usePrefersReducedMotion();
-  const [geometry, setGeometry] = useState<Geometry>(() => fallbackGeometry(stations.length));
 
-  // Arrival: a station that was resolving and is now logged draws in once.
+  // Arrival: a band that was resolving and is now logged weaves in once.
   const statusKey = stations.map((s) => `${s.id}:${s.status}`).join('|');
   const [prev, setPrev] = useState<{ key: string; status: Record<string, StationStatus> }>(() => ({
     key: statusKey,
@@ -76,150 +55,80 @@ export function LineMap({ stations, renderStation, className = '' }: LineMapProp
     );
   }
 
-  const count = stations.length;
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const list = listRef.current;
-    if (!container || !list) return;
-    const measure = () => {
-      const rows = Array.from(list.children) as HTMLElement[];
-      const measured = rows.map((row) => {
-        const anchor = row.querySelector<HTMLElement>('[data-station-anchor]');
-        return row.offsetTop + (anchor ? anchor.offsetTop + anchor.offsetHeight / 2 : 14);
-      });
-      const height = container.offsetHeight;
-      // No layout engine (jsdom) or nothing laid out yet: keep the fixed rows.
-      const next =
-        height > 0 && measured.some((y) => y > 0)
-          ? { ys: measured, height }
-          : fallbackGeometry(count);
-      setGeometry((cur) => (sameGeometry(cur, next) ? cur : next));
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(container);
-    for (const row of Array.from(list.children)) ro.observe(row);
-    let disposed = false;
-    void document.fonts?.ready?.then(() => {
-      if (!disposed) measure();
-    });
-    return () => {
-      disposed = true;
-      ro.disconnect();
-    };
-  }, [count, statusKey]);
-
-  const { ys, height } = geometry;
-  const arriving = !reduced && arrived.length > 0;
-
   return (
-    <div ref={containerRef} className={`relative pt-2 pr-4 ${className}`}>
-      <svg
-        aria-hidden="true"
-        focusable="false"
-        data-testid="line-map-svg"
-        className={`pointer-events-none absolute top-0 left-0 overflow-visible ${arriving ? 'day-arrive' : ''}`}
-        width={LANE}
-        height={height}
-        viewBox={`0 0 ${LANE} ${height}`}
-      >
-        {/* Station capsules first, so the lines run over them. */}
-        {stations.map((s, i) => {
-          const y = ys[i] ?? 0;
-          if (s.status !== 'logged') {
-            return (
-              <rect
-                key={s.id}
-                data-station={s.id}
-                data-state={s.status}
-                x={16}
-                y={y - 14}
-                width={100}
-                height={28}
-                rx={14}
-                className="fill-enamel stroke-porcelain [stroke-dasharray:6_5]"
-                strokeWidth={3}
-              />
-            );
-          }
-          const drawing = arriving && arrived.includes(s.id);
-          return (
-            <rect
-              key={s.id}
-              data-station={s.id}
-              data-state="logged"
-              className={`fill-porcelain stroke-porcelain ${drawing ? 'day-ring-draw' : ''}`}
-              x={18}
-              y={y - 8}
-              width={96}
-              height={16}
-              rx={8}
-              strokeWidth={2}
-            />
-          );
-        })}
-        {LINES.map((l) => (
-          <path
-            key={l.group}
-            data-line={l.group}
-            d={`M${l.x} 0 V${height}`}
-            className={l.stroke}
-            strokeWidth={8}
-            fill="none"
-          />
-        ))}
-        {stations.map((s, i) => {
-          if (s.status !== 'logged') return null;
-          const y = ys[i] ?? 0;
-          const drawing = arriving && arrived.includes(s.id);
-          return stoppedGroups(s).map((g, n) => {
-            const line = lineDef(g);
-            return (
-              <circle
-                key={`${s.id}-${g}`}
-                data-stop={`${s.id}:${g}`}
-                className="day-stopdot fill-porcelain stroke-enamel"
-                style={drawing ? { animationDelay: `${200 + 60 * n}ms` } : undefined}
-                cx={line.x}
-                cy={y}
-                r={10}
-                strokeWidth={3.5}
-              />
-            );
-          });
-        })}
-      </svg>
-      <ol
-        ref={listRef}
-        aria-label={copy.mapDescription}
-        className="m-0 ml-[132px] flex list-none flex-col p-0"
-      >
-        {stations.map((s) => (
+    <ol
+      aria-label={copy.mapDescription}
+      data-testid="day-towel"
+      className={`border-seam m-0 flex list-none flex-col border-b p-0 ${className}`}
+    >
+      {stations.map((s) => {
+        const weaving = !reduced && arrived.includes(s.id);
+        return (
           <li
             key={s.id}
             data-station-row={s.id}
-            className="relative min-h-30 pt-4.5 pb-5.5 lg:min-h-35"
+            className="border-seam relative grid min-h-33 grid-cols-[min(6.5rem,27vw)_minmax(0,1fr)] border-t lg:min-h-36 lg:grid-cols-[8.5rem_minmax(0,1fr)]"
           >
-            {renderStation(s)}
+            <Weave station={s} weaving={weaving} />
+            <div className="min-w-0 py-4 pr-5 pl-4 lg:pr-7 lg:pl-5">{renderStation(s)}</div>
           </li>
-        ))}
-      </ol>
-    </div>
+        );
+      })}
+    </ol>
   );
 }
 
-/** Text legend for the four lines: colour is never the only signal. */
+/** One band's weave: four stripe rows, dyed where the group is on the plate. */
+function Weave({ station, weaving }: { station: LineMapStation; weaving: boolean }) {
+  if (station.status !== 'logged') {
+    return (
+      <span
+        aria-hidden="true"
+        data-station={station.id}
+        data-state={station.status}
+        className={`border-control my-5 block min-h-20 self-start rounded-r-cloth border-2 border-l-0 border-dashed ${
+          station.status === 'resolving' ? 'weave-resolving' : ''
+        }`}
+      />
+    );
+  }
+  const present = new Set(stoppedGroups(station));
+  let order = 0;
+  return (
+    <span
+      aria-hidden="true"
+      data-station={station.id}
+      data-state="logged"
+      className={`flex flex-col justify-start gap-1.5 pt-6 pb-5 lg:pt-7 ${weaving ? 'weave-in' : ''}`}
+    >
+      {LINES.map((l) => {
+        const dyed = present.has(l.group);
+        const delay = dyed ? 60 * order++ : 0;
+        return (
+          <span
+            key={l.group}
+            data-line={l.group}
+            data-stop={dyed ? `${station.id}:${l.group}` : undefined}
+            className={dyed ? `weave-stripe block h-2.5 ${l.bg}` : 'weave-bare block h-2.5'}
+            style={weaving && dyed ? { animationDelay: `${delay}ms` } : undefined}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/** Text legend for the four stripes: colour is never the only signal. */
 export function LineLegend({ className = '' }: { readonly className?: string }) {
   const { groups } = useStrings();
   return (
     <ul
       aria-hidden="true"
-      className={`m-0 flex list-none flex-wrap gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-1 ${className}`}
+      className={`m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 px-5 pt-1 pb-4 ${className}`}
     >
       {LINES.map((l) => (
-        <li key={l.group} className="font-display text-label flex items-center gap-1.5 uppercase">
-          <span className={`inline-block h-1.5 w-4 ${l.bg}`} />
+        <li key={l.group} className="font-display text-label text-ink-soft flex items-center gap-2">
+          <span className={`inline-block h-2 w-5 rounded-[1px] ${l.bg}`} />
           {groups[l.group]}
         </li>
       ))}

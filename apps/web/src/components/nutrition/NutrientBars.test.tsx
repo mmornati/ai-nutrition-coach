@@ -102,9 +102,7 @@ describe('NutrientBars', () => {
     expect(screen.getByText('about 300% of the EU reference intake (90 g)')).toBeVisible();
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/\b(over|exceed|too much|remaining|left|warning|limit)\b|!/i);
-    expect(container.innerHTML).not.toMatch(
-      /red|amber|rose|orange|line-protein|line-starch|alert/i,
-    );
+    expect(container.innerHTML).not.toMatch(/red|amber|rose|orange|protein|starch|alert/i);
     expect(container.querySelector('[role="progressbar"], progress, svg')).toBeNull();
   });
 
@@ -159,7 +157,7 @@ describe('NutrientBars', () => {
 
   it('explains reference intakes in a calm disclosure', () => {
     render(<NutrientBars nutrition={totals({ protein: 10 })} />);
-    const summary = screen.getByText('What are reference intakes?');
+    const summary = screen.getByText('What are reference intakes?').closest('summary')!;
     expect(summary.tagName).toBe('SUMMARY');
     expect(summary.closest('details')).toHaveTextContent(/1169\/2011/);
     expect(summary.closest('details')).toHaveTextContent(/Fibre has no EU value/);

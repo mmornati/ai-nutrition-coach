@@ -53,7 +53,7 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
         food={match.food}
       />
       {/* Always mounted: a live region is only announced reliably when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:-mt-4">
+      <p role="status" className="text-body-small text-ink-soft empty:-mt-4">
         {message}
       </p>
       <Button

@@ -21,7 +21,6 @@ export function SettingsList() {
     return [
       {
         id: SECTIONS.ai,
-        line: 'dairy',
         title: s.rowAi,
         subtitle: aiLine,
         status: '',
@@ -29,7 +28,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.data,
-        line: 'vegFruit',
         title: s.rowData,
         subtitle: s.rowDataSubtitle,
         status: '',
@@ -37,7 +35,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.privacy,
-        line: 'protein',
         title: s.rowPrivacy,
         subtitle: s.rowPrivacySubtitle,
         status: '',
@@ -45,7 +42,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.language,
-        line: 'vegFruit',
         title: s.rowLanguage,
         subtitle: s.rowLanguageSubtitle,
         status: '',
@@ -53,7 +49,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.nutrition,
-        line: 'protein',
         title: s.rowNutrition,
         subtitle: s.rowNutritionSubtitle,
         status: '',
@@ -61,7 +56,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.profile,
-        line: 'dairy',
         title: s.rowProfile,
         subtitle: s.rowProfileSubtitle,
         status: '',
@@ -69,7 +63,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.install,
-        line: 'starch',
         title: s.rowInstall,
         subtitle: s.rowInstallSubtitle,
         status: '',
@@ -77,7 +70,6 @@ export function SettingsList() {
       },
       {
         id: SECTIONS.about,
-        line: 'other',
         title: s.rowAbout,
         subtitle: s.rowAboutSubtitle,
         status: '',
@@ -89,9 +81,7 @@ export function SettingsList() {
   return (
     <SettingsPage title={s.title} backTo="today">
       <DepartureBoard rows={rows} className="mt-0" />
-      <p className="font-display text-porcelain-dim text-aside tracking-[0.1em] uppercase">
-        {all.shell.footmark}
-      </p>
+      <p className="font-display text-ink-soft text-aside">{all.shell.footmark}</p>
     </SettingsPage>
   );
 }

@@ -55,7 +55,7 @@ function OffSwitch({ session }: { readonly session: Session }) {
         disabled={choice === null}
         onChange={(next) => void change(next)}
       />
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {failed ? s.saveFailed : ''}
       </p>
     </div>

@@ -16,24 +16,23 @@ import {
 } from '.';
 
 describe('Button', () => {
-  it('is a square, at-least-48px button with its label', async () => {
+  it('is an at-least-48px pill with its label', async () => {
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Log a plate</Button>);
     const button = screen.getByRole('button', { name: 'Log a plate' });
-    expect(button).toHaveClass('min-h-12', 'rounded-none', 'uppercase', 'font-display');
+    expect(button).toHaveClass('min-h-12', 'rounded-full', 'font-display');
     await userEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
   it('renders each variant with a distinct look', () => {
-    const { rerender } = render(<Button variant="solid-porcelain">x</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-porcelain');
-    rerender(<Button variant="outline-porcelain">x</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-transparent', 'border-porcelain');
-    rerender(<Button variant="solid-enamel">x</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-enamel');
-    rerender(<Button variant="ghost-enamel">x</Button>);
-    expect(screen.getByRole('button')).toHaveClass('text-enamel', 'border-enamel');
+    const { rerender } = render(<Button variant="primary">x</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-ink');
+    rerender(<Button variant="secondary">x</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-transparent', 'border-ink');
+    rerender(<Button variant="floating">x</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-raised', 'text-ink', 'border-ink');
+    expect(screen.getByRole('button')).not.toHaveClass('on-ink');
   });
 
   it('disabled does not fire', async () => {
@@ -99,7 +98,7 @@ describe('Button', () => {
     const { container } = render(
       <div>
         <Button>One</Button>
-        <Button variant="outline-porcelain">Two</Button>
+        <Button variant="secondary">Two</Button>
         <Button disabled>Three</Button>
         <Button busy>Four</Button>
       </div>,
@@ -126,7 +125,7 @@ describe('IconButton', () => {
         <GearIcon />
       </IconButton>,
     );
-    expect(screen.getByRole('button')).toHaveClass('border-porcelain');
+    expect(screen.getByRole('button')).toHaveClass('border-ink');
     expect(screen.getByRole('button')).toHaveAttribute('aria-current', 'page');
     rerender(
       <IconButton label="Settings" raised>
@@ -166,7 +165,7 @@ describe('small pieces', () => {
   it('GroupMarker pairs the swatch with the group name, other is dashed and neutral', () => {
     const { container, rerender } = render(<GroupMarker group="protein" />);
     expect(screen.getByText('Protein')).toBeInTheDocument();
-    expect(container.querySelector('.bg-line-protein')).not.toBeNull();
+    expect(container.querySelector('.bg-protein')).not.toBeNull();
     rerender(<GroupMarker group="other" />);
     expect(screen.getByText('Other')).toBeInTheDocument();
     expect(container.querySelector('.border-dashed')).not.toBeNull();

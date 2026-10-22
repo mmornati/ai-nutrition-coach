@@ -20,11 +20,11 @@ export function PhotoCapture({
   const s = useStrings().capture;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-body text-porcelain-dim">{s.aimHint}</p>
+      <p className="text-body text-ink-soft">{s.aimHint}</p>
       <Button fullWidth busy={busy} onClick={() => onSource('camera')}>
         {s.takePhoto}
       </Button>
-      <Button fullWidth variant="outline-porcelain" busy={busy} onClick={() => onSource('files')}>
+      <Button fullWidth variant="secondary" busy={busy} onClick={() => onSource('files')}>
         {s.choosePhoto}
       </Button>
     </div>

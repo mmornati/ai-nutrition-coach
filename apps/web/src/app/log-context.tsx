@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react';
 export interface LogState {
   /** Open the "Log a plate" sheet (Snapshot, Barcode, Type it). */
   readonly open: () => void;
-  /** A photo is being read: the open station shows "Reading the plate…". */
+  /** A photo is being read: the open meal shows "Reading the plate…". */
   readonly resolving: boolean;
 }
 
