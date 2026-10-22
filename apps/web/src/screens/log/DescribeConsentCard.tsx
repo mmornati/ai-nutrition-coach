@@ -34,7 +34,7 @@ export function DescribeConsentCard({
     <section
       ref={ref}
       aria-labelledby={headingId}
-      className="border-porcelain flex flex-col gap-3 border-2 p-4"
+      className="stitched bg-raised border-ink rounded-cloth flex flex-col gap-3 border-2 p-4"
     >
       <h3 id={headingId} className="font-display text-lead">
         {viaServer ? d.consentTitleInstance : fill(d.consentTitle, { host: destination.host })}
@@ -43,20 +43,20 @@ export function DescribeConsentCard({
         <p>{fill(viaServer ? d.consentSentInstance : d.consentSent, vars)}</p>
         <p>{fill(viaServer ? d.consentVisibleInstance : d.consentVisible, vars)}</p>
         <p>{fill(viaServer ? d.consentRetentionInstance : d.consentRetention, vars)}</p>
-        <p className="text-body-small text-porcelain-dim">{d.consentChange}</p>
+        <p className="text-body-small text-ink-soft">{d.consentChange}</p>
         <a
           href={hrefs.privacy}
           onClick={onLearnMore}
-          className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
+          className="text-ink inline-flex min-h-12 items-center underline underline-offset-4"
         >
           {all.consent.learnMore}
         </a>
       </div>
       <div className="flex gap-3">
-        <Button variant="outline-porcelain" className="flex-1" onClick={onDecline}>
+        <Button variant="secondary" className="flex-1" onClick={onDecline}>
           {d.consentDecline}
         </Button>
-        <Button variant="outline-porcelain" className="flex-1" onClick={onAllow}>
+        <Button variant="secondary" className="flex-1" onClick={onAllow}>
           {viaServer ? d.consentAllowInstance : fill(d.consentAllow, { host: destination.host })}
         </Button>
       </div>

@@ -43,14 +43,14 @@ async function openPlate() {
 }
 
 describe('PlateScreen', () => {
-  it('shows which lines stopped, what is on the plate and a way back to Today', async () => {
+  it('shows which food groups are on the plate, what is on the plate and a way back to Today', async () => {
     await openPlate();
-    const lines = screen.getByRole('list', { name: 'Lines at this station' });
-    // Three lines stopped; dairy is drawn dashed with "passed" in words (never red).
+    const lines = screen.getByRole('list', { name: 'Food groups on this plate' });
+    // Three groups on the plate; dairy is bare cotton with a plain word (never red).
     expect(within(lines).getByText('Veg & fruit')).toBeVisible();
     expect(within(lines).getByText('Protein')).toBeVisible();
     expect(within(lines).getByText('Starch')).toBeVisible();
-    expect(within(lines).getByText('Dairy · passed')).toBeVisible();
+    expect(within(lines).getByText('Dairy · none')).toBeVisible();
 
     const entries = screen.getByRole('list', { name: 'On the plate' });
     expect(within(entries).getByText('Lentil salad')).toBeVisible();
@@ -170,7 +170,7 @@ describe('PlateScreen: weights and nutrition', () => {
     await openMeasured([
       { name: 'Yogurt', group: 'dairy', grams: 125, estimated: true, per100g: YOGURT },
     ]);
-    expect(await screen.findByText('~75 kcal')).toBeVisible();
+    expect((await screen.findAllByText('~75 kcal'))[0]).toBeVisible();
   });
 
   it('has no Nutrition section when no entry has data', async () => {

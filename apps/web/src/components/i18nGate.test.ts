@@ -85,7 +85,7 @@ export function Example({ s, id }: { s: { a: string }; id: string }) {
       aria-current="page"
       aria-labelledby={field}
       data-testid="open-plate"
-      className={cn('grid size-12 border-2', kind === 'open' ? 'border-porcelain' : 'border-control')}
+      className={cn('grid size-12 border-2', kind === 'open' ? 'border-ink' : 'border-control')}
     >
       <a href="#/week" onClick={() => setKind('open')}>{s.a}</a>
       <input type="text" name="q" autoComplete="off" aria-label={s.a} />

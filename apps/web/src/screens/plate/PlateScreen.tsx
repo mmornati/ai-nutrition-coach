@@ -19,7 +19,7 @@ import { SaveMealSheet } from './SaveMealSheet';
 import { plateSummary } from './summary';
 
 /**
- * One plate: which lines stopped, what is on it (portions as honest ranges), the coach
+ * One plate: which food groups are on it, what is on it (portions as honest ranges), the coach
  * follow-up, and a calm, confirmed remove. Reached from Today; a plate that is not in the week
  * any more (or was just removed) sends the person back to Today.
  */
@@ -71,9 +71,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
     >
       <div className="flex max-w-2xl flex-col gap-5 px-5 pt-5 pb-6 lg:px-7">
         <LineBar present={groupsOfPlate(plate)} />
-        <h2 className="font-display text-section text-signal-muted uppercase">
-          {all.entries.label}
-        </h2>
+        <h2 className="font-display text-section text-thread">{all.entries.label}</h2>
         <EntryList
           entries={plate.entries.map((e) => ({
             id: String(e.id),
@@ -84,18 +82,18 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
         />
         <NutritionSection title={all.nutrition.sectionTitle} nutrition={plateNutrients(plate)} />
         <PlateCoach plate={plate} dismissed={dismissed} />
-        <p role="status" className="text-signal-muted text-meta empty:hidden">
+        <p role="status" className="text-thread text-meta empty:hidden">
           {day.notice}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <StatusChip hasTransport={false} />
-          <Button variant="outline-porcelain" onClick={() => setCopying(true)}>
+          <Button variant="secondary" onClick={() => setCopying(true)}>
             {all.relog.again}
           </Button>
-          <Button variant="outline-porcelain" onClick={() => setSaving(true)}>
+          <Button variant="secondary" onClick={() => setSaving(true)}>
             {all.relog.saveMeal}
           </Button>
-          <Button variant="outline-porcelain" onClick={() => setConfirming(true)}>
+          <Button variant="secondary" onClick={() => setConfirming(true)}>
             {all.plate.removeAction}
           </Button>
         </div>

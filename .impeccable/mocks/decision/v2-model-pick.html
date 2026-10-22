@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Torchon — mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--cloth:#FBFBF8;--ink:#262421;--thread:#6B655E;--line:#E4E1DA;
+--veg:#1F7A4D;--pro:#B5262E;--sta:#D9962B;--dai:#2D5DA8}
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;color:var(--ink);font-family:'Schibsted Grotesk',sans-serif;position:relative;background:var(--cloth);
+background-image:repeating-linear-gradient(0deg,rgba(38,36,33,.025) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(38,36,33,.02) 0 1px,transparent 1px 3px)}
+header{padding:52px 22px 12px;display:flex;justify-content:space-between;align-items:flex-start}
+h1{font-weight:900;font-size:50px;line-height:.88;letter-spacing:-.035em}
+.date{font-weight:500;font-size:16px;color:var(--thread);margin-top:8px}
+.tag{background:var(--ink);color:var(--cloth);font-weight:700;font-size:13px;padding:7px 12px;border-radius:4px;position:relative;margin-top:6px}
+.tag:before{content:"";position:absolute;inset:3px;border:1px dashed rgba(251,251,248,.5);border-radius:2px}
+.towel{margin:10px 0 0;position:relative}
+.band{display:grid;grid-template-columns:116px 1fr;min-height:132px;border-top:1px solid var(--line)}
+.weave{display:flex;flex-direction:column;justify-content:center;gap:5px;padding:0 0 0 0}
+.weave i{display:block;height:9px;width:100%}
+.weave i.off{height:9px;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.txt{padding:16px 22px 16px 16px}
+.meal{font-weight:800;font-size:24px;letter-spacing:-.02em;display:flex;justify-content:space-between;align-items:baseline}
+.meal small{font-weight:500;font-size:14px;color:var(--thread);font-variant-numeric:tabular-nums}
+.foods{font-size:15.5px;line-height:1.4;margin-top:4px;color:#3E3A35}
+.say{font-size:13.5px;color:var(--thread);margin-top:6px}
+.band.open .weave{border:2px dashed #BDB7AD;border-left:0;margin:18px 0}
+.band.open .meal{color:var(--thread)}
+.totals{display:flex;justify-content:space-between;padding:12px 22px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-size:14px}
+.totals b{font-weight:800;font-size:17px;display:block}
+.coach{margin:16px 16px 0;padding:16px 18px;border-radius:6px;background:#fff;border:2px solid var(--ink);position:relative}
+.coach:before{content:"";position:absolute;inset:5px;border:1.5px dashed #C9C3B9;border-radius:3px;pointer-events:none}
+.coach h3{font-weight:800;font-size:15px;margin-bottom:5px}
+.coach p{font-size:16px;line-height:1.42}
+.acts{display:flex;gap:8px;margin-top:12px;position:relative}
+.btn{font-weight:700;font-size:14.5px;padding:10px 16px;border-radius:999px;border:2px solid var(--ink)}
+.btn.solid{background:var(--ink);color:var(--cloth)}
+.fab{position:absolute;right:18px;bottom:100px;height:60px;padding:0 22px 0 18px;border-radius:999px;background:var(--ink);color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 18px -8px rgba(38,36,33,.6)}
+.fab svg{width:22px;height:22px}
+.dock{position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:2px solid var(--ink);display:flex;justify-content:space-around;align-items:center;padding:0 10px}
+.d{display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:700;font-size:12px;color:var(--thread)}
+.fold{width:32px;height:38px;border:1.5px solid var(--ink);border-radius:3px;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 0}
+.fold i{height:4px;display:block}
+.d.today{color:var(--ink)} .d.today .fold{outline:2.5px solid var(--ink);outline-offset:3px}
+</style></head><body>
+<header><div><h1>Mardi</h1><div class="date">21 octobre</div></div><div class="tag">Sur cet appareil</div></header>
+<div class="towel">
+ <div class="band"><div class="weave"><i style="background:var(--veg)"></i><i class="off"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>
+  <div class="txt"><div class="meal">Petit-déjeuner <small>8:10</small></div><div class="foods">Flocons d’avoine, lait demi-écrémé, banane</div><div class="say">Sans protéines · ~410 kcal</div></div></div>
+ <div class="band"><div class="weave"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i class="off"></i></div>
+  <div class="txt"><div class="meal">Déjeuner <small>12:45</small></div><div class="foods">Poulet rôti, riz, salade de tomates</div><div class="say">Sans laitier · ~640 kcal</div></div></div>
+ <div class="band open"><div class="weave"></div>
+  <div class="txt"><div class="meal">Dîner</div><div class="foods">Pas encore tissé. Touchez pour ajouter.</div></div></div>
+</div>
+<div class="totals"><div>Énergie<b>~1 050 kcal</b></div><div>Protéines<b>52 g</b></div><div>Fibres<b>9 g</b></div></div>
+<div class="coach"><h3>Une question pour ce soir</h3><p>Le laitier n’est passé qu’au petit-déjeuner. Un yaourt ou un peu de fromage vous dirait&nbsp;?</p><div class="acts"><span class="btn solid">Peut-être</span><span class="btn">Pas aujourd’hui</span></div></div>
+<div class="fab"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Ajouter</div>
+<div class="dock">
+ <div class="d"><div class="fold"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>Mer</div>
+ <div class="d"><div class="fold"><i style="background:var(--veg)"></i><i></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>Jeu</div>
+ <div class="d"><div class="fold"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>Ven</div>
+ <div class="d"><div class="fold"><i></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i></i></div>Sam</div>
+ <div class="d"><div class="fold"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>Dim</div>
+ <div class="d"><div class="fold"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i></i></div>Lun</div>
+ <div class="d today"><div class="fold"><i style="background:var(--veg)"></i><i style="background:var(--pro)"></i><i style="background:var(--sta)"></i><i style="background:var(--dai)"></i></div>Auj.</div>
+</div>
+</body></html>

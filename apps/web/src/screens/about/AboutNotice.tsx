@@ -16,7 +16,7 @@ export function AboutNotice({ onDismiss }: { readonly onDismiss: () => void }) {
       <p className="text-body">{s.local}</p>
       <a
         href={hrefs.privacy}
-        className="text-porcelain inline-flex min-h-12 items-center self-start underline underline-offset-4"
+        className="text-ink inline-flex min-h-12 items-center self-start underline underline-offset-4"
       >
         {s.privacyLink}
       </a>

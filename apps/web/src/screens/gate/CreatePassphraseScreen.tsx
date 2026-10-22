@@ -72,7 +72,7 @@ export function CreatePassphraseScreen({
 
   return (
     <GateFrame title={s.createTitle}>
-      <p className="text-body text-porcelain-dim">{s.createExplain}</p>
+      <p className="text-body text-ink-soft">{s.createExplain}</p>
       <p className="text-body">{s.createWarning}</p>
       <form
         className="flex flex-col gap-4"
@@ -106,7 +106,7 @@ export function CreatePassphraseScreen({
         </Button>
       </form>
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {message}
       </p>
     </GateFrame>

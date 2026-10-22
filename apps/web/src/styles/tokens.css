@@ -1,46 +1,27 @@
-/* Design tokens from DESIGN.md. Colours are the "Night Line Map" palette. */
+/* Design tokens from DESIGN.md. Colours are the "Torchon" palette: white cotton, warm ink and
+   four dyes, one per food group. */
 
+/* Schibsted Grotesk, variable weight 400-900, self-hosted (SIL OFL, public/fonts/OFL.txt). */
 @font-face {
-  font-family: 'Barlow';
-  font-weight: 400;
+  font-family: 'Schibsted Grotesk';
+  font-weight: 400 900;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/barlow-400.woff2') format('woff2');
+  src: url('/fonts/schibsted-grotesk-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Barlow';
-  font-weight: 500;
+  font-family: 'Schibsted Grotesk';
+  font-weight: 400 900;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/barlow-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Barlow';
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/barlow-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Barlow Condensed';
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/barlowcond-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Barlow Condensed';
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/barlowcond-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Barlow Condensed';
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  src: url('/fonts/barlowcond-700.woff2') format('woff2');
+  src: url('/fonts/schibsted-grotesk-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
 }
 
 @theme {
@@ -58,54 +39,62 @@
   --ease-*: initial;
   --animate-*: initial;
 
-  --color-enamel: #0e1a3a;
-  --color-enamel-raised: #15244b;
-  --color-rule: #2c3f72;
-  --color-control: #5b6c9c;
-  /* Control edge on raised-enamel surfaces (sheet, dock): 3.3:1 on #15244B, 3.7:1 on #0E1A3A. */
-  --color-control-raised: #6474a6;
-  /* Dark scrim behind sheets and dialogs (60% of #050a19, DESIGN.md Capture Sheet). */
-  --color-scrim: rgb(5 10 25 / 0.6);
-  --color-porcelain: #f3f1ea;
-  --color-porcelain-dim: #c9cfe0;
-  --color-signal-muted: #a3afcf;
-  --color-line-veg: #3fae5a;
-  --color-line-protein: #e5432f;
-  --color-line-starch: #f2a41c;
-  --color-line-dairy: #5c9cf5;
+  /* White cotton ground and the white of a sewn label, the only raised plane. */
+  --color-cloth: #fbfbf8;
+  --color-raised: #ffffff;
+  /* Warm near-black ink: text, rules, filled primary buttons. 15.2:1 on cloth. */
+  --color-ink: #262421;
+  /* Secondary sentences (hints, summaries): 9.6:1 on cloth. */
+  --color-ink-soft: #4a453f;
+  /* Metadata, times, section labels, placeholders: 5.6:1 on cloth, 5.8:1 on white. */
+  --color-thread: #6b655e;
+  /* Seams between rows and the bare-cotton gaps of an absent stripe. Never a control outline. */
+  --color-seam: #e4e1da;
+  /* Outline of an unselected control: 3.6:1 on cloth. */
+  --color-control: #8a847b;
+  /* The same outline on a white label (sheet, dock): 3.7:1 on white. */
+  --color-control-raised: #857f76;
+  /* Scrim behind sheets and dialogs. */
+  --color-scrim: rgb(38 36 33 / 0.45);
+  /* The four dyes, one per food group. Each is at least 3:1 on cloth as a non-text stripe. */
+  --color-veg: #1f7a4d;
+  --color-protein: #b5262e;
+  --color-starch: #c08420;
+  --color-dairy: #2d5da8;
 
-  --font-display: 'Barlow Condensed', system-ui, sans-serif;
-  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-display: 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-body: 'Schibsted Grotesk', system-ui, sans-serif;
 
-  /* Type scale: size + weight + line-height + letter-spacing, from the DESIGN.md frontmatter. */
-  --text-display: 2.75rem;
-  --text-display--font-weight: 700;
-  --text-display--line-height: 0.95;
-  --text-display--letter-spacing: 0.01em;
-  --text-headline: 1.75rem;
-  --text-headline--font-weight: 700;
-  --text-headline--line-height: 1;
-  --text-headline--letter-spacing: 0.03em;
-  --text-title: 1.375rem;
+  /* Type scale: size + weight + line-height + letter-spacing, from the DESIGN.md frontmatter.
+     One family; sentence case everywhere; big names set heavy and tight. */
+  --text-display: 3.125rem;
+  --text-display--font-weight: 900;
+  --text-display--line-height: 0.9;
+  --text-display--letter-spacing: -0.035em;
+  --text-headline: 1.5rem;
+  --text-headline--font-weight: 800;
+  --text-headline--line-height: 1.05;
+  --text-headline--letter-spacing: -0.02em;
+  --text-title: 1.25rem;
   --text-title--font-weight: 700;
-  --text-title--line-height: 1.1;
-  --text-title--letter-spacing: 0.05em;
-  --text-section: 1.0625rem;
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.01em;
+  --text-section: 0.9375rem;
   --text-section--font-weight: 700;
-  --text-section--line-height: 1.2;
-  --text-section--letter-spacing: 0.12em;
+  --text-section--line-height: 1.25;
+  --text-section--letter-spacing: 0;
   --text-button: 1rem;
   --text-button--font-weight: 700;
-  --text-button--line-height: 1;
-  --text-button--letter-spacing: 0.08em;
+  --text-button--line-height: 1.15;
+  --text-button--letter-spacing: 0;
   --text-label: 0.875rem;
   --text-label--font-weight: 600;
-  --text-label--line-height: 1.2;
-  --text-label--letter-spacing: 0.06em;
+  --text-label--line-height: 1.25;
+  --text-label--letter-spacing: 0;
   --text-quantity: 1.1875rem;
-  --text-quantity--font-weight: 600;
+  --text-quantity--font-weight: 700;
   --text-quantity--line-height: 1.2;
-  --text-quantity--letter-spacing: 0.03em;
+  --text-quantity--letter-spacing: -0.01em;
   --text-body: 1rem;
   --text-body--font-weight: 400;
   --text-body--line-height: 1.45;
@@ -127,16 +116,18 @@
   --text-subtitle: 1.25rem;
 
   /* Desktop (>= 1024px) sizes; use as `lg:text-display-desktop`. */
-  --text-display-desktop: 4rem;
-  --text-display-desktop--font-weight: 700;
-  --text-display-desktop--line-height: 0.95;
-  --text-display-desktop--letter-spacing: 0.01em;
-  --text-headline-desktop: 2.125rem;
-  --text-headline-desktop--font-weight: 700;
-  --text-headline-desktop--line-height: 1;
-  --text-headline-desktop--letter-spacing: 0.03em;
+  --text-display-desktop: 4.25rem;
+  --text-display-desktop--font-weight: 900;
+  --text-display-desktop--line-height: 0.9;
+  --text-display-desktop--letter-spacing: -0.04em;
+  --text-headline-desktop: 1.875rem;
+  --text-headline-desktop--font-weight: 800;
+  --text-headline-desktop--line-height: 1.05;
+  --text-headline-desktop--letter-spacing: -0.02em;
 
-  --radius-station: 0.875rem;
+  /* A sewn label's corner, a cloth panel's corner. Buttons and chips are pills (rounded-full). */
+  --radius-tag: 0.25rem;
+  --radius-cloth: 0.5rem;
 
   --spacing-gutter: 1.25rem;
   --spacing-gutter-desktop: 1.75rem;
@@ -152,11 +143,30 @@
     var(--spacing-fab-offset) + var(--spacing-fab-size) + var(--spacing-fab-gap)
   );
 
-  --ease-line: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-weave: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Quantities (portions, grams, counts): condensed face with tabular figures so columns align. */
+/* Quantities (portions, grams, counts): proportional figures, since each value stands alone and
+   is right-aligned; Schibsted's tabular punctuation would open gaps in "~3.2 g". */
 @utility quantity {
   font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+}
+
+/* The stitch of a sewn label: a 1.5px dashed line 3px inside the edge, following its corners.
+   Decorative only; the element keeps its own border and focus ring. */
+@utility stitched {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1.5px dashed color-mix(in srgb, currentColor 35%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+}
+
+/* Bare cotton: where a group is not on the plate, its stripe row is a dashed seam. */
+@utility weave-bare {
+  background: repeating-linear-gradient(90deg, var(--color-seam) 0 6px, transparent 6px 10px);
 }

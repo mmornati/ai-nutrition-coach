@@ -12,7 +12,7 @@ export function LockButton({
   const s = useStrings().lock;
   if (!unlocked) return null;
   return (
-    <Button variant="outline-porcelain" icon={<LockIcon size={20} />} onClick={onLock}>
+    <Button variant="secondary" icon={<LockIcon size={20} />} onClick={onLock}>
       {s.action}
     </Button>
   );

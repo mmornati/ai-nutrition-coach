@@ -31,13 +31,13 @@ export function SnapSheet({
       <PhotoCapture onSource={onSource} />
       {aiSetupHref !== undefined && (
         <div className="flex flex-col gap-1">
-          <p role="note" className="text-body-small text-porcelain-dim">
+          <p role="note" className="text-body-small text-ink-soft">
             {instanceOffered ? s.noAiNoteInstance : s.noAiNote}
           </p>
           <AiSetupLink href={aiSetupHref} onNavigate={onClose} />
         </div>
       )}
-      <Button variant="outline-porcelain" fullWidth onClick={onTypeInstead}>
+      <Button variant="secondary" fullWidth onClick={onTypeInstead}>
         {s.typeManually}
       </Button>
     </Sheet>

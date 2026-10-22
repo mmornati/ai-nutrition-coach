@@ -167,7 +167,7 @@ export function YourDataScreen({
             onChange={setScopeKind}
           />
           <Button
-            variant="solid-porcelain"
+            variant="primary"
             className="self-start"
             busy={busy}
             busyLabel={e.working}
@@ -175,10 +175,10 @@ export function YourDataScreen({
           >
             {e.action}
           </Button>
-          <p className="text-body-small text-porcelain-dim">
+          <p className="text-body-small text-ink-soft">
             {e.plaintextNote} {e.eraseLimitNote}
           </p>
-          <p role="status" className="text-body text-porcelain empty:hidden">
+          <p role="status" className="text-body text-ink empty:hidden">
             {outcome?.kind === 'exported' ? (
               <>
                 {e.exportedLine}{' '}
@@ -189,7 +189,7 @@ export function YourDataScreen({
             )}
           </p>
           {info.loaded && (
-            <p className="text-body-small text-porcelain-dim">
+            <p className="text-body-small text-ink-soft">
               {info.lastExportAt === undefined
                 ? e.lastExportNever
                 : fill(e.lastExport, { date: formatLastExport(info.lastExportAt) })}
@@ -197,11 +197,11 @@ export function YourDataScreen({
           )}
           {info.due && (
             <div className="flex flex-wrap items-center gap-x-3">
-              <p className="text-body-small text-porcelain-dim min-w-0 flex-1 basis-64">
+              <p className="text-body-small text-ink-soft min-w-0 flex-1 basis-64">
                 {info.lastExportAt === undefined ? e.reminderNever : e.reminderStale}
               </p>
               <Button
-                variant="outline-porcelain"
+                variant="secondary"
                 onClick={() =>
                   void services.reminder.dismiss().then(() => (session.live() ? refresh() : null))
                 }
@@ -221,7 +221,7 @@ export function YourDataScreen({
           onChange={(minutes) => session.controller.setIdleMinutes(Number(minutes))}
         />
         <Button
-          variant="outline-porcelain"
+          variant="secondary"
           className="self-start"
           onClick={() => void session.controller.lock()}
         >
@@ -232,14 +232,14 @@ export function YourDataScreen({
       <Section title={s.eraseLabel}>
         <Prose>{s.eraseExplain}</Prose>
         <Button
-          variant="outline-porcelain"
+          variant="secondary"
           className="self-start"
           busy={erasing}
           onClick={() => setConfirming(true)}
         >
           {s.eraseButton}
         </Button>
-        <p role="status" className="text-body text-porcelain-dim empty:hidden">
+        <p role="status" className="text-body text-ink-soft empty:hidden">
           {eraseMessage}
         </p>
       </Section>

@@ -30,16 +30,16 @@ function row(over: Partial<React.ComponentProps<typeof PlateRow>> = {}) {
 }
 
 describe('PlateRow', () => {
-  it('shows meal, time, entries and the line that passed through', () => {
+  it('shows meal, time, entries and the group that is not on the plate', () => {
     row();
     expect(screen.getByRole('heading', { name: /Lunch/ })).toHaveTextContent('12:55');
     expect(screen.getByText('Food 7-0, Food 7-1, Food 7-2')).toBeInTheDocument();
-    expect(screen.getByText('Dairy passed through without a stop')).toBeInTheDocument();
+    expect(screen.getByText('Without dairy')).toBeInTheDocument();
   });
 
-  it('says all four lines stopped when they did', () => {
+  it('says all four groups are on the plate when they are', () => {
     row({ plate: makePlate(8, 8, 0, ['vegFruit', 'protein', 'starch', 'dairy']) });
-    expect(screen.getByText('All four lines stopped here')).toBeInTheDocument();
+    expect(screen.getByText('All four food groups on this plate')).toBeInTheDocument();
   });
 
   it('tap opens the detail', async () => {
@@ -53,9 +53,9 @@ describe('PlateRow', () => {
     expect(screen.getByText('Retry later')).toBeInTheDocument();
   });
 
-  it('without a transport the chip only says "On this device"', () => {
+  it('without a transport there is no per-plate chip: the header tag says where plates live', () => {
     row({ syncStatus: 'failed' });
-    expect(screen.getByText('On this device')).toBeInTheDocument();
+    expect(screen.queryByText('On this device')).not.toBeInTheDocument();
     expect(screen.queryByText('Retry later')).not.toBeInTheDocument();
   });
 
@@ -113,8 +113,8 @@ describe('PlateRow', () => {
 describe('OpenStation', () => {
   it('carries the approved copy verbatim when there is no hint', () => {
     render(<OpenStation slot="dinner" />);
-    expect(screen.getByText('An open, quiet place.')).toBeInTheDocument();
-    expect(strings().day.openQuietPlace).toBe('An open, quiet place.');
+    expect(screen.getByText('Nothing logged yet.')).toBeInTheDocument();
+    expect(strings().day.openQuietPlace).toBe('Nothing logged yet.');
   });
 
   it('shows a hint with no sure / ask-later buttons; tapping dismisses it', async () => {

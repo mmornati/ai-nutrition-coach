@@ -11,7 +11,7 @@ export function SupportLine({ className }: { readonly className?: string }) {
   const s = useStrings().support;
   const { locale } = useLocale();
   return (
-    <p className={cn('text-body-small text-porcelain-dim', className)}>
+    <p className={cn('text-body-small text-ink-soft', className)}>
       {s.line}{' '}
       <a
         href={SUPPORT_URL[locale]}

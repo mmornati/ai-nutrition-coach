@@ -18,7 +18,7 @@ export function CameraNotice({
   return (
     <section role="status" className="flex flex-col items-start gap-3">
       <h2 className="font-display text-lead">{title}</h2>
-      <p className="text-body text-porcelain-dim">{body}</p>
+      <p className="text-body text-ink-soft">{body}</p>
       <Button fullWidth onClick={onAction}>
         {actionLabel}
       </Button>

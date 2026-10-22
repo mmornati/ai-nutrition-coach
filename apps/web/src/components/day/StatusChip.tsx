@@ -19,10 +19,10 @@ export function chipStateFor(status: SyncOpStatusValue | null | undefined): Chip
 }
 
 const DOT: Readonly<Record<ChipState, string>> = {
-  onDevice: 'bg-line-veg',
-  synced: 'bg-porcelain',
-  pending: 'border-2 border-solid border-porcelain',
-  retryLater: 'border-2 border-dashed border-signal-muted',
+  onDevice: 'bg-ink',
+  synced: 'bg-ink outline outline-1 outline-offset-1 outline-ink',
+  pending: 'border-2 border-solid border-ink',
+  retryLater: 'border-2 border-dashed border-thread',
 };
 
 export interface StatusChipProps {
@@ -48,7 +48,7 @@ export function StatusChip({ hasTransport, status = null, className }: StatusChi
       data-chip-state={state}
       dot
       dotClassName={DOT[state]}
-      className={cn('text-porcelain', className)}
+      className={cn('text-ink', className)}
     >
       {label}
     </Chip>

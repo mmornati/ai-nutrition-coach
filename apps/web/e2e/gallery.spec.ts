@@ -103,7 +103,7 @@ test('keyboard: Tab reaches the opener, the capture sheet buttons are in order, 
   await page.keyboard.press(shiftTab);
   expect(await active()).toBe('Close');
 
-  // Focus is trapped inside the dialog and visible (the amber 3px outline).
+  // Focus is trapped inside the dialog and visible (the ink 3px outline).
   const outline = await page.evaluate(() => {
     const style = getComputedStyle(document.activeElement as Element);
     return { width: style.outlineWidth, style: style.outlineStyle };
@@ -156,16 +156,18 @@ for (const width of [390, 1440]) {
       const route = group('[data-route-label]');
       const headers = group('[data-week-day-header]');
       const names = group('[data-line-name]');
-      const stops = [...document.querySelectorAll('[role="img"] svg circle')].map(box);
+      const stops = [...document.querySelectorAll('[role="img"] svg [data-week-towel] > rect')].map(
+        box,
+      );
       const nameVsStop = names.flatMap((n, i) =>
-        stops.some((s) => hit(n, s)) ? [`line name ${i} x stop`] : [],
+        stops.some((s) => hit(n, s)) ? [`group name ${i} x towel`] : [],
       );
       return {
         counts: { route: route.length, headers: headers.length, names: names.length },
         collisions: [
           ...collisions('route label', route),
           ...collisions('day header', headers),
-          ...collisions('line name', names),
+          ...collisions('group name', names),
           ...nameVsStop,
         ],
         scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
@@ -200,7 +202,7 @@ test('reduced motion: the day-enter fade still runs, with no movement', async ({
   expect(a).toEqual({ name: 'day-fade', duration: '0.2s' });
   // Everything else stays reduced.
   const other = await page.evaluate(() => {
-    const el = document.querySelector('.day-ring-draw, .day-stopdot, button');
+    const el = document.querySelector('.weave-stripe, .weave-resolving, button');
     return el ? getComputedStyle(el).transitionDuration : '';
   });
   expect(other).toMatch(/^0\.00*1s$|^1e-05s$|^0s$/);

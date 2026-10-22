@@ -37,9 +37,9 @@ export function TierRadio({
         <label
           key={tier.id}
           className={[
-            'group grid w-full grid-cols-[1.75rem_1fr] gap-3 border-2 p-3.5 text-left',
-            'border-control has-[:checked]:border-porcelain',
-            'has-[:focus-visible]:outline-line-starch has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2',
+            'group rounded-cloth grid w-full grid-cols-[1.75rem_1fr] gap-3 border-2 p-3.5 text-left',
+            'border-control has-[:checked]:border-ink',
+            'has-[:focus-visible]:outline-ink has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2',
             tier.disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
           ].join(' ')}
         >
@@ -54,16 +54,16 @@ export function TierRadio({
           />
           <span
             aria-hidden="true"
-            className="border-porcelain mt-0.5 grid size-6 place-items-center rounded-full border-[3px]"
+            className="border-ink mt-0.5 grid size-6 place-items-center rounded-full border-2"
           >
-            <span className="group-has-[:checked]:bg-porcelain size-2.5 rounded-full" />
+            <span className="group-has-[:checked]:bg-ink size-2.5 rounded-full" />
           </span>
           <span>
-            <span className="font-display text-title block uppercase">
+            <span className="font-display text-title block">
               {tier.title}
               {tier.versionTag === true && <VersionTag spoken={s.v2Spoken}>{s.v2Tag}</VersionTag>}
             </span>
-            <span className="text-porcelain-dim mt-0.5 block text-aside">{tier.description}</span>
+            <span className="text-ink-soft mt-0.5 block text-aside">{tier.description}</span>
           </span>
         </label>
       ))}

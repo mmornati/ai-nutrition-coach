@@ -72,7 +72,7 @@ function Row({
   const name = foodName(use.food, locale);
   const quantity = entryQuantityText(use.quantity, locale);
   return (
-    <li className="border-rule flex items-stretch border-b">
+    <li className="border-seam flex items-stretch border-b">
       <button
         type="button"
         aria-label={fill(t.logRowOf, { name, quantity })}
@@ -84,7 +84,7 @@ function Row({
           <span className="block text-lead">{name}</span>
           <GroupMarker group={use.food.foodGroup} className="mt-1" />
         </span>
-        <span className="text-body-small text-porcelain-dim shrink-0 text-right">
+        <span className="text-body-small text-ink-soft shrink-0 text-right">
           <span className="block">{quantity}</span>
           {detail !== undefined && <span className="block">{detail}</span>}
         </span>
@@ -93,7 +93,7 @@ function Row({
         type="button"
         aria-label={fill(t.changeAmountOf, { name })}
         onClick={() => onEdit({ food: use.food, confidence: 1, presets: [use.quantity] })}
-        className="text-body-small text-porcelain-dim min-h-14 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+        className="text-body-small text-ink-soft min-h-14 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
       >
         {t.changeAmount}
       </button>
@@ -122,13 +122,10 @@ export function RecentFoods({
     <div className="flex flex-col gap-5">
       {recent.length > 0 && (
         <section aria-labelledby={`${ids}-recent`} className="flex flex-col gap-1">
-          <h3
-            id={`${ids}-recent`}
-            className="font-display text-section text-signal-muted mb-1 uppercase"
-          >
+          <h3 id={`${ids}-recent`} className="font-display text-section text-thread mb-1">
             {t.recent}
           </h3>
-          <ul className="border-porcelain border-t-2">
+          <ul className="border-ink border-t-2">
             {recent.map((use) => (
               <Row
                 key={`${use.food.source}:${use.food.sourceRef}`}
@@ -143,13 +140,10 @@ export function RecentFoods({
       )}
       {often.length > 0 && (
         <section aria-labelledby={`${ids}-often`} className="flex flex-col gap-1">
-          <h3
-            id={`${ids}-often`}
-            className="font-display text-section text-signal-muted mb-1 uppercase"
-          >
+          <h3 id={`${ids}-often`} className="font-display text-section text-thread mb-1">
             {t.often}
           </h3>
-          <ul className="border-porcelain border-t-2">
+          <ul className="border-ink border-t-2">
             {often.map((use) => (
               <Row
                 key={`${use.food.source}:${use.food.sourceRef}`}

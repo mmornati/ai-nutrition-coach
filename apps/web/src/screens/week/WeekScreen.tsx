@@ -40,13 +40,11 @@ export function WeekScreen() {
         <WeekReview className="mt-8" />
         <a
           href={hrefs.coach}
-          className="text-porcelain-dim mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4"
+          className="text-ink-soft mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4"
         >
           {w.askCoachLink}
         </a>
-        <h2 className="font-display text-section text-signal-muted mt-8 mb-2 uppercase">
-          {w.dayByDay}
-        </h2>
+        <h2 className="font-display text-section text-thread mt-8 mb-2">{w.dayByDay}</h2>
         <DayList
           days={day.days}
           onSelectDay={(date) => {

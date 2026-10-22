@@ -59,7 +59,7 @@ function QuickRepeat({ at, onOpen }: { readonly at: number | null; readonly onOp
       type="button"
       aria-label={s.logAnother}
       onClick={onOpen}
-      className="text-porcelain-dim mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+      className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
     >
       {s.logAnotherLink}
     </button>
@@ -84,14 +84,14 @@ function DurableLine() {
   }, [visible, markDurableSeen]);
   const line = !visible ? '' : durable === 'persisted' ? s.persisted : s.notPersisted;
   return (
-    <p role="status" className="text-signal-muted mx-5 mt-3 text-meta empty:hidden lg:mx-7">
+    <p role="status" className="text-thread mx-5 mt-3 text-meta empty:hidden lg:mx-7">
       {line}
     </p>
   );
 }
 
 /**
- * Today: the selected day as a transit map. One station per plate, an open station for every meal
+ * Today: the selected day as a woven towel. One band per plate, an open band for every meal
  * not yet logged, the week network beside it on desktop. No scores, no streaks, no totals.
  */
 export function TodayScreen() {
@@ -141,7 +141,7 @@ export function TodayScreen() {
       }
     }
     // The meal being read already has a plate (or is `late`, which is only shown once used): the
-    // new station arrives after the others.
+    // new band arrives after the others.
     if (log.resolving && viewingToday && !out.some((st) => st.status === 'resolving')) {
       out.push({ id: 'resolving', status: 'resolving' });
       slots.set('resolving', { slot: nowSlot, plate: null });
@@ -271,14 +271,14 @@ export function TodayScreen() {
       header={<ScreenHeader title={title} sub={formatDayMonth(day.selected)} />}
     >
       <DurableLine />
-      <p role="status" className="text-signal-muted mx-5 mt-3 text-meta empty:hidden lg:mx-7">
+      <p role="status" className="text-thread mx-5 mt-3 text-meta empty:hidden lg:mx-7">
         {day.notice}
       </p>
       {copyPlan.length > 0 && (
         <button
           type="button"
           onClick={() => setCopying(true)}
-          className="text-porcelain-dim mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+          className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
         >
           {all.relog.copyDay}
         </button>
@@ -287,12 +287,12 @@ export function TodayScreen() {
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="min-w-0 pb-6">
           {day.status === 'failed' ? (
-            <p className="text-porcelain-dim px-5 pt-6 text-lead lg:px-7">{s.historyCannotLoad}</p>
+            <p className="text-ink-soft px-5 pt-6 text-lead lg:px-7">{s.historyCannotLoad}</p>
           ) : (
             <>
               <LineLegend className="lg:px-7" />
               <LineMap
-                className="px-0 lg:pl-3"
+                className="px-0"
                 stations={stations}
                 renderStation={(st) => {
                   const entry = slotOf.get(st.id);
@@ -333,21 +333,19 @@ export function TodayScreen() {
           )}
           <a
             href={hrefs.week}
-            className="text-porcelain-dim mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
+            className="text-ink-soft mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
           >
             {s.seeWeekNetwork}
           </a>
           <a
             href={hrefs.coach}
-            className="text-porcelain-dim mx-5 mt-2 flex min-h-12 w-fit items-center text-lead underline underline-offset-4 lg:mx-7"
+            className="text-ink-soft mx-5 mt-2 flex min-h-12 w-fit items-center text-lead underline underline-offset-4 lg:mx-7"
           >
             {s.askCoachLink}
           </a>
         </section>
-        <section className="border-rule hidden px-7 pt-6 lg:block lg:border-l-2">
-          <h2 className="font-display text-section text-signal-muted mb-4 uppercase">
-            {s.networkHeading}
-          </h2>
+        <section className="border-seam hidden px-7 pt-6 lg:block lg:border-l-2">
+          <h2 className="font-display text-section text-thread mb-4">{s.networkHeading}</h2>
           <WeekNetwork days={day.days} />
           <WeekNoteText lead={weekNote.lead} detail={weekNote.detail} className="mt-4" />
           <NoStreaksLine className="mt-4" />

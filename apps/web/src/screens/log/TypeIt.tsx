@@ -109,7 +109,7 @@ export function TypeIt({
         }}
       />
       {state.query.trim() === '' && !hasMatches && (
-        <p className="text-body-small text-porcelain-dim">{c.typeHint}</p>
+        <p className="text-body-small text-ink-soft">{c.typeHint}</p>
       )}
       {hasMatches && (
         <MatchList
@@ -120,14 +120,14 @@ export function TypeIt({
       )}
       {showCustom && (
         <div className="flex flex-col gap-3">
-          <p className="text-body-small text-porcelain-dim">{c.customHint}</p>
+          <p className="text-body-small text-ink-soft">{c.customHint}</p>
           <TextField
             label={c.customFoodName}
             value={state.customName}
             onChange={(e) => session.setCustomName(e.target.value)}
           />
           <Button
-            variant="outline-porcelain"
+            variant="secondary"
             fullWidth
             busy={state.submitting}
             busyLabel={s.common.logging}
@@ -150,7 +150,7 @@ export function TypeIt({
         </div>
       )}
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {message}
       </p>
       {(hasMatches || selected !== null) && (

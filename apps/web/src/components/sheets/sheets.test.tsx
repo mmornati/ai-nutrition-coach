@@ -66,7 +66,7 @@ function CaptureHarness(props: {
 }
 
 describe('CaptureSheet', () => {
-  it('renders three entries with the spec copy and the next station', async () => {
+  it('renders three entries with the spec copy and the next meal', async () => {
     render(<CaptureHarness />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Log a plate' }));
@@ -74,17 +74,17 @@ describe('CaptureSheet', () => {
     expect(screen.getByRole('button', { name: /^Snapshot/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Barcode/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Type it/ })).toBeInTheDocument();
-    expect(screen.getByText('Next station: Dinner')).toBeInTheDocument();
+    expect(screen.getByText('Next meal: Dinner')).toBeInTheDocument();
   });
 
-  it('Snapshot is dominant (porcelain, taller, full width); the others are outlined', async () => {
+  it('Snapshot is dominant (ink, taller, full width); the others are outlined', async () => {
     render(<CaptureHarness />);
     await userEvent.click(screen.getByRole('button', { name: 'Log a plate' }));
     const snapshot = screen.getByRole('button', { name: /^Snapshot/ });
-    expect(snapshot).toHaveClass('bg-porcelain', 'col-span-2', 'min-h-33');
+    expect(snapshot).toHaveClass('bg-ink', 'col-span-2', 'min-h-33');
     for (const name of [/^Barcode/, /^Type it/]) {
       const tile = screen.getByRole('button', { name });
-      expect(tile).not.toHaveClass('bg-porcelain');
+      expect(tile).not.toHaveClass('bg-ink');
       expect(tile).toHaveClass('min-h-24'); // 96px, well over the 48px floor
     }
   });
@@ -745,16 +745,16 @@ describe('PortionPresets, LineBar, EntryList', () => {
     );
   });
 
-  it('LineBar draws four cells; an absent line is dashed with "passed" in text', () => {
+  it('LineBar draws four cells; an absent group is bare cotton with a plain note in text', () => {
     const { container } = render(<LineBar present={['vegFruit', 'protein']} />);
     const cells = screen.getAllByRole('listitem');
     expect(cells).toHaveLength(4);
     expect(cells[0]).toHaveTextContent('Veg & fruit');
-    expect(cells[0]).not.toHaveTextContent('passed');
-    expect(cells[2]).toHaveTextContent('Starch · passed');
-    expect(cells[3]).toHaveTextContent('Dairy · passed');
-    expect(container.querySelectorAll('.border-dashed')).toHaveLength(2);
-    expect(container.querySelector('.bg-line-protein')).not.toBeNull();
+    expect(cells[0]).not.toHaveTextContent('·');
+    expect(cells[2]).toHaveTextContent('Starch · none');
+    expect(cells[3]).toHaveTextContent('Dairy · none');
+    expect(container.querySelectorAll('.weave-bare')).toHaveLength(2);
+    expect(container.querySelector('.bg-protein')).not.toBeNull();
     expect(container.querySelector('.text-red-500, .bg-red-500')).toBeNull();
   });
 
@@ -768,7 +768,7 @@ describe('PortionPresets, LineBar, EntryList', () => {
       />,
     );
     const list = screen.getByRole('list', { name: 'On the plate' });
-    expect(list).toHaveClass('border-t-2', 'border-porcelain');
+    expect(list).toHaveClass('border-t-2', 'border-ink');
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
     const quantity = screen.getByText('~1 fillet');
     expect(quantity).toHaveClass('quantity', 'whitespace-nowrap');

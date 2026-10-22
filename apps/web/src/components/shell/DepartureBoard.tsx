@@ -1,11 +1,7 @@
-import type { FoodGroup } from '@anc/core';
 import { ChevronIcon, cn } from '../primitives';
-import { LineSwatch } from '../primitives/GroupMarker';
 
 export interface DepartureRow {
   readonly id: string;
-  /** The line colour of the row's bar (decorative; the title names the row). */
-  readonly line: FoodGroup;
   readonly title: string;
   readonly subtitle: string;
   /** Plain-text status, e.g. "Free quota". */
@@ -13,7 +9,7 @@ export interface DepartureRow {
   readonly onSelect: () => void;
 }
 
-/** The settings board: line segment, title, subtitle, status text and a chevron per row. */
+/** The settings list: title, subtitle, status text and a chevron per row, between seams. */
 export function DepartureBoard({
   rows,
   className,
@@ -28,16 +24,13 @@ export function DepartureBoard({
           <button
             type="button"
             onClick={row.onSelect}
-            className="border-rule flex min-h-17 w-full cursor-pointer flex-wrap items-center gap-x-3.5 gap-y-1 border-b py-2 text-left"
+            className="border-seam flex min-h-17 w-full cursor-pointer flex-wrap items-center gap-x-3.5 gap-y-1 border-b py-2 text-left"
           >
-            <LineSwatch group={row.line} />
             <span className="min-w-0 flex-1 basis-32">
-              <span className="font-display text-title block uppercase">{row.title}</span>
-              <span className="text-signal-muted text-meta">{row.subtitle}</span>
+              <span className="font-display text-title block">{row.title}</span>
+              <span className="text-thread text-meta">{row.subtitle}</span>
             </span>
-            <span className="font-display text-porcelain-dim text-aside font-semibold tracking-[0.06em] uppercase">
-              {row.status}
-            </span>
+            <span className="font-display text-thread text-aside font-semibold">{row.status}</span>
             <ChevronIcon size={18} />
           </button>
         </li>

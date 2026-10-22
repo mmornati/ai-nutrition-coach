@@ -18,14 +18,14 @@ function Row({
   readonly onSelect: () => void;
 }) {
   return (
-    <li className="border-rule border-b">
+    <li className="border-seam border-b">
       <button
         type="button"
         onClick={onSelect}
         className="flex min-h-14 w-full cursor-pointer flex-col items-start justify-center gap-0.5 bg-transparent py-2 text-left"
       >
         <span className="text-lead">{title}</span>
-        <span className="text-body-small text-porcelain-dim">{detail}</span>
+        <span className="text-body-small text-ink-soft">{detail}</span>
       </button>
     </li>
   );
@@ -76,10 +76,10 @@ function SavedBody({
     return (
       <>
         <MealEditor entries={chosen.entries} busy={busy} onLog={(d) => void log(d)} />
-        <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+        <p role="status" className="text-body-small text-ink-soft empty:hidden">
           {note}
         </p>
-        <Button variant="outline-porcelain" fullWidth onClick={() => onChosen(null)}>
+        <Button variant="secondary" fullWidth onClick={() => onChosen(null)}>
           {t.backToSaved}
         </Button>
       </>
@@ -89,22 +89,19 @@ function SavedBody({
   return (
     <div className="flex flex-col gap-5">
       {status === 'failed' && (
-        <p role="status" className="text-body-small text-porcelain-dim">
+        <p role="status" className="text-body-small text-ink-soft">
           {t.savedCannotLoad}
         </p>
       )}
       {status === 'ready' && meals.length === 0 && recipes.length === 0 && (
-        <p className="text-body-small text-porcelain-dim">{t.savedEmpty}</p>
+        <p className="text-body-small text-ink-soft">{t.savedEmpty}</p>
       )}
       {meals.length > 0 && (
         <section aria-labelledby="saved-meals-heading" className="flex flex-col gap-1">
-          <h3
-            id="saved-meals-heading"
-            className="font-display text-section text-signal-muted mb-1 uppercase"
-          >
+          <h3 id="saved-meals-heading" className="font-display text-section text-thread mb-1">
             {t.savedMeals}
           </h3>
-          <ul className="border-porcelain border-t-2">
+          <ul className="border-ink border-t-2">
             {meals.map((meal) => (
               <Row
                 key={meal.id}
@@ -118,13 +115,10 @@ function SavedBody({
       )}
       {recipes.length > 0 && (
         <section aria-labelledby="saved-recipes-heading" className="flex flex-col gap-1">
-          <h3
-            id="saved-recipes-heading"
-            className="font-display text-section text-signal-muted mb-1 uppercase"
-          >
+          <h3 id="saved-recipes-heading" className="font-display text-section text-thread mb-1">
             {t.savedRecipes}
           </h3>
-          <ul className="border-porcelain border-t-2">
+          <ul className="border-ink border-t-2">
             {recipes.map((recipe) => (
               <Row
                 key={recipe.id}
@@ -136,7 +130,7 @@ function SavedBody({
           </ul>
         </section>
       )}
-      <Button variant="outline-porcelain" fullWidth onClick={onNewRecipe}>
+      <Button variant="secondary" fullWidth onClick={onNewRecipe}>
         {t.newRecipe}
       </Button>
     </div>

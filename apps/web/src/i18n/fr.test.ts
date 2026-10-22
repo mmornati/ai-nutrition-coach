@@ -148,10 +148,10 @@ describe('sentence builders in French', () => {
   afterEach(() => setCurrentLocale(DEFAULT_LOCALE));
   const n = NNBSP;
 
-  it('builds station and day-board lines with the template’s word order', () => {
+  it('builds meal and day-board lines with the template’s word order', () => {
     setCurrentLocale('fr');
     expect(lineName('vegFruit')).toBe('fruits & légumes');
-    expect(passedThrough(['laitages'])).toBe(`Laitages${n}: passage sans arrêt`);
+    expect(passedThrough(['laitages'])).toBe('Sans laitages');
     expect(
       stationLabel({
         meal: 'Déjeuner',
@@ -159,31 +159,29 @@ describe('sentence builders in French', () => {
         present: ['protéines'],
         passed: ['laitages'],
       }),
-    ).toBe(`Ouvrir Déjeuner, 12:55${n}: arrêt pour protéines. Laitages${n}: passage sans arrêt`);
+    ).toBe(`Ouvrir Déjeuner, 12:55${n}: protéines dans l’assiette. Sans laitages`);
     expect(stationLabel({ meal: 'Dîner', time: '20:00', present: [], passed: [] })).toBe(
-      `Ouvrir Dîner, 20:00${n}: aucun arrêt`,
+      `Ouvrir Dîner, 20:00${n}: aucun groupe d’aliments`,
     );
   });
 
   it('builds week notes with the name mid-sentence, lower-case', () => {
     setCurrentLocale('fr');
     expect(noteSome(['protéines', 'féculents'])).toBe(
-      `En service cette semaine${n}: protéines et féculents.`,
+      `Présents cette semaine${n}: protéines et féculents.`,
     );
     expect(noteQuietDays('laitages', ['lundi', 'mercredi'])).toBe(
-      'La ligne laitages est restée calme lundi et mercredi.',
+      'Pas de laitages lundi et mercredi.',
     );
-    expect(noteQuietNever(['laitages'])).toBe(
-      'La ligne laitages est restée calme toute la semaine.',
-    );
+    expect(noteQuietNever(['laitages'])).toBe('Pas de laitages de toute la semaine.');
     expect(noteQuietNever(['laitages', 'féculents'])).toBe(
-      'Les lignes laitages et féculents sont restées calmes cette semaine.',
+      'Pas de laitages et féculents cette semaine.',
     );
   });
 
   it('capitalises a lower-case weekday that opens a sentence', () => {
     setCurrentLocale('fr');
-    expect(daySentence('lundi', 'les quatre lignes')).toBe(`Lundi${n}: les quatre lignes.`);
+    expect(daySentence('lundi', 'les quatre groupes')).toBe(`Lundi${n}: les quatre groupes.`);
     expect(routeStop('mardi', '2 sur 4 lignes', false)).toBe('Mardi, 2 sur 4 lignes');
   });
 
@@ -197,11 +195,11 @@ describe('sentence builders in French', () => {
   });
 
   it('leaves the English output unchanged', () => {
-    expect(passedThrough(['dairy'])).toBe('Dairy passed through without a stop');
+    expect(passedThrough(['dairy'])).toBe('Without dairy');
     expect(noteQuietDays('dairy', ['Monday', 'Wednesday'])).toBe(
       'Dairy was quiet on Monday and Wednesday.',
     );
     expect(noteQuietNever(['dairy', 'starch'])).toBe('Dairy and starch were quiet this week.');
-    expect(daySentence('Monday', 'all four lines')).toBe('Monday: all four lines.');
+    expect(daySentence('Monday', 'all four groups')).toBe('Monday: all four groups.');
   });
 });

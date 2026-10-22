@@ -36,22 +36,22 @@ const STATES: readonly { readonly label: string; readonly state: ScannerState }[
 export function CaptureGallerySection() {
   const [last, setLast] = useState<string>(g.none);
   return (
-    <section className="border-rule border-b-2 px-5 py-6 lg:px-7">
-      <h2 className="font-display text-section text-signal-muted mb-4 uppercase">{g.title}</h2>
+    <section className="border-seam border-b-2 px-5 py-6 lg:px-7">
+      <h2 className="font-display text-section text-thread mb-4">{g.title}</h2>
       <div className="flex flex-col gap-6">
-        <p className="text-small text-signal-muted" role="status">
+        <p className="text-small text-thread" role="status">
           {g.last}: {last}
         </p>
         <div>
-          <h3 className="font-display text-label text-signal-muted mb-2 uppercase">{g.photo}</h3>
+          <h3 className="font-display text-label text-thread mb-2">{g.photo}</h3>
           <PhotoCapture onSource={(source) => setLast(`photo from ${source}`)} />
         </div>
         <div>
-          <h3 className="font-display text-label text-signal-muted mb-2 uppercase">{g.camera}</h3>
+          <h3 className="font-display text-label text-thread mb-2">{g.camera}</h3>
           <div className="flex flex-col gap-6">
             {STATES.map(({ label, state }) => (
-              <div key={label} className="border-rule border-2 p-3">
-                <h4 className="font-display text-label mb-2 uppercase">{label}</h4>
+              <div key={label} className="border-seam border-2 p-3">
+                <h4 className="font-display text-label mb-2">{label}</h4>
                 <CameraView
                   state={state}
                   videoRef={createRef()}

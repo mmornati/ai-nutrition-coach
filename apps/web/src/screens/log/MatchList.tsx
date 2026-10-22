@@ -17,11 +17,11 @@ export function MatchList({
   const c = s.catalog;
   const { locale } = useLocale();
   return (
-    <ul aria-label={c.results} className="border-porcelain border-t-2">
+    <ul aria-label={c.results} className="border-ink border-t-2">
       {matches.map((match) => {
         const isSelected = selected === match;
         return (
-          <li key={match.food.sourceRef} className="border-rule border-b">
+          <li key={match.food.sourceRef} className="border-seam border-b">
             <button
               type="button"
               aria-pressed={isSelected}
@@ -39,7 +39,7 @@ export function MatchList({
               </span>
               <span
                 aria-hidden="true"
-                className={`size-3 shrink-0 rounded-full border-2 ${isSelected ? 'bg-porcelain border-porcelain' : 'border-control-raised'}`}
+                className={`size-3 shrink-0 rounded-full border-2 ${isSelected ? 'bg-ink border-ink' : 'border-control-raised'}`}
               />
             </button>
           </li>

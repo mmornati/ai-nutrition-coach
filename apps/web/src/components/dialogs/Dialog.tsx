@@ -30,11 +30,11 @@ export interface DialogProps {
 
 const VARIANT = {
   dialog:
-    'm-auto w-[calc(100%-2rem)] max-w-120 max-h-[calc(100dvh-2rem)] border-2 border-t-4 border-porcelain',
+    'm-auto w-[calc(100%-2rem)] max-w-120 max-h-[calc(100dvh-2rem)] rounded-cloth border-2 border-ink',
   sheet: [
-    'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] border-x-0 border-b-0 border-t-4 border-porcelain',
-    'translate-y-0 transition-transform duration-[350ms] ease-line starting:open:translate-y-full',
-    'lg:m-auto lg:w-140 lg:max-h-[calc(100dvh-4rem)] lg:border-2 lg:border-t-4 lg:starting:open:translate-y-0',
+    'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] rounded-t-2xl border-2 border-b-0 border-ink',
+    'translate-y-0 transition-transform duration-[350ms] ease-weave starting:open:translate-y-full',
+    'lg:m-auto lg:w-140 lg:max-h-[calc(100dvh-4rem)] lg:rounded-cloth lg:border-2 lg:starting:open:translate-y-0',
   ].join(' '),
 } as const;
 
@@ -110,10 +110,7 @@ export function Dialog({
         if (e.target === e.currentTarget) dismiss();
       }}
       onClick={onClick}
-      className={cn(
-        'bg-enamel-raised text-porcelain rounded-none p-0 backdrop:bg-scrim',
-        VARIANT[variant],
-      )}
+      className={cn('bg-raised text-ink p-0 backdrop:bg-scrim', VARIANT[variant])}
     >
       {open && (
         <div className="flex flex-col gap-4 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:p-7">
@@ -122,7 +119,7 @@ export function Dialog({
               id={titleId}
               {...(focusTitle ? { tabIndex: -1, 'data-autofocus': true } : {})}
               className={cn(
-                'font-display uppercase',
+                'font-display',
                 focusTitle && 'outline-none',
                 titleClassName ?? 'text-title',
               )}

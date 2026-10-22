@@ -17,13 +17,13 @@ export function UpdateBanner({
 }) {
   const s = useStrings().update;
   return (
-    <div className="border-rule flex flex-wrap items-center gap-x-4 gap-y-1 border-b-2 px-5 py-2 lg:px-7">
+    <div className="border-seam flex flex-wrap items-center gap-x-4 gap-y-1 border-b-2 px-5 py-2 lg:px-7">
       <p className="text-body-small min-w-[min(16rem,100%)] flex-1">{s.message}</p>
       <div className="flex flex-wrap gap-2">
         <Button busy={reloading} onClick={onReload}>
           {s.reload}
         </Button>
-        <Button variant="outline-porcelain" onClick={onLater}>
+        <Button variant="secondary" onClick={onLater}>
           {s.later}
         </Button>
       </div>

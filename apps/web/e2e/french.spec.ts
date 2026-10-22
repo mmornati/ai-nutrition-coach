@@ -1,5 +1,5 @@
 // The app in French on a narrow phone (320 px), on the REAL encrypted store: French runs 15–25 %
-// longer than English, so the dock, the chips, the departure board, the station labels and the
+// longer than English, so the dock, the chips, the settings list, the meal labels and the
 // sheet buttons are measured for horizontal overflow, the French copy is checked on screen, and
 // real-browser axe runs on every screen. The language is set the way a person sets it: Settings,
 // Language, Français.
@@ -196,10 +196,10 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
     }
   }
 
-  // Today: the station names the plate in French, and its chip and the dock fit.
+  // Today: the meal band names the plate in French, and its chip and the dock fit.
   await go(page, '#/');
   await expect(page.getByRole('heading', { level: 1, name: 'Aujourd’hui' })).toBeVisible();
-  await expect(plates(page).first()).toHaveAttribute('aria-label', /arrêt pour protéines/);
+  await expect(plates(page).first()).toHaveAttribute('aria-label', /protéines dans l’assiette/);
   // The coach note was written while the app spoke English: it is shown in French now.
   await expect(page.getByRole('group', { name: 'Question du coach' })).toContainText('légumes');
   // The salmon was logged in English: its plate reads "Saumon" now (the ref is frozen, the name
@@ -238,7 +238,7 @@ test('French at 320 px: no overflow, French copy, axe on every screen, sheets an
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 
   // The plate's own screen.
-  // (Its top edge: the coach card under the station covers the button's centre.)
+  // (Its top edge: the coach card under the meal covers the button's centre.)
   await plates(page)
     .first()
     .click({ position: { x: 12, y: 12 } });

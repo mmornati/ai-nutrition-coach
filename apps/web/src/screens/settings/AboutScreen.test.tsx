@@ -31,14 +31,14 @@ describe('AboutScreen', () => {
     expect(screen.getAllByText('yours to run · open source').length).toBeGreaterThan(0);
   });
 
-  it('lists the licences, including Barlow under the SIL Open Font Licence, with a same-origin text', async () => {
+  it('lists the licences, including Schibsted Grotesk under the SIL Open Font Licence, with a same-origin text', async () => {
     await open();
     const licences = screen.getByRole('heading', { level: 2, name: 'Open-source licences' });
     expect(licences).toBeVisible();
-    expect(screen.getByText('Barlow and Barlow Condensed (fonts)')).toBeVisible();
+    expect(screen.getByText('Schibsted Grotesk (font)')).toBeVisible();
     expect(screen.getByText('SIL Open Font License 1.1')).toBeVisible();
     const link = screen.getByRole('link', {
-      name: 'Read the licence: Barlow and Barlow Condensed (fonts)',
+      name: 'Read the licence: Schibsted Grotesk (font)',
     });
     expect(link.getAttribute('href')).toMatch(/^\/fonts\/OFL\.txt$/);
     // Never an off-origin link.

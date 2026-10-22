@@ -51,7 +51,7 @@ export function SaveMealSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title={t.saveMeal}>
-      <p className="text-body-small text-porcelain-dim">{t.saveMealIntro}</p>
+      <p className="text-body-small text-ink-soft">{t.saveMealIntro}</p>
       <TextField
         label={t.mealName}
         value={name}
@@ -62,7 +62,7 @@ export function SaveMealSheet({
           setName(e.target.value);
         }}
       />
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
       <Button fullWidth busy={busy} onClick={() => void submit()}>

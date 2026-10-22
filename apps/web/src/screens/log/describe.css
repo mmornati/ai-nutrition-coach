@@ -5,7 +5,7 @@
  */
 .describe-record-line {
   height: 2px;
-  background: var(--color-porcelain);
+  background: var(--color-ink);
   transform-origin: left center;
   animation: describe-record-grow 30s linear forwards;
 }

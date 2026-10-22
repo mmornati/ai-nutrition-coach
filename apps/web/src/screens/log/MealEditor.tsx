@@ -40,13 +40,13 @@ export function MealEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-body-small text-porcelain-dim">{t.logMealIntro}</p>
-      <ul aria-label={s.entries.label} className="border-porcelain border-t-2">
+      <p className="text-body-small text-ink-soft">{t.logMealIntro}</p>
+      <ul aria-label={s.entries.label} className="border-ink border-t-2">
         {drafts.map((draft, i) => {
           const name = foodName(draft.databaseFood, locale);
           const editing = open === i;
           return (
-            <li key={`${draft.databaseFood.sourceRef}:${i}`} className="border-rule border-b py-3">
+            <li key={`${draft.databaseFood.sourceRef}:${i}`} className="border-seam border-b py-3">
               <div className="flex items-baseline justify-between gap-3 text-lead">
                 <span className="min-w-0">{name}</span>
                 <span className="font-display quantity text-quantity font-semibold whitespace-nowrap">
@@ -60,7 +60,7 @@ export function MealEditor({
                   aria-expanded={editing}
                   aria-label={fill(t.changeAmountOf, { name })}
                   onClick={() => setOpen(editing ? null : i)}
-                  className="text-body-small text-porcelain-dim min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+                  className="text-body-small text-ink-soft min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                 >
                   {t.changeAmount}
                 </button>

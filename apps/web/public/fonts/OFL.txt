@@ -1,8 +1,8 @@
-Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
+Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk) SchibstedGrotesk-Italic[wght].ttf: Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
-https://openfontlicense.org
+http://scripts.sil.org/OFL
 
 
 -----------------------------------------------------------

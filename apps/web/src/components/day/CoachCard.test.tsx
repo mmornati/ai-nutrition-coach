@@ -14,12 +14,12 @@ describe('CoachCard', () => {
     expect(screen.getByRole('button', { name: 'Ask later' })).toBeInTheDocument();
   });
 
-  it('both actions are at least 48px tall and square', () => {
+  it('both actions are at least 48px tall pills', () => {
     render(<CoachCard question={Q} onSure={() => {}} onAskLater={() => {}} />);
     for (const name of ['Sure', 'Ask later']) {
       const btn = screen.getByRole('button', { name });
       expect(btn.className).toContain('min-h-12');
-      expect(btn.className).toContain('rounded-none');
+      expect(btn.className).toContain('rounded-full');
     }
   });
 
@@ -46,9 +46,11 @@ describe('CoachCard', () => {
     expect(screen.getByRole('group', { name: 'Coach question' })).toHaveClass('day-enter');
   });
 
-  it('is a porcelain surface: focus rings switch to enamel (amber is 1.84:1 on porcelain)', () => {
+  it('is a white sewn label, not an ink surface: the ink focus ring keeps its contrast', () => {
     render(<CoachCard question={Q} onSure={() => {}} onAskLater={() => {}} />);
-    expect(screen.getByRole('group', { name: 'Coach question' })).toHaveClass('on-porcelain');
+    const card = screen.getByRole('group', { name: 'Coach question' });
+    expect(card).toHaveClass('bg-raised', 'border-ink', 'stitched');
+    expect(card).not.toHaveClass('on-ink');
   });
 
   it('announces the question inside a named group', () => {

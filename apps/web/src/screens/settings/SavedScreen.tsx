@@ -132,9 +132,9 @@ export function SavedScreen() {
 
         {meals.length > 0 && (
           <Section title={t.savedMeals}>
-            <ul data-section="meal" className="border-porcelain border-t-2">
+            <ul data-section="meal" className="border-ink border-t-2">
               {meals.map((meal) => (
-                <li key={meal.id} className="border-rule border-b py-3">
+                <li key={meal.id} className="border-seam border-b py-3">
                   {renaming?.id === meal.id ? (
                     <div className="flex flex-col gap-3">
                       <div data-rename-field>
@@ -154,7 +154,7 @@ export function SavedScreen() {
                           {t.renameSave}
                         </Button>
                         <Button
-                          variant="outline-porcelain"
+                          variant="secondary"
                           className="flex-1"
                           onClick={() => {
                             setRenaming(null);
@@ -169,7 +169,7 @@ export function SavedScreen() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0 text-lead">
                         {meal.name}
-                        <span className="text-body-small text-porcelain-dim block">
+                        <span className="text-body-small text-ink-soft block">
                           {plural(t.mealFoods, meal.entries.length)} ·{' '}
                           {meal.entries.map((e) => foodName(e.databaseFood, locale)).join(', ')}
                         </span>
@@ -180,7 +180,7 @@ export function SavedScreen() {
                           data-rename-button={meal.id}
                           aria-label={fill(t.renameOf, { name: meal.name })}
                           onClick={() => setRenaming({ id: meal.id, name: meal.name })}
-                          className="text-body-small text-porcelain-dim min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+                          className="text-body-small text-ink-soft min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                         >
                           {t.rename}
                         </button>
@@ -188,7 +188,7 @@ export function SavedScreen() {
                           type="button"
                           aria-label={fill(t.removeOf, { name: meal.name })}
                           onClick={() => setRemoving({ kind: 'meal', meal })}
-                          className="text-body-small text-porcelain-dim min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+                          className="text-body-small text-ink-soft min-h-12 min-w-14 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                         >
                           {t.remove}
                         </button>
@@ -203,15 +203,15 @@ export function SavedScreen() {
 
         {recipes.length > 0 && (
           <Section title={t.savedRecipes}>
-            <ul data-section="recipe" className="border-porcelain border-t-2">
+            <ul data-section="recipe" className="border-ink border-t-2">
               {recipes.map((recipe) => (
                 <li
                   key={recipe.id}
-                  className="border-rule flex items-start justify-between gap-3 border-b py-3"
+                  className="border-seam flex items-start justify-between gap-3 border-b py-3"
                 >
                   <span className="min-w-0 text-lead">
                     {recipe.name}
-                    <span className="text-body-small text-porcelain-dim block">
+                    <span className="text-body-small text-ink-soft block">
                       {plural(t.recipeServings, recipe.servings)} ·{' '}
                       {plural(t.mealFoods, recipe.ingredients.length)}
                     </span>
@@ -220,7 +220,7 @@ export function SavedScreen() {
                     type="button"
                     aria-label={fill(t.removeOf, { name: recipe.name })}
                     onClick={() => setRemoving({ kind: 'recipe', recipe })}
-                    className="text-body-small text-porcelain-dim min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+                    className="text-body-small text-ink-soft min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                   >
                     {t.remove}
                   </button>
@@ -230,10 +230,10 @@ export function SavedScreen() {
           </Section>
         )}
 
-        <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+        <p role="status" className="text-body-small text-ink-soft empty:hidden">
           {note}
         </p>
-        <Button variant="outline-porcelain" data-new-recipe onClick={() => setNewRecipe(true)}>
+        <Button variant="secondary" data-new-recipe onClick={() => setNewRecipe(true)}>
           {t.newRecipe}
         </Button>
 

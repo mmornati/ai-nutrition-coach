@@ -226,37 +226,34 @@ export function RecipeEditor({
           onLeave={() => onLeave?.()}
         />
       ) : (
-        <Button variant="outline-porcelain" fullWidth onClick={() => setPasting(true)}>
+        <Button variant="secondary" fullWidth onClick={() => setPasting(true)}>
           {t.pasteOpen}
         </Button>
       )}
 
       <section aria-labelledby="recipe-ingredients" className="flex flex-col gap-3">
-        <h3
-          id="recipe-ingredients"
-          className="font-display text-section text-signal-muted uppercase"
-        >
+        <h3 id="recipe-ingredients" className="font-display text-section text-thread">
           {t.ingredients}
         </h3>
         {ingredients.length === 0 ? (
-          <p className="text-body-small text-porcelain-dim">{t.none}</p>
+          <p className="text-body-small text-ink-soft">{t.none}</p>
         ) : (
-          <ul className="border-porcelain border-t-2">
+          <ul className="border-ink border-t-2">
             {rows.map(({ draft: item, from }, i) => {
               const itemName = foodName(item.databaseFood, locale);
               return (
                 <li
                   key={`${item.databaseFood.sourceRef}:${i}`}
-                  className="border-rule flex items-center justify-between gap-3 border-b py-2"
+                  className="border-seam flex items-center justify-between gap-3 border-b py-2"
                 >
                   <span className="min-w-0 text-lead">
                     {from !== undefined && (
-                      <span className="text-body-small text-porcelain-dim block">
+                      <span className="text-body-small text-ink-soft block">
                         {fill(t.matchedFrom, { line: from })}
                       </span>
                     )}
                     {itemName}
-                    <span className="text-body-small text-porcelain-dim block">
+                    <span className="text-body-small text-ink-soft block">
                       {entryQuantityText(item.quantity, locale)}
                     </span>
                   </span>
@@ -264,7 +261,7 @@ export function RecipeEditor({
                     type="button"
                     aria-label={fill(t.removeIngredientOf, { name: itemName })}
                     onClick={() => setRows((all) => all.filter((_, j) => j !== i))}
-                    className="text-body-small text-porcelain-dim min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+                    className="text-body-small text-ink-soft min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                   >
                     {t.removeIngredient}
                   </button>
@@ -273,26 +270,24 @@ export function RecipeEditor({
             })}
           </ul>
         )}
-        {estimatedNote && <p className="text-body-small text-porcelain-dim">{t.pasteEstimated}</p>}
+        {estimatedNote && <p className="text-body-small text-ink-soft">{t.pasteEstimated}</p>}
         {notAdded.length > 0 && (
-          <div className="border-rule flex flex-col gap-2 border-2 p-3">
-            <h4 className="font-display text-label text-signal-muted uppercase">
-              {t.notAddedTitle}
-            </h4>
-            <p className="text-body-small text-porcelain-dim">{t.notAddedBody}</p>
+          <div className="border-seam flex flex-col gap-2 border-2 p-3">
+            <h4 className="font-display text-label text-thread">{t.notAddedTitle}</h4>
+            <p className="text-body-small text-ink-soft">{t.notAddedBody}</p>
             <ul className="flex flex-col gap-2">
               {notAdded.map((line, i) => (
                 <li key={`${i}:${line.raw}`} className="text-body-small flex flex-col gap-1">
                   <span>{line.raw}</span>
                   {line.suggestions.length > 0 && (
                     <span className="flex flex-col gap-1">
-                      <span className="text-porcelain-dim">{t.suggestions}</span>
+                      <span className="text-ink-soft">{t.suggestions}</span>
                       {line.suggestions.map((suggestion) => {
                         const suggestedName = foodName(suggestion.draft.databaseFood, locale);
                         return (
                           <Button
                             key={suggestion.draft.databaseFood.sourceRef}
-                            variant="outline-porcelain"
+                            variant="secondary"
                             fullWidth
                             disabled={rows.length >= MAX_INGREDIENTS}
                             aria-label={fill(t.useSuggestionFor, {
@@ -341,7 +336,7 @@ export function RecipeEditor({
               onValidityChange={setWeightValid}
             />
             <Button
-              variant="outline-porcelain"
+              variant="secondary"
               fullWidth
               disabled={!weightValid || ingredients.length >= MAX_INGREDIENTS}
               onClick={add}
@@ -351,7 +346,7 @@ export function RecipeEditor({
           </>
         )}
         {ingredients.length >= MAX_INGREDIENTS && (
-          <p className="text-body-small text-porcelain-dim">{tooManyText(all)}</p>
+          <p className="text-body-small text-ink-soft">{tooManyText(all)}</p>
         )}
       </section>
 
@@ -377,7 +372,7 @@ export function RecipeEditor({
           }}
         />
       </div>
-      <p className="text-body-small text-porcelain-dim">{t.cookedHint}</p>
+      <p className="text-body-small text-ink-soft">{t.cookedHint}</p>
 
       {summary !== null && (
         <div className="text-body-small flex flex-col gap-1">
@@ -390,7 +385,7 @@ export function RecipeEditor({
             <p>{fill(t.perServingValues, { values: perServingValues })}</p>
           )}
           {summary.partial && showNumbers && (
-            <p className="text-porcelain-dim">
+            <p className="text-ink-soft">
               {fill(t.partial, {
                 counted: summary.ingredientsCounted,
                 total: summary.ingredientsTotal,
@@ -401,7 +396,7 @@ export function RecipeEditor({
       )}
 
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
       <Button fullWidth busy={busy} onClick={() => void save()}>

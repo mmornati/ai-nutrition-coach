@@ -286,7 +286,7 @@ export function Describe({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-body text-porcelain-dim">{d.intro}</p>
+      <p className="text-body text-ink-soft">{d.intro}</p>
       <TextArea
         label={d.fieldLabel}
         value={text}
@@ -306,7 +306,7 @@ export function Describe({
       {canRecord && (
         <div role="group" aria-label={d.recordingLabel} className="flex flex-col gap-2">
           <Button
-            variant={mic === 'recording' ? 'solid-porcelain' : 'outline-porcelain'}
+            variant={mic === 'recording' ? 'primary' : 'secondary'}
             fullWidth
             className="min-h-14"
             aria-pressed={mic === 'recording'}
@@ -317,17 +317,17 @@ export function Describe({
             {d.talk}
           </Button>
           {mic === 'recording' ? (
-            <div aria-hidden="true" className="bg-rule h-0.5 w-full">
+            <div aria-hidden="true" className="bg-seam h-0.5 w-full">
               <div className="describe-record-line" />
             </div>
           ) : (
-            <p className="text-body-small text-porcelain-dim">{d.recordHint}</p>
+            <p className="text-body-small text-ink-soft">{d.recordHint}</p>
           )}
         </div>
       )}
 
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {live}
       </p>
 
@@ -343,7 +343,7 @@ export function Describe({
       {!consentOpen && (
         <>
           <div className="flex flex-col gap-1">
-            <p role="note" className="text-body-small text-porcelain-dim">
+            <p role="note" className="text-body-small text-ink-soft">
               {status.kind === 'noAi'
                 ? d.noAiNote
                 : status.kind === 'needsConsent'
@@ -368,12 +368,12 @@ export function Describe({
             {d.find}
           </Button>
           {matchHereOffered && (
-            <Button variant="outline-porcelain" fullWidth onClick={() => void runLocal()}>
+            <Button variant="secondary" fullWidth onClick={() => void runLocal()}>
               {d.matchHere}
             </Button>
           )}
           <Button
-            variant="outline-porcelain"
+            variant="secondary"
             fullWidth
             onClick={() => onTypeInstead(piece === undefined ? undefined : searchTermOf(piece))}
           >

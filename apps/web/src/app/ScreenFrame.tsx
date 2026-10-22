@@ -29,7 +29,7 @@ export function BackToToday() {
   return (
     <a
       href={hrefs.today}
-      className="font-display text-porcelain-dim mb-2 inline-flex min-h-12 items-center gap-2 text-nav font-semibold tracking-[0.1em] uppercase"
+      className="font-display text-ink-soft mb-2 inline-flex min-h-12 items-center gap-2 text-nav font-semibold"
     >
       <BackIcon size={18} />
       {s.today}

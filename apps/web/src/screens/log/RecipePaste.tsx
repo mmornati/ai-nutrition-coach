@@ -133,12 +133,12 @@ export function RecipePaste({
   return (
     <section
       aria-labelledby="recipe-paste-title"
-      className="border-porcelain flex flex-col gap-4 border-2 p-4"
+      className="border-ink flex flex-col gap-4 border-2 p-4"
     >
       <h3 id="recipe-paste-title" className="font-display text-lead">
         {t.pasteTitle}
       </h3>
-      <p className="text-body text-porcelain-dim">{t.pasteIntro}</p>
+      <p className="text-body text-ink-soft">{t.pasteIntro}</p>
       <TextArea
         label={t.pasteLabel}
         value={text}
@@ -157,7 +157,7 @@ export function RecipePaste({
       />
 
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
 
@@ -173,7 +173,7 @@ export function RecipePaste({
       {!asking && (
         <>
           <div className="flex flex-col gap-1">
-            <p role="note" className="text-body-small text-porcelain-dim">
+            <p role="note" className="text-body-small text-ink-soft">
               {status.kind === 'noAi'
                 ? t.pasteNoAiNote
                 : status.kind === 'needsConsent'
@@ -190,7 +190,7 @@ export function RecipePaste({
             )}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline-porcelain" className="flex-1" onClick={onClose}>
+            <Button variant="secondary" className="flex-1" onClick={onClose}>
               {t.pasteClose}
             </Button>
             <Button className="flex-1" busy={working} busyLabel={t.pasteReading} onClick={read}>

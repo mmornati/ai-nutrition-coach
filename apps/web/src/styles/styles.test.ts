@@ -35,18 +35,34 @@ function contrast(a: string, b: string): number {
 }
 
 describe('focus indicator contrast (WCAG 1.4.11, >= 3:1)', () => {
-  it('amber is the ring on enamel and raised enamel', () => {
-    expect(contrast(token('line-starch'), token('enamel'))).toBeGreaterThanOrEqual(3);
-    expect(contrast(token('line-starch'), token('enamel-raised'))).toBeGreaterThanOrEqual(3);
+  it('ink is the ring on cloth and on raised white', () => {
+    expect(contrast(token('ink'), token('cloth'))).toBeGreaterThanOrEqual(3);
+    expect(contrast(token('ink'), token('raised'))).toBeGreaterThanOrEqual(3);
   });
 
-  it('amber would fail on porcelain, so porcelain surfaces switch the ring to enamel', () => {
-    expect(contrast(token('line-starch'), token('porcelain'))).toBeLessThan(3);
-    expect(contrast(token('enamel'), token('porcelain'))).toBeGreaterThanOrEqual(3);
-    expect(base).toMatch(
-      /\.on-porcelain :focus-visible[^{]*\{[^}]*outline-color: var\(--color-enamel\)/,
-    );
+  it('ink surfaces switch the ring to cloth, which also clears 3:1', () => {
+    expect(contrast(token('cloth'), token('ink'))).toBeGreaterThanOrEqual(3);
+    expect(base).toMatch(/\.on-ink :focus-visible[^{]*\{[^}]*outline-color: var\(--color-cloth\)/);
   });
+});
+
+describe('text and non-text contrast on the cloth', () => {
+  it('thread text is at least 4.5:1 on cloth and on raised white', () => {
+    expect(contrast(token('thread'), token('cloth'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token('thread'), token('raised'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('control edges are at least 3:1 on their grounds', () => {
+    expect(contrast(token('control'), token('cloth'))).toBeGreaterThanOrEqual(3);
+    expect(contrast(token('control-raised'), token('raised'))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(['veg', 'protein', 'starch', 'dairy'])(
+    'the %s dye is at least 3:1 on cloth as a non-text stripe',
+    (dye) => {
+      expect(contrast(token(dye), token('cloth'))).toBeGreaterThanOrEqual(3);
+    },
+  );
 });
 
 describe('reduced motion', () => {
@@ -72,7 +88,7 @@ describe('the Describe recording line', () => {
 
 describe('text scaling', () => {
   it('no type token size is in pixels', () => {
-    expect(tokens).toMatch(/--text-display: 2\.75rem;/);
+    expect(tokens).toMatch(/--text-display: 3\.125rem;/);
     expect(tokens).not.toMatch(/--text-[a-z-]+: [\d.]+px;/);
   });
 

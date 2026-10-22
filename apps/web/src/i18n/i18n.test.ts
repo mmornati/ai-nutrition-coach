@@ -22,17 +22,17 @@ describe('i18n helpers', () => {
     expect(capitalise('veg & fruit')).toBe('Veg & fruit');
   });
 
-  it('spells line names once and lower-cases them mid-sentence', () => {
+  it('spells food-group names once and lower-cases them mid-sentence', () => {
     expect(strings().groups.vegFruit).toBe('Veg & fruit');
     expect(lineName('vegFruit')).toBe('veg & fruit');
   });
 
-  it('builds station names from groups, never counts', () => {
+  it('builds meal names from groups, never counts', () => {
     expect(
       stationLabel({ meal: 'Lunch', time: '12:55', present: ['protein'], passed: ['dairy'] }),
-    ).toBe('Open Lunch, 12:55: protein stopped. Dairy passed through');
+    ).toBe('Open Lunch, 12:55: protein on the plate. Without dairy');
     expect(stationLabel({ meal: 'Late', time: '22:00', present: [], passed: [] })).toBe(
-      'Open Late, 22:00: no lines stopped',
+      'Open Late, 22:00: no food group',
     );
   });
 });

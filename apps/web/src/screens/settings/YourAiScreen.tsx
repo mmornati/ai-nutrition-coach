@@ -71,7 +71,7 @@ function CoachingSection() {
       />
       <Prose>{c.coachingSent}</Prose>
       <Prose>{destination}</Prose>
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {failed ? c.coachingSaveFailed : ''}
       </p>
     </Section>
@@ -124,7 +124,7 @@ function DescribeSection() {
       />
       <Prose>{c.describeSent}</Prose>
       <Prose>{destination}</Prose>
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {failed ? c.coachingSaveFailed : ''}
       </p>
     </Section>
@@ -294,17 +294,17 @@ export function YourAiScreen() {
               message={c.keyHelpWeb}
               onChange={(e) => setKey(filterKeyInput(e.target.value))}
             />
-            <p role="status" className="text-porcelain-dim text-small">
+            <p role="status" className="text-ink-soft text-small">
               {keyLine}
             </p>
             {ai.keyStatus.hasKey && <Prose>{c.keyReplaceHint}</Prose>}
             {hint !== null && <Prose>{hint}</Prose>}
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" variant="solid-porcelain" busy={ai.busy}>
+              <Button type="submit" variant="primary" busy={ai.busy}>
                 {c.save}
               </Button>
               <Button
-                variant="outline-porcelain"
+                variant="secondary"
                 busy={ai.testing}
                 busyLabel={c.testing}
                 onClick={() => void ai.test({ endpointUrl: endpoint, model, typedKey: key })}
@@ -312,7 +312,7 @@ export function YourAiScreen() {
                 {c.testConnection}
               </Button>
               {ai.keyStatus.hasKey && (
-                <Button variant="outline-porcelain" busy={ai.busy} onClick={() => void remove()}>
+                <Button variant="secondary" busy={ai.busy} onClick={() => void remove()}>
                   {c.removeKey}
                 </Button>
               )}
@@ -322,7 +322,7 @@ export function YourAiScreen() {
       )}
 
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body text-porcelain empty:hidden">
+      <p role="status" className="text-body text-ink empty:hidden">
         {live}
       </p>
 
@@ -345,13 +345,13 @@ export function YourAiScreen() {
             {hosts.map((host) => (
               <li
                 key={host}
-                className="border-rule flex min-h-14 items-center justify-between gap-3 border-b"
+                className="border-seam flex min-h-14 items-center justify-between gap-3 border-b"
               >
                 <span className="text-body [overflow-wrap:anywhere]">
                   {describeInstanceConsent(host) ?? host}
                 </span>
                 <Button
-                  variant="outline-porcelain"
+                  variant="secondary"
                   aria-label={fill(c.consentRevokeFor, {
                     host: describeInstanceConsent(host) ?? host,
                   })}
@@ -365,7 +365,7 @@ export function YourAiScreen() {
         )}
         <a
           href={hrefs.privacy}
-          className="text-porcelain inline-flex min-h-12 items-center self-start underline underline-offset-4"
+          className="text-ink inline-flex min-h-12 items-center self-start underline underline-offset-4"
         >
           {c.docsHint}
         </a>

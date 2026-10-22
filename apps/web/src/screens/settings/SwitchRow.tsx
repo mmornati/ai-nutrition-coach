@@ -42,9 +42,9 @@ export function SwitchRow({
       <span
         aria-hidden="true"
         className={cn(
-          'border-control-raised text-enamel mt-0.5 grid size-6 shrink-0 place-items-center border-2',
-          'peer-checked:border-porcelain peer-checked:bg-porcelain',
-          'peer-focus-visible:outline-line-starch peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2',
+          'border-control-raised text-cloth mt-0.5 grid size-6 shrink-0 place-items-center border-2',
+          'peer-checked:border-ink peer-checked:bg-ink',
+          'peer-focus-visible:outline-ink peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2',
           '[&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100',
         )}
       >
@@ -54,7 +54,7 @@ export function SwitchRow({
         <span id={titleId} className="text-lead block font-medium">
           {title}
         </span>
-        <span id={helpId} className="text-porcelain-dim text-body-small mt-0.5 block">
+        <span id={helpId} className="text-ink-soft text-body-small mt-0.5 block">
           {help}
         </span>
       </span>

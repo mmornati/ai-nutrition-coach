@@ -27,7 +27,7 @@ function outcomeText(outcome: UnlockOutcome, s: Strings['session']): string | nu
 }
 
 /**
- * A returning person: the passphrase on the line diagram. One calm line per failure, the busy
+ * A returning person: the passphrase under the towel hem. One calm line per failure, the busy
  * state is reset on EVERY outcome, the field is emptied after every attempt, and "Forgot your
  * passphrase?" says it cannot be recovered and offers the confirmed erase.
  */
@@ -107,7 +107,7 @@ export function UnlockScreen({
         </Button>
       </form>
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {message}
       </p>
       {onErase && (
@@ -116,15 +116,15 @@ export function UnlockScreen({
             type="button"
             aria-expanded={forgotOpen}
             onClick={() => setForgotOpen((open) => !open)}
-            className="text-porcelain-dim min-h-12 cursor-pointer self-start bg-transparent text-left underline underline-offset-4"
+            className="text-ink-soft min-h-12 cursor-pointer self-start bg-transparent text-left underline underline-offset-4"
           >
             {s.forgot}
           </button>
           {forgotOpen && (
             <>
-              <p className="text-body-small text-porcelain-dim">{s.forgotBody}</p>
+              <p className="text-body-small text-ink-soft">{s.forgotBody}</p>
               <Button
-                variant="outline-porcelain"
+                variant="secondary"
                 fullWidth
                 aria-disabled={busy || undefined}
                 onClick={() => setConfirming(true)}

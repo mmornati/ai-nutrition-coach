@@ -1,9 +1,9 @@
 @layer base {
   html {
-    background: var(--color-enamel);
-    color-scheme: dark;
-    caret-color: var(--color-line-starch);
-    scrollbar-color: var(--color-rule) var(--color-enamel);
+    background: var(--color-cloth);
+    color-scheme: light;
+    caret-color: var(--color-ink);
+    scrollbar-color: var(--color-control) var(--color-cloth);
   }
 
   /* Below lg the dock and the floating Log button sit over the page (its top edge is the offset
@@ -19,8 +19,12 @@
   body {
     margin: 0;
     min-height: 100dvh;
-    background: var(--color-enamel);
-    color: var(--color-porcelain);
+    /* White cotton with a barely visible weave: two 1px thread grids, 3px apart. */
+    background-color: var(--color-cloth);
+    background-image:
+      repeating-linear-gradient(0deg, rgb(38 36 33 / 0.025) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgb(38 36 33 / 0.02) 0 1px, transparent 1px 3px);
+    color: var(--color-ink);
     font-family: var(--font-body);
     font-size: var(--text-body);
     line-height: var(--text-body--line-height);
@@ -28,21 +32,25 @@
   }
 
   ::selection {
-    background: var(--color-line-starch);
-    color: var(--color-enamel);
+    background: rgb(192 132 32 / 0.3);
+    color: var(--color-ink);
   }
 
+  /* The focus ring is ink (15.2:1 on cloth), 3px at 2px offset: a shape, never a colour change. */
   :focus-visible {
-    outline: 3px solid var(--color-line-starch);
+    outline: 3px solid var(--color-ink);
     outline-offset: 2px;
   }
 
-  /* Amber is 1.84:1 on porcelain, so on a porcelain surface (the coach card) the focus ring is
-     enamel instead (15.1:1 on porcelain). Amber stays the ring everywhere else (8.2:1 on enamel,
-     7.3:1 on raised enamel). Still a 3px outline at 2px offset: shape, never colour alone. */
-  .on-porcelain :focus-visible,
-  .on-porcelain:focus-visible {
-    outline-color: var(--color-enamel);
+  /* On an ink surface (a filled primary button, the selected preset) the ring turns cloth. */
+  .on-ink :focus-visible,
+  .on-ink:focus-visible {
+    outline-color: var(--color-cloth);
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1.5px;
   }
 
   ::-webkit-scrollbar {
@@ -50,11 +58,12 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-rule);
-    border-radius: 0;
+    background: var(--color-control);
+    border-radius: 999px;
+    border: 2px solid var(--color-cloth);
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-enamel);
+    background: var(--color-cloth);
   }
 
   @media (prefers-reduced-motion: reduce) {

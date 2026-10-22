@@ -48,17 +48,14 @@ export function WeekReview({ className }: { readonly className?: string }) {
 
   return (
     <section aria-labelledby="week-review-title" className={className}>
-      <h2
-        id="week-review-title"
-        className="font-display text-section text-signal-muted mb-2 uppercase"
-      >
+      <h2 id="week-review-title" className="font-display text-section text-thread mb-2">
         {t.title}
       </h2>
       <p className="text-lead">{plural(t.daysLogged, review.daysLogged, locale)}</p>
       {showBars && (
         <div className="mt-4">
           <h3 className="text-lead mb-1 font-semibold">{t.averagesTitle}</h3>
-          <p className="text-body-small text-porcelain-dim mb-2">
+          <p className="text-body-small text-ink-soft mb-2">
             {plural(t.averagesNote, review.daysWithData, locale)}
           </p>
           <NutrientBars nutrition={bars} targets={targets} />

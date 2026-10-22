@@ -10,13 +10,13 @@ export interface EntryItem {
   readonly group: FoodGroup;
 }
 
-/** A ruled list (2px porcelain top rule, 1px night rules); quantity flush right, tabular. */
+/** A ruled list (2px ink top rule, 1px seams between rows); quantity flush right. */
 export function EntryList({ entries }: { readonly entries: readonly EntryItem[] }) {
   const s = useStrings();
   return (
-    <ul aria-label={s.entries.label} className="border-porcelain border-t-2">
+    <ul aria-label={s.entries.label} className="border-ink border-t-2">
       {entries.map((entry) => (
-        <li key={entry.id} className="border-rule border-b py-3">
+        <li key={entry.id} className="border-seam border-b py-3">
           <div className="flex items-baseline justify-between gap-3 text-lead">
             <span className="min-w-0">{entry.name}</span>
             <span className="font-display quantity text-quantity font-semibold whitespace-nowrap">

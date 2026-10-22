@@ -64,7 +64,7 @@ export const COVERED_BY = Object.freeze({
 
 /** Component name -> why there is nothing to measure. */
 export const EXEMPT = Object.freeze({
-  LineDiagram: 'decorative svg, aria-hidden; the screens that hold it are measured',
+  TowelDiagram: 'decorative svg, aria-hidden; the screens that hold it are measured',
 });
 
 function walk(dir) {

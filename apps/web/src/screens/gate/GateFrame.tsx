@@ -1,34 +1,31 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
- * The four lines meeting at one interchange: the unlock diagram of the prototype
- * (docs/design/food-lines/index.html). Decorative, so hidden from assistive tech.
+ * The hem of a kitchen towel: four dyed stripes across white cotton, the app's one picture before
+ * anything is logged. Decorative, so hidden from assistive tech.
  */
-export function LineDiagram() {
+export function TowelDiagram() {
   return (
-    <svg viewBox="0 0 360 120" aria-hidden="true" focusable="false" className="mb-7 h-auto w-full">
-      <path d="M0 30 H120 l30 30 H360" className="stroke-line-veg" strokeWidth={8} fill="none" />
-      <path d="M0 60 H360" className="stroke-line-protein" strokeWidth={8} fill="none" />
-      <path
-        d="M0 90 H120 l30 -30 H360"
-        className="stroke-line-starch"
-        strokeWidth={8}
-        fill="none"
-      />
-      <path
-        d="M0 110 H200 l20 -20 H360"
-        className="stroke-line-dairy"
-        strokeWidth={8}
-        fill="none"
-      />
+    <svg viewBox="0 0 360 112" aria-hidden="true" focusable="false" className="mb-8 h-auto w-full">
       <rect
-        x={128}
-        y={44}
-        width={44}
-        height={32}
-        rx={16}
-        className="fill-enamel stroke-porcelain"
-        strokeWidth={5}
+        x={1}
+        y={1}
+        width={358}
+        height={110}
+        rx={6}
+        className="fill-raised stroke-ink"
+        strokeWidth={2}
+      />
+      <rect x={2} y={30} width={356} height={10} className="fill-veg" />
+      <rect x={2} y={46} width={356} height={10} className="fill-protein" />
+      <rect x={2} y={62} width={356} height={10} className="fill-starch" />
+      <rect x={2} y={78} width={356} height={10} className="fill-dairy" />
+      <path
+        d="M10 10 H350 M10 102 H350"
+        className="stroke-control"
+        strokeWidth={1.5}
+        strokeDasharray="5 4"
+        fill="none"
       />
     </svg>
   );
@@ -49,11 +46,11 @@ export function GateFrame({
   useEffect(() => heading.current?.focus(), []);
   return (
     <main className="mx-auto flex min-h-dvh max-w-110 flex-col justify-center px-6 pt-8 pb-16">
-      {diagram && <LineDiagram />}
+      {diagram && <TowelDiagram />}
       <h1
         ref={heading}
         tabIndex={-1}
-        className="font-display text-display [overflow-wrap:anywhere] uppercase outline-none"
+        className="font-display text-display [overflow-wrap:anywhere] outline-none"
       >
         {title}
       </h1>

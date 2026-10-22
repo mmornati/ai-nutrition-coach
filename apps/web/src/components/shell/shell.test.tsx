@@ -63,11 +63,19 @@ describe('AppShell', () => {
     ).toEqual(['Today', 'Week', 'Settings']);
   });
 
-  it('on a phone the dock holds only the route; Log a plate is a floating button above it', () => {
+  it('on a phone the dock holds only the route; Log a plate is a floating ink pill above it', () => {
     renderShell();
     const dock = screen.getByRole('region', { name: 'Week and log' });
     const fab = within(dock).getByRole('button', { name: 'Log a plate' });
-    expect(fab).toHaveClass('fixed', 'size-(--spacing-fab-size)');
+    expect(fab).toHaveClass(
+      'fixed',
+      'h-(--spacing-fab-size)',
+      'min-w-(--spacing-fab-size)',
+      'rounded-full',
+      'bg-ink',
+    );
+    // A visible label sits beside the plus icon.
+    expect(fab).toHaveTextContent(/^Log$/); // visible word is contained in the accessible name
     expect(fab.className).toContain('--spacing-fab-offset');
     expect(fab.className).toContain('safe-area-inset-bottom');
     // The page ends above the button: its bottom padding is the same tokens plus a gap.
@@ -117,16 +125,14 @@ describe('Header', () => {
     render(
       <Header
         title="Tuesday"
-        sub="13 Oct · 3 lines running"
+        sub="13 Oct · 3 groups on the plates"
         chip={<Chip dot>{strings().chip.onDevice}</Chip>}
         settingsHref="#/settings"
       />,
     );
-    expect(screen.getByRole('heading', { level: 1, name: 'Tuesday' })).toHaveClass(
-      'font-display',
-      'uppercase',
-    );
-    expect(screen.getByText('13 Oct · 3 lines running')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Tuesday' })).toHaveClass('font-display');
+    expect(screen.getByRole('heading', { level: 1, name: 'Tuesday' })).not.toHaveClass('uppercase');
+    expect(screen.getByText('13 Oct · 3 groups on the plates')).toBeInTheDocument();
     expect(screen.getAllByText('On this device').length).toBeGreaterThan(0);
     const settings = screen.getByRole('link', { name: 'Settings' });
     expect(settings).toHaveAttribute('href', '#/settings');
@@ -142,7 +148,6 @@ describe('DepartureBoard', () => {
         rows={[
           {
             id: 'ai',
-            line: 'dairy',
             title: 'Your AI',
             subtitle: 'Reads your plate photos',
             status: 'Free quota',

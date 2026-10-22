@@ -56,7 +56,7 @@ export function NutrientBars({
   const missing = nutrition.entriesTotal - nutrition.entriesCounted;
   return (
     <div className="flex flex-col gap-3">
-      <ul aria-label={t.barsLabel} className="border-porcelain flex flex-col border-t-2">
+      <ul aria-label={t.barsLabel} className="flex flex-col">
         {present.map((key) => {
           const value = nutrition.totals[key] ?? 0;
           const reference = targets[key];
@@ -65,23 +65,22 @@ export function NutrientBars({
           const underOne = value > 0 && percent === 0;
           const sub = SUB_ROWS.has(key);
           return (
-            <li key={key} className="border-rule border-b py-2.5">
+            <li key={key} className="border-seam border-b py-2.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className={cn('text-lead', sub && 'text-porcelain-dim pl-4')}>
-                  {t.names[key]}
-                </span>
+                <span className={cn('text-lead', sub && 'text-ink-soft pl-4')}>{t.names[key]}</span>
                 <span className="font-display quantity text-quantity font-semibold whitespace-nowrap">
                   {formatNutrient(key, value, nutrition.estimated, locale)}
                 </span>
               </div>
-              <div aria-hidden="true" className="bg-rule relative mt-1.5 h-2">
+              {/* A thread pulled across a seam: one neutral colour for every nutrient and amount. */}
+              <div aria-hidden="true" className="weave-bare relative mt-2 h-1">
                 <div
-                  className="bg-porcelain-dim absolute inset-y-0 left-0"
+                  className="bg-ink-soft absolute inset-y-0 left-0 rounded-full"
                   style={{ width: `${barFill(value, reference) * 100}%` }}
                 />
-                <div className="bg-porcelain absolute inset-y-0 right-0 w-px" />
+                <div className="bg-ink absolute -inset-y-1 right-0 w-px" />
               </div>
-              <p className="text-body-small text-signal-muted mt-1">
+              <p className="text-body-small text-thread mt-1">
                 {fill(
                   underOne
                     ? personal
@@ -101,13 +100,18 @@ export function NutrientBars({
         })}
       </ul>
       {missing > 0 && (
-        <p className="text-body-small text-porcelain-dim">
+        <p className="text-body-small text-ink-soft">
           {fill(plural(t.coverage, nutrition.entriesCounted, locale), { missing })}
         </p>
       )}
-      <details className="text-body-small text-porcelain-dim">
-        <summary className="min-h-12 cursor-pointer py-3 underline underline-offset-4">
-          {t.whatAre}
+      <details className="group text-body-small text-ink-soft">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 py-3 underline underline-offset-4 [&::-webkit-details-marker]:hidden">
+          {/* A drawn chevron in place of the browser's triangle; it turns down when open. */}
+          <span
+            aria-hidden="true"
+            className="border-ink-soft size-2 shrink-0 -rotate-45 border-r-2 border-b-2 transition-transform group-open:rotate-45"
+          />
+          <span>{t.whatAre}</span>
         </summary>
         <p className="pb-2">{personal ? t.whatAreBodyPersonal : t.whatAreBody}</p>
         <SupportLine className="pb-2" />

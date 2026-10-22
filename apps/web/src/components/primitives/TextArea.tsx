@@ -16,25 +16,25 @@ export function TextArea({ label, message, rows = 4, ...input }: TextAreaProps) 
   const messageId = `${id}-msg`;
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="font-display text-label text-signal-muted uppercase">
+      <label htmlFor={id} className="font-display text-label text-ink-soft">
         {label}
       </label>
       <div
         className={cn(
-          'border-porcelain flex min-h-14 border-2',
-          'focus-within:outline-line-starch focus-within:outline-3 focus-within:outline-offset-2',
+          'border-control bg-raised rounded-cloth flex min-h-14 border-2',
+          'focus-within:border-ink focus-within:outline-ink focus-within:outline-3 focus-within:outline-offset-2',
         )}
       >
         <textarea
           id={id}
           rows={rows}
           aria-describedby={message ? messageId : undefined}
-          className="placeholder:text-signal-muted min-w-0 flex-1 resize-none bg-transparent px-3.5 py-3 text-lead outline-none"
+          className="placeholder:text-thread min-w-0 flex-1 resize-none bg-transparent px-3.5 py-3 text-lead outline-none"
           {...input}
         />
       </div>
       {message && (
-        <p id={messageId} className="text-body-small text-porcelain-dim">
+        <p id={messageId} className="text-body-small text-ink-soft">
           {message}
         </p>
       )}

@@ -108,7 +108,7 @@ export function CopyPlateSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title={t.againTitle}>
-      <p className="text-body-small text-porcelain-dim">{t.againIntro}</p>
+      <p className="text-body-small text-ink-soft">{t.againIntro}</p>
       <ChoiceGroup
         label={t.whichDay}
         choices={dayChoices}
@@ -121,7 +121,7 @@ export function CopyPlateSheet({
         value={chosen}
         onChange={setSlot}
       />
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
       <Button fullWidth busy={busy} busyLabel={all.common.logging} onClick={() => void submit()}>

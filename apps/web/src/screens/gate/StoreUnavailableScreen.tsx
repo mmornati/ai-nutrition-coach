@@ -31,7 +31,7 @@ export function StoreUnavailableScreen({
   };
   return (
     <GateFrame title={s.storeUnavailable.title} diagram={false}>
-      <p className="text-body text-porcelain-dim">{body}</p>
+      <p className="text-body text-ink-soft">{body}</p>
       {/* Plain http:// cannot be fixed by trying again: the page has to be opened over https. */}
       {reason !== 'insecureContext' && (
         <Button fullWidth busy={busy} onClick={() => void retry()}>

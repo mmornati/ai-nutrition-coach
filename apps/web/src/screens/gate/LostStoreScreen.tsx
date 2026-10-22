@@ -45,11 +45,11 @@ export function LostStoreScreen({
 
   return (
     <GateFrame title={text.title} diagram={false}>
-      <p className="text-body text-porcelain-dim">{text.body}</p>
-      <Button variant="outline-porcelain" fullWidth busy={busy} onClick={() => setConfirming(true)}>
+      <p className="text-body text-ink-soft">{text.body}</p>
+      <Button variant="secondary" fullWidth busy={busy} onClick={() => setConfirming(true)}>
         {text.action}
       </Button>
-      <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {message}
       </p>
       <EraseLocalDataDialog

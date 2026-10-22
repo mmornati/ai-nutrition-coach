@@ -39,9 +39,9 @@ export function CopyDayDialog({
       body={
         <div className="flex flex-col gap-3">
           <p>{t.copyDayIntro}</p>
-          <ul aria-label={t.copyDayList} className="border-porcelain border-t-2">
+          <ul aria-label={t.copyDayList} className="border-ink border-t-2">
             {lines.map((line) => (
-              <li key={line.id} className="border-rule text-body-small border-b py-2">
+              <li key={line.id} className="border-seam text-body-small border-b py-2">
                 {fill(t.copyDayLine, {
                   meal: slotName(line.slot),
                   time: line.time,
@@ -52,12 +52,12 @@ export function CopyDayDialog({
           </ul>
           {laterLines.length > 0 && (
             <>
-              <p className="text-porcelain-dim">{t.copyDayLater}</p>
-              <ul aria-label={t.copyDayLater} className="border-rule border-t">
+              <p className="text-ink-soft">{t.copyDayLater}</p>
+              <ul aria-label={t.copyDayLater} className="border-seam border-t">
                 {laterLines.map((line) => (
                   <li
                     key={line.id}
-                    className="border-rule text-body-small text-porcelain-dim border-b py-2"
+                    className="border-seam text-body-small text-ink-soft border-b py-2"
                   >
                     {fill(t.copyDayLine, {
                       meal: slotName(line.slot),

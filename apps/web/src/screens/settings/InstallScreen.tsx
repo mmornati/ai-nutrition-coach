@@ -45,11 +45,7 @@ export function InstallScreen({
       ) : (
         <>
           {canPrompt && (
-            <Button
-              variant="solid-porcelain"
-              className="self-start"
-              onClick={() => void prompt.prompt()}
-            >
+            <Button variant="primary" className="self-start" onClick={() => void prompt.prompt()}>
               {s.button}
             </Button>
           )}

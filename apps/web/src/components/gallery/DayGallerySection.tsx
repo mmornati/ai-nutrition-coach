@@ -34,7 +34,7 @@ const g = {
   openHint: 'Greens would round out dinner. Want a 10-second idea?',
   coachQuestion: 'Two colours of veg and a lentil protein. Want to know why lentils count twice?',
   followUp:
-    'Lentils are a legume: they bring plant protein and fibre, so this plate stops on both the green and the red line.',
+    'Lentils are a legume: they bring plant protein and fibre, so this plate carries both the green and the red stripe.',
   lastDelete: 'Delete requested for plate',
 } as const;
 
@@ -110,7 +110,7 @@ const WEEK_PLATES: PlateLog[] = [
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-8">
-      <h3 className="font-display text-section text-signal-muted mb-3 uppercase">{title}</h3>
+      <h3 className="font-display text-section text-thread mb-3">{title}</h3>
       {children}
     </section>
   );
@@ -148,15 +148,15 @@ export function DayGallerySection() {
 
   return (
     <section aria-label={g.title} className="px-4 pb-12">
-      <h2 className="font-display text-headline uppercase">{g.title}</h2>
+      <h2 className="font-display text-headline">{g.title}</h2>
 
       <Block title={g.lineMap}>
         <div className="mb-3 flex gap-2">
-          <Button variant="outline-porcelain" onClick={() => setResolved(true)}>
+          <Button variant="secondary" onClick={() => setResolved(true)}>
             {g.resolve}
           </Button>
           <Button
-            variant="outline-porcelain"
+            variant="secondary"
             onClick={() => {
               setResolved(false);
               setCoachGone(false);
@@ -206,7 +206,7 @@ export function DayGallerySection() {
             );
           }}
         />
-        <p role="status" className="text-signal-muted mt-2 text-meta">
+        <p role="status" className="text-thread mt-2 text-meta">
           {last}
         </p>
       </Block>
@@ -234,16 +234,14 @@ export function DayGallerySection() {
       </Block>
 
       <Block title={g.week}>
-        <div className="bg-enamel-raised border-rule mb-6 border-t-2 pb-1">
+        <div className="bg-raised border-seam mb-6 border-t-2 pb-1">
           <WeekRoute days={days} selected={selected} onSelectDay={setSelected} />
         </div>
         <NoStreaksLine className="mb-4" />
-        <h4 className="font-display text-section text-signal-muted uppercase">{g.networkTitle}</h4>
+        <h4 className="font-display text-section text-thread">{g.networkTitle}</h4>
         <WeekNetwork days={days} />
         <WeekNoteText lead={note.lead} detail={note.detail} className="mt-4" />
-        <h4 className="font-display text-section text-signal-muted mt-6 mb-2 uppercase">
-          {g.dayByDay}
-        </h4>
+        <h4 className="font-display text-section text-thread mt-6 mb-2">{g.dayByDay}</h4>
         <DayList days={days} />
       </Block>
     </section>

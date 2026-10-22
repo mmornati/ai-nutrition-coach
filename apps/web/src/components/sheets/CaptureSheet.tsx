@@ -14,7 +14,7 @@ export interface CaptureSheetProps {
   readonly onSaved?: () => void;
   /** Describe a meal in words or by voice. Absent: the tile is not shown. */
   readonly onDescribe?: (() => void) | undefined;
-  /** Name of the next meal slot, shown as "Next station: <meal>". */
+  /** Name of the next meal slot, shown as "Next meal: <meal>". */
   readonly nextMeal?: string;
 }
 
@@ -39,15 +39,15 @@ function Tile({
       onClick={onClick}
       {...(initialFocus ? { 'data-autofocus': true } : {})}
       className={cn(
-        'border-porcelain flex cursor-pointer flex-col justify-between gap-2.5 rounded-none border-2 p-3.5 text-left',
-        main ? 'bg-porcelain text-enamel col-span-2 min-h-33' : 'text-porcelain min-h-24',
+        'border-ink rounded-cloth flex cursor-pointer flex-col justify-between gap-2.5 border-2 p-4 text-left transition-transform duration-150 active:scale-[0.99]',
+        main ? 'on-ink bg-ink text-cloth col-span-2 min-h-33' : 'text-ink min-h-24',
       )}
     >
-      <span className="font-display text-title flex w-full items-center justify-between uppercase">
+      <span className="font-display text-title flex w-full items-center justify-between">
         {title}
         {icon}
       </span>
-      <span className={cn('text-body-small', !main && 'text-porcelain-dim')}>{hint}</span>
+      <span className={cn('text-body-small', !main && 'text-ink-soft')}>{hint}</span>
     </button>
   );
 }
@@ -113,7 +113,7 @@ export function CaptureSheet({
         <button
           type="button"
           onClick={choose(onSaved)}
-          className="text-porcelain-dim inline-flex min-h-12 w-fit cursor-pointer items-center bg-transparent text-lead underline underline-offset-4"
+          className="text-ink-soft inline-flex min-h-12 w-fit cursor-pointer items-center bg-transparent text-lead underline underline-offset-4"
         >
           {all.relog.savedEntry}
         </button>

@@ -38,6 +38,60 @@
         ],
         "createdAt": "2026-10-13T05:59:25.753Z",
         "reason": "Claude: spent direction-round mockup, each deliberately in its own candidate type world; not part of the Food Lines system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/v2-assigned.html"
+        ],
+        "createdAt": "2026-10-21T20:43:43.015Z",
+        "reason": "Claude: direction-round mockup, each deliberately in its own candidate type world; not part of the shipped system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/v2-model-pick.html"
+        ],
+        "createdAt": "2026-10-21T20:43:43.051Z",
+        "reason": "Claude: direction-round mockup, each deliberately in its own candidate type world; not part of the shipped system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/v2-canon.html"
+        ],
+        "createdAt": "2026-10-21T20:43:43.092Z",
+        "reason": "Claude: direction-round mockup, each deliberately in its own candidate type world; not part of the shipped system"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/v2-assigned.html"
+        ],
+        "createdAt": "2026-10-22T05:46:24.673Z",
+        "reason": "Claude: spent direction-round mockup, a static phone comp, not shipped UI"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/v2-model-pick.html"
+        ],
+        "createdAt": "2026-10-22T05:46:24.688Z",
+        "reason": "Claude: spent direction-round mockup, a static phone comp, not shipped UI"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          ".impeccable/mocks/decision/v2-canon.html"
+        ],
+        "createdAt": "2026-10-22T05:46:24.704Z",
+        "reason": "Claude: the canon card deliberately renders the category standard in Inter; spent mockup, not shipped"
       }
     ]
   }

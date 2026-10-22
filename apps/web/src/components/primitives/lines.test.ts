@@ -5,14 +5,8 @@ import { LINES, LINE_GROUPS, groupsOfEntries, lineDef, orderedGroups, passedGrou
 describe('LINES', () => {
   it('lists the four lines in map order with distinct lanes and token classes', () => {
     expect(LINE_GROUPS).toEqual(['vegFruit', 'protein', 'starch', 'dairy']);
-    expect(new Set(LINES.map((l) => l.x)).size).toBe(4);
-    expect(LINES.map((l) => l.bg)).toEqual([
-      'bg-line-veg',
-      'bg-line-protein',
-      'bg-line-starch',
-      'bg-line-dairy',
-    ]);
-    expect(lineDef('starch').stroke).toBe('stroke-line-starch');
+    expect(LINES.map((l) => l.bg)).toEqual(['bg-veg', 'bg-protein', 'bg-starch', 'bg-dairy']);
+    expect(lineDef('starch').stroke).toBe('stroke-starch');
   });
 
   it('takes every line name from i18n, spelled once, upper-cased only by CSS', () => {
