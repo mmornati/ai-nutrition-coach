@@ -61,7 +61,8 @@ makes a simple, robust design possible.
 - **Local-first stays.** Writes never wait on the network; sync is an adapter behind the existing
   `SyncAdapter` port; the chip says `synced` only after a durable remote ack (AD-6).
 - **No telemetry, no new hosts.** The relay is same-origin (`/sync/…`), so CSP `connect-src 'self'`
-  is unchanged and `check_no_external_hosts.sh` keeps passing.
+  is unchanged and `check_no_external_hosts.sh` keeps passing; the import-based telemetry gate
+  (`tools/check_telemetry_claims.mjs`) pins the claim.
 - **Honest copy, no dark patterns.** No nagging, no countdowns; the NDP reviewer signs the copy.
 - **No escrow.** A forgotten passphrase is still unrecoverable *unless* the person saved a
   recovery key (optional, shown once, never sent to the server).
