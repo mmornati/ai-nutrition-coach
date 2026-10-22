@@ -1,0 +1,28 @@
+/*
+ * The calm progress line of a voice recording (Describe a meal): one thin line that grows from left
+ * to right over the 30 seconds a recording may last. No digits, no countdown, no pulsing.
+ * Reduced motion: no animation at all, the line simply sits full while the microphone is on.
+ */
+.describe-record-line {
+  height: 2px;
+  background: var(--color-ink);
+  transform-origin: left center;
+  animation: describe-record-grow 30s linear forwards;
+}
+
+@keyframes describe-record-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .describe-record-line {
+    animation: none;
+    transform: scaleX(1);
+    opacity: 0.6;
+  }
+}

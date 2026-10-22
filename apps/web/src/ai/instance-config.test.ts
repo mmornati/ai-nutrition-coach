@@ -11,6 +11,25 @@ describe('parseInstanceAiConfig', () => {
     expect(parseInstanceAiConfig({ ...ON, key: 'x', upstream: 'https://p.test' })).toEqual(ON);
   });
 
+  it('reads the optional voice-to-text offer: a flag AND a valid model name, else no voice', () => {
+    const voice = { ...ON, transcription: true, transcriptionModel: 'whisper-1' };
+    expect(parseInstanceAiConfig(voice)).toEqual({ ...ON, transcriptionModel: 'whisper-1' });
+    // `transcription: false` and the plain shape are both "chat only".
+    expect(parseInstanceAiConfig({ ...ON, transcription: false })).toEqual(ON);
+    for (const bad of [
+      { ...ON, transcription: true },
+      { ...ON, transcription: true, transcriptionModel: '' },
+      { ...ON, transcription: true, transcriptionModel: 'w w' },
+      { ...ON, transcription: true, transcriptionModel: 'w"x' },
+      { ...ON, transcription: true, transcriptionModel: 7 },
+      { ...ON, transcription: 'true', transcriptionModel: 'whisper-1' },
+      { ...ON, transcriptionModel: 'whisper-1' },
+    ]) {
+      // The chat offer stands; voice is simply not offered.
+      expect(parseInstanceAiConfig(bad), JSON.stringify(bad)).toEqual(ON);
+    }
+  });
+
   it('anything else is "not offered"', () => {
     const bad: unknown[] = [
       null,

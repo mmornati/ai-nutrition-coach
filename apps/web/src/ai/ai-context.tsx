@@ -13,6 +13,7 @@ import type { AiSettings } from './ai-settings';
 import type { FieldMessage } from './copy';
 import { connectionResultMessage, saveResultMessage } from './copy';
 import type { CoachingStatus } from './coaching-ai';
+import type { DescribeState } from './describe-ai';
 import type { AiServices } from './create-ai-services';
 import type { InstanceAiView } from './instance-config';
 import type { KeyStatus } from './your-ai';
@@ -50,6 +51,12 @@ export function useCoachingStatus(): CoachingStatus {
   return useSyncExternalStore(coaching.subscribe, coaching.getSnapshot);
 }
 
+/** What "Describe a meal" may do right now (no AI, needs the person's yes, ready) and voice; live. */
+export function useDescribeState(): DescribeState {
+  const { describe } = useAiServices();
+  return useSyncExternalStore(describe.subscribe, describe.getSnapshot);
+}
+
 export interface YourAiState {
   readonly settings: AiSettings;
   /** What this server offers: `{ enabled: false }` when it offers nothing. */
@@ -67,6 +74,8 @@ export interface YourAiState {
   test(form: { endpointUrl: string; model: string; typedKey: string }): Promise<void>;
   revokeConsent(host: string): Promise<void>;
   setAskBeforeEveryPhoto(value: boolean): Promise<void>;
+  /** The speech-to-text model for voice on your own key; empty means the default. */
+  setTranscriptionModel(model: string): Promise<void>;
   clearMessage(): void;
 }
 
@@ -159,6 +168,7 @@ export function useYourAi(): YourAiState {
       },
       revokeConsent: (host) => controller.revokePhotoConsent(host),
       setAskBeforeEveryPhoto: (value) => controller.setAskBeforeEveryPhoto(value),
+      setTranscriptionModel: (model) => controller.setByokTranscriptionModel(model),
       clearMessage: () => setHeld(null),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale`: `held.of()` words the message via `strings()`.

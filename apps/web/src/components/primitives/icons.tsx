@@ -120,6 +120,22 @@ export const TorchIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A speech bubble: "Describe" (say or write what was on the plate). */
+export const DescribeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 5h16v11h-9l-4 4v-4H4z" />
+    <path d="M8 9h8M8 12h5" />
+  </Icon>
+);
+
+/** A microphone, drawn with 45/90 degree lines only. */
+export const MicIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 3h6v9l-1.5 1.5h-3L9 12z" />
+    <path d="M6 10v3l3 3h6l3-3v-3M12 16v5M9 21h6" />
+  </Icon>
+);
+
 export const ICONS = {
   camera: CameraIcon,
   barcode: BarcodeIcon,
@@ -134,4 +150,6 @@ export const ICONS = {
   today: TodayIcon,
   week: WeekIcon,
   torch: TorchIcon,
+  describe: DescribeIcon,
+  mic: MicIcon,
 } as const;

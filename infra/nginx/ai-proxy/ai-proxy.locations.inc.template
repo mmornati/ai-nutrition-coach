@@ -147,6 +147,9 @@ location @ai_nutrition_coach_ai_busy {
     return 429 '{"error":"ai_busy"}';
 }
 
+# POST /ai/v1/audio/transcriptions is appended here by 40-render-ai-proxy.sh ONLY when
+# AI_PROXY_TRANSCRIPTION=1 (ai-proxy.transcription.inc.template). Otherwise it is a 404 below.
+
 # Anything else under /ai/ is not the app shell.
 location ^~ /ai/ {
     add_header Cache-Control "no-store";

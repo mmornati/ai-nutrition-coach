@@ -14,9 +14,10 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
   voice-print, no `LocalAuthentication` prompt, no TouchID /
   FaceID. The mobile target ships no biometric prompt; the web
   target ships no biometric API call.
-- **Voice is transcription-only.** The `VoiceTranscriber` port
-  (Epic 1) returns a text string — no audio fingerprint, no
-  speaker identification, no voice biometric.
+- **Voice is transcription-only.** *Describe a meal* can record up to 30 seconds and send it to a
+  Whisper-compatible `/audio/transcriptions`; the answer is a text string — no audio fingerprint, no
+  speaker identification, no voice biometric. The recording is held in memory until the request returns and is never
+  stored. `tools/check_adults_only.mjs` also rejects speaker identification / diarization identifiers.
 - **Plate photos are processed with no identity linkage.** The
   `AiRung` port takes raw photo bytes and returns typed
   `RecognitionResult`s; no face-detection API is referenced; no

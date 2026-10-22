@@ -105,7 +105,7 @@ describe('the Content-Security-Policy', () => {
       'X-Content-Type-Options "nosniff"',
       'Referrer-Policy "no-referrer"',
       'X-Frame-Options "DENY"',
-      'Permissions-Policy "camera=(self), microphone=(), geolocation=()"',
+      'Permissions-Policy "camera=(self), microphone=(self), geolocation=()"',
       'Cross-Origin-Opener-Policy "same-origin"',
       'Cross-Origin-Resource-Policy "same-origin"',
     ]) {
@@ -126,7 +126,8 @@ describe('nginx', () => {
     expect(conf).toContain('if ($ai_nutrition_coach_method_ok = 0) { return 405; }');
     expect(conf).toMatch(/"~\^\(GET\|HEAD\) "\s+1;/);
     expect(conf).toMatch(/"POST \/ai\/v1\/chat\/completions"\s+1;/);
-    expect(conf.match(/^\s*"(?!~)[A-Z]+ /gm)).toHaveLength(1);
+    expect(conf).toMatch(/"POST \/ai\/v1\/audio\/transcriptions"\s+1;/);
+    expect(conf.match(/^\s*"(?!~)[A-Z]+ /gm)).toHaveLength(2);
     expect(conf).toContain('client_max_body_size 1k;');
     expect(`${conf}\n${read('infra/nginx/nginx.conf')}`).not.toMatch(
       /^\s*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b/m,
@@ -650,6 +651,7 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
       enabled: true,
       model: 'vendor/model-x',
       label: 'OpenRouter (free)',
+      transcription: false,
     });
     expect(json).not.toContain(KEY);
     expect(json).not.toContain('openrouter.ai/api');
@@ -1090,5 +1092,399 @@ describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
     for (const body of ['not json', '[]', 'null', '"x"', '{}', '{"messages":"x"}', undefined]) {
       expect(await run(body)).toBe('{}');
     }
+  });
+});
+
+describe('instance AI proxy: voice transcription (POST /ai/v1/audio/transcriptions)', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh');
+  const tplDir = join(root, 'infra/nginx/ai-proxy');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+  const KEY = 'sk-test-abcdef123456';
+  const ON = {
+    AI_PROXY_ENABLED: '1',
+    AI_PROXY_UPSTREAM: 'https://openrouter.ai/api/v1',
+    AI_PROXY_KEY: KEY,
+    AI_PROXY_MODEL: 'vendor/model-x',
+  };
+  const TX = { ...ON, AI_PROXY_TRANSCRIPTION: '1' };
+  const render = (env) => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_tx_'));
+    try {
+      const resolv = join(dir, 'resolv.conf');
+      writeFileSync(resolv, 'nameserver 127.0.0.11\n');
+      const r = spawnSync('sh', [script], {
+        env: { PATH, AI_PROXY_OUT_DIR: dir, AI_PROXY_TEMPLATE_DIR: tplDir, AI_PROXY_RESOLV_CONF: resolv, ...env },
+        encoding: 'utf8',
+      });
+      const path = (n) => join(dir, `ai-nutrition-coach-ai-${n}.inc`);
+      const f = (n) => (existsSync(path(n)) ? readFileSync(path(n), 'utf8') : '');
+      const leftovers = spawnSync('ls', [dir], { encoding: 'utf8' }).stdout.split('\n');
+      return {
+        code: r.status,
+        out: `${r.stdout}${r.stderr}`,
+        loc: f('locations'),
+        http: f('http'),
+        mode: existsSync(path('locations')) ? statSync(path('locations')).mode & 0o777 : 0,
+        files: leftovers.filter((n) => n.startsWith('ai-nutrition-coach')),
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  // Rendered config without its comment lines (a comment can never satisfy or break an assertion).
+  const code = (text) =>
+    text
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('#'))
+      .join('\n');
+  const configOf = (loc) => JSON.parse(/location = \/ai\/config\.json \{[^}]*return 200 '([^']*)';/.exec(loc)[1]);
+
+  it('is OFF by default: no route is rendered, the path is a 404, the offer says transcription:false', () => {
+    const r = render(ON);
+    expect(r.code, r.out).toBe(0);
+    expect(code(r.loc)).not.toContain('audio/transcriptions');
+    expect(code(r.loc)).not.toContain('js_content');
+    expect(configOf(r.loc)).toEqual({
+      enabled: true,
+      model: 'vendor/model-x',
+      label: 'openrouter.ai',
+      transcription: false,
+    });
+    // The catch-all answers 404 for the path (the server-level method map lets the POST through).
+    expect(r.loc).toContain('location ^~ /ai/ {');
+    expect(conf).toMatch(/"POST \/ai\/v1\/audio\/transcriptions"\s+1;/);
+    for (const v of ['0', 'true', 'yes', '']) {
+      const x = render({ ...ON, AI_PROXY_TRANSCRIPTION: v });
+      expect(code(x.loc), v).not.toContain('audio/transcriptions');
+    }
+    // The proxy itself off means nothing at all, whatever AI_PROXY_TRANSCRIPTION says.
+    const off = render({ ...TX, AI_PROXY_ENABLED: '0' });
+    expect(code(off.loc)).not.toContain('audio/transcriptions');
+    expect(off.loc).toContain(`return 200 '{"enabled":false}';`);
+  });
+
+  it('on: its own route with the same-origin checks first, multipart only, 1 MiB, njs validation then the proxy', () => {
+    const r = render(TX);
+    expect(r.code, r.out).toBe(0);
+    const loc = r.loc;
+    const route = /location = \/ai\/v1\/audio\/transcriptions \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(route).toContain(`if ($request_method != POST) { return 405 '{"error":"method_not_allowed"}'; }`);
+    expect(route).toContain(`if ($content_type !~* "^multipart/form-data;") { return 415 '{"error":"multipart_only"}'; }`);
+    expect(route).toContain(`if ($anc_ai_sfs_bad) { return 403 '{"error":"same_origin_only"}'; }`);
+    expect(route).toContain(`if ($anc_ai_origin_bad) { return 403 '{"error":"same_origin_only"}'; }`);
+    // A refused request costs nothing: the checks come before the limits and before njs.
+    for (const check of ['multipart_only', 'same_origin_only']) {
+      expect(route.indexOf(check)).toBeLessThan(route.indexOf('limit_req zone='));
+    }
+    expect(route.indexOf('limit_req zone=')).toBeLessThan(route.indexOf('js_content'));
+    expect(route).toContain('client_max_body_size 1m;');
+    expect(route).toContain('client_body_buffer_size 1m;');
+    expect(route).toContain('set $anc_ai_tx_model "whisper-1";');
+    expect(route).toContain('js_content anc_ai.txGate;');
+    expect(route).toContain('error_log /dev/stderr crit;');
+    expect(route).toContain('add_header Cache-Control "no-store" always;');
+    // The proxy half: an internal named location only (no request can address it).
+    const proxy = /location @ai_nutrition_coach_tx_proxy \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(proxy).toContain('set $anc_ai_upstream "https://openrouter.ai/api/v1/audio/transcriptions";');
+    expect(proxy).toContain('proxy_pass $anc_ai_upstream;');
+    expect(proxy).toContain('proxy_pass_request_headers off;');
+    expect(proxy).toContain(`proxy_set_header Authorization "Bearer ${KEY}";`);
+    expect(proxy).toContain('proxy_set_header Host "openrouter.ai";');
+    // Header allow-list: only the multipart type (its boundary) comes from the browser.
+    expect([...proxy.matchAll(/proxy_set_header (\S+) /g)].map((m) => m[1]).sort()).toEqual(
+      ['Accept', 'Authorization', 'Connection', 'Content-Type', 'Host', 'User-Agent'],
+    );
+    expect(proxy).toContain('proxy_set_header Content-Type $content_type;');
+    expect(proxy).not.toMatch(/\$http_|\$remote_addr|\$args|\$request_body/);
+    // TLS verified, provider headers hidden, provider errors become generic JSON, no log of a body.
+    expect(proxy).toContain('proxy_ssl_verify on;');
+    for (const h of ['Set-Cookie', 'Access-Control-Allow-Origin', 'OpenAI-Organization', 'X-Request-Id', 'X-RateLimit-Remaining-Requests', 'Server']) {
+      expect(proxy).toContain(`proxy_hide_header ${h};`);
+    }
+    expect(proxy).toContain('proxy_intercept_errors on;');
+    expect(proxy).toMatch(/error_page 401 402 403 404 [0-9 ]+ = @ai_nutrition_coach_ai_refused;/);
+    expect(proxy).toContain('error_page 429 = @ai_nutrition_coach_ai_busy;');
+    expect(proxy).toContain('error_log /dev/stderr crit;');
+    expect(loc).not.toMatch(/\baccess_log\b/);
+    // The offer: transcription on, with the model the client must use. Never the key or upstream.
+    expect(configOf(loc)).toEqual({
+      enabled: true,
+      model: 'vendor/model-x',
+      label: 'openrouter.ai',
+      transcription: true,
+      transcriptionModel: 'whisper-1',
+    });
+    expect(JSON.stringify(configOf(loc))).not.toContain(KEY);
+  });
+
+  it('has its own, tighter limits (6r/m per address, 20r/m instance-wide, burst 2), configurable and validated', () => {
+    const d = render(TX);
+    expect(d.http).toContain('zone=ai_nutrition_coach_tx:1m rate=6r/m;');
+    expect(d.http).toContain('zone=ai_nutrition_coach_tx_rall:64k rate=20r/m;');
+    expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_tx burst=2 nodelay;');
+    expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_tx_rall burst=2 nodelay;');
+    expect(d.loc).toContain('limit_req_status 429;');
+    expect(d.loc).toMatch(/limit_conn ai_nutrition_coach_ai_ip \d+;/);
+    // The chat limits are untouched by it.
+    expect(d.http).toContain('zone=ai_nutrition_coach_ai:1m rate=10r/m;');
+    const t = render({
+      ...TX,
+      AI_PROXY_TRANSCRIPTION_RATE: '2r/m',
+      AI_PROXY_TRANSCRIPTION_RATE_ALL: '5r/m',
+      AI_PROXY_TRANSCRIPTION_BURST: '1',
+      AI_PROXY_TRANSCRIPTION_MODEL: 'whisper-large-v3',
+    });
+    expect(t.code, t.out).toBe(0);
+    expect(t.http).toContain('zone=ai_nutrition_coach_tx:1m rate=2r/m;');
+    expect(t.http).toContain('zone=ai_nutrition_coach_tx_rall:64k rate=5r/m;');
+    expect(t.loc).toContain('limit_req zone=ai_nutrition_coach_tx burst=1 nodelay;');
+    expect(t.loc).toContain('set $anc_ai_tx_model "whisper-large-v3";');
+    expect(configOf(t.loc).transcriptionModel).toBe('whisper-large-v3');
+    for (const bad of [
+      { AI_PROXY_TRANSCRIPTION_RATE: 'fast' },
+      { AI_PROXY_TRANSCRIPTION_RATE: '0r/m' },
+      { AI_PROXY_TRANSCRIPTION_RATE_ALL: '5' },
+      { AI_PROXY_TRANSCRIPTION_BURST: '-1' },
+      { AI_PROXY_TRANSCRIPTION_BURST: '1000' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'whisper 1' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'w"x' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'w;x' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'a@@ANC_AI_KEY@@b' },
+    ]) {
+      const x = render({ ...TX, ...bad });
+      expect(x.code, JSON.stringify(bad)).toBe(1);
+      expect(x.out).not.toContain(KEY);
+      expect(x.loc).toBe('');
+    }
+  });
+
+  it('voice settings are validated only when the voice route is on: a bad one never stops the chat proxy', () => {
+    for (const bad of [
+      { AI_PROXY_TRANSCRIPTION_RATE: 'fast' },
+      { AI_PROXY_TRANSCRIPTION_MODEL: 'w;x' },
+      { AI_PROXY_TRANSCRIPTION_BURST: 'x' },
+    ]) {
+      const r = render({ ...ON, ...bad });
+      expect(r.code, JSON.stringify(bad)).toBe(0);
+      expect(r.http).toContain('rate=6r/m;');
+      expect(r.http).not.toContain('fast');
+    }
+  });
+
+  it('a provider 413 on the voice route is the generic 502, and the local 413 stays a 413', () => {
+    const loc = render(TX).loc;
+    const proxy = /location @ai_nutrition_coach_tx_proxy \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(proxy).toMatch(/error_page [0-9 ]*\b413\b[0-9 ]* = @ai_nutrition_coach_ai_refused;/);
+    const route = /location = \/ai\/v1\/audio\/transcriptions \{[\s\S]*?\n\}\n/.exec(loc)[0];
+    expect(route).not.toContain('error_page');
+    expect(read('SECURITY.md')).toMatch(/preflight/);
+  });
+
+  it('the key still reaches ONE private file, with or without the voice route, and no leftover file holds it', () => {
+    for (const env of [ON, TX]) {
+      const r = render(env);
+      expect(r.mode).toBe(0o600);
+      expect(r.files.sort()).toEqual([
+        'ai-nutrition-coach-ai-http.inc',
+        'ai-nutrition-coach-ai-locations.inc',
+        'ai-nutrition-coach-ai-main.inc',
+      ]);
+      expect(r.http).not.toContain(KEY);
+      expect(r.out).not.toContain(KEY);
+      expect(r.loc.split(KEY).length - 1).toBe(env === TX ? 2 : 1);
+    }
+  });
+
+  it('no template, script or compose file logs a body, a header or the query, and the voice template reads only the allowed variables', () => {
+    const text = readCode('infra/nginx/ai-proxy/ai-proxy.transcription.inc.template');
+    expect(text).not.toMatch(/\baccess_log\b|\$request_body|\$args\b|\$query_string/);
+    expect(text).not.toMatch(/\$http_/);
+    expect(text).not.toMatch(/set -x/);
+    expect(dockerfile).toContain('COPY infra/nginx/ai-proxy/ /etc/ai-nutrition-coach/ai-proxy/');
+  });
+
+  it('compose, the installer and the example pass the settings through, off by default', () => {
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const t = read(file);
+      expect(t, file).toContain('AI_PROXY_TRANSCRIPTION: ${AI_PROXY_TRANSCRIPTION:-0}');
+      expect(t, file).toContain('AI_PROXY_TRANSCRIPTION_MODEL: ${AI_PROXY_TRANSCRIPTION_MODEL:-whisper-1}');
+      expect(t, file).toContain('AI_PROXY_TRANSCRIPTION_RATE: ${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}');
+      expect(t, file).toContain('AI_PROXY_TRANSCRIPTION_RATE_ALL: ${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}');
+      expect(t, file).toContain('AI_PROXY_TRANSCRIPTION_BURST: ${AI_PROXY_TRANSCRIPTION_BURST:-2}');
+    }
+    const example = read('infra/server.env.example');
+    // Commented out, like every other AI_PROXY_ setting except the master switch.
+    expect(example).toMatch(/^#AI_PROXY_TRANSCRIPTION=0$/m);
+    expect(example).not.toMatch(/^AI_PROXY_(?!ENABLED=0)/m);
+    expect(example).toMatch(/1 MiB/);
+    const bin = read('bin/ai-nutrition-coach');
+    for (const v of ['TRANSCRIPTION', 'TRANSCRIPTION_MODEL', 'TRANSCRIPTION_RATE', 'TRANSCRIPTION_RATE_ALL', 'TRANSCRIPTION_BURST']) {
+      expect(bin).toContain(`-e AI_PROXY_${v}`);
+    }
+    // Values travel by name (`-e NAME`), never as `-e NAME=value`.
+    expect(bin).not.toMatch(/-e AI_PROXY_\w+=/);
+  });
+
+  it('the Permissions-Policy lets the app (and only the app) use the microphone, the CSP needs no change', () => {
+    expect(headers).toContain('Permissions-Policy "camera=(self), microphone=(self), geolocation=()"');
+    const csp = cspOf(headers);
+    expect(csp).toContain("media-src 'self' blob:");
+    expect(directive(csp, 'connect-src')).toMatch(/^connect-src 'self' /);
+  });
+
+  it('the docs name the new route, its limits, the 1 MiB body and the audio the provider receives', () => {
+    const self = read('docs/self-host.md');
+    expect(self).toContain('AI_PROXY_TRANSCRIPTION');
+    expect(self).toContain('/ai/v1/audio/transcriptions');
+    expect(self).toMatch(/6r\/m/);
+    expect(self).toMatch(/1 MiB/);
+    expect(read('SECURITY.md')).toMatch(/voice|audio/i);
+    expect(read('docs/ai-tiers.md')).toMatch(/Describe a meal/);
+    expect(read('docs/telemetry-posture.md')).toMatch(/audio\/transcriptions/);
+  });
+});
+
+describe('njs multipart validation (infra/nginx/ai-proxy/ai-proxy.js checkTranscription)', () => {
+  const MODEL = 'whisper-1';
+  const CT = 'multipart/form-data; boundary=----formdata-xyz-0123';
+  const B = '----formdata-xyz-0123';
+  // Header block + data of one part, as a browser's FormData writes it.
+  const field = (name, value) => `--${B}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
+  const file = (data = 'AUDIO', type = 'audio/webm;codecs=opus', name = 'voice.webm') =>
+    `--${B}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${type}\r\n\r\n${data}\r\n`;
+  const close = `--${B}--\r\n`;
+  const check = async (body, ct = CT, model = MODEL) => {
+    const { default: mod } = await import('../../infra/nginx/ai-proxy/ai-proxy.js');
+    return mod.checkTranscription(typeof body === 'string' ? Buffer.from(body, 'latin1') : body, ct, model);
+  };
+
+  it('accepts exactly what the app sends: model, language and one audio file, in any order', async () => {
+    expect(await check(field('model', MODEL) + field('language', 'en') + file() + close)).toBe(true);
+    expect(await check(file() + field('model', MODEL) + close)).toBe(true);
+    expect(await check(field('model', MODEL) + file('x', 'audio/mp4', 'voice.m4a') + close)).toBe(true);
+    expect(await check(field('model', MODEL) + field('response_format', 'json') + file() + close)).toBe(true);
+    expect(await check(field('model', MODEL) + field('language', 'fr-FR') + file() + close.replace('\r\n', ''))).toBe(true);
+  });
+
+  it('is binary safe: NUL bytes, high bytes and CRLF inside the audio do not confuse it', async () => {
+    const fileBuf = (data) =>
+      Buffer.concat([
+        Buffer.from(
+          `--${B}\r\nContent-Disposition: form-data; name="file"; filename="voice.webm"\r\nContent-Type: audio/webm\r\n\r\n`,
+          'latin1',
+        ),
+        data,
+        Buffer.from('\r\n', 'latin1'),
+      ]);
+    const body = (data) =>
+      Buffer.concat([Buffer.from(field('model', MODEL), 'latin1'), fileBuf(data), Buffer.from(close, 'latin1')]);
+    const audio = Buffer.concat([
+      Buffer.from([0xff, 0x00, 0xfe, 0x80, 0x0d, 0x0a, 0x0d, 0x0a]),
+      Buffer.from(`\r\n--${B.slice(0, 10)}\r\n`),
+      Buffer.alloc(4096, 0),
+      Buffer.from([0x00, 0x0d, 0x0a, 0x2d, 0x2d]),
+    ]);
+    expect(await check(body(audio))).toBe(true);
+    // A near-1 MiB recording is checked without trouble.
+    expect(await check(body(Buffer.alloc(1000 * 1000, 7)))).toBe(true);
+  });
+
+  it('forces the model: another model, a missing model or a repeated model is refused', async () => {
+    expect(await check(field('model', 'gpt-4o-transcribe') + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL + ' ') + file() + close)).toBe(false);
+    expect(await check(file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + field('model', MODEL) + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file() + close, CT, 'whisper-large')).toBe(false);
+  });
+
+  it('refuses any other part (prompt, temperature, timestamps) or a repeated file', async () => {
+    for (const name of ['prompt', 'temperature', 'timestamp_granularities[]', 'stream', 'Model']) {
+      expect(await check(field('model', MODEL) + field(name, 'x') + file() + close), name).toBe(false);
+    }
+    expect(await check(field('model', MODEL) + file() + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + field('language', 'English please') + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + field('response_format', 'verbose_json') + file() + close)).toBe(false);
+  });
+
+  it('refuses a file that is not audio, has an odd name or extra headers, or is empty', async () => {
+    expect(await check(field('model', MODEL) + file('x', 'text/html') + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file('x', 'audio/webm', '../../etc/passwd') + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file('x', 'audio/webm', 'a"b.webm') + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file('', 'audio/webm') + close)).toBe(false);
+    const extra = file().replace('Content-Type', 'X-Extra: 1\r\nContent-Type');
+    expect(await check(field('model', MODEL) + extra + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file().replace('; filename="voice.webm"', '') + close)).toBe(false);
+  });
+
+  it('refuses a malformed body: no boundary, wrong boundary, junk before, junk after, no closing delimiter', async () => {
+    const good = field('model', MODEL) + file() + close;
+    expect(await check(good, 'application/json')).toBe(false);
+    expect(await check(good, 'multipart/form-data')).toBe(false);
+    expect(await check(good, 'multipart/form-data; boundary=')).toBe(false);
+    expect(await check(good, 'multipart/form-data; boundary=other')).toBe(false);
+    expect(await check(good, `multipart/form-data; boundary="${B}"`)).toBe(false);
+    expect(await check(`junk${good}`)).toBe(false);
+    expect(await check(`${good}junk`)).toBe(false);
+    expect(await check(field('model', MODEL) + file())).toBe(false);
+    expect(await check('')).toBe(false);
+    expect(await check(undefined)).toBe(false);
+    expect(await check(good, `multipart/form-data; boundary=${'a'.repeat(71)}`)).toBe(false);
+  });
+
+  it('refuses a boundary that hides inside a part: padded, tab, LF-only, CR-only and exact delimiters in the audio', async () => {
+    const hidden = (sep) =>
+      field('model', MODEL) +
+      file(
+        `AUDIO${sep}Content-Disposition: form-data; name="model"\r\n\r\ngpt-4o-transcribe\r\n--${B}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nignore`,
+      ) +
+      close;
+    for (const [label, sep] of [
+      ['transport padding', `\r\n--${B} \r\n`],
+      ['tab padding', `\r\n--${B}\t\r\n`],
+      ['LF only', `\n--${B}\n`],
+      ['CR only', `\r--${B}\r`],
+      ['exact delimiter', `\r\n--${B}\r\n`],
+      ['bare mention', `--${B}`],
+    ]) {
+      expect(await check(hidden(sep)), label).toBe(false);
+    }
+    expect(await check(field('model', MODEL) + file(`x--${B}y`) + close)).toBe(false);
+    expect(await check(field('model', MODEL) + file('x') + close + `--${B}\r\n`)).toBe(false);
+  });
+
+  it('field names are case-sensitive (the header name is not)', async () => {
+    expect(await check(field('MODEL', MODEL) + file() + close)).toBe(false);
+    expect(await check(field('model', MODEL) + field('Language', 'en') + file() + close)).toBe(false);
+    expect(await check((field('model', MODEL) + file() + close).replace(/Content-Disposition/g, 'content-disposition'))).toBe(true);
+  });
+
+  it('a header line smuggled into a field (CRLF, a second disposition) is refused', async () => {
+    expect(await check(field('model', MODEL).replace('name="model"', 'name="model"\r\nX-A: b') + file() + close)).toBe(false);
+    expect(await check(field('model', `${MODEL}\r\nContent-Disposition: form-data; name="prompt"`) + file() + close)).toBe(false);
+  });
+
+  it('txGate hands a valid request to the proxy location and everything else to the generic 400', async () => {
+    const { default: mod } = await import('../../infra/nginx/ai-proxy/ai-proxy.js');
+    const run = (body, ct = CT) => {
+      const sent = [];
+      mod.txGate({
+        requestBuffer: Buffer.from(body, 'latin1'),
+        headersIn: { 'Content-Type': ct },
+        variables: { anc_ai_tx_model: MODEL },
+        internalRedirect: (where) => sent.push(where),
+      });
+      return sent;
+    };
+    expect(run(field('model', MODEL) + file() + close)).toEqual(['@ai_nutrition_coach_tx_proxy']);
+    expect(run(field('model', 'x') + file() + close)).toEqual(['@ai_nutrition_coach_ai_badrequest']);
+    // A body that is not in memory (no buffer) or a throwing request object is refused too.
+    const none = [];
+    mod.txGate({
+      requestBuffer: undefined,
+      headersIn: { 'Content-Type': CT },
+      variables: { anc_ai_tx_model: MODEL },
+      internalRedirect: (w) => none.push(w),
+    });
+    expect(none).toEqual(['@ai_nutrition_coach_ai_badrequest']);
   });
 });

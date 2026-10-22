@@ -45,3 +45,15 @@ export function parseRetailCode(input: string): RetailCodeResult {
   }
   return { ok: false, reason: 'checksum' };
 }
+
+/**
+ * Open Food Facts' own "add a product" page for a barcode. A plain link the person may follow: the
+ * app posts nothing and holds no Open Food Facts credentials (they sign in on their site).
+ */
+export const OFF_ADD_PRODUCT_URL = 'https://world.openfoodfacts.org/cgi/product.pl?type=add&code=';
+
+/** The add-product link for a barcode, only when it is a valid EAN-13, EAN-8, UPC-A or UPC-E. */
+export function offAddProductUrl(code: string): string | null {
+  const parsed = parseRetailCode(code);
+  return parsed.ok ? `${OFF_ADD_PRODUCT_URL}${encodeURIComponent(parsed.code)}` : null;
+}

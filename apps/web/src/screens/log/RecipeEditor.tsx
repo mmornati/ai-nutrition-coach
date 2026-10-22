@@ -22,7 +22,15 @@ import { Button, TextField } from '../../components/primitives';
 import { QuantityPicker, Sheet } from '../../components/sheets';
 import { fill, useLocale, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { useSession } from '../../app/session';
+import type { NotAddedLine, PrefillIngredient, RecipePrefill } from '../../capture';
 import { MatchList } from './MatchList';
+import { RecipePaste } from './RecipePaste';
+
+/** An ingredient of the form and, when it came from a pasted recipe, the line it was matched from. */
+interface IngredientRow {
+  readonly draft: FoodEntryDraft;
+  readonly from?: string;
+}
 
 /** A typed whole number of servings; `null` for anything else. */
 function parseServings(text: string): number | null {
@@ -62,7 +70,14 @@ const PROBLEM: Readonly<Record<RecipeProblem, Message>> = {
  * from the ingredients as they are added; an ingredient without nutrient data is named as missing,
  * never counted as zero.
  */
-export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) => void }) {
+export function RecipeEditor({
+  onSaved,
+  onLeave,
+}: {
+  readonly onSaved: (recipe: Recipe) => void;
+  /** Called when a link inside leaves for another page (the sheet closes). */
+  readonly onLeave?: () => void;
+}) {
   const all = useStrings();
   const t = all.relog.recipe;
   const { locale } = useLocale();
@@ -72,9 +87,14 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
   const [name, setName] = useState('');
   const [servings, setServings] = useState('4');
   const [cooked, setCooked] = useState('');
-  const [ingredients, setIngredients] = useState<readonly FoodEntryDraft[]>([]);
+  // Each ingredient, with the pasted line it was matched from (shown next to the matched name).
+  const [rows, setRows] = useState<readonly IngredientRow[]>([]);
+  const ingredients = useMemo<readonly FoodEntryDraft[]>(() => rows.map((r) => r.draft), [rows]);
   const [weightValid, setWeightValid] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const [notAdded, setNotAdded] = useState<readonly NotAddedLine[]>([]);
+  const [estimatedNote, setEstimatedNote] = useState(false);
   const [note, setNote] = useMessage();
 
   const selected = state.selected;
@@ -99,8 +119,35 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
       return;
     }
     setNote(null);
-    setIngredients((all) => [...all, { databaseFood: selected.food, quantity: chosen }]);
+    setRows((all) => [...all, { draft: { databaseFood: selected.food, quantity: chosen } }]);
     session.clear();
+  };
+
+  /** A pasted recipe fills in the form for review: nothing is saved. */
+  const applyPaste = (prefill: RecipePrefill, why: Message) => {
+    if (prefill.name !== undefined && cleanSavedName(name) === null) setName(prefill.name);
+    if (prefill.servings !== undefined) setServings(String(prefill.servings));
+    setRows((current) =>
+      [...current, ...prefill.ingredients.map((i) => ({ draft: i.draft, from: i.from }))].slice(
+        0,
+        MAX_INGREDIENTS,
+      ),
+    );
+    setNotAdded(prefill.notAdded);
+    setEstimatedNote(prefill.anyEstimated);
+    setPasting(false);
+    setNote(why);
+  };
+
+  /** One tap on a suggestion: it becomes an ingredient and its line leaves the list. */
+  const pickSuggestion = (index: number, suggestion: PrefillIngredient) => {
+    setRows((current) =>
+      current.length >= MAX_INGREDIENTS
+        ? current
+        : [...current, { draft: suggestion.draft, from: suggestion.from }],
+    );
+    setNotAdded((current) => current.filter((_, i) => i !== index));
+    setNote(null);
   };
 
   const save = async () => {
@@ -172,6 +219,18 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
         }}
       />
 
+      {pasting ? (
+        <RecipePaste
+          onResult={applyPaste}
+          onClose={() => setPasting(false)}
+          onLeave={() => onLeave?.()}
+        />
+      ) : (
+        <Button variant="secondary" fullWidth onClick={() => setPasting(true)}>
+          {t.pasteOpen}
+        </Button>
+      )}
+
       <section aria-labelledby="recipe-ingredients" className="flex flex-col gap-3">
         <h3 id="recipe-ingredients" className="font-display text-section text-thread">
           {t.ingredients}
@@ -180,7 +239,7 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
           <p className="text-body-small text-ink-soft">{t.none}</p>
         ) : (
           <ul className="border-ink border-t-2">
-            {ingredients.map((item, i) => {
+            {rows.map(({ draft: item, from }, i) => {
               const itemName = foodName(item.databaseFood, locale);
               return (
                 <li
@@ -188,6 +247,11 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
                   className="border-seam flex items-center justify-between gap-3 border-b py-2"
                 >
                   <span className="min-w-0 text-lead">
+                    {from !== undefined && (
+                      <span className="text-body-small text-ink-soft block">
+                        {fill(t.matchedFrom, { line: from })}
+                      </span>
+                    )}
                     {itemName}
                     <span className="text-body-small text-ink-soft block">
                       {entryQuantityText(item.quantity, locale)}
@@ -196,7 +260,7 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
                   <button
                     type="button"
                     aria-label={fill(t.removeIngredientOf, { name: itemName })}
-                    onClick={() => setIngredients((all) => all.filter((_, j) => j !== i))}
+                    onClick={() => setRows((all) => all.filter((_, j) => j !== i))}
                     className="text-body-small text-ink-soft min-h-12 min-w-14 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
                   >
                     {t.removeIngredient}
@@ -205,6 +269,43 @@ export function RecipeEditor({ onSaved }: { readonly onSaved: (recipe: Recipe) =
               );
             })}
           </ul>
+        )}
+        {estimatedNote && <p className="text-body-small text-ink-soft">{t.pasteEstimated}</p>}
+        {notAdded.length > 0 && (
+          <div className="border-seam flex flex-col gap-2 border-2 p-3">
+            <h4 className="font-display text-label text-thread">{t.notAddedTitle}</h4>
+            <p className="text-body-small text-ink-soft">{t.notAddedBody}</p>
+            <ul className="flex flex-col gap-2">
+              {notAdded.map((line, i) => (
+                <li key={`${i}:${line.raw}`} className="text-body-small flex flex-col gap-1">
+                  <span>{line.raw}</span>
+                  {line.suggestions.length > 0 && (
+                    <span className="flex flex-col gap-1">
+                      <span className="text-ink-soft">{t.suggestions}</span>
+                      {line.suggestions.map((suggestion) => {
+                        const suggestedName = foodName(suggestion.draft.databaseFood, locale);
+                        return (
+                          <Button
+                            key={suggestion.draft.databaseFood.sourceRef}
+                            variant="secondary"
+                            fullWidth
+                            disabled={rows.length >= MAX_INGREDIENTS}
+                            aria-label={fill(t.useSuggestionFor, {
+                              name: suggestedName,
+                              line: line.raw,
+                            })}
+                            onClick={() => pickSuggestion(i, suggestion)}
+                          >
+                            {suggestedName}
+                          </Button>
+                        );
+                      })}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         <TextField
           label={t.search}
@@ -318,7 +419,7 @@ export function RecipeEditorSheet({
   const t = useStrings().relog.recipe;
   return (
     <Sheet open={open} onClose={onClose} title={t.title}>
-      <RecipeEditor onSaved={onSaved} />
+      <RecipeEditor onSaved={onSaved} onLeave={onClose} />
     </Sheet>
   );
 }

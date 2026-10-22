@@ -38,3 +38,50 @@ export {
 export { usePhotoFlow, type UsePhotoFlowDeps } from './usePhotoFlow';
 export { PhotoCapture } from './PhotoCapture';
 export { CameraNotice } from './CameraNotice';
+export {
+  describeLocally,
+  searchTermOf,
+  splitDescription,
+  MAX_DESCRIBED_PIECES,
+  type LocalDescription,
+} from './describe-local';
+export {
+  VoiceRecorder,
+  browserVoiceEnv,
+  pickRecorderMime,
+  voiceRecordingSupported,
+  MAX_RECORDING_MS,
+  RECORDER_MIME_CANDIDATES,
+  type RecorderLike,
+  type RecorderStart,
+  type RecorderStop,
+  type VoiceEnv,
+} from './voice-recorder';
+export {
+  gramsOfLine,
+  isLiquid,
+  MAX_RECIPE_TEXT_LENGTH,
+  parseIngredientLine,
+  parseRecipeText,
+  prefillFromAi,
+  prefillFromParsed,
+  recipeFromText,
+  servingsOf,
+  type AiReadRecipe,
+  type NotAddedLine,
+  type PrefillIngredient,
+  type ParsedIngredientLine,
+  type ParsedRecipeText,
+  type RecipePrefill,
+} from './recipe-paste';
+export {
+  COOKED_SEEDS,
+  detectRecipeLanguage,
+  matchIngredient,
+  MATCH_FLOOR,
+  MAX_SUGGESTIONS,
+  scoreCandidate,
+  SUGGESTION_FLOOR,
+  type IngredientMatch,
+  type RecipeLanguage,
+} from './recipe-match';

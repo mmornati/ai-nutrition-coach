@@ -25,7 +25,7 @@ import { declaredDependencies, lineOf, packageJsonFiles, parse, shippedFiles, st
 
 export const BANNED_BIOMETRIC = [
   'LocalAuthentication', 'FaceID', 'TouchID', 'face_detection', 'voice_print', 'biometric_auth', 'face_recognition',
-  'speaker_recognition', 'faceApi', 'rekognition',
+  'speaker_recognition', 'speaker_identification', 'speaker_diarization', 'faceApi', 'rekognition',
 ];
 export const BANNED_UNDER_13 = [
   'under13', 'childProfile', 'minorAccount', 'teenAccount', 'ageGate', 'birthDate', 'parentAccount',
@@ -33,7 +33,7 @@ export const BANNED_UNDER_13 = [
 /** Package-name fragments of biometric / face / voice libraries. */
 export const BANNED_PACKAGE_FRAGMENTS = [
   'local-auth', 'local_auth', 'face-api', 'face-detection', 'face-recognition', 'voice-print', 'voiceprint',
-  'biometric', 'rekognition', 'speech-recognition', 'speaker-recognition',
+  'biometric', 'rekognition', 'speech-recognition', 'speaker-recognition', 'speaker-identification', 'diarization',
 ];
 /** The one allowed marker: the v2 seam type (no behaviour). Its name is not a banned word. */
 export const SEAM_MARKER = 'ManagedOversightSeam';

@@ -44,7 +44,8 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 export interface CappedFetchOptions {
   readonly method?: string;
   readonly headers?: Readonly<Record<string, string>>;
-  readonly body?: string | Uint8Array;
+  /** A `FormData` body is sent as multipart: the caller then sets NO Content-Type (the boundary). */
+  readonly body?: string | Uint8Array | FormData;
   readonly maxBytes?: number;
   /** Wait for the response headers. Defaults to {@link RECEIVE_TIMEOUT_MS}. */
   readonly headersTimeoutMs?: number;

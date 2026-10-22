@@ -26,6 +26,23 @@ describe('AiSettings JSON', () => {
     expect(back.byokKeyHost).toBe('api.example.com');
   });
 
+  it('keeps the voice model: empty by default, round-trips, is bounded, and a change is a change', () => {
+    expect(AiSettings.defaults.byokTranscriptionModel).toBe('');
+    const s = new AiSettings({ byokTranscriptionModel: 'whisper-large-v3' });
+    expect(decodeAiSettings(encodeAiSettings(s)).byokTranscriptionModel).toBe('whisper-large-v3');
+    expect(s.equals(AiSettings.defaults)).toBe(false);
+    expect(s.copyWith({ byokTranscriptionModel: '' }).byokTranscriptionModel).toBe('');
+    const hostile = JSON.stringify({ v: 1, kind: 'noOp', txModel: 'x'.repeat(500) });
+    expect(decodeAiSettings(hostile).byokTranscriptionModel).toBe('');
+    expect(
+      decodeAiSettings(JSON.stringify({ v: 1, kind: 'noOp', txModel: 7 })).byokTranscriptionModel,
+    ).toBe('');
+    // An older blob without the field reads as the default.
+    expect(decodeAiSettings(JSON.stringify({ v: 1, kind: 'noOp' })).byokTranscriptionModel).toBe(
+      '',
+    );
+  });
+
   it('corrupt or hostile blobs fall back to the defaults and never throw', () => {
     for (const raw of [
       null,

@@ -186,6 +186,41 @@ describe('CameraView: lookup lines', () => {
     expect(onScanAgain).toHaveBeenCalledTimes(1);
   });
 
+  it('not found with a valid barcode offers Open Food Facts: a new-tab link to its add page, and a calm line', () => {
+    view(scanning({ kind: 'notFound', code: '3017620422003' }));
+    const link = screen.getByRole('link', { name: /Add this product to Open Food Facts/ });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://world.openfoodfacts.org/cgi/product.pl?type=add&code=3017620422003',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAccessibleName('Add this product to Open Food Facts (opens in a new tab)');
+    expect(
+      screen.getByText('Open Food Facts is a free, open database; anyone can add a product.'),
+    ).toBeInTheDocument();
+  });
+
+  it('no Open Food Facts link for a code that is not a valid retail barcode (a typo is never sent on)', () => {
+    for (const code of ['3017620422004', '12345', 'abc', '3017620422003; x']) {
+      const { unmount } = view(scanning({ kind: 'notFound', code }));
+      expect(screen.queryByRole('link', { name: /Open Food Facts/ })).toBeNull();
+      expect(screen.queryByText(/free, open database/)).toBeNull();
+      unmount();
+    }
+  });
+
+  it('no Open Food Facts link while looking up, on a match or on a catalogue failure', () => {
+    for (const lookup of [
+      { kind: 'lookingUp', code: '3017620422003' },
+      { kind: 'failure', code: '3017620422003' },
+    ] as const) {
+      const { unmount } = view(scanning(lookup));
+      expect(screen.queryByRole('link', { name: /Open Food Facts/ })).toBeNull();
+      unmount();
+    }
+  });
+
   it('catalog failure: "Search isn\'t available right now." with no retry and a way to type it', () => {
     const { onTypeInstead } = view(scanning({ kind: 'failure', code: '3017620422003' }));
     expect(screen.getByText("Search isn't available right now.")).toBeInTheDocument();
@@ -218,6 +253,7 @@ describe('CameraView: accessibility', () => {
     ['unsupported', { kind: 'unsupported' }],
     ['scanning', scanning({ kind: 'idle' })],
     ['not found', scanning({ kind: 'notFound', code: '1' })],
+    ['not found with a valid code', scanning({ kind: 'notFound', code: '3017620422003' })],
     ['failure', scanning({ kind: 'failure', code: '1' })],
   ])('%s has no axe violations', async (_name, state) => {
     const { container } = view(state);

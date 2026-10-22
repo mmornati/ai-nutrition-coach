@@ -26,6 +26,9 @@ LC_ALL=C
 export LC_ALL
 
 # User-initiated network use (documented in docs/telemetry-posture.md).
+# world.openfoodfacts.org also appears as the add-product link of the barcode not-found state
+# (https://world.openfoodfacts.org/cgi/product.pl?type=add&code=): a plain <a target=_blank> the person may
+# follow, never fetched by the app; the host is already allowed, so no exact-URL entry is needed.
 NETWORK_HOSTS=(world.openfoodfacts.org)
 # JS/React build (apps/web/dist). Inert string constants, never loaded from the network;
 # allowed as EXACT URLs (or a fixed path prefix), not as whole hosts, so any other URL on
