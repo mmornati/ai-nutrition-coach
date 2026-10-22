@@ -4,6 +4,9 @@
 // boundary as plain strings and numbers: mapping to the domain, and the corrupt-row policy, live
 // on the main thread (row-mapping.ts).
 
+import type { VaultSnapshot } from '@anc/core';
+import type { VaultApplyOutcome } from './vault-clock';
+
 export interface EntryInsert {
   readonly sourceRef: string;
   readonly displayName: string;
@@ -123,8 +126,22 @@ export interface StoreDbOps {
   deleteRecipe(id: number): void;
 
   kvGet(key: string): string | null;
+  /** Schema v4: the change time (an HLC stamp) is written with the value, in the same statement. */
   kvSet(key: string, value: string): void;
+  /** A synced key leaves a tombstone, so the delete can win a merge. */
   kvDelete(key: string): void;
+
+  /**
+   * Schema v4. The whole store as a vault snapshot, canonical order, records linked by uid. Only
+   * allow-listed `kv` keys are in it (never the BYOK key).
+   */
+  readVault(): VaultSnapshot;
+  /**
+   * Writes a (validated) snapshot in ONE transaction, matching rows by uid; see `VaultStore`.
+   * A failure rolls everything back. A uid used for something else here, or a stamp beyond the
+   * drift bound, is answered (`conflict`, `clockAhead`) with nothing written.
+   */
+  applyVault(snapshot: VaultSnapshot): VaultApplyOutcome;
 }
 
 export type StoreOpName = keyof StoreDbOps;
@@ -151,6 +168,8 @@ export const STORE_OP_NAMES: readonly StoreOpName[] = [
   'kvGet',
   'kvSet',
   'kvDelete',
+  'readVault',
+  'applyVault',
 ] as const;
 
 /** The async view of the operations, plus `close`. This is what the facades talk to. */

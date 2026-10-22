@@ -1,6 +1,6 @@
 # Encrypted backup, restore and cross-device sync: plan
 
-Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · S0 in progress.
+Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · S0 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
 Goal: a person can lose a browser's storage (cleared site data, Safari's 7-day eviction, a new phone,
 an installed iOS web app that keeps its own storage) and get **all** their history back, and can use
 the app on several devices, while the server only ever holds **ciphertext it cannot read**.
@@ -61,7 +61,8 @@ makes a simple, robust design possible.
 - **Local-first stays.** Writes never wait on the network; sync is an adapter behind the existing
   `SyncAdapter` port; the chip says `synced` only after a durable remote ack (AD-6).
 - **No telemetry, no new hosts.** The relay is same-origin (`/sync/…`), so CSP `connect-src 'self'`
-  is unchanged and `check_no_external_hosts.sh` keeps passing.
+  is unchanged and `check_no_external_hosts.sh` keeps passing; the import-based telemetry gate
+  (`tools/check_telemetry_claims.mjs`) pins the claim.
 - **Honest copy, no dark patterns.** No nagging, no countdowns; the NDP reviewer signs the copy.
 - **No escrow.** A forgotten passphrase is still unrecoverable *unless* the person saved a
   recovery key (optional, shown once, never sent to the server).
@@ -133,8 +134,9 @@ in the encrypted `kv`). Rate limits per IP and per handle on login, as the AI pr
 
 ### 3.4 Data-model changes (schema v4)
 
-- Add `uid TEXT NOT NULL UNIQUE` (UUIDv7) to every synced table; backfill existing rows in the
-  migration. Foreign keys in the snapshot use `uid`s; local integer ids stay internal.
+- Add `uid TEXT` (UUIDv7) with a UNIQUE index to every synced table; backfill existing rows in the
+  migration. SQLite cannot add a NOT NULL column without a default, so non-null is enforced by a
+  BEFORE INSERT trigger per table (a NULL `uid` aborts the insert). Foreign keys in the snapshot use `uid`s; local integer ids stay internal.
 - Add `updated_at_hlc TEXT` (hybrid logical clock: wall time + counter + device id) to mutable
   records: `saved_meal`, `recipe`, `kv` rows that sync.
 - New `tombstone(uid, table_name, deleted_at_hlc)`; `delete-plate` and template deletes write one in
@@ -143,9 +145,11 @@ in the encrypted `kv`). Rate limits per IP and per handle on login, as the AI pr
 - Merge rules (pure functions in `packages/core`, heavily unit-tested):
   - plates (+ entries, coach notes, interactions): union by `uid`; tombstone wins.
   - saved meals / recipes: last-writer-wins on `updated_at_hlc`, whole record including items.
-  - `kv`: LWW per key, **allow-list** of keys that sync (language, numbers pref, profile, privacy
-    answers, export reminder state). Device-only keys never leave: auto-lock choice, device token,
-    `lastSeenVersion`. **BYOK AI key: excluded by default** (decision 4).
+  - `kv`: LWW per key, **allow-list** of keys that sync (language, numbers pref, profile, the
+    About-notice acknowledgement, export reminder state). Device-only keys never leave: auto-lock
+    choice, device token, `lastSeenVersion`, the device id, AI settings and every consent to a
+    network destination (AI coaching/describe consents and the Open Food Facts answer are given per
+    device). **BYOK AI key: excluded by default** (decision 4).
   - coach dismissals: union.
 
 ### 3.5 The relay service
@@ -175,11 +179,14 @@ backup of the relay volume is a backup of every vault without exposing any of th
 Each phase is a PR (stacked, as with P0–P5), each usable on its own.
 
 ### Phase S0: ADR and groundwork (no user-visible change)
-- ADR 0007 "Encrypted vault: backup, restore and sync" resolving OQ-1 (this document, shortened).
-- Schema v4: `uid`, `updated_at_hlc`, `tombstone`; deletes write tombstones; backfill migration;
-  contract tests for the migration on a v3 database.
-- `packages/core`: full-fidelity `VaultSnapshot` type, `serialise(store)` / `merge(local, remote)`
-  pure functions, HLC; property tests (merge is commutative, idempotent, tombstones win).
+- [x] ADR 0007 ["Encrypted vault: backup, restore and sync"](./adr/0007-encrypted-vault.md) resolving OQ-1 (this document, shortened).
+- [x] Schema v4: `uid`, `updated_at_hlc`, `tombstone`; deletes write tombstones; backfill migration;
+  contract tests for the migration on a v3 database. (The kv stamp is a column on `kv`, not a
+  `kv_meta` table; a deleted synced kv key is a tombstone `kv:<key>`.)
+- [x] `packages/core`: full-fidelity `VaultSnapshot` type and strict `parseVaultSnapshot`,
+  `mergeVaultSnapshots(local, remote)` (pure, typed refusals), HLC with a drift bound, UUIDv7, the kv allow-list, one shared decision function used by merge and by the stores' apply; the stores read a
+  snapshot (`VaultStore.readSnapshot`) and apply one (`applySnapshot`). Property tests: merge is
+  commutative, associative, idempotent, tombstones win.
 - **Done when:** a v3 store migrates losslessly; snapshot → empty store → snapshot round-trips byte
   for byte; merge property tests pass.
 

@@ -274,6 +274,10 @@ test('the store contract suite passes against the real OPFS store (production KD
   expect(results.length).toBeGreaterThan(20);
   const failed = results.filter((r) => !r.ok);
   expect(failed, JSON.stringify(failed)).toEqual([]);
+  // The cases that need a second store run in Vitest (both stores); here they are named, not hidden.
+  const skipped = results.filter((r) => r.skipped).map((r) => r.name);
+  test.info().annotations.push({ type: 'skipped contract cases', description: skipped.join('; ') });
+  expect(skipped.every((name) => name.startsWith('vault:'))).toBe(true);
 });
 
 test('hidden page and idle both lock the real store', async ({ page }) => {

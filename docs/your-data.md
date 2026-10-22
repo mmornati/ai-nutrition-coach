@@ -143,6 +143,30 @@ a whole on failure, and a test asserts the absence of rows table by table). Ther
 is no undo, hence the confirm. Editing a plate is not supported; remove it and log
 it again.
 
+## Groundwork for backup and sync (schema v4)
+
+Nothing in the app uses this yet, and nothing leaves your device because of it. Schema v4 gives every
+plate, food entry, coach note, interaction, saved meal and recipe (and the items of the last two) a
+permanent identifier (a `uid`, a UUIDv7: random, but it also encodes the time the row was created),
+stamps saved meals, recipes and the small settings with a logical-clock time of their last change,
+and keeps a **tombstone** (an identifier, the kind of record and a time, no content) for each
+record you delete, so that a future encrypted backup or sync can tell "deleted" from "never seen".
+Tombstones are written for: a removed plate, its food entries, its coach notes and their
+interactions (also when only the notes are cleared); a deleted saved meal or recipe and its items;
+and a deleted setting among the ones listed below. They are written in the same transaction as the
+delete, are kept until you choose *Erase all local data* (there is no pruning yet), and are removed
+with everything else. The device also stores a random device id (the `sync.deviceId` entry in the
+encrypted key/value table), and every stamp embeds it. The upgrade is automatic, re-runnable and
+loses no row. There is **still no import and no sync**: the encrypted backup, restore and
+cross-device design is in [`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
+[`docs/encrypted-sync-plan.md`](./encrypted-sync-plan.md).
+
+What such a backup would carry, besides the plates, notes, saved meals and recipes: your profile, the
+interface language, the nutrition-numbers preference, the "About this app" acknowledgement and the
+export reminder dates. What it would **never** carry: your AI key, your AI settings, your AI and
+describe-a-meal consents, your Open Food Facts answer (a consent to contact a network destination is
+given per device), the device id entry, and the idle auto-lock choice (a browser setting).
+
 ## Open Food Facts lookups
 
 The first time a scanned barcode is about to be looked up online, a one-time

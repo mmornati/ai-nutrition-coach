@@ -38,7 +38,7 @@ export const DATABASE_FILENAME = '/anc_pwa.db';
 export const STORE_FORMAT_VERSION = 1;
 
 /** Schema version stored in `PRAGMA user_version`. A newer value is refused, never opened. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** The only cipher this app writes. Pinned explicitly so a future sqlite3mc default cannot change it. */
 export const PINNED_CIPHER = 'chacha20';

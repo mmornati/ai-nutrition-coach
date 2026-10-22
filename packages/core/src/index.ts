@@ -1,6 +1,12 @@
 // @anc/core: pure-TypeScript domain core (AD-1). The single public entry point.
 export * from './common';
 export * from './util/uuid-v4';
+export * from './util/uuid-v7';
+export * from './vault/decide';
+export * from './vault/hlc';
+export * from './vault/kv-allow-list';
+export * from './vault/merge';
+export * from './vault/snapshot';
 export * from './entities/byok-previous-rung';
 export * from './entities/coach-note';
 export * from './entities/coach-question';
@@ -41,6 +47,7 @@ export * from './results/saved';
 export * from './results/store';
 export * from './results/sync';
 export * from './results/transcribe';
+export * from './results/vault';
 export * from './ports/ai-rung';
 export * from './ports/coach-note-store';
 export * from './ports/coach';
@@ -52,6 +59,7 @@ export * from './ports/observer';
 export * from './ports/saved-store';
 export * from './ports/sync-adapter';
 export * from './ports/sync-queue';
+export * from './ports/vault-store';
 export * from './ports/voice-transcriber';
 export * from './use-cases/delete-plate';
 export * from './use-cases/drain-sync-queue';

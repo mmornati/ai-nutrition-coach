@@ -11,7 +11,12 @@
 // same cases run under Vitest and inside the browser harness page.
 
 import {
+  canonicalText,
   coachNoteDismissalKey,
+  formatHlc,
+  isUuid,
+  MAX_DRIFT_MS,
+  parseVaultSnapshot,
   openPlateDismissalKey,
   addCalendarDays,
   type CoachNote,
@@ -22,14 +27,23 @@ import {
   type PlateLog,
   type SavedStore,
   type SourceCatalog,
+  type VaultSnapshot,
+  type VaultStore,
 } from '@anc/core';
 import { KeyValueStoreLocked, type KeyValueStore } from '../key-value-store';
+import { mergeSnapshots, randomVaultSnapshot, seeded, uuid } from './vault-random';
 
 export interface ContractSubject {
   readonly store: EncryptedStore;
   readonly notes: CoachNoteStore;
   readonly saved: SavedStore;
+  readonly vault: VaultStore;
   readonly kv: KeyValueStore;
+  /**
+   * A second, empty store of the same kind (restore targets). Absent where only one store exists
+   * (the browser harness), where the cases marked `needsFresh` are reported as skipped.
+   */
+  fresh?(): Promise<ContractSubject>;
   /** Lock the store (drop the database); the same ports must then answer typed "locked" results. */
   lock(): Promise<void>;
   dispose(): Promise<void>;
@@ -37,6 +51,8 @@ export interface ContractSubject {
 
 export interface ContractCase {
   readonly name: string;
+  /** Needs `subject.fresh`: a runner without a second store reports the case as skipped, loudly. */
+  readonly needsFresh?: true;
   run(subject: ContractSubject): Promise<void>;
 }
 
@@ -128,6 +144,14 @@ async function read(
     throw new ContractFailure(`readRange failed: ${JSON.stringify(result.failure)}`);
   }
   return result.plates;
+}
+
+async function snapshotOf(vault: VaultStore): Promise<VaultSnapshot> {
+  const result = await vault.readSnapshot();
+  if (result.kind !== 'vault') {
+    throw new ContractFailure(`readSnapshot failed: ${JSON.stringify(result)}`);
+  }
+  return result.value;
 }
 
 const T0 = Date.UTC(2026, 7, 16, 12);
@@ -977,6 +1001,437 @@ export const storeContractCases: readonly ContractCase[] = [
       }
       const listed = await saved.listRecipes();
       same(listed.kind === 'saved' ? listed.value : null, [], 'nothing was written');
+    },
+  },
+  // ── Vault snapshot (schema v4): uids, stamps, tombstones, apply ─────────────────────────────
+  {
+    name: 'vault: an empty store reads an empty snapshot; device-only keys never appear in one',
+    async run({ vault, kv }) {
+      const empty = await snapshotOf(vault);
+      same(
+        [
+          empty.plates,
+          empty.dismissals,
+          empty.savedMeals,
+          empty.recipes,
+          empty.kv,
+          empty.tombstones,
+        ],
+        [[], [], [], [], [], []],
+        'nothing yet',
+      );
+      await kv.write('ai.byokKey', 'sk-secret-value-123');
+      await kv.write('ai.settings', '{"rung":"byok"}');
+      await kv.write('ai.coachingConsent', '{"host":"x"}');
+      await kv.write('some.future.key', 'unreviewed');
+      await kv.write('privacy.offLookup', 'allowed'); // consent to a destination is per device
+      await kv.write('ui.locale', 'fr');
+      const snap = await snapshotOf(vault);
+      same(
+        snap.kv.map((e) => [e.key, e.value]),
+        [['ui.locale', 'fr']],
+        'only the allow-listed key travels',
+      );
+      assert(!JSON.stringify(snap).includes('sk-secret'), 'the BYOK key is not in the snapshot');
+      assert(!JSON.stringify(snap).includes('sync.deviceId'), 'nor is the device id');
+      assert((await kv.read('ai.byokKey')) === 'sk-secret-value-123', 'and it stays in the store');
+    },
+  },
+  {
+    name: 'vault: every new row gets its own uid; the rows of a plate keep the order they were written in',
+    async run({ store, notes, saved, vault }) {
+      const first = await record(store, [draft('A'), draft('B'), draft('C')], T0);
+      const second = await record(store, [draft('D')], T0 + MINUTE);
+      const n = await appended(notes, note(first.id, 'k'));
+      await notes.recordInteraction({ noteId: n.id, kind: 'sure', at: T0 });
+      await notes.recordInteraction({ noteId: n.id, kind: 'dismiss', at: T0 + 1 });
+      await saved.saveMeal({ name: 'Meal', entries: [draft('E'), draft('F')] });
+      await saved.saveRecipe({ name: 'Stew', servings: 2, ingredients: [weighed('Rice', 100)] });
+      const snap = await snapshotOf(vault);
+      const uids = [
+        ...snap.plates.flatMap((p) => [
+          p.uid,
+          ...p.entries.map((e) => e.uid),
+          ...p.notes.flatMap((x) => [x.uid, ...x.interactions.map((i) => i.uid)]),
+        ]),
+        ...snap.savedMeals.flatMap((m) => [m.uid, ...m.items.map((i) => i.uid)]),
+        ...snap.recipes.flatMap((r) => [r.uid, ...r.items.map((i) => i.uid)]),
+      ];
+      // 2 plates + 4 entries + 1 note + 2 interactions + 1 meal + 2 items + 1 recipe + 1 ingredient.
+      assert(uids.length === 14, `every row is in the snapshot (${uids.length})`);
+      assert(uids.every(isUuid), 'every uid is a UUID');
+      assert(new Set(uids).size === uids.length, 'all distinct');
+      const firstPlate = snap.plates.find((p) => p.entries.length === 3);
+      same(
+        firstPlate?.entries.map((e) => e.displayName),
+        ['A', 'B', 'C'],
+        'entries come back in the order they were written',
+      );
+      same(
+        firstPlate?.notes[0]?.interactions.map((i) => i.kind),
+        ['sure', 'dismiss'],
+        'so do interactions',
+      );
+      assert(snap.plates.some((p) => p.uid !== firstPlate?.uid) && second.id > 0, 'two plates');
+    },
+  },
+  {
+    name: 'vault: saved meals and recipes are stamped on create and on every rename; kv writes stamp too',
+    async run({ saved, kv, vault }) {
+      const meal = await saved.saveMeal({ name: 'Usual', entries: [draft('Oats')] });
+      assert(meal.kind === 'saved', 'saved');
+      if (meal.kind !== 'saved') return;
+      await saved.saveRecipe({ name: 'Stew', servings: 2, ingredients: [weighed('Rice', 100)] });
+      await kv.write('ui.locale', 'en');
+      const one = await snapshotOf(vault);
+      const mealStamp = one.savedMeals[0]?.updatedAtHlc ?? '';
+      const kvStamp = one.kv[0]?.updatedAtHlc ?? '';
+      assert(parseVaultSnapshot(one).kind === 'vaultSnapshotParsed', 'valid');
+      await saved.renameMeal(meal.value.id, 'Renamed');
+      await kv.write('ui.locale', 'fr');
+      const two = await snapshotOf(vault);
+      assert((two.savedMeals[0]?.updatedAtHlc ?? '') > mealStamp, 'a rename moves the stamp on');
+      assert((two.kv[0]?.updatedAtHlc ?? '') > kvStamp, 'a kv write moves the stamp on');
+      assert(
+        two.recipes[0]?.updatedAtHlc === one.recipes[0]?.updatedAtHlc,
+        'an untouched record keeps its stamp',
+      );
+      same(two.savedMeals[0]?.uid, one.savedMeals[0]?.uid, 'a rename keeps the uid');
+    },
+  },
+  {
+    name: 'vault: deleting a plate leaves tombstones for it, its entries, notes and interactions',
+    async run({ store, notes, vault }) {
+      const keep = await record(store, [draft('Keep')], T0);
+      const gone = await record(store, [draft('Apple'), draft('Pear')], T0 + MINUTE);
+      const n = await appended(notes, note(gone.id, 'a'));
+      await notes.recordInteraction({ noteId: n.id, kind: 'sure', at: T0 });
+      await notes.recordDismissal(coachNoteDismissalKey(n.id));
+      const before = await snapshotOf(vault);
+      const victim = before.plates.find((p) => p.entries.length === 2);
+      assert(
+        victim !== undefined && before.tombstones.length === 0,
+        'two plates, no tombstone yet',
+      );
+      if (victim === undefined) return;
+      const expected = [
+        [victim.uid, 'plate_log'],
+        ...victim.entries.map((e) => [e.uid, 'food_entry']),
+        [victim.notes[0]?.uid, 'coach_note'],
+        [victim.notes[0]?.interactions[0]?.uid, 'coach_interaction'],
+      ].sort();
+      assert((await store.deletePlate(gone.id)).kind === 'plateDeleted', 'deleted');
+      const after = await snapshotOf(vault);
+      same(
+        after.tombstones.map((t) => [t.uid, t.table]).sort(),
+        expected,
+        'one tombstone per deleted row',
+      );
+      same(
+        after.plates.map((p) => p.entries[0]?.displayName),
+        ['Keep'],
+        'the other plate stays',
+      );
+      same(after.dismissals, [], 'the note dismissal went with its note');
+      assert(keep.id > 0, 'kept');
+      // Deleting something that is not there writes nothing.
+      await store.deletePlate(gone.id);
+      await store.deletePlate(99999);
+      same((await snapshotOf(vault)).tombstones.length, expected.length, 'idempotent');
+    },
+  },
+  {
+    name: 'vault: deleting a saved meal or recipe leaves tombstones for it and its items; so does a synced kv delete',
+    async run({ saved, kv, vault }) {
+      const meal = await saved.saveMeal({ name: 'M', entries: [draft('a'), draft('b')] });
+      const recipe = await saved.saveRecipe({
+        name: 'R',
+        servings: 1,
+        ingredients: [weighed('Rice', 100)],
+      });
+      assert(meal.kind === 'saved' && recipe.kind === 'saved', 'saved');
+      if (meal.kind !== 'saved' || recipe.kind !== 'saved') return;
+      await kv.write('ui.showNumbers', 'off');
+      await kv.write('ai.settings', '{}');
+      const before = await snapshotOf(vault);
+      await saved.deleteMeal(meal.value.id);
+      await saved.deleteRecipe(recipe.value.id);
+      await kv.delete('ui.showNumbers');
+      await kv.delete('ai.settings'); // device-only: no tombstone
+      await kv.delete('never.written');
+      const after = await snapshotOf(vault);
+      const m = before.savedMeals[0];
+      const r = before.recipes[0];
+      same(
+        after.tombstones.map((t) => [t.uid, t.table]).sort(),
+        [
+          [m?.uid, 'saved_meal'],
+          ...(m?.items ?? []).map((i) => [i.uid, 'saved_meal_item']),
+          [r?.uid, 'recipe'],
+          ...(r?.items ?? []).map((i) => [i.uid, 'recipe_item']),
+          ['kv:ui.showNumbers', 'kv'],
+        ].sort(),
+        'tombstones for the records, their items and the synced key only',
+      );
+      same([after.savedMeals, after.recipes, after.kv], [[], [], []], 'and the rows are gone');
+    },
+  },
+  {
+    name: 'vault: a locked store answers typed failures',
+    async run({ vault, lock }) {
+      const snap = await snapshotOf(vault);
+      await lock();
+      const read = await vault.readSnapshot();
+      assert(read.kind === 'vaultFailed' && read.reason === 'locked', 'read: locked');
+      const apply = await vault.applySnapshot(snap);
+      assert(apply.kind === 'vaultFailed' && apply.reason === 'locked', 'apply: locked');
+    },
+  },
+  {
+    name: 'vault: snapshot -> apply into an empty store -> snapshot is identical, byte for byte',
+    needsFresh: true,
+    async run({ store, notes, saved, kv, vault, fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      const kept = await record(store, [weighed('Rice', 120), draft('Apple')], T0);
+      const gone = await record(store, [draft('Pear')], T0 + HOUR);
+      const n = await appended(notes, note(kept.id, 'k'));
+      await notes.recordInteraction({ noteId: n.id, kind: 'sure', at: T0 });
+      await notes.recordDismissal(coachNoteDismissalKey(n.id));
+      await notes.recordDismissal(`openPlate:${new Date().toISOString().slice(0, 10)}:lunch`);
+      await store.deletePlate(gone.id);
+      const meal = await saved.saveMeal({ name: 'Usual', entries: [draft('Oats'), draft('Milk')] });
+      await saved.saveMeal({ name: 'Doomed', entries: [draft('x')] });
+      await saved.saveRecipe({
+        name: 'Stew',
+        servings: 4,
+        cookedWeightGrams: 1200.5,
+        ingredients: [weighed('Rice', 200), weighed('Beans', 300)],
+      });
+      if (meal.kind === 'saved') await saved.renameMeal(meal.value.id, 'Usual breakfast');
+      const doomed = await saved.listMeals();
+      if (doomed.kind === 'saved') {
+        const d = doomed.value.find((m) => m.name === 'Doomed');
+        if (d) await saved.deleteMeal(d.id);
+      }
+      await kv.write('ui.locale', 'fr');
+      await kv.write('profile', '{"heightCm":170}');
+      await kv.write('ui.showNumbers', 'off');
+      await kv.delete('ui.showNumbers');
+      await kv.write('ai.byokKey', 'sk-secret-value-123');
+
+      const original = await snapshotOf(vault);
+      const target = await fresh();
+      try {
+        const applied = await target.vault.applySnapshot(original);
+        assert(applied.kind === 'vault', `applied: ${JSON.stringify(applied)}`);
+        const copy = await snapshotOf(target.vault);
+        assert(JSON.stringify(copy) === JSON.stringify(original), 'the snapshot round-trips');
+        assert(!JSON.stringify(copy).includes('sk-secret'), 'no secret came along');
+        same(
+          (await read(target.store)).map((p) => p.entries.map((e) => e.databaseFood.displayName)),
+          (await read(store)).map((p) => p.entries.map((e) => e.databaseFood.displayName)),
+          'the day board reads the same',
+        );
+        const copied = await target.notes.forPlate((await read(target.store))[0]?.id ?? -1);
+        same(
+          copied.map((c) => c.text),
+          ['text for k'],
+          'the coach note is there',
+        );
+        assert((await target.kv.read('ui.locale')) === 'fr', 'settings came along');
+        assert((await target.kv.read('ai.byokKey')) === null, 'the BYOK key did not');
+        // Applying it again changes nothing.
+        assert((await target.vault.applySnapshot(original)).kind === 'vault', 'applied twice');
+        assert(
+          JSON.stringify(await snapshotOf(target.vault)) === JSON.stringify(original),
+          'idempotent',
+        );
+      } finally {
+        await target.dispose();
+      }
+    },
+  },
+  {
+    name: 'vault: a tombstone beats an older copy of a plate, and a newer saved meal beats an older one',
+    needsFresh: true,
+    async run({ store, saved, vault, fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      const plate = await record(store, [draft('Apple')], T0);
+      const meal = await saved.saveMeal({ name: 'Old name', entries: [draft('Oats')] });
+      assert(meal.kind === 'saved', 'saved');
+      if (meal.kind !== 'saved') return;
+      const older = await snapshotOf(vault);
+      const other = await fresh();
+      try {
+        // The other device restores the old state, renames the meal and deletes the plate.
+        await other.vault.applySnapshot(older);
+        const otherMeals = await other.saved.listMeals();
+        const otherId = otherMeals.kind === 'saved' ? (otherMeals.value[0]?.id ?? -1) : -1;
+        await other.saved.renameMeal(otherId, 'New name');
+        await other.store.deletePlate((await read(other.store))[0]?.id ?? -1);
+        const newer = await snapshotOf(other.vault);
+
+        // Back on the first device the newer state wins ...
+        assert((await vault.applySnapshot(newer)).kind === 'vault', 'applied the newer state');
+        same((await read(store)).length, 0, 'the plate deleted elsewhere is gone here too');
+        const listed = await saved.listMeals();
+        same(
+          listed.kind === 'saved' ? listed.value.map((m) => m.name) : null,
+          ['New name'],
+          'renamed',
+        );
+        // ... and the old state can no longer bring anything back.
+        assert((await vault.applySnapshot(older)).kind === 'vault', 'applied the older state');
+        same((await read(store)).length, 0, 'the deleted plate stays deleted');
+        const again = await saved.listMeals();
+        same(again.kind === 'saved' ? again.value.map((m) => m.name) : null, ['New name'], 'kept');
+        assert(plate.id > 0, 'plate existed');
+        // New work after applying sorts after what was applied.
+        await saved.renameMeal(meal.value.id, 'Newest');
+        const last = await snapshotOf(vault);
+        assert(
+          (last.savedMeals[0]?.updatedAtHlc ?? '') > (newer.savedMeals[0]?.updatedAtHlc ?? ''),
+          'later writes are stamped after the stamps that were applied',
+        );
+      } finally {
+        await other.dispose();
+      }
+    },
+  },
+  {
+    name: 'vault: applying a snapshot gives exactly what merging it would (ties, tombstones and all)',
+    needsFresh: true,
+    async run({ fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      const random = seeded(2026);
+      for (let round = 0; round < 40; round++) {
+        const [left, right] = [randomVaultSnapshot(random), randomVaultSnapshot(random)];
+        const target = await fresh();
+        try {
+          assert((await target.vault.applySnapshot(left)).kind === 'vault', 'applied the first');
+          const stored = await snapshotOf(target.vault);
+          assert(
+            canonicalText(stored) === canonicalText(left),
+            `round ${round}: stores what it was given`,
+          );
+          const applied = await target.vault.applySnapshot(right);
+          assert(
+            applied.kind === 'vault',
+            `round ${round}: applied the second ${JSON.stringify(applied)}`,
+          );
+          const expected = mergeSnapshots(left, right);
+          const actual = await snapshotOf(target.vault);
+          assert(
+            canonicalText(actual) === canonicalText(expected),
+            `round ${round}: apply(L, R) differs from merge(L, R)`,
+          );
+        } finally {
+          await target.dispose();
+        }
+      }
+    },
+  },
+  {
+    name: 'vault: a snapshot with a stamp beyond the drift bound is refused and writes nothing',
+    async run({ saved, vault }) {
+      await saved.saveMeal({ name: 'Usual', entries: [draft('Oats')] });
+      const before = JSON.stringify(await snapshotOf(vault));
+      const good = JSON.parse(before) as VaultSnapshot;
+      const farAhead = formatHlc({
+        wallMs: Date.now() + MAX_DRIFT_MS + 60_000,
+        counter: 0,
+        deviceId: 'aaaaaaaaaaaaaaaa',
+      });
+      const poisoned = await vault.applySnapshot({
+        ...good,
+        kv: [{ key: 'ui.locale', value: 'fr', updatedAtHlc: farAhead }],
+      });
+      assert(poisoned.kind === 'vaultFailed' && poisoned.reason === 'clockAhead', 'clockAhead');
+      const tomb = await vault.applySnapshot({
+        ...good,
+        tombstones: [{ uid: uuid(1), table: 'plate_log', deletedAtHlc: farAhead }],
+      });
+      assert(tomb.kind === 'vaultFailed' && tomb.reason === 'clockAhead', 'a tombstone too');
+      assert(JSON.stringify(await snapshotOf(vault)) === before, 'nothing changed');
+      // The clock was not dragged: a write now is stamped near the present.
+      await saved.saveMeal({ name: 'Later', entries: [draft('Rice')] });
+      const after = await snapshotOf(vault);
+      const newest =
+        after.savedMeals
+          .map((m) => m.updatedAtHlc)
+          .sort()
+          .at(-1) ?? '';
+      assert(newest < farAhead, 'later writes stay near the real time');
+    },
+  },
+  {
+    name: 'vault: a uid that already means something else here is refused as invalid, writing nothing',
+    async run({ store, saved, vault }) {
+      await record(store, [draft('A'), draft('B')], T0);
+      await saved.saveMeal({ name: 'Usual', entries: [draft('Oats')] });
+      const before = JSON.stringify(await snapshotOf(vault));
+      const good = JSON.parse(before) as VaultSnapshot;
+      const plate = good.plates[0];
+      const meal = good.savedMeals[0];
+      assert(plate !== undefined && meal !== undefined, 'seeded');
+      if (plate === undefined || meal === undefined) return;
+      // An entry of the stored plate, claimed by a different plate.
+      const stolen = await vault.applySnapshot({
+        ...good,
+        plates: [
+          {
+            uid: uuid(424242),
+            loggedAtUtc: plate.loggedAtUtc,
+            entries: [plate.entries[0] as (typeof plate.entries)[number]],
+            notes: [],
+          },
+        ],
+      });
+      assert(
+        stolen.kind === 'vaultFailed' && stolen.reason === 'invalid',
+        'entry under another plate',
+      );
+      // A saved-meal item uid claimed by a new recipe.
+      const item = meal.items[0] as (typeof meal.items)[number];
+      const crossed = await vault.applySnapshot({
+        ...good,
+        recipes: [
+          {
+            uid: uuid(515151),
+            name: 'Crafted',
+            servings: 1,
+            cookedWeightGrams: null,
+            createdAtUtc: meal.createdAtUtc,
+            updatedAtHlc: meal.updatedAtHlc,
+            items: [item],
+          },
+        ],
+      });
+      assert(
+        crossed.kind === 'vaultFailed' && crossed.reason === 'invalid',
+        'item in another table',
+      );
+      assert(JSON.stringify(await snapshotOf(vault)) === before, 'nothing changed');
+    },
+  },
+  {
+    name: 'vault: an invalid or newer-schema snapshot is a typed failure and writes nothing',
+    async run({ store, vault }) {
+      await record(store, [draft('Apple')], T0);
+      const before = JSON.stringify(await snapshotOf(vault));
+      const good = JSON.parse(before) as VaultSnapshot;
+      const tooNew = await vault.applySnapshot({ ...good, schemaVersion: good.schemaVersion + 1 });
+      assert(tooNew.kind === 'vaultFailed' && tooNew.reason === 'schemaTooNew', 'schemaTooNew');
+      const garbage = await vault.applySnapshot({ nope: true } as unknown as VaultSnapshot);
+      assert(garbage.kind === 'vaultFailed' && garbage.reason === 'invalid', 'invalid');
+      const secret = await vault.applySnapshot({
+        ...good,
+        kv: [
+          { key: 'ai.byokKey', value: 'x', updatedAtHlc: '0000000000001-0000-aaaaaaaaaaaaaaaa' },
+        ],
+      });
+      assert(secret.kind === 'vaultFailed' && secret.reason === 'invalid', 'a device-only key');
+      assert(JSON.stringify(await snapshotOf(vault)) === before, 'nothing changed');
     },
   },
   {

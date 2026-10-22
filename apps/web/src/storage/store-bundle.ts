@@ -2,7 +2,13 @@
 // parts (so tests and the dev store reuse it); `createBrowserStoreBundle` is the production
 // wiring (sqlite3mc worker on OPFS, Web Locks, localStorage + IndexedDB header).
 
-import type { CoachNoteStore, EncryptedStore, LocalDataEraser, SavedStore } from '@anc/core';
+import type {
+  CoachNoteStore,
+  EncryptedStore,
+  LocalDataEraser,
+  SavedStore,
+  VaultStore,
+} from '@anc/core';
 import { attachAutoLock } from './auto-lock';
 import type { StoreBackend } from './backend';
 import { ChangeBus } from './change-bus';
@@ -17,6 +23,7 @@ import { StoreController, type StoreControllerDeps } from './store-controller';
 import { WebCoachNoteStore } from './web-coach-note-store';
 import { WebEncryptedStore } from './web-encrypted-store';
 import { WebSavedStore } from './web-saved-store';
+import { WebVaultStore } from './web-vault-store';
 import { OpfsPoolDirectory, WorkerStoreBackend, type WorkerPort } from './worker/client';
 
 export interface StoreBundle {
@@ -25,6 +32,8 @@ export interface StoreBundle {
   readonly notes: CoachNoteStore;
   /** Saved meals and home recipes (schema v3). */
   readonly saved: SavedStore;
+  /** The whole store as a vault snapshot, and applying one (schema v4; no UI uses it yet). */
+  readonly vault: VaultStore;
   readonly kv: KeyValueStore;
   readonly eraser: LocalDataEraser;
   /** Stop listening to the page (auto-lock) and release the controller. */
@@ -50,6 +59,7 @@ export function assembleStoreBundle(options: AssembleOptions): StoreBundle {
     store: new WebEncryptedStore(controller, bus, rest.clock ? { now: rest.clock } : {}),
     notes: new WebCoachNoteStore(controller, bus, rest.clock ? { now: rest.clock } : {}),
     saved: new WebSavedStore(controller, rest.clock ? { now: rest.clock } : {}),
+    vault: new WebVaultStore(controller, bus),
     kv: new DatabaseKeyValueStore(controller),
     eraser: new WebLocalDataEraser(controller, storage),
     dispose() {

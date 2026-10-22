@@ -1,6 +1,8 @@
-// `StoreDbOps` over the (already keyed) SQLite database. Runs inside the worker. All SQL for the
-// store is here.
+// `StoreDbOps` over the (already keyed) SQLite database. Runs inside the worker. The SQL for the
+// store is here; the row-level writes it shares with the vault snapshot are in sqlite-rows.ts, and
+// reading / applying a whole snapshot is sqlite-vault.ts.
 
+import { isSyncedKvKey, kvTombstoneUid, ZERO_HLC, type VaultSnapshot } from '@anc/core';
 import type {
   EntryInsert,
   EntryRow,
@@ -17,50 +19,88 @@ import type {
   StoreDbOps,
 } from './ops';
 import type { SqlHandle, SqlRow, SqlValue } from './sql-handle';
+import {
+  int,
+  nullableInt,
+  nullableText,
+  text,
+  insertEntryRow,
+  insertItemRow,
+  tombstoneRowsWhere,
+  upsertTombstone,
+  type SavedItemParent,
+  type SavedItemTable,
+  type UidTable,
+} from './sqlite-rows';
+import { applyVaultSnapshot, readVaultSnapshot } from './sqlite-vault';
+import {
+  DEVICE_ID_KV_KEY,
+  systemVaultEnv,
+  VaultClock,
+  type VaultApplyOutcome,
+  type VaultEnv,
+} from './vault-clock';
 
-const text = (value: SqlValue | undefined): string =>
-  value === null || value === undefined ? '' : String(value);
-const nullableText = (value: SqlValue | undefined): string | null =>
-  value === null || value === undefined ? null : String(value);
-const nullableInt = (value: SqlValue | undefined): number | null => {
-  if (value === null || value === undefined) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-};
-const int = (value: SqlValue | undefined): number => Number(value ?? 0);
+const UID_TABLES: readonly UidTable[] = [
+  'plate_log',
+  'food_entry',
+  'coach_note',
+  'coach_interaction',
+  'saved_meal',
+  'saved_meal_item',
+  'recipe',
+  'recipe_item',
+];
 
 export class SqliteStoreDb implements StoreDbOps {
-  constructor(private readonly db: SqlHandle) {}
+  private readonly clock: VaultClock;
+
+  constructor(
+    private readonly db: SqlHandle,
+    env: VaultEnv = systemVaultEnv,
+  ) {
+    this.clock = new VaultClock(env, {
+      readDeviceId: () =>
+        nullableText(
+          this.db.all('SELECT value FROM kv WHERE key = ?', [DEVICE_ID_KV_KEY])[0]?.['value'],
+        ),
+      writeDeviceId: (id) =>
+        this.db.run('INSERT OR REPLACE INTO kv (key, value, updated_at_hlc) VALUES (?, ?, ?)', [
+          DEVICE_ID_KV_KEY,
+          id,
+          ZERO_HLC,
+        ]),
+      newestStamp: () =>
+        nullableText(
+          this.db.all(
+            `SELECT max(h) AS newest FROM (
+               SELECT max(updated_at_hlc) AS h FROM saved_meal
+               UNION ALL SELECT max(updated_at_hlc) FROM recipe
+               UNION ALL SELECT max(updated_at_hlc) FROM kv
+               UNION ALL SELECT max(deleted_at_hlc) FROM tombstone)`,
+          )[0]?.['newest'],
+        ),
+      newestUid: () =>
+        nullableText(
+          this.db.all(
+            `SELECT max(u) AS newest FROM (${UID_TABLES.map((t) => `SELECT max(uid) AS u FROM ${t}`).join(' UNION ALL ')})`,
+          )[0]?.['newest'],
+        ),
+    });
+    // The device id is made now, once, outside any transaction.
+    this.clock.ensureDevice();
+  }
 
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
     return this.db.transaction(() => {
-      this.db.run('INSERT INTO plate_log (logged_at_utc) VALUES (?)', [loggedAtUtc]);
+      this.db.run('INSERT INTO plate_log (uid, logged_at_utc) VALUES (?, ?)', [
+        this.clock.newUid(),
+        loggedAtUtc,
+      ]);
       const plateId = this.db.lastInsertRowid();
       const entryIds: number[] = [];
-      for (const e of entries) {
-        this.db.run(
-          `INSERT INTO food_entry (plate_log_id, source_ref, display_name, source, food_group,
-             quantity_low, quantity_high, quantity_unit, quantity_display_label,
-             quantity_grams, quantity_grams_estimated, nutrients_per_100g, food_extra)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            plateId,
-            e.sourceRef,
-            e.displayName,
-            e.source,
-            e.foodGroup,
-            e.quantityLow,
-            e.quantityHigh,
-            e.quantityUnit,
-            e.quantityDisplayLabel,
-            e.quantityGrams ?? null,
-            e.quantityGramsEstimated ?? null,
-            e.nutrientsPer100g ?? null,
-            e.foodExtra ?? null,
-          ],
-        );
-        entryIds.push(this.db.lastInsertRowid());
-      }
+      for (const e of entries)
+        entryIds.push(insertEntryRow(this.db, plateId, this.clock.newUid(), e));
       return { plateId, entryIds };
     });
   }
@@ -109,9 +149,14 @@ export class SqliteStoreDb implements StoreDbOps {
   }
 
   deletePlate(plateLogId: number): void {
-    // Set-based sub-selects (nothing is read into JS): the note ids and their dismissal keys.
+    // Set-based sub-selects (nothing is read into JS): the note ids and their dismissal keys. The
+    // tombstones are written first (they read the rows about to go), in the SAME transaction, with
+    // one stamp for the whole delete: a delete that rolls back leaves no tombstone behind.
     this.db.transaction(() => {
-      this.deleteNotesInTransaction(plateLogId);
+      const stamp = this.clock.stamp();
+      tombstoneRowsWhere(this.db, 'food_entry', 'plate_log_id = ?', [plateLogId], stamp);
+      this.deleteNotesInTransaction(plateLogId, stamp);
+      tombstoneRowsWhere(this.db, 'plate_log', 'id = ?', [plateLogId], stamp);
       this.db.run('DELETE FROM food_entry WHERE plate_log_id = ?', [plateLogId]);
       this.db.run('DELETE FROM plate_log WHERE id = ?', [plateLogId]);
     });
@@ -119,9 +164,16 @@ export class SqliteStoreDb implements StoreDbOps {
 
   insertNote(note: NoteInsert): number {
     this.db.run(
-      `INSERT INTO coach_note (plate_log_id, anchor, question_key, note_text, generated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [note.plateLogId, note.anchor, note.questionKey, note.noteText, note.generatedAt],
+      `INSERT INTO coach_note (uid, plate_log_id, anchor, question_key, note_text, generated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        this.clock.newUid(),
+        note.plateLogId,
+        note.anchor,
+        note.questionKey,
+        note.noteText,
+        note.generatedAt,
+      ],
     );
     return this.db.lastInsertRowid();
   }
@@ -170,19 +222,27 @@ export class SqliteStoreDb implements StoreDbOps {
   }
 
   insertInteraction(coachNoteId: number, kind: string, atUtc: string): number {
-    this.db.run('INSERT INTO coach_interaction (coach_note_id, kind, at) VALUES (?, ?, ?)', [
-      coachNoteId,
-      kind,
-      atUtc,
-    ]);
+    this.db.run(
+      'INSERT INTO coach_interaction (uid, coach_note_id, kind, at) VALUES (?, ?, ?, ?)',
+      [this.clock.newUid(), coachNoteId, kind, atUtc],
+    );
     return this.db.lastInsertRowid();
   }
 
   deleteNotesForPlate(plateLogId: number): void {
-    this.db.transaction(() => this.deleteNotesInTransaction(plateLogId));
+    this.db.transaction(() => this.deleteNotesInTransaction(plateLogId, this.clock.stamp()));
   }
 
-  private deleteNotesInTransaction(plateLogId: number): void {
+  private deleteNotesInTransaction(plateLogId: number, stamp: string): void {
+    const ofPlate = 'SELECT id FROM coach_note WHERE plate_log_id = ?';
+    tombstoneRowsWhere(
+      this.db,
+      'coach_interaction',
+      `coach_note_id IN (${ofPlate})`,
+      [plateLogId],
+      stamp,
+    );
+    tombstoneRowsWhere(this.db, 'coach_note', 'plate_log_id = ?', [plateLogId], stamp);
     this.db.run(
       `DELETE FROM coach_interaction
         WHERE coach_note_id IN (SELECT id FROM coach_note WHERE plate_log_id = ?)`,
@@ -199,10 +259,10 @@ export class SqliteStoreDb implements StoreDbOps {
 
   insertSavedMeal(name: string, createdAtUtc: string, items: readonly EntryInsert[]): number {
     return this.db.transaction(() => {
-      this.db.run('INSERT INTO saved_meal (name, created_at_utc) VALUES (?, ?)', [
-        name,
-        createdAtUtc,
-      ]);
+      this.db.run(
+        'INSERT INTO saved_meal (uid, name, created_at_utc, updated_at_hlc) VALUES (?, ?, ?, ?)',
+        [this.clock.newUid(), name, createdAtUtc, this.clock.stamp()],
+      );
       const id = this.db.lastInsertRowid();
       this.insertItems('saved_meal_item', 'saved_meal_id', id, items);
       return id;
@@ -221,11 +281,18 @@ export class SqliteStoreDb implements StoreDbOps {
   }
 
   renameSavedMeal(id: number, name: string): void {
-    this.db.run('UPDATE saved_meal SET name = ? WHERE id = ?', [name, id]);
+    this.db.run('UPDATE saved_meal SET name = ?, updated_at_hlc = ? WHERE id = ?', [
+      name,
+      this.clock.stamp(),
+      id,
+    ]);
   }
 
   deleteSavedMeal(id: number): void {
     this.db.transaction(() => {
+      const stamp = this.clock.stamp();
+      tombstoneRowsWhere(this.db, 'saved_meal_item', 'saved_meal_id = ?', [id], stamp);
+      tombstoneRowsWhere(this.db, 'saved_meal', 'id = ?', [id], stamp);
       this.db.run('DELETE FROM saved_meal_item WHERE saved_meal_id = ?', [id]);
       this.db.run('DELETE FROM saved_meal WHERE id = ?', [id]);
     });
@@ -240,8 +307,9 @@ export class SqliteStoreDb implements StoreDbOps {
   ): number {
     return this.db.transaction(() => {
       this.db.run(
-        'INSERT INTO recipe (name, servings, cooked_weight_grams, created_at_utc) VALUES (?, ?, ?, ?)',
-        [name, servings, cookedWeightGrams, createdAtUtc],
+        `INSERT INTO recipe (uid, name, servings, cooked_weight_grams, created_at_utc, updated_at_hlc)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [this.clock.newUid(), name, servings, cookedWeightGrams, createdAtUtc, this.clock.stamp()],
       );
       const id = this.db.lastInsertRowid();
       this.insertItems('recipe_item', 'recipe_id', id, items);
@@ -266,48 +334,27 @@ export class SqliteStoreDb implements StoreDbOps {
 
   deleteRecipe(id: number): void {
     this.db.transaction(() => {
+      const stamp = this.clock.stamp();
+      tombstoneRowsWhere(this.db, 'recipe_item', 'recipe_id = ?', [id], stamp);
+      tombstoneRowsWhere(this.db, 'recipe', 'id = ?', [id], stamp);
       this.db.run('DELETE FROM recipe_item WHERE recipe_id = ?', [id]);
       this.db.run('DELETE FROM recipe WHERE id = ?', [id]);
     });
   }
 
-  /** `table` and `parent` are fixed names from this file, never input. */
   private insertItems(
-    table: 'saved_meal_item' | 'recipe_item',
-    parent: 'saved_meal_id' | 'recipe_id',
+    table: SavedItemTable,
+    parent: SavedItemParent,
     parentId: number,
     items: readonly EntryInsert[],
   ): void {
-    items.forEach((e, position) => {
-      this.db.run(
-        `INSERT INTO ${table} (${parent}, position, source_ref, display_name, source, food_group,
-           quantity_low, quantity_high, quantity_unit, quantity_display_label,
-           quantity_grams, quantity_grams_estimated, nutrients_per_100g, food_extra)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          parentId,
-          position,
-          e.sourceRef,
-          e.displayName,
-          e.source,
-          e.foodGroup,
-          e.quantityLow,
-          e.quantityHigh,
-          e.quantityUnit,
-          e.quantityDisplayLabel,
-          e.quantityGrams ?? null,
-          e.quantityGramsEstimated ?? null,
-          e.nutrientsPer100g ?? null,
-          e.foodExtra ?? null,
-        ],
-      );
-    });
+    items.forEach((e, position) =>
+      insertItemRow(this.db, { table, parent, parentId, position, uid: this.clock.newUid() }, e),
+    );
   }
 
-  private readItems(
-    table: 'saved_meal_item' | 'recipe_item',
-    parent: 'saved_meal_id' | 'recipe_id',
-  ): SavedItemRow[] {
+  /** `table` and `parent` are fixed names from this file, never input. */
+  private readItems(table: SavedItemTable, parent: SavedItemParent): SavedItemRow[] {
     return this.db
       .all(
         `SELECT id, ${parent} AS parent_id, source_ref, display_name, source, food_group,
@@ -340,13 +387,27 @@ export class SqliteStoreDb implements StoreDbOps {
 
   kvSet(key: string, value: string): void {
     this.db.run(
-      'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-      [key, value],
+      `INSERT INTO kv (key, value, updated_at_hlc) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at_hlc = excluded.updated_at_hlc`,
+      [key, value, this.clock.stamp()],
     );
   }
 
   kvDelete(key: string): void {
-    this.db.run('DELETE FROM kv WHERE key = ?', [key]);
+    this.db.transaction(() => {
+      if (isSyncedKvKey(key) && this.kvGet(key) !== null) {
+        upsertTombstone(this.db, kvTombstoneUid(key), 'kv', this.clock.stamp());
+      }
+      this.db.run('DELETE FROM kv WHERE key = ?', [key]);
+    });
+  }
+
+  readVault(): VaultSnapshot {
+    return readVaultSnapshot(this.db);
+  }
+
+  applyVault(snapshot: VaultSnapshot): VaultApplyOutcome {
+    return applyVaultSnapshot(this.db, this.clock, snapshot);
   }
 }
 
