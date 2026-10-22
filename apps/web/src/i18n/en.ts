@@ -160,6 +160,9 @@ export const en = {
     notFoundTypeIt: 'Not found — type it manually',
     notFoundTitle: 'Not found',
     notFoundBody: "This barcode isn't in the catalog yet. Type it manually?",
+    offAddLink: 'Add this product to Open Food Facts',
+    offAddNewTab: '(opens in a new tab)',
+    offAddNote: 'Open Food Facts is a free, open database; anyone can add a product.',
     scanAgain: 'Scan again',
     typeManually: 'Type it manually',
     searchUnavailable: "Search isn't available right now.",
@@ -232,9 +235,9 @@ export const en = {
     consentTitle: 'Send your words to {host}?',
     consentTitleInstance: 'Send your words to this server?',
     consentSent:
-      'What is sent: the text you write or dictate, or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods it mentions and in which language to answer (English or French, the app language). Nothing else: not your name, your history or your other plates. This app does not store the recording. AI Nutrition Coach does not run that service and never sees your words.',
+      'What is sent: the text you write or dictate, the text of a recipe you paste (8,000 characters at most), or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods or ingredients it mentions and in which language to answer (English or French, the app language). Nothing else: not your name, your history or your other plates. This app does not store the recording. AI Nutrition Coach does not run that service and never sees your words.',
     consentSentInstance:
-      'What is sent: the text you write or dictate, or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods it mentions and in which language to answer (English or French, the app language). It goes to this server ({host}), which adds its own AI key and passes it on to {label}. Nothing else: not your name, your history or your other plates. This app does not store the recording.',
+      'What is sent: the text you write or dictate, the text of a recipe you paste (8,000 characters at most), or a short voice recording (30 seconds at most) that is turned into text, and a fixed instruction asking which foods or ingredients it mentions and in which language to answer (English or French, the app language). It goes to this server ({host}), which adds its own AI key and passes it on to {label}. Nothing else: not your name, your history or your other plates. This app does not store the recording.',
     consentVisible:
       'Also visible to {host}: your internet address, your browser type and the address of this site, as with any website.',
     consentVisibleInstance:
@@ -409,18 +412,18 @@ export const en = {
       instanceVoice: 'Voice to text: {model}',
       describeHeading: 'Describing a meal with AI',
       describeIntro:
-        'When you describe a meal, the words you write or say can be sent to an AI to be understood. That is a different thing from a photo or from coaching, so it has its own switch.',
+        'When you describe a meal or paste a recipe, the words you write or say, or the recipe text, can be sent to an AI to be understood. That is a different thing from a photo or from coaching, so it has its own switch.',
       describeSwitch: 'Let the AI read what I describe',
       describeSwitchHelpOff:
         'Off: Describe matches your words with the food list on this device and nothing is sent.',
       describeSwitchHelpOn:
-        'On: the text you write or dictate, or a short voice recording turned into text, goes to the destination below. You can turn this off at any time.',
+        'On: the text you write or dictate, a recipe you paste, or a short voice recording turned into text, goes to the destination below. You can turn this off at any time.',
       describeDestinationInstance: 'Goes to {host}, this server, which passes it on to {label}.',
       describeDestinationByok: 'Goes to {host}, the service you chose.',
       describeNeedsAi:
         'Without an AI chosen above, Describe works on this device and nothing is sent.',
       describeSent:
-        'What is sent: only that text (500 characters at most) or recording (30 seconds at most, turned into text and not stored by this app), and a fixed instruction. Never your name, your history, your other plates or your photos.',
+        'What is sent: only that text (500 characters at most, or 8,000 for a pasted recipe) or recording (30 seconds at most, turned into text and not stored by this app), and a fixed instruction. Never your name, your history, your other plates or your photos.',
       coachingHeading: 'AI coaching',
       coachingIntro:
         'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch.',
@@ -904,6 +907,38 @@ export const en = {
         'That cooked weight is far from the weight of the ingredients (a fifth to three times as much). Check the grams.',
       tooMany: 'A recipe holds up to {max} ingredients.',
       heavy: 'That makes more than 5 kg a serving. Check the servings and the cooked weight.',
+      suggestions: 'Did you mean one of these?',
+      useSuggestionFor: 'Use {name} for “{line}”',
+      matchedFrom: '{line} →',
+      pasteOpen: 'Paste a recipe',
+      pasteTitle: 'Paste a recipe',
+      pasteIntro:
+        'Paste the ingredients, or the whole text of a recipe page. Nothing is fetched from the web.',
+      pasteLabel: 'Recipe text',
+      pasteLimit: 'Up to {max} characters.',
+      pasteRead: 'Read this recipe',
+      pasteReading: 'Reading…',
+      pasteClose: 'Close',
+      pasteEmpty: 'Paste the recipe first.',
+      pasteNothing:
+        'No ingredient found in that text. Check that it includes the list of ingredients.',
+      pasteNoAiNote:
+        'No AI is set up, so the recipe is read on this device. Nothing is sent anywhere.',
+      pasteAskFirstNote:
+        'Before anything is sent to an AI you are asked first. Without it, the recipe is read on this device.',
+      pasteAiNoteByok:
+        'The recipe text is sent to {host} to be read. You can change this in Settings → Your AI.',
+      pasteAiNoteInstance:
+        'The recipe text is sent to this server ({host}), which passes it to {label}. You can change this in Settings → Your AI.',
+      pasteDeclined: 'Nothing was sent. The recipe was read on this device instead.',
+      pasteAiFailed: 'The AI could not read that just now, so it was read on this device instead.',
+      pasteBusy: 'The AI is busy, so the recipe was read on this device instead.',
+      pasteDone: 'Filled in from your text. Check the names and amounts, then save.',
+      pasteEstimated:
+        'Weights marked ≈ are estimates: spoons, cups and millilitres are converted to grams. Check them.',
+      notAddedTitle: 'Not matched yet',
+      notAddedBody:
+        'These lines have no match in the food list, or no weight to use. Search for them below to add them by hand.',
     },
   },
   /** The Plate screen. */

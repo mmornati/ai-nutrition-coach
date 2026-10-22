@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { expandUpcE, gtinCheckDigitOk, parseRetailCode } from './retail-code';
+import {
+  expandUpcE,
+  gtinCheckDigitOk,
+  OFF_ADD_PRODUCT_URL,
+  offAddProductUrl,
+  parseRetailCode,
+} from './retail-code';
 
 describe('gtinCheckDigitOk', () => {
   it.each(['3017620422003', '4006381333931', '96385074', '036000291452'])('%s is valid', (c) => {
@@ -40,5 +46,22 @@ describe('parseRetailCode', () => {
     expect(parseRetailCode('30176204220a3')).toEqual({ ok: false, reason: 'length' });
     expect(parseRetailCode('3017620422004')).toEqual({ ok: false, reason: 'checksum' });
     expect(parseRetailCode('04252615')).toEqual({ ok: false, reason: 'checksum' });
+  });
+});
+
+describe('offAddProductUrl', () => {
+  it('is the Open Food Facts add-product page for a valid code, built from the checked digits', () => {
+    expect(OFF_ADD_PRODUCT_URL).toBe(
+      'https://world.openfoodfacts.org/cgi/product.pl?type=add&code=',
+    );
+    expect(offAddProductUrl('3017620422003')).toBe(`${OFF_ADD_PRODUCT_URL}3017620422003`);
+    expect(offAddProductUrl('3 017620-422003')).toBe(`${OFF_ADD_PRODUCT_URL}3017620422003`);
+    expect(offAddProductUrl('96385074')).toBe(`${OFF_ADD_PRODUCT_URL}96385074`);
+    expect(offAddProductUrl('036000291452')).toBe(`${OFF_ADD_PRODUCT_URL}036000291452`);
+  });
+  it('is null for anything else, so a typo never becomes a link', () => {
+    for (const code of ['', '1', '3017620422004', 'abc', '3017620422003&x=1', '../3017620422003']) {
+      expect(offAddProductUrl(code)).toBeNull();
+    }
   });
 });

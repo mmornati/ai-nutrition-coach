@@ -92,6 +92,21 @@ same-origin, so it needs no CSP change; see
   Without an AI the words are matched on the device and nothing is sent. The app's `Permissions-Policy` allows the
   microphone for its own origin; it is started only by a tap, and released when the recording ends.
 
+- **Paste a recipe** (optional, in the recipe editor). The person pastes the text of a recipe (at most 8,000 characters);
+  **nothing is fetched from a URL** (no server-side fetch, so no SSRF surface). Without an AI the text is read on the
+  device (ingredient lines, amounts, servings) and looked up in the on-device food list; nothing is sent. With an AI, and
+  only after the same "describe" yes for that destination, the text is sent as one chat completion of exactly two
+  messages (a fixed instruction and the text, cut to fit 24 KB), the same transport and allow-list as Describe; the reply
+  (a name, servings and ingredient names with weights) is validated and matched against the on-device list, and no
+  nutrient of the AI is used. The result only fills in the editor for review.
+
+- **Add an unknown barcode to Open Food Facts** (link-out only). When a scanned or typed barcode is not found and is a
+  valid EAN-13, EAN-8, UPC-A or UPC-E, the not-found state shows a plain link
+  `https://world.openfoodfacts.org/cgi/product.pl?type=add&code=<barcode>` that opens in a new tab
+  (`rel="noopener noreferrer"`). The app posts nothing and holds no Open Food Facts credentials; the person signs in and
+  adds the product on openfoodfacts.org. Following the link is the person's own navigation, not a request made by the app
+  (the host is already on the scanner's allow-list for the lookup).
+
 - **The optional sync transport** (Story 4.3). Only when the user
   has configured a self-host relay. v1 ships the no-op
   `LocalOnlySyncAdapter` — it opens zero sockets; a real relay

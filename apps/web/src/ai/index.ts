@@ -15,6 +15,7 @@ export * from './copy';
 export * from './create-ai-services';
 export * from './describe-ai';
 export * from './describe-meal';
+export * from './describe-recipe';
 export * from './instance-ai-rung';
 export * from './instance-config';
 export * from './noop-ai-rung';

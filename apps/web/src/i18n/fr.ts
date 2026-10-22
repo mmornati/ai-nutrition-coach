@@ -156,6 +156,10 @@ export const fr: Strings = {
     notFoundTypeIt: 'Introuvable — saisissez-le à la main',
     notFoundTitle: 'Introuvable',
     notFoundBody: 'Ce code-barres n’est pas encore dans le catalogue. Le saisir à la main ?',
+    offAddLink: 'Ajouter ce produit à Open Food Facts',
+    offAddNewTab: '(s’ouvre dans un nouvel onglet)',
+    offAddNote:
+      'Open Food Facts est une base de données libre et gratuite : chacun peut y ajouter un produit.',
     scanAgain: 'Scanner à nouveau',
     typeManually: 'Saisir à la main',
     searchUnavailable: 'La recherche n’est pas disponible pour le moment.',
@@ -231,9 +235,9 @@ export const fr: Strings = {
     consentTitle: 'Envoyer vos mots à {host} ?',
     consentTitleInstance: 'Envoyer vos mots à ce serveur ?',
     consentSent:
-      'Ce qui est envoyé : le texte que vous écrivez ou dictez, ou un court enregistrement vocal (30 secondes au plus) transformé en texte, et une instruction fixe demandant quels aliments il mentionne et dans quelle langue répondre (français ou anglais, la langue de l’application). Rien d’autre : ni votre nom, ni votre historique, ni vos autres assiettes. Cette application ne conserve pas l’enregistrement. AI Nutrition Coach n’exploite pas ce service et ne voit jamais vos mots.',
+      'Ce qui est envoyé : le texte que vous écrivez ou dictez, le texte d’une recette que vous collez (8 000 caractères au plus), ou un court enregistrement vocal (30 secondes au plus) transformé en texte, et une instruction fixe demandant quels aliments ou ingrédients il mentionne et dans quelle langue répondre (français ou anglais, la langue de l’application). Rien d’autre : ni votre nom, ni votre historique, ni vos autres assiettes. Cette application ne conserve pas l’enregistrement. AI Nutrition Coach n’exploite pas ce service et ne voit jamais vos mots.',
     consentSentInstance:
-      'Ce qui est envoyé : le texte que vous écrivez ou dictez, ou un court enregistrement vocal (30 secondes au plus) transformé en texte, et une instruction fixe demandant quels aliments il mentionne et dans quelle langue répondre (français ou anglais, la langue de l’application). Cela part vers ce serveur ({host}), qui ajoute sa propre clé d’IA et le transmet à {label}. Rien d’autre : ni votre nom, ni votre historique, ni vos autres assiettes. Cette application ne conserve pas l’enregistrement.',
+      'Ce qui est envoyé : le texte que vous écrivez ou dictez, le texte d’une recette que vous collez (8 000 caractères au plus), ou un court enregistrement vocal (30 secondes au plus) transformé en texte, et une instruction fixe demandant quels aliments ou ingrédients il mentionne et dans quelle langue répondre (français ou anglais, la langue de l’application). Cela part vers ce serveur ({host}), qui ajoute sa propre clé d’IA et le transmet à {label}. Rien d’autre : ni votre nom, ni votre historique, ni vos autres assiettes. Cette application ne conserve pas l’enregistrement.',
     consentVisible:
       'Également visibles par {host} : votre adresse IP, le type de votre navigateur et l’adresse de ce site, comme pour tout site web.',
     consentVisibleInstance:
@@ -411,18 +415,18 @@ export const fr: Strings = {
       instanceVoice: 'Voix en texte : {model}',
       describeHeading: 'Décrire un repas avec l’IA',
       describeIntro:
-        'Quand vous décrivez un repas, les mots que vous écrivez ou dites peuvent être envoyés à une IA pour être compris. C’est autre chose qu’une photo ou que le coaching, d’où un réglage à part.',
+        'Quand vous décrivez un repas ou collez une recette, les mots que vous écrivez ou dites, ou le texte de la recette, peuvent être envoyés à une IA pour être compris. C’est autre chose qu’une photo ou que le coaching, d’où un réglage à part.',
       describeSwitch: 'Laisser l’IA lire ce que je décris',
       describeSwitchHelpOff:
         'Désactivé : Décrire compare vos mots à la liste d’aliments de cet appareil et rien n’est envoyé.',
       describeSwitchHelpOn:
-        'Activé : le texte que vous écrivez ou dictez, ou un court enregistrement vocal transformé en texte, part vers la destination ci-dessous. Vous pouvez le désactiver à tout moment.',
+        'Activé : le texte que vous écrivez ou dictez, une recette que vous collez, ou un court enregistrement vocal transformé en texte, part vers la destination ci-dessous. Vous pouvez le désactiver à tout moment.',
       describeDestinationInstance: 'Part vers {host}, ce serveur, qui le transmet à {label}.',
       describeDestinationByok: 'Part vers {host}, le service que vous avez choisi.',
       describeNeedsAi:
         'Sans IA choisie ci-dessus, Décrire fonctionne sur cet appareil et rien n’est envoyé.',
       describeSent:
-        'Ce qui est envoyé : uniquement ce texte (500 caractères au plus) ou cet enregistrement (30 secondes au plus, transformé en texte et non conservé par cette application), et une instruction fixe. Jamais votre nom, votre historique, vos autres assiettes ni vos photos.',
+        'Ce qui est envoyé : uniquement ce texte (500 caractères au plus, ou 8 000 pour une recette collée) ou cet enregistrement (30 secondes au plus, transformé en texte et non conservé par cette application), et une instruction fixe. Jamais votre nom, votre historique, vos autres assiettes ni vos photos.',
       coachingHeading: 'Coaching par IA',
       coachingIntro:
         'Le coach peut écrire ses notes et répondre à vos questions avec l’aide d’une IA. Cela envoie une partie de vos repas à cette IA, ce qui n’a rien à voir avec l’envoi d’une photo : c’est pourquoi il a son propre réglage.',
@@ -897,6 +901,40 @@ export const fr: Strings = {
       cookedImplausible:
         'Ce poids cuit est très éloigné du poids des ingrédients (de un cinquième à trois fois). Vérifiez les grammes.',
       tooMany: 'Une recette compte au plus {max} ingrédients.',
+      suggestions: 'Voulez-vous dire l’un de ceux-ci ?',
+      useSuggestionFor: 'Utiliser {name} pour « {line} »',
+      matchedFrom: '{line} →',
+      pasteOpen: 'Coller une recette',
+      pasteTitle: 'Coller une recette',
+      pasteIntro:
+        'Collez la liste des ingrédients, ou tout le texte d’une page de recette. Rien n’est récupéré sur le web.',
+      pasteLabel: 'Texte de la recette',
+      pasteLimit: 'Jusqu’à {max} caractères.',
+      pasteRead: 'Lire cette recette',
+      pasteReading: 'Lecture…',
+      pasteClose: 'Fermer',
+      pasteEmpty: 'Collez d’abord la recette.',
+      pasteNothing:
+        'Aucun ingrédient trouvé dans ce texte. Vérifiez qu’il contient la liste des ingrédients.',
+      pasteNoAiNote:
+        'Aucune IA n’est configurée : la recette est lue sur cet appareil. Rien n’est envoyé.',
+      pasteAskFirstNote:
+        'Avant que quoi que ce soit parte vers une IA, on vous le demande. Sans elle, la recette est lue sur cet appareil.',
+      pasteAiNoteByok:
+        'Le texte de la recette est envoyé à {host} pour être lu. Vous pouvez changer cela dans Réglages → Votre IA.',
+      pasteAiNoteInstance:
+        'Le texte de la recette est envoyé à ce serveur ({host}), qui le transmet à {label}. Vous pouvez changer cela dans Réglages → Votre IA.',
+      pasteDeclined: 'Rien n’a été envoyé. La recette a été lue sur cet appareil.',
+      pasteAiFailed:
+        'L’IA n’a pas pu lire cela pour l’instant : la recette a été lue sur cet appareil.',
+      pasteBusy: 'L’IA est occupée : la recette a été lue sur cet appareil.',
+      pasteDone:
+        'Rempli d’après votre texte. Vérifiez les noms et les quantités, puis gardez la recette.',
+      pasteEstimated:
+        'Les poids marqués ≈ sont des estimations : cuillères, tasses et millilitres sont convertis en grammes. Vérifiez-les.',
+      notAddedTitle: 'Pas encore reconnus',
+      notAddedBody:
+        'Ces lignes n’ont pas de correspondance dans la liste d’aliments, ou pas de poids exploitable. Cherchez-les plus bas pour les ajouter à la main.',
       heavy: 'Cela fait plus de 5 kg par portion. Vérifiez le nombre de portions et le poids cuit.',
     },
   },

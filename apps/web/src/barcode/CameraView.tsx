@@ -5,7 +5,7 @@ import { TextField } from '../components/primitives/TextField';
 import { TorchIcon } from '../components/primitives/icons';
 import { CameraNotice } from '../capture/CameraNotice';
 import { NO_EXTRAS, type ScannerExtras, type ScannerState } from './scanner-controller';
-import { parseRetailCode } from './retail-code';
+import { offAddProductUrl, parseRetailCode } from './retail-code';
 import { GUIDE_HEIGHT, GUIDE_WIDTH } from './roi';
 
 /** Digits, with the spaces and dashes people copy from the pack. */
@@ -53,6 +53,7 @@ export function CameraView({
   const cam = all.camera;
   const scanning = state.kind === 'scanning';
   const lookup = scanning ? state.lookup : null;
+  const offUrl = lookup?.kind === 'notFound' ? offAddProductUrl(lookup.code) : null;
   const [typing, setTyping] = useState(false);
   const [digits, setDigits] = useState('');
   const [problem, setProblem] = useState<string | undefined>();
@@ -173,6 +174,20 @@ export function CameraView({
                   {s.typeManually}
                 </Button>
               </div>
+              {offUrl !== null && (
+                <div className="flex flex-col gap-1">
+                  <a
+                    href={offUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${s.offAddLink} ${s.offAddNewTab}`}
+                    className="text-porcelain inline-flex min-h-12 items-center underline underline-offset-4"
+                  >
+                    {s.offAddLink}
+                  </a>
+                  <p className="text-body-small text-porcelain-dim">{s.offAddNote}</p>
+                </div>
+              )}
             </>
           )}
           {lookup?.kind === 'failure' && (

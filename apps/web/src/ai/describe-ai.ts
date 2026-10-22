@@ -8,6 +8,13 @@ import {
   DESCRIBE_TEMPERATURE,
   parseDescribedFoods,
 } from './describe-meal';
+import {
+  buildRecipeMessages,
+  parseRecipeReply,
+  RECIPE_MAX_TOKENS,
+  RECIPE_TEMPERATURE,
+  type ReadRecipe,
+} from './describe-recipe';
 import type { InstanceAiView } from './instance-config';
 import type { TranscribeOutcome, Transcriber } from './transcription';
 import type { ClassifyFoodGroup } from './types';
@@ -24,6 +31,15 @@ export interface DescribeState {
 export type DescribeOutcome =
   | { readonly kind: 'recognized'; readonly result: RecognitionResult }
   | { readonly kind: 'noMatch' }
+  | { readonly kind: 'empty' }
+  | { readonly kind: 'consentRequired' }
+  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'busy' }
+  | { readonly kind: 'failure' };
+
+/** A pasted recipe sent and read, or the calm reason it was not (any `failure` is read on the device instead). */
+export type RecipeOutcome =
+  | { readonly kind: 'recipe'; readonly recipe: ReadRecipe }
   | { readonly kind: 'empty' }
   | { readonly kind: 'consentRequired' }
   | { readonly kind: 'unavailable' }
@@ -159,6 +175,37 @@ export class DescribeAi {
         return parsed.kind === 'recognized'
           ? { kind: 'recognized', result: recognizedPlate(parsed.foods) }
           : { kind: 'noMatch' };
+      }
+    }
+  }
+
+  /**
+   * One pasted recipe through the person's AI, on the same agreement as a description (the text they
+   * paste is text they hand over for reading, and the disclosure says so). Nothing is sent unless
+   * they agreed for the current destination (checked now). A reply that breaks any rule is a
+   * `failure`. Never throws.
+   */
+  async readRecipe(
+    text: string,
+    options: { readonly locale: Locale; readonly signal?: AbortSignal },
+  ): Promise<RecipeOutcome> {
+    const messages = buildRecipeMessages(text, options.locale);
+    if (messages === null) return { kind: 'empty' };
+    const reply = await this.#gate.complete(messages, {
+      maxTokens: RECIPE_MAX_TOKENS,
+      temperature: RECIPE_TEMPERATURE,
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+    switch (reply.kind) {
+      case 'consentRequired':
+      case 'unavailable':
+      case 'busy':
+        return { kind: reply.kind };
+      case 'failure':
+        return { kind: 'failure' };
+      case 'text': {
+        const recipe = parseRecipeReply(reply.text);
+        return recipe === null ? { kind: 'failure' } : { kind: 'recipe', recipe };
       }
     }
   }

@@ -23,4 +23,9 @@ export {
 } from './decoder';
 export { createCameraRequest, stopStream, type CameraRequest, type CameraResult } from './camera';
 export { ZXING_VERSION, ZXING_READER_PATH, ZXING_WASM_PATH } from './zxing-pin';
-export { parseRetailCode, type RetailCodeResult } from './retail-code';
+export {
+  OFF_ADD_PRODUCT_URL,
+  offAddProductUrl,
+  parseRetailCode,
+  type RetailCodeResult,
+} from './retail-code';

@@ -53,6 +53,9 @@ export const COVERED_BY = Object.freeze({
   CopyDayDialog: 'TodayScreen',
   Describe: 'LogHost',
   DescribeSheet: 'LogHost',
+  // Paste a recipe (inside the recipe editor) and the Describe agreement card both flows share.
+  RecipePaste: 'LogHost',
+  DescribeConsentCard: 'LogHost',
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
   // The frame of the gate screens.
