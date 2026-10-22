@@ -32,7 +32,7 @@ import type { EntryInsert } from './ops';
 import { mapPlateRows, toStoredInstant } from './row-mapping';
 import type { StoreSource } from './store-source';
 
-function toInsert(draft: FoodEntryDraft): EntryInsert {
+export function toInsert(draft: FoodEntryDraft): EntryInsert {
   const nutrients = sanitizeNutrients(draft.databaseFood.nutrientsPer100g);
   const extra = sanitizeFoodExtra(draft.databaseFood.extra);
   return {

@@ -15,6 +15,7 @@ import { InstallScreen } from './InstallScreen';
 import { LanguageScreen } from './LanguageScreen';
 import { NutritionScreen } from './NutritionScreen';
 import { ProfileScreen } from './ProfileScreen';
+import { SavedScreen } from './SavedScreen';
 import { parseSection, SECTIONS } from './sections';
 import { PrivacyScreen } from './PrivacyScreen';
 import { SettingsList } from './SettingsList';
@@ -43,6 +44,8 @@ function SessionSection({
         return <NutritionScreen />;
       case SECTIONS.profile:
         return <ProfileScreen />;
+      case SECTIONS.saved:
+        return <SavedScreen />;
       case SECTIONS.install:
         return <InstallScreen />;
       case SECTIONS.about:

@@ -95,6 +95,7 @@ async function subjectFrom(bundle: StoreBundle): Promise<ContractSubject> {
   return {
     store: bundle.store,
     notes: bundle.notes,
+    saved: bundle.saved,
     kv: bundle.kv,
     lock: () => bundle.controller.lock(),
     dispose: async () => {

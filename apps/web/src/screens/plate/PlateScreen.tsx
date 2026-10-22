@@ -9,11 +9,13 @@ import { foodName } from '../../catalog';
 import { entryQuantityText, NutritionSection } from '../../components/nutrition';
 import { useLocale, useStrings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
-import { useDay } from '../../app/day-context';
+import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { replaceRoute, TODAY_HASH } from '../../app/router';
 import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
 import { PlateCoach, useDismissals } from '../today/coach';
+import { CopyPlateSheet } from './CopyPlateSheet';
+import { SaveMealSheet } from './SaveMealSheet';
 import { plateSummary } from './summary';
 
 /**
@@ -29,6 +31,10 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
   const dismissed = useDismissals(notes);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useNoticeTimeout(day.notice, () => day.setNotice(null));
 
   const plate = day.plates.find((p) => p.id === plateId) ?? null;
   const settled = day.status !== 'loading';
@@ -76,13 +82,24 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
         />
         <NutritionSection title={all.nutrition.sectionTitle} nutrition={plateNutrients(plate)} />
         <PlateCoach plate={plate} dismissed={dismissed} />
+        <p role="status" className="text-thread text-meta empty:hidden">
+          {day.notice}
+        </p>
         <div className="flex flex-wrap items-center gap-3">
           <StatusChip hasTransport={false} />
+          <Button variant="secondary" onClick={() => setCopying(true)}>
+            {all.relog.again}
+          </Button>
+          <Button variant="secondary" onClick={() => setSaving(true)}>
+            {all.relog.saveMeal}
+          </Button>
           <Button variant="secondary" onClick={() => setConfirming(true)}>
             {all.plate.removeAction}
           </Button>
         </div>
       </div>
+      <CopyPlateSheet open={copying} plate={plate} onClose={() => setCopying(false)} />
+      <SaveMealSheet open={saving} plate={plate} onClose={() => setSaving(false)} />
       <RemovePlateDialog
         open={confirming}
         dish={plateSummary(plate)}

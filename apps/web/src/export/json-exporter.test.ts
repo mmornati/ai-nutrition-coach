@@ -44,6 +44,53 @@ describe('serializePlatesToJson', () => {
     expect(decoded['plates']).toEqual([]);
   });
 
+  it('adds savedMeals and recipes only when there are some, and leaves the plates as they are', () => {
+    const food = {
+      databaseFood: {
+        sourceRef: 'recipe:3',
+        displayName: 'Stew',
+        source: 'recipe' as const,
+        foodGroup: 'protein' as const,
+        nutrientsPer100g: { energyKcal: 94.38 },
+        extra: { nutrientsEstimated: true as const },
+      },
+      quantity: { low: 1, high: 1, unit: 'serving', displayLabel: '~1 serving', grams: 200 },
+    };
+    const meal = { id: 1, name: 'Usual', createdAtUtc: Date.UTC(2026, 7, 16, 9), entries: [food] };
+    const recipe = {
+      id: 3,
+      name: 'Stew',
+      createdAtUtc: Date.UTC(2026, 7, 17, 9),
+      servings: 4,
+      cookedWeightGrams: 800,
+      ingredients: [food],
+    };
+    const decoded = JSON.parse(
+      serializePlatesToJson([], undefined, { meals: [meal], recipes: [recipe] }),
+    ) as Record<string, unknown>;
+    expect(Object.keys(decoded)).toEqual(['plates', 'savedMeals', 'recipes']);
+    expect(decoded['savedMeals']).toEqual([
+      {
+        id: 1,
+        name: 'Usual',
+        createdAtUtc: '2026-08-16T09:00:00.000Z',
+        entries: [
+          {
+            databaseFood: food.databaseFood,
+            quantity: food.quantity,
+          },
+        ],
+      },
+    ]);
+    expect(decoded['recipes']).toMatchObject([
+      { id: 3, name: 'Stew', servings: 4, cookedWeightGrams: 800 },
+    ]);
+    // Nothing kept: the envelope is untouched.
+    expect(
+      Object.keys(JSON.parse(serializePlatesToJson([], undefined, { meals: [], recipes: [] }))),
+    ).toEqual(['plates']);
+  });
+
   it('one plate one entry round-trips, with the food group', () => {
     const json = serializePlatesToJson([
       plate(1, Date.UTC(2026, 7, 16, 9), [entry(1, 1, 'Oatmeal')]),

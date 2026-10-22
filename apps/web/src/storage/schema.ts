@@ -1,4 +1,5 @@
-// Schema version 2 (v1 -> v2 adds grams and per-100 g nutrients to food_entry; docs/adr/0006).
+// Schema version 3 (v1 -> v2 adds grams and per-100 g nutrients to food_entry; docs/adr/0006;
+// v2 -> v3 adds the person's saved meals and home recipes, with their items).
 //
 // Tables:
 //   plate_log         one row per logged meal
@@ -8,6 +9,10 @@
 //   coach_interaction append-only record of one user action against a coach note
 //   coach_dismissal   durable "quiet" markers for dismissed whispers and open-plate hints
 //   kv                small encrypted key/value facts (AI settings, BYOK key, last export, ...)
+//   saved_meal        (v3) a named template of foods the person chose to keep
+//   saved_meal_item   (v3) its entries, in order, same food snapshot columns as food_entry
+//   recipe            (v3) a home recipe: name, servings, optional cooked weight
+//   recipe_item       (v3) its ingredients, in order, same food snapshot columns
 //
 // There are deliberately NO database-level foreign keys: the references are enforced in use-cases,
 // and the delete cascade is one explicit transaction. There is NO sync table: v1 has no sync
@@ -31,6 +36,10 @@ export const TABLE_NAMES = [
   'coach_interaction',
   'coach_dismissal',
   'kv',
+  'saved_meal',
+  'saved_meal_item',
+  'recipe',
+  'recipe_item',
 ] as const;
 
 export const CREATE_STATEMENTS: readonly string[] = [
@@ -85,6 +94,52 @@ const V2_FOOD_ENTRY_COLUMNS = [
   'food_extra',
 ] as const;
 
+/** The food snapshot columns shared by `saved_meal_item` and `recipe_item` (the same as food_entry). */
+const ITEM_COLUMNS = `position INTEGER NOT NULL,
+     source_ref TEXT NOT NULL,
+     display_name TEXT NOT NULL,
+     source TEXT NOT NULL,
+     food_group TEXT NOT NULL DEFAULT 'other',
+     quantity_low TEXT NOT NULL,
+     quantity_high TEXT NOT NULL,
+     quantity_unit TEXT NOT NULL,
+     quantity_display_label TEXT NOT NULL,
+     quantity_grams TEXT,
+     quantity_grams_estimated TEXT,
+     nutrients_per_100g TEXT,
+     food_extra TEXT`;
+
+/**
+ * v3: the person's templates. Only new tables and indexes, every statement `IF NOT EXISTS`, so
+ * re-running after a rolled-back user_version changes nothing and loses no row.
+ */
+export const V3_STATEMENTS: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS saved_meal (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     name TEXT NOT NULL,
+     created_at_utc TEXT NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS saved_meal_item (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     saved_meal_id INTEGER NOT NULL,
+     ${ITEM_COLUMNS}
+   )`,
+  `CREATE TABLE IF NOT EXISTS recipe (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     name TEXT NOT NULL,
+     servings INTEGER NOT NULL,
+     cooked_weight_grams TEXT,
+     created_at_utc TEXT NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS recipe_item (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     recipe_id INTEGER NOT NULL,
+     ${ITEM_COLUMNS}
+   )`,
+  'CREATE INDEX IF NOT EXISTS idx_saved_meal_item_meal ON saved_meal_item (saved_meal_id)',
+  'CREATE INDEX IF NOT EXISTS idx_recipe_item_recipe ON recipe_item (recipe_id)',
+];
+
 /** Step `n` (0-based) upgrades a database from version n to n + 1. Each must be re-runnable. */
 const MIGRATIONS: readonly ((db: SqlHandle) => void)[] = [
   (db) => {
@@ -97,6 +152,10 @@ const MIGRATIONS: readonly ((db: SqlHandle) => void)[] = [
     for (const column of V2_FOOD_ENTRY_COLUMNS) {
       if (!have.has(column)) db.run(`ALTER TABLE food_entry ADD COLUMN ${column} TEXT`);
     }
+  },
+  // v3: saved meals and recipes (forward-only, like v2).
+  (db) => {
+    for (const statement of V3_STATEMENTS) db.run(statement);
   },
 ];
 

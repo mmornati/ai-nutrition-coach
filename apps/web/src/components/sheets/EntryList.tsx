@@ -10,7 +10,7 @@ export interface EntryItem {
   readonly group: FoodGroup;
 }
 
-/** A ruled list (2px porcelain top rule, 1px night rules); quantity flush right, tabular. */
+/** A ruled list (2px ink top rule, 1px seams between rows); quantity flush right. */
 export function EntryList({ entries }: { readonly entries: readonly EntryItem[] }) {
   const s = useStrings();
   return (

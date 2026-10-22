@@ -11,6 +11,11 @@ import type {
   NoteRow,
   PlateRow,
   PlateRowSet,
+  RecipeRow,
+  RecipeSet,
+  SavedItemRow,
+  SavedMealRow,
+  SavedMealSet,
   StoreDbOps,
 } from './ops';
 
@@ -21,7 +26,21 @@ export class MemoryStoreDb implements StoreDbOps {
   private interactions: { id: number; coachNoteId: number; kind: string; at: string }[] = [];
   private dismissals = new Map<string, { id: number; at: string }>();
   private kv = new Map<string, string>();
-  private nextId = { plate: 1, entry: 1, note: 1, interaction: 1, dismissal: 1 };
+  private savedMeals: SavedMealRow[] = [];
+  private savedMealItems: SavedItemRow[] = [];
+  private recipes: RecipeRow[] = [];
+  private recipeItems: SavedItemRow[] = [];
+  private nextId = {
+    plate: 1,
+    entry: 1,
+    note: 1,
+    interaction: 1,
+    dismissal: 1,
+    savedMeal: 1,
+    savedItem: 1,
+    recipe: 1,
+    recipeItem: 1,
+  };
 
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
     const plateId = this.nextId.plate++;
@@ -96,6 +115,58 @@ export class MemoryStoreDb implements StoreDbOps {
     this.interactions = this.interactions.filter((i) => !noteIds.has(i.coachNoteId));
     for (const id of noteIds) this.dismissals.delete(`note:${id}`);
     this.notes = this.notes.filter((n) => n.plateLogId !== plateLogId);
+  }
+
+  insertSavedMeal(name: string, createdAtUtc: string, items: readonly EntryInsert[]): number {
+    const id = this.nextId.savedMeal++;
+    this.savedMeals.push({ id, name, createdAtUtc });
+    for (const e of items) {
+      this.savedMealItems.push({ ...e, id: this.nextId.savedItem++, parentId: id });
+    }
+    return id;
+  }
+
+  readSavedMeals(): SavedMealSet {
+    return {
+      meals: [...this.savedMeals].sort((a, b) => b.id - a.id),
+      items: [...this.savedMealItems].sort((a, b) => a.parentId - b.parentId || a.id - b.id),
+    };
+  }
+
+  renameSavedMeal(id: number, name: string): void {
+    this.savedMeals = this.savedMeals.map((m) => (m.id === id ? { ...m, name } : m));
+  }
+
+  deleteSavedMeal(id: number): void {
+    this.savedMealItems = this.savedMealItems.filter((i) => i.parentId !== id);
+    this.savedMeals = this.savedMeals.filter((m) => m.id !== id);
+  }
+
+  insertRecipe(
+    name: string,
+    servings: number,
+    cookedWeightGrams: string | null,
+    createdAtUtc: string,
+    items: readonly EntryInsert[],
+  ): number {
+    const id = this.nextId.recipe++;
+    this.recipes.push({ id, name, servings, cookedWeightGrams, createdAtUtc });
+    for (const e of items) {
+      this.recipeItems.push({ ...e, id: this.nextId.recipeItem++, parentId: id });
+    }
+    return id;
+  }
+
+  readRecipes(): RecipeSet {
+    return {
+      recipes: [...this.recipes].sort((a, b) => b.id - a.id),
+      items: [...this.recipeItems].sort((a, b) => a.parentId - b.parentId || a.id - b.id),
+    };
+  }
+
+  deleteRecipe(id: number): void {
+    this.recipeItems = this.recipeItems.filter((i) => i.parentId !== id);
+    this.recipes = this.recipes.filter((r) => r.id !== id);
   }
 
   kvGet(key: string): string | null {

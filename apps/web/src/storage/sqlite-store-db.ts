@@ -9,6 +9,11 @@ import type {
   NoteRow,
   PlateRow,
   PlateRowSet,
+  RecipeRow,
+  RecipeSet,
+  SavedItemRow,
+  SavedMealRow,
+  SavedMealSet,
   StoreDbOps,
 } from './ops';
 import type { SqlHandle, SqlRow, SqlValue } from './sql-handle';
@@ -190,6 +195,142 @@ export class SqliteStoreDb implements StoreDbOps {
       [plateLogId],
     );
     this.db.run('DELETE FROM coach_note WHERE plate_log_id = ?', [plateLogId]);
+  }
+
+  insertSavedMeal(name: string, createdAtUtc: string, items: readonly EntryInsert[]): number {
+    return this.db.transaction(() => {
+      this.db.run('INSERT INTO saved_meal (name, created_at_utc) VALUES (?, ?)', [
+        name,
+        createdAtUtc,
+      ]);
+      const id = this.db.lastInsertRowid();
+      this.insertItems('saved_meal_item', 'saved_meal_id', id, items);
+      return id;
+    });
+  }
+
+  readSavedMeals(): SavedMealSet {
+    const meals: SavedMealRow[] = this.db
+      .all('SELECT id, name, created_at_utc FROM saved_meal ORDER BY id DESC')
+      .map((r) => ({
+        id: int(r['id']),
+        name: text(r['name']),
+        createdAtUtc: text(r['created_at_utc']),
+      }));
+    return { meals, items: this.readItems('saved_meal_item', 'saved_meal_id') };
+  }
+
+  renameSavedMeal(id: number, name: string): void {
+    this.db.run('UPDATE saved_meal SET name = ? WHERE id = ?', [name, id]);
+  }
+
+  deleteSavedMeal(id: number): void {
+    this.db.transaction(() => {
+      this.db.run('DELETE FROM saved_meal_item WHERE saved_meal_id = ?', [id]);
+      this.db.run('DELETE FROM saved_meal WHERE id = ?', [id]);
+    });
+  }
+
+  insertRecipe(
+    name: string,
+    servings: number,
+    cookedWeightGrams: string | null,
+    createdAtUtc: string,
+    items: readonly EntryInsert[],
+  ): number {
+    return this.db.transaction(() => {
+      this.db.run(
+        'INSERT INTO recipe (name, servings, cooked_weight_grams, created_at_utc) VALUES (?, ?, ?, ?)',
+        [name, servings, cookedWeightGrams, createdAtUtc],
+      );
+      const id = this.db.lastInsertRowid();
+      this.insertItems('recipe_item', 'recipe_id', id, items);
+      return id;
+    });
+  }
+
+  readRecipes(): RecipeSet {
+    const recipes: RecipeRow[] = this.db
+      .all(
+        'SELECT id, name, servings, cooked_weight_grams, created_at_utc FROM recipe ORDER BY id DESC',
+      )
+      .map((r) => ({
+        id: int(r['id']),
+        name: text(r['name']),
+        servings: int(r['servings']),
+        cookedWeightGrams: nullableText(r['cooked_weight_grams']),
+        createdAtUtc: text(r['created_at_utc']),
+      }));
+    return { recipes, items: this.readItems('recipe_item', 'recipe_id') };
+  }
+
+  deleteRecipe(id: number): void {
+    this.db.transaction(() => {
+      this.db.run('DELETE FROM recipe_item WHERE recipe_id = ?', [id]);
+      this.db.run('DELETE FROM recipe WHERE id = ?', [id]);
+    });
+  }
+
+  /** `table` and `parent` are fixed names from this file, never input. */
+  private insertItems(
+    table: 'saved_meal_item' | 'recipe_item',
+    parent: 'saved_meal_id' | 'recipe_id',
+    parentId: number,
+    items: readonly EntryInsert[],
+  ): void {
+    items.forEach((e, position) => {
+      this.db.run(
+        `INSERT INTO ${table} (${parent}, position, source_ref, display_name, source, food_group,
+           quantity_low, quantity_high, quantity_unit, quantity_display_label,
+           quantity_grams, quantity_grams_estimated, nutrients_per_100g, food_extra)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          parentId,
+          position,
+          e.sourceRef,
+          e.displayName,
+          e.source,
+          e.foodGroup,
+          e.quantityLow,
+          e.quantityHigh,
+          e.quantityUnit,
+          e.quantityDisplayLabel,
+          e.quantityGrams ?? null,
+          e.quantityGramsEstimated ?? null,
+          e.nutrientsPer100g ?? null,
+          e.foodExtra ?? null,
+        ],
+      );
+    });
+  }
+
+  private readItems(
+    table: 'saved_meal_item' | 'recipe_item',
+    parent: 'saved_meal_id' | 'recipe_id',
+  ): SavedItemRow[] {
+    return this.db
+      .all(
+        `SELECT id, ${parent} AS parent_id, source_ref, display_name, source, food_group,
+                quantity_low, quantity_high, quantity_unit, quantity_display_label,
+                quantity_grams, quantity_grams_estimated, nutrients_per_100g, food_extra
+           FROM ${table} ORDER BY ${parent} ASC, position ASC, id ASC`,
+      )
+      .map((r) => ({
+        id: int(r['id']),
+        parentId: int(r['parent_id']),
+        sourceRef: text(r['source_ref']),
+        displayName: text(r['display_name']),
+        source: text(r['source']),
+        foodGroup: text(r['food_group']),
+        quantityLow: text(r['quantity_low']),
+        quantityHigh: text(r['quantity_high']),
+        quantityUnit: text(r['quantity_unit']),
+        quantityDisplayLabel: text(r['quantity_display_label']),
+        quantityGrams: nullableText(r['quantity_grams']),
+        quantityGramsEstimated: nullableInt(r['quantity_grams_estimated']),
+        nutrientsPer100g: nullableText(r['nutrients_per_100g']),
+        foodExtra: nullableText(r['food_extra']),
+      }));
   }
 
   kvGet(key: string): string | null {

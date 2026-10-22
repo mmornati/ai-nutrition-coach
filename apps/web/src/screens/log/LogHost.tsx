@@ -7,7 +7,8 @@
 //                      -> recognised match sheet (or the calm no-AI core: closest matches, type it)
 //                 -> Barcode  -> camera view -> one-time Open Food Facts notice
 //                      -> barcode match sheet, or "not found" and manual entry prefilled
-//                 -> Type it  -> ranked matches + portion presets + custom food
+//                 -> Type it  -> recent and often foods, ranked matches + portion presets + custom food
+//                 -> Saved meals and recipes -> a saved meal (amounts editable) or a new recipe
 //
 // Browsers only open a camera/file picker from a tap, so nothing here starts one on mount.
 import {
@@ -35,9 +36,12 @@ import { useDay } from '../../app/day-context';
 import { LogContext, type LogState } from '../../app/log-context';
 import { hrefs, isPrivacyRoute, navigate, parseRoute, TODAY_HASH } from '../../app/router';
 import { useSession } from '../../app/session';
+import { fill } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
 import { BarcodeSheet } from './BarcodeScan';
 import { PhotoDeniedSheet, SnapSheet } from './PhotoSheets';
+import { RecipeEditorSheet } from './RecipeEditor';
+import { SavedSheet } from './SavedSheet';
 import { TypeItSheet } from './TypeIt';
 
 type Flow =
@@ -45,7 +49,9 @@ type Flow =
   | { readonly kind: 'capture' }
   | { readonly kind: 'snap' }
   | { readonly kind: 'barcode' }
-  | { readonly kind: 'type'; readonly prefill?: string };
+  | { readonly kind: 'type'; readonly prefill?: string }
+  | { readonly kind: 'saved' }
+  | { readonly kind: 'recipe' };
 
 interface Consent {
   readonly host: string;
@@ -214,6 +220,7 @@ export function LogHost({
         onSnapshot={() => setFlow({ kind: 'snap' })}
         onBarcode={() => setFlow({ kind: 'barcode' })}
         onType={() => setFlow({ kind: 'type' })}
+        onSaved={() => setFlow({ kind: 'saved' })}
         nextMeal={slotName(mealSlotForHour(new Date().getHours()))}
       />
       <SnapSheet
@@ -236,6 +243,21 @@ export function LogHost({
         prefill={flow.kind === 'type' ? flow.prefill : undefined}
         onClose={close}
         onLogged={logged}
+      />
+      <SavedSheet
+        open={flow.kind === 'saved'}
+        onClose={close}
+        onLogged={logged}
+        onFindRecipe={(name) => setFlow({ kind: 'type', prefill: name })}
+        onNewRecipe={() => setFlow({ kind: 'recipe' })}
+      />
+      <RecipeEditorSheet
+        open={flow.kind === 'recipe'}
+        onClose={() => setFlow({ kind: 'saved' })}
+        onSaved={(recipe) => {
+          day.setNotice((a) => fill(a.relog.recipe.saved, { name: recipe.name }));
+          setFlow({ kind: 'saved' });
+        }}
       />
       <PhotoConsentDialog
         open={consent !== null}

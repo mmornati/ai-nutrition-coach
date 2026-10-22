@@ -302,7 +302,7 @@ describe('engine start-up failures are "unavailable", never a wrong passphrase',
   });
 });
 
-describe('schema version 1', () => {
+describe('schema (current version)', () => {
   it('creates exactly the documented tables and indexes, with no foreign keys', async () => {
     const file = newFile();
     await open(engineFor(file));
@@ -322,13 +322,23 @@ describe('schema version 1', () => {
         'coach_interaction',
         'coach_dismissal',
         'kv',
+        'saved_meal',
+        'saved_meal_item',
+        'recipe',
+        'recipe_item',
       ]);
       const indexes = raw
         .all(
           "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name",
         )
         .map((r) => r['name']);
-      expect(indexes).toEqual(['idx_entry_plate', 'idx_note_plate', 'idx_plate_logged_at']);
+      expect(indexes).toEqual([
+        'idx_entry_plate',
+        'idx_note_plate',
+        'idx_plate_logged_at',
+        'idx_recipe_item_recipe',
+        'idx_saved_meal_item_meal',
+      ]);
       for (const table of TABLE_NAMES) {
         expect(raw.all(`PRAGMA foreign_key_list(${table})`)).toEqual([]);
       }
@@ -418,8 +428,77 @@ describe('schema version 1', () => {
     ]);
     second.close();
     const check = await openRawKeyed(file, key);
-    expect(check.all('PRAGMA user_version')[0]?.['user_version']).toBe(2);
+    // The chain carries on to the current version.
+    expect(check.all('PRAGMA user_version')[0]?.['user_version']).toBe(SCHEMA_VERSION);
     check.close();
+  });
+
+  it('upgrades a v2 database to v3: every plate and the kv row stay, the new tables are empty', async () => {
+    const file = newFile();
+    const key = await testKey(GOOD, SALT);
+    const first = engineFor(file);
+    await open(first);
+    first.call('insertPlate', [
+      '2026-08-16T12:00:00.000Z',
+      [entry('Kept', { quantityGrams: '80', nutrientsPer100g: '{"salt":1}' })],
+    ]);
+    first.call('kvSet', ['k', 'v']);
+    first.close();
+    // Rebuild the v2 shape: no v3 tables, version 2.
+    const raw = await openRawKeyed(file, key);
+    for (const table of ['saved_meal_item', 'saved_meal', 'recipe_item', 'recipe']) {
+      raw.run(`DROP TABLE ${table}`);
+    }
+    raw.run('PRAGMA user_version = 2');
+    raw.close();
+
+    const second = engineFor(file);
+    await open(second, { expectExisting: true });
+    const rows = second.call('readPlateRows', [null, null]) as { entries: EntryRow[] };
+    expect(rows.entries).toHaveLength(1);
+    expect(rows.entries[0]).toMatchObject({ displayName: 'Kept', quantityGrams: '80' });
+    expect(second.call('kvGet', ['k'])).toBe('v');
+    expect((second.call('readSavedMeals', []) as { meals: unknown[] }).meals).toEqual([]);
+    expect((second.call('readRecipes', []) as { recipes: unknown[] }).recipes).toEqual([]);
+    const id = second.call('insertSavedMeal', [
+      'Usual',
+      '2026-08-17T07:00:00.000Z',
+      [entry('Oats')],
+    ]);
+    expect(id).toBe(1);
+    second.close();
+    const check = await openRawKeyed(file, key);
+    expect(check.all('PRAGMA user_version')[0]?.['user_version']).toBe(3);
+    check.close();
+  });
+
+  it('re-running the v3 migration is a no-op: saved meals and recipes keep every row', async () => {
+    const file = newFile();
+    const key = await testKey(GOOD, SALT);
+    const first = engineFor(file);
+    await open(first);
+    first.call('insertSavedMeal', [
+      'Usual',
+      '2026-08-17T07:00:00.000Z',
+      [entry('Oats'), entry('Milk')],
+    ]);
+    first.call('insertRecipe', ['Stew', 4, '1200', '2026-08-17T07:00:00.000Z', [entry('Beans')]]);
+    first.close();
+    const raw = await openRawKeyed(file, key);
+    raw.run('PRAGMA user_version = 2'); // as if the v3 step had been rolled back
+    raw.close();
+    const second = engineFor(file);
+    await open(second, { expectExisting: true });
+    const meals = second.call('readSavedMeals', []) as { meals: unknown[]; items: unknown[] };
+    expect(meals.meals).toHaveLength(1);
+    expect(meals.items).toHaveLength(2);
+    const recipes = second.call('readRecipes', []) as {
+      recipes: { servings: number; cookedWeightGrams: string }[];
+      items: unknown[];
+    };
+    expect(recipes.recipes[0]).toMatchObject({ servings: 4, cookedWeightGrams: '1200' });
+    expect(recipes.items).toHaveLength(1);
+    second.close();
   });
 
   it('re-running the v2 migration is a no-op (columns exist once)', async () => {
@@ -486,6 +565,23 @@ describe('SQL behaviour', () => {
       raw.close();
     }
   }
+
+  it('a failing item insert leaves no saved meal and no recipe row: each is one transaction', async () => {
+    await withDb((db, raw) => {
+      const bad = { ...entry('Broken'), sourceRef: null as unknown as string };
+      expect(() =>
+        db.insertSavedMeal('Usual', '2026-08-17T07:00:00.000Z', [entry('Fine'), bad]),
+      ).toThrow();
+      expect(() =>
+        db.insertRecipe('Stew', 2, null, '2026-08-17T07:00:00.000Z', [entry('Fine'), bad]),
+      ).toThrow();
+      for (const table of ['saved_meal', 'saved_meal_item', 'recipe', 'recipe_item']) {
+        expect(raw.all(`SELECT count(*) AS n FROM ${table}`)[0]?.['n']).toBe(0);
+      }
+      // The database is still usable after the rollback.
+      expect(db.insertSavedMeal('Again', '2026-08-17T07:00:00.000Z', [entry('Fine')])).toBe(1);
+    });
+  });
 
   it('the range read SEARCHes by index and never SCANs the plates (cost follows the range)', async () => {
     await withDb((db, raw) => {

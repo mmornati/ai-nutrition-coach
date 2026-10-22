@@ -83,6 +83,23 @@ It is one row in the encrypted key/value table (`profile`), readable only after 
 deleted by *Clear profile* and by *Erase all local data*, and included in the JSON export (see
 below). Without a profile the bars use the EU Reference Intakes.
 
+## Your saved meals and recipes
+
+*Settings → Saved meals* lists the meals you chose to keep (*Save as a meal* on a plate's page) and
+the home recipes you wrote (*New recipe*, from there or from the capture sheet). They live in the
+same encrypted store as your plates (schema v3: `saved_meal`, `saved_meal_item`, `recipe`,
+`recipe_item`), readable only after you unlock, and *Erase all local data* removes them with
+everything else. A saved meal is a list of foods with amounts (each food keeps the nutrient values it
+had when you saved it); a recipe is a list of ingredients with grams, a number of servings and,
+optionally, the weight of the finished dish. Per-serving values are worked out from the ingredients
+and are estimates: an ingredient with no nutrient data adds nothing and is named as missing, never
+counted as zero. A plate you log from a meal or a recipe keeps its own copy of the foods, so
+renaming or deleting the template never changes your history.
+
+The JSON export is a readable copy of all this (there is no import, so it is for your own
+reference and for other tools, not a way to restore a store). Recent and frequent foods in *Type it* are worked out on the fly from your last 30 days of plates;
+nothing extra is stored for them.
+
 ## Your language
 
 *Settings → Language* offers *Match my device* (the default; the app follows your
@@ -175,7 +192,10 @@ food's per-100 g `nutrientsPer100g` and product `extra` (Nutri-Score and NOVA fr
 when known.
 
 Exports cover plates, plus the **optional profile** under a top-level `profile` key in the JSON
-export (only when you set one; the CSV has none). Coach notes, AI settings, the language and these
+export (only when you set one; the CSV has none), and your **saved meals and recipes** under
+top-level `savedMeals` and `recipes` keys in the JSON export (only when you keep any; the CSV is
+unchanged and has no such rows: a plate logged from a recipe is an ordinary row there, with
+`database_food_source` `recipe`). Coach notes, AI settings, the language and these
 notices are not exported, and **there is no import** (an installed iOS web app keeps its data
 separate from Safari's, so only an export could bridge them, by hand).
 
