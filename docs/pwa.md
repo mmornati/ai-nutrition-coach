@@ -52,9 +52,9 @@ run its update check. After `vite build`, `tools/generate_precache_manifest.mjs`
   the bundle except source maps and dotfiles: `index.html`, `boot-guard.js`, the hashed JS/CSS
   chunks (including `store.worker-<hash>.js`), the web manifest, icons, fonts, licence texts, the
   versioned `sqlite3mc/<ver>/` engine (`sqlite3.mjs` + `sqlite3.wasm`) and the self-hosted
-  `zxing/<ver>/` decoder. The generator **refuses a bundle that cannot boot offline**: it must
+  `zxing/<ver>/` decoder and the `argon2/<ver>/argon2.umd.min.js` build (encrypted backups work offline). The generator **refuses a bundle that cannot boot offline**: it must
   contain the document, the web manifest, the boot guard, every local script/stylesheet/module the
-  document references, the store worker chunk and the sqlite3mc and zxing files.
+  document references, the store worker chunk and the sqlite3mc, zxing and Argon2id files.
 - `sw.js` — `tools/pwa/sw.template.js` with the build id baked in. (`AI_NUTRITION_COACH_BUILD_ID=...`
   or `--build-id` forces an id, e.g. to test the banner.)
 
@@ -100,8 +100,8 @@ fetched with (the stored responses keep the network response's headers, minus `C
 `Transfer-Encoding`/`Set-Cookie`, and the document is always re-fetched on an update). So **changing
 `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA` and restarting the container is a new service-worker version**: installed apps show the
 "new version is ready" line and pick up the new CSP when the user taps Reload. nginx serves `sw.js`, `precache-manifest.json`, `manifest.webmanifest`, `index.html` and `boot-guard.js`
-with `Cache-Control: no-cache`; Vite's hashed `assets/*` and the versioned `sqlite3mc/<ver>/` and
-`zxing/<ver>/` files are `public, max-age=31536000, immutable`; the worker is served from `/`, so its
+with `Cache-Control: no-cache`; Vite's hashed `assets/*` and the versioned `sqlite3mc/<ver>/`,
+`zxing/<ver>/` and `argon2/<ver>/` files are `public, max-age=31536000, immutable`; the worker is served from `/`, so its
 scope is `/` and no `Service-Worker-Allowed` header is needed. CSP `worker-src 'self' blob:` already
 allows it.
 
@@ -146,6 +146,18 @@ the version is in the path so nginx caches it as `immutable`). The decoder runs 
 camera never leaves it. If the decoder cannot start, the scanner shows the calm "scanning isn't available in
 this browser — type it instead" and manual entry still works.
 
+### Argon2id for the encrypted backup
+
+The encrypted backup file (`docs/adr/0007-encrypted-vault.md`, phase S1) derives its key from a
+passphrase with Argon2id, which WebCrypto does not have. `scripts/fetch_web_argon2.sh` downloads the
+exact npm tarball (hash-wasm 4.12.0, MIT, Dani Biro), verifies its SHA-256, removes the one package
+URL from the licence banner (the host scan flags any URL), verifies the result against a second
+SHA-256 and writes `apps/web/public/argon2/4.12.0/argon2.umd.min.js` (git-ignored; versioned path, so
+`immutable`; precached). It is the same single file the unit tests run, loaded by a module worker
+(`src/sync/vault/argon2.worker.ts`) so the 64 MiB, three-pass derivation never blocks the page; the
+worker is terminated as soon as it answers. CSP needs nothing new (`'wasm-unsafe-eval'` and
+`worker-src 'self' blob:` are already there) and nothing is requested from another host.
+
 ### Content-Security-Policy
 
 Strict, and **set by the server** (`infra/nginx/templates/ai-nutrition-coach-headers.inc.template`):
@@ -178,7 +190,7 @@ pnpm install
 # The whole gate (format, lint, typecheck, unit tests incl. the service-worker tests, build, scans):
 pnpm verify
 
-# Just the release web bundle (fetches + verifies sqlite3mc and zxing, tsc, vite build, then writes
+# Just the release web bundle (fetches + verifies sqlite3mc, zxing and Argon2id, tsc, vite build, then writes
 # sw.js + precache-manifest.json and refuses a bundle that cannot boot offline):
 pnpm --filter @anc/web build            # -> apps/web/dist
 
@@ -378,9 +390,10 @@ reloads after 10 s.
 
 There is **no server-side data** — the server cannot back anything up. Every browser/device is an independent
 store: your phone, your partner's phone and the laptop each have their own history, protected by their own
-passphrase. Use **Your data → Export** (CSV or JSON) as the backup; the app records the date and suggests a new
-export every few weeks. There is no import yet: an export is a readable copy of your history, not a restore
-path. A forgotten passphrase cannot be recovered by anyone.
+passphrase. Use **Your data → Save an encrypted backup** as the backup (a `.ancvault` file, restorable on the
+create-passphrase screen or in Your data; [`your-data.md`](./your-data.md#encrypted-backup-and-restore)); the app records
+the date and suggests a new one every few weeks. A CSV or JSON export is a readable copy of your history, not a
+restore path. A forgotten passphrase cannot be recovered by anyone.
 
 ## Limitations
 

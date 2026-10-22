@@ -55,6 +55,7 @@ function bundle() {
   write('sqlite3mc/2.5.1/sqlite3.wasm', 'wasm');
   write('zxing/3.1.1/reader.js', 'zx');
   write('zxing/3.1.1/zxing_reader.wasm', 'zxwasm');
+  write('argon2/4.12.0/argon2.umd.min.js', 'argon');
   write('icons/icon-192.png', 'png');
   // Never precached:
   write('assets/index-AAA.js.map', 'map');
@@ -70,6 +71,7 @@ afterEach(() => rmSync(web, { recursive: true, force: true }));
 describe('what is precached', () => {
   it('everything needed to boot offline, nothing else', () => {
     expect(collectPrecacheEntries(web).map((e) => e.url)).toEqual([
+      'argon2/4.12.0/argon2.umd.min.js',
       'assets/index-AAA.css',
       'assets/index-AAA.js',
       'assets/store.worker-BBB.js',
@@ -130,6 +132,7 @@ describe('a bundle that cannot boot is refused (and nothing is written)', () => 
     ['sqlite3mc/2.5.1/sqlite3.mjs', /sqlite3\.mjs/],
     ['zxing/3.1.1/zxing_reader.wasm', /zxing_reader\.wasm/],
     ['zxing/3.1.1/reader.js', /reader\.js/],
+    ['argon2/4.12.0/argon2.umd.min.js', /argon2\.umd\.min\.js/],
   ])('without %s', (file, what) => {
     rmSync(join(web, file));
     refuse(what);

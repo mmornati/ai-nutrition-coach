@@ -1,6 +1,6 @@
 # ADR 0007: Encrypted vault: backup, restore and cross-device sync
 
-Status: accepted for S0 (groundwork, implemented); S1 to S4 are accepted as a plan and still pending · 2026-10-22
+Status: accepted for S0 (groundwork) and S1 (encrypted backup file, no server), both implemented; S2 to S4 are accepted as a plan and still pending · 2026-10-22
 Resolves: PRD open question OQ-1 (the sync path left open by FR-10), `_bmad-output/planning-artifacts/prds/prd-openplate-2026-08-12/prd.md`.
 Builds on: [ADR 0005](0005-web-encrypted-store.md) (the local encrypted store, unchanged by this ADR). The full plan, with phases and rough sizes, is [`docs/encrypted-sync-plan.md`](../encrypted-sync-plan.md); this ADR keeps the decisions.
 
@@ -46,6 +46,19 @@ optional recovery key (random 32 B, shown once) ──▶ a second wrap of vault
 - **The vault key is random, not derived.** Changing the passphrase re-wraps it and does not re-encrypt the data; a recovery key is another wrap of the same key.
 - **No escrow.** A forgotten passphrase is unrecoverable unless the person saved a recovery key, which is shown once and never sent to the server.
 - **Envelope:** `{v, vaultId, version, alg: "A256GCM", nonce, ct}` over the gzip of the snapshot JSON, with `vaultId` and `version` bound as associated data, so the server cannot swap vaults or replay an envelope under another version. The client keeps the last version it saw and refuses an older one.
+
+## Phase S1: the encrypted backup file (implemented)
+
+*Your data → Save an encrypted backup* writes `ai-nutrition-coach-YYYY-MM-DD.ancvault`; *Restore from a backup* (in *Your data*, and on the create-passphrase screen) reads it. No server, no new host, and the file works on every instance.
+
+- **Envelope** (`packages/core/src/vault/envelope.ts`, shared with the relay later): `{ v: 1, vaultId, version, alg: "A256GCM", kdf: { name: "argon2id", v: 19, m, t, p }, salt, nonce, ct }`, an exact field set, binary fields in canonical unpadded base64url. `ct` is AES-256-GCM over the gzip of the canonical snapshot JSON. For a file, `vaultId` is 16 random bytes per file and `version` is 1; S2 gives them their relay meaning.
+- **Associated data** is every field except `ct`, serialised with sorted keys (`envelopeAadText`): editing `vaultId`, `version`, `kdf`, `salt` or `nonce` fails authentication (a vault swap, a version replay, a KDF downgrade).
+- **Keys:** `passphrase --Argon2id(salt 16 B, m = 65536 KiB, t = 3, p = 1, 32 B)--> master key --HKDF-SHA256(empty salt, info "anc/vault/backup-file")--> AES-256-GCM key` (WebCrypto, non-extractable; the master key bytes are zeroed once imported). The relay will use a random vault key wrapped by a key-encryption key instead; sealing and opening take a `CryptoKey`, and the KDF is a separate step (`sync/vault/kdf.ts`), so that is a change of caller, not of format.
+- **KDF bounds, checked by the parser before anything is derived:** `p` must be 1; `m < 65536` or `t < 3` is refused as a *downgrade*; `m > 262144` or `t > 10` is refused as a *denial of service*. The Argon2id source is hash-wasm 4.12.0 (MIT), fetched and SHA-256-pinned like sqlite3mc and zxing (`scripts/fetch_web_argon2.sh`), served from our origin, precached, and run in a module worker that is terminated after each derivation; the unit tests check it against the RFC reference vector and against Node's `crypto.argon2Sync`.
+- **Size limits:** a file over 32 MiB is refused before it is read; the ciphertext is bounded at 24 MiB; the decompressed snapshot at 96 MiB, counted as it streams (a gzip bomb is cut off, not buffered). Then `JSON.parse`, then the strict `parseVaultSnapshot`. A snapshot from a newer schema or snapshot version, or an envelope from a newer format, is reported as "newer" (update the app) before the parser could call it malformed.
+- **Outcomes** are typed and content-free: `opened`, `wrongPassphraseOrDamaged` (GCM cannot tell a wrong key from a changed byte, and the UI does not pretend to), `notABackup`, `tooLarge`, `schemaTooNew`, `invalidContent`, `unavailable` (the KDF could not run: not a wrong passphrase). Nothing is written on any failure.
+- **Restore into a new store** (the create-passphrase screen) opens and validates first, checks the clock-drift bound, and only then creates the store with the backup's passphrase (which must pass the app's strength floor) and applies the snapshot; if the apply fails the empty store is erased again, and if that erase fails too the store is locked and the unlock screen says an empty store was left behind (never "nothing changed"). The gunzip input is fed 32 KiB at a time and the output counted, so a bomb stops after a slice or two of input. **Restore into the open store** is `applySnapshot`, a merge.
+- A backup counts as an export for the export reminder, which now suggests it.
 
 ## Identity and relay limits (phase S2)
 
@@ -107,6 +120,6 @@ The relay operator or anyone who steals its volume learns the **size** of a vaul
 ## Obligations
 
 - **AD-6 and the status chip.** The chip may say `synced` only after a durable remote acknowledgement of the data; the in-memory queue is replaced by a persisted dirty flag in phase S2.
-- **`docs/your-data.md`** describes what exists (it says plainly that there is still no import and no sync) and is updated with each phase; `docs/self-host.md` and `docs/telemetry-posture.md` follow in S4 and the telemetry gate (`tools/check_telemetry_claims.mjs`) is updated for the one new user-enabled path.
+- **`docs/your-data.md`** describes what exists (the encrypted backup and its restore; still no sync) and is updated with each phase; `docs/self-host.md` and `docs/telemetry-posture.md` follow in S4 and the telemetry gate (`tools/check_telemetry_claims.mjs`) is updated for the one new user-enabled path.
 - **Copy sign-off.** Every string about backup, restore and sync (English and French) is reviewed by the NDP reviewer; no nagging, no countdowns.
 - **Rollout:** S1 (encrypted backup file and restore, no server), S2 (relay and restore on a new device), S3 (real multi-device sync, two-device end-to-end test, schema-skew refusal), S4 (recovery key, change passphrase, device list and revoke, delete my copy, docs). Each phase is its own change and is useful alone.

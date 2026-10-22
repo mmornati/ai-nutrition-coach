@@ -10,6 +10,8 @@ dist
 apps/web/public/sqlite3mc
 # Vendored, SHA-256-pinned zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh)
 apps/web/public/zxing
+# Vendored, SHA-256-pinned hash-wasm Argon2id build (scripts/fetch_web_argon2.sh)
+apps/web/public/argon2
 dist-e2e
 dev-dist
 coverage

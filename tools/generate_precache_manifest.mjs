@@ -18,11 +18,11 @@
 //
 // What is precached: every file in the bundle (index.html, the hashed JS/CSS chunks including the
 // store worker, the web manifest, icons, fonts, licences, the versioned sqlite3mc engine and the
-// self-hosted zxing decoder). Not precached: source maps, dotfiles and the two generated files.
+// self-hosted zxing decoder and the Argon2id build). Not precached: source maps, dotfiles and the two generated files.
 //
 // The generator REFUSES to produce a worker for a bundle that cannot boot offline: it must contain
 // the document, the web manifest, the boot guard, every local script/stylesheet/module the document
-// references, the store worker chunk, and the sqlite3mc and zxing assets (js + wasm).
+// references, the store worker chunk, and the sqlite3mc, zxing and Argon2id assets.
 //
 // The build id is a hash of the file list + hashes (deterministic: the same bundle always gets the
 // same id) unless `--build-id` / AI_NUTRITION_COACH_BUILD_ID is given -- the way to force "a new
@@ -82,6 +82,7 @@ export const REQUIRED_PATTERNS = [
   { label: 'sqlite3mc/<ver>/sqlite3.wasm', re: /^sqlite3mc\/[0-9][0-9.]*\/sqlite3\.wasm$/ },
   { label: 'zxing/<ver>/reader.js', re: /^zxing\/[0-9][0-9.]*\/reader\.js$/ },
   { label: 'zxing/<ver>/zxing_reader.wasm', re: /^zxing\/[0-9][0-9.]*\/zxing_reader\.wasm$/ },
+  { label: 'argon2/<ver>/argon2.umd.min.js', re: /^argon2\/[0-9][0-9.]*\/argon2\.umd\.min\.js$/ },
 ];
 
 /** Same-origin files index.html loads (`src=` / `href=` starting with one `/`), query stripped. */

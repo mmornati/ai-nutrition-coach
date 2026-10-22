@@ -34,10 +34,13 @@ function outcomeText(outcome: UnlockOutcome, s: Strings['session']): string | nu
 export function UnlockScreen({
   onUnlock,
   onErase,
+  notice,
 }: {
   readonly onUnlock: (passphrase: string) => Promise<UnlockOutcome>;
   /** The confirmed erase. Omit to hide the "forgot" disclosure. */
   readonly onErase?: () => Promise<EraseLocalDataResult>;
+  /** A line shown above the form (an empty store left behind by a restore that failed). */
+  readonly notice?: string;
 }) {
   const all = useStrings();
   const s = all.session;
@@ -85,6 +88,7 @@ export function UnlockScreen({
 
   return (
     <GateFrame title={s.label}>
+      {notice && <p className="text-body">{notice}</p>}
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {

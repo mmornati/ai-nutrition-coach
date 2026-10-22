@@ -6,7 +6,7 @@
 #
 # Default: the Vite dev server (hot reload) bound to 127.0.0.1 only. It sends the full production
 # Content-Security-Policy as a header (plus what HMR needs), never registers the service worker
-# and fetches/verifies the pinned sqlite3mc and zxing assets first (`pnpm dev` does).
+# and fetches/verifies the pinned sqlite3mc, zxing and Argon2id assets first (`pnpm dev` does).
 #
 # --tunnel  builds the RELEASE bundle (secrets scan included), serves it with `vite preview` and
 #           exposes it to your phone through an ephemeral ngrok https URL (printed with a

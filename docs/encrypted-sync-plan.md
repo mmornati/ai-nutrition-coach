@@ -192,12 +192,13 @@ Each phase is a PR (stacked, as with P0–P5), each usable on its own.
 
 ### Phase S1: encrypted backup file + import (no server)
 This alone fixes "local storage lost" for anyone who keeps the file, on every instance.
-- *Your data → Save an encrypted backup*: writes `ai-nutrition-coach-YYYY-MM-DD.ancvault`
-  (same envelope as the relay, key from the passphrase via Argon2id with the file's own salt).
-- *Restore from a backup* on the create-passphrase screen and in *Your data* (merge into the
+- [x] *Your data → Save an encrypted backup*: writes `ai-nutrition-coach-YYYY-MM-DD.ancvault`
+  (same envelope as the relay, key from the passphrase via Argon2id with the file's own salt; the shipped
+  parameters and bounds are in ADR 0007, "Phase S1").
+- [x] *Restore from a backup* on the create-passphrase screen and in *Your data* (merge into the
   current store, or fill a new one).
-- The existing export reminder can point at the encrypted backup instead of plaintext export.
-- **Done when:** e2e: log plates → backup → erase → restore → identical day board, in Chromium and
+- [x] The existing export reminder can point at the encrypted backup instead of plaintext export.
+- [x] **Done when (met):** e2e: log plates → backup → erase → restore → identical day board, in Chromium and
   WebKit; a wrong passphrase or a tampered file gives one calm line, never a partial import.
 
 ### Phase S2: relay + restore on a new device
