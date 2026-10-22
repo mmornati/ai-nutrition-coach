@@ -44,10 +44,11 @@ describe('images', () => {
     expect(dockerfile).toContain('pnpm install --frozen-lockfile');
   });
 
-  it('fetches the two pinned wasm assets BEFORE the sources are copied', () => {
+  it('fetches the three pinned assets (engine, decoder, Argon2id) BEFORE the sources are copied', () => {
     const fetchAt = dockerfile.indexOf('bash scripts/fetch_web_sqlite3mc.sh');
     expect(fetchAt).toBeGreaterThan(0);
     expect(dockerfile.indexOf('bash scripts/fetch_web_zxing_pwa.sh')).toBeGreaterThan(0);
+    expect(dockerfile.indexOf('bash scripts/fetch_web_argon2.sh')).toBeGreaterThan(0);
     expect(fetchAt).toBeLessThan(dockerfile.indexOf('COPY apps/web apps/web'));
   });
 
@@ -149,7 +150,7 @@ describe('nginx', () => {
     expect(cache('= /sw.js')).toContain('Cache-Control "no-cache"');
     expect(cache('= /precache-manifest.json')).toContain('Cache-Control "no-cache"');
     expect(cache('= /sw.js')).toContain('alias /tmp/ai-nutrition-coach-pwa/sw.js;');
-    for (const hashed of ['^~ /assets/', '/sqlite3mc/', '/zxing/']) {
+    for (const hashed of ['^~ /assets/', '/sqlite3mc/', '/zxing/', '/argon2/']) {
       expect(cache(hashed), hashed).toContain('public, max-age=31536000, immutable');
       expect(cache(hashed), hashed).toContain('try_files $uri =404;');
     }

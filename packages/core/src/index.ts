@@ -3,6 +3,7 @@ export * from './common';
 export * from './util/uuid-v4';
 export * from './util/uuid-v7';
 export * from './vault/decide';
+export * from './vault/envelope';
 export * from './vault/hlc';
 export * from './vault/kv-allow-list';
 export * from './vault/merge';

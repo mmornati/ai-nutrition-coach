@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ALL_HISTORY_SCOPE,
   visibleDayScope,
@@ -14,11 +14,14 @@ import { useDay } from '../../app/day-context';
 import { forgetAcknowledgedBeforeStore } from '../../app/about-ack';
 import { useSession } from '../../app/session';
 import { useStoreSnapshot } from '../../app/store-context';
+import { browserBackupService, type BackupService } from '../../sync/vault';
 import type { RunExportResult } from '../../export';
 import type { ExportDestination } from '../../export';
+import { BackupSection } from './BackupSection';
 import { ChoiceGroup } from './ChoiceGroup';
 import { formatLastExport } from './format';
 import { Prose, Section, SettingsPage } from './SettingsPage';
+import { RestoreSection } from './RestoreSection';
 import { useExportInfo, useExportServices } from './use-export';
 
 type ScopeKind = 'visibleDay' | 'week' | 'allHistory';
@@ -47,13 +50,16 @@ function failureText(result: RunExportResult & { kind: 'failed' }, s: Strings['e
 /**
  * Settings, Your data. The honest protection line, the browser's durable-storage answer, export
  * (format, scope, one button, the plaintext note, the last-export line and one quiet suggestion),
- * the lock controls, and the confirmed erase.
+ * the encrypted backup and its restore, the lock controls, and the confirmed erase.
  */
 export function YourDataScreen({
   destination,
+  backup,
 }: {
   /** Test seam: where the file goes. Production uses the browser download / share sheet. */
   readonly destination?: ExportDestination;
+  /** Test seam: the backup service (production derives the key with Argon2id in a worker). */
+  readonly backup?: BackupService;
 }) {
   const all = useStrings();
   const s = all.yourData;
@@ -61,7 +67,9 @@ export function YourDataScreen({
   const session = useSession();
   const day = useDay();
   const snapshot = useStoreSnapshot();
-  const services = useExportServices(session, destination);
+  const services = useExportServices(session, destination, backup);
+  const restoreService = backup ?? browserBackupService();
+  const backupField = useRef<HTMLInputElement>(null);
   const { info, refresh } = useExportInfo(session, services);
 
   const [format, setFormat] = useState<ExportFormat>('csv');
@@ -200,6 +208,9 @@ export function YourDataScreen({
               <p className="text-body-small text-ink-soft min-w-0 flex-1 basis-64">
                 {info.lastExportAt === undefined ? e.reminderNever : e.reminderStale}
               </p>
+              <Button variant="secondary" onClick={() => backupField.current?.focus()}>
+                {e.reminderBackup}
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() =>
@@ -212,6 +223,14 @@ export function YourDataScreen({
           )}
         </div>
       </Section>
+
+      <BackupSection
+        run={services.runBackup}
+        live={session.live}
+        onSaved={refresh}
+        fieldRef={backupField}
+      />
+      <RestoreSection service={restoreService} vault={session.vault} live={session.live} />
 
       <Section title={s.lockHeading}>
         <ChoiceGroup

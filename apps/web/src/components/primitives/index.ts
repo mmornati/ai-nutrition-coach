@@ -3,6 +3,7 @@ export { IconButton, type IconButtonProps } from './IconButton';
 export { Chip, VersionTag } from './Chip';
 export { VisuallyHidden } from './VisuallyHidden';
 export { GroupMarker, LineSwatch } from './GroupMarker';
+export { FileField, type FileFieldProps } from './FileField';
 export { TextField, type TextFieldProps } from './TextField';
 export { TextArea, type TextAreaProps } from './TextArea';
 export { Checkbox, type CheckboxProps } from './Checkbox';

@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes } from 'react';
+import { useId, type InputHTMLAttributes, type Ref } from 'react';
 import { cn } from './cn';
 
 export interface TextFieldProps extends Omit<
@@ -8,6 +8,8 @@ export interface TextFieldProps extends Omit<
   readonly label: string;
   /** A calm inline message (never red). */
   readonly message?: string | undefined;
+  /** The input element, for a caller that moves focus to it. */
+  readonly ref?: Ref<HTMLInputElement> | undefined;
 }
 
 /** A white field in a 2px control edge, 56px tall, 8px corners; the frame takes the ink focus ring. */

@@ -10,7 +10,7 @@
 //
 // The unlocked branch is the ONLY place decrypted state exists; leaving it (lock, idle, hidden,
 // erase) unmounts it. See session.tsx.
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { StoreProvider, useStoreBundle, useStoreSnapshot } from './store-context';
 import { AboutGate, AboutGateBeforeStore } from './AboutGate';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
@@ -21,11 +21,17 @@ import { CreatePassphraseScreen } from '../screens/gate/CreatePassphraseScreen';
 import { LostStoreScreen } from '../screens/gate/LostStoreScreen';
 import { StoreUnavailableScreen } from '../screens/gate/StoreUnavailableScreen';
 import { UnlockScreen } from '../screens/gate/UnlockScreen';
-import { setCurrentLocale } from '../i18n';
+import { setCurrentLocale, strings } from '../i18n';
 import { browserLocaleHint } from '../i18n/locale-hint';
 import { resolveLocale } from '../i18n/locale';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import type { StoreBundle } from '../storage';
+import {
+  browserBackupService,
+  restoreIntoNewStore,
+  type BackupService,
+  type RestoreNewStoreResult,
+} from '../sync/vault';
 
 function Blank(): ReactNode {
   return <div data-gate="blank" className="min-h-dvh" />;
@@ -33,11 +39,13 @@ function Blank(): ReactNode {
 
 export interface GateProps extends UnlockedAppProps {
   readonly sessionOptions?: SessionOptions;
+  /** Test seam: opens a backup on the create-passphrase screen (production: Argon2id in a worker). */
+  readonly backup?: BackupService;
 }
 
-function GateContent({ sessionOptions, ...app }: GateProps): ReactNode {
+function GateContent({ sessionOptions, backup, ...app }: GateProps): ReactNode {
   const bundle = useStoreBundle();
-  const { controller, eraser } = bundle;
+  const { controller, eraser, vault: bundleVault } = bundle;
   const snapshot = useStoreSnapshot();
   const route = useRoute();
   const wasUnlocked = useRef(false);
@@ -71,8 +79,57 @@ function GateContent({ sessionOptions, ...app }: GateProps): ReactNode {
     }
   }, [firstRun]);
 
+  // "Restore from a backup" on the create screen: the file is opened and validated before the store
+  // is created, then the store is created with the backup's passphrase and the data is written into
+  // it. While that runs the create screen stays up (the store becoming unlocked would otherwise
+  // replace it before it could say what happened if the write fails); the app appears when it ends.
+  // A count, not a flag: whichever restore finishes first must not let go of the screen while
+  // another is still running.
+  const inFlight = useRef(0);
+  const [restoring, setRestoring] = useState(false);
+  // An empty store the failed restore could not remove: the unlock screen says so.
+  const [leftover, setLeftover] = useState(false);
+  const restoreBackup = useCallback(
+    async (file: File, passphrase: string): Promise<RestoreNewStoreResult> => {
+      inFlight.current += 1;
+      setRestoring(true);
+      try {
+        const result = await restoreIntoNewStore({
+          service: backup ?? browserBackupService(),
+          file,
+          passphrase,
+          createStore: (p) => controller.createStore(p),
+          vault: bundleVault,
+          eraser,
+          now: Date.now,
+        });
+        if (result.kind === 'storeProblemNotRemoved') {
+          // Do not drop the person into an empty app: lock it, and say why on the unlock screen.
+          await controller.lock();
+          setLeftover(true);
+        }
+        return result;
+      } finally {
+        inFlight.current -= 1;
+        setRestoring(inFlight.current > 0);
+      }
+    },
+    [backup, controller, bundleVault, eraser],
+  );
+
   // The privacy page explains the app before anything is unlocked.
   if (!unlocked && isPrivacyRoute(route)) return <SettingsScreen section="privacy" />;
+
+  if (restoring) {
+    return (
+      <AboutGateBeforeStore>
+        <CreatePassphraseScreen
+          onCreate={(p) => controller.createStore(p)}
+          onRestore={restoreBackup}
+        />
+      </AboutGateBeforeStore>
+    );
+  }
 
   switch (snapshot.status) {
     case 'checking':
@@ -88,11 +145,27 @@ function GateContent({ sessionOptions, ...app }: GateProps): ReactNode {
     case 'needsPassphraseCreation':
       return (
         <AboutGateBeforeStore>
-          <CreatePassphraseScreen onCreate={(p) => controller.createStore(p)} />
+          <CreatePassphraseScreen
+            onCreate={(p) => controller.createStore(p)}
+            onRestore={restoreBackup}
+          />
         </AboutGateBeforeStore>
       );
     case 'locked':
-      return <UnlockScreen onUnlock={(p) => controller.unlock(p)} onErase={erase} />;
+      return (
+        <UnlockScreen
+          onUnlock={async (p) => {
+            const outcome = await controller.unlock(p);
+            if (outcome.kind === 'unlocked') setLeftover(false);
+            return outcome;
+          }}
+          onErase={async () => {
+            setLeftover(false);
+            return erase();
+          }}
+          {...(leftover ? { notice: strings().restore.storeProblemNotRemoved } : {})}
+        />
+      );
     case 'needsReset':
       return <LostStoreScreen onErase={erase} />;
     case 'unlocked':

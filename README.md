@@ -80,8 +80,8 @@ docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .   # the production 
 ```
 
 `pnpm build` writes the release bundle to `apps/web/dist` with `sw.js` and
-`precache-manifest.json`. The sqlite3mc and zxing wasm assets are fetched by
-`scripts/fetch_web_sqlite3mc.sh` and `scripts/fetch_web_zxing_pwa.sh` (never committed).
+`precache-manifest.json`. The sqlite3mc and zxing wasm assets and the Argon2id build are fetched by
+`scripts/fetch_web_sqlite3mc.sh`, `scripts/fetch_web_zxing_pwa.sh` and `scripts/fetch_web_argon2.sh` (never committed).
 
 ### Known accepted gaps
 

@@ -96,8 +96,8 @@ and are estimates: an ingredient with no nutrient data adds nothing and is named
 counted as zero. A plate you log from a meal or a recipe keeps its own copy of the foods, so
 renaming or deleting the template never changes your history.
 
-The JSON export is a readable copy of all this (there is no import, so it is for your own
-reference and for other tools, not a way to restore a store). Recent and frequent foods in *Type it* are worked out on the fly from your last 30 days of plates;
+The JSON export is a readable copy of all this (it cannot be imported: it is for your own
+reference and for other tools. To get a store back, use the [encrypted backup](#encrypted-backup-and-restore)). Recent and frequent foods in *Type it* are worked out on the fly from your last 30 days of plates;
 nothing extra is stored for them.
 
 ## Your language
@@ -145,7 +145,7 @@ it again.
 
 ## Groundwork for backup and sync (schema v4)
 
-Nothing in the app uses this yet, and nothing leaves your device because of it. Schema v4 gives every
+Nothing leaves your device because of this; the encrypted backup below is built on it. Schema v4 gives every
 plate, food entry, coach note, interaction, saved meal and recipe (and the items of the last two) a
 permanent identifier (a `uid`, a UUIDv7: random, but it also encodes the time the row was created),
 stamps saved meals, recipes and the small settings with a logical-clock time of their last change,
@@ -157,15 +157,82 @@ and a deleted setting among the ones listed below. They are written in the same 
 delete, are kept until you choose *Erase all local data* (there is no pruning yet), and are removed
 with everything else. The device also stores a random device id (the `sync.deviceId` entry in the
 encrypted key/value table), and every stamp embeds it. The upgrade is automatic, re-runnable and
-loses no row. There is **still no import and no sync**: the encrypted backup, restore and
-cross-device design is in [`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
-[`docs/encrypted-sync-plan.md`](./encrypted-sync-plan.md).
+loses no row. There is **still no sync**: the cross-device design is in
+[`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
+[`docs/encrypted-sync-plan.md`](./encrypted-sync-plan.md). The encrypted backup file (next section) is
+the first part of it.
 
-What such a backup would carry, besides the plates, notes, saved meals and recipes: your profile, the
-interface language, the nutrition-numbers preference, the "About this app" acknowledgement and the
-export reminder dates. What it would **never** carry: your AI key, your AI settings, your AI and
-describe-a-meal consents, your Open Food Facts answer (a consent to contact a network destination is
-given per device), the device id entry, and the idle auto-lock choice (a browser setting).
+## Encrypted backup and restore
+
+*Settings → Your data → Encrypted backup → Save an encrypted backup* writes one file,
+`ai-nutrition-coach-YYYY-MM-DD.ancvault` (the local date), through the same download or share sheet
+as an export. It is the way back if this browser loses your data (Safari's storage eviction, an
+installed web app that keeps its own storage, a new device, cleared site data). It works on every
+instance, offline, with no server.
+
+**What is in it:** your plates and their food entries, coach notes and their interactions, dismissals
+of notes, saved meals, recipes, your profile, the interface language, the nutrition-numbers
+preference, the "About this app" acknowledgement, the export reminder dates, and the tombstones of
+what you deleted (an identifier, a kind and a time, no content). **What is never in it:** your AI key,
+your AI settings, your AI and describe-a-meal consents, your Open Food Facts answer, the device id and
+the idle auto-lock choice (a browser setting). Photos are never stored at all.
+
+**How it is locked.** You choose a *backup passphrase* (typed twice, the same strength floor as the app
+passphrase; the screen suggests using the app passphrase, so there is one thing to remember, and says
+plainly that a forgotten one cannot be recovered). The key is made on your device:
+
+```
+backup passphrase --Argon2id (random 16-byte salt, 64 MiB, 3 passes, 1 lane, 32 bytes)--> master key
+master key --HKDF-SHA256 (info "anc/vault/backup-file")--> AES-256-GCM key (non-extractable)
+snapshot --canonical JSON--> gzip --AES-256-GCM--> the envelope
+```
+
+The Argon2id derivation runs in a worker from a pinned, self-hosted build (hash-wasm, see
+[`pwa.md`](./pwa.md#argon2id-for-the-encrypted-backup)); the worker loads only that one pinned file (it builds the URL itself) and is terminated after each
+derivation. The 32-byte master key does come back to the page, which imports it into a
+non-extractable AES key and zeroes the bytes at once (the passphrase bytes are handed to the worker,
+not copied). The envelope is one JSON object:
+`{ v, vaultId, version, alg: "A256GCM", kdf: { name: "argon2id", v: 19, m, t, p }, salt, nonce, ct }`,
+binary fields in unpadded base64url. Every field except `ct` is bound as associated data, so editing
+the header (another vault id, a replayed version, a weaker KDF, another salt) makes the file fail
+authentication. A file's `vaultId` is 16 random bytes and `version` is 1; the relay of a later phase
+gives them their meaning. The file shows the cost and the salt, which are not secret, and nothing
+about its contents but their size. **A lost backup passphrase cannot be recovered**: there is no
+escrow, no reset, no copy.
+
+**Restoring.** There are two places, and in both the file is opened and validated completely before
+anything is written:
+
+- *Your data → Restore from a backup* (file and passphrase) **merges** the backup into the open store
+  (the rule is the one in ADR 0007). Nothing is removed merely for being absent from the backup; a
+  plate deleted before the backup was made stays deleted; a saved meal, recipe or setting that
+  differs is replaced only when the backup's copy is newer. Restoring twice changes nothing more.
+- The *create-passphrase* screen has *Restore from a backup*: the file is opened first (a wrong
+  passphrase, a damaged or foreign file creates nothing), then the store is created with the backup's
+  passphrase, which becomes this device's passphrase (the screen says so), then the data is written.
+  If that passphrase would not pass the strength floor of an app passphrase it is refused calmly
+  (create a passphrase, restore from Your data). If the data cannot be written after the store was
+  created, the empty store is removed again, so a restore never looks successful when it was not. If
+  that removal fails too (or only partly works), the store is locked and the unlock screen says an
+  empty store was left behind, with the backup's passphrase, and that it can be unlocked or erased
+  from there; it never says "nothing was changed" in that case. While a restore runs, the screen
+  offers no way out.
+
+**What is refused, each with one calm line and nothing written.** A wrong passphrase or a damaged or
+altered file (the cipher cannot tell these apart, and the screen does not pretend to); a file that is
+not a backup (not JSON, the wrong shape, an unknown cipher or KDF); a KDF cost below the floor
+(64 MiB, 3 passes: a downgrade) or above the ceiling (256 MiB, 10 passes: a denial of service), both
+refused *before* anything is derived; a file larger than 32 MiB (refused before it is read), a
+ciphertext or a decompressed snapshot beyond its cap (a compression bomb stops at 96 MiB of output, fed in 32 KiB slices so the input is not read ahead);
+a backup made by a newer version of the app (update it); a decrypted snapshot the strict parser does not accept; a backup
+stamped further ahead than 24 hours of this device's clock; and a store that cannot take the data.
+
+*Your data* tells you the date of the last export **or** backup, and the quiet suggestion (older than
+14 days, or never; "Not now" quiets it) now points at the encrypted backup and has a button that takes
+you to the passphrase field. A backup counts as an export for it. No badge, no modal, no counter.
+
+*Copy sign-off:* the backup and restore strings (English and French), including the privacy page
+paragraph, are awaiting the named reviewer's sign-off (ADR 0007, "Copy sign-off").
 
 ## Open Food Facts lookups
 
@@ -220,8 +287,9 @@ export (only when you set one; the CSV has none), and your **saved meals and rec
 top-level `savedMeals` and `recipes` keys in the JSON export (only when you keep any; the CSV is
 unchanged and has no such rows: a plate logged from a recipe is an ordinary row there, with
 `database_food_source` `recipe`). Coach notes, AI settings, the language and these
-notices are not exported, and **there is no import** (an installed iOS web app keeps its data
-separate from Safari's, so only an export could bridge them, by hand).
+notices are not exported, and a CSV or JSON export cannot be imported (an installed iOS web app keeps
+its data separate from Safari's; the [encrypted backup](#encrypted-backup-and-restore) is what bridges
+them).
 
 Food names are stored in the language they were logged in, so an export can mix languages; the stable `sourceRef` identifies built-in foods.
 
@@ -242,12 +310,13 @@ Stated plainly, so nothing is overclaimed:
 - Firefox is untested.
 - Real-device Safari and Chrome are untested (Playwright's WebKit is not iOS Safari).
 - Without the Web Locks API there is no tab exclusion.
-- Exports are plaintext; there is no import.
+- CSV and JSON exports are plaintext and cannot be imported; the encrypted backup is the way back.
+- A forgotten app or backup passphrase cannot be recovered; there is no escrow.
 - Shared devices see one history.
 
 Safari may clear a *tab's* site data after a period without a visit — an app added
 to the Home Screen is exempt, and keeps its own data separate from Safari's
-(install first, then log). Keep exports regardless of browser.
+(install first, then log). Keep an encrypted backup regardless of browser.
 
 Limits, stated plainly: this protects the data on a locked/closed browser
 profile. It does not protect against malware or a malicious extension in your
@@ -263,7 +332,8 @@ browsers expose WebCrypto.
   [`pwa.md`](./pwa.md)); the bundle also ships the SQLite3 Multiple Ciphers wasm
   under a versioned path, fetched at build time by
   `scripts/fetch_web_sqlite3mc.sh` and verified against a pinned SHA-256, and a
-  self-hosted zxing-wasm barcode decoder (`scripts/fetch_web_zxing_pwa.sh`).
+  self-hosted zxing-wasm barcode decoder (`scripts/fetch_web_zxing_pwa.sh`) and the hash-wasm
+  Argon2id build used by the encrypted backup (`scripts/fetch_web_argon2.sh`).
 - The passphrase fields mask input; the key never leaves the browser; no telemetry
   on the unlock event (pinned by `pnpm check:telemetry`).
 - A wrong passphrase renders a single calm line: *"That passphrase does not open

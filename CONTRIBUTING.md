@@ -79,7 +79,7 @@ scripts/smoke_self_host.sh                                # container smoke: hea
 scripts/webkit_smoke.sh                                   # opt-in: WebKit + Chromium smoke of the image (needs Docker + network)
 ```
 
-The fetch scripts (`scripts/fetch_web_sqlite3mc.sh`, `scripts/fetch_web_zxing_pwa.sh`) pin versions
+The fetch scripts (`scripts/fetch_web_sqlite3mc.sh`, `scripts/fetch_web_zxing_pwa.sh`, `scripts/fetch_web_argon2.sh`) pin versions
 and SHA-256s and fail closed; the fetched files are git-ignored.
 
 ## Self-host smoke

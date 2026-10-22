@@ -218,7 +218,7 @@ describe('YourDataScreen: last export and the quiet suggestion', () => {
   it('never exported + data: says never, suggests once, with a Not now', async () => {
     await open({ seed: withSalmon });
     expect(await screen.findByText('Last export: never')).toBeVisible();
-    expect(await screen.findByText(/You have not exported yet/)).toBeVisible();
+    expect(await screen.findByText(/You have not saved a copy yet/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Not now' })).toBeVisible();
   });
 
@@ -249,7 +249,9 @@ describe('YourDataScreen: last export and the quiet suggestion', () => {
         await bundle.kv.write(KV_KEYS.exportLastAtUtc, old);
       },
     });
-    expect(await screen.findByText(/It has been a while since your last export/)).toBeVisible();
+    expect(
+      await screen.findByText(/It has been a while since your last export or backup/),
+    ).toBeVisible();
   });
 
   it('"Not now" hides it and the dismissal is kept', async () => {
@@ -354,7 +356,7 @@ describe('YourDataScreen: accessibility', () => {
       bundle,
     });
     await screen.findByRole('heading', { level: 1, name: 'Your data' });
-    await screen.findByText(/You have not exported yet/);
+    await screen.findByText(/You have not saved a copy yet/);
     expect(await axe(document.body)).toHaveNoViolations();
     await user.click(screen.getByRole('button', { name: 'Erase all local data' }));
     await screen.findByRole('alertdialog');

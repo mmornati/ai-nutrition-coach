@@ -6,7 +6,8 @@
   "scripts": {
     "fetch:sqlite3mc": "bash ../../scripts/fetch_web_sqlite3mc.sh",
     "fetch:zxing": "bash ../../scripts/fetch_web_zxing_pwa.sh",
-    "fetch:assets": "pnpm run fetch:sqlite3mc && pnpm run fetch:zxing",
+    "fetch:argon2": "bash ../../scripts/fetch_web_argon2.sh",
+    "fetch:assets": "pnpm run fetch:sqlite3mc && pnpm run fetch:zxing && pnpm run fetch:argon2",
     "dev": "pnpm run fetch:assets && vite",
     "build": "pnpm run fetch:assets && tsc -b && vite build && pnpm run precache",
     "precache": "node ../../tools/generate_precache_manifest.mjs dist",

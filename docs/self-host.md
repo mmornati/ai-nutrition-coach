@@ -396,7 +396,7 @@ COOP/CORP `same-origin` and the CSP; the server version is hidden. Caching follo
 `index.html`, `boot-guard.js`, `manifest.webmanifest`, `sw.js` and `precache-manifest.json` are revalidated
 (`no-cache`) so upgrades take effect immediately (`sw.js` and the precache manifest are the installed app's way of
 learning that a new version exists, [`docs/pwa.md`](./pwa.md)); Vite's content-hashed `assets/*` and the
-versioned `sqlite3mc/<ver>/` engine and `zxing/<ver>/` decoder are `immutable`; fonts, icons and licence texts
+versioned `sqlite3mc/<ver>/` engine, `zxing/<ver>/` decoder and `argon2/<ver>/` key-derivation build are `immutable`; fonts, icons and licence texts
 (unhashed names) are cached five minutes and revalidated. A missing file is a real 404, never the app shell;
 only a path without a file extension (a route) falls back to `index.html`.
 
@@ -441,7 +441,7 @@ bash scripts/smoke_self_host.sh      # builds via bin/ai-nutrition-coach and ass
 - CSP and the other headers on html, js, css, worker, wasm, manifest and icon responses; no version in
   `Server`; no `'unsafe-inline'` (script or style), no blanket `https:`;
 - every file of `precache-manifest.json` is served with exactly the SHA-256 it lists, and the boot-critical
-  files (document, boot guard, store worker, sqlite3mc, zxing) are listed;
+  files (document, boot guard, store worker, sqlite3mc, zxing, argon2) are listed;
 - container is non-root, read-only, capabilities dropped, no-new-privileges;
 - the container boots and serves on a docker `--internal` network with no
   outbound route (and a deliberate outbound request there fails), i.e. the

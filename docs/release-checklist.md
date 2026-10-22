@@ -36,9 +36,9 @@ named reviewer records the human sign-off.
   v3 store and gets `SchemaTooNewError`; the fix is to reload the tab, which picks up the new
   build. Nothing is lost.
 - [ ] Rollback is honest: the export (Settings → Your data) is a readable copy, and the JSON one
-  also carries the saved meals and recipes, but there is no import. Rolling the deploy back means
-  the older build cannot open this v3 store; keep the export for reference and keep the store for
-  the newer build.
+  also carries the saved meals and recipes, but cannot be imported (the encrypted backup can be
+  restored). Rolling the deploy back means the older build cannot open this v3 store; keep the
+  export for reference, keep an encrypted backup, and keep the store for the newer build.
 
 ## Gate B — Self-host
 
@@ -60,7 +60,7 @@ named reviewer records the human sign-off.
 ## Gate B2 — PWA (ADR-0003, [`docs/pwa.md`](./pwa.md))
 
 - [ ] `pnpm build` generated `sw.js` and `precache-manifest.json` in `apps/web/dist`; the bundle
-  contains the self-hosted zxing decoder and the host scan still passes.
+  contains the self-hosted zxing decoder and Argon2id build and the host scan still passes.
 - [ ] **Service-worker update test.** Against the release image: install, then change the build id
   (`AI_NUTRITION_COACH_BUILD_ID=...` + `node tools/generate_precache_manifest.mjs apps/web/dist`, or a rebuild); the old version keeps running,
   the calm "A new version is ready" line appears, *Reload* reloads exactly once, old caches are gone,
@@ -121,7 +121,7 @@ named reviewer records the human sign-off.
 - [ ] **Browser smoke.** `scripts/webkit_smoke.sh` is green: the Open Food Facts request (Chromium) and the export
   (both browsers) leave nothing else off-origin.
 - [ ] Known and accepted for v1, stated on the privacy page: shared devices see one history (PV6); exports are
-  plaintext files you hold, cover plates only, and there is no import (PV10).
+  plaintext files you hold, cover plates only, and cannot be imported (PV10); the encrypted backup is the way back.
 
 ## Gate D — Telemetry (Story 4.5 / FR-12)
 
@@ -146,7 +146,7 @@ Recorded here so no release pretends otherwise:
 - Firefox is untested. Safari and Chrome are proved with Playwright's WebKit and Chromium, not on
   real devices.
 - Web Locks is not used, so there is no tab exclusion: two tabs can open the same store.
-- Exports are plaintext files; there is no import.
+- CSV and JSON exports are plaintext files and cannot be imported; the encrypted backup can be restored.
 - Devices shared by several people see one history.
 - The hosted AI tier is not built (bring your own key).
 - The Tip jar is pending the named reviewer.

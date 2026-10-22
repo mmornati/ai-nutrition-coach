@@ -1129,9 +1129,10 @@ export const fr: Strings = {
     eraseLimitNote:
       'Effacer vos données ne peut pas supprimer un fichier que vous avez déjà téléchargé ou partagé.',
     reminderStale:
-      'Votre dernier export remonte à un moment. Une copie protège votre historique si cet appareil ou ce navigateur venait à le perdre.',
+      'Votre dernier export ou votre dernière sauvegarde remonte à un moment. Une sauvegarde chiffrée protège votre historique si cet appareil ou ce navigateur venait à le perdre.',
     reminderNever:
-      'Vous n’avez pas encore fait d’export. Une copie protège votre historique si cet appareil ou ce navigateur venait à le perdre.',
+      'Vous n’avez pas encore gardé de copie. Une sauvegarde chiffrée protège votre historique si cet appareil ou ce navigateur venait à le perdre.',
+    reminderBackup: 'Préparer une sauvegarde',
     reminderNotNow: 'Pas maintenant',
     failedLocked: 'Déverrouillez d’abord, puis exportez.',
     failedRead:
@@ -1140,6 +1141,69 @@ export const fr: Strings = {
     failedDelivery: 'l’export a échoué — réessayez',
     failedSaved:
       'Vos repas et recettes gardés n’ont pas pu être lus pour le moment, donc rien n’a été exporté. Rien n’est perdu\u202F; vous pouvez réessayer.',
+  },
+  backup: {
+    heading: 'Sauvegarde chiffrée',
+    explain:
+      'Un seul fichier avec vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil et votre langue, verrouillé par une phrase secrète. Gardez-le en lieu sûr : c’est le chemin de retour si ce navigateur perd un jour vos données. Il n’inclut jamais votre clé d’IA ni vos réglages d’IA.',
+    suggest:
+      'Utiliser la même phrase secrète que celle qui déverrouille l’application, c’est une seule chose à retenir. N’importe quelle phrase secrète convient.',
+    warning:
+      'Si vous oubliez la phrase secrète de la sauvegarde, le fichier ne pourra pas être ouvert — ni par nous, ni par personne d’autre.',
+    passphraseLabel: 'Phrase secrète de la sauvegarde',
+    confirmLabel: 'Confirmez la phrase secrète de la sauvegarde',
+    action: 'Enregistrer une sauvegarde chiffrée',
+    working: 'Préparation de votre sauvegarde…',
+    savedLine: 'Sauvegarde enregistrée :',
+    cancelled: 'Rien n’a été enregistré.',
+    failedLocked: 'Déverrouillez d’abord, puis enregistrez une sauvegarde.',
+    failedRead:
+      'Vos données n’ont pas pu être lues pour le moment. Rien n’est perdu ; vous pouvez réessayer.',
+    failedTooLarge:
+      'Vos données dépassent ce qu’un fichier de sauvegarde peut contenir. Rien n’a été enregistré ; un export CSV ou JSON reste possible.',
+    failedSeal:
+      'Ce navigateur n’a pas pu verrouiller la sauvegarde pour le moment. Rien n’a été enregistré ; vous pouvez réessayer.',
+    failedDelivery: 'La sauvegarde n’a pas pu être enregistrée. Réessayez.',
+  },
+  restore: {
+    heading: 'Restaurer une sauvegarde',
+    explain:
+      'Choisissez un fichier de sauvegarde et saisissez sa phrase secrète. Son contenu est fusionné avec ce qui est déjà là : rien n’est supprimé parce qu’il est absent de la sauvegarde, et une assiette que vous aviez supprimée avant la sauvegarde reste supprimée.',
+    fileLabel: 'Fichier de sauvegarde',
+    passphraseLabel: 'Phrase secrète de la sauvegarde',
+    action: 'Restaurer',
+    working: 'Ouverture de votre sauvegarde…',
+    restored: 'Restauration terminée. Votre sauvegarde a été fusionnée avec ce qui était déjà là.',
+    noFile: 'Choisissez d’abord un fichier de sauvegarde.',
+    noPassphrase: 'Saisissez la phrase secrète de la sauvegarde.',
+    wrongOrDamaged:
+      'Cette phrase secrète n’ouvre pas ce fichier, ou le fichier est abîmé. Rien n’a été modifié.',
+    notABackup:
+      'Ce fichier ne ressemble pas à une sauvegarde d’AI Nutrition Coach. Rien n’a été modifié.',
+    tooLarge: 'Ce fichier est trop volumineux pour être une sauvegarde. Rien n’a été modifié.',
+    newerVersion:
+      'Cette sauvegarde a été créée par une version plus récente d’AI Nutrition Coach. Rechargez la page pour mettre à jour, puis réessayez. Rien n’a été modifié.',
+    invalidContent:
+      'Cette sauvegarde s’est ouverte, mais son contenu est inutilisable. Rien n’a été modifié.',
+    unreadable: 'Ce fichier n’a pas pu être lu. Rien n’a été modifié.',
+    unavailable:
+      'Ce navigateur n’a pas pu ouvrir la sauvegarde pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
+    clockAhead:
+      'Cette sauvegarde porte une date bien postérieure à l’horloge de cet appareil. Vérifiez la date et l’heure de cet appareil, puis réessayez. Rien n’a été modifié.',
+    storeProblem:
+      'La sauvegarde s’est ouverte, mais elle n’a pas pu être ajoutée à cet appareil pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
+    storeProblemNotRemoved:
+      'La sauvegarde s’est ouverte, mais elle n’a pas pu être ajoutée pour le moment, et le coffre vide créé n’a pas pu être supprimé. Il est vide et utilise la phrase secrète de la sauvegarde : déverrouillez-le avec cette phrase secrète, ou effacez-le avec « Phrase secrète oubliée ? » ci-dessous, puis réessayez.',
+    createLink: 'Restaurer une sauvegarde',
+    createTitle: 'Restaurer une sauvegarde',
+    createExplain:
+      'Choisissez votre fichier de sauvegarde et saisissez sa phrase secrète. La sauvegarde est d’abord ouverte ; si quelque chose ne va pas, rien n’est créé sur cet appareil.',
+    createSame:
+      'Cette phrase secrète déverrouillera aussi l’application sur cet appareil désormais. Si vous l’oubliez, vos données ne pourront pas être récupérées.',
+    createWeak:
+      'Pour protéger cet appareil, la phrase secrète doit compter au moins 10 caractères, avec quelques caractères différents. Créez plutôt une nouvelle phrase secrète, puis restaurez la sauvegarde depuis Réglages, Vos données.',
+    createAction: 'Restaurer et déverrouiller',
+    createBack: 'Retour à la création d’une phrase secrète',
   },
   privacy: {
     title: 'Ce que l’application stocke et envoie',
@@ -1176,6 +1240,9 @@ export const fr: Strings = {
     exportHeading: 'Exporter',
     exportBody:
       'Réglages, Vos données, Exporter enregistre vos assiettes dans un fichier CSV ou JSON. Les exports sont des fichiers texte en clair, non chiffrés : gardez-les en lieu sûr.',
+    backupHeading: 'Sauvegardes chiffrées',
+    backupBody:
+      'Réglages, Vos données, Enregistrer une sauvegarde chiffrée écrit un seul fichier, verrouillé sur cet appareil par une phrase secrète que vous choisissez (Argon2id et AES-256-GCM). Il contient vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil et votre langue, et jamais votre clé d’IA, vos réglages d’IA ni vos consentements. Rien n’est envoyé : le fichier va là où vous l’enregistrez. Si vous oubliez sa phrase secrète, il ne pourra pas être ouvert — ni par nous, ni par personne d’autre. La restauration le fusionne avec ce qui est déjà sur l’appareil.',
     sharedHeading: 'Appareils partagés',
     sharedBody:
       'Toute personne qui peut ouvrir AI Nutrition Coach dans ce profil de navigateur et qui connaît la phrase secrète voit le même historique ; il n’y a pas de profils séparés dans l’application. Pour des historiques séparés, utilisez un autre appareil ou un autre profil de navigateur, chacun avec sa propre phrase secrète.',

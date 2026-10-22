@@ -16,6 +16,7 @@
 # from the local checkout.
 apps/web/public/sqlite3mc/
 apps/web/public/zxing/
+apps/web/public/argon2/
 
 # Editor / OS noise
 **/.idea/

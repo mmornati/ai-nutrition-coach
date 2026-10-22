@@ -97,6 +97,9 @@ export function PrivacyScreen() {
       <Section title={s.exportHeading}>
         <Prose>{s.exportBody}</Prose>
       </Section>
+      <Section title={s.backupHeading}>
+        <Prose>{s.backupBody}</Prose>
+      </Section>
       <Section title={s.sharedHeading}>
         <Prose>{s.sharedBody}</Prose>
       </Section>

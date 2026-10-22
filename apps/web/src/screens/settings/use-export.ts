@@ -5,23 +5,42 @@ import {
   createExportHistory,
   createExportReminder,
   createJsonExporter,
+  createRunBackup,
   createRunExport,
   createWebExportDestination,
 } from '../../export';
 import type { ExportDestination } from '../../export';
 import type { Session } from '../../app/session';
+import { browserBackupService, type BackupService } from '../../sync/vault';
 
-/** The export pieces for one unlocked session, built over its store and its encrypted key/value table. */
-export function useExportServices(session: Session, destination?: ExportDestination) {
-  const { store, kv, clock, profile, saved } = session;
+/**
+ * The export pieces for one unlocked session, built over its store and its encrypted key/value
+ * table. `backup` is the encrypted-backup service (Argon2id in a worker in production; a test
+ * seam otherwise). Both kinds of file go through the same destination and the same export history,
+ * so a backup resets the reminder.
+ */
+export function useExportServices(
+  session: Session,
+  destination?: ExportDestination,
+  backup?: BackupService,
+) {
+  const { store, kv, clock, profile, saved, vault } = session;
   return useMemo(() => {
     const history = createExportHistory(kv);
+    const where = destination ?? createWebExportDestination();
     return {
       history,
       reminder: createExportReminder({ history, clock }),
+      runBackup: createRunBackup({
+        vault,
+        service: backup ?? browserBackupService(),
+        destination: where,
+        history,
+        clock,
+      }),
       run: createRunExport({
         exporters: { csv: createCsvExporter(store), json: createJsonExporter(store) },
-        destination: destination ?? createWebExportDestination(),
+        destination: where,
         history,
         clock,
         readProfile: () => profile.read(),
@@ -33,7 +52,7 @@ export function useExportServices(session: Session, destination?: ExportDestinat
         },
       }),
     };
-  }, [store, kv, clock, profile, saved, destination]);
+  }, [store, kv, clock, profile, saved, vault, destination, backup]);
 }
 
 export interface ExportInfo {
