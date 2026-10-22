@@ -31,6 +31,8 @@ export const COVERED_BY = Object.freeze({
   Section: 'SettingsScreen',
   Prose: 'SettingsScreen',
   ChoiceGroup: 'YourDataScreen',
+  BackupSection: 'YourDataScreen',
+  RestoreSection: 'YourDataScreen',
   SwitchRow: 'YourAiScreen',
   SettingsList: 'SettingsScreen',
   // The log flows: sheets and views rendered by the host, and tested through it.

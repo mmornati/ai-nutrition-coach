@@ -239,7 +239,10 @@ ZX="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/zxing' | head -1)"
 [[ -n "$ZX" ]] || fail 30 "no self-hosted zxing decoder in the image"
 hdr "/zxing/$ZX/zxing_reader.wasm" | tr -d '\r' | grep -qi '^content-type: application/wasm' || fail 50 "the zxing wasm is not application/wasm"
 hdr "/zxing/$ZX/reader.js" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "the zxing reader is not immutable"
-ok "PWA: sw.js + manifests no-cache and consistent (build $sw_id); zxing decoder served, immutable"
+AR="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/argon2' | head -1)"
+[[ -n "$AR" ]] || fail 30 "no self-hosted Argon2id build in the image"
+hdr "/argon2/$AR/argon2.umd.min.js" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "the Argon2id build is not immutable"
+ok "PWA: sw.js + manifests no-cache and consistent (build $sw_id); zxing decoder and Argon2id build served, immutable"
 
 # Every file the precache manifest lists is served, byte for byte (the worker verifies each SHA-256
 # on install; a mismatch would abort every install).
@@ -254,7 +257,7 @@ while IFS= read -r entry; do
   checked=$((checked + 1))
 done < <(tr -d '\n ' <"$TMP/manifest.json" | grep -o '{"url":"[^"]*","sha256":"[0-9a-f]*"')
 [[ "$checked" -ge 20 ]] || fail 50 "the precache manifest lists only $checked files"
-for required in "$WASM" "$MJS" "assets/$WORKER" "zxing/$ZX/zxing_reader.wasm" index.html boot-guard.js manifest.webmanifest; do
+for required in "$WASM" "$MJS" "assets/$WORKER" "zxing/$ZX/zxing_reader.wasm" "argon2/$AR/argon2.umd.min.js" index.html boot-guard.js manifest.webmanifest; do
   grep -q "\"$required\"" "$TMP/manifest.json" || fail 50 "the precache manifest does not list $required"
 done
 ! grep -q '"sw.js"\|precache-manifest.json"' "$TMP/manifest.json" || fail 50 "the precache manifest lists the generated files"

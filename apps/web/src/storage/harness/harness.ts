@@ -29,6 +29,8 @@ export interface OpfsReport {
 export interface ContractResult {
   readonly name: string;
   readonly ok: boolean;
+  /** Not run: the case needs a second store, and this page has only one (named, never silent). */
+  readonly skipped?: boolean;
   readonly error?: string;
 }
 
@@ -123,7 +125,11 @@ function draft(name: string) {
 async function runContract(passphrase: string): Promise<ContractResult[]> {
   const results: ContractResult[] = [];
   for (const contractCase of storeContractCases) {
-    const { controller, store, notes, saved, kv, eraser } = bundle;
+    if (contractCase.needsFresh) {
+      results.push({ name: contractCase.name, ok: true, skipped: true });
+      continue;
+    }
+    const { controller, store, notes, saved, vault, kv, eraser } = bundle;
     let outcome: ContractResult;
     try {
       await eraser.eraseAll();
@@ -134,6 +140,7 @@ async function runContract(passphrase: string): Promise<ContractResult[]> {
         store,
         notes,
         saved,
+        vault,
         kv,
         lock: () => controller.lock(),
         dispose: () => controller.lock(),

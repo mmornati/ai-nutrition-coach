@@ -130,6 +130,15 @@ frame is ever sent anywhere, and no third-party scanning library or SDK is bundl
 decoded barcode digits go to Open Food Facts, and only after you said yes to the one-time
 notice.
 
+## Encrypted backups
+
+*Save an encrypted backup* and *Restore from a backup* make **no network request**. The file is
+sealed and opened on your device (Argon2id in a worker from a self-hosted, SHA-256-pinned build,
+then WebCrypto AES-256-GCM) and goes only where you save it, through the browser's download or share
+sheet; a backup you restore is a file you pick. The worker loads one same-origin file
+(`argon2/<ver>/argon2.umd.min.js`) and is on the telemetry gate's allow-list for exactly that
+runtime import. Details: [`docs/your-data.md`](./your-data.md#encrypted-backup-and-restore).
+
 ## Logs
 
 - **The app** writes nothing to any log that could carry what you logged:
@@ -164,7 +173,7 @@ version of the posture:
   instance-wide AI proxy above: with it switched on (`AI_PROXY_ENABLED=1` and a key) the server
   does need outbound HTTPS to the provider, and the smoke test checks both states.
 - The **bundle loads nothing from a third party**: fonts (Barlow) and the wasm assets
-  (the SQLite3 Multiple Ciphers engine and the zxing-wasm decoder) are served from your own
+  (the SQLite3 Multiple Ciphers engine, the zxing-wasm decoder and the hash-wasm Argon2id build) are served from your own
   origin, and the barcode fallback decoder is served from the same origin instead of a CDN.
   `tools/check_no_external_hosts.sh` scans the built bundle and fails on any host outside a
   short, justified allow-list: Open Food Facts as the one network host, and inert

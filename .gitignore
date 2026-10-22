@@ -88,3 +88,6 @@ apps/web/public/sqlite3mc/
 
 # ── React PWA: fetched + SHA-256-verified zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh) ──
 apps/web/public/zxing/
+
+# ── React PWA: fetched + SHA-256-verified hash-wasm Argon2id build (scripts/fetch_web_argon2.sh) ──
+apps/web/public/argon2/

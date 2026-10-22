@@ -87,7 +87,10 @@ export function realStack(): RealStack {
   return stack;
 }
 
-async function subjectFrom(bundle: StoreBundle): Promise<ContractSubject> {
+async function subjectFrom(
+  bundle: StoreBundle,
+  fresh: () => Promise<ContractSubject>,
+): Promise<ContractSubject> {
   await bundle.controller.initialize();
   const outcome = await bundle.controller.createStore(GOOD_PASSPHRASE);
   if (outcome.kind !== 'unlocked')
@@ -96,7 +99,9 @@ async function subjectFrom(bundle: StoreBundle): Promise<ContractSubject> {
     store: bundle.store,
     notes: bundle.notes,
     saved: bundle.saved,
+    vault: bundle.vault,
     kv: bundle.kv,
+    fresh,
     lock: () => bundle.controller.lock(),
     dispose: async () => {
       await bundle.controller.lock();
@@ -107,7 +112,7 @@ async function subjectFrom(bundle: StoreBundle): Promise<ContractSubject> {
 
 /** A real encrypted store (sqlite3mc, in-process worker protocol, in-memory file system). */
 export function createRealSubject(): Promise<ContractSubject> {
-  return subjectFrom(realStack().bundle());
+  return subjectFrom(realStack().bundle(), createRealSubject);
 }
 
 /** The unencrypted in-memory reference behind the same controller and facades. */
@@ -122,5 +127,6 @@ export function createMemorySubject(): Promise<ContractSubject> {
       requestDurable: () => Promise.resolve('persisted'),
       autoLock: false,
     }),
+    createMemorySubject,
   );
 }

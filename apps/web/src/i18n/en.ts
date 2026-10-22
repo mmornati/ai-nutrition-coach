@@ -1129,9 +1129,10 @@ export const en = {
     plaintextNote: 'Exports are plain, unencrypted files: keep them somewhere you trust.',
     eraseLimitNote: 'Erasing your data cannot delete a file you have already downloaded or shared.',
     reminderStale:
-      'It has been a while since your last export. A copy keeps your history safe if this device or browser ever loses it.',
+      'It has been a while since your last export or backup. An encrypted backup keeps your history safe if this device or browser ever loses it.',
     reminderNever:
-      'You have not exported yet. A copy keeps your history safe if this device or browser ever loses it.',
+      'You have not saved a copy yet. An encrypted backup keeps your history safe if this device or browser ever loses it.',
+    reminderBackup: 'Set up a backup',
     reminderNotNow: 'Not now',
     failedLocked: 'Unlock first, then export.',
     failedRead: 'Your plates could not be read just now. Nothing was lost; you can try again.',
@@ -1139,6 +1140,72 @@ export const en = {
     failedDelivery: 'export failed — try again',
     failedSaved:
       'Your saved meals and recipes could not be read just now, so nothing was exported. Nothing was lost; you can try again.',
+  },
+  /**
+   * The encrypted backup file (phase S1 of docs/encrypted-sync-plan.md). Copy awaiting the named
+   * reviewer's sign-off, with the privacy page paragraph below (docs/no-dark-patterns-standard.md).
+   */
+  backup: {
+    heading: 'Encrypted backup',
+    explain:
+      'One file with your plates, coach notes, saved meals, recipes, profile and language, locked with a passphrase. Keep it somewhere you trust: it is the way back if this browser ever loses your data. It never includes your AI key or AI settings.',
+    suggest:
+      'Using the same passphrase as the one that unlocks this app means one thing to remember. Any passphrase works.',
+    warning:
+      'If you forget the backup passphrase, the file cannot be opened — not by us, not by anyone.',
+    passphraseLabel: 'Backup passphrase',
+    confirmLabel: 'Confirm backup passphrase',
+    action: 'Save an encrypted backup',
+    working: 'Preparing your backup…',
+    savedLine: 'Backup saved:',
+    cancelled: 'Nothing was saved.',
+    failedLocked: 'Unlock first, then save a backup.',
+    failedRead: 'Your data could not be read just now. Nothing was lost; you can try again.',
+    failedTooLarge:
+      'Your data is larger than a backup file can hold. Nothing was saved; a CSV or JSON export still works.',
+    failedSeal:
+      'This browser could not lock the backup just now. Nothing was saved; you can try again.',
+    failedDelivery: 'The backup could not be saved. Try again.',
+  },
+  /** Restoring a backup: in Your data (a merge) and on the create-passphrase screen. */
+  restore: {
+    heading: 'Restore from a backup',
+    explain:
+      'Choose a backup file and enter its passphrase. It is merged with what is already here: nothing is removed just because it is not in the backup, and a plate you removed before the backup was made stays removed.',
+    fileLabel: 'Backup file',
+    passphraseLabel: 'Backup passphrase',
+    action: 'Restore',
+    working: 'Opening your backup…',
+    restored: 'Restored. Your backup has been merged with what was here.',
+    noFile: 'Choose a backup file first.',
+    noPassphrase: 'Enter the backup passphrase.',
+    wrongOrDamaged:
+      'That passphrase does not open this file, or the file is damaged. Nothing was changed.',
+    notABackup: 'That does not look like an AI Nutrition Coach backup. Nothing was changed.',
+    tooLarge: 'That file is too large to be a backup. Nothing was changed.',
+    newerVersion:
+      'This backup was made by a newer version of AI Nutrition Coach. Reload the page to update, then try again. Nothing was changed.',
+    invalidContent: 'This backup opened, but its contents cannot be used. Nothing was changed.',
+    unreadable: 'That file could not be read. Nothing was changed.',
+    unavailable:
+      'This browser could not open the backup just now. Nothing was changed; you can try again.',
+    clockAhead:
+      'This backup carries a date well ahead of this device’s clock. Check the date and time of this device, then try again. Nothing was changed.',
+    storeProblem:
+      'The backup opened, but it could not be added to this device just now. Nothing was changed; you can try again.',
+    storeProblemNotRemoved:
+      'The backup opened, but it could not be added just now, and the empty store this created could not be removed. It is empty and uses the backup’s passphrase: unlock it with that passphrase, or erase it with “Forgot your passphrase?” below, then try again.',
+    // The create-passphrase screen.
+    createLink: 'Restore from a backup',
+    createTitle: 'Restore from a backup',
+    createExplain:
+      'Choose your backup file and enter its passphrase. The backup is opened first; if anything is wrong, nothing is created on this device.',
+    createSame:
+      'This passphrase will also unlock the app on this device from now on. If you forget it, your data cannot be recovered.',
+    createWeak:
+      'To protect this device, the passphrase needs at least 10 characters, with a few different ones. Create a new passphrase instead, then restore the backup from Settings, Your data.',
+    createAction: 'Restore and unlock',
+    createBack: 'Back to creating a passphrase',
   },
   /** Privacy ("What this app stores and sends"), app_en.arb. */
   privacy: {
@@ -1175,6 +1242,10 @@ export const en = {
     exportHeading: 'Exporting',
     exportBody:
       'Settings, Your data, Export saves your plates as a CSV or JSON file. Exports are plain, unencrypted text files: keep them somewhere you trust.',
+    backupHeading: 'Encrypted backups',
+    // Awaiting named-reviewer sign-off (ADR 0007, "Copy sign-off").
+    backupBody:
+      'Settings, Your data, Save an encrypted backup writes one file, locked on this device with a passphrase you choose (Argon2id and AES-256-GCM). It holds your plates, coach notes, saved meals, recipes, profile and language, and never your AI key, AI settings or consents. Nothing is uploaded: the file goes where you save it. If you forget its passphrase it cannot be opened — not by us, not by anyone. Restoring merges it into what is already on the device.',
     sharedHeading: 'Shared devices',
     sharedBody:
       'Everyone who can open AI Nutrition Coach in this browser profile and knows the passphrase sees the same history; there are no separate in-app profiles. For separate histories use a separate device or a separate browser profile, each with its own passphrase.',

@@ -56,6 +56,29 @@ describe('WebLocalDataEraser', () => {
     bundle.dispose();
   });
 
+  it('removes the tombstones with the database: nothing of a deleted plate outlives the erase', async () => {
+    const bundle = await unlockedStore();
+    const read = await bundle.store.readRange();
+    const plate = read.kind === 'platesRead' ? read.plates[0] : undefined;
+    expect(plate).toBeDefined();
+    await bundle.store.deletePlate(plate?.id ?? -1);
+    await bundle.kv.write('ui.showNumbers', 'off');
+    await bundle.kv.delete('ui.showNumbers');
+    const before = await bundle.vault.readSnapshot();
+    expect(before.kind === 'vault' ? before.value.tombstones.length : 0).toBeGreaterThan(0);
+
+    expect(await bundle.eraser.eraseAll()).toEqual(ERASE_SUCCESS);
+    await bundle.controller.createStore(GOOD_PASSPHRASE);
+    const after = await bundle.vault.readSnapshot();
+    expect(after.kind).toBe('vault');
+    if (after.kind === 'vault') {
+      expect(after.value.tombstones).toEqual([]);
+      expect(after.value.plates).toEqual([]);
+      expect(after.value.kv).toEqual([]);
+    }
+    bundle.dispose();
+  });
+
   it('removes saved meals and recipes with the database: a new store starts with none', async () => {
     const bundle = await unlockedStore();
     const food = {

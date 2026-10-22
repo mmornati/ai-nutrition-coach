@@ -2,10 +2,12 @@
 // store's state, and that the unlocked session is built and thrown away with the unlock.
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { eraseLocalDataFailure } from '@anc/core';
 import type { StoreBackend } from '../storage/backend';
 import { StoreUnavailableError } from '../storage/errors';
 import { PrivacyPrefs } from '../catalog';
+import { fastBackupService } from '../sync/vault/testing';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
 import { Gate } from './Gate';
 import { useSession, type Session } from './session';
@@ -64,6 +66,127 @@ describe('Gate: first run', () => {
     unmount();
     render(<Gate bundle={bundle} />);
     expect(await screen.findByRole('heading', { name: 'Protect your history' })).toBeVisible();
+  });
+});
+
+describe('Gate: first run, restoring from a backup', () => {
+  const BACKUP_PASSPHRASE = 'the backup passphrase';
+  const service = fastBackupService();
+
+  /** A device that logged these foods and made a backup of them. */
+  async function backupOfDevice(...foods: string[]) {
+    const source = await unlockedBundle();
+    for (const [i, food] of foods.entries())
+      await seedPlate(source, at(8 + i, 0), [[food, 'protein']]);
+    const read = await source.vault.readSnapshot();
+    if (read.kind !== 'vault') throw new Error('read');
+    const sealed = await service.seal(read.value, BACKUP_PASSPHRASE);
+    if (sealed.kind !== 'sealed') throw new Error('seal');
+    return new File([sealed.bytes as BlobPart], 'backup.ancvault');
+  }
+
+  async function toRestore(user: ReturnType<typeof userEvent.setup>) {
+    const bundle = memoryBundle();
+    await bundle.controller.initialize();
+    render(<Gate bundle={bundle} backup={service} />);
+    await dismissAbout(user);
+    await user.click(await screen.findByRole('button', { name: 'Restore from a backup' }));
+    expect(await screen.findByRole('heading', { name: 'Restore from a backup' })).toBeVisible();
+    return bundle;
+  }
+
+  async function submit(
+    user: ReturnType<typeof userEvent.setup>,
+    file: File | null,
+    passphrase: string,
+  ) {
+    if (file) await user.upload(screen.getByLabelText('Backup file'), file);
+    await user.type(screen.getByLabelText('Backup passphrase'), passphrase);
+    await user.click(screen.getByRole('button', { name: 'Restore and unlock' }));
+  }
+
+  it('opens the file, creates the store with its passphrase, and lands on Today with the plates', async () => {
+    const user = userEvent.setup();
+    const file = await backupOfDevice('Salmon');
+    const bundle = await toRestore(user);
+    // The screen says the backup passphrase becomes this device's.
+    expect(screen.getByText(/will also unlock the app on this device/)).toBeVisible();
+    await submit(user, file, BACKUP_PASSPHRASE);
+
+    expect(await today()).toBeVisible();
+    expect(await screen.findByText('Salmon')).toBeVisible();
+    expect(bundle.controller.getSnapshot().status).toBe('unlocked');
+    await bundle.controller.lock();
+    expect((await bundle.controller.unlock(BACKUP_PASSPHRASE)).kind).toBe('unlocked');
+  });
+
+  it('a wrong passphrase: one calm line, the screen stays, and NO store is created', async () => {
+    const user = userEvent.setup();
+    const file = await backupOfDevice('Salmon');
+    const bundle = await toRestore(user);
+    await submit(user, file, 'another long passphrase');
+    expect(
+      await screen.findByText(
+        'That passphrase does not open this file, or the file is damaged. Nothing was changed.',
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Restore from a backup' })).toBeVisible();
+    expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+    expect(screen.getByLabelText('Backup passphrase')).toHaveValue('');
+    // Back to creating a passphrase is one tap, and still a first run.
+    await user.click(screen.getByRole('button', { name: 'Back to creating a passphrase' }));
+    expect(await screen.findByRole('heading', { name: 'Protect your history' })).toBeVisible();
+  });
+
+  it('a file that is not a backup: one calm line, no store', async () => {
+    const user = userEvent.setup();
+    const bundle = await toRestore(user);
+    await submit(user, new File(['hello'], 'notes.txt'), BACKUP_PASSPHRASE);
+    expect(
+      await screen.findByText(/does not look like an AI Nutrition Coach backup/),
+    ).toBeVisible();
+    expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+  });
+
+  it('a backup passphrase that is too weak for a device is refused calmly, before opening the file', async () => {
+    const user = userEvent.setup();
+    const bundle = await toRestore(user);
+    await submit(user, new File(['hello'], 'notes.txt'), 'short');
+    expect(await screen.findByText(/needs at least 10 characters/)).toBeVisible();
+    expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+  });
+
+  it('if the empty store cannot be removed either, the unlock screen says so', async () => {
+    const user = userEvent.setup();
+    const file = await backupOfDevice('Salmon');
+    const bundle = await toRestore(user);
+    vi.spyOn(bundle.vault, 'applySnapshot').mockResolvedValue({
+      kind: 'vaultFailed',
+      reason: 'storeOperation',
+    });
+    vi.spyOn(bundle.eraser, 'eraseAll').mockResolvedValue(eraseLocalDataFailure(['databaseFiles']));
+    await submit(user, file, BACKUP_PASSPHRASE);
+    expect(await screen.findByRole('heading', { name: 'Unlock your store' })).toBeVisible();
+    expect(
+      screen.getByText(/could not be removed\. It is empty and uses the backup’s passphrase/),
+    ).toBeVisible();
+    expect(bundle.controller.getSnapshot().status).toBe('locked');
+  });
+
+  it('if the data cannot be written the empty store is removed and the line is still shown', async () => {
+    const user = userEvent.setup();
+    const file = await backupOfDevice('Salmon');
+    const bundle = await toRestore(user);
+    vi.spyOn(bundle.vault, 'applySnapshot').mockResolvedValue({
+      kind: 'vaultFailed',
+      reason: 'storeOperation',
+    });
+    await submit(user, file, BACKUP_PASSPHRASE);
+    expect(await screen.findByText(/could not be added to this device just now/)).toBeVisible();
+    await waitFor(() =>
+      expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation'),
+    );
+    expect(screen.getByRole('heading', { name: 'Restore from a backup' })).toBeVisible();
   });
 });
 

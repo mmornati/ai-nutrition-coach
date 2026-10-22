@@ -41,6 +41,7 @@ import {
   type RecordCoachInteraction,
   type RecordPlateResult,
   type SavedStore,
+  type VaultStore,
 } from '@anc/core';
 import { createAiServices, type AiServices } from '../ai';
 import {
@@ -103,6 +104,8 @@ export interface Session {
   readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
   /** The person's saved meals and home recipes (the recipes also show up in the food search). */
   readonly saved: SavedStore;
+  /** The whole store as a vault snapshot, and applying one: the encrypted backup and its restore. */
+  readonly vault: VaultStore;
   /**
    * Records one plate (coach note and outbox op are best-effort post-commit steps), now or at
    * `loggedAtUtc` (a copy of another day's meal).
@@ -314,6 +317,7 @@ export async function createSession(
     askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
     saved,
+    vault: bundle.vault,
     recordPlate: (entries, loggedAtUtc) => record({ entries, store, loggedAtUtc }),
     recordPlates: async (plates) => {
       const failedPlates: (typeof plates)[number][] = [];

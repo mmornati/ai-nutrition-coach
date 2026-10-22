@@ -1,5 +1,9 @@
-/** Which part of the data changed; watchers re-read when their topic fires. */
-export type ChangeTopic = 'plates' | 'notes' | 'dismissals';
+/**
+ * Which part of the data changed; watchers re-read when their topic fires. `saved` (saved meals and
+ * recipes) and `kv` (settings) are only fired by applying a snapshot, so that whatever reads them
+ * can refresh after a restore; their ordinary writers read on demand and need no watcher.
+ */
+export type ChangeTopic = 'plates' | 'notes' | 'dismissals' | 'saved' | 'kv';
 
 /** A tiny in-process pub/sub that lets `watch*` re-emit after a local write. */
 export class ChangeBus {

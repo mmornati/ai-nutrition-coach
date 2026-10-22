@@ -42,15 +42,16 @@ RUN corepack enable && corepack prepare pnpm@11.14.0 --activate
 
 WORKDIR /work
 
-# The encrypted store's sqlite3mc engine (js + wasm) and the zxing-wasm barcode
-# decoder, fetched and SHA-256-verified by the pinned scripts. Done before
+# The encrypted store's sqlite3mc engine (js + wasm), the zxing-wasm barcode
+# decoder and the hash-wasm Argon2id build (encrypted backups), fetched and SHA-256-verified by the pinned scripts. Done before
 # `pnpm install` and before the sources are copied (the scripts need no node_modules), so the
 # downloads stay cached layers across dependency and source changes. The build re-runs them
 # (idempotent: no download when the output already matches the pins).
-COPY scripts/fetch_web_sqlite3mc.sh scripts/fetch_web_zxing_pwa.sh scripts/
+COPY scripts/fetch_web_sqlite3mc.sh scripts/fetch_web_zxing_pwa.sh scripts/fetch_web_argon2.sh scripts/
 RUN mkdir -p apps/web/public \
  && bash scripts/fetch_web_sqlite3mc.sh \
- && bash scripts/fetch_web_zxing_pwa.sh
+ && bash scripts/fetch_web_zxing_pwa.sh \
+ && bash scripts/fetch_web_argon2.sh
 
 # Resolve the workspace first, from the manifests + lockfile only, so the
 # dependency layer is cached until a manifest changes. `--frozen-lockfile`

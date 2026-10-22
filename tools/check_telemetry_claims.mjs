@@ -89,6 +89,12 @@ export const ALLOW_LIST = {
     kinds: ['dynamic-import', 'global-alias'],
     reason: 'same-origin pinned sqlite3mc module; `self` retyped as the worker scope',
   },
+  // The pinned hash-wasm Argon2id file the fetch script wrote, loaded in the Argon2 worker (same
+  // origin, script-src 'self'); `self` retyped as the worker scope. The worker makes no request.
+  'apps/web/src/sync/vault/argon2.worker.ts': {
+    kinds: ['dynamic-import', 'global-alias'],
+    reason: 'same-origin pinned hash-wasm module; `self` retyped as the worker scope',
+  },
   // Router: the history fallback `location.replace(<route hash>)` - a '#/...' fragment, never a URL.
   'apps/web/src/app/router.ts': { kinds: ['navigation'], reason: 'fragment-only route replace' },
   // The injectable `fetch` seam (a FetchLike handed down to the two adapters): the word is a

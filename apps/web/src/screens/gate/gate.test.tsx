@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ERASE_SUCCESS, eraseLocalDataFailure } from '@anc/core';
 import type { UnlockOutcome } from '../../storage';
 import { strings } from '../../i18n';
+import type { RestoreNewStoreResult } from '../../sync/vault';
 import { CreatePassphraseScreen } from './CreatePassphraseScreen';
 import { LostStoreScreen } from './LostStoreScreen';
 import { StoreUnavailableScreen } from './StoreUnavailableScreen';
@@ -97,6 +98,156 @@ describe('CreatePassphraseScreen', () => {
     const { container } = render(
       <CreatePassphraseScreen onCreate={outcome({ kind: 'unlocked' })} />,
     );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('CreatePassphraseScreen: restore from a backup', () => {
+  const restored = (result: RestoreNewStoreResult) => vi.fn(() => Promise.resolve(result));
+  const create = (onRestore = restored({ kind: 'restored' })) =>
+    render(
+      <CreatePassphraseScreen onCreate={outcome({ kind: 'unlocked' })} onRestore={onRestore} />,
+    );
+  const toRestore = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole('button', { name: s.restore.createLink }));
+  const file = () => new File(['x'], 'backup.ancvault');
+
+  it('is offered only where the app can restore', () => {
+    render(<CreatePassphraseScreen onCreate={outcome({ kind: 'unlocked' })} />);
+    expect(screen.queryByRole('button', { name: s.restore.createLink })).toBeNull();
+  });
+
+  it('shows the file and passphrase fields, says the passphrase becomes the device’s, and goes back', async () => {
+    const user = userEvent.setup();
+    create();
+    await user.type(
+      screen.getByLabelText(s.session.createPassphraseLabel, { selector: 'input' }),
+      STRONG,
+    );
+    await toRestore(user);
+    expect(screen.getByRole('heading', { name: s.restore.createTitle })).toBeVisible();
+    expect(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' })).toBeVisible();
+    expect(screen.getByLabelText(s.restore.passphraseLabel, { selector: 'input' })).toBeVisible();
+    expect(screen.getByText(s.restore.createSame)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: s.restore.createBack }));
+    expect(screen.getByRole('heading', { name: s.session.createTitle })).toBeVisible();
+    // What was typed for the new passphrase did not travel into the other path.
+    expect(
+      screen.getByLabelText(s.session.createPassphraseLabel, { selector: 'input' }),
+    ).toHaveValue('');
+  });
+
+  it('hands the picked file and the passphrase over once, and empties the passphrase', async () => {
+    const user = userEvent.setup();
+    const onRestore = restored({ kind: 'restored' });
+    create(onRestore);
+    await toRestore(user);
+    const picked = file();
+    await user.upload(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' }), picked);
+    const field = screen.getByLabelText(s.restore.passphraseLabel, { selector: 'input' });
+    await user.type(field, STRONG);
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    expect(onRestore).toHaveBeenCalledTimes(1);
+    expect(onRestore).toHaveBeenCalledWith(picked, STRONG);
+    await waitFor(() => expect(field).toHaveValue(''));
+  });
+
+  it('asks for the file and the passphrase first, calling nothing', async () => {
+    const user = userEvent.setup();
+    const onRestore = restored({ kind: 'restored' });
+    create(onRestore);
+    await toRestore(user);
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    expect(screen.getByText(s.restore.noFile)).toBeVisible();
+    await user.upload(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' }), file());
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    expect(screen.getByText(s.restore.noPassphrase)).toBeVisible();
+    expect(onRestore).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'a weak backup passphrase',
+      { kind: 'passphraseRejected', issue: 'tooShort' },
+      s.restore.createWeak,
+    ],
+    [
+      'a wrong passphrase',
+      { kind: 'failed', failure: 'wrongPassphraseOrDamaged' },
+      s.restore.wrongOrDamaged,
+    ],
+    ['not a backup', { kind: 'failed', failure: 'notABackup' }, s.restore.notABackup],
+    ['too large', { kind: 'failed', failure: 'tooLarge' }, s.restore.tooLarge],
+    ['a newer version', { kind: 'failed', failure: 'schemaTooNew' }, s.restore.newerVersion],
+    ['unusable content', { kind: 'failed', failure: 'invalidContent' }, s.restore.invalidContent],
+    ['an unreadable file', { kind: 'failed', failure: 'unreadable' }, s.restore.unreadable],
+    ['a KDF that cannot run', { kind: 'failed', failure: 'unavailable' }, s.restore.unavailable],
+    ['a clock ahead', { kind: 'clockAhead' }, s.restore.clockAhead],
+    ['a store problem', { kind: 'storeProblem' }, s.restore.storeProblem],
+    [
+      'a store problem that left an empty store',
+      { kind: 'storeProblemNotRemoved' },
+      s.restore.storeProblemNotRemoved,
+    ],
+    [
+      'another tab holding the store',
+      { kind: 'createFailed', outcome: { kind: 'inUseElsewhere' } },
+      s.session.inOtherTab,
+    ],
+  ] as const)('%s: one calm line', async (_name, result, line) => {
+    const user = userEvent.setup();
+    create(restored(result as RestoreNewStoreResult));
+    await toRestore(user);
+    await user.upload(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' }), file());
+    await user.type(
+      screen.getByLabelText(s.restore.passphraseLabel, { selector: 'input' }),
+      STRONG,
+    );
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    expect(await screen.findByText(line)).toBeVisible();
+    expect(screen.getByRole('button', { name: s.restore.createAction })).not.toHaveAttribute(
+      'aria-busy',
+    );
+  });
+
+  it('while a restore runs there is no way out: Back does nothing', async () => {
+    const user = userEvent.setup();
+    let finish!: (r: RestoreNewStoreResult) => void;
+    create(vi.fn(() => new Promise<RestoreNewStoreResult>((resolve) => (finish = resolve))));
+    await toRestore(user);
+    await user.upload(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' }), file());
+    await user.type(
+      screen.getByLabelText(s.restore.passphraseLabel, { selector: 'input' }),
+      STRONG,
+    );
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    const back = screen.getByRole('button', { name: s.restore.createBack });
+    expect(back).toHaveAttribute('aria-disabled', 'true');
+    await user.click(back);
+    expect(screen.getByRole('heading', { name: s.restore.createTitle })).toBeVisible();
+    finish({ kind: 'failed', failure: 'notABackup' });
+    expect(await screen.findByText(s.restore.notABackup)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: s.restore.createBack }));
+    expect(screen.getByRole('heading', { name: s.session.createTitle })).toBeVisible();
+  });
+
+  it('a thrown error is reported as unavailable and releases busy', async () => {
+    const user = userEvent.setup();
+    create(vi.fn(() => Promise.reject(new Error('boom'))));
+    await toRestore(user);
+    await user.upload(screen.getByLabelText(s.restore.fileLabel, { selector: 'input' }), file());
+    await user.type(
+      screen.getByLabelText(s.restore.passphraseLabel, { selector: 'input' }),
+      STRONG,
+    );
+    await user.click(screen.getByRole('button', { name: s.restore.createAction }));
+    expect(await screen.findByText(s.restore.unavailable)).toBeVisible();
+  });
+
+  it('has no axe violations in the restore view', async () => {
+    const user = userEvent.setup();
+    const { container } = create();
+    await toRestore(user);
     expect(await axe(container)).toHaveNoViolations();
   });
 });

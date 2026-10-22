@@ -108,6 +108,8 @@ export default tseslint.config(
       'public/sqlite3mc',
       // Vendored, SHA-256-pinned zxing-wasm decoder (scripts/fetch_web_zxing_pwa.sh).
       'public/zxing',
+      // Vendored, SHA-256-pinned hash-wasm Argon2id build (scripts/fetch_web_argon2.sh).
+      'public/argon2',
     ],
   },
   js.configs.recommended,
