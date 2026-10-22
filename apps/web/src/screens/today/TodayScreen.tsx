@@ -8,6 +8,8 @@ import {
   mealSlotForHour,
   openPlateDismissalKey,
   openPlateSuggestionFor,
+  planDayCopy,
+  type PlannedPlate,
   visibleSlots,
   type MealSlot,
   type PlateLog,
@@ -25,9 +27,9 @@ import {
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
 import { NutritionSection, useShowNumbers, useTargets } from '../../components/nutrition';
-import { formatDayMonth, weekdayName } from '../../components/day/format';
+import { formatDayMonth, formatTime, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
-import { capitalise, useLocale, useStrings } from '../../i18n';
+import { capitalise, fill, plural, useLocale, useStrings } from '../../i18n';
 import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { useLog } from '../../app/log-context';
 import { hrefs, navigate } from '../../app/router';
@@ -36,6 +38,7 @@ import { useSession } from '../../app/session';
 import { useStoreSnapshot } from '../../app/store-context';
 import { PlateCoach, useDismissals } from './coach';
 import { plateSummary } from '../plate/summary';
+import { CopyDayDialog } from './CopyDayDialog';
 
 const QUICK_REPEAT_MS = 5000;
 
@@ -95,7 +98,7 @@ export function TodayScreen() {
   const all = useStrings();
   const { locale } = useLocale();
   const s = all.today;
-  const { deletePlate, coach, coachInteractions, notes } = useSession();
+  const { deletePlate, coach, coachInteractions, notes, recordPlates, clock } = useSession();
   const targets = useTargets();
   const showNumbers = useShowNumbers();
   const day = useDay();
@@ -103,6 +106,7 @@ export function TodayScreen() {
   const dismissed = useDismissals(notes);
   const [removing, setRemoving] = useState<PlateLog | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useNoticeTimeout(day.notice, () => day.setNotice(null));
 
@@ -196,6 +200,65 @@ export function TodayScreen() {
     }
   };
 
+  // "Copy this day to today": a past day's plates, in time order at their own clock times. A
+  // plate whose time has not come yet today is listed but not copied (no plates in the future).
+  const [retry, setRetry] = useState<{
+    readonly day: number;
+    readonly plates: readonly PlannedPlate[];
+  } | null>(null);
+  const dayPlates = useMemo(() => board.slots.flatMap((entry) => entry.plates), [board]);
+  const fullPlan = useMemo(
+    () => (viewingToday ? [] : planDayCopy(dayPlates, day.today, clock())),
+    // `copying` re-reads the clock each time the dialog opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewingToday, dayPlates, day.today, clock, copying],
+  );
+  // After a partial failure only the plates that did not land are offered again.
+  const retrying = retry !== null && retry.day === day.selected;
+  const copyPlan = retrying ? retry.plates : fullPlan.filter((p) => !p.later);
+  const laterPlan = retrying ? [] : fullPlan.filter((p) => p.later);
+  const linesOf = (plan: readonly PlannedPlate[]) => {
+    const byId = new Map(dayPlates.map((p) => [p.id, p]));
+    return plan.map((planned) => {
+      const source = byId.get(planned.sourcePlateId);
+      return {
+        id: planned.sourcePlateId,
+        slot: planned.slot,
+        time: formatTime(planned.loggedAtUtc),
+        foods: source === undefined ? '' : plateSummary(source),
+      };
+    });
+  };
+  const copyDay = async () => {
+    if (busy || copyPlan.length === 0) return;
+    setBusy(true);
+    const batch = copyPlan;
+    let recorded: number;
+    let failedPlates: readonly PlannedPlate[];
+    try {
+      // One calm coach note for the whole batch (the last plate that landed); see Session.recordPlates.
+      const result = await recordPlates(batch);
+      recorded = result.recorded;
+      failedPlates = result.failedPlates;
+    } catch {
+      recorded = 0;
+      failedPlates = batch;
+    }
+    setBusy(false);
+    setCopying(false);
+    setRetry(failedPlates.length > 0 ? { day: day.selected, plates: failedPlates } : null);
+    const total = batch.length;
+    day.setNotice((a) =>
+      recorded === total
+        ? plural(a.relog.copiedDay, recorded)
+        : recorded > 0
+          ? fill(plural(a.relog.copiedDayPartial, recorded), { total })
+          : a.common.logFailed,
+    );
+    // Only a complete copy moves on to today: after a failure the rest can be tried again here.
+    if (failedPlates.length === 0) day.select(day.today);
+  };
+
   const dayTotals = useMemo(
     () => dayNutrients(board.slots.flatMap((entry) => entry.plates)),
     [board],
@@ -211,6 +274,15 @@ export function TodayScreen() {
       <p role="status" className="text-signal-muted mx-5 mt-3 text-meta empty:hidden lg:mx-7">
         {day.notice}
       </p>
+      {copyPlan.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setCopying(true)}
+          className="text-porcelain-dim mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+        >
+          {all.relog.copyDay}
+        </button>
+      )}
       <QuickRepeat at={day.lastLoggedAt} onOpen={log.open} />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="min-w-0 pb-6">
@@ -281,6 +353,14 @@ export function TodayScreen() {
           <NoStreaksLine className="mt-4" />
         </section>
       </div>
+      <CopyDayDialog
+        open={copying}
+        lines={linesOf(copyPlan)}
+        laterLines={linesOf(laterPlan)}
+        busy={busy}
+        onKeep={() => setCopying(false)}
+        onCopy={() => void copyDay()}
+      />
       <RemovePlateDialog
         open={removing !== null}
         dish={removing ? plateSummary(removing) : ''}

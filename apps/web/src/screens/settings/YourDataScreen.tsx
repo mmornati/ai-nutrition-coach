@@ -39,6 +39,8 @@ function failureText(result: RunExportResult & { kind: 'failed' }, s: Strings['e
       return s.failedFormat;
     case 'deliveryFailed':
       return s.failedDelivery;
+    case 'savedUnavailable':
+      return s.failedSaved;
   }
 }
 

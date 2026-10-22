@@ -40,6 +40,17 @@ export const COVERED_BY = Object.freeze({
   BarcodeSheet: 'LogHost',
   SnapSheet: 'LogHost',
   PhotoDeniedSheet: 'LogHost',
+  // Log again: the sheets of the capture flow (saved meals, recipes, recent foods) ...
+  SavedSheet: 'LogHost',
+  MealEditor: 'LogHost',
+  MatchList: 'LogHost',
+  RecentFoods: 'LogHost',
+  RecipeEditor: 'LogHost',
+  RecipeEditorSheet: 'LogHost',
+  // ... and the copy sheets of the Plate and Today screens.
+  CopyPlateSheet: 'PlateScreen',
+  SaveMealSheet: 'PlateScreen',
+  CopyDayDialog: 'TodayScreen',
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
   // The frame of the gate screens.

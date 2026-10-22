@@ -68,6 +68,14 @@ export function SettingsList() {
         onSelect: go(SECTIONS.profile),
       },
       {
+        id: SECTIONS.saved,
+        line: 'starch',
+        title: s.rowSaved,
+        subtitle: s.rowSavedSubtitle,
+        status: '',
+        onSelect: go(SECTIONS.saved),
+      },
+      {
         id: SECTIONS.install,
         line: 'starch',
         title: s.rowInstall,

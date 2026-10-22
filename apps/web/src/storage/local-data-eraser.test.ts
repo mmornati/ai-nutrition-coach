@@ -56,6 +56,25 @@ describe('WebLocalDataEraser', () => {
     bundle.dispose();
   });
 
+  it('removes saved meals and recipes with the database: a new store starts with none', async () => {
+    const bundle = await unlockedStore();
+    const food = {
+      databaseFood: { sourceRef: 'x', displayName: 'Apple', source: 'manual', foodGroup: 'other' },
+      quantity: { low: 1, high: 1, unit: 'g', displayLabel: '100 g', grams: 100 },
+    } as const;
+    await bundle.saved.saveMeal({ name: 'Usual', entries: [food] });
+    await bundle.saved.saveRecipe({ name: 'Stew', servings: 2, ingredients: [food] });
+    expect(await bundle.saved.listMeals()).toMatchObject({ kind: 'saved' });
+
+    expect(await bundle.eraser.eraseAll()).toEqual(ERASE_SUCCESS);
+    expect(await memfsFileExists(stack.filename)).toBe(false);
+
+    await bundle.controller.createStore(GOOD_PASSPHRASE);
+    expect(await bundle.saved.listMeals()).toEqual({ kind: 'saved', value: [] });
+    expect(await bundle.saved.listRecipes()).toEqual({ kind: 'saved', value: [] });
+    bundle.dispose();
+  });
+
   it('removes the plaintext language hint with everything else', async () => {
     const bundle = await unlockedStore();
     stack.storage.write(LOCALE_HINT_KEY, 'fr');

@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { FoodEntryDraft, RecordPlateResult } from '@anc/core';
-import { fill, useLocale, useMessage, useStrings } from '../../i18n';
-import { Button, GroupMarker, TextField } from '../../components/primitives';
+import { useEffect, useRef, useState } from 'react';
+import type { FoodEntryDraft, FoodUse, RecordPlateResult } from '@anc/core';
+import { useMessage, useStrings } from '../../i18n';
+import { Button, TextField } from '../../components/primitives';
 import { QuantityPicker, Sheet } from '../../components/sheets';
-import { foodName, useManualEntry } from '../../catalog';
+import { useManualEntry } from '../../catalog';
 import type { LogOutcome } from '../../catalog';
 import { useSession } from '../../app/session';
+import { MatchList } from './MatchList';
+import { RecentFoods } from './RecentFoods';
 
 /**
  * Type it: ranked matches as you type, honest portion presets (the first is the default), Log. A
@@ -22,12 +24,17 @@ export function TypeIt({
 }) {
   const s = useStrings();
   const c = s.catalog;
-  const { locale } = useLocale();
   const { catalog, recordPlate } = useSession();
   const { session, state } = useManualEntry(catalog);
   const [note, setNote] = useMessage();
   // False while the Grams field holds text that is not a weight: Log stays off until it is.
   const [weightValid, setWeightValid] = useState(true);
+  // A one-tap log from the recent lists is in flight: a second tap must not make a second plate.
+  const [rowBusy, setRowBusy] = useState(false);
+  // The selection came from a recent food's "Change": the lists step aside and focus goes to the
+  // amount, so the person lands where the editing is.
+  const [fromRecent, setFromRecent] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (prefill) void session.prefill(prefill);
@@ -56,6 +63,28 @@ export function TypeIt({
     }
   };
 
+  // One tap on a recent or frequent food: the same food snapshot with the quantity it last had.
+  const logRecent = async (use: FoodUse) => {
+    if (state.submitting || rowBusy) return;
+    setRowBusy(true);
+    try {
+      const result = await commit([{ databaseFood: use.food, quantity: use.quantity }]);
+      if (result.kind === 'recordPlateSuccess') onLogged();
+      else setNote((a) => a.common.logFailed);
+    } catch {
+      setNote((a) => a.common.logFailed);
+    } finally {
+      setRowBusy(false);
+    }
+  };
+
+  const selectedRef = state.selected?.food.sourceRef;
+  useEffect(() => {
+    if (fromRecent && selectedRef !== undefined) {
+      pickerRef.current?.querySelector<HTMLElement>('input')?.focus();
+    }
+  }, [fromRecent, selectedRef]);
+
   const hasMatches = state.matches.length > 0;
   const showCustom =
     !hasMatches &&
@@ -75,6 +104,7 @@ export function TypeIt({
         spellCheck={false}
         onChange={(e) => {
           setNote(null);
+          setFromRecent(false);
           void session.updateQuery(e.target.value);
         }}
       />
@@ -82,35 +112,11 @@ export function TypeIt({
         <p className="text-body-small text-porcelain-dim">{c.typeHint}</p>
       )}
       {hasMatches && (
-        <ul aria-label={c.results} className="border-porcelain border-t-2">
-          {state.matches.map((match) => {
-            const isSelected = selected === match;
-            return (
-              <li key={match.food.sourceRef} className="border-rule border-b">
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  aria-label={fill(c.matchLabel, {
-                    name: foodName(match.food, locale),
-                    group: s.groups[match.food.foodGroup],
-                    presets: match.presets.length,
-                  })}
-                  onClick={() => session.selectMatch(match)}
-                  className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 bg-transparent py-2 text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-lead">{foodName(match.food, locale)}</span>
-                    <GroupMarker group={match.food.foodGroup} className="mt-1" />
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`size-3 shrink-0 rounded-full border-2 ${isSelected ? 'bg-porcelain border-porcelain' : 'border-control-raised'}`}
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <MatchList
+          matches={state.matches}
+          selected={selected}
+          onSelect={(match) => session.selectMatch(match)}
+        />
       )}
       {showCustom && (
         <div className="flex flex-col gap-3">
@@ -132,20 +138,22 @@ export function TypeIt({
         </div>
       )}
       {selected && chosen && (
-        <QuantityPicker
-          key={selected.food.sourceRef}
-          food={selected.food}
-          presets={selected.presets}
-          value={chosen}
-          onChange={(preset) => session.selectPreset(preset)}
-          onValidityChange={setWeightValid}
-        />
+        <div ref={pickerRef}>
+          <QuantityPicker
+            key={selected.food.sourceRef}
+            food={selected.food}
+            presets={selected.presets}
+            value={chosen}
+            onChange={(preset) => session.selectPreset(preset)}
+            onValidityChange={setWeightValid}
+          />
+        </div>
       )}
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
       <p role="status" className="text-body-small text-porcelain-dim empty:hidden">
         {message}
       </p>
-      {hasMatches && (
+      {(hasMatches || selected !== null) && (
         <Button
           fullWidth
           disabled={selected === null || !weightValid}
@@ -155,6 +163,16 @@ export function TypeIt({
         >
           {s.common.log}
         </Button>
+      )}
+      {!hasMatches && state.query.trim() === '' && selected === null && (
+        <RecentFoods
+          busy={state.submitting || rowBusy}
+          onLog={(use) => void logRecent(use)}
+          onEdit={(match) => {
+            setFromRecent(true);
+            session.selectMatch(match);
+          }}
+        />
       )}
     </div>
   );

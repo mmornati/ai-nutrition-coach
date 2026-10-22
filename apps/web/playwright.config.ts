@@ -23,7 +23,7 @@ const fakeCameraClip = join(cameraDir, `ean13-${FAKE_CAMERA_CODE}.y4m`);
 writeFileSync(fakeCameraClip, ean13Y4m(FAKE_CAMERA_CODE));
 
 // The specs that run on the real encrypted store (a shared site-data store on WebKit).
-const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey'];
+const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey', 'relog'];
 
 export default defineConfig({
   testDir: './e2e',

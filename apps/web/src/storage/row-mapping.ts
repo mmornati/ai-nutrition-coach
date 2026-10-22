@@ -15,12 +15,23 @@ import {
   type CoachNote,
   type EpochMs,
   type FoodEntry,
+  type FoodEntryDraft,
   type PlateLog,
+  type Recipe,
+  type SavedMeal,
   type SourceCatalog,
   COACH_ANCHORS,
 } from '@anc/core';
 import type { CorruptRowReporter } from './corrupt-row-log';
-import type { EntryRow, NoteRow, PlateRowSet } from './ops';
+import type {
+  EntryInsert,
+  EntryRow,
+  NoteRow,
+  PlateRowSet,
+  RecipeSet,
+  SavedItemRow,
+  SavedMealSet,
+} from './ops';
 
 const ISO_MILLIS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
@@ -63,19 +74,22 @@ function parseJson(raw: string | null | undefined): unknown {
   }
 }
 
-function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
+/** The food and quantity of a stored entry-shaped row; `null` (reported) when the quantity is corrupt. */
+function toDraft(
+  row: EntryInsert & { readonly id: number },
+  report: CorruptRowReporter,
+  what: string,
+): FoodEntryDraft | null {
   const low = parseFinite(row.quantityLow);
   const high = parseFinite(row.quantityHigh);
   if (low === null || high === null || !isValidRange(low, high)) {
-    report(row.id, 'entry: invalid quantity');
+    report(row.id, `${what}: invalid quantity`);
     return null;
   }
   const grams = parseGrams(row.quantityGrams);
   const nutrientsPer100g = sanitizeNutrients(parseJson(row.nutrientsPer100g));
   const extra = sanitizeFoodExtra(parseJson(row.foodExtra));
   return {
-    id: row.id,
-    plateLogId: row.plateLogId,
     databaseFood: {
       sourceRef: row.sourceRef,
       displayName: row.displayName,
@@ -92,13 +106,18 @@ function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
       ...(grams !== undefined
         ? {
             grams,
-            ...(row.quantityGramsEstimated !== null
+            ...(row.quantityGramsEstimated !== null && row.quantityGramsEstimated !== undefined
               ? { gramsEstimated: row.quantityGramsEstimated === 1 }
               : {}),
           }
         : {}),
     },
   };
+}
+
+function toEntry(row: EntryRow, report: CorruptRowReporter): FoodEntry | null {
+  const draft = toDraft(row, report, 'entry');
+  return draft === null ? null : { id: row.id, plateLogId: row.plateLogId, ...draft };
 }
 
 export function mapPlateRows(set: PlateRowSet, report: CorruptRowReporter): readonly PlateLog[] {
@@ -151,4 +170,64 @@ export function mapNoteRows(
     );
   }
   return frozenList(notes);
+}
+
+function draftsByParent(
+  items: readonly SavedItemRow[],
+  report: CorruptRowReporter,
+  what: string,
+): Map<number, FoodEntryDraft[]> {
+  const byParent = new Map<number, FoodEntryDraft[]>();
+  for (const row of items) {
+    const draft = toDraft(row, report, what);
+    if (draft === null) continue;
+    const bucket = byParent.get(row.parentId);
+    if (bucket) bucket.push(draft);
+    else byParent.set(row.parentId, [draft]);
+  }
+  return byParent;
+}
+
+/** A saved meal with an unparseable timestamp or no readable entry is skipped (and reported). */
+export function mapSavedMeals(set: SavedMealSet, report: CorruptRowReporter): readonly SavedMeal[] {
+  const items = draftsByParent(set.items, report, 'saved meal item');
+  const meals: SavedMeal[] = [];
+  for (const row of set.meals) {
+    const createdAtUtc = parseStoredInstant(row.createdAtUtc);
+    const entries = items.get(row.id) ?? [];
+    if (createdAtUtc === null || entries.length === 0) {
+      report(row.id, 'saved meal: unreadable');
+      continue;
+    }
+    meals.push(
+      Object.freeze({ id: row.id, name: row.name, createdAtUtc, entries: frozenList(entries) }),
+    );
+  }
+  return frozenList(meals);
+}
+
+/** A recipe with an unparseable timestamp, a bad serving count or no readable ingredient is skipped. */
+export function mapRecipes(set: RecipeSet, report: CorruptRowReporter): readonly Recipe[] {
+  const items = draftsByParent(set.items, report, 'recipe ingredient');
+  const recipes: Recipe[] = [];
+  for (const row of set.recipes) {
+    const createdAtUtc = parseStoredInstant(row.createdAtUtc);
+    const ingredients = items.get(row.id) ?? [];
+    const cooked = row.cookedWeightGrams === null ? null : parseFinite(row.cookedWeightGrams);
+    if (createdAtUtc === null || ingredients.length === 0 || !(row.servings >= 1)) {
+      report(row.id, 'recipe: unreadable');
+      continue;
+    }
+    recipes.push(
+      Object.freeze({
+        id: row.id,
+        name: row.name,
+        createdAtUtc,
+        servings: row.servings,
+        ...(cooked !== null && cooked > 0 ? { cookedWeightGrams: cooked } : {}),
+        ingredients: frozenList(ingredients),
+      }),
+    );
+  }
+  return frozenList(recipes);
 }

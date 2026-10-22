@@ -1,6 +1,6 @@
 import { sanitizeNutrients, type Nutrients } from '../value-types/nutrients';
 
-export const SOURCE_CATALOGS = ['off', 'usda', 'manual', 'seed', 'ciqual'] as const;
+export const SOURCE_CATALOGS = ['off', 'usda', 'manual', 'seed', 'ciqual', 'recipe'] as const;
 export type SourceCatalog = (typeof SOURCE_CATALOGS)[number];
 
 export const FOOD_GROUPS = ['vegFruit', 'protein', 'starch', 'dairy', 'other'] as const;
@@ -53,6 +53,11 @@ export interface FoodExtra {
   readonly novaGroup?: (typeof NOVA_GROUPS)[number];
   /** True when the per-100 g nutrients came from a model's estimate, not a database. */
   readonly nutrientsEstimated?: boolean;
+  /**
+   * A recipe's other food groups (each a real share of its weight), besides `foodGroup`, so a
+   * stew with beans and vegetables counts for all the lines it carries. Never `other`.
+   */
+  readonly groups?: readonly FoodGroup[];
 }
 
 /** Keep only a valid Nutri-Score grade / NOVA group; `undefined` when neither survives. */
@@ -62,11 +67,23 @@ export function sanitizeFoodExtra(input: unknown): FoodExtra | undefined {
   const grade = NUTRISCORE_GRADES.find((g) => g === raw['nutriscoreGrade']);
   const nova = NOVA_GROUPS.find((n) => n === raw['novaGroup']);
   const estimated = raw['nutrientsEstimated'] === true;
-  if (grade === undefined && nova === undefined && !estimated) return undefined;
+  const groups = Array.isArray(raw['groups'])
+    ? [
+        ...new Set(
+          (raw['groups'] as unknown[])
+            .map(parseFoodGroup)
+            .filter((g): g is FoodGroup => g !== null && g !== 'other'),
+        ),
+      ]
+    : [];
+  if (grade === undefined && nova === undefined && !estimated && groups.length === 0) {
+    return undefined;
+  }
   return Object.freeze({
     ...(grade !== undefined ? { nutriscoreGrade: grade } : {}),
     ...(nova !== undefined ? { novaGroup: nova } : {}),
     ...(estimated ? { nutrientsEstimated: true } : {}),
+    ...(groups.length > 0 ? { groups: Object.freeze(groups) } : {}),
   });
 }
 

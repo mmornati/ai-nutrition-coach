@@ -27,16 +27,20 @@ import {
   type CoachParams,
   type Coach,
   type CoachNoteStore,
+  type CoachNoteGenerator,
   type DatabaseFood,
   type DeletePlate,
   type EncryptedStore,
+  type EpochMs,
   type FoodCatalog,
   type FoodEntryDraft,
   type LocalDataEraser,
+  type PlateLog,
   type Nutrients,
   type WeeklyReview,
   type RecordCoachInteraction,
   type RecordPlateResult,
+  type SavedStore,
 } from '@anc/core';
 import { createAiServices, type AiServices } from '../ai';
 import {
@@ -56,6 +60,7 @@ import {
   offLookupGate,
   OfflineFirstFoodCatalog,
   PrivacyPrefs,
+  RecipeFoodCatalog,
 } from '../catalog';
 import { currentLocale, strings } from '../i18n';
 import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
@@ -96,12 +101,40 @@ export interface Session {
   readonly askCoach: AskCoachConversation;
   /** The optional AI paragraph under the weekly review (never replaces the rule-based one). */
   readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
-  /** Records one plate (coach note and outbox op are best-effort post-commit steps). */
-  readonly recordPlate: (drafts: readonly FoodEntryDraft[]) => Promise<RecordPlateResult>;
+  /** The person's saved meals and home recipes (the recipes also show up in the food search). */
+  readonly saved: SavedStore;
+  /**
+   * Records one plate (coach note and outbox op are best-effort post-commit steps), now or at
+   * `loggedAtUtc` (a copy of another day's meal).
+   */
+  readonly recordPlate: (
+    drafts: readonly FoodEntryDraft[],
+    loggedAtUtc?: EpochMs,
+  ) => Promise<RecordPlateResult>;
+  /**
+   * Records several plates in order (copying a day). Every plate goes through the same path as
+   * `recordPlate`, but only the last plate that was actually committed is coached: one calm note
+   * for the batch, written with the whole day in view, instead of a note (and an AI call) per
+   * plate. A plate that fails does not stop the others; `failedPlates` hands back exactly those
+   * that did not land, so a retry copies only them.
+   */
+  readonly recordPlates: <P extends PlateToRecord>(
+    plates: readonly P[],
+  ) => Promise<{
+    readonly recorded: number;
+    readonly failed: number;
+    readonly failedPlates: readonly P[];
+  }>;
   readonly deletePlate: DeletePlate;
   /** False once the session was disposed: late async results must not touch the UI. */
   readonly live: () => boolean;
   dispose(): void;
+}
+
+/** One plate of a batch: its entries and the instant it lands at. */
+export interface PlateToRecord {
+  readonly entries: readonly FoodEntryDraft[];
+  readonly loggedAtUtc: EpochMs;
 }
 
 export interface SessionOptions {
@@ -130,7 +163,7 @@ export async function createSession(
 
   const privacy = new PrivacyPrefs(kv);
   // The catalog may only send a barcode while the stored answer to the one-time notice is `allowed`.
-  const catalog = new OfflineFirstFoodCatalog({
+  const baseCatalog = new OfflineFirstFoodCatalog({
     onlineLookupAllowed: offLookupGate(privacy),
     // The CIQUAL table is a same-origin, precached asset, read on the first search.
     ciqual: createCiqualFetchLoader(),
@@ -139,6 +172,31 @@ export async function createSession(
       signal: abort.signal,
     }),
   });
+
+  // The person's recipes join the search (after the seeds, before CIQUAL); a recipe saved or
+  // deleted is picked up by the next search.
+  const catalog = new RecipeFoodCatalog(baseCatalog, bundle.saved);
+  const saved: SavedStore = {
+    listMeals: () => bundle.saved.listMeals(),
+    saveMeal: (input) => bundle.saved.saveMeal(input),
+    renameMeal: (id, name) => bundle.saved.renameMeal(id, name),
+    deleteMeal: (id) => bundle.saved.deleteMeal(id),
+    listRecipes: () => bundle.saved.listRecipes(),
+    saveRecipe: async (input) => {
+      try {
+        return await bundle.saved.saveRecipe(input);
+      } finally {
+        catalog.invalidate();
+      }
+    },
+    deleteRecipe: async (id) => {
+      try {
+        return await bundle.saved.deleteRecipe(id);
+      } finally {
+        catalog.invalidate();
+      }
+    },
+  };
 
   const ai = await createAiServices({
     kv,
@@ -211,6 +269,15 @@ export async function createSession(
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
   });
+  // The same path without a coach note: the earlier plates of a copied day stay quiet.
+  const quietGenerator: CoachNoteGenerator = {
+    generateFor: () =>
+      Promise.resolve({ kind: 'noCoachNoteGenerated', reason: 'coachEmpty' as const }),
+  };
+  const recordQuietly = createRecordPlate({
+    generator: quietGenerator,
+    syncOpEnqueue: createRecordSyncOp(syncQueue),
+  });
 
   const askCoach = new AskCoachConversation({ ...coachAiDeps, naming, live: () => live });
   // A conversation belongs to one destination: when the AI, the destination or the coaching consent
@@ -246,7 +313,43 @@ export async function createSession(
     coachInteractions,
     askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
-    recordPlate: (entries) => record({ entries, store }),
+    saved,
+    recordPlate: (entries, loggedAtUtc) => record({ entries, store, loggedAtUtc }),
+    recordPlates: async (plates) => {
+      const failedPlates: (typeof plates)[number][] = [];
+      let lastCommitted: PlateLog | null = null;
+      for (const plate of plates) {
+        let result: RecordPlateResult;
+        try {
+          result = await recordQuietly({
+            entries: plate.entries,
+            store,
+            loggedAtUtc: plate.loggedAtUtc,
+          });
+        } catch {
+          failedPlates.push(plate);
+          continue;
+        }
+        if (result.kind === 'recordPlateSuccess') lastCommitted = result.plateLog;
+        else failedPlates.push(plate);
+      }
+      if (lastCommitted !== null) {
+        // The one note of the batch, for the last plate that landed, read in its whole day.
+        try {
+          let dayPlates: readonly PlateLog[] = [];
+          const day = await store.readRange(localDayRange(lastCommitted.loggedAtUtc));
+          if (day.kind === 'platesRead') dayPlates = day.plates;
+          await generator.generateFor(lastCommitted, { dayPlates });
+        } catch {
+          // A missing note never undoes a committed plate.
+        }
+      }
+      return {
+        recorded: plates.length - failedPlates.length,
+        failed: failedPlates.length,
+        failedPlates,
+      };
+    },
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
     live: () => live,
     dispose() {
@@ -255,7 +358,8 @@ export async function createSession(
       abort.abort();
       stopWatching();
       ai.coaching.dispose();
-      catalog.clearCaches();
+      baseCatalog.clearCaches();
+      catalog.invalidate();
       ai.permit.close();
       stopScoping();
       syncQueue.clear();
