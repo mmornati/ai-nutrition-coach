@@ -32,9 +32,9 @@ updates:
         patterns: ['*']
 
   # Actions are pinned by commit SHA (with a version comment); Dependabot
-  # keeps both in step.
+  # keeps both in step, in the workflows and in the local composite actions.
   - package-ecosystem: github-actions
-    directory: /
+    directories: ['/', '/.github/actions/*']
     schedule:
       interval: weekly
     cooldown:
@@ -45,7 +45,7 @@ updates:
 
   # Container base images are pinned by digest (node build stage, nginx-unprivileged
   # serve stage). Version bumps and digest refreshes arrive as one grouped PR;
-  # the self-host smoke test and the browser smoke prove the new image before merge.
+  # ci.yml's self-host smoke and browser smoke prove the new image before merge.
   - package-ecosystem: docker
     directory: /infra
     schedule:

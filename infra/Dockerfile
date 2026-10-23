@@ -72,8 +72,8 @@ COPY tools/ tools/
 # that identifies this deployment (docs/self-host.md "The project URL"). Unset
 # keeps the default (the project repository). AI_NUTRITION_COACH_RELEASE=1 makes
 # this a RELEASE build: an empty or `.invalid` URL fails the build. Whatever the
-# value, a URL that is set must be a plain https URL. The release workflow passes
-# both arguments (.github/workflows/release-gate.yml).
+# value, a URL that is set must be a plain https URL. CI and the publish workflow
+# pass both arguments (.github/workflows/ci.yml, .github/workflows/publish.yml).
 ARG AI_NUTRITION_COACH_PROJECT_URL=""
 ARG AI_NUTRITION_COACH_RELEASE=0
 RUN if [ "$AI_NUTRITION_COACH_RELEASE" = "1" ]; then \

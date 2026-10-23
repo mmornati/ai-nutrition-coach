@@ -1,22 +1,41 @@
-# AI Nutrition Coach CI — reproducible build gate (NFR9).
+# AI Nutrition Coach CI — the one pipeline every change goes through (NFR9).
 #
-# Runs on every pull request and push to main. Jobs:
-#   verify  — `pnpm verify`: format check, lint (warnings are errors), typecheck, unit tests
-#             (including the service-worker generator/worker tests and the self-tests of the
-#             gates), the suites re-run under TZ=Europe/Paris, the release-posture / telemetry /
-#             log-hygiene / adults-only / accessibility-floor gates, the scanner self-tests, the
-#             release build (+ precache manifest and sw.js), then the secrets scan and the
-#             third-party host scan of the built bundle.
-#   e2e     — the Playwright suite against the built preview in Chromium AND WebKit (offline
-#             reload, update flow, barcode with a fake camera).
-#   docker  — `docker build -f infra/Dockerfile .` proves the self-host image builds from the
-#             committed lockfile, then trivy scans it (HIGH/CRITICAL, unfixed ignored, B6).
+# Runs on every pull request, every push to main and every release tag. Jobs:
+#   changes    — what the pull request touches (see "Path filtering" below).
+#   static     — format check, lint (warnings are errors), typecheck, the posture gates (release
+#                posture, telemetry, log hygiene, adults-only, accessibility floor, named reviewer)
+#                and the scanner self-tests. Always runs: the gates read README, docs and workflows.
+#   unit       — the unit tests (including the service-worker and gate self-tests).
+#   unit-dst   — the same suites re-run under TZ=Europe/Paris (REQUIRE_DST=1).
+#   build      — the release build (+ precache manifest and sw.js), then the secrets scan, the
+#                third-party host scan and the no-gallery / no-dev-store guards of the bundle.
+#   e2e        — the Playwright suite against the built preview, one job per browser (Chromium,
+#                WebKit): offline reload, update flow, barcode with a fake camera.
+#   image      — the self-host image built ONCE as a release build (exactly the build arguments
+#                publish.yml pushes with), trivy (fixable HIGH/CRITICAL fail, B6), then the
+#                WebKit + Chromium smoke of that image (scripts/webkit_smoke.sh, ADR-0003).
+#   self-host  — scripts/smoke_self_host.sh: `bin/ai-nutrition-coach up` end to end, headers/CSP,
+#                container hardening, no egress, the kill switch, the AI proxy (FR-11).
+#   ci-ok      — the single required status check: green when every job above passed or was
+#                skipped by the path filter, red otherwise.
+#   publish    — push to main or a release tag only, once ci-ok is green: pushes the image to
+#                ghcr.io through publish.yml, rebuilt from the layers `image` cached and tested.
 #
-# Secret scanning of the git history lives in gitleaks.yml. The production image is exercised
-# by self-host-smoke.yml (container hardening) and browser-smoke.yml (WebKit + Chromium).
+# Together the jobs run everything `pnpm verify` runs (scripts/verify.sh, the local gate), in
+# parallel. Secret scanning of the git history lives in gitleaks.yml.
 #
-# Toolchain: Node 24 and pnpm 11.14.0 (the root package.json `packageManager`, activated through
-# corepack). Keep in sync with infra/Dockerfile, CONTRIBUTING.md and the other workflows.
+# Path filtering (pull requests only; a push to main or a tag always runs everything):
+#   * website, mkdocs, planning notes, editor/lint config -> static only;
+#   * docs/, the root Markdown files, LICENSE, CODEOWNERS -> static + unit (unit tests read them:
+#                                                           tools/pwa/infra.test.mjs, AboutScreen...);
+#   * infra/, bin/, the smoke scripts and harness         -> static + unit + image + self-host;
+#   * .github/workflows/ or .github/actions/              -> everything;
+#   * anything else (the app, packages, tools, configs)   -> everything.
+# Skipped jobs count as passed for ci-ok, so a docs-only pull request is green in about two minutes.
+# tools/check_release_posture.mjs fails if a step of `pnpm verify` is not a run line here.
+#
+# Toolchain: Node 24 and pnpm 11.14.0 (.github/actions/setup). Keep in sync with infra/Dockerfile,
+# CONTRIBUTING.md and publish.yml.
 
 name: ci
 
@@ -24,105 +43,358 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
 
-# Cancel in-progress runs on the same ref — keeps PR feedback loops fast
-# without burning runner minutes on superseded commits.
+# Cancel superseded runs (PR feedback stays fast; on main only the last merge matters for :edge).
+# A release tag is never cancelled.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 # Least privilege: jobs that need more must escalate at job level.
 permissions:
   contents: read
 
+env:
+  # The image `image` tests and publish.yml pushes: one release build, one cache.
+  TEST_IMAGE: ai-nutrition-coach:ci
+
 jobs:
-  verify:
-    name: pnpm verify
+  changes:
+    name: What changed
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    permissions:
-      contents: read
+    timeout-minutes: 5
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      image: ${{ steps.filter.outputs.image }}
+      unit: ${{ steps.filter.outputs.unit }}
+    steps:
+      - name: Checkout (the merge commit and its base)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Classify the changed paths
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" != pull_request ]; then
+            printf 'app=true\nimage=true\nunit=true\n' >> "$GITHUB_OUTPUT"
+            echo "Not a pull request: everything runs." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # On a pull request HEAD is the merge commit: its first parent is the current base.
+          app=false
+          image=false
+          unit=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in
+              .github/workflows/* | .github/actions/*)
+                app=true; image=true ;;
+              infra/* | bin/* | .dockerignore | scripts/smoke_self_host.sh | scripts/webkit_smoke.sh | tools/webkit_smoke/*)
+                image=true ;;
+              .gitignore)
+                # Read by the asset-pin unit tests and copied into the image build stage.
+                unit=true; image=true ;;
+              docs/* | README.md | CONTRIBUTING.md | SECURITY.md | PRODUCT.md | DESIGN.md | REVIEWERS.md | LICENSE \
+                | .github/CODEOWNERS)
+                # Read by unit tests (tools/pwa/infra.test.mjs, AboutScreen, no-dark-patterns, gate self-tests).
+                unit=true ;;
+              website/* | mkdocs.yml | requirements-docs.txt | .github/dependabot.yml | .gitleaks.toml | .gitattributes \
+                | .editorconfig | .prettierignore | .prettierrc* | _bmad/* | _bmad-output/* | .claude/* | .impeccable/*)
+                ;;
+              *)
+                # The app and everything it is built from; an unknown path errs on running it all.
+                app=true; image=true ;;
+            esac
+          done < <(git diff --no-renames --name-only HEAD^1 HEAD)
+          if [ "$app" = true ] || [ "$image" = true ]; then unit=true; fi
+          printf 'app=%s\nimage=%s\nunit=%s\n' "$app" "$image" "$unit" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Path filter"
+            echo
+            echo "- unit: \`$unit\`"
+            echo "- app (unit-dst, build, e2e): \`$app\`"
+            echo "- image (image, self-host): \`$image\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  static:
+    name: Format, lint, types, gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Activate pnpm 11.14.0 (corepack)
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.14.0 --activate
+      - name: Set up the workspace
+        uses: ./.github/actions/setup
 
-      - name: Set up Node 24
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint (warnings are errors)
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Posture gates (release posture, telemetry, log hygiene, adults-only, a11y floor, reviewers)
+        run: pnpm gates
+
+      - name: Scanner self-tests
+        run: pnpm selftest:scanners
+
+  unit:
+    name: Unit tests
+    needs: changes
+    # Also on infra and docs changes: the tools/pwa self-tests read infra/ and docs/.
+    if: needs.changes.outputs.unit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
-          cache: pnpm
+          persist-credentials: false
 
-      - name: Install (frozen lockfile)
-        # A drifting pnpm-lock.yaml must fail CI, not be silently rewritten.
-        run: pnpm install --frozen-lockfile
+      - name: Set up the workspace
+        uses: ./.github/actions/setup
+        with:
+          assets: 'true'
 
-      - name: Verify (format, lint, types, tests, DST, gates, build, bundle scans)
-        run: pnpm verify
+      - name: Unit tests
+        run: pnpm test
+
+  unit-dst:
+    name: Unit tests (TZ=Europe/Paris)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the workspace
+        uses: ./.github/actions/setup
+        with:
+          assets: 'true'
+
+      # test:dst does not fetch the wasm assets itself (the kdf tests read the Argon2id build): on a
+      # cache miss they must be fetched here, not borrowed from a parallel job.
+      - name: Unit tests under a DST time zone
+        run: |
+          pnpm --filter @anc/web run fetch:assets
+          pnpm test:dst
+
+  build:
+    name: Release build + bundle scans
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the workspace
+        uses: ./.github/actions/setup
+        with:
+          assets: 'true'
+
+      - name: Release build (+ precache manifest and sw.js)
+        run: pnpm build
+
+      - name: Secrets scan + third-party host scan of the bundle
+        run: pnpm scan:bundle
+
+      - name: No gallery, no dev store in the bundle
+        run: pnpm guards
 
       - name: Release bundle has a service worker and a precache manifest
         run: test -f apps/web/dist/sw.js && test -f apps/web/dist/precache-manifest.json
 
   e2e:
-    name: End-to-end (Chromium + WebKit)
+    name: End-to-end (${{ matrix.browser }})
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            projects: chromium
+            webkit: ''
+          # The webkit project and the store specs chained after it (apps/web/playwright.config.ts).
+          - browser: webkit
+            projects: 'webkit*'
+            webkit: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Activate pnpm 11.14.0 (corepack)
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.14.0 --activate
-
-      - name: Set up Node 24
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Set up the workspace
+        uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          assets: 'true'
 
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(pnpm --filter @anc/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Install Playwright browsers (the pinned 1.63 Chromium and WebKit)
-        run: pnpm --filter @anc/web exec playwright install --with-deps chromium webkit
+      - name: Restore the Playwright browser
+        id: pw-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-${{ matrix.browser }}
+
+      - name: Install the Playwright browser and its system dependencies
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: pnpm --filter @anc/web exec playwright install --with-deps "$BROWSER"
+
+      - name: Install the browser's system dependencies (browser restored from cache)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: pnpm --filter @anc/web exec playwright install-deps "$BROWSER"
 
       - name: End-to-end tests (built preview; offline reload and update flow)
-        run: pnpm e2e
         env:
-          PW_WEBKIT: '1'
+          PW_WEBKIT: ${{ matrix.webkit }}
+          PROJECTS: ${{ matrix.projects }}
+        run: |
+          pnpm --filter @anc/web run fetch:assets
+          pnpm --filter @anc/web exec playwright test --project="$PROJECTS"
 
-  docker:
-    name: Self-host image builds
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  image:
+    name: Image build, trivy, browser smoke
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
+    # A cold release build, trivy, then the ~3 GB Playwright image and the browser smoke.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Build infra/Dockerfile
-        run: docker build -f infra/Dockerfile -t ai-nutrition-coach:ci .
+      # linux/amd64 only: no QEMU.
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The same Dockerfile, platform, pull policy and build arguments as publish.yml, and its cache
+      # scope: on main and tags this fills the cache publish.yml rebuilds from, so what is pushed is
+      # made of the layers tested here. Pull requests read that cache and write none.
+      - name: Build the release image (loaded locally, not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          pull: true
+          tags: ${{ env.TEST_IMAGE }}
+          # A release build: the project-URL rule runs inside the build. An empty URL keeps the
+          # default (the repository page); a fork may set the repository VARIABLE
+          # AI_NUTRITION_COACH_PROJECT_URL.
+          build-args: |
+            AI_NUTRITION_COACH_RELEASE=1
+            AI_NUTRITION_COACH_PROJECT_URL=${{ vars.AI_NUTRITION_COACH_PROJECT_URL || '' }}
+          cache-from: type=gha,scope=image
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=image,mode=max' || '' }}
 
       - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ai-nutrition-coach:ci
+          image-ref: ${{ env.TEST_IMAGE }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           format: table
+
+      - name: WebKit + Chromium smoke of this image
+        env:
+          AI_NUTRITION_COACH_SMOKE_IMAGE: ${{ env.TEST_IMAGE }}
+        run: bash scripts/webkit_smoke.sh --no-build
+
+  self-host:
+    name: Self-host smoke (bin/ai-nutrition-coach up)
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    # A standard hosted runner, so the budget is comparable to a self-hoster's first run on
+    # commodity hardware.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Builds through the real entry point, so the real run flags are what is tested.
+      - name: Run the self-host smoke test
+        run: bash scripts/smoke_self_host.sh
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, static, unit, unit-dst, build, e2e, image, self-host]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed or was skipped by the path filter
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if [ "$FAILED" = true ]; then
+            echo "::error::a CI job failed or was cancelled"
+            exit 1
+          fi
+
+  publish:
+    name: Publish
+    needs: ci-ok
+    # Explicit result rather than the implicit success(), which would also need every job behind
+    # ci-ok to have run (a job skipped on push would then silently skip the publish).
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success'
+      && github.event_name == 'push' && github.repository == 'mmornati/ai-nutrition-coach'
+      && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      tested: true

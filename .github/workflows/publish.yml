@@ -5,37 +5,48 @@
 # The image is host-independent: every setting is read by the container at start (the
 # service-worker build id is computed there too), so one image serves every instance.
 #
+# How it runs:
+#   push to main / release tag  -> called by ci.yml (job `publish`) once ci-ok is green, with
+#                                  `tested: true`: ci.yml's `image` job already built this image
+#                                  (same Dockerfile, build arguments and cache scope), scanned it
+#                                  with trivy and drove it in WebKit and Chromium.
+#   manual run                  -> Actions -> publish -> Run workflow, to try a branch on the server
+#                                  before merging; `test-image` builds, scans and smokes it first.
+#
 # Tags:
 #   push to main           -> :edge, :sha-<7>     (the head of main, never :latest)
 #   release tag vX.Y.Z     -> :X.Y.Z, :X.Y, :sha-<7>, and :latest only when it is the highest
 #                             stable release (a fix on an older line never moves :latest back)
 #   pre-release vX.Y.Z-rc.N -> :X.Y.Z-rc.N, :sha-<7>  (never :latest nor :X.Y)
-#   manual run             -> :branch-<slug>, :sha-<7>  (Actions -> publish -> Run workflow, to
-#                             try a branch on the server before merging)
+#   manual run             -> :branch-<slug>, :sha-<7>
 #
 # Nothing is pushed unless the image passed its checks first:
-#   test-image     builds the image exactly as published (same Dockerfile, build arguments and
-#                  cache), scans it with trivy (fixable HIGH/CRITICAL fail, like ci.yml) and drives
-#                  it in WebKit and Chromium (scripts/webkit_smoke.sh, like browser-smoke.yml);
-#   release-gates  (release tags only) the release posture, telemetry and project-URL gates, like
-#                  release-gate.yml;
-#   publish        rebuilds from the cache test-image filled (same layers) and pushes, with OCI
-#                  labels (revision = the commit built), a provenance attestation and an SBOM.
+#   test-image     (manual runs) builds the image exactly as published, scans it with trivy
+#                  (fixable HIGH/CRITICAL fail) and drives it in WebKit and Chromium
+#                  (scripts/webkit_smoke.sh); called from ci.yml, its `image` job did this;
+#   release-gates  (release tags only) the release posture, telemetry and project-URL gates;
+#   publish        rebuilds from the cache the tested build filled (scope `image`: same layers) and
+#                  pushes, with OCI labels (revision = the commit built), a provenance attestation
+#                  and an SBOM.
 #
 # The canonical repository only: a fork has nothing to push under ghcr.io/mmornati.
 
 name: publish
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      tested:
+        description: The caller already built, scanned and smoked this image (ci.yml `image`)
+        type: boolean
+        default: false
   workflow_dispatch:
 
 # Two merges close together on main: only the last one matters for :edge. A release or a manual
-# run is never cancelled.
+# run is never cancelled. Keyed on the event too, so a manual run on main never cancels the
+# publish ci.yml is running.
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 # Least privilege: jobs that need more must escalate at job level.
@@ -49,7 +60,7 @@ env:
 jobs:
   test-image:
     name: Build, scan and smoke the image
-    if: github.repository == 'mmornati/ai-nutrition-coach'
+    if: github.repository == 'mmornati/ai-nutrition-coach' && !inputs.tested
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -76,12 +87,12 @@ jobs:
           tags: ${{ env.TEST_IMAGE }}
           # A release build: the project-URL rule runs inside the build. An empty URL keeps the
           # default (the repository page); a fork may set the repository VARIABLE
-          # AI_NUTRITION_COACH_PROJECT_URL (see release-gate.yml).
+          # AI_NUTRITION_COACH_PROJECT_URL (see docs/release-checklist.md).
           build-args: |
             AI_NUTRITION_COACH_RELEASE=1
             AI_NUTRITION_COACH_PROJECT_URL=${{ vars.AI_NUTRITION_COACH_PROJECT_URL || '' }}
-          cache-from: type=gha,scope=publish
-          cache-to: type=gha,scope=publish,mode=max
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,scope=image,mode=max
 
       - name: Vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -139,10 +150,11 @@ jobs:
   publish:
     name: Publish to ghcr.io
     needs: [test-image, release-gates]
-    # release-gates is skipped off tags; anything else than success / skipped stops the push.
+    # test-image is skipped when the caller tested the image, release-gates off tags; anything
+    # else than success / those skips stops the push.
     if: >-
       !cancelled() && github.repository == 'mmornati/ai-nutrition-coach'
-      && needs.test-image.result == 'success'
+      && (needs.test-image.result == 'success' || (inputs.tested && needs.test-image.result == 'skipped'))
       && (needs.release-gates.result == 'success' || needs.release-gates.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -220,8 +232,8 @@ jobs:
           file: infra/Dockerfile
           platforms: linux/amd64
           push: true
-          # The same pull as test-image, so both resolve the base images alike and the layers
-          # come from the cache it filled.
+          # The same pull as the tested build, so both resolve the base images alike and the
+          # layers come from the cache it filled.
           pull: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
@@ -236,7 +248,7 @@ jobs:
           # Provenance and SBOM attached: what is in the image can be checked.
           provenance: true
           sbom: true
-          cache-from: type=gha,scope=publish
+          cache-from: type=gha,scope=image
 
       - name: Summary
         env:

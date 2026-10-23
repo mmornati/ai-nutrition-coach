@@ -19,11 +19,11 @@ Every promise below names the test that proves it (`Proof`).
 `pnpm check:release-posture` (part of `pnpm verify`) fails if a row has no proof, if a named
 file does not exist, is not a `*.test.*` / `*.spec.*` file, or contains no real, un-skipped
 test. A shell script may stand beside the tests (the container egress test
-`scripts/smoke_self_host.sh`, which the `self-host-smoke` workflow runs) only if it exists and a
+`scripts/smoke_self_host.sh`, which the `self-host` job of the `ci` workflow runs) only if it exists and a
 workflow invokes it. Unit tests (`apps/web/src`, `packages/core/test`) and the gate self-tests
 (`tools/gates`, `tools/pwa`) run in `pnpm verify`; the Playwright specs (`apps/web/e2e`,
 Chromium and WebKit) run in CI via `pnpm e2e`, and `tools/webkit_smoke/smoke.spec.mjs` is the
-smoke of the production image (`scripts/webkit_smoke.sh`, the `browser-smoke` workflow).
+smoke of the production image (`scripts/webkit_smoke.sh`, the `image` job of the `ci` workflow).
 
 | Promise | Where it lives | Proof |
 | ------- | -------------- | ----- |

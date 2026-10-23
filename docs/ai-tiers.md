@@ -348,7 +348,7 @@ an analytics call.
 Story 4.5 pins this claim with a verification gate:
 `pnpm check:telemetry` walks the TypeScript AST of every shipped file and asserts no
 unsanctioned path opens a connection. The gate is part of the standard
-test suite and the release-gate CI. See
+test suite and the `static` job of CI. See
 [`docs/telemetry-posture.md`](./telemetry-posture.md) for the
 full user-facing posture.
 
