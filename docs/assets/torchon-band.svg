@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 64" width="1200" height="64" role="img" aria-label="A woven band of four dyed stripes: veg and fruit in green, protein in red, starch in ochre, dairy in blue">
+  <defs>
+    <pattern id="weave" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="4" fill="#FBFBF8"/>
+      <path d="M0 0.5H4M0.5 0V4" stroke="#E4E1DA" stroke-width="0.6" opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="64" fill="url(#weave)"/>
+  <rect y="0" width="1200" height="2" fill="#262421"/>
+  <path d="M0 9H1200" stroke="#E4E1DA" stroke-width="2" stroke-dasharray="10 6"/>
+  <rect y="16" width="1200" height="8" fill="#1F7A4D"/>
+  <rect y="28" width="1200" height="8" fill="#B5262E"/>
+  <rect y="40" width="1200" height="8" fill="#C08420"/>
+  <rect y="52" width="1200" height="8" fill="#2D5DA8"/>
+  <rect y="62" width="1200" height="2" fill="#262421"/>
+</svg>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{#- The one typeface, self-hosted (DESIGN.md: never from a CDN). Preloading the Latin subset avoids a flash of the
+    fallback on the heavy headings. -#}
+{% block extrahead %}
+  <link rel="preload" href="{{ 'assets/fonts/schibsted-grotesk-latin.woff2' | url }}" as="font" type="font/woff2" crossorigin>
+  <meta name="theme-color" content="#FBFBF8">
+  <meta name="color-scheme" content="light">
+{% endblock %}

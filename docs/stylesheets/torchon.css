@@ -1,0 +1,1194 @@
+/* The Torchon, for the documentation (DESIGN.md is the source of every value here).
+   White cotton with a faint two-way weave, warm ink, one self-hosted grotesque, 2px ink edges, sewn labels with a
+   dashed stitch, flat cloth panels. The four dyes appear only where a food group is meant: the towel band under the
+   header (the brand mark), the hero towel on the home page and the group legends, always beside the group's name.
+   Light only, like the app. */
+
+/* ── Type: Schibsted Grotesk, variable 400-900, self-hosted (assets/fonts/OFL.txt) ─────────────────────────── */
+@font-face {
+  font-family: "Schibsted Grotesk";
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/schibsted-grotesk-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Schibsted Grotesk";
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/schibsted-grotesk-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── Tokens ──────────────────────────────────────────────────────────────────────────────────────────── */
+:root {
+  --anc-ink: #262421;
+  --anc-ink-soft: #4a453f;
+  --anc-thread: #6b655e;
+  --anc-control: #8a847b;
+  --anc-control-raised: #857f76;
+  --anc-seam: #e4e1da;
+  --anc-cloth: #fbfbf8;
+  --anc-raised: #ffffff;
+  --anc-veg: #1f7a4d;
+  --anc-protein: #b5262e;
+  --anc-starch: #c08420;
+  --anc-dairy: #2d5da8;
+  --anc-stitch: rgb(38 36 33 / 0.35);
+  --anc-ease-weave: cubic-bezier(0.16, 1, 0.3, 1);
+  /* The header's own height (Material) plus the band: a 2px ink rule, then 4 stripes of 3px, 2px apart. */
+  --anc-band: 22px;
+  --anc-header: calc(2.4rem + var(--anc-band));
+
+  --md-text-font: "Schibsted Grotesk";
+  --md-code-font: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+[data-md-color-scheme="default"],
+[data-md-color-primary="custom"],
+:root {
+  --md-primary-fg-color: var(--anc-cloth);
+  --md-primary-fg-color--light: var(--anc-raised);
+  --md-primary-fg-color--dark: var(--anc-ink);
+  --md-primary-bg-color: var(--anc-ink);
+  --md-primary-bg-color--light: var(--anc-ink-soft);
+  --md-accent-fg-color: var(--anc-ink);
+  --md-accent-fg-color--transparent: rgb(38 36 33 / 0.06);
+  --md-accent-bg-color: var(--anc-cloth);
+  --md-accent-bg-color--light: var(--anc-raised);
+
+  --md-default-bg-color: var(--anc-cloth);
+  --md-default-bg-color--light: rgb(251 251 248 / 0.7);
+  --md-default-bg-color--lighter: rgb(251 251 248 / 0.3);
+  --md-default-bg-color--lightest: rgb(251 251 248 / 0.12);
+  --md-default-fg-color: var(--anc-ink);
+  --md-default-fg-color--light: var(--anc-thread);
+  --md-default-fg-color--lighter: var(--anc-control);
+  --md-default-fg-color--lightest: var(--anc-seam);
+
+  --md-typeset-color: var(--anc-ink);
+  --md-typeset-a-color: var(--anc-ink);
+  --md-typeset-mark-color: rgb(192 132 32 / 0.22);
+  --md-typeset-table-color: var(--anc-seam);
+  --md-typeset-table-color--light: rgb(228 225 218 / 0.35);
+  --md-typeset-kbd-color: var(--anc-raised);
+  --md-typeset-kbd-accent-color: var(--anc-raised);
+  --md-typeset-kbd-border-color: var(--anc-ink);
+
+  --md-code-bg-color: var(--anc-raised);
+  --md-code-bg-color--light: var(--anc-raised);
+  --md-code-bg-color--lighter: var(--anc-raised);
+  --md-code-fg-color: var(--anc-ink);
+  --md-code-hl-color: var(--anc-ink);
+  --md-code-hl-color--light: rgb(38 36 33 / 0.06);
+  /* Code is set in ink tones only: the dyes are food groups, never syntax. */
+  --md-code-hl-comment-color: var(--anc-thread);
+  --md-code-hl-keyword-color: var(--anc-ink);
+  --md-code-hl-function-color: var(--anc-ink);
+  --md-code-hl-string-color: var(--anc-ink-soft);
+  --md-code-hl-number-color: var(--anc-ink-soft);
+  --md-code-hl-constant-color: var(--anc-ink-soft);
+  --md-code-hl-special-color: var(--anc-ink-soft);
+  --md-code-hl-name-color: var(--anc-ink);
+  --md-code-hl-operator-color: var(--anc-thread);
+  --md-code-hl-punctuation-color: var(--anc-thread);
+  --md-code-hl-variable-color: var(--anc-ink-soft);
+  --md-code-hl-generic-color: var(--anc-thread);
+
+  --md-admonition-bg-color: var(--anc-raised);
+  --md-admonition-fg-color: var(--anc-ink);
+  --md-footer-bg-color: var(--anc-raised);
+  --md-footer-bg-color--dark: var(--anc-cloth);
+  --md-footer-fg-color: var(--anc-ink);
+  --md-footer-fg-color--light: var(--anc-ink-soft);
+  --md-footer-fg-color--lighter: var(--anc-thread);
+
+  /* Laid flat: no shadow anywhere. */
+  --md-shadow-z1: none;
+  --md-shadow-z2: none;
+  --md-shadow-z3: none;
+}
+
+/* ── Ground ──────────────────────────────────────────────────────────────────────────────────────────── */
+html {
+  background: var(--anc-cloth);
+  color-scheme: light;
+  scrollbar-color: var(--anc-control) var(--anc-cloth);
+  scroll-padding-top: calc(var(--anc-header) + 0.6rem);
+}
+body {
+  background-color: var(--anc-cloth);
+  /* White cotton with a barely visible weave: two 1px thread grids, 3px apart (as in the app). */
+  background-image:
+    repeating-linear-gradient(0deg, rgb(38 36 33 / 0.025) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(38 36 33 / 0.02) 0 1px, transparent 1px 3px);
+  color: var(--anc-ink);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern" 1;
+}
+.md-main,
+.md-container,
+.md-content {
+  background: transparent;
+}
+::selection {
+  background: rgb(192 132 32 / 0.3);
+  color: var(--anc-ink);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--anc-control);
+  border-radius: 999px;
+  border: 2px solid var(--anc-cloth);
+}
+::-webkit-scrollbar-track {
+  background: var(--anc-cloth);
+}
+
+/* The focus ring: ink, 3px at 2px offset, a shape and never a colour change. */
+:focus-visible,
+.md-typeset :focus-visible,
+.md-nav__link:focus-visible,
+.md-header__button:focus-visible {
+  outline: 3px solid var(--anc-ink) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+.md-typeset .md-button--primary:focus-visible,
+.md-top:focus-visible {
+  outline-color: var(--anc-ink) !important;
+}
+
+/* ── Header and the towel band ───────────────────────────────────────────────────────────────────────── */
+.md-header {
+  background: var(--anc-cloth);
+  color: var(--anc-ink);
+  box-shadow: none !important;
+}
+.md-header__inner {
+  gap: 0.2rem;
+}
+.anc-band {
+  /* 2px ink rule, then the four dyes in their fixed order, 3px each with 2px of bare cotton between. */
+  height: var(--anc-band);
+  background-repeat: no-repeat;
+  background-image: linear-gradient(
+    to bottom,
+    var(--anc-ink) 0 2px,
+    transparent 2px 4px,
+    var(--anc-veg) 4px 7px,
+    transparent 7px 9px,
+    var(--anc-protein) 9px 12px,
+    transparent 12px 14px,
+    var(--anc-starch) 14px 17px,
+    transparent 17px 19px,
+    var(--anc-dairy) 19px 22px
+  );
+  background-color: var(--anc-cloth);
+}
+.md-sidebar {
+  top: var(--anc-header);
+}
+@media screen and (max-width: 76.234375em) {
+  .md-sidebar--primary {
+    top: 0;
+  }
+}
+
+.anc-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding: 0 0.3rem;
+  margin-left: 0.2rem;
+  color: var(--anc-ink);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+.anc-wordmark img {
+  display: block;
+  width: 0.95rem;
+  height: auto;
+}
+.anc-wordmark__name {
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.md-header__title {
+  margin-left: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--anc-thread);
+}
+.md-header__title .md-header__topic:first-child {
+  font-weight: 600;
+}
+.anc-header__section {
+  color: var(--anc-thread);
+  text-decoration: none;
+}
+.anc-header__section:hover {
+  color: var(--anc-ink);
+}
+.md-header__topic + .md-header__topic {
+  color: var(--anc-ink);
+  font-weight: 700;
+}
+.anc-header__home {
+  display: none;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0 0.8rem;
+  margin: 0 0.2rem;
+  border: 2px solid var(--anc-ink);
+  border-radius: 999px;
+  color: var(--anc-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.anc-header__home:hover {
+  background: var(--anc-ink);
+  color: var(--anc-cloth);
+}
+@media screen and (min-width: 60em) {
+  .anc-header__home {
+    display: inline-flex;
+  }
+}
+@media screen and (max-width: 44.984375em) {
+  .md-header__title {
+    display: none;
+  }
+  .anc-wordmark {
+    flex: 1;
+    margin-left: 0;
+  }
+}
+@media screen and (min-width: 76.25em) {
+  .anc-header__menu {
+    display: none;
+  }
+}
+.md-header__button {
+  color: var(--anc-ink);
+}
+.md-header__button.md-icon:hover {
+  opacity: 1;
+}
+.md-source {
+  color: var(--anc-ink);
+  font-weight: 600;
+}
+.md-source__repository {
+  font-weight: 700;
+}
+
+/* Search: a raised white pill with a 2px ink edge. */
+@media screen and (min-width: 60em) {
+  .md-search__form {
+    background: var(--anc-raised);
+    border: 2px solid var(--anc-ink);
+    border-radius: 999px;
+    height: 1.8rem;
+  }
+  .md-search__form:hover {
+    background: var(--anc-raised);
+  }
+  .md-search__input {
+    color: var(--anc-ink);
+    font-weight: 500;
+    height: 100%;
+  }
+  .md-search__input::placeholder {
+    color: var(--anc-thread);
+  }
+  .md-search__input + .md-search__icon {
+    color: var(--anc-ink);
+  }
+  [data-md-toggle="search"]:checked ~ .md-header .md-search__form {
+    border-radius: 0.9rem 0.9rem 0 0;
+  }
+  .md-search__output {
+    top: 1.8rem;
+  }
+  .md-search__scrollwrap {
+    border: 2px solid var(--anc-ink);
+    border-top: 0;
+    background: var(--anc-raised);
+  }
+}
+.md-search__inner {
+  background: transparent;
+}
+.md-search-result__meta {
+  background: var(--anc-cloth);
+  color: var(--anc-thread);
+}
+.md-search-result mark {
+  color: var(--anc-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+.md-search-result__link:hover,
+.md-search-result__link:focus {
+  background: rgb(38 36 33 / 0.04);
+}
+
+/* ── Navigation ──────────────────────────────────────────────────────────────────────────────────────── */
+.md-nav {
+  font-size: 0.72rem;
+}
+.md-nav__title {
+  color: var(--anc-thread);
+  font-weight: 700;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.md-nav__link {
+  color: var(--anc-ink-soft);
+  font-weight: 500;
+}
+.md-nav__link:hover,
+.md-nav__link:focus {
+  color: var(--anc-ink);
+}
+.md-nav__link--active,
+.md-nav__item .md-nav__link--active {
+  color: var(--anc-ink);
+  font-weight: 700;
+}
+/* Section names, as in the app: heavy, sentence case, Thread Grey. */
+.md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
+  color: var(--anc-thread);
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+@media screen and (min-width: 76.25em) {
+  /* The current page: a white pill with a 2px ink edge (the rail's current item). */
+  .md-sidebar--primary .md-nav__link--active:not(.md-nav__container) {
+    background: var(--anc-raised);
+    box-shadow: inset 0 0 0 2px var(--anc-ink);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    margin-left: -0.7rem;
+    margin-right: -0.2rem;
+  }
+  .md-sidebar--primary .md-nav__item--section {
+    margin: 1.4em 0;
+  }
+}
+/* On this page: a 2px ink thread beside the section you are reading. */
+.md-sidebar--secondary .md-nav__title {
+  color: var(--anc-thread);
+  font-weight: 800;
+}
+.md-sidebar--secondary .md-nav__link {
+  border-left: 2px solid var(--anc-seam);
+  padding-left: 0.6rem;
+  margin-top: 0;
+  padding-top: 0.3em;
+  padding-bottom: 0.3em;
+}
+.md-sidebar--secondary .md-nav__link--active {
+  border-left-color: var(--anc-ink);
+}
+.md-sidebar--secondary .md-nav .md-nav .md-nav__link {
+  padding-left: 1.2rem;
+}
+
+/* The drawer on small screens: white cloth under an ink edge. */
+@media screen and (max-width: 76.234375em) {
+  .md-sidebar--primary {
+    background: var(--anc-raised);
+  }
+  .md-nav--primary .md-nav__title[for="__drawer"] {
+    background: var(--anc-cloth) !important;
+    color: var(--anc-ink);
+    font-weight: 900;
+    border-bottom: 2px solid var(--anc-ink);
+  }
+  .md-nav--primary .md-nav__title .md-logo img {
+    height: 1.6rem;
+  }
+  .md-nav__source {
+    background: var(--anc-raised);
+    color: var(--anc-ink);
+    border-bottom: 2px solid var(--anc-seam);
+  }
+}
+
+/* ── Typeset ─────────────────────────────────────────────────────────────────────────────────────────── */
+.md-typeset {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--anc-ink);
+}
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  color: var(--anc-ink);
+  text-transform: none;
+}
+.md-typeset h1 {
+  font-size: 2.35em;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  margin: 0.4em 0 0.7em;
+}
+.md-typeset h2 {
+  font-size: 1.5em;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 2.2em 0 0.7em;
+  padding-top: 0.6em;
+  border-top: 2px solid var(--anc-ink);
+}
+.md-typeset h3 {
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 1.8em 0 0.5em;
+}
+.md-typeset h4 {
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--anc-thread);
+}
+@media screen and (min-width: 64em) {
+  .md-typeset h1 {
+    font-size: 2.8em;
+    letter-spacing: -0.04em;
+  }
+  .md-typeset h2 {
+    font-size: 1.7em;
+  }
+}
+.md-typeset .headerlink {
+  color: var(--anc-control);
+}
+.md-typeset .headerlink:hover,
+.md-typeset [id]:target .headerlink {
+  color: var(--anc-ink);
+}
+.md-typeset strong {
+  font-weight: 700;
+}
+.md-typeset hr {
+  border-bottom: 2px solid var(--anc-ink);
+}
+
+/* Links: ink, with an offset underline that thickens on hover. */
+.md-typeset a {
+  color: var(--anc-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--anc-control);
+  transition: text-decoration-color 150ms ease, text-decoration-thickness 150ms ease;
+}
+.md-typeset a:hover,
+.md-typeset a:focus {
+  color: var(--anc-ink);
+  text-decoration-color: var(--anc-ink);
+  text-decoration-thickness: 2.5px;
+}
+.md-typeset .headerlink,
+.md-typeset .md-button,
+.md-typeset .anc-card,
+.md-typeset .anc-video__poster {
+  text-decoration: none;
+}
+
+/* Inline code: a small sewn tag. */
+.md-typeset code {
+  background: var(--anc-raised);
+  color: var(--anc-ink);
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--anc-seam);
+  padding: 0.1em 0.35em;
+  font-size: 0.84em;
+  word-break: break-word;
+}
+.md-typeset a code {
+  color: inherit;
+}
+/* Code blocks: raised white with a 2px ink edge, 8px cloth corners. */
+.md-typeset pre {
+  margin: 1.2em 0;
+}
+.md-typeset pre > code {
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 0.9em 1.1em;
+  font-size: 0.8em;
+  line-height: 1.55;
+}
+.md-typeset .highlight .c,
+.md-typeset .highlight .c1,
+.md-typeset .highlight .ch,
+.md-typeset .highlight .cm {
+  font-style: italic;
+}
+.md-typeset .highlight .k,
+.md-typeset .highlight .kn,
+.md-typeset .highlight .nb {
+  font-weight: 700;
+}
+.md-clipboard {
+  color: var(--anc-control);
+}
+.md-clipboard:hover,
+.md-clipboard:focus {
+  color: var(--anc-ink);
+}
+.md-typeset kbd {
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--anc-ink);
+  color: var(--anc-ink);
+  font-weight: 600;
+}
+
+/* Tables: raised white, 2px ink edge, ink rule under the head, Seam between rows. */
+.md-typeset table:not([class]) {
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  font-size: 0.74rem;
+  overflow: hidden;
+}
+.md-typeset table:not([class]) th {
+  background: var(--anc-raised);
+  color: var(--anc-ink);
+  font-weight: 700;
+  border-bottom: 2px solid var(--anc-ink);
+  min-width: 6rem;
+}
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--anc-seam);
+  vertical-align: top;
+}
+.md-typeset table:not([class]) tbody tr:first-child td {
+  border-top: 0;
+}
+.md-typeset table:not([class]) tbody tr:hover {
+  background: transparent;
+  box-shadow: none;
+}
+.md-typeset__scrollwrap {
+  margin: 1.2em -0.8rem;
+}
+
+/* Lists: a little more air, the tick boxes are 4px sewn squares. */
+.md-typeset ul li,
+.md-typeset ol li {
+  margin-bottom: 0.35em;
+}
+.md-typeset ul li::marker {
+  color: var(--anc-thread);
+}
+
+/* ── Sewn labels: admonitions and details ────────────────────────────────────────────────────────────── */
+.md-typeset .admonition,
+.md-typeset details {
+  position: relative;
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink) !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  font-size: 0.78rem;
+  padding: 0 1rem;
+  margin: 1.5em 0;
+  color: var(--anc-ink);
+}
+/* The stitch: a 1.5px dashed line inset 3px inside the edge, in ink at 35%, following the corners. */
+.md-typeset .admonition::after,
+.md-typeset details::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1.5px dashed var(--anc-stitch);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.md-typeset .admonition-title,
+.md-typeset summary {
+  background: transparent !important;
+  border: 0;
+  color: var(--anc-ink);
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin: 0 -1rem;
+  padding: 0.85rem 1rem 0.1rem 2.7rem;
+}
+.md-typeset .admonition-title::before,
+.md-typeset summary::before {
+  background-color: var(--anc-ink) !important;
+  left: 1rem;
+  top: 0.92rem;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.md-typeset details:not([open]) > summary {
+  padding-bottom: 0.85rem;
+}
+.md-typeset summary::after {
+  background-color: var(--anc-ink) !important;
+  top: 0.92rem;
+  right: 0.9rem;
+}
+.md-typeset .admonition > :last-child,
+.md-typeset details > :last-child {
+  margin-bottom: 1rem;
+}
+.md-typeset .admonition > p:not(.admonition-title):first-child {
+  margin-top: 1rem;
+}
+
+/* ── Buttons: bold, plain pills ──────────────────────────────────────────────────────────────────────── */
+.md-typeset .md-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  padding: 0.3rem 1.1rem;
+  border: 2px solid var(--anc-ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--anc-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.15;
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+  background: var(--anc-raised);
+  border-color: var(--anc-ink);
+  color: var(--anc-ink);
+}
+.md-typeset .md-button:active {
+  transform: scale(0.98);
+}
+.md-typeset .md-button--primary,
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background: var(--anc-ink);
+  border-color: var(--anc-ink);
+  color: var(--anc-cloth);
+}
+
+/* ── Cloth panels: cards ─────────────────────────────────────────────────────────────────────────────── */
+.md-typeset .grid {
+  grid-gap: 0.8rem;
+}
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card,
+.md-typeset .anc-card {
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 1rem 1.1rem;
+  transition: background-color 150ms ease;
+}
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid > .card:hover {
+  border-color: var(--anc-ink);
+  box-shadow: none;
+}
+.md-typeset .grid.cards > ul > li > hr {
+  border-bottom: 1px solid var(--anc-seam);
+  margin: 0.6em 0;
+}
+.md-typeset .grid.cards > ul > li > p:first-child strong {
+  font-weight: 800;
+  font-size: 1.08em;
+  letter-spacing: -0.01em;
+}
+
+/* ── Screenshots ─────────────────────────────────────────────────────────────────────────────────────── */
+.md-typeset .anc-shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: flex-start;
+  margin: 1.5em 0;
+}
+.md-typeset .anc-shots figure {
+  margin: 0;
+  width: 11.5rem;
+  max-width: calc(50% - 0.5rem);
+}
+.md-typeset .anc-shots img,
+.md-typeset img.anc-phone {
+  display: block;
+  width: 100%;
+  border: 2px solid var(--anc-ink);
+  border-radius: 16px;
+  background: var(--anc-raised);
+}
+.md-typeset img.anc-phone {
+  width: 11.5rem;
+}
+.md-typeset img.anc-desktop {
+  display: block;
+  width: 100%;
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  background: var(--anc-raised);
+}
+.md-typeset figure {
+  margin: 1.5em 0;
+}
+.md-typeset figcaption {
+  color: var(--anc-thread);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: left;
+  margin: 0.55em 0 0;
+  max-width: 34ch;
+}
+.md-typeset figure.anc-wide figcaption {
+  max-width: none;
+}
+
+/* ── The four groups: a legend (the only other place a dye appears) ──────────────────────────────────── */
+.md-typeset .anc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--anc-ink-soft);
+}
+.md-typeset .anc-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+}
+.md-typeset .anc-legend li::before {
+  content: "";
+  width: 1.4rem;
+  height: 0.5rem;
+  background: var(--anc-dye, var(--anc-control));
+}
+.md-typeset .anc-legend .veg { --anc-dye: var(--anc-veg); }
+.md-typeset .anc-legend .protein { --anc-dye: var(--anc-protein); }
+.md-typeset .anc-legend .starch { --anc-dye: var(--anc-starch); }
+.md-typeset .anc-legend .dairy { --anc-dye: var(--anc-dairy); }
+
+/* ── Home: the hero ──────────────────────────────────────────────────────────────────────────────────── */
+.md-content__inner:has(.anc-hero) > h1:first-of-type {
+  /* The page name stays for assistive technology; the hero carries the visible title. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  margin: 0;
+}
+.md-content__inner:has(.anc-hero) > .md-content__button {
+  display: none;
+}
+.md-typeset .anc-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.6rem;
+  margin: 0.6rem 0 2.2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--anc-ink);
+}
+@media screen and (min-width: 50em) {
+  .md-typeset .anc-hero {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 2.4rem;
+  }
+}
+.md-typeset .anc-hero__kicker {
+  margin: 0 0 0.9rem;
+  color: var(--anc-thread);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.md-typeset .anc-hero__title {
+  margin: 0 0 0.9rem;
+  padding: 0;
+  border: 0;
+  font-size: 2.7em;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+@media screen and (min-width: 64em) {
+  .md-typeset .anc-hero__title {
+    font-size: 3.4em;
+  }
+}
+.md-typeset .anc-hero__lead {
+  max-width: 36ch;
+  margin: 0 0 1.3rem;
+  color: var(--anc-ink-soft);
+  font-size: 1.06em;
+  line-height: 1.5;
+}
+.md-typeset .anc-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+}
+.md-typeset .anc-hero__actions .md-button {
+  margin: 0;
+}
+
+/* The hero towel: the day as three woven bands, the signature of the app. Decorative (aria-hidden); the legend
+   under it names the groups. */
+.md-typeset .anc-towel {
+  margin: 0;
+  text-align: left;
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  padding: 1rem 1.1rem 0.9rem;
+}
+.md-typeset .anc-towel__band {
+  display: grid;
+  grid-template-columns: 5.2rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--anc-seam);
+}
+.md-typeset .anc-towel__band:first-child {
+  padding-top: 0.2rem;
+}
+.md-typeset .anc-towel__stripes {
+  display: grid;
+  gap: 4px;
+}
+.md-typeset .anc-towel__stripes i {
+  display: block;
+  height: 8px;
+  transform-origin: left center;
+  animation: anc-weave 0.5s var(--anc-ease-weave) both;
+}
+.md-typeset .anc-towel__stripes i.veg { background: var(--anc-veg); }
+.md-typeset .anc-towel__stripes i.protein { background: var(--anc-protein); }
+.md-typeset .anc-towel__stripes i.starch { background: var(--anc-starch); }
+.md-typeset .anc-towel__stripes i.dairy { background: var(--anc-dairy); }
+/* Bare cotton: a group that is not on the plate is a dashed Seam row, never a colour. */
+.md-typeset .anc-towel__stripes i.bare {
+  height: 3px;
+  margin: 2.5px 0;
+  background: repeating-linear-gradient(90deg, var(--anc-seam) 0 6px, transparent 6px 10px);
+  animation: none;
+}
+.md-typeset .anc-towel__stripes i:nth-child(2) { animation-delay: 60ms; }
+.md-typeset .anc-towel__stripes i:nth-child(3) { animation-delay: 120ms; }
+.md-typeset .anc-towel__stripes i:nth-child(4) { animation-delay: 180ms; }
+.md-typeset .anc-towel__band:nth-child(2) .anc-towel__stripes i { animation-delay: 240ms; }
+.md-typeset .anc-towel__band:nth-child(3) .anc-towel__stripes i { animation-delay: 480ms; }
+.md-typeset .anc-towel__meal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.md-typeset .anc-towel__name {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 1.15em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.md-typeset .anc-towel__name small {
+  color: var(--anc-thread);
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.md-typeset .anc-towel__foods {
+  color: var(--anc-ink-soft);
+  font-size: 0.8em;
+  line-height: 1.35;
+}
+.md-typeset .anc-towel__open {
+  height: 2.4rem;
+  border: 2px dashed var(--anc-control);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  margin-left: -1.1rem;
+}
+.md-typeset .anc-towel .anc-legend {
+  margin: 0.8rem 0 0;
+}
+@keyframes anc-weave {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ── Video cards ─────────────────────────────────────────────────────────────────────────────────────── */
+.md-typeset .anc-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1.5em 0;
+}
+.md-typeset .anc-video {
+  display: flex;
+  flex-direction: column;
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.md-typeset .anc-video--featured {
+  grid-column: 1 / -1;
+}
+@media screen and (min-width: 50em) {
+  .md-typeset .anc-video--featured {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+  .md-typeset .anc-video--featured .anc-video__poster {
+    border-bottom: 0;
+    border-right: 2px solid var(--anc-ink);
+  }
+}
+.md-typeset .anc-video__poster {
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-bottom: 2px solid var(--anc-ink);
+  background:
+    repeating-linear-gradient(0deg, rgb(38 36 33 / 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(38 36 33 / 0.03) 0 1px, transparent 1px 3px),
+    var(--anc-cloth);
+  overflow: hidden;
+}
+.md-typeset .anc-video__poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.md-typeset .anc-video__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem 1rem;
+}
+.md-typeset .anc-video__meta {
+  color: var(--anc-thread);
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin: 0;
+}
+.md-typeset .anc-video__title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 1.15em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+.md-typeset .anc-video--featured .anc-video__title {
+  font-size: 1.6em;
+}
+.md-typeset .anc-video__title a {
+  text-decoration: none;
+}
+.md-typeset .anc-video__title a:hover {
+  text-decoration: underline;
+}
+.md-typeset .anc-video__text {
+  margin: 0;
+  color: var(--anc-ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.md-typeset .anc-video__links {
+  margin: auto 0 0;
+  padding-top: 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+/* "In video": a sewn label on a guide page, linking to its episode. */
+.md-typeset .anc-in-video {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  margin: 1.2em 0 1.8em;
+  padding: 0.7rem;
+  background: var(--anc-raised);
+  border: 2px solid var(--anc-ink);
+  border-radius: 4px;
+}
+.md-typeset .anc-in-video::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1.5px dashed var(--anc-stitch);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.md-typeset .anc-in-video .anc-video__poster {
+  position: relative;
+  z-index: 1;
+  border: 2px solid var(--anc-ink);
+  border-radius: 4px;
+}
+.md-typeset .anc-in-video p {
+  margin: 0;
+}
+.md-typeset .anc-in-video__label {
+  color: var(--anc-thread);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.md-typeset .anc-in-video__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+.md-typeset .anc-in-video__title a {
+  position: relative;
+  z-index: 1;
+}
+@media screen and (max-width: 30em) {
+  .md-typeset .anc-in-video {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────────────────────────────────── */
+.md-footer {
+  background: var(--anc-raised);
+  color: var(--anc-ink);
+  border-top: 2px solid var(--anc-ink);
+}
+.md-footer__link {
+  color: var(--anc-ink);
+}
+.md-footer__link:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.md-footer__title {
+  font-weight: 700;
+}
+.md-footer__direction {
+  color: var(--anc-thread);
+  font-weight: 600;
+}
+.md-footer-meta {
+  background: var(--anc-cloth);
+  color: var(--anc-thread);
+  border-top: 1px solid var(--anc-seam);
+}
+.md-footer-meta.md-typeset a,
+.md-footer-copyright,
+.md-copyright,
+.md-copyright__highlight {
+  color: var(--anc-thread);
+}
+.md-social__link {
+  color: var(--anc-ink);
+}
+.md-social__link svg {
+  fill: currentColor;
+}
+
+/* ── Odds and ends ───────────────────────────────────────────────────────────────────────────────────── */
+.md-top {
+  background: var(--anc-raised);
+  color: var(--anc-ink);
+  border: 2px solid var(--anc-ink);
+  box-shadow: none;
+  font-weight: 700;
+}
+.md-top:hover,
+.md-top:focus {
+  background: var(--anc-ink);
+  color: var(--anc-cloth);
+}
+.md-content__button {
+  color: var(--anc-control);
+}
+.md-content__button:hover {
+  color: var(--anc-ink);
+}
+.md-typeset .tabbed-labels > label {
+  font-weight: 700;
+  color: var(--anc-thread);
+}
+.md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-labels > label:hover {
+  color: var(--anc-ink);
+}
+.md-typeset .tabbed-labels::before {
+  background: var(--anc-ink);
+  height: 2px;
+}
+.md-typeset .task-list-indicator::before {
+  background-color: var(--anc-control-raised);
+}
+.md-typeset [type="checkbox"]:checked + .task-list-indicator::before {
+  background-color: var(--anc-ink);
+}
+.md-typeset .anc-muted {
+  color: var(--anc-thread);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .anc-towel__stripes i {
+    animation: none;
+  }
+  .md-typeset .md-button,
+  .md-typeset a {
+    transition: none;
+  }
+}
+@media print {
+  .anc-band,
+  .anc-header__home {
+    display: none;
+  }
+  body {
+    background-image: none;
+  }
+}

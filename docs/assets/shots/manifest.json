@@ -1,0 +1,226 @@
+[
+  {
+    "file": "phone-create-passphrase.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Create a passphrase",
+    "caption": "The first screen: choose a passphrase that encrypts everything the app keeps in this browser."
+  },
+  {
+    "file": "phone-today-coach-question.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Today, a coach question",
+    "caption": "One calm question under a plate. Sure opens a short follow-up; Ask later puts it away for good."
+  },
+  {
+    "file": "phone-today.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Today",
+    "caption": "Today on a phone: each plate is a band of colour by food group, with grams and energy kept quiet."
+  },
+  {
+    "file": "phone-today-full.webp",
+    "w": 780,
+    "h": 3972,
+    "screen": "Today (whole day)",
+    "caption": "The whole of Thursday: breakfast, lunch and an afternoon apple logged, dinner still open, then the day's nutrients."
+  },
+  {
+    "file": "phone-log-sheet.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Log a plate",
+    "caption": "Log a plate: a photo, a barcode, typing it, describing it, or a saved meal."
+  },
+  {
+    "file": "phone-type-it-matches.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Type it",
+    "caption": "Type it works offline: a few letters rank matches from the Ciqual food table on this device."
+  },
+  {
+    "file": "phone-type-it-grams.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Type it, with a weight",
+    "caption": "Pick a portion or type the grams; one line shows what that weight holds."
+  },
+  {
+    "file": "phone-describe.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Describe a meal",
+    "caption": "Describe a meal in your own words. With no AI set up, the words are matched on this device."
+  },
+  {
+    "file": "phone-describe-review.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Describe, review",
+    "caption": "The matches come back ticked for review, each with a portion to check before anything is logged."
+  },
+  {
+    "file": "phone-barcode-notice.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Barcode lookups notice",
+    "caption": "Before the first lookup the app says what Open Food Facts will see, and waits for an answer."
+  },
+  {
+    "file": "phone-barcode-match.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Barcode match",
+    "caption": "A scanned barcode, read on the device and looked up on Open Food Facts, ready to log."
+  },
+  {
+    "file": "phone-recipe-paste.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Paste a recipe",
+    "caption": "A pasted recipe is read on the device: name, servings and each ingredient with its grams, for review."
+  },
+  {
+    "file": "phone-plate-detail.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Plate",
+    "caption": "One plate: what is on it, the grams, and its nutrients set against a daily reference intake."
+  },
+  {
+    "file": "phone-plate-detail-full.webp",
+    "w": 780,
+    "h": 3584,
+    "screen": "Plate (whole page)",
+    "caption": "The whole plate page, down to the nutrients and the actions to log it again or save it as a meal."
+  },
+  {
+    "file": "phone-week.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "This week",
+    "caption": "The week as a row of towels, one per day, with a short plain summary of what was logged."
+  },
+  {
+    "file": "phone-week-full.webp",
+    "w": 780,
+    "h": 5344,
+    "screen": "This week (whole page)",
+    "caption": "The whole week page."
+  },
+  {
+    "file": "phone-ask-coach.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Ask the coach",
+    "caption": "Ask the coach is an optional AI chat about the last seven days; it stays off until an AI is set up."
+  },
+  {
+    "file": "phone-settings.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Settings",
+    "caption": "Settings: your AI, your data, privacy, nutrition numbers, language and installing the app."
+  },
+  {
+    "file": "phone-your-ai.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Your AI",
+    "caption": "Your AI: no AI at all, a server that offers one, or your own key. The app works fully without any."
+  },
+  {
+    "file": "phone-privacy.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "What this app stores and sends",
+    "caption": "What this app stores and sends, in plain words, readable even before the unlock."
+  },
+  {
+    "file": "phone-nutrition.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Nutrition",
+    "caption": "Nutrition: show or hide the grams and nutrient numbers; the bands of colour stay either way."
+  },
+  {
+    "file": "phone-language.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Language",
+    "caption": "Language: follow the device, or choose English or French."
+  },
+  {
+    "file": "phone-install.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Install on your phone",
+    "caption": "Install on your phone: add the app to the home screen to use it offline with its own icon."
+  },
+  {
+    "file": "phone-your-data.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Your data",
+    "caption": "Your data: encrypted at rest, exported as plain CSV when you choose, locked or erased in one place."
+  },
+  {
+    "file": "phone-your-data-full.webp",
+    "w": 780,
+    "h": 5362,
+    "screen": "Your data (whole page)",
+    "caption": "The whole Your data page, with the encrypted backup file and the restore."
+  },
+  {
+    "file": "phone-your-ai-own-key.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Your AI, own key",
+    "caption": "With your own key the app talks to the endpoint you chose; the key is stored encrypted and shown only by its last characters."
+  },
+  {
+    "file": "phone-photo-consent.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Photo consent",
+    "caption": "Before a photo leaves the device the app names where it goes and asks; nothing is sent without a yes."
+  },
+  {
+    "file": "phone-unlock.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Unlock",
+    "caption": "Locked: nothing decrypted is left on the page until the passphrase is entered again."
+  },
+  {
+    "file": "desktop-today.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "Today (desktop)",
+    "caption": "Today on a wide screen: the rail on the left, the day towel in the middle, the week beside it."
+  },
+  {
+    "file": "desktop-week.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "This week (desktop)",
+    "caption": "The week on a wide screen: one towel per day by food group, and the week in short."
+  },
+  {
+    "file": "desktop-plate.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "Plate (desktop)",
+    "caption": "A plate on a wide screen: its foods and grams, and the nutrients against a daily reference intake."
+  },
+  {
+    "file": "desktop-log-sheet.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "Log a plate (desktop)",
+    "caption": "On a wide screen the ways to log a plate open as a centred dialog."
+  }
+]

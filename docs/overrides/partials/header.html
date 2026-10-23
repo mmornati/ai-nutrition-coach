@@ -1,0 +1,50 @@
+{#-
+  The Torchon header (DESIGN.md): white cotton, an ink wordmark that leads back to the landing page, and the
+  four-stripe towel band as the brand mark. Based on mkdocs-material 9.7.7 partials/header.html (pinned in
+  requirements-docs.txt); the palette toggle and the tabs are dropped (the site is light only, without tabs).
+-#}
+<header class="md-header anc-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="{{ lang.t('header') }}">
+    <label class="md-header__button md-icon anc-header__menu" for="__drawer" aria-label="Menu" title="Menu">
+      {% set icon = config.theme.icon.menu or "material/menu" %}
+      {% include ".icons/" ~ icon ~ ".svg" %}
+    </label>
+    <a href="{{ base_url }}/../" class="anc-wordmark" title="The AI Nutrition Coach home page">
+      <img src="{{ 'assets/brand/mark.svg' | url }}" alt="" width="20" height="25">
+      <span class="anc-wordmark__name">AI Nutrition Coach</span>
+    </a>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <a class="md-ellipsis anc-header__section" href="{{ nav.homepage.url | url }}">Documentation</a>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            {% if page.meta and page.meta.title %}
+              {{ page.meta.title }}
+            {% else %}
+              {{ page.title }}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% if "material/search" in config.plugins %}
+      {% set search = config.plugins["material/search"] | attr("config") %}
+      {% if search.enabled %}
+        <label class="md-header__button md-icon" for="__search" aria-label="Search" title="Search">
+          {% set icon = config.theme.icon.search or "material/magnify" %}
+          {% include ".icons/" ~ icon ~ ".svg" %}
+        </label>
+        {% include "partials/search.html" %}
+      {% endif %}
+    {% endif %}
+    <a href="{{ base_url }}/../" class="anc-header__home">Home page</a>
+    {% if config.repo_url %}
+      <div class="md-header__source">
+        {% include "partials/source.html" %}
+      </div>
+    {% endif %}
+  </nav>
+  <div class="anc-band" aria-hidden="true"></div>
+</header>

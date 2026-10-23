@@ -91,3 +91,6 @@ apps/web/public/zxing/
 
 # ── React PWA: fetched + SHA-256-verified hash-wasm Argon2id build (scripts/fetch_web_argon2.sh) ──
 apps/web/public/argon2/
+
+# ── Documentation site (scripts/build-site.sh: landing + MkDocs docs + videos) ──
+/site/

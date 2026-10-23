@@ -208,5 +208,5 @@ and in CI, so a regression fails the build.
   in the browser.
 - [`docs/no-dark-patterns-standard.md`](./no-dark-patterns-standard.md)
   — the named-reviewer gate (Story 4.6 / FR-15).
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the contributor path
+- [`CONTRIBUTING.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/CONTRIBUTING.md) — the contributor path
   (Story 4.6 / FR-12).

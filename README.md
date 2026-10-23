@@ -1,17 +1,167 @@
-# AI Nutrition Coach
+<p align="center">
+  <img src="docs/assets/torchon-band.svg" alt="" width="100%">
+</p>
 
-_(formerly OpenPlate)_
+<h1 align="center">AI Nutrition Coach</h1>
 
-AI Nutrition Coach is a quiet, offline-first plate-logging app: log what you
-ate via photo, barcode, or voice/typing, and it lands on your Day
-Board as one honest row per meal. No streaks, no scores, no
-guilt. Real numbers (grams, nutrients) are planned and will be shown
-plainly and calmly, as estimates where they are estimates (ADR 0006).
+<p align="center">
+  <strong>Know what is on your plate. Keep it to yourself.</strong><br>
+  A calm, offline-first meal log that shows real grams and nutrients, asks one kind question instead of
+  passing a verdict, and keeps your history encrypted on your own device.
+</p>
 
-The project is open-source (MIT — see [`LICENSE`](./LICENSE)) and
-self-hostable with one command. The trust mechanic is architecture,
-not policy: a local encrypted store, an optional exporter, an
-optional sync to your own infrastructure, zero telemetry by default.
+<p align="center">
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-262421?style=flat-square"></a>
+  <a href="./docs/self-host.md"><img alt="Self-hostable in one command" src="https://img.shields.io/badge/self--hostable-one_command-1F7A4D?style=flat-square"></a>
+  <a href="./docs/telemetry-posture.md"><img alt="Zero telemetry" src="https://img.shields.io/badge/telemetry-zero-4A453F?style=flat-square"></a>
+  <a href="./docs/pwa.md"><img alt="Offline-first PWA" src="https://img.shields.io/badge/offline--first-PWA-C08420?style=flat-square"></a>
+  <a href="#languages"><img alt="Languages: English and French" src="https://img.shields.io/badge/languages-EN_%C2%B7_FR-2D5DA8?style=flat-square"></a>
+  <a href="https://github.com/mmornati/ai-nutrition-coach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mmornati/ai-nutrition-coach/actions/workflows/ci.yml/badge.svg"></a>
+</p>
+
+<p align="center">
+  <a href="./docs/getting-started.md"><strong>Get started</strong></a> ·
+  <a href="./docs/features.md">Feature tour</a> ·
+  <a href="./docs/security.md">How it is secured</a> ·
+  <a href="./docs/self-host.md">Self-host</a> ·
+  <a href="./docs/faq.md">FAQ</a> ·
+  <a href="https://mmornati.github.io/ai-nutrition-coach/">Documentation site</a>
+</p>
+
+<p align="center">
+  <img src="docs/design/torchon/phone-screens.png" alt="Four phone screens: Today with woven meal bands and a coach question, the Log a plate sheet (Snapshot, Barcode, Type it, Describe), a breakfast plate with nutrition against the EU reference intake, and This week as seven towels" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://mmornati.github.io/ai-nutrition-coach/video/"><img src="website/video/poster.jpg" alt="Play the short tour of AI Nutrition Coach: a narrated film drawn frame by frame in the browser" width="80%"></a><br>
+  <a href="https://mmornati.github.io/ai-nutrition-coach/video/"><strong>Watch the short tour</strong></a> (1 min 20, narrated, subtitled) ·
+  <a href="https://mmornati.github.io/ai-nutrition-coach/docs/videos/">how-to episodes</a> ·
+  <a href="https://mmornati.github.io/ai-nutrition-coach/">the website</a>
+</p>
+
+---
+
+## The day as a kitchen towel
+
+Each meal weaves one band across the day. Every food group on the plate is a dyed stripe in a fixed order:
+**veg and fruit** in green, **protein** in red, **starch** in ochre, **dairy** in blue. A group that is not there
+leaves bare cotton. You read balance at a glance, from which stripes a band carries, never from a score, a ring or
+a countdown. Tap a band and the numbers are there, plainly: grams per food, energy, protein, fibre, sugars, salt and
+the rest, set against the EU reference intakes.
+
+The week is seven towels hung side by side. The coach reads them with you and asks a question. Dismissing it costs
+nothing.
+
+## Why it is different
+
+|     |     |
+| --- | --- |
+| **Real numbers, no pressure** | Grams and nutrients per plate and per day, as plain values and neutral bars against EU reference intakes, or a daily guide tuned by your optional profile. No streaks, badges, points, countdowns, "calories remaining" or red "over budget" states. Numbers can be hidden in one switch if they feel stressful. |
+| **Yours, not ours** | No account. Your history lives in an encrypted database in your browser, opened by a passphrase only you know. The server serves the app and holds none of your data. |
+| **Proved, not promised** | Every trust claim below names the test that proves it, and a release gate fails the build if a proof goes missing. |
+| **AI is optional** | The no-AI app is complete: type it, describe, paste a recipe, the coach's questions and the week review all run on the device, offline. Add your own key, or use the AI your server's operator offers, when you want photo recognition or a coach that writes. |
+| **Never fails the log** | Offline, no AI, an unknown barcode: the meal still lands, with the closest matches and a quantity you can adjust. |
+| **One command to run it** | `bin/ai-nutrition-coach up`, or pull the published image from `ghcr.io`. Hardened container, strict CSP, no outbound need. |
+
+## What it does
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Log in the moment</h3>
+      <ul>
+        <li><b>Snapshot</b> a plate; your AI suggests the foods and grams, you review them</li>
+        <li><b>Barcode</b> scan, decoded on the device, looked up on Open Food Facts</li>
+        <li><b>Type it</b> with ranked matches, portion presets and your recent foods, offline</li>
+        <li><b>Describe</b> a meal in words or by voice ("two eggs, toast, a coffee with milk")</li>
+        <li><b>Paste a recipe</b>'s text; the ingredients are matched to the food list</li>
+        <li><b>Saved meals and recipes</b>, log a plate again, copy a whole day to today</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Understand, calmly</h3>
+      <ul>
+        <li><b>Day Board</b>: one woven band per meal, food groups at a glance</li>
+        <li><b>Nutrition</b>: energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt, against EU reference intakes</li>
+        <li><b>This week</b>: seven towels, daily averages, a short rule-based review</li>
+        <li><b>The coach asks</b> a question, never a verdict; with AI and your yes, it writes notes and answers in <b>Ask the coach</b></li>
+        <li><b>Optional profile</b> (age range, activity, goal, diet, allergies) tunes the daily guide</li>
+        <li>About 3,500 generic foods from the <b>CIQUAL</b> table, shipped with the app</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Own your data</h3>
+      <ul>
+        <li><b>Encrypted local store</b> (SQLite3 Multiple Ciphers, ChaCha20-Poly1305), key from your passphrase</li>
+        <li><b>Auto-lock</b> after an idle delay; the key is dropped on lock</li>
+        <li><b>Encrypted backup file</b> (Argon2id, AES-256-GCM) and <b>restore</b>, merged into your store</li>
+        <li><b>Export</b> to CSV or JSON, offline</li>
+        <li>Delete one plate, or <b>erase everything</b> in one place</li>
+        <li>An in-app page saying exactly what is stored and what is sent</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Run it your way</h3>
+      <ul>
+        <li><b>Installable PWA</b> on iPhone, Android and desktop; works offline once loaded</li>
+        <li><b>AI tiers</b>: No AI (default), your own OpenAI-compatible key, or this server's AI</li>
+        <li><b>Self-host</b> with one command: loopback, automatic HTTPS (Caddy), or behind Traefik and Authentik</li>
+        <li><b>Published image</b> on <code>ghcr.io</code>, scanned and smoke-tested before it is pushed</li>
+        <li><b>English and French</b>, following your device until you choose</li>
+        <li>Accessibility floor checked on every screen (names, roles, contrast, 48 px targets)</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+The full tour, screen by screen: [`docs/features.md`](./docs/features.md).
+
+<p align="center">
+  <img src="docs/design/torchon/desktop-today.png" alt="Desktop layout: a rail with Today, Week and Settings, the day's woven meal bands with a coach question, and this week at a glance as seven towels" width="90%">
+</p>
+
+## Quickstart
+
+**Run it** (Docker on your machine):
+
+```sh
+git clone https://github.com/mmornati/ai-nutrition-coach.git && cd ai-nutrition-coach
+bin/ai-nutrition-coach up            # builds and serves http://localhost:8080 (loopback only)
+```
+
+Open `http://localhost:8080/` and choose a passphrase. That passphrase creates your encrypted store; it cannot be
+recovered, so keep it somewhere safe. Log your first plate with the **Log** button.
+
+**Use it on your phone**: the browser store needs HTTPS (or localhost), so serve it with a domain:
+
+```sh
+AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --tls       # automatic HTTPS (Caddy)
+AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --traefik   # behind your own Traefik
+```
+
+Then open the address on the phone and add it to the home screen *before* you start logging. Prefer the published
+image? `AI_NUTRITION_COACH_IMAGE_TAG=ghcr.io/mmornati/ai-nutrition-coach:edge`, then `docker compose pull && docker compose up -d`.
+
+Step by step, including install on iPhone and Android, the first passphrase and the first plate:
+[`docs/getting-started.md`](./docs/getting-started.md). Every deployment option: [`docs/self-host.md`](./docs/self-host.md)
+and [`docs/pwa.md`](./docs/pwa.md).
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Getting started](./docs/getting-started.md) | Run it, install it on a phone, first passphrase, first plate, build from source |
+| [Feature tour](./docs/features.md) | Every screen and what it does |
+| [How it is secured](./docs/security.md) | The short version of the data, network and AI posture, with links to the detail |
+| [FAQ](./docs/faq.md) | Short answers to the usual questions |
+| [Your data](./docs/your-data.md) | The encrypted store, backups, exports, erase, shared devices |
+| [AI tiers](./docs/ai-tiers.md) | No AI, your own key, this server's AI; exactly what is sent |
+| [Telemetry posture](./docs/telemetry-posture.md) | What is on by default (nothing) and every user-enabled path |
+| [Self-host](./docs/self-host.md) · [PWA](./docs/pwa.md) | Deploying, HTTPS, Traefik, Authentik, the published image, updates |
+| [No-Dark-Patterns Standard](./docs/no-dark-patterns-standard.md) · [Accessibility](./docs/accessibility.md) · [Adults only](./docs/adults-only.md) | The product rules the gates enforce |
+| [Encrypted sync plan](./docs/encrypted-sync-plan.md) | The plan for a relay and cross-device sync (not built yet) |
 
 ## Trust posture
 
@@ -41,56 +191,26 @@ smoke of the production image (`scripts/webkit_smoke.sh`, the `browser-smoke` wo
 | No-Dark-Patterns Standard (no streaks, badges, countdowns, spinners, red) | FR-15 — [`docs/no-dark-patterns-standard.md`](./docs/no-dark-patterns-standard.md) | `apps/web/src/no-dark-patterns.test.ts`, `tools/gates/release-posture.test.mjs` |
 | Every screen meets the accessibility floor (axe: names, roles, contrast, target size) in jsdom and in a real browser | NFR-7 — [`docs/accessibility.md`](./docs/accessibility.md) | `apps/web/src/a11y-floor-gate.test.ts`, `apps/web/src/screens/today/TodayScreen.test.tsx`, `apps/web/e2e/gallery.spec.ts` |
 
-What is *not* proven yet (real-device Safari and Chrome, Firefox) is listed under "Known accepted
-gaps" below and in `_bmad-output/review/security-and-quality-review-2026-10-01.md`.
+What is *not* proven yet (real-device Safari and Chrome, Firefox) is listed under
+[Known accepted gaps](#known-accepted-gaps) below and in
+`_bmad-output/review/security-and-quality-review-2026-10-01.md`.
 
-## Quickstart
+## Known accepted gaps
 
-AI Nutrition Coach's primary way to run is as an **installable, offline-capable web app**
-(a PWA): deploy one container, open its HTTPS address on each phone, add it to the
-home screen. Everything about building, deploying (including behind Traefik),
-installing and updating is in [`docs/pwa.md`](./docs/pwa.md).
+Stated, not hidden (details in [`docs/migration/parity-checklist.md`](./docs/migration/parity-checklist.md) and
+[`docs/your-data.md`](./docs/your-data.md#browser-coverage-and-known-accepted-gaps)):
 
-### Self-host
-
-```sh
-bin/ai-nutrition-coach up            # builds + serves http://localhost:8080 (loopback only)
-bin/ai-nutrition-coach up --tls      # + automatic HTTPS for $AI_NUTRITION_COACH_DOMAIN (Caddy), for other devices
-AI_NUTRITION_COACH_DOMAIN=plate.example.com bin/ai-nutrition-coach up --traefik   # behind YOUR Traefik: no published port
-bin/ai-nutrition-coach down
-```
-
-Open `http://localhost:8080/`; choose a passphrase to create your store. The
-container is a static server and holds no data: your history is encrypted in
-*your browser*, and the in-app export is the backup path. Plain HTTP over a
-network is unsupported (the web store needs https or localhost). See
-[`docs/self-host.md`](./docs/self-host.md) and [`docs/pwa.md`](./docs/pwa.md).
-
-### Build from source
-
-Needs Node 24 and pnpm 11.14.0 (`corepack enable`); Docker only for the image and the smokes.
-
-```sh
-pnpm install                 # the workspace: apps/web (React PWA) + packages/core
-pnpm dev                     # Vite dev server (first fetches the pinned, SHA-256-verified wasm assets)
-pnpm verify                  # the one gate: format, lint, types, tests, DST re-run, posture gates, build, bundle scans
-pnpm --filter @anc/web exec playwright install chromium webkit   # once: the Playwright browsers (or use PW_CHANNEL=chrome for your installed Chrome)
-pnpm e2e                     # Playwright against the built preview (PW_WEBKIT=1 adds WebKit)
-docker build -f infra/Dockerfile -t ai-nutrition-coach:dev .   # the production image (nginx, non-root, read-only)
-```
-
-`pnpm build` writes the release bundle to `apps/web/dist` with `sw.js` and
-`precache-manifest.json`. The sqlite3mc and zxing wasm assets and the Argon2id build are fetched by
-`scripts/fetch_web_sqlite3mc.sh`, `scripts/fetch_web_zxing_pwa.sh` and `scripts/fetch_web_argon2.sh` (never committed).
-
-### Known accepted gaps
-
-Stated, not hidden (details in [`docs/migration/parity-checklist.md`](./docs/migration/parity-checklist.md)):
-Firefox is untested; Safari and Chrome are proved with Playwright's WebKit and Chromium, not on real
-devices; without the Web Locks API there is no tab exclusion (two tabs can open the same store);
-exports are plaintext files you hold; devices shared by several people see one history; there is no
-import; the hosted AI tier is not built (you bring your own key); the Tip jar is pending the named
-reviewer; there is no light theme.
+- Firefox is untested; Safari and Chrome are proved with Playwright's WebKit and Chromium, not on real devices.
+- Without the Web Locks API there is no tab exclusion (two tabs can open the same store).
+- Exports are plaintext files you hold, and a CSV or JSON export cannot be imported (the encrypted backup file can be
+  restored).
+- Devices shared by several people see one history.
+- There is no sync between devices yet: each browser is its own store, and the relay is a
+  [plan](./docs/encrypted-sync-plan.md). On iPhone, an installed app keeps its data apart from Safari's.
+- The hosted free-quota AI tier is not built (bring your own key, or use the AI your server offers); the local-model
+  tier is a seam for a later version.
+- The Tip jar is pending the named reviewer.
+- There is one theme, the light "Torchon" world; there is no dark theme.
 
 ## Languages
 
@@ -103,26 +223,22 @@ language code only) so the passphrase and unlock screens can show it before the 
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the build / test /
-smoke commands, the gate frequency, and the contribution
-expectations. The release posture is enforced by
-[`docs/release-checklist.md`](./docs/release-checklist.md).
+Contributions are welcome. [`CONTRIBUTING.md`](./CONTRIBUTING.md) has the build, test and smoke commands, the gate
+frequency, how to make and prove a trust claim, and where things live in the repository. The release posture is
+enforced by [`docs/release-checklist.md`](./docs/release-checklist.md). To report a vulnerability, see
+[`SECURITY.md`](./SECURITY.md).
 
-## Where things live
-
-```
-apps/web/                the React PWA (Vite, Vitest, Playwright)
-packages/core/           pure-TypeScript domain core (no React / DOM / storage / network imports)
-infra/                   Docker + nginx (+ Caddy TLS profile, Traefik compose) self-host definition
-docs/                    user-facing docs (pwa, your-data, self-host, ai-tiers,
-                         telemetry-posture, no-dark-patterns-standard)
-_bmad-output/            planning / implementation artifacts, NOT product docs
-                         (see _bmad-output/README.md)
-tools/                   repo-level gates (check_telemetry_claims, check_release_posture,
-                         check_accessibility_floor, ...) and their self-tests (tools/gates, tools/pwa)
-scripts/                 verify.sh (wrapper for pnpm verify), fetch_*, smokes, local web
+```sh
+pnpm install && pnpm dev     # the React PWA in a Vite dev server (Node 24, pnpm 11.14.0 via corepack)
+pnpm verify                  # the one gate: format, lint, types, tests, posture gates, build, bundle scans
 ```
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT, see [`LICENSE`](./LICENSE). AI Nutrition Coach was formerly called OpenPlate.
+
+<p align="center"><sub>yours to run · open source</sub></p>
+
+<p align="center">
+  <img src="docs/assets/torchon-band.svg" alt="" width="100%">
+</p>

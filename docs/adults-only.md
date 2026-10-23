@@ -71,7 +71,7 @@ v1 stays in that lane by construction.
   privacy posture on the network surface (Story 4.5 / FR-12).
 - [`docs/your-data.md`](./your-data.md) — the protection posture
   on web vs mobile (Story 4.1 / AD-8).
-- [`docs/v2-managed-oversight.md`](./v2-managed-oversight.md) —
+- [`docs/v2-managed-oversight.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/v2-managed-oversight.md) —
   the v2 managed-oversight seam (Story 5.2 / FR-14); the seam
   carries the same FR-13 invariant into v2.
 - [`docs/no-dark-patterns-standard.md`](./no-dark-patterns-standard.md)

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T05:50:01.571181+00:00",
+  "generatedAt": "2026-10-23T18:11:50.089525+00:00",
   "title": "Design System: AI Nutrition Coach",
   "extensions": {
     "colorMeta": {
@@ -210,6 +210,27 @@
           "#CBC9C5",
           "#F1EEEA"
         ]
+      },
+      "cotton-on-ink": {
+        "role": "neutral",
+        "displayName": "Cotton on Ink",
+        "canonical": "#D9D5CC",
+        "oklch": "oklch(87.4% 0.013 86.8)",
+        "purpose": "Sentences on the ink band and terminal (10.6:1 on ink)."
+      },
+      "cotton-faded": {
+        "role": "neutral",
+        "displayName": "Faded Cotton",
+        "canonical": "#BDB7AD",
+        "oklch": "oklch(78.2% 0.016 80.7)",
+        "purpose": "Section labels, fine print and request-line placeholders on ink (7.8:1)."
+      },
+      "control-on-ink": {
+        "role": "neutral",
+        "displayName": "Control on Ink",
+        "canonical": "#9A948A",
+        "oklch": "oklch(66.9% 0.016 80.7)",
+        "purpose": "The dashed \"off\" line on ink (5.1:1)."
       }
     },
     "typographyMeta": {
@@ -256,6 +277,10 @@
       "body-small": {
         "displayName": "Body small",
         "purpose": "Reference sentences under bars, captions, field messages."
+      },
+      "literal": {
+        "displayName": "Literal",
+        "purpose": "Commands, request lines and file names only; never a heading, label or UI face."
       }
     },
     "shadows": [
@@ -398,6 +423,28 @@
       "description": "One nutrient row: value as text, a neutral Soft Ink fill on a bare-cotton track, a 1px ink reference tick, and the reference in words.",
       "html": "<div class=\"ds-nutrient\"><div class=\"ds-nutrient-head\"><span>Protein</span><b>~33 g</b></div><div class=\"ds-track\" aria-hidden=\"true\"><span class=\"ds-fill\" style=\"width:65%\"></span><span class=\"ds-tick\"></span></div><p>about 65% of the EU reference intake (50 g)</p></div>",
       "css": ".ds-nutrient{font-family:'Schibsted Grotesk',system-ui,sans-serif;max-width:28rem;padding:10px 0;border-bottom:1px solid #E4E1DA;color:#262421}.ds-nutrient-head{display:flex;justify-content:space-between;align-items:baseline;font-size:1.0625rem}.ds-nutrient-head b{font-size:1.1875rem;font-weight:700;letter-spacing:-.01em}.ds-track{position:relative;height:4px;margin-top:8px;background:repeating-linear-gradient(90deg,#E4E1DA 0 6px,transparent 6px 10px)}.ds-fill{position:absolute;inset:0 auto 0 0;border-radius:9999px;background:#4A453F}.ds-tick{position:absolute;top:-4px;bottom:-4px;right:0;width:1px;background:#262421}.ds-nutrient p{margin:4px 0 0;font-size:.9375rem;color:#6B655E}"
+    },
+    {
+      "name": "Device Frame",
+      "kind": "custom",
+      "refersTo": "device-frame",
+      "description": "A real app screenshot in a phone frame: 10px ink bezel, 44px radius, 6px cotton mat. No shadow; may tilt up to 2.2deg.",
+      "html": "<div class=\"ds-phone\"><img alt=\"\" width=\"390\" height=\"844\"></div>",
+      "css": ".ds-phone{max-width:300px;border:10px solid #262421;border-radius:44px;padding:6px;background:#FBFBF8;overflow:hidden}.ds-phone img{display:block;width:100%;height:auto;aspect-ratio:390/844;border-radius:30px 30px 12px 12px;background:#FFFFFF}"
+    },
+    {
+      "name": "Defaults as Lines",
+      "kind": "custom",
+      "description": "On the ink band: each setting's state as a 3px line beside its word, solid cotton for on, dashed for off. The word carries the state.",
+      "html": "<ul class=\"ds-defs\"><li><span>Encrypted local store</span><i class=\"ds-ln\" aria-hidden=\"true\"></i><b>On</b></li><li><span>Cloud AI</span><i class=\"ds-ln ds-ln-off\" aria-hidden=\"true\"></i><b>Off</b></li></ul>",
+      "css": ".ds-defs{list-style:none;margin:0;padding:0 20px;background:#262421;color:#FBFBF8;font-family:'Schibsted Grotesk',system-ui,sans-serif;border-top:2px solid #FBFBF8;max-width:30rem}.ds-defs li{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;align-items:center;gap:14px;min-height:52px;border-bottom:1px solid rgb(251 251 248 / .18)}.ds-defs span{font-weight:600}.ds-defs b{font-weight:700}.ds-ln{display:block;border-top:3px solid #FBFBF8}.ds-ln-off{border-top-style:dashed;border-top-color:#9A948A}"
+    },
+    {
+      "name": "Towel Hem",
+      "kind": "custom",
+      "description": "Site chrome only: the four dyes as 6px rows in fixed group order under a 2px ink rule, aria-hidden. Never in the app or on content.",
+      "html": "<div class=\"ds-hem\" aria-hidden=\"true\"><i style=\"background:#1F7A4D\"></i><i style=\"background:#B5262E\"></i><i style=\"background:#C08420\"></i><i style=\"background:#2D5DA8\"></i></div>",
+      "css": ".ds-hem{display:grid;grid-template-rows:repeat(4,6px);gap:4px;padding:10px 0;background:#FFFFFF;border-top:2px solid #262421;border-bottom:1px solid #E4E1DA}.ds-hem i{display:block}"
     }
   ],
   "narrative": {
@@ -450,6 +497,16 @@
       {
         "name": "The Neutral Thread Rule",
         "body": "A nutrient bar is never dyed, never red and never changes colour with its amount.",
+        "section": "components"
+      },
+      {
+        "name": "The Literal Type Rule",
+        "body": "The system monospace stack is reserved for text a person types or a machine sends (commands, request lines, file names). It is never a heading, label or UI face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hem Rule",
+        "body": "On the public site only, the footer and docs header carry a hem of all four dyes in fixed group order, aria-hidden. It is the single place dyes appear without a group named, and it never enters the app or content.",
         "section": "components"
       }
     ],
