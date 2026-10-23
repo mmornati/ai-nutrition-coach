@@ -5,6 +5,7 @@ import {
   BANNED_EVERYWHERE_BASELINE,
   CONTRIBUTING_COMMANDS,
   VERIFY_MUST_RUN,
+  checkCiRunsVerify,
   checkReleasePosture,
   checkTrustTable,
   checkVerifyWiring,
@@ -169,6 +170,7 @@ describe('artifacts, NDP list, CONTRIBUTING, project URL', () => {
     'package.json': JSON.stringify({ scripts: { verify: VERIFY_MUST_RUN.map(([, f]) => f).join(' && ') } }),
     'apps/web/package.json': '{"scripts":{"lint":"eslint . --max-warnings 0"}}',
     'packages/core/package.json': '{"scripts":{"lint":"eslint . --max-warnings 0","test":"TZ=Europe/Paris vitest"}}',
+    '.github/workflows/ci.yml': `jobs:\n  a:\n    steps:\n${VERIFY_MUST_RUN.map(([, f]) => `      - run: ${f}\n`).join('')}`,
   });
   it('this repository passes', () => {
     expect(checkReleasePosture(REPO, {})).toEqual([]);
@@ -198,6 +200,45 @@ describe('artifacts, NDP list, CONTRIBUTING, project URL', () => {
     const root = makeTree(GOOD());
     expect(checkReleasePosture(root, { AI_NUTRITION_COACH_BUILD: 'release' })).toEqual([]);
     expect(checkReleasePosture(root, { AI_NUTRITION_COACH_BUILD: 'release', AI_NUTRITION_COACH_PROJECT_URL: 'https://x.invalid/p' })).not.toEqual([]);
+  });
+});
+
+describe('CI runs every step of pnpm verify', () => {
+  const tree = (verify, ci) =>
+    makeTree({
+      'package.json': JSON.stringify({ scripts: { verify } }),
+      ...(ci === undefined ? {} : { '.github/workflows/ci.yml': ci }),
+    });
+  const CI = [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - name: Format',
+    '        run: pnpm format:check',
+    '      - run: pnpm test',
+    '      - name: DST',
+    '        run: |',
+    '          pnpm --filter x run fetch',
+    '          pnpm test:dst',
+    '',
+  ].join('\n');
+  it('passes when every step is a run line (single, list item or block line)', () => {
+    expect(checkCiRunsVerify(tree('pnpm format:check && pnpm test && pnpm test:dst', CI))).toEqual([]);
+  });
+  it('fails on a verify step CI does not run', () => {
+    expect(checkCiRunsVerify(tree('pnpm format:check && pnpm guards', CI))).toEqual([
+      '.github/workflows/ci.yml does not run the pnpm verify step "pnpm guards"',
+    ]);
+  });
+  it('does not take a longer command or a comment for the step', () => {
+    const ci = 'steps:\n  - run: pnpm test:dst\n  # pnpm test\n  - run: echo pnpm test\n';
+    expect(checkCiRunsVerify(tree('pnpm test', ci))).toEqual(['.github/workflows/ci.yml does not run the pnpm verify step "pnpm test"']);
+  });
+  it('fails when ci.yml is missing, and leaves a missing verify to the wiring rule', () => {
+    expect(checkCiRunsVerify(tree('pnpm test', undefined))).toEqual([
+      '.github/workflows/ci.yml is missing: CI must run every step of pnpm verify',
+    ]);
+    expect(checkCiRunsVerify(makeTree({ 'package.json': '{"scripts":{}}' }))).toEqual([]);
   });
 });
 

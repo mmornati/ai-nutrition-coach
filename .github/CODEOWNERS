@@ -4,7 +4,8 @@
 #
 # The named reviewer is documented in REVIEWERS.md at the repo
 # root. Replace `@mmornati` with your own GitHub
-# handle when forking the repo. The ndp-review gate reads the owner handles
+# handle when forking the repo. The named-reviewer gate (tools/check_reviewers.mjs,
+# part of `pnpm gates`) reads the owner handles
 # from this file generically (it requires each to be listed in REVIEWERS.md),
 # so it needs no change when the handle is replaced.
 #
