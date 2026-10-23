@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Nutrition Coach · know what's on your plate, keep it yours</title>
+<meta name="description" content="A calm, offline-first meal log you run yourself. Photo, barcode, words or voice; each meal lands as one honest plate with real grams and nutrients. No account, zero telemetry, open source.">
+<meta name="theme-color" content="#FBFBF8">
+<meta property="og:title" content="AI Nutrition Coach">
+<meta property="og:description" content="Know what's on your plate. Keep it yours. A calm meal log you run yourself.">
+<meta property="og:image" content="https://mmornati.github.io/ai-nutrition-coach/video/poster.jpg">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top">
+  <a class="brand" href="./" aria-label="AI Nutrition Coach, home">
+    <span class="fold" aria-hidden="true"><i class="d-veg"></i><i class="d-protein"></i><i class="d-starch"></i><i class="d-dairy"></i></span>
+    <span>AI Nutrition Coach</span>
+  </a>
+  <nav class="rail" aria-label="Sections">
+    <a class="navi" href="#log">Features</a>
+    <a class="navi" href="#plate">How it works</a>
+    <a class="navi" href="#trust">Security</a>
+    <a class="navi" href="#run">Self-host</a>
+    <a class="navi navi-docs" href="docs/">Docs</a>
+  </nav>
+  <span class="top-lang">The app speaks English and Français</span>
+  <a class="pill pill-quiet top-gh" href="https://github.com/mmornati/ai-nutrition-coach">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.7.6-3.3-1.2-3.3-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.1-.2-4.4-1.1-4.4-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.6 1 2.6 0 3.7-2.3 4.5-4.4 4.7.3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5Z" fill="currentColor"/></svg>
+    <span>Source</span>
+  </a>
+</header>
+
+<main id="main">
+
+<!-- ============ FIRST VIEWPORT: the towel, unfolded ============ -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <h1 id="hero-title">Know what’s on your plate. <span class="keep">Keep it yours.</span></h1>
+    <p class="sub">Log a meal by photo, barcode, a few words or your voice. It lands on your day as an honest plate: food groups, grams, nutrients. <strong>No account, no scores, and nothing leaves your device unless you say so.</strong></p>
+    <div class="actions">
+      <a class="pill pill-ink pill-big" href="#run">Run your own</a>
+      <a class="pill pill-big" href="#film"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8.4v7.2l6-3.6z" fill="currentColor"/></svg>Watch the short tour</a>
+    </div>
+
+  </div>
+
+  <aside class="coach coach-hero" aria-label="The coach, demo">
+    <p>This yogurt has about 18 g of sugars, around a fifth of a day’s reference intake. Was it the one you meant?</p>
+    <p class="coach-meta">The coach asks one question · demo</p>
+  </aside>
+
+  <figure class="hero-phone">
+    <ul class="hero-tags" aria-label="Where your data lives">
+      <li class="sewn"><span class="sd" aria-hidden="true"></span>On this device · encrypted</li>
+      <li class="sewn"><span class="sd sd-ring" aria-hidden="true"></span>Zero telemetry</li>
+      <li class="sewn">Open source · MIT</li>
+    </ul>
+    <div class="phone"><img src="assets/shots/phone-today.webp" width="390" height="844" alt="The app’s Today screen: woven meal bands for breakfast and lunch, a coach question, and the Log button." fetchpriority="high"></div>
+  </figure>
+
+
+  <div class="towel hero-towel" data-weave aria-label="The demo day from the screenshots: breakfast, lunch and an afternoon apple logged, dinner open">
+    <ul class="legend" aria-hidden="true">
+      <li><i class="d-veg"></i>Veg &amp; fruit</li><li><i class="d-protein"></i>Protein</li><li><i class="d-starch"></i>Starch</li><li><i class="d-dairy"></i>Dairy</li>
+    </ul>
+    <div class="band">
+      <div class="field" aria-hidden="true"><i class="row"></i><i class="row"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div>
+      <div class="meal"><h2 class="meal-name">Breakfast <time>07:40</time></h2><p>Oat flakes, yogurt · <b>284 kcal</b></p></div>
+    </div>
+    <div class="band">
+      <div class="field" aria-hidden="true"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row"></i><i class="row"></i></div>
+      <div class="meal"><h2 class="meal-name">Lunch <time>12:40</time></h2><p>Lentils, tomato · <b>240 kcal</b></p></div>
+    </div>
+    <div class="band">
+      <div class="field" aria-hidden="true"><i class="row dye d-veg"></i><i class="row"></i><i class="row"></i><i class="row"></i></div>
+      <div class="meal"><h2 class="meal-name">Lunch <time>15:40</time></h2><p>Apple · <b>77 kcal</b></p></div>
+    </div>
+    <div class="band band-open">
+      <div class="field" aria-hidden="true"><i class="open"></i></div>
+      <div class="meal"><h2 class="meal-name">Dinner <time>still open</time></h2><p>Bare cotton until you log it</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LOG: five ways in ============ -->
+<section class="sect" id="log" aria-labelledby="log-title">
+  <div class="sect-head">
+    <h2 id="log-title" class="h-big">Log it the way it happened.</h2>
+    <p class="lede">At the table, in a shop aisle, or from memory after the fact. One thumb, one plate. If the AI is off, offline or unsure, the meal still lands.</p>
+  </div>
+  <div class="ways">
+    <ol class="ways-list">
+      <li class="way">
+        <svg class="way-ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="13" width="38" height="27" rx="6" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M17 13l3-5h8l3 5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><circle cx="24" cy="26.5" r="7.5" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+        <div><h3>Snapshot</h3><p>One photo of the plate is plenty. Its metadata is stripped, and it goes to the AI only after you agree, every time by default.</p></div>
+              <div class="way-band"><div class="field" data-weave aria-hidden="true"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row"></i><i class="row"></i></div><p>A plate of lentils and tomato<span>Lands as veg &amp; fruit and protein</span></p></div>
+      </li>
+      <li class="way">
+        <svg class="way-ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M7 12v24M12 12v24M15.5 12v24M21 12v24M25 12v24M29 12v24M34 12v24M37.5 12v24M41 12v24" stroke="currentColor" stroke-width="2.5"/><path d="M4 24h40" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3"/></svg>
+        <div><h3>Barcode</h3><p>Scan a pack and Open Food Facts returns the label’s own numbers, per gram. Unknown product? You can add it.</p></div>
+              <div class="way-band"><div class="field" data-weave aria-hidden="true"><i class="row"></i><i class="row"></i><i class="row dye d-starch"></i><i class="row"></i></div><p>Crunchy oat muesli, per gram<span>Lands as starch</span></p></div>
+      </li>
+      <li class="way">
+        <svg class="way-ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="11" width="38" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M12 24h17M33 19v10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <div><h3>Type it</h3><p>Ranked matches as you type, with portion presets in plain sizes and grams when you know them.</p></div>
+              <div class="way-band"><div class="field" data-weave aria-hidden="true"><i class="row"></i><i class="row"></i><i class="row"></i><i class="row dye d-dairy"></i></div><p>Plain yogurt, 125 g<span>Lands as dairy</span></p></div>
+      </li>
+      <li class="way">
+        <svg class="way-ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="17" y="5" width="14" height="24" rx="7" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M10 22a14 14 0 0 0 28 0M24 36v7M17 43h14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <div><h3>Describe</h3><p>Say it or write it: “a bowl of lentil salad and an apple”. Your words become foods and grams you can check.</p></div>
+              <div class="way-band"><div class="field" data-weave aria-hidden="true"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row"></i></div><p>“Lentil salad and some bread”<span>Lands as veg &amp; fruit, protein and starch</span></p></div>
+      </li>
+      <li class="way">
+        <svg class="way-ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="10" y="8" width="28" height="35" rx="4" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M18 5h12v7H18z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M16 21h16M16 27h16M16 33h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <div><h3>Paste a recipe</h3><p>Drop in the ingredient list, say how many servings you ate, and the plate is worked out from it.</p></div>
+              <div class="way-band"><div class="field" data-weave aria-hidden="true"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div><p>One serving of a lasagne<span>Lands as veg &amp; fruit, protein, starch and dairy</span></p></div>
+      </li>
+    </ol>
+    <div class="ways-side">
+      <div class="phone phone-sm"><img src="assets/shots/phone-log-sheet.webp" width="390" height="844" loading="lazy" alt="The Log a plate sheet: Snapshot, Barcode, Type it and Describe, with recent foods and saved meals."></div>
+      <p class="aside-note"><b>And the everyday shortcuts.</b> Recent foods, saved meals, and copying yesterday’s breakfast or a whole day.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PLATE: one honest plate ============ -->
+<section class="sect sect-raised" id="plate" aria-labelledby="plate-title">
+  <div class="sect-head">
+    <h2 id="plate-title" class="h-big">One honest plate. Real numbers, calmly.</h2>
+    <p class="lede">Four food groups, present or absent, woven into the day. Tap the plate and the grams and nutrients are there, set against the EU reference intakes or your own daily guide. Estimates wear a “~”. Nothing turns red.</p>
+  </div>
+
+  <div class="plate-grid">
+    <article class="plate-card" aria-labelledby="pc-title">
+      <header class="plate-head">
+        <div class="field field-wide" data-weave aria-hidden="true"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row"></i><i class="row"></i></div>
+        <h3 id="pc-title" class="meal-name">Lunch <time>12:40</time></h3>
+        <p class="plate-foods">Lentils <span>180 g</span> · Tomato <span>80 g</span></p>
+        <p class="plate-groups">Veg &amp; fruit and protein on the plate. No starch, no dairy.</p>
+      </header>
+      <h4 class="sect-label">This plate’s nutrition <span class="demo">demo day, real food data</span></h4>
+      <dl class="bars">
+        <div class="bar"><dt>Energy</dt><dd class="q">240 kcal</dd><dd class="track" aria-hidden="true"><i style="--v:12%"></i></dd><dd class="ref">about 12% of the EU reference intake (2000 kcal)</dd></div>
+        <div class="bar"><dt>Protein</dt><dd class="q">19 g</dd><dd class="track" aria-hidden="true"><i style="--v:37%"></i></dd><dd class="ref">about 37% of the reference (50 g)</dd></div>
+        <div class="bar"><dt>Carbohydrate</dt><dd class="q">32 g</dd><dd class="track" aria-hidden="true"><i style="--v:12%"></i></dd><dd class="ref">about 12% of the reference (260 g)</dd></div>
+        <div class="bar bar-sub"><dt>of which sugars</dt><dd class="q">2.9 g</dd><dd class="track" aria-hidden="true"><i style="--v:3%"></i></dd><dd class="ref">about 3% of the reference (90 g)</dd></div>
+        <div class="bar"><dt>Fat</dt><dd class="q">1 g</dd><dd class="track" aria-hidden="true"><i style="--v:1.4%"></i></dd><dd class="ref">about 1% of the reference (70 g)</dd></div>
+        <div class="bar"><dt>Fibre</dt><dd class="q">16 g</dd><dd class="track" aria-hidden="true"><i style="--v:64%"></i></dd><dd class="ref">about 64% of a 25 g guide</dd></div>
+      </dl>
+    </article>
+
+    <div class="plate-notes">
+      <ul class="rules-list">
+        <li><b>Neutral thread.</b> Every bar is the same soft ink, for every nutrient and every amount. A thin tick marks the reference.</li>
+        <li><b>Said, not shouted.</b> Past the reference, a sentence says “about 120% of the reference”. Never “over budget”, never “remaining”.</li>
+        <li><b>Honest about guesses.</b> Estimates carry “~”, gaps in the data are named, and a portion can stay a range.</li>
+        <li><b>Yours to hide.</b> One switch turns the numbers off if they feel like too much. The plate still lands.</li>
+      </ul>
+      <div class="phone phone-sm phone-tilt"><img src="assets/shots/phone-plate-nutrients.webp" width="390" height="844" loading="lazy" alt="The same lunch in the app: lentils 180 g and tomato 80 g, energy 240 kcal, protein 19 g and fibre 16 g, with nutrient bars against the reference intake."></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COACH ============ -->
+<section class="sect sect-coach" id="coach" aria-labelledby="coach-title">
+  <div class="coach-stage">
+    <h2 id="coach-title" class="h-big">A question, not a verdict.</h2>
+    <p class="lede">After a plate, the coach may ask one thing, with a specific number to hand. Answer, ask it something back, or let it go. Dismissing costs nothing, and it never nags you to come back.</p>
+  </div>
+  <div class="coach-demo">
+    <aside class="coach coach-big" aria-label="The coach, demo">
+      <p class="coach-title">A simple start.</p>
+      <p>Breakfast was oats and yogurt. What usually keeps you going until lunch?</p>
+      <div class="coach-actions"><span class="pill pill-ink">Sure</span><span class="pill">Ask later</span></div>
+      <p class="coach-meta">Written by AI · demo</p>
+    </aside>
+    <ul class="never" aria-label="What the coach never does">
+      <li>No streaks</li><li>No scores or grades</li><li>No badges</li><li>No countdowns</li><li>No red “over” states</li><li>No push to come back</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ WEEK ============ -->
+<section class="sect" id="week" aria-labelledby="week-title">
+  <div class="sect-head">
+    <h2 id="week-title" class="h-big">Seven towels, side by side.</h2>
+    <p class="lede">The week is read the same way as the day: which groups showed up, and which didn’t. Then the daily averages, plainly.</p>
+  </div>
+  <div class="week" data-weave role="img" aria-label="A demo week. Veg and fruit appeared on six days, protein on all seven, starch on all seven, dairy on four.">
+    <div class="week-groups" aria-hidden="true"><span>Veg &amp; fruit</span><span>Protein</span><span>Starch</span><span>Dairy</span></div>
+    <div class="week-towels" aria-hidden="true">
+      <div class="wt"><b>Fri</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div></div>
+      <div class="wt"><b>Sat</b><div class="wt-cloth"><i class="row"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div></div>
+      <div class="wt"><b>Sun</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row"></i></div></div>
+      <div class="wt"><b>Mon</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div></div>
+      <div class="wt"><b>Tue</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row"></i></div></div>
+      <div class="wt"><b>Wed</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row dye d-dairy"></i></div></div>
+      <div class="wt wt-today"><b>Thu</b><div class="wt-cloth"><i class="row dye d-veg"></i><i class="row dye d-protein"></i><i class="row dye d-starch"></i><i class="row"></i></div></div>
+    </div>
+  </div>
+  <p class="week-say">Veg and fruit showed up on six days this week, dairy on four. <span>A sentence, not a score · demo week</span></p>
+</section>
+
+<!-- ============ TRUST (ink band) ============ -->
+<section class="sect sect-ink" id="trust" aria-labelledby="trust-title">
+  <div class="sect-head">
+    <h2 id="trust-title" class="h-big">Trust is the architecture.</h2>
+    <p class="lede">There is no account and no server holding your meals. Your history is an encrypted database in your browser, opened by your passphrase. Here is everything that can leave the device, and when.</p>
+  </div>
+
+  <div class="trust-grid">
+    <div class="wire" aria-labelledby="wire-title">
+      <h3 id="wire-title" class="sect-label">What leaves the device</h3>
+      <ol class="reqs">
+        <li><code><span class="m">GET</span> /api/v2/product/<em>&lt;barcode&gt;</em>?fields=…</code><p>Only when you scan a barcode. To Open Food Facts, no cookie, no referrer.</p></li>
+        <li><code><span class="m">POST</span> <em>&lt;your AI endpoint&gt;</em></code><p>Only if you turned an AI on, and only after you agree. A fixed set of fields; photos have their metadata stripped.</p></li>
+        <li><code><span class="m">GET</span> /sw.js, /precache-manifest.json</code><p>The app updating itself from your own server. It waits for you to tap Reload.</p></li>
+        <li class="reqs-none"><code>telemetry, analytics, crash reports</code><i class="ln ln-off" aria-hidden="true"></i><p>None. A build gate fails if one is ever imported.</p></li>
+      </ol>
+      <p class="fine">The browser enforces this too: the content security policy blocks every other origin.</p>
+    </div>
+
+    <div class="defaults" aria-labelledby="def-title">
+      <h3 id="def-title" class="sect-label">Defaults, drawn <span class="legend-inline"><i class="ln ln-on" aria-hidden="true"></i>on <i class="ln ln-off" aria-hidden="true"></i>off</span></h3>
+      <ul class="def-list">
+        <li><span>Encrypted local store</span><i class="ln ln-on" aria-hidden="true"></i><b>On</b></li>
+        <li><span>Ask before every photo upload</span><i class="ln ln-on" aria-hidden="true"></i><b>On</b></li>
+        <li><span>Works offline</span><i class="ln ln-on" aria-hidden="true"></i><b>On</b></li>
+        <li><span>Account</span><i class="ln ln-off" aria-hidden="true"></i><b>None</b></li>
+        <li><span>Telemetry</span><i class="ln ln-off" aria-hidden="true"></i><b>Off</b></li>
+        <li><span>AI</span><i class="ln ln-off" aria-hidden="true"></i><b>Off until you choose</b></li>
+      </ul>
+      <div class="keys">
+        <p><b>Your passphrase is the key.</b> The store is SQLite encrypted with ChaCha20-Poly1305, its key derived from your passphrase on the device. A wrong passphrase cannot open it, locking drops the key, and erasing removes every byte.</p>
+        <p><b>Backups stay sealed.</b> The backup file is sealed with AES-256-GCM under a backup passphrase (Argon2id). Restoring needs nothing but the file and you, on any instance, offline.</p>
+        <p><b>Every promise has a test.</b> The README’s trust table names the test that proves each line, and the release fails without it.</p>
+      </div>
+    </div>
+  </div>
+  <div class="trust-links">
+    <a class="pill pill-cotton" href="docs/security/">How it is secured</a>
+    <a class="pill pill-line" href="docs/telemetry-posture/">Exactly what is sent</a>
+    <a class="pill pill-line" href="https://github.com/mmornati/ai-nutrition-coach#trust-posture">The trust table and its tests</a>
+  </div>
+</section>
+
+<!-- ============ YOUR AI ============ -->
+<section class="sect" id="ai" aria-labelledby="ai-title">
+  <div class="sect-head">
+    <h2 id="ai-title" class="h-big">The AI is optional. The app is complete without it.</h2>
+    <p class="lede">Typing, barcodes, recents, saved meals and recipes all work with no AI at all. When you want photo recognition, descriptions or a conversation with the coach, pick where it runs.</p>
+  </div>
+  <ol class="tiers">
+    <li class="tier"><h3>No AI</h3><p>Everything that doesn’t need a model. Nothing is sent anywhere.</p><span class="sewn">Default</span></li>
+    <li class="tier"><h3>Your server’s AI</h3><p>Whoever runs your instance can connect a model once for the household. You still agree per photo.</p><span class="sewn">Optional</span></li>
+    <li class="tier"><h3>Your own key</h3><p>Bring a key for any OpenAI-compatible endpoint. It lives in the encrypted store, bound to its host.</p><span class="sewn">Optional</span></li>
+    <li class="tier tier-planned"><h3>A local model</h3><p>Running a model on the device itself.</p><span class="sewn sewn-dashed">Planned</span></li>
+  </ol>
+</section>
+
+<!-- ============ RUN YOUR OWN ============ -->
+<section class="sect sect-raised" id="run" aria-labelledby="run-title">
+  <div class="run-grid">
+    <div>
+      <h2 id="run-title" class="h-big">Yours to run. One command.</h2>
+      <p class="lede">The server is a hardened static container: read-only, non-root, no database, no outbound need. It holds none of your data. Put it on a home server or a small VPS, then open it on every phone in the house.</p>
+      <ol class="steps">
+        <li><p><b>Start it.</b> One command builds and serves it. Add <code>--tls</code> for automatic HTTPS, or <code>--traefik</code> behind your own proxy.</p></li>
+        <li><p><b>Open it on your phone.</b> Over HTTPS, then <i>Add to Home Screen</i> or <i>Install app</i>. It works offline from then on.</p></li>
+        <li><p><b>Choose a passphrase.</b> It opens your encrypted store on this device. Each person, each device, their own.</p></li>
+      </ol>
+    </div>
+    <div class="term" role="group" aria-label="Commands">
+      <div class="term-bar"><span class="sewn">On your server</span></div>
+<pre><code><span class="c"># build and serve on http://localhost:8080</span>
+<span class="p">$</span> bin/ai-nutrition-coach up
+
+<span class="c"># automatic HTTPS for your domain (Caddy)</span>
+<span class="p">$</span> export AI_NUTRITION_COACH_DOMAIN=plate.example.com
+<span class="p">$</span> bin/ai-nutrition-coach up --tls
+
+<span class="c"># or the published image</span>
+<span class="p">$</span> docker pull \
+    ghcr.io/mmornati/ai-nutrition-coach</code></pre>
+      <a class="pill pill-cotton term-cta" href="docs/self-host/">Read the self-host guide</a>
+    </div>
+  </div>
+  <div class="facts">
+    <p><b>Installs as an app</b><span>A PWA with its own service worker; no app store.</span></p>
+    <p><b>Offline first</b><span>Log in a cellar or on a plane; nothing waits on a network.</span></p>
+    <p><b>English and French</b><span>Follows your device, or choose in Settings.</span></p>
+    <p><b>Accessible</b><span>48px targets, screen-reader parity, reduced motion respected.</span></p>
+  </div>
+</section>
+
+<!-- ============ FILM ============ -->
+<section class="sect" id="film" aria-labelledby="film-title">
+  <div class="sect-head sect-head-row">
+    <h2 id="film-title" class="h-big">The short tour.</h2>
+    <p class="lede">Drawn frame by frame in your browser, narrated, with subtitles. Shorter how-to episodes live in the docs.</p>
+  </div>
+  <div class="film">
+    <iframe src="video/?embed=1&amp;lang=en" title="AI Nutrition Coach, the short tour" loading="lazy" allow="fullscreen; autoplay" allowfullscreen></iframe>
+  </div>
+  <p class="film-more"><a class="pill" href="docs/videos/">All the how-to videos</a></p>
+</section>
+
+<!-- ============ DOCS INDEX ============ -->
+<section class="sect" id="docs" aria-labelledby="docs-title">
+  <h2 id="docs-title" class="h-big">Read the guide.</h2>
+  <ul class="doclist">
+    <li><a href="docs/getting-started/"><b>Get started</b><span>Run it, install it on your phone, choose a passphrase, log your first plate.</span></a></li>
+    <li><a href="docs/guide/log-a-plate/"><b>Log a plate</b><span>Photo, barcode, typing, describing, recipes, recents and saved meals.</span></a></li>
+    <li><a href="docs/guide/day-and-week/"><b>Your day and week</b><span>The towels, the nutrient bars, reference intakes and estimates.</span></a></li>
+    <li><a href="docs/guide/your-ai/"><b>Your AI</b><span>No AI, your server’s AI or your own key, and the consent before each photo.</span></a></li>
+    <li><a href="docs/your-data/"><b>Your data</b><span>The encrypted store, backups, export, and erasing everything.</span></a></li>
+    <li><a href="docs/self-host/"><b>Self-host</b><span>One command, HTTPS, Traefik, the image on ghcr.io.</span></a></li>
+    <li><a href="docs/faq/"><b>Questions</b><span>Short answers about using it, your data and running it.</span></a></li>
+  </ul>
+  <aside class="planned" aria-labelledby="planned-title">
+    <h3 id="planned-title">Not built yet, and said so</h3>
+    <ul>
+      <li class="sewn sewn-dashed">Sync between your devices, end-to-end encrypted</li>
+      <li class="sewn sewn-dashed">A free AI quota on hosted instances</li>
+      <li class="sewn sewn-dashed">A model running on the device</li>
+    </ul>
+  </aside>
+</section>
+
+</main>
+
+<footer class="foot-towel">
+  <div class="towel-edge" aria-hidden="true"><i class="d-veg"></i><i class="d-protein"></i><i class="d-starch"></i><i class="d-dairy"></i></div>
+  <div class="foot-inner">
+    <p class="foot-name">AI Nutrition Coach</p>
+    <p class="foot-mark">yours to run · open source</p>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="docs/">Documentation</a>
+      <a href="https://github.com/mmornati/ai-nutrition-coach">GitHub</a>
+      <a href="https://github.com/mmornati/ai-nutrition-coach/blob/main/LICENSE">MIT licence</a>
+      <a href="https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/no-dark-patterns-standard.md">No-dark-patterns standard</a>
+    </nav>
+    <p class="foot-small">Nutrition values are estimates and general information, not medical advice. Product data from Open Food Facts, under the Open Database License.</p>
+  </div>
+</footer>
+
+<script src="assets/site.js" defer></script>
+</body>
+</html>

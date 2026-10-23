@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Nutrition Coach</title>
+<style>
+@font-face{font-family:"Schibsted Grotesk";src:url("../../../../apps/web/public/fonts/schibsted-grotesk-latin.woff2") format("woff2");font-weight:400 900;font-display:block;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Schibsted Grotesk";src:url("../../../../apps/web/public/fonts/schibsted-grotesk-latin-ext.woff2") format("woff2");font-weight:400 900;font-display:block;unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{
+  --ink:#262421;--ink-soft:#4A453F;--thread:#6B655E;
+  --veg:#1F7A4D;--protein:#B5262E;--starch:#C08420;--dairy:#2D5DA8;
+  --cloth:#FBFBF8;--raised:#FFFFFF;--seam:#E4E1DA;--control:#8A847B;
+  --weave:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Schibsted Grotesk",system-ui,sans-serif;color:var(--ink);
+  background-color:var(--cloth);
+  background-image:
+    repeating-linear-gradient(0deg,rgb(38 36 33 / .028) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(90deg,rgb(38 36 33 / .028) 0 1px,transparent 1px 4px);
+  overflow:hidden;
+}
+.page{position:relative;width:1440px;height:900px;margin:0 auto;overflow:hidden}
+
+/* ---------- nav, in the rail's vocabulary ---------- */
+nav{position:absolute;inset:0 0 auto 0;height:76px;background:var(--raised);border-bottom:2px solid var(--seam);
+  display:flex;align-items:center;padding:0 28px;gap:8px;z-index:5}
+.brand{display:flex;align-items:center;gap:12px;font-size:1.25rem;font-weight:700;letter-spacing:-.01em;margin-right:28px;white-space:nowrap}
+.fold{width:26px;height:32px;border:1.5px solid var(--ink);border-radius:3px;background:var(--raised);
+  display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 4px}
+.fold i{display:block;height:3px}
+.navi{height:48px;display:flex;align-items:center;padding:0 16px;border-radius:9999px;border:2px solid transparent;
+  font-size:1.0625rem;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+.navi.current{background:var(--raised);border-color:var(--ink);color:var(--ink)}
+.navi .dot{width:9px;height:9px;border-radius:50%;background:var(--ink);margin-right:10px}
+.spacer{flex:1}
+.pill{height:48px;display:inline-flex;align-items:center;gap:10px;padding:6px 22px;border-radius:9999px;border:2px solid var(--ink);
+  font-size:1rem;font-weight:700;line-height:1.15;white-space:nowrap;color:var(--ink);text-decoration:none;background:transparent}
+.pill.primary{background:var(--ink);color:var(--cloth)}
+.pill.big{height:58px;padding:0 28px;font-size:1.125rem}
+
+/* ---------- sewn label ---------- */
+.sewn{position:relative;display:inline-flex;align-items:center;gap:10px;min-height:38px;padding:7px 14px;
+  background:var(--raised);border:2px solid var(--ink);border-radius:4px;font-size:.9375rem;font-weight:600;line-height:1.25;white-space:nowrap}
+.sewn::after{content:"";position:absolute;inset:3px;border:1.5px dashed rgb(38 36 33 / .35);border-radius:2px;pointer-events:none}
+.sewn .sd{width:9px;height:9px;border-radius:50%;background:var(--ink);flex:none}
+.sewn .ring{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+
+/* ---------- headline ---------- */
+.hero{position:absolute;left:28px;top:92px;z-index:3}
+.foot{font-size:.9375rem;font-weight:700;color:var(--thread);margin-bottom:18px;display:flex;align-items:center;gap:12px}
+.foot b{display:inline-block;width:36px;height:2px;background:var(--ink)}
+h1{font-size:114px;font-weight:900;line-height:.86;letter-spacing:-.055em;max-width:760px}
+h1 .keep{display:block;position:relative;width:max-content}
+h1 .keep::after{content:"";position:absolute;left:4px;right:10px;bottom:-12px;border-bottom:3px dashed var(--ink)}
+.sub{margin-top:26px;font-size:1.25rem;line-height:1.42;color:var(--ink-soft);max-width:640px}
+.sub strong{color:var(--ink);font-weight:700}
+.actions{margin-top:18px;display:flex;gap:14px;align-items:center}
+.play{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink);position:relative}
+.play::after{content:"";position:absolute;left:5px;top:3px;border-left:6px solid var(--ink);border-top:4px solid transparent;border-bottom:4px solid transparent}
+.cmd{margin-left:8px;font-size:.9375rem;color:var(--thread)}
+.cmd code{font-family:inherit;font-weight:700;color:var(--ink);border-bottom:1.5px dashed var(--control);padding-bottom:1px}
+
+/* ---------- the day towel ---------- */
+.towel{position:absolute;left:0;right:0;top:662px;bottom:0;border-top:2px solid var(--ink)}
+.legend{position:absolute;left:600px;top:-36px;display:flex;gap:16px;font-size:.875rem;font-weight:600;color:var(--ink-soft)}
+.legend span{display:flex;align-items:center;gap:8px}
+.legend i{width:22px;height:8px;display:block}
+.band{position:relative;height:79px;border-bottom:1px solid var(--seam);display:grid;grid-template-columns:620px 1fr}
+.field{display:flex;flex-direction:column;justify-content:center;gap:6px;padding-right:0}
+.row{height:10px;position:relative}
+.row.bare{background:repeating-linear-gradient(90deg,var(--seam) 0 10px,transparent 10px 15px)}
+.row.dyed{transform-origin:left center;animation:weave .5s var(--weave) both}
+.row.dyed.veg{background:var(--veg)}.row.dyed.protein{background:var(--protein)}
+.row.dyed.starch{background:var(--starch)}.row.dyed.dairy{background:var(--dairy)}
+@keyframes weave{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.meal{padding:6px 0 0 30px;width:330px}
+.meal h3{font-size:1.625rem;font-weight:800;letter-spacing:-.02em;line-height:1.05;display:flex;justify-content:space-between;align-items:baseline}
+.meal h3 time{font-size:.9375rem;font-weight:400;color:var(--thread);letter-spacing:0}
+.meal p{font-size:.9375rem;line-height:1.3;color:var(--ink-soft);margin-top:4px}
+.meal p .q{color:var(--ink);font-weight:700}
+.band.open .field{padding:12px 0}
+.openband{height:100%;border:2px dashed var(--control);border-left:0;border-radius:0 8px 8px 0;animation:breathe 1.2s ease-in-out infinite alternate}
+@keyframes breathe{from{opacity:1}to{opacity:.45}}
+
+/* ---------- the phone, laid on the towel ---------- */
+.phone{position:absolute;right:40px;top:112px;width:412px;height:866px;border-radius:44px;border:10px solid var(--ink);
+  background:url("../../../../docs/design/torchon/phone-screens.png") no-repeat -16px -16px / 1648px 878px var(--cloth);
+  transform:rotate(2.2deg);z-index:2;overflow:hidden}
+.phone-wrap{position:absolute;inset:0;pointer-events:none}
+
+.tags{position:absolute;z-index:4;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.t1{left:770px;top:372px;transform:rotate(-2deg)}
+.t2{left:1188px;top:792px;transform:rotate(1.5deg)}
+.t3{left:1004px;top:842px;transform:rotate(-1deg)}
+.coach{position:absolute;left:748px;top:150px;width:250px;z-index:3;background:var(--raised);border:2px solid var(--ink);border-radius:8px;padding:16px 18px;font-size:1rem;line-height:1.45}
+.coach::after{content:"";position:absolute;inset:3px;border:1.5px dashed rgb(38 36 33 / .35);border-radius:6px}
+.coach small{display:block;margin-top:8px;font-size:.8125rem;color:var(--thread)}
+@media (prefers-reduced-motion:reduce){.row.dyed,.openband{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav aria-label="Main">
+  <div class="brand">
+    <span class="fold" aria-hidden="true"><i style="background:var(--veg)"></i><i style="background:var(--protein)"></i><i style="background:var(--starch)"></i><i style="background:var(--dairy)"></i></span>
+    AI Nutrition Coach
+  </div>
+  <a class="navi current">Features</a>
+  <a class="navi">How it works</a>
+  <a class="navi">Security</a>
+  <a class="navi">Self-host</a>
+  <a class="navi">Docs</a>
+  <span class="spacer"></span>
+  <span class="navi" style="font-size:.9375rem;color:var(--thread)">English · Français</span>
+  <a class="pill">Source on GitHub</a>
+</nav>
+
+<section class="hero">
+  <p class="foot"><b></b>Yours to run · open source · one command: <code style="font-family:inherit;color:var(--ink)">bin/ai-nutrition-coach up</code></p>
+  <h1>Know what’s<br>on your plate.<span class="keep">Keep it yours.</span></h1>
+  <p class="sub">Log a meal by photo, barcode, voice or a few words. Each one lands on your day as an honest plate: which food groups were there, the grams, the nutrients. <strong>No account, no scores, nothing leaves your device unless you say so.</strong></p>
+  <div class="actions">
+    <a class="pill primary big">Run your own</a>
+    <a class="pill big"><span class="play" aria-hidden="true"></span>Watch the 90-second tour</a>
+  </div>
+</section>
+
+<aside class="coach" aria-label="Coach, demo">
+  This yogurt has about 18 g of sugars, around a fifth of a day’s reference intake. Was it the one you meant?
+  <small>The coach asks one question · demo</small>
+</aside>
+
+<section class="towel" aria-label="A sample day">
+  <div class="legend" aria-hidden="true">
+    <span><i style="background:var(--veg)"></i>Veg &amp; fruit</span>
+    <span><i style="background:var(--protein)"></i>Protein</span>
+    <span><i style="background:var(--starch)"></i>Starch</span>
+    <span><i style="background:var(--dairy)"></i>Dairy</span>
+  </div>
+
+  <div class="band">
+    <div class="field" aria-hidden="true">
+      <div class="row bare"></div>
+      <div class="row bare"></div>
+      <div class="row dyed starch" style="animation-delay:.2s"></div>
+      <div class="row dyed dairy" style="animation-delay:.26s"></div>
+    </div>
+    <div class="meal"><h3>Breakfast <time>08:10</time></h3><p>Oats and yogurt · <span class="q">~320 kcal</span><br>Starch and dairy on the plate</p></div>
+  </div>
+
+  <div class="band">
+    <div class="field" aria-hidden="true">
+      <div class="row dyed veg" style="animation-delay:.7s"></div>
+      <div class="row dyed protein" style="animation-delay:.76s"></div>
+      <div class="row dyed starch" style="animation-delay:.82s"></div>
+      <div class="row bare"></div>
+    </div>
+    <div class="meal"><h3>Lunch <time>12:45</time></h3><p>Lentil salad, ~180 g · <span class="q">410 kcal</span><br><span class="q">21 g protein</span> · veg &amp; fruit, protein, starch</p></div>
+  </div>
+
+  <div class="band open">
+    <div class="field" aria-hidden="true"><div class="openband"></div></div>
+    <div class="meal"><h3>Dinner <time>still open</time></h3><p>Bare cotton until you log it.</p></div>
+  </div>
+</section>
+
+<div class="phone" role="img" aria-label="The app’s Today screen on a phone"></div>
+
+<div class="tags t1"><span class="sewn"><span class="sd"></span>On this device · encrypted</span></div>
+<div class="tags t2"><span class="sewn"><span class="ring"></span>Zero telemetry</span></div>
+<div class="tags t3"><span class="sewn">Open source · MIT</span></div>
+
+</div>
+</body>
+</html>

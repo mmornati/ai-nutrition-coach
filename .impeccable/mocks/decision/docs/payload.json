@@ -1,0 +1,130 @@
+{
+  "title": "AI Nutrition Coach — choose the style of the docs & marketing site",
+  "question": "Each preview is the site's first viewport (landing + the door into the docs). Keep the rolled direction, take an alternate, steer, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Seed Packet Rack",
+      "kicker": "THE ROLL",
+      "lineage": "garden seed packets and the hardware-store seed rack",
+      "thesis": "Every feature is a seed packet on a rack: a bold flat-ink front that sells it, a back panel that tells you exactly how to sow it.",
+      "palette": ["#1E3B8A", "#F4E9C8", "#1F7A4D", "#B5262E", "#C08420", "#2D5DA8"],
+      "materials": ["flat lithographic ink", "kraft packet stock", "a wire rack"],
+      "viewport": "A cobalt rack header with the product name set like a seed brand, a row of tall packets (Photo, Barcode, Describe, Day Board, Your data) and a 'Sow it on your own server' action.",
+      "risk": "Packet illustrations must be drawn with real care in flat SVG ink, or they slide into clip art.",
+      "raised": [
+        {"from": "challenger-rebel-menu", "raise": "Total palette commitment: the rack header floods the first viewport in cobalt instead of sitting on a polite neutral page."},
+        {"from": "challenger-jackfield", "raise": "Security page draws every default as a line pattern (solid = on, gap = off by default) so 'telemetry off, AI off, ask before every photo' reads at a glance."},
+        {"from": "challenger-phosphor", "raise": "The trust section prints the real outgoing requests (GET /api/v2/product/<barcode>?fields=) as evidence, not adjectives."},
+        {"from": "challenger-decollage", "raise": "Back-of-packet how-to pages carry their history: what is planned is shown as an unopened packet, never as a feature."}
+      ],
+      "comp": ".impeccable/mocks/decision/docs/assigned.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "Torchon, laid out",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "the app's own striped kitchen towel, unfolded to page size",
+      "thesis": "The site is the towel the app is made of: each section is a woven band, each feature a dyed stripe, so the docs look exactly like the product.",
+      "palette": ["#FBFBF8", "#262421", "#1F7A4D", "#B5262E", "#C08420", "#2D5DA8"],
+      "materials": ["white cotton weave", "four dyes", "sewn labels with dashed stitch"],
+      "viewport": "A giant heavy 'Know what's on your plate.' over a full-width day towel woven live from the left, the phone screenshot laid on it, and an ink 'Run your own' pill.",
+      "risk": "The most familiar choice and the safest brand fit: one world for app and site, less surprise on first visit.",
+      "comp": ".impeccable/mocks/decision/docs/model-pick.png"
+    },
+    {
+      "id": "challenger-brick",
+      "label": "Build Instructions",
+      "verdict": "competitive",
+      "lineage": "brick build-instruction booklets",
+      "thesis": "The docs are an assembly booklet: big step numerals, 1:1 call-outs of each screen, wordless arrows from tap to result.",
+      "palette": ["#BFE0F2", "#111111", "#B5262E", "#F2C230", "#FFFFFF"],
+      "materials": ["sky-blue booklet pages", "black keylines", "stud-grid module"],
+      "viewport": "Step 1 · 2 · 3 spread: install on your server, choose a passphrase, log your first plate, each with a call-out box of the real phone screen.",
+      "case": "Fuses well for 'how to use it' (strongest clarity for the docs); weaker identification for a calm kitchen product's marketing page.",
+      "risk": "Reads toy-like if the grid is loose; the playful register must stay calm in copy.",
+      "comp": ".impeccable/mocks/decision/docs/challenger-brick.png",
+      "hero": "https://impeccable.style/worlds/cards/games-toys-physics-play-brick-build-instructions-hero.webp"
+    },
+    {
+      "id": "challenger-jackfield",
+      "label": "Normalled Jackfield",
+      "verdict": "declined",
+      "lineage": "machine-room patch-bay schedules",
+      "palette": ["#0B0B0C", "#F2A41C"],
+      "materials": ["black glass", "amber link lines"],
+      "thesis": "Every setting tied to its default by a drawn line.",
+      "viewport": "Numbered amber lanes on black glass.",
+      "case": "Fuses well for the security page only; household cooks do not identify with a machine room.",
+      "kept": "Defaults drawn as line patterns on the security page.",
+      "risk": "Cold for a kitchen product.",
+      "hero": "https://impeccable.style/worlds/cards/operate-b-normalled-jackfield-hero.webp"
+    },
+    {
+      "id": "challenger-phosphor",
+      "label": "Phosphor Terminal",
+      "verdict": "declined",
+      "lineage": "green-phosphor terminals",
+      "palette": ["#050805", "#33FF66"],
+      "materials": ["curved glass", "scanlines"],
+      "thesis": "The site as a live transcript.",
+      "viewport": "An 80-column session log.",
+      "case": "Speaks to self-hosters, loses the household cook and the calm voice.",
+      "kept": "Real outgoing requests printed as evidence in the trust section.",
+      "risk": "Hacker cliché for a food app.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-phosphor-terminal-midnight-hero.webp"
+    },
+    {
+      "id": "challenger-rebel-menu",
+      "label": "Rebel Menu Collage",
+      "verdict": "declined",
+      "lineage": "red/black/white stylish game menus",
+      "palette": ["#D0021B", "#000000", "#FFFFFF"],
+      "materials": ["torn paper", "halftone"],
+      "thesis": "Every option a torn shard slammed on a wall.",
+      "viewport": "Scarlet field, sheared italic caps.",
+      "case": "Red-on-everything fights the no-guilt, protein-only red rule; shouting breaks the calm voice.",
+      "kept": "Total palette commitment in the first viewport.",
+      "risk": "Aggressive."
+    },
+    {
+      "id": "challenger-decollage",
+      "label": "Torn Billboard",
+      "verdict": "declined",
+      "lineage": "Paris décollage hoardings",
+      "palette": ["#D9D4C7", "#8C8578", "#C0392B"],
+      "materials": ["pasted posters", "tear edges"],
+      "thesis": "Navigation by tearing into older layers.",
+      "viewport": "Four campaigns torn through.",
+      "case": "Hides the offer; docs need findability, not archaeology.",
+      "kept": "Planned work shown as its own honest layer, never mixed with what ships.",
+      "risk": "Illegible."
+    },
+    {
+      "id": "challenger-plankton",
+      "label": "Bioluminescent Wake",
+      "verdict": "declined",
+      "lineage": "night sea plankton",
+      "palette": ["#02040A", "#3FA9FF"],
+      "materials": ["GPU particles"],
+      "thesis": "Pointer trails of living light.",
+      "viewport": "Black water, a blue wake.",
+      "case": "No link to food, kitchens or ownership.",
+      "kept": "One element lit at a time; the rest at rest.",
+      "risk": "Pure mood."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The house standard",
+    "thesis": "Like the finance coach: a hand-built landing page at the root plus MkDocs Material docs under /docs/, executed at full craft.",
+    "palette": ["#FFFFFF", "#262421", "#1F7A4D", "#2D5DA8"],
+    "materials": ["clean grid", "product screenshots", "Material docs chrome"],
+    "viewport": "Headline, two CTAs and a phone screenshot on the left/right split, feature grid below, docs search in the header.",
+    "risk": "Consistent with your other coaches, and indistinguishable from most open-source landing pages by design.",
+    "comp": ".impeccable/mocks/decision/docs/canon.png"
+  },
+  "steer": true
+}

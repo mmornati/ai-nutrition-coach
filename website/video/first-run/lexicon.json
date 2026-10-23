@@ -1,0 +1,14 @@
+{
+ "_doc": "Shared pronunciation for every AI Nutrition Coach video (the trailer here, and each episode folder through a symlink ../lexicon.json). Applied to the spoken text only; subtitles keep the original. Keys are whole words, case-sensitive; a [[...]] value is raw IPA for Kokoro. Find and verify entries with the narration-lexicon skill.",
+ "en": {
+  "_doc": "Verified with Whisper on af_heart. 'Coach' (capital, as in the product name) ended as 'Coats' at the end of a sentence; IPA fixes it, lowercase 'coach' is fine. 'Nutri-Score' was read 'nutrient score'. PWA, ghcr, Kokoro, nginx, Open Food Facts and passphrase are read correctly as written.",
+  "Coach": "[[kˈOʧ]]",
+  "Nutri-Score": "Nutri Score",
+  "IndexedDB": "Indexed D B",
+  "Traefik": "Traffic",
+  "ChaCha20-Poly1305": "ChaCha twenty Poly thirteen oh five",
+  "Argon2id": "Argon two I D",
+  "AES-256-GCM": "[[ˌeɪˌiːˈɛs]] two fifty-six G C M",
+  "SQLite": "S Q Lite"
+ }
+}

@@ -2,7 +2,7 @@
 
 Status: accepted for S0 (groundwork) and S1 (encrypted backup file, no server), both implemented; S2 to S4 are accepted as a plan and still pending · 2026-10-22
 Resolves: PRD open question OQ-1 (the sync path left open by FR-10), `_bmad-output/planning-artifacts/prds/prd-openplate-2026-08-12/prd.md`.
-Builds on: [ADR 0005](0005-web-encrypted-store.md) (the local encrypted store, unchanged by this ADR). The full plan, with phases and rough sizes, is [`docs/encrypted-sync-plan.md`](../encrypted-sync-plan.md); this ADR keeps the decisions.
+Builds on: [ADR 0005](0005-web-encrypted-store.md) (the local encrypted store, unchanged by this ADR). The full plan, with phases and rough sizes, is [`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md); this ADR keeps the decisions.
 
 ## Context
 

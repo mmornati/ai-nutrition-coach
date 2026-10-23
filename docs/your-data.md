@@ -159,7 +159,7 @@ with everything else. The device also stores a random device id (the `sync.devic
 encrypted key/value table), and every stamp embeds it. The upgrade is automatic, re-runnable and
 loses no row. There is **still no sync**: the cross-device design is in
 [`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
-[`docs/encrypted-sync-plan.md`](./encrypted-sync-plan.md). The encrypted backup file (next section) is
+[`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md). The encrypted backup file (next section) is
 the first part of it.
 
 ## Encrypted backup and restore

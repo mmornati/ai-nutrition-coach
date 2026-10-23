@@ -1,0 +1,29 @@
+{
+  "_doc": "Episode 'Log a plate' of the AI Nutrition Coach videos. Facts from docs/guide/log-a-plate.md and apps/web/src/i18n/en.ts. Numbers in words, no exclamation marks. Narrate: narrate.py website/video/log-a-plate",
+  "langs": ["en"],
+  "engine": "kokoro",
+  "voices": {"kokoro": {"en": {"voice": "af_heart", "speed": 0.95}}},
+  "scenes": [
+    {"id": "intro", "min": 6.5, "lead": 0.9,
+     "chapter": {"en": "Log a plate"},
+     "en": ["Log a plate.", "Press Log, and one sheet opens with every way in.", "Nothing is saved until you have checked it."]},
+    {"id": "snapshot", "min": 11,
+     "chapter": {"en": "Snapshot"},
+     "en": ["Snapshot sends one photo of the plate to an AI you have set up.", "First, the photo is shrunk, and its location and camera details are removed.", "And by default, you are asked before every photo."]},
+    {"id": "barcode", "min": 12,
+     "chapter": {"en": "Barcode"},
+     "en": ["Barcode reads the code on the device, and looks up only the number on Open Food Facts.", "The first time, a short notice says so, and lets you decline.", "An unknown product can be typed in, or added to Open Food Facts yourself."]},
+    {"id": "typeit", "min": 11,
+     "chapter": {"en": "Type it"},
+     "en": ["Type it searches the food list on the device, so it works offline.", "Matches are ranked as you type.", "Then pick a portion, or the exact grams."]},
+    {"id": "words", "min": 11,
+     "chapter": {"en": "Describe, or paste a recipe"},
+     "en": ["Describe it in your own words, or dictate it.", "Without an AI, the words are matched on the device.", "Or paste a recipe, and the app reads the amounts and the servings."]},
+    {"id": "shortcuts", "min": 11,
+     "chapter": {"en": "Shortcuts"},
+     "en": ["For the meals you repeat, recent foods log in one tap.", "Save a plate as a meal, log it again, or copy an earlier day to today."]},
+    {"id": "lands", "min": 12, "tail": 2.2,
+     "chapter": {"en": "It always lands"},
+     "en": ["And the log never fails.", "Offline, without an AI, or with an unknown barcode, the meal still lands, with the closest matches and a quantity to adjust.", "Every way in is in the guide, Log a plate."]}
+  ]
+}
