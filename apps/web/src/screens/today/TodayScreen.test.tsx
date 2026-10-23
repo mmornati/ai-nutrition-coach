@@ -367,7 +367,11 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
 
     await renderInSession(<TodayScreen />, { bundle });
     await screen.findByText('Chicken');
-    expect(screen.queryByRole('group', { name: s.coach.group })).not.toBeInTheDocument();
+    // The dismissals are a live query of their own and may land after the plates: wait for them
+    // rather than read the first frame (a dismissal that did not stick never clears).
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: s.coach.group })).not.toBeInTheDocument(),
+    );
   });
 
   it('the open-station hint is one tap target that dismisses durably', async () => {
@@ -389,10 +393,13 @@ describe('TodayScreen: the coach question (coach_whisper / coach_depth_panel / o
     );
     first.unmount();
     await renderInSession(<TodayScreen />, { bundle });
-    await screen.findByText('Breakfast');
-    expect(
-      screen.queryByText('No veg or fruit logged yet today. Could this meal have a handful?'),
-    ).toBeNull();
+    await screen.findByText('Porridge');
+    // As above: the dismissals may land after the plates, so wait for them.
+    await waitFor(() =>
+      expect(
+        screen.queryByText('No veg or fruit logged yet today. Could this meal have a handful?'),
+      ).toBeNull(),
+    );
   });
 });
 

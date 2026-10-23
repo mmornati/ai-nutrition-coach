@@ -12,7 +12,7 @@
 #                      → secrets scan, third-party-host scan, no-gallery and
 #                        no-dev-store checks: any failure fails the image build
 #
-#   stage 2 (serve):  nginxinc/nginx-unprivileged:1.31.5-alpine (by digest)
+#   stage 2 (serve):  nginxinc/nginx-unprivileged:1.31.6-alpine (by digest)
 #                      → serves /usr/share/nginx/html on :8080
 #                      → SPA fallback via try_files (FR11 seam)
 #                      → runs as uid 101 (nginx), never root; works with a
@@ -95,7 +95,7 @@ RUN bash tools/check_no_secrets_in_build.sh apps/web/dist \
 
 # ── stage 2: serve ────────────────────────────────────────────────────────
 # Pinned by digest so the production image is byte-stable across rebuilds
-# (tag 1.31.5-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
+# (tag 1.31.6-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
 # in sync).
 FROM nginxinc/nginx-unprivileged:1.31.6-alpine@sha256:884e0b7f42f303641b0f4e78755aea647521dca0b89ca3be7992ad78b5c07434 AS serve
 

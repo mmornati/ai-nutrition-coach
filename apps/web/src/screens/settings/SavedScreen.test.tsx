@@ -165,7 +165,8 @@ describe('SavedScreen', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Repas et recettes gardés' }),
     ).toBeVisible();
-    expect(screen.getByText('2 aliments · Oats, Milk')).toBeVisible();
+    // The heading renders at once; the saved list is read from the store after it.
+    expect(await screen.findByText('2 aliments · Oats, Milk')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Nouvelle recette' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Renommer Lunch box' })).toBeVisible();
   });

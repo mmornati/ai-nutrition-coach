@@ -120,6 +120,36 @@ Another reverse proxy (nginx, a tunnel)? Point it at the app, terminate TLS ther
 that proxy runs **in a container**, `127.0.0.1:8080` is its own loopback, not the app: put both on a shared
 docker network and proxy to `http://ai-nutrition-coach:8080` (the compose service name).
 
+## Run the published image instead of building
+
+Every commit on `main` whose image passed its checks is published to the GitHub Container Registry
+(`.github/workflows/publish.yml`): the image is built, scanned (trivy: no fixable HIGH/CRITICAL) and driven in
+WebKit and Chromium (`scripts/webkit_smoke.sh`) **before** it is pushed. Nothing in it is specific to a host:
+every setting on this page is read by the container at start, so the published image serves your instance as
+well as one you build.
+
+| Tag                                           | What it is                                                              |
+| --------------------------------------------- | ----------------------------------------------------------------------- |
+| `ghcr.io/mmornati/ai-nutrition-coach:edge`    | the head of `main` (never `:latest`)                                    |
+| `ghcr.io/mmornati/ai-nutrition-coach:X.Y.Z`   | a release (`vX.Y.Z` tag); also `:X.Y`, and `:latest` for the highest one |
+| `ghcr.io/mmornati/ai-nutrition-coach:sha-<7>` | one exact commit, to pin or roll back                                   |
+
+Set the image in `infra/.env` (or the environment) and pull instead of building:
+
+```sh
+AI_NUTRITION_COACH_IMAGE_TAG=ghcr.io/mmornati/ai-nutrition-coach:edge
+```
+
+```sh
+docker compose pull && docker compose up -d   # no --build: the compose `build:` section is then unused
+```
+
+With a published image the compose `build:` section (and its `AI_NUTRITION_COACH_PROJECT_URL` /
+`AI_NUTRITION_COACH_RELEASE` build arguments) is not used. Do **not** add `--build`: it would build this
+checkout and tag the result with the registry's name. **Updating** is the same `pull` + `up -d` (a scheduler
+such as Coolify's or a nightly cron can run it). Each image carries `org.opencontainers.image.revision` (the
+commit it was built from), a provenance attestation and an SBOM.
+
 ## Where your data lives
 
 **In your browser, not on the server.** Your history is stored encrypted
@@ -168,7 +198,7 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_PROXY_TRANSCRIPTION_MODEL`                         | `whisper-1`              | The one model a recording may name (the app reads it from `/ai/config.json`; any other is refused).                                                                                                                     |
 | `AI_PROXY_TRANSCRIPTION_RATE` / `_RATE_ALL` / `_BURST` | `6r/m` / `20r/m` / `2`   | The voice route's own limits: per client address, for the whole instance, and the burst. Both rates apply.                                                                                                              |
 | `AI_NUTRITION_COACH_SW_KILL`                           | –                        | `1` serves the service-worker kill switch (escape hatch; [`docs/pwa.md`](./pwa.md#if-an-update-goes-wrong-the-escape-hatches)).                                                                                         |
-| `AI_NUTRITION_COACH_IMAGE_TAG`                         | `ai-nutrition-coach:dev` | Image tag to build/run.                                                                                                                                                                                                 |
+| `AI_NUTRITION_COACH_IMAGE_TAG`                         | `ai-nutrition-coach:dev` | Image tag to build/run; `ghcr.io/mmornati/ai-nutrition-coach:edge` runs the published image (see above).                                                                                                                                                                                               |
 | `AI_NUTRITION_COACH_CONTAINER_NAME`                    | `ai-nutrition-coach`     | Container name for plain `up`.                                                                                                                                                                                          |
 
 `bin/ai-nutrition-coach up --compose` runs the same container through
