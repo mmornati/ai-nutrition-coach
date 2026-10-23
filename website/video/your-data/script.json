@@ -1,0 +1,101 @@
+{
+ "_doc": "Episode 'Your data, on your device' of the AI Nutrition Coach videos. Facts: docs/your-data.md, docs/telemetry-posture.md, docs/guide/your-data.md, apps/web/src/i18n/en.ts. Numbers in words, no exclamation marks.",
+ "langs": [
+  "en"
+ ],
+ "engine": "kokoro",
+ "voices": {
+  "kokoro": {
+   "en": {
+    "voice": "af_heart",
+    "speed": 0.95
+   }
+  }
+ },
+ "scenes": [
+  {
+   "id": "intro",
+   "min": 7,
+   "lead": 0.7,
+   "chapter": {
+    "en": "Your data, on your device"
+   },
+   "en": [
+    "Your data, on your device.",
+    "Your history lives in one place: an encrypted store in your browser, and on no server."
+   ]
+  },
+  {
+   "id": "store",
+   "min": 14,
+   "chapter": {
+    "en": "Opened by your passphrase"
+   },
+   "en": [
+    "It is a SQLite database, encrypted with ChaCha20-Poly1305.",
+    "The key comes from your passphrase, is held in memory only while unlocked, and is never written to disk.",
+    "A wrong passphrase does not open it, and a forgotten one cannot be recovered."
+   ]
+  },
+  {
+   "id": "lock",
+   "min": 14,
+   "chapter": {
+    "en": "Lock, and keep"
+   },
+   "en": [
+    "Press Lock, and the store closes at once.",
+    "It also locks itself after fifteen idle minutes, or when the page has been hidden for five.",
+    "Browsers may clear storage when space runs low, so the app asks yours to keep it, and shows the answer."
+   ]
+  },
+  {
+   "id": "backup",
+   "min": 14,
+   "chapter": {
+    "en": "An encrypted backup"
+   },
+   "en": [
+    "So keep an encrypted backup: one file, sealed with a backup passphrase, Argon2id and AES-256-GCM.",
+    "It holds your plates, coach notes, saved meals, recipes, profile and language.",
+    "Never your AI key, your AI settings or your consents."
+   ]
+  },
+  {
+   "id": "restore",
+   "min": 13,
+   "chapter": {
+    "en": "Restore, and carry it"
+   },
+   "en": [
+    "Restore it here or on a new device, and it is merged with what is there.",
+    "A wrong passphrase or a damaged file changes nothing.",
+    "Sync between devices is planned, not built; for now, this file carries your history."
+   ]
+  },
+  {
+   "id": "leave",
+   "min": 11,
+   "chapter": {
+    "en": "Export, remove, erase"
+   },
+   "en": [
+    "Export writes CSV or JSON: plain, unencrypted files you hold yourself.",
+    "You can remove one plate, or erase all local data, behind one confirmation."
+   ]
+  },
+  {
+   "id": "outro",
+   "min": 10,
+   "tail": 1.6,
+   "chapter": {
+    "en": "Nothing sent behind your back"
+   },
+   "en": [
+    "The privacy page lists what is stored and what is sent, and there is no telemetry at all.",
+    "Your data, on your device.",
+    "The details are in the guide."
+   ]
+  }
+ ]
+}

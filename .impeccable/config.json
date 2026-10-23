@@ -92,6 +92,411 @@
         ],
         "createdAt": "2026-10-22T05:46:24.704Z",
         "reason": "Claude: the canon card deliberately renders the category standard in Inter; spent mockup, not shipped"
+      },
+      {
+        "rule": "extreme-negative-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:15:22.616Z",
+        "reason": "Claude: direction-round comp (static screenshot source), not shipped UI"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:15:22.638Z",
+        "reason": "Claude: direction-round comp (static screenshot source), not shipped UI"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:15:22.664Z",
+        "reason": "Claude: direction-round comp (static screenshot source), not shipped UI"
+      },
+      {
+        "rule": "all-caps-body",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.619Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.641Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.664Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.685Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.705Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.727Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "hero-eyebrow-chip",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.747Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.768Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.789Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.807Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.824Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.841Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/assigned.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.859Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/challenger-brick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.923Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/challenger-brick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.941Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/challenger-brick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.959Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/challenger-brick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.978Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/challenger-brick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:30.996Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "all-caps-body",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.064Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.082Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.100Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.118Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.136Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.155Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.173Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.191Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "gpt-thin-border-wide-shadow",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.210Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "hero-eyebrow-chip",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.229Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.247Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.265Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.284Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/canon.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.303Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.362Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.380Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/docs/model-pick.html"
+        ],
+        "createdAt": "2026-10-23T17:16:31.398Z",
+        "reason": "Claude: direction-round comp (screenshot source), not shipped UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sf mono",
+        "files": [
+          "website/assets/site.css"
+        ],
+        "createdAt": "2026-10-23T17:39:08.797Z",
+        "reason": "Claude: system monospace stack only for literal shell commands and request lines (code), not a brand face"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.839Z",
+        "reason": "Claude: ruled-list grammar (DESIGN.md 2px ink rule over row lists); rows separated by rules with vertical padding, not boxed containers"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "44px",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.864Z",
+        "reason": "Claude: phone device frame around a real screenshot, not a UI surface"
+      },
+      {
+        "rule": "repeating-stripes-gradient",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.889Z",
+        "reason": "Claude: DESIGN.md's own weave texture and dashed bare-cotton rows"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sf mono",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.910Z",
+        "reason": "Claude: system monospace only for literal commands and request lines"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(217, 213, 204)",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.930Z",
+        "reason": "Claude: secondary text tints on the one ink band, derived from cotton; to be recorded in DESIGN.md by the documenter"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(189, 183, 173)",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-23T17:41:20.955Z",
+        "reason": "Claude: secondary text tints on the one ink band, derived from cotton; to be recorded in DESIGN.md by the documenter"
       }
     ]
   }

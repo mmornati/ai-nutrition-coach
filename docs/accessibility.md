@@ -63,4 +63,4 @@ Colour is never the only signal: states carry text.
 
 - [`docs/no-dark-patterns-standard.md`](./no-dark-patterns-standard.md)
 - [`docs/adults-only.md`](./adults-only.md)
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+- [`CONTRIBUTING.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/CONTRIBUTING.md)

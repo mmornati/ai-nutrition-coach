@@ -1,0 +1,126 @@
+# Documentation site (MkDocs Material). Built by scripts/build-site.sh: the landing page (website/) at the root of
+# https://mmornati.github.io/ai-nutrition-coach/, this documentation under /docs/ and the narrated videos under /video/.
+# The look is the app's own ("The Torchon", DESIGN.md): docs/stylesheets/torchon.css and docs/overrides/.
+
+site_name: AI Nutrition Coach
+site_description: "A calm, offline-first meal log that shows real grams and nutrients, asks one kind question instead of passing a verdict, and keeps your history encrypted on your own device."
+site_author: mmornati
+site_url: https://mmornati.github.io/ai-nutrition-coach/docs/
+
+repo_name: mmornati/ai-nutrition-coach
+repo_url: https://github.com/mmornati/ai-nutrition-coach
+edit_uri: edit/main/docs/
+
+copyright: >-
+  MIT licence. A meal log for adults, not a medical or diet service: the coach gives no diagnosis, treatment or
+  medication advice. Typeface: Schibsted Grotesk, SIL Open Font License 1.1.
+
+theme:
+  name: material
+  language: en
+  custom_dir: docs/overrides
+  font: false
+  logo: assets/brand/mark.svg
+  favicon: assets/brand/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+  # Light only, like the app (DESIGN.md: one cotton ground, no dark theme yet).
+  palette:
+    scheme: default
+    primary: custom
+    accent: custom
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mmornati/ai-nutrition-coach
+      name: The source on GitHub
+
+extra_css:
+  - stylesheets/torchon.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+
+# Engineering notes, plans and the migration record stay in the repository, out of the site. The roadmap
+# (encrypted-sync-plan.md) is linked on GitHub instead.
+exclude_docs: |
+  overrides/
+  design/
+  migration/
+  adr/0004-flutter-to-pwa.md
+  notes.md
+  release-checklist.md
+  i18n-plan.md
+  pwa-refactor-plan.md
+  encrypted-sync-plan.md
+  v2-managed-oversight.md
+  assets/torchon-band.svg
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Your first plate: getting-started.md
+      - What it does: features.md
+  - Using it:
+      - Log a plate: guide/log-a-plate.md
+      - Your day and your week: guide/day-and-week.md
+      - The coach: guide/coach.md
+      - Your AI: guide/your-ai.md
+      - Back up, export, erase: guide/your-data.md
+      - Settings: guide/settings.md
+      - Languages: guide/languages.md
+  - Security and privacy:
+      - How it is secured: security.md
+      - Data protection, in detail: your-data.md
+      - AI tiers, in detail: ai-tiers.md
+      - What leaves the device: telemetry-posture.md
+      - The No-Dark-Patterns Standard: no-dark-patterns-standard.md
+      - Adults only: adults-only.md
+      - Accessibility: accessibility.md
+  - Run your own:
+      - Self-host: self-host.md
+      - The installable app: pwa.md
+      - Decisions:
+          - The encrypted store: adr/0005-web-encrypted-store.md
+          - Calm nutrition numbers: adr/0006-nutrition-numbers-calm-framing.md
+          - The encrypted vault: adr/0007-encrypted-vault.md
+  - Videos: videos.md
+  - FAQ: faq.md

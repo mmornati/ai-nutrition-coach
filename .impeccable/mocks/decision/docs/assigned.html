@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed Packet Rack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Libre+Franklin:ital,wght@0,400;0,500;0,600;0,800;1,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cobalt:#1E3B8A; --cobalt-deep:#162C6A; --kraft:#F4E9C8; --kraft-2:#E9DAB0;
+  --veg:#1F7A4D; --protein:#B5262E; --starch:#C08420; --dairy:#2D5DA8; --ink:#161616;
+  --wire:rgba(214,224,252,.30); --wire-front:#C7D1EC;
+  --slab:"Alfa Slab One", Rockwell, serif;
+  --text:"Libre Franklin", system-ui, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--cobalt);color:var(--kraft)}
+body{font-family:var(--text);width:1440px;height:900px;overflow:hidden;position:relative;
+  background:
+    radial-gradient(1200px 600px at 30% 10%, rgba(255,255,255,.05), transparent 60%),
+    var(--cobalt);}
+/* faint litho grain */
+body::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.10;
+  background-image:radial-gradient(rgba(0,0,0,.6) .6px, transparent .8px);background-size:4px 4px;}
+
+/* ---------- nav: the rack's printed header sign ---------- */
+nav{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;padding:0 72px;
+  border-bottom:2px solid rgba(244,233,200,.22)}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--kraft)}
+.brand .seal{width:40px;height:40px}
+.brand b{font-family:var(--slab);font-weight:400;font-size:23px;letter-spacing:.01em;line-height:1}
+.brand small{display:block;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;opacity:.75;margin-top:5px}
+.links{display:flex;gap:34px;margin-left:auto;list-style:none}
+.links a{color:var(--kraft);text-decoration:none;font-weight:600;font-size:15px;letter-spacing:.01em}
+.links a:hover{text-decoration:underline;text-underline-offset:5px}
+.lang{margin-left:40px;font-size:13px;font-weight:600;letter-spacing:.12em;border:1.5px solid rgba(244,233,200,.5);border-radius:3px;padding:6px 9px}
+.lang span{opacity:.55}
+
+/* ---------- hero copy ---------- */
+.hero{position:absolute;left:72px;top:104px;width:860px;z-index:3}
+.eyebrow{display:inline-flex;gap:10px;align-items:center;font-size:12.5px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--kraft)}
+.eyebrow i{display:inline-block;width:34px;height:3px;background:var(--starch)}
+h1{font-family:var(--slab);font-weight:400;font-size:56px;line-height:1.04;white-space:nowrap;letter-spacing:-.005em;margin-top:16px;color:var(--kraft)}
+h1 em{font-style:normal;color:var(--kraft);text-shadow:3px 3px 0 var(--protein)}
+.lede{margin-top:18px;font-size:18px;line-height:1.5;max-width:660px;color:rgba(244,233,200,.9)}
+.lede strong{color:var(--kraft);font-weight:600}
+.actions{display:flex;align-items:center;gap:34px;margin-top:24px}
+.stamp{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;text-decoration:none;
+  background:var(--kraft);color:var(--ink);padding:13px 22px 12px;border-radius:3px;transform:rotate(-1.4deg);
+  box-shadow:0 0 0 3px var(--cobalt),0 0 0 5px var(--kraft),5px 7px 0 5px var(--cobalt-deep)}
+.stamp b{font-family:var(--slab);font-weight:400;font-size:23px;letter-spacing:.005em}
+.stamp code{font:600 12.5px ui-monospace,"SF Mono",Menlo,monospace;color:var(--protein)}
+.tour{display:inline-flex;align-items:center;gap:12px;color:var(--kraft);text-decoration:none;font-weight:600;font-size:16.5px}
+.tour .play{width:36px;height:36px;border-radius:50%;border:2px solid var(--kraft);display:grid;place-items:center}
+.tour u{text-decoration-thickness:1.5px;text-underline-offset:5px}
+
+/* ---------- back of packet card ---------- */
+.back{position:absolute;right:72px;top:110px;width:430px;background:var(--kraft);color:var(--ink);
+  transform:rotate(1.6deg);padding:22px 26px 20px;border-radius:2px;
+  box-shadow:10px 12px 0 var(--cobalt-deep)}
+.back::before{content:"";position:absolute;inset:8px;border:1.5px solid var(--ink);pointer-events:none;opacity:.85}
+.back h3{font-family:var(--slab);font-weight:400;font-size:19px;display:flex;justify-content:space-between;align-items:baseline}
+.back h3 span{font-family:var(--text);font-weight:800;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--protein)}
+.steps{list-style:none;margin-top:12px;display:grid;gap:8px}
+.steps li{display:grid;grid-template-columns:74px 1fr;gap:12px;align-items:baseline;font-size:14px;line-height:1.38}
+.steps .k{font-weight:800;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+.steps .k s{display:block;text-decoration:line-through;text-decoration-thickness:1.5px;opacity:.5;font-weight:600}
+.steps code{font:600 12.5px ui-monospace,Menlo,monospace;background:rgba(22,22,22,.08);padding:1px 5px;border-radius:2px}
+.rule{height:0;border-top:2px solid var(--ink);margin:15px 0 11px}
+.defaults-h{font-weight:800;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;display:flex;justify-content:space-between}
+.defaults-h em{font-style:normal;font-weight:600;letter-spacing:.04em;text-transform:none;opacity:.7}
+.def{display:grid;grid-template-columns:auto 1fr 30px;align-items:center;gap:10px;font-size:13.5px;margin-top:7px}
+.def .ln{height:3px}
+.def .on{background:var(--ink)}
+.def .off{background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 22px)}
+.def b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-align:right}
+
+/* ---------- wire rack ---------- */
+.rack{position:absolute;left:0;top:490px;width:1440px;height:422px;pointer-events:none}
+.packets{position:absolute;left:78px;top:514px;display:flex;gap:26px}
+
+.packet{width:236px;height:372px;background:var(--kraft);color:var(--ink);position:relative;display:flex;flex-direction:column;
+  padding:22px 14px 12px;
+  -webkit-mask:radial-gradient(circle at 50% 100%,#000 9.4px,transparent 10px) 0 0/20px 10px repeat-x,
+               linear-gradient(#000,#000) 0 9px/100% calc(100% - 9px) no-repeat;
+          mask:radial-gradient(circle at 50% 100%,#000 9.4px,transparent 10px) 0 0/20px 10px repeat-x,
+               linear-gradient(#000,#000) 0 9px/100% calc(100% - 9px) no-repeat;}
+.slot{position:relative;filter:drop-shadow(6px 8px 0 rgba(10,22,60,.45))}
+.slot:nth-child(1){transform:rotate(-1.2deg) translateY(4px)}
+.slot:nth-child(2){transform:rotate(.8deg)}
+.slot:nth-child(3){transform:rotate(-.5deg) translateY(6px)}
+.slot:nth-child(4){transform:rotate(1.1deg) translateY(2px)}
+.slot:nth-child(5){transform:rotate(-.9deg) translateY(5px)}
+.ph{display:flex;justify-content:space-between;align-items:center;font-size:9.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}
+.ph .mk{font-family:var(--slab);font-weight:400;font-size:13px;letter-spacing:.02em;text-transform:none}
+.art{height:148px;margin-top:8px;border-radius:2px;display:grid;place-items:center;position:relative;overflow:hidden}
+.art svg{width:100%;height:100%}
+.vname{font-family:var(--slab);font-weight:400;font-size:31px;line-height:1;margin-top:12px;letter-spacing:-.005em}
+.vline{font-size:12px;font-weight:700;letter-spacing:.06em;margin-top:6px}
+.note{font-size:12.5px;line-height:1.38;margin-top:7px;opacity:.88}
+.bands{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.bands span{height:20px;color:var(--kraft);font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;display:grid;place-items:center}
+.bands .v{background:var(--veg)} .bands .p{background:var(--protein)} .bands .s{background:var(--starch)} .bands .d{background:var(--dairy)}
+.bands .x{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink);opacity:.45}
+</style>
+</head>
+<body>
+
+<nav aria-label="Primary">
+  <a class="brand" href="#">
+    <svg class="seal" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="19" fill="#F4E9C8"/>
+      <path d="M20 20 L20 3 A17 17 0 0 1 37 20 Z" fill="#1F7A4D"/>
+      <path d="M20 20 L37 20 A17 17 0 0 1 20 37 Z" fill="#B5262E"/>
+      <path d="M20 20 L20 37 A17 17 0 0 1 3 20 Z" fill="#C08420"/>
+      <path d="M20 20 L3 20 A17 17 0 0 1 20 3 Z" fill="#2D5DA8"/>
+      <circle cx="20" cy="20" r="7" fill="#F4E9C8"/>
+    </svg>
+    <span><b>AI Nutrition Coach</b><small>Seed Co. · yours to run · open source</small></span>
+  </a>
+  <ul class="links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#self-host">Self-host</a></li>
+    <li><a href="#docs">Docs</a></li>
+  </ul>
+  <div class="lang">EN <span>/ FR</span></div>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow"><i></i>Five packets · one honest plate</div>
+  <h1>Log what you ate.<br>Grow it on <em>your own</em> ground.</h1>
+  <p class="lede">Snap a photo, scan a barcode, type it or say it. Each meal lands on a Day Board as one plate: four food groups, grams and nutrients shown plainly against EU reference intakes. <strong>No account, no streaks, no telemetry.</strong></p>
+  <div class="actions">
+    <a class="stamp" href="#self-host"><b>Sow it on your own server</b><code>$ bin/ai-nutrition-coach up</code></a>
+    <a class="tour" href="#tour"><span class="play"><svg width="12" height="14" viewBox="0 0 12 14"><path d="M1 1 L11 7 L1 13 Z" fill="#F4E9C8"/></svg></span><u>Watch the 90-second tour</u></a>
+  </div>
+</section>
+
+<aside class="back" aria-label="Back of packet">
+  <h3>How to grow <span>Back of packet</span></h3>
+  <ol class="steps">
+    <li><span class="k"><s>Sow</s>Install</span><span>One command, <code>bin/ai-nutrition-coach up</code>, or the image on ghcr.io. Installs as an app, works offline.</span></li>
+    <li><span class="k"><s>Thin</s>Log</span><span>Photo, barcode, words, voice or a pasted recipe. Saved meals and recents for the rest.</span></li>
+    <li><span class="k"><s>Harvest</s>Review</span><span>The Day Board shows what is there and what is not. The coach asks one question.</span></li>
+  </ol>
+  <div class="rule"></div>
+  <div class="defaults-h">Safety defaults <em>solid = on · gaps = off</em></div>
+  <div class="def"><span>Telemetry</span><span class="ln off"></span><b>off</b></div>
+  <div class="def"><span>Account required</span><span class="ln off"></span><b>off</b></div>
+  <div class="def"><span>Ask before every photo</span><span class="ln on"></span><b>on</b></div>
+  <div class="def"><span>Encrypted local store</span><span class="ln on"></span><b>on</b></div>
+</aside>
+
+<!-- wire rack behind the packets -->
+<svg class="rack" viewBox="0 0 1440 422" aria-hidden="true">
+  <g stroke="rgba(214,224,252,.28)" stroke-width="1.6" fill="none">
+    <line x1="40" y1="10" x2="1400" y2="10"/>
+    <line x1="40" y1="16" x2="1400" y2="16"/>
+    <line x1="40" y1="210" x2="1400" y2="210"/>
+    <g id="v">
+      <line x1="60" y1="10" x2="60" y2="422"/><line x1="122" y1="10" x2="122" y2="422"/>
+      <line x1="184" y1="10" x2="184" y2="422"/><line x1="246" y1="10" x2="246" y2="422"/>
+      <line x1="308" y1="10" x2="308" y2="422"/><line x1="370" y1="10" x2="370" y2="422"/>
+      <line x1="432" y1="10" x2="432" y2="422"/><line x1="494" y1="10" x2="494" y2="422"/>
+      <line x1="556" y1="10" x2="556" y2="422"/><line x1="618" y1="10" x2="618" y2="422"/>
+      <line x1="680" y1="10" x2="680" y2="422"/><line x1="742" y1="10" x2="742" y2="422"/>
+      <line x1="804" y1="10" x2="804" y2="422"/><line x1="866" y1="10" x2="866" y2="422"/>
+      <line x1="928" y1="10" x2="928" y2="422"/><line x1="990" y1="10" x2="990" y2="422"/>
+      <line x1="1052" y1="10" x2="1052" y2="422"/><line x1="1114" y1="10" x2="1114" y2="422"/>
+      <line x1="1176" y1="10" x2="1176" y2="422"/><line x1="1238" y1="10" x2="1238" y2="422"/>
+      <line x1="1300" y1="10" x2="1300" y2="422"/><line x1="1362" y1="10" x2="1362" y2="422"/>
+    </g>
+  </g>
+  <g fill="#C7D1EC"><circle cx="40" cy="13" r="5"/><circle cx="1400" cy="13" r="5"/></g>
+</svg>
+
+<div class="packets" id="features">
+  <!-- 1 Photo -->
+  <div class="slot"><article class="packet">
+    <div class="ph"><span class="mk">AI Nutrition Coach</span><span>No. 1</span></div>
+    <div class="art" style="background:var(--veg)">
+      <svg viewBox="0 0 208 160" aria-hidden="true">
+        <circle cx="104" cy="82" r="64" fill="#F4E9C8"/>
+        <circle cx="104" cy="82" r="50" fill="none" stroke="#161616" stroke-width="2"/>
+        <path d="M104 82 L104 32 A50 50 0 0 1 154 82 Z" fill="#1F7A4D"/>
+        <circle cx="122" cy="52" r="7" fill="#F4E9C8"/><circle cx="136" cy="68" r="6" fill="#F4E9C8"/>
+        <path d="M104 82 L154 82 A50 50 0 0 1 104 132 Z" fill="#B5262E"/>
+        <path d="M104 82 L104 132 A50 50 0 0 1 54 82 Z" fill="#C08420"/>
+        <path d="M70 96 h22 M66 106 h26 M74 116 h18" stroke="#F4E9C8" stroke-width="3" stroke-linecap="round"/>
+        <path d="M104 82 L54 82 A50 50 0 0 1 104 32 Z" fill="#2D5DA8"/>
+        <circle cx="84" cy="62" r="12" fill="#F4E9C8"/>
+        <!-- viewfinder corners -->
+        <g stroke="#F4E9C8" stroke-width="4" fill="none" stroke-linecap="square">
+          <path d="M18 30 V14 H34"/><path d="M174 14 H190 V30"/><path d="M18 130 V146 H34"/><path d="M174 146 H190 V130"/>
+        </g>
+      </svg>
+    </div>
+    <h2 class="vname">Photo</h2>
+    <div class="vline">Plate seen from above</div>
+    <p class="note">Metadata stripped. Sent only after you agree, every time.</p>
+    <div class="bands"><span class="v">veg</span><span class="p">protein</span><span class="s">starch</span><span class="d">dairy</span></div>
+  </article></div>
+
+  <!-- 2 Barcode -->
+  <div class="slot"><article class="packet">
+    <div class="ph"><span class="mk">AI Nutrition Coach</span><span>No. 2</span></div>
+    <div class="art" style="background:var(--protein)">
+      <svg viewBox="0 0 208 160" aria-hidden="true">
+        <rect x="30" y="26" width="148" height="108" rx="4" fill="#F4E9C8"/>
+        <g fill="#161616">
+          <rect x="44" y="40" width="4" height="66"/><rect x="51" y="40" width="2" height="66"/><rect x="56" y="40" width="6" height="66"/>
+          <rect x="65" y="40" width="2" height="66"/><rect x="70" y="40" width="4" height="66"/><rect x="78" y="40" width="2" height="66"/>
+          <rect x="83" y="40" width="7" height="66"/><rect x="93" y="40" width="2" height="66"/><rect x="98" y="40" width="3" height="72"/>
+          <rect x="104" y="40" width="3" height="72"/><rect x="110" y="40" width="5" height="66"/><rect x="118" y="40" width="2" height="66"/>
+          <rect x="123" y="40" width="6" height="66"/><rect x="132" y="40" width="2" height="66"/><rect x="137" y="40" width="4" height="66"/>
+          <rect x="144" y="40" width="2" height="66"/><rect x="149" y="40" width="7" height="66"/><rect x="159" y="40" width="4" height="66"/>
+        </g>
+        <text x="104" y="126" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="11" font-weight="700" fill="#161616" letter-spacing="2">3 017620 422003</text>
+        <line x1="20" y1="74" x2="188" y2="74" stroke="#C08420" stroke-width="3"/>
+      </svg>
+    </div>
+    <h2 class="vname">Barcode</h2>
+    <div class="vline">Open Food Facts</div>
+    <p class="note">Scan the pack. The label's own numbers, per gram.</p>
+    <div class="bands"><span class="v">veg</span><span class="p">protein</span><span class="s">starch</span><span class="d">dairy</span></div>
+  </article></div>
+
+  <!-- 3 Describe -->
+  <div class="slot"><article class="packet">
+    <div class="ph"><span class="mk">AI Nutrition Coach</span><span>No. 3</span></div>
+    <div class="art" style="background:var(--starch)">
+      <svg viewBox="0 0 208 160" aria-hidden="true">
+        <path d="M26 28 h156 a8 8 0 0 1 8 8 v64 a8 8 0 0 1 -8 8 h-96 l-30 26 v-26 h-30 a8 8 0 0 1 -8 -8 v-64 a8 8 0 0 1 8 -8z" fill="#F4E9C8"/>
+        <text x="40" y="58" font-family="Alfa Slab One, serif" font-size="17" fill="#161616">Lentil salad,</text>
+        <text x="40" y="82" font-family="Libre Franklin, sans-serif" font-weight="700" font-size="14" fill="#161616">~180 g · 410 kcal</text>
+        <rect x="40" y="92" width="72" height="4" fill="#1F7A4D"/><rect x="114" y="92" width="34" height="4" fill="#B5262E"/>
+        <g fill="#161616"><rect x="150" y="128" width="4" height="10" rx="2"/><rect x="158" y="122" width="4" height="22" rx="2"/><rect x="166" y="116" width="4" height="34" rx="2"/><rect x="174" y="124" width="4" height="18" rx="2"/><rect x="182" y="129" width="4" height="8" rx="2"/></g>
+      </svg>
+    </div>
+    <h2 class="vname">Describe</h2>
+    <div class="vline">Type it, say it, paste a recipe</div>
+    <p class="note">Plain words become grams. Estimates marked with a ~.</p>
+    <div class="bands"><span class="v">veg</span><span class="p">protein</span><span class="s">starch</span><span class="d">dairy</span></div>
+  </article></div>
+
+  <!-- 4 Day Board -->
+  <div class="slot"><article class="packet">
+    <div class="ph"><span class="mk">AI Nutrition Coach</span><span>No. 4</span></div>
+    <div class="art" style="background:var(--dairy)">
+      <svg viewBox="0 0 208 160" aria-hidden="true">
+        <rect x="22" y="18" width="164" height="124" fill="#F4E9C8"/>
+        <g font-family="Libre Franklin, sans-serif" font-weight="800" font-size="8.5" fill="#161616" letter-spacing="1">
+          <text x="32" y="38">BREAKFAST</text><text x="32" y="68">LUNCH</text><text x="32" y="98">SNACK</text><text x="32" y="128">DINNER</text>
+        </g>
+        <!-- stripes: filled = present, outline = absent -->
+        <g>
+          <rect x="96" y="28" width="18" height="14" fill="#1F7A4D"/><rect x="117" y="28" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="138" y="28" width="18" height="14" fill="#C08420"/><rect x="159" y="28" width="18" height="14" fill="#2D5DA8"/>
+          <rect x="96" y="58" width="18" height="14" fill="#1F7A4D"/><rect x="117" y="58" width="18" height="14" fill="#B5262E"/><rect x="138" y="58" width="18" height="14" fill="#C08420"/><rect x="159" y="58" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <rect x="96" y="88" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="117" y="88" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="138" y="88" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="159" y="88" width="18" height="14" fill="#2D5DA8"/>
+          <rect x="96" y="118" width="18" height="14" fill="#1F7A4D"/><rect x="117" y="118" width="18" height="14" fill="#B5262E"/><rect x="138" y="118" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="159" y="118" width="18" height="14" fill="none" stroke="#161616" stroke-width="1.5" stroke-dasharray="3 3"/>
+        </g>
+        <g stroke="#161616" stroke-width="1"><line x1="32" y1="50" x2="177" y2="50"/><line x1="32" y1="80" x2="177" y2="80"/><line x1="32" y1="110" x2="177" y2="110"/></g>
+      </svg>
+    </div>
+    <h2 class="vname">Day Board</h2>
+    <div class="vline">Four groups · one honest plate</div>
+    <p class="note">What is there, what is not. No scores, no red states.</p>
+    <div class="bands"><span class="v">veg</span><span class="p">protein</span><span class="s">starch</span><span class="d">dairy</span></div>
+  </article></div>
+
+  <!-- 5 Your data -->
+  <div class="slot"><article class="packet" id="security">
+    <div class="ph"><span class="mk">AI Nutrition Coach</span><span>No. 5</span></div>
+    <div class="art" style="background:var(--ink)">
+      <svg viewBox="0 0 208 160" aria-hidden="true">
+        <!-- preserving jar -->
+        <rect x="70" y="20" width="68" height="14" rx="2" fill="#C08420"/>
+        <rect x="66" y="34" width="76" height="8" fill="#F4E9C8" opacity=".55"/>
+        <path d="M64 42 h80 a10 10 0 0 1 10 10 v80 a12 12 0 0 1 -12 12 h-76 a12 12 0 0 1 -12 -12 v-80 a10 10 0 0 1 10 -10z" fill="#F4E9C8"/>
+        <rect x="68" y="100" width="72" height="8" fill="#1F7A4D"/><rect x="68" y="110" width="72" height="8" fill="#B5262E"/><rect x="68" y="120" width="72" height="8" fill="#C08420"/><rect x="68" y="130" width="72" height="6" fill="#2D5DA8"/>
+        <!-- padlock -->
+        <path d="M92 70 v-10 a12 12 0 0 1 24 0 v10" fill="none" stroke="#161616" stroke-width="5"/>
+        <rect x="86" y="68" width="36" height="26" rx="3" fill="#161616"/>
+        <circle cx="104" cy="79" r="4" fill="#F4E9C8"/><rect x="102.5" y="80" width="3" height="8" fill="#F4E9C8"/>
+        <path d="M150 54 v54" stroke="#161616" stroke-width="3" opacity=".2"/>
+      </svg>
+    </div>
+    <h2 class="vname">Your data</h2>
+    <div class="vline">Opened by your passphrase</div>
+    <p class="note">Encrypted on device. Backup file, CSV or JSON out.</p>
+    <div class="bands"><span class="v">veg</span><span class="p">protein</span><span class="s">starch</span><span class="d">dairy</span></div>
+  </article></div>
+</div>
+
+<!-- front wire lip of the rack pockets -->
+<svg style="position:absolute;left:0;top:850px;width:1440px;height:30px;pointer-events:none" viewBox="0 0 1440 30" aria-hidden="true">
+  <path d="M40 8 H1400" stroke="rgba(10,22,60,.5)" stroke-width="3" transform="translate(0,4)"/>
+  <path d="M40 8 H1400" stroke="#C7D1EC" stroke-width="2.6"/>
+  <g stroke="#C7D1EC" stroke-width="2.6" fill="none">
+    <path d="M66 8 v-20"/><path d="M328 8 v-20"/><path d="M590 8 v-20"/><path d="M852 8 v-20"/><path d="M1114 8 v-20"/><path d="M1376 8 v-20"/>
+  </g>
+</svg>
+
+</body>
+</html>

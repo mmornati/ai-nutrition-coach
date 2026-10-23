@@ -2,7 +2,7 @@
 
 Status: accepted for Phase 4; the real-device check on iOS Safari and Android Chrome is still pending (see "Open item") · 2026-10-14
 Supersedes (in part): `_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0002-web-encrypted-store.md` (the IndexedDB file system on the main thread; OPFS and a worker were rejected there). The rest of ADR-0002 (cipher, KDF, header, single tab, lock lifecycle, error taxonomy) is kept and ported.
-Follows: [ADR 0004](0004-flutter-to-pwa.md) (plan phase 0 asked for this spike, phase 4 for the implementation).
+Follows: [ADR 0004](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/adr/0004-flutter-to-pwa.md) (plan phase 0 asked for this spike, phase 4 for the implementation).
 
 ## Context
 

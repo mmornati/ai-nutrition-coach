@@ -1,9 +1,20 @@
-# AI Nutrition Coach — self-host (Story 4.4 / FR-11 / AD-2 / NFR9)
+# Self-host
 
 AI Nutrition Coach is yours to run. The self-host build is the `apps/web` React
 PWA (a Vite build). The container is a **static web
 server**: it serves the app and nothing else. It stores no data, makes no
 outbound calls and runs as a non-root user on a read-only filesystem.
+
+<!-- anc-video:self-host -->
+<div class="anc-in-video">
+  <a class="anc-video__poster" href="/ai-nutrition-coach/video/self-host/" tabindex="-1" aria-hidden="true"><img src="/ai-nutrition-coach/video/self-host/poster.jpg" alt="" loading="lazy"></a>
+  <div>
+    <p class="anc-in-video__label">In video</p>
+    <p class="anc-in-video__title"><a href="/ai-nutrition-coach/video/self-host/">Run your own</a></p>
+    <p class="anc-muted">One command, HTTPS for the phones, and a container that holds none of your data.</p>
+  </div>
+</div>
+<!-- /anc-video -->
 
 ## Quick start (this machine)
 
@@ -535,4 +546,4 @@ you configure, the AI your server offers). The import-based telemetry gate (`too
 - [`docs/your-data.md`](./your-data.md) — the protection posture of the encrypted browser store.
 - [`docs/ai-tiers.md`](./ai-tiers.md) — the AI rung surface.
 - [`docs/telemetry-posture.md`](./telemetry-posture.md) — the network surface.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the contributor path.
+- [`CONTRIBUTING.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/CONTRIBUTING.md) — the contributor path.

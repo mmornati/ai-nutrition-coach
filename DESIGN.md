@@ -15,6 +15,9 @@ colors:
   control: "#8A847B"
   control-raised: "#857F76"
   scrim: "rgb(38 36 33 / 0.45)"
+  cotton-on-ink: "#D9D5CC"
+  cotton-faded: "#BDB7AD"
+  control-on-ink: "#9A948A"
 typography:
   display:
     fontFamily: "Schibsted Grotesk, system-ui, sans-serif"
@@ -80,11 +83,17 @@ typography:
     fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.45
+  literal:
+    fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
+    fontSize: "0.92em"
+    fontWeight: 400
+    lineHeight: 1.7
 rounded:
   tag: "4px"
   cloth: "8px"
   sheet: "16px"
   pill: "9999px"
+  device: "44px"
 spacing:
   gutter: "20px"
   gutter-desktop: "28px"
@@ -174,6 +183,30 @@ components:
     rounded: "{rounded.pill}"
     padding: "0 16px"
     height: "48px"
+  button-on-ink:
+    backgroundColor: "{colors.cloth}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: "6px 22px"
+    height: "48px"
+  button-on-ink-secondary:
+    backgroundColor: "transparent"
+    textColor: "{colors.cloth}"
+    typography: "{typography.button}"
+    rounded: "{rounded.pill}"
+    padding: "6px 22px"
+    height: "48px"
+  device-frame:
+    backgroundColor: "{colors.cloth}"
+    rounded: "{rounded.device}"
+    padding: "6px"
+  terminal:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.cloth}"
+    typography: "{typography.literal}"
+    rounded: "{rounded.cloth}"
+    padding: "16px 22px 22px"
 ---
 
 # Design System: AI Nutrition Coach
@@ -346,6 +379,18 @@ Per plate, per day and as a weekly daily average, each nutrient with data (energ
 - The bar does not animate.
 
 **The Neutral Thread Rule.** A nutrient bar is never dyed, never red and never changes colour with its amount.
+
+### Public site (landing and docs)
+
+The site (`website/`, `docs/stylesheets/torchon.css`) is the same towel at page size. It adds only these:
+
+- **The ink band.** One full-bleed Torchon Ink section per page (the trust band), White Cotton text, a 2px White Cotton rule over its lists and 18% White Cotton rules between rows; the focus ring turns White Cotton inside it. Secondary text on ink is **Cotton on Ink** (#D9D5CC, 10.6:1) for sentences and **Faded Cotton** (#BDB7AD, 7.8:1) for section labels, fine print and placeholders in request lines. Pills on ink are a White Cotton fill with ink label, or a White Cotton 2px outline. The terminal panel is the one other ink surface: 8px corners, a sewn label restitched in White Cotton.
+- **Literal type.** The system monospace stack (`ui-monospace, "SF Mono", Menlo, Consolas, monospace`) is reserved for text a person types or a machine sends: commands, request lines, file names. It is never a heading, label or UI face; everything else stays Schibsted Grotesk.
+- **Device frame.** A real app screenshot sits in a phone frame: a 10px ink bezel, 44px outer radius, 6px White Cotton mat, screen corners 30px top and 12px bottom. It may be laid on the cloth at a slight tilt (2.2° at most). No shadow, no reflection, no drawn notch. In docs, inline screenshots take a 2px ink edge with 16px (phone) or 8px (desktop) corners instead.
+- **Defaults as lines.** A setting's state is a 3px line beside its word: solid White Cotton for on, dashed Control on Ink (#9A948A) for off, with a small legend in the heading. The word always carries the state.
+- **Ruled lists.** Lists of facts, steps, rules, tiers and doc links open under a 2px ink rule and separate with 1px Seam rules, a heavy name over a Soft Ink sentence. Steps count in 900 numerals; doc links end in a drawn chevron that slides 4px on hover.
+- **Result band per way in.** Each way of logging carries a small woven band (8px stripes, 5px apart) showing the plate it produces, with the plate named in Label type beside it.
+- **Towel hem.** The footer opens with a full-width hem of the four dyes as 6px rows, 4px apart, under a 2px ink rule; the docs header carries the same hem at 3px. It is the site's mark, `aria-hidden`, always all four in fixed group order: the one place the dyes appear without a group named, and only in site chrome, never in the app or on content.
 
 ## Do's and Don'ts
 

@@ -110,7 +110,7 @@ authority for the gate.
   user-visible string in the docs requires a named-reviewer
   sign-off against this list.
 - **Every release tag** — the release checklist
-  ([`docs/release-checklist.md`](./release-checklist.md)) re-runs
+  ([`docs/release-checklist.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/release-checklist.md)) re-runs
   the gate end-to-end at tag time. The tag cannot ship until the
   sign-off is recorded.
 
@@ -145,7 +145,7 @@ The gate has two enforcement surfaces:
   gate.
 - [`docs/self-host.md`](./self-host.md) — the self-host install;
   same posture.
-- [`docs/release-checklist.md`](./release-checklist.md) — the
+- [`docs/release-checklist.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/release-checklist.md) — the
   release checklist; this standard is the gate.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the contributor path;
+- [`CONTRIBUTING.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/CONTRIBUTING.md) — the contributor path;
   the named-reviewer sign-off lives here.

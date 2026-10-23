@@ -9,7 +9,7 @@ deploy and hand around.
 This page is the whole story: what changed and why, how it works, how to build,
 run and deploy it (including behind Traefik), how to install it on a phone, how
 updates work, backup and limits, and what to do when something looks wrong.
-Design record: [ADR-0003](../_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0003-pwa-primary-distribution.md).
+Design record: [ADR-0003](https://github.com/mmornati/ai-nutrition-coach/blob/main/_bmad-output/planning-artifacts/architecture/architecture-openplate-2026-08-13/ADR-0003-pwa-primary-distribution.md).
 
 - [What changed and why](#what-changed-and-why)
 - [How it works](#how-it-works)
@@ -430,7 +430,7 @@ Playwright (the official image, pinned by digest, sharing the server's network n
 7. in every test, no request to any other origin (each is aborted and recorded) and no uncaught page error.
 
 It is opt-in (needs Docker and the network; the Playwright image is ~3 GB), runs in CI as the `image` job
-of `.github/workflows/ci.yml` and is in the [release checklist](./release-checklist.md). The same
+of `.github/workflows/ci.yml` and is in the [release checklist](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/release-checklist.md). The same
 offline-reload and update flows also run on every PR in `pnpm e2e` (`apps/web/e2e/pwa.spec.ts`, Chromium and
 WebKit) against a small static server that plays "a new version was deployed".
 

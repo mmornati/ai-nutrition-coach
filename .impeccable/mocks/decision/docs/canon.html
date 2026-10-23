@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Nutrition Coach</title>
+<style>
+:root{
+  --paper:#FBFBF8;--paper-2:#F3F1EB;--card:#fff;--line:#E6E2D8;--line-2:#EFECE4;
+  --ink:#262421;--muted:#66625A;--faint:#8A857B;--green:#1F7A4D;--green-2:#17603C;--green-soft:#E6F1EA;
+  --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --sans:ui-sans-serif,-apple-system,"Segoe UI",system-ui,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --veg:#1F7A4D;--pro:#B5262E;--sta:#C08420;--dai:#2D5DA8;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);font-feature-settings:"tnum" 1,"lnum" 1;-webkit-font-smoothing:antialiased;min-height:900px;overflow:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+
+/* header */
+header{border-bottom:1px solid var(--line);background:rgba(251,251,248,.92)}
+.bar{display:flex;align-items:center;gap:36px;height:68px}
+.brand{display:flex;align-items:center;gap:11px;font:600 18px/1 var(--serif);letter-spacing:-.01em;white-space:nowrap}
+.mark{width:30px;height:30px;border-radius:8px;background:var(--ink);display:grid;place-items:center}
+.mark i{display:block;width:16px;height:16px;border-radius:50%;border:2px solid #FBFBF8;position:relative}
+.mark i::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--green)}
+nav{display:flex;gap:26px;font-size:14.5px;color:var(--muted)}
+nav a:hover{color:var(--ink)}
+.right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.search{display:flex;align-items:center;gap:10px;width:268px;height:38px;padding:0 10px 0 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--faint);font-size:14px}
+.search svg{width:15px;height:15px;flex:none}
+.search span{flex:1}
+.search kbd{font:500 11.5px var(--mono);color:var(--muted);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:2px 6px;background:var(--paper)}
+.gh{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);padding:0 4px}
+.gh svg{width:18px;height:18px}
+.lang{font:600 12px var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 600px;gap:40px;align-items:center;height:684px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--green)}
+.eyebrow b{display:inline-block;width:22px;height:1.5px;background:var(--green)}
+h1{font-family:var(--serif);font-weight:600;font-size:60px;line-height:1.03;letter-spacing:-.022em;margin:20px 0 22px;max-width:640px}
+h1 em{font-style:italic;font-weight:500;color:var(--green)}
+.lead{font-size:18px;line-height:1.58;color:var(--muted);max-width:560px;margin:0}
+.cta{display:flex;gap:12px;margin:30px 0 22px}
+.btn{display:inline-flex;align-items:center;gap:10px;height:50px;padding:0 22px;border-radius:999px;font:600 15.5px/1 var(--sans);border:1px solid transparent;white-space:nowrap}
+.btn-primary{background:var(--green);color:#fff;box-shadow:0 1px 0 rgba(0,0,0,.08),0 10px 24px -12px rgba(31,122,77,.7)}
+.btn-primary svg{width:16px;height:16px}
+.btn-ghost{border-color:#CFCabf;border-color:#D2CDC2;color:var(--ink);background:var(--card);padding-left:8px}
+.btn-ghost i{width:34px;height:34px;border-radius:50%;background:var(--ink);display:grid;place-items:center}
+.btn-ghost i svg{width:11px;height:11px;margin-left:2px}
+.btn-ghost small{font:500 13px var(--sans);color:var(--faint);margin-left:-2px}
+.install{display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--faint)}
+.install code{font:12.5px var(--mono);color:var(--ink);background:var(--paper-2);border:1px solid var(--line);padding:6px 11px;border-radius:7px}
+.install code s{text-decoration:none;color:var(--green);margin-right:8px}
+.trust{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:30px;padding-top:22px;border-top:1px solid var(--line);max-width:680px}
+.trust div{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start}
+.trust svg{width:20px;height:20px;color:var(--green);margin-top:2px}
+.trust b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
+.trust span{display:block;font-size:13px;color:var(--faint);line-height:1.4;margin-top:3px}
+
+/* stage */
+.stage{position:relative;height:640px}
+.stage::before{content:"";position:absolute;left:30px;right:10px;top:60px;bottom:24px;border-radius:28px;background:linear-gradient(180deg,#F1EEE6,#F6F4EE);border:1px solid var(--line-2)}
+.stage::after{content:"";position:absolute;left:30px;right:10px;top:60px;bottom:24px;border-radius:28px;background-image:radial-gradient(rgba(38,36,33,.07) 1px,transparent 1.2px);background-size:18px 18px;mask-image:linear-gradient(180deg,#000,transparent 85%)}
+.phone{--w:252px;position:absolute;width:calc(var(--w) + 18px);padding:9px;border-radius:44px;background:#1E1C1A;box-shadow:inset 0 0 0 1.5px #3a3733,0 1px 2px rgba(0,0,0,.15),0 50px 80px -40px rgba(38,36,33,.55),0 20px 40px -24px rgba(38,36,33,.35);z-index:2}
+.screen{position:relative;width:var(--w);height:calc(var(--w) * 830 / 392);overflow:hidden;border-radius:35px;background:#FBFBF8}
+.screen img{position:absolute;width:calc(var(--w) * 1648 / 392);top:calc(var(--w) * -24 / 392);left:calc(var(--w) * var(--x) / 392 * -1);max-width:none}
+.screen::before{display:none;content:"";position:absolute;z-index:2;top:9px;left:50%;width:82px;height:22px;margin-left:-41px;border-radius:12px;background:#1E1C1A}
+.screen .status{position:absolute;z-index:2;top:0;left:0;right:0;height:38px;background:linear-gradient(#FBFBF8 70%,rgba(251,251,248,0));display:flex;justify-content:space-between;padding:12px 26px 0;font:600 11.5px var(--sans)}
+.p1{--w:262px;--x:16;left:190px;top:20px;z-index:3}
+.p2{--w:222px;--x:424;left:24px;top:104px}
+.p3{--w:222px;--x:832;left:388px;top:104px}
+.p2,.p3{filter:saturate(.95)}
+.p2::after,.p3::after{content:"";position:absolute;inset:0;border-radius:44px;background:rgba(251,251,248,.0)}
+
+.note{position:absolute;z-index:4;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 40px -24px rgba(38,36,33,.4),0 1px 2px rgba(38,36,33,.06)}
+.meal{left:-20px;top:120px;width:272px;padding:14px 16px 13px}
+.tag{font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:flex;justify-content:space-between}
+.meal h4{margin:7px 0 2px;font:600 17px var(--serif)}
+.meal .nums{display:flex;gap:14px;font-size:13px;color:var(--muted)}
+.meal .nums b{color:var(--ink);font-weight:600}
+.groups{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:11px}
+.groups span{height:6px;border-radius:2px;background:repeating-linear-gradient(90deg,#DDD8CD 0 4px,transparent 4px 6px)}
+.groups span.on{background:var(--c)}
+.glabels{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:10.5px;color:var(--faint);margin-top:5px}
+.coach{right:-14px;top:452px;width:262px;padding:14px 16px}
+.coach p{margin:8px 0 0;font:15px/1.45 var(--serif);color:var(--ink)}
+.coach .tag i{font-style:normal;color:var(--green)}
+
+/* strip */
+.strip{border-top:1px solid var(--line);background:var(--card)}
+.strip .wrap{display:flex;align-items:center;height:148px;gap:0}
+.fact{flex:1;padding:0 26px;border-left:1px solid var(--line)}
+.fact:first-child{border-left:0;padding-left:0}
+.fact b{display:block;font:600 34px/1 var(--serif);letter-spacing:-.01em}
+.fact span{display:block;font-size:13.5px;color:var(--faint);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#"><span class="mark"><i></i></span>AI Nutrition Coach</a>
+    <nav aria-label="Primary">
+      <a href="#features">Features</a><a href="#how">How it works</a><a href="#security">Security</a><a href="#self-host">Self-host</a><a href="#docs">Docs</a>
+    </nav>
+    <div class="right">
+      <label class="search" role="search">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="m11 11 3.5 3.5"/></svg>
+        <span>Search the docs</span><kbd>⌘K</kbd>
+      </label>
+      <span class="lang">EN · FR</span>
+      <a class="gh" href="#"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.6 7.6 0 0 1 8 3.87c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap hero">
+  <section>
+    <span class="eyebrow"><b></b>Open source · self-hosted · MIT</span>
+    <h1>Know what’s on your plate. <em>Keep it to yourself.</em></h1>
+    <p class="lead">Log a meal by photo, barcode, a few typed words or your voice. Each one lands on the Day Board as one honest plate: its four food groups, grams and nutrients set plainly against EU reference intakes. The coach asks a question, never a verdict.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#self-host"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l-3.5 3.5M8.5 12h5"/></svg>Run your own</a>
+      <a class="btn btn-ghost" href="#film"><i><svg viewBox="0 0 10 12" fill="#fff"><path d="M0 0v12l10-6z"/></svg></i>Watch the 90-second tour</a>
+    </div>
+    <div class="install">One command <code><s>$</s>bin/ai-nutrition-coach up</code> or the image on ghcr.io</div>
+    <div class="trust">
+      <div><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="9" width="12" height="8.5" rx="2"/><path d="M6.8 9V6.5a3.2 3.2 0 0 1 6.4 0V9"/></svg><p style="margin:0"><b>No account</b><span>Encrypted on your device, opened by your passphrase</span></p></div>
+      <div><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="m5 15 10-10"/></svg><p style="margin:0"><b>Zero telemetry</b><span>Nothing leaves unless you send it</span></p></div>
+      <div><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3"/><circle cx="10" cy="10" r="3"/></svg><p style="margin:0"><b>AI optional</b><span>Your own key, the instance’s, or none</span></p></div>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="The app on a phone">
+    <div class="phone p2"><div class="screen"><img src="../../../../docs/design/torchon/phone-screens.png" alt="Log a plate: snapshot, barcode, type it, describe"></div></div>
+    <div class="phone p3"><div class="screen"><img src="../../../../docs/design/torchon/phone-screens.png" alt="A breakfast with lentils, about 188 kcal and 15 g protein"></div></div>
+    <div class="phone p1"><div class="screen"><img src="../../../../docs/design/torchon/phone-screens.png" alt="Today: the Day Board with two breakfasts"></div></div>
+
+    <div class="note coach">
+      <div class="tag"><span>The coach</span><i>one question</i></div>
+      <p>This yogurt has about 18 g of sugars, around a fifth of a day’s reference intake. Was it the one you meant?</p>
+    </div>
+    <div class="note meal">
+      <div class="tag"><span>Lunch · 12:40</span><span>Demo</span></div>
+      <h4>Lentil salad</h4>
+      <div class="nums"><span><b>~180</b> g</span><span><b>410</b> kcal</span><span><b>21</b> g protein</span></div>
+      <div class="groups"><span class="on" style="--c:var(--veg)"></span><span class="on" style="--c:var(--pro)"></span><span></span><span></span></div>
+      <div class="glabels"><span>Veg &amp; fruit</span><span>Protein</span><span>Starch</span><span>Dairy</span></div>
+    </div>
+  </section>
+</main>
+
+<div class="strip">
+  <div class="wrap">
+    <div class="fact"><b>6</b><span>ways to log: photo, barcode, typing, words, voice, a recipe</span></div>
+    <div class="fact"><b>4</b><span>food groups on every plate, present or absent</span></div>
+    <div class="fact"><b>8</b><span>nutrients against EU reference intakes</span></div>
+    <div class="fact"><b>0</b><span>accounts, trackers, streaks or scores</span></div>
+    <div class="fact"><b>EN · FR</b><span>installs as an app, works offline</span></div>
+  </div>
+</div>
+</body>
+</html>
