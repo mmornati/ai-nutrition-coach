@@ -95,27 +95,44 @@ export const BACKUP_KDF: EnvelopeKdf = Object.freeze({
 // base64url (RFC 4648 section 5), no padding, canonical
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-const REVERSE: Readonly<Record<string, number>> = Object.freeze(
-  Object.fromEntries([...ALPHABET].map((c, i) => [c, i])),
-);
+// Lookup tables rather than string concatenation and a keyed object: a backup's ciphertext can be
+// tens of MiB, and this runs on the main thread.
+const ENCODE = Uint8Array.from(ALPHABET, (c) => c.charCodeAt(0));
+/** Char code to its 6-bit value, -1 outside the alphabet. */
+const DECODE = new Int8Array(128).fill(-1);
+for (let i = 0; i < ALPHABET.length; i++) DECODE[ALPHABET.charCodeAt(i)] = i;
+/** Char codes per `String.fromCharCode` call: well under any engine's argument limit. */
+const TEXT_CHUNK = 0x2000;
 
 export function encodeBase64Url(bytes: Uint8Array): string {
-  let out = '';
+  const codes = new Uint8Array(Math.ceil((bytes.length * 4) / 3));
   let i = 0;
+  let o = 0;
   for (; i + 2 < bytes.length; i += 3) {
     const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8) | bytes[i + 2]!;
-    out +=
-      ALPHABET[n >> 18]! + ALPHABET[(n >> 12) & 63]! + ALPHABET[(n >> 6) & 63]! + ALPHABET[n & 63]!;
+    codes[o++] = ENCODE[n >> 18]!;
+    codes[o++] = ENCODE[(n >> 12) & 63]!;
+    codes[o++] = ENCODE[(n >> 6) & 63]!;
+    codes[o++] = ENCODE[n & 63]!;
   }
   const rest = bytes.length - i;
   if (rest === 1) {
     const n = bytes[i]! << 16;
-    out += ALPHABET[n >> 18]! + ALPHABET[(n >> 12) & 63]!;
+    codes[o] = ENCODE[n >> 18]!;
+    codes[o + 1] = ENCODE[(n >> 12) & 63]!;
   } else if (rest === 2) {
     const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8);
-    out += ALPHABET[n >> 18]! + ALPHABET[(n >> 12) & 63]! + ALPHABET[(n >> 6) & 63]!;
+    codes[o] = ENCODE[n >> 18]!;
+    codes[o + 1] = ENCODE[(n >> 12) & 63]!;
+    codes[o + 2] = ENCODE[(n >> 6) & 63]!;
   }
-  return out;
+  const parts: string[] = [];
+  for (let at = 0; at < codes.length; at += TEXT_CHUNK) {
+    parts.push(
+      String.fromCharCode.apply(null, codes.subarray(at, at + TEXT_CHUNK) as unknown as number[]),
+    );
+  }
+  return parts.join('');
 }
 
 /**
@@ -128,9 +145,10 @@ export function decodeBase64Url(text: string): Uint8Array | null {
   let acc = 0;
   let bits = 0;
   let at = 0;
-  for (const ch of text) {
-    const value = REVERSE[ch];
-    if (value === undefined) return null;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    const value = code < 128 ? DECODE[code]! : -1;
+    if (value < 0) return null;
     acc = (acc << 6) | value;
     bits += 6;
     if (bits >= 8) {
