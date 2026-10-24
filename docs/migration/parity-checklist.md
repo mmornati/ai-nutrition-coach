@@ -353,6 +353,6 @@ Approach to port: one typed catalogue per namespace in `apps/web` (or a `package
 | `scripts/fetch_web_sqlite.sh`, `scripts/fetch_web_zxing.sh` | pinned, hash-verified wasm assets | keep the pattern; re-pin for the JS artifacts (zxing-wasm 3.1.1 tarball can be reused as-is) |
 | `scripts/smoke_self_host.sh` | container hardening/headers/egress | **Done (Phase 8)** |
 | `scripts/webkit_smoke.sh`, `tools/webkit_smoke/*` | WebKit + Chromium browser smoke | **Done (Phase 8):** Playwright with real selectors against the production image |
-| `.github/workflows/*.yml` | ci, release-gate (+SBOM), ndp-review, gitleaks, self-host-smoke, browser-smoke | port steps to pnpm; keep Trivy, SBOM, gitleaks |
+| `.github/workflows/*.yml` | ci, release-gate (+SBOM), ndp-review, gitleaks, self-host-smoke, browser-smoke | port steps to pnpm; keep Trivy, SBOM, gitleaks (2026-10-23: consolidated into `ci.yml` + `publish.yml` + `gitleaks.yml`; the SBOM is the attestation attached to the published image) |
 | `scripts/run_local_web.sh`, `.env.example` | local dev runner | `pnpm dev` with Vite env (`VITE_*`, non-secret only) |
 | `bin/ai-nutrition-coach` | self-host wrapper | keep unchanged except build args |

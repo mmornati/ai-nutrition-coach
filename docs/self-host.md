@@ -134,7 +134,7 @@ docker network and proxy to `http://ai-nutrition-coach:8080` (the compose servic
 ## Run the published image instead of building
 
 Every commit on `main` whose image passed its checks is published to the GitHub Container Registry
-(`.github/workflows/publish.yml`): the image is built, scanned (trivy: no fixable HIGH/CRITICAL) and driven in
+(`.github/workflows/ci.yml`, then `.github/workflows/publish.yml`): the image is built, scanned (trivy: no fixable HIGH/CRITICAL) and driven in
 WebKit and Chromium (`scripts/webkit_smoke.sh`) **before** it is pushed. Nothing in it is specific to a host:
 every setting on this page is read by the container at start, so the published image serves your instance as
 well as one you build.
@@ -241,7 +241,8 @@ default is the project repository, `https://github.com/mmornati/ai-nutrition-coa
 at a fork. `AI_NUTRITION_COACH_BUILD=release AI_NUTRITION_COACH_PROJECT_URL=… node tools/check_project_url.mjs`
 fails only if the URL is empty or `.invalid` for a `selfhost` / `release` build. It is **enforced** for release
 images: `docker build --build-arg AI_NUTRITION_COACH_RELEASE=1 --build-arg AI_NUTRITION_COACH_PROJECT_URL=…` runs
-it before the web build, and `.github/workflows/release-gate.yml` does so for tags, taking the URL from the
+it before the web build, and CI does so for every image it tests and publishes (`.github/workflows/ci.yml`,
+`.github/workflows/publish.yml`), taking the URL from the
 repository **variable** `AI_NUTRITION_COACH_PROJECT_URL` (optional override, under Settings → Secrets and variables
 → Actions → Variables; left unset, the default above is used). A URL that is set must be a plain `https://` URL
 (no spaces or quotes); `bin/ai-nutrition-coach` and the image build refuse anything else.

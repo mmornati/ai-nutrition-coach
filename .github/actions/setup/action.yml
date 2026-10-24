@@ -1,0 +1,45 @@
+# The JavaScript toolchain every CI job starts from: pnpm 11.14.0 (the root package.json
+# `packageManager`, through corepack), Node 24 with the pnpm store cached, a frozen-lockfile install
+# and, optionally, the pinned wasm assets the app fetches (sqlite3mc, zxing, Argon2id).
+#
+# Keep the versions in sync with infra/Dockerfile and CONTRIBUTING.md. Runs after actions/checkout.
+
+name: Set up the workspace
+description: pnpm + Node 24 + frozen install (+ the fetched wasm assets)
+
+inputs:
+  assets:
+    description: Restore the fetched wasm assets (apps/web/public/{sqlite3mc,zxing,argon2})
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Activate pnpm 11.14.0 (corepack)
+      shell: bash
+      run: |
+        corepack enable
+        corepack prepare pnpm@11.14.0 --activate
+
+    - name: Set up Node 24
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 24
+        cache: pnpm
+
+    - name: Install (frozen lockfile)
+      # A drifting pnpm-lock.yaml must fail CI, not be silently rewritten.
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    # The fetch scripts re-verify every pinned hash and skip the download only when the files
+    # already match, so a restored cache can never smuggle in a different file.
+    - name: Restore the fetched wasm assets
+      if: inputs.assets == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          apps/web/public/sqlite3mc
+          apps/web/public/zxing
+          apps/web/public/argon2
+        key: web-assets-${{ hashFiles('scripts/fetch_web_*.sh') }}

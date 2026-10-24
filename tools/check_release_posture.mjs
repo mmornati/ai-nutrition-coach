@@ -16,7 +16,10 @@
 //      (read from the AST: a comment, a string or a skipped test does not count);
 //   6. `pnpm verify` still chains every gate (so a gate cannot be dropped silently), and the
 //      workspace `lint` scripts treat warnings as errors;
-//   7. the project-URL rule for release builds.
+//   7. CI runs every step of `pnpm verify`: .github/workflows/ci.yml runs them as parallel jobs,
+//      so each `&&` step of the verify script must be a `run:` line of its own there (a step
+//      added to verify cannot silently stay local-only);
+//   8. the project-URL rule for release builds.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +64,7 @@ export const VERIFY_MUST_RUN = [
   ['adults-only gate', 'tools/check_adults_only.mjs'],
   ['release-posture gate', 'tools/check_release_posture.mjs'],
   ['accessibility floor gate', 'tools/check_accessibility_floor.mjs'],
+  ['named-reviewer gate', 'tools/check_reviewers.mjs'],
   ['release build', 'pnpm -r build'],
   ['secrets scan', 'tools/check_no_secrets_in_build.sh'],
   ['third-party host scan', 'tools/check_no_external_hosts.sh'],
@@ -234,9 +238,33 @@ export function checkVerifyWiring(root) {
   return failures;
 }
 
+export const CI_WORKFLOW = '.github/workflows/ci.yml';
+
+/** Failures of the "CI runs every step of pnpm verify" rule (rule 7). */
+export function checkCiRunsVerify(root) {
+  let verify;
+  try {
+    verify = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))?.scripts?.verify;
+  } catch {
+    verify = undefined;
+  }
+  if (typeof verify !== 'string') return []; // reported by checkVerifyWiring
+  const ciPath = join(root, CI_WORKFLOW);
+  if (!existsSync(ciPath)) return [`${CI_WORKFLOW} is missing: CI must run every step of pnpm verify`];
+  const ci = readFileSync(ciPath, 'utf8');
+  const failures = [];
+  for (const step of verify.split('&&').map((s) => s.trim()).filter(Boolean)) {
+    const esc = step.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    // A whole line: `run: <step>`, `- run: <step>` or a line of a `run: |` block.
+    const line = new RegExp(`^[ \\t]*(?:-[ \\t]+)?(?:run:[ \\t]*)?${esc}[ \\t]*$`, 'm');
+    if (!line.test(ci)) failures.push(`${CI_WORKFLOW} does not run the pnpm verify step "${step}"`);
+  }
+  return failures;
+}
+
 /** All failures for the checkout at `root` and environment `env`. */
 export function checkReleasePosture(root, env = process.env) {
-  const failures = [...checkTrustTable(root), ...checkProjectUrl(env), ...checkVerifyWiring(root)];
+  const failures = [...checkTrustTable(root), ...checkProjectUrl(env), ...checkVerifyWiring(root), ...checkCiRunsVerify(root)];
   const read = (p) => (existsSync(join(root, p)) ? readFileSync(join(root, p), 'utf8') : '');
   for (const path of REQUIRED_ARTIFACTS) if (!existsSync(join(root, path))) failures.push(`missing required artifact: ${path}`);
   if (!read('LICENSE').includes('MIT License')) failures.push('LICENSE does not contain the MIT marker');
@@ -259,7 +287,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.log(
       urlOnly
         ? `${name}: OK`
-        : `${name}: OK - LICENSE, CONTRIBUTING, NDP standard at HEAD; every README trust row has a proof test; pnpm verify chains every gate.`,
+        : `${name}: OK - LICENSE, CONTRIBUTING, NDP standard at HEAD; every README trust row has a proof test; pnpm verify chains every gate; CI runs every verify step.`,
     );
   } else {
     console.error(`${name}: FAIL`);

@@ -429,8 +429,8 @@ Playwright (the official image, pinned by digest, sharing the server's network n
 6. **export** downloads a plain CSV;
 7. in every test, no request to any other origin (each is aborted and recorded) and no uncaught page error.
 
-It is opt-in (needs Docker and the network; the Playwright image is ~3 GB), runs as its own CI job
-(`.github/workflows/browser-smoke.yml`) and is in the [release checklist](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/release-checklist.md). The same
+It is opt-in (needs Docker and the network; the Playwright image is ~3 GB), runs in CI as the `image` job
+of `.github/workflows/ci.yml` and is in the [release checklist](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/release-checklist.md). The same
 offline-reload and update flows also run on every PR in `pnpm e2e` (`apps/web/e2e/pwa.spec.ts`, Chromium and
 WebKit) against a small static server that plays "a new version was deployed".
 

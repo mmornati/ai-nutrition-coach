@@ -42,6 +42,9 @@ tests (including the self-tests of the gates below), the same tests re-run under
 (`pnpm gates`), the scanner self-tests, the release build, the secrets scan and the third-party
 host scan of `apps/web/dist`, and the build guards (no gallery, no dev store in the bundle).
 CI must see exit 0 before a change counts as verified. `scripts/verify.sh` is a thin wrapper.
+CI (`.github/workflows/ci.yml`) runs the same steps as parallel jobs, skips the ones a pull
+request cannot affect (a docs-only change runs the format check and the gates only), and reports
+one required check, `ci-ok`.
 
 Optional pre-commit guard: `ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit`
 
@@ -107,9 +110,10 @@ egress, and that the bundle has no third-party hosts. Budget is `<5 min` on a st
 | `pnpm check:log-hygiene`                  | No `console.*` call carries content; no tear-off (`.forEach(console.log)`); an interpolating log needs a reviewed `// log-hygiene: content-free` marker and only allow-listed identifiers (ids, enums, counts, fixed reasons).                                      |
 | `pnpm check:adults-only`                  | No biometric API or package, no `childProfile` / `under13` / `ageGate` / `birthDate` machinery in shipped code (comments stripped; `ManagedOversightSeam` is the only marker).                                                                                      |
 | `pnpm check:a11y`                         | Every screen component is exercised by an axe test.                                                                                                                                                                                                              |
+| `pnpm check:reviewers`                    | `REVIEWERS.md` and `.github/CODEOWNERS` exist, and every owner CODEOWNERS names is recorded in `REVIEWERS.md`.                                                                                                                                                    |
 | `pnpm check:release-posture`              | `LICENSE` is MIT; `CONTRIBUTING.md` documents build / test / smoke; the No-Dark-Patterns banned list is unchanged; every row of the README trust table names proof test files that exist and contain a real, un-skipped test; `pnpm verify` still chains every gate; with `AI_NUTRITION_COACH_BUILD=selfhost\|release`, a real `AI_NUTRITION_COACH_PROJECT_URL`. |
 | `pnpm build` then `pnpm scan:bundle`      | Release bundle builds; no key-shaped string and no third-party host in `apps/web/dist`.                                                                                                                                                                          |
-| CI: `self-host-smoke`, `browser-smoke`    | The container smoke and the real-browser smoke of the production image.                                                                                                                                                                                          |
+| CI (`ci.yml`): `self-host`, `image`       | The container smoke and the real-browser smoke of the production image.                                                                                                                                                                                          |
 
 A regression on any gate fails the build.
 
