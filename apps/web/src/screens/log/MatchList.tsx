@@ -35,6 +35,9 @@ export function MatchList({
             >
               <span className="min-w-0">
                 <span className="block text-lead">{foodName(match.food, locale)}</span>
+                {/* A space so the visible text reads "Spinach Veg & fruit", not "SpinachVeg & fruit",
+                  which axe's label-content-name-mismatch cannot find in the button's name. It
+                  starts a line after the block, so it is not drawn. */}{' '}
                 <GroupMarker group={match.food.foodGroup} className="mt-1" />
               </span>
               <span
