@@ -30,7 +30,7 @@ import {
 } from '@anc/core';
 import { addressKey } from './address';
 import type { RelayConfig } from './config';
-import { RateLimiter } from './limiter';
+import { GuessBudget, RateLimiter } from './limiter';
 import { newToken, sameDigest, type ServerKeys } from './keys';
 import type { RelayStore, VaultRow } from './store';
 
@@ -41,7 +41,47 @@ export interface RelayDeps {
   readonly now?: () => number;
   /** Told the NAME of an unexpected error (never a request, never a value). */
   readonly onError?: (name: string) => void;
+  /** Tests only: shrink or replace the fixed internals below. */
+  readonly tuning?: Partial<RelayTuning>;
 }
+
+/** Fixed internals (not environment settings); a test may override them through `RelayDeps`. */
+export interface RelayTuning {
+  /** Longest a body may go without a byte. */
+  readonly bodyIdleMs: number;
+  /** Total time a body may take is `bodyFloorMs + size / bodyBytesPerSecond`, at most `bodyCeilingMs`. */
+  readonly bodyFloorMs: number;
+  readonly bodyCeilingMs: number;
+  readonly bodyBytesPerSecond: number;
+  /** Entries each failed-login table keeps. */
+  readonly limiterMaxKeys: number;
+  /** Slots of the global per-handle guess budget (see `GuessBudget`). */
+  readonly guessSlots: number;
+  /** Waits (a failed login makes the next ones for the same handle slower). */
+  readonly sleep: (ms: number) => Promise<void>;
+}
+
+const DEFAULT_TUNING: RelayTuning = {
+  bodyIdleMs: 30_000,
+  bodyFloorMs: 10_000,
+  bodyCeilingMs: 60_000,
+  bodyBytesPerSecond: 64 * 1024,
+  limiterMaxKeys: 20_000,
+  guessSlots: 1 << 20,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/** Failures on one handle (from anywhere) that cost nothing, before the delay starts. */
+const FREE_FAILURES = 3;
+/** The first delay, doubled for each further failure, never past `MAX_LOGIN_DELAY_MS`. */
+const BASE_LOGIN_DELAY_MS = 100;
+const MAX_LOGIN_DELAY_MS = 2000;
+/** How long failures on a handle weigh on its delay. */
+const DELAY_WINDOW_MS = 5 * 60_000;
+/** The window of the global per-handle failed-login cap (`SYNC_RATE_HANDLE_DAY`). */
+const GUESS_WINDOW_MS = 24 * 3_600_000;
+/** Uploads being read at once for one client address (per pool). */
+const UPLOADS_PER_CLIENT = 1;
 
 const STATUS: Readonly<Record<SyncErrorCode, number>> = {
   noMatch: 401,
@@ -86,15 +126,13 @@ const limited = (retryAfterSeconds: number): Reply =>
   fail('rateLimited', { headers: { 'Retry-After': String(retryAfterSeconds) } });
 
 class BodyError extends Error {
-  constructor(readonly code: 'tooLarge' | 'invalidRequest' | 'unsupportedMediaType') {
+  constructor(readonly code: 'tooLarge' | 'invalidRequest' | 'unsupportedMediaType' | 'timedOut') {
     super(code);
   }
 }
 
 /** How much past the cap a refused body is read and thrown away before the connection is given up on. */
 const DRAIN_LIMIT_BYTES = 16 * 1024 * 1024;
-/** A body that stops arriving for this long is abandoned (it holds an upload slot meanwhile). */
-const BODY_IDLE_MS = 30_000;
 
 /**
  * The JSON body of a request, bounded while it is read (never buffered past `cap`). Past the cap the
@@ -103,7 +141,7 @@ const BODY_IDLE_MS = 30_000;
  * answering at once would close the socket under a client that is still sending: either way the
  * client sees a reset instead of the 413.
  */
-function readJson(req: IncomingMessage, cap: number): Promise<unknown> {
+function readJson(req: IncomingMessage, cap: number, tuning: RelayTuning): Promise<unknown> {
   const type = req.headers['content-type'] ?? '';
   if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(type)) {
     return Promise.reject(new BodyError('unsupportedMediaType'));
@@ -120,10 +158,20 @@ function readJson(req: IncomingMessage, cap: number): Promise<unknown> {
     let settled = false;
     let over = declaredBytes > cap;
     let idle: NodeJS.Timeout | undefined;
+    // A total deadline as well as an idle one: a client that sends a byte every few seconds never
+    // goes idle, and would hold its upload slot for ever. The time allowed grows with the size
+    // (declared, else the most the route accepts) at a minimum rate, within a floor and a ceiling.
+    const expected = declared === undefined ? cap : declaredBytes;
+    const allowedMs = Math.min(
+      tuning.bodyCeilingMs,
+      tuning.bodyFloorMs + (expected / tuning.bodyBytesPerSecond) * 1000,
+    );
+    const deadline = setTimeout(() => refuse('timedOut'), allowedMs);
     const finish = (run: () => void): void => {
       if (settled) return;
       settled = true;
       clearTimeout(idle);
+      clearTimeout(deadline);
       run();
     };
     const refuse = (code: BodyError['code']): void => {
@@ -132,7 +180,7 @@ function readJson(req: IncomingMessage, cap: number): Promise<unknown> {
     };
     const watch = (): void => {
       clearTimeout(idle);
-      idle = setTimeout(() => refuse('invalidRequest'), BODY_IDLE_MS);
+      idle = setTimeout(() => refuse('timedOut'), tuning.bodyIdleMs);
     };
     watch();
     req.on('data', (chunk: Buffer) => {
@@ -172,15 +220,18 @@ function readJson(req: IncomingMessage, cap: number): Promise<unknown> {
   });
 }
 
-/** The client address the limits are keyed on; IPv6 is bucketed by its /64 (see `address.ts`). */
-function clientKey(req: IncomingMessage, trustProxy: boolean): string {
+/**
+ * The client address the limits are keyed on; IPv6 is bucketed by its /64, or by its /48 for the
+ * failed-login lockout (see `address.ts`).
+ */
+function clientKey(req: IncomingMessage, trustProxy: boolean, prefix?: 48): string {
   let address = req.socket.remoteAddress ?? 'unknown';
   if (trustProxy) {
     const forwarded = req.headers['x-real-ip'];
     if (typeof forwarded === 'string' && /^[0-9A-Fa-f:.]{2,45}$/.test(forwarded))
       address = forwarded;
   }
-  return addressKey(address);
+  return addressKey(address, prefix);
 }
 
 function bearer(req: IncomingMessage): string | null {
@@ -198,15 +249,38 @@ const equalText = (a: string, b: string): boolean => {
 
 export function createRelay(deps: RelayDeps): RequestListener {
   const { config, store, keys } = deps;
+  const tuning: RelayTuning = { ...DEFAULT_TUNING, ...deps.tuning };
   const clock = deps.now ?? Date.now;
   // One table per kind of limit. Those that guard guessing or signing up refuse new keys when full
   // rather than forget a counter, so a flood of other addresses can never reset them.
   const ipLimiter = new RateLimiter();
-  const failedLogins = new RateLimiter({ whenFull: 'refuse' });
   const signups = new RateLimiter({ whenFull: 'refuse' });
   const writeLimiter = new RateLimiter();
-  // Uploads being read right now (signup and vault writes): each can hold tens of MB in memory.
-  let uploadsInFlight = 0;
+  // Failed logins, in three layers; every one counts a known and an unknown handle identically.
+  // - per (client, handle), the client being its address bucketed by /48 for IPv6: the hard
+  //   lockout. Only the client that failed is locked, so nobody can lock a person out of their own
+  //   handle from somewhere else. This table forgets its oldest entries when full; flushing it
+  //   only gives a client a fresh per-minute allowance, and the global cap below still binds.
+  // - per handle, from anywhere: a growing delay (max 2 s), never a refusal (`loginDelay`).
+  // - per handle, from anywhere, `config.rateHandlePerDay` failures a day, then a refusal (the
+  //   "guess budget"): the cap that makes distributed guessing infeasible. It is a fixed array of
+  //   counters indexed by a secret-keyed hash of the handle (see `GuessBudget`), so nothing can
+  //   flush it, it never refuses an unrelated handle, and known and unknown handles share the
+  //   same machinery. A valid device token of the same vault is exempt from this layer only.
+  const failedByClient = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
+  const failedByHandle = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
+  const guessBudget = new GuessBudget(tuning.guessSlots);
+  // Logins being decided right now, by (client, handle): one at a time, so a parallel burst cannot
+  // all pass the lockout check before the first failure is recorded.
+  const loginsInFlight = new Set<string>();
+  // Uploads being read right now: each can hold tens of MB in memory. Signups (anyone) and vault
+  // writes (a device token) have separate pools so one cannot starve the other, and one client
+  // address holds at most `UPLOADS_PER_CLIENT` slots of a pool.
+  const pools = {
+    signup: { size: Math.max(1, Math.floor(config.maxConcurrentUploads / 2)), inFlight: 0 },
+    write: { size: config.maxConcurrentUploads, inFlight: 0 },
+  };
+  const uploadsByClient = { signup: new Map<string, number>(), write: new Map<string, number>() };
   const MINUTE = 60_000;
   const HOUR = 3_600_000;
   const bodyCap = syncBodyCap(config.maxVaultBytes);
@@ -230,28 +304,51 @@ export function createRelay(deps: RelayDeps): RequestListener {
     );
     return decision.allowed ? null : limited(decision.retryAfterSeconds);
   };
-  /** Is this handle locked out by failed logins? Looking is free: only a wrong proof counts. */
-  const handleLocked = (handle: string): Reply | null => {
-    const decision = failedLogins.peek(handle, config.rateHandlePerMinute, clock());
+  const failureKey = (req: IncomingMessage, handle: string): string =>
+    `${clientKey(req, config.trustProxy, 48)}|${handle}`;
+  /** Is this client locked out of this handle by its own failed logins? Looking is free. */
+  const handleLocked = (req: IncomingMessage, handle: string): Reply | null => {
+    const decision = failedByClient.peek(
+      failureKey(req, handle),
+      config.rateHandlePerMinute,
+      clock(),
+    );
     return decision.allowed ? null : limited(decision.retryAfterSeconds);
   };
+  /** The delay table only: the guesses themselves are counted up front (see `login`). */
   const noteFailedLogin = (handle: string): void => {
-    failedLogins.hit(handle, config.rateHandlePerMinute, MINUTE, clock());
+    failedByHandle.hit(handle, Number.MAX_SAFE_INTEGER, DELAY_WINDOW_MS, clock());
+  };
+  /** Slows every login on a handle that is being guessed at, its owner's too, but never refuses. */
+  const loginDelay = (handle: string): number => {
+    const excess = failedByHandle.count(handle, clock()) - FREE_FAILURES;
+    if (excess <= 0) return 0;
+    return Math.min(MAX_LOGIN_DELAY_MS, BASE_LOGIN_DELAY_MS * 2 ** Math.min(excess, 10));
   };
 
   /**
    * Runs `work` holding one of a few upload slots, or answers 503 when they are all taken. The
    * slot is taken BEFORE the body is read, so only that many bodies are ever in memory at once.
    */
-  async function withUploadSlot(work: () => Promise<Reply>): Promise<Reply> {
-    if (uploadsInFlight >= config.maxConcurrentUploads) {
+  async function withUploadSlot(
+    pool: 'signup' | 'write',
+    client: string,
+    work: () => Promise<Reply>,
+  ): Promise<Reply> {
+    const slots = pools[pool];
+    const held = uploadsByClient[pool];
+    if (slots.inFlight >= slots.size || (held.get(client) ?? 0) >= UPLOADS_PER_CLIENT) {
       return fail('unavailable', { headers: { 'Retry-After': '5' } });
     }
-    uploadsInFlight += 1;
+    slots.inFlight += 1;
+    held.set(client, (held.get(client) ?? 0) + 1);
     try {
       return await work();
     } finally {
-      uploadsInFlight -= 1;
+      slots.inFlight -= 1;
+      const left = (held.get(client) ?? 1) - 1;
+      if (left <= 0) held.delete(client);
+      else held.set(client, left);
     }
   }
 
@@ -262,9 +359,15 @@ export function createRelay(deps: RelayDeps): RequestListener {
   ): Promise<{ value: T } | { reply: Reply }> {
     let input: unknown;
     try {
-      input = await readJson(req, cap);
+      input = await readJson(req, cap, tuning);
     } catch (error) {
-      if (error instanceof BodyError) return { reply: fail(error.code) };
+      if (error instanceof BodyError) {
+        // A body that took too long may still be trickling in: do not keep the connection for it.
+        if (error.code === 'timedOut') {
+          return { reply: fail('invalidRequest', { headers: { Connection: 'close' } }) };
+        }
+        return { reply: fail(error.code) };
+      }
       throw error;
     }
     const parsed = parse(input);
@@ -299,17 +402,49 @@ export function createRelay(deps: RelayDeps): RequestListener {
     const body = await parseBody(req, SYNC_SMALL_BODY_BYTES, parseLoginRequest);
     if ('reply' in body) return body.reply;
     const { handle, authKey } = body.value;
-    const locked = handleLocked(handle);
+
+    // Everything up to the first `await` below is synchronous: the attempt is checked AND counted
+    // as a failure before anything else can run, then given back if the login turns out correct.
+    // (Counting after the verdict, past a delay, let a parallel burst all pass the check first.)
+    const key = failureKey(req, handle);
+    // One login at a time per (client, handle); the others are told what a lockout says.
+    if (loginsInFlight.has(key)) return limited(1);
+    const locked = handleLocked(req, handle);
     if (locked) return locked;
     const row = store.vaultByHandle(handle);
-    const proof = keys.authDigest(handle, decodeBase64Url(authKey) ?? new Uint8Array(0));
-    const matches = sameDigest(proof, row?.authDigest ?? dummyDigest);
-    // One answer for "no such handle" and "wrong passphrase".
-    if (row === null || !matches) {
-      noteFailedLogin(handle);
-      return fail('noMatch');
+    // A valid device token of THIS vault is exempt from the global per-handle cap (never from the
+    // per-client lockout): the owner's own devices are not denied while a stranger guesses. Any
+    // other token, or none, changes nothing, for a known handle and an unknown one alike.
+    const token = bearer(req);
+    const tokenVault =
+      token === null ? null : store.vaultForDevice(keys.tokenDigest(token), clock());
+    const exempt = row !== null && tokenVault === row.rowId;
+    const slot = keys.guessSlot(handle, tuning.guessSlots);
+    if (!exempt) {
+      const budget = guessBudget.reserve(slot, config.rateHandlePerDay, GUESS_WINDOW_MS, clock());
+      if (!budget.allowed) return limited(budget.retryAfterSeconds);
     }
-    return session(row, 200);
+    failedByClient.hit(key, config.rateHandlePerMinute, MINUTE, clock());
+    loginsInFlight.add(key);
+    try {
+      // Before the verdict, for every login on the handle, so a guesser is slowed and known and
+      // unknown handles cannot be told apart by it.
+      const delay = loginDelay(handle);
+      if (delay > 0) await tuning.sleep(delay);
+      const proof = keys.authDigest(handle, decodeBase64Url(authKey) ?? new Uint8Array(0));
+      const matches = sameDigest(proof, row?.authDigest ?? dummyDigest);
+      // One answer for "no such handle" and "wrong passphrase".
+      if (row === null || !matches) {
+        noteFailedLogin(handle);
+        return fail('noMatch');
+      }
+      // A correct login is not a failure: give the reservations back.
+      failedByClient.refund(key, clock());
+      if (!exempt) guessBudget.refund(slot, GUESS_WINDOW_MS, clock());
+      return session(row, 200);
+    } finally {
+      loginsInFlight.delete(key);
+    }
   }
 
   async function signup(req: IncomingMessage): Promise<Reply> {
@@ -325,7 +460,7 @@ export function createRelay(deps: RelayDeps): RequestListener {
     if (config.signup === 'closed') return fail('signupClosed');
     // Before a single byte of the body is read: a full server must not buffer megabytes to say so.
     if (store.vaultCount() >= config.maxVaults) return fail('serverFull');
-    return withUploadSlot(async () => {
+    return withUploadSlot('signup', clientKey(req, config.trustProxy), async () => {
       const body = await parseBody(req, bodyCap, (input) =>
         parseSignupRequest(input, config.maxVaultBytes),
       );
@@ -401,7 +536,7 @@ export function createRelay(deps: RelayDeps): RequestListener {
     if (!writes.allowed) return limited(writes.retryAfterSeconds);
     const expected = versionOfEtag(req.headers['if-match']);
     if (expected === null) return fail('preconditionRequired');
-    return withUploadSlot(async () => {
+    return withUploadSlot('write', clientKey(req, config.trustProxy), async () => {
       const body = await parseBody(req, bodyCap, (input) =>
         parsePutVaultRequest(input, config.maxVaultBytes),
       );

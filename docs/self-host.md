@@ -451,8 +451,9 @@ is proxied, everything else under `/sync/` is a 404.
 | `SYNC_MAX_VAULT_MB` | `20` | The largest encrypted copy, 1 to 24. nginx's body limit follows it. |
 | `SYNC_MAX_VAULTS` | `50` | Handles this relay will hold. |
 | `SYNC_MAX_DEVICES` | `20` | Device tokens kept per handle (the one used least recently is dropped). |
-| `SYNC_MAX_UPLOADS` | `3` | Vault uploads (signup and writes) the relay reads at the same time, whoever sends them; the others are told to come back in a few seconds. Each can hold a whole vault in memory, so keep it small on a small host. |
-| `SYNC_RATE_IP` / `SYNC_RATE_HANDLE` / `SYNC_RATE_SIGNUP` / `SYNC_RATE_WRITE` | 30 / 10 / 5 / 60 | Per minute per address (salt, login and signup together; an IPv6 address counts as its /64), failed logins per minute per handle, signups per hour per address, uploads per minute per device. |
+| `SYNC_MAX_UPLOADS` | `3` | Vault writes the relay reads at the same time; signups have their own pool of half that (at least 1), and one client address holds at most one slot per pool. The others are told to come back in a few seconds. A body must arrive within about 10 s plus its size at 64 KiB/s (60 s at most) or it is dropped. Each can hold a whole vault in memory, so keep it small on a small host. |
+| `SYNC_RATE_IP` / `SYNC_RATE_HANDLE` / `SYNC_RATE_SIGNUP` / `SYNC_RATE_WRITE` | 30 / 10 / 5 / 60 | Per minute per address (salt, login and signup together; an IPv6 address counts as its /64), failed logins per minute per (address, handle) (for IPv6 the address is its /48; a lockout holds only the client that failed), signups per hour per address, uploads per minute per device. A handle being guessed at is also slowed, up to 2 s per login. |
+| `SYNC_RATE_HANDLE_DAY` | 20 | Failed logins per handle per 24 h from **everyone together**. Past it, logins for that handle are refused (429) until the window ends, **unless the request carries a valid device token of that same vault** (devices already connected never log in again, so they are unaffected). A brand-new device (restore or join) cannot sign in while a handle is under attack: raise the value if your people mistype often, lower it if you want a harder stop. Known and unknown handles behave identically. |
 | `SYNC_SERVER_SECRET` | generated | Optional. By default 32 random bytes are written to `server.secret` (mode 0600) in the data volume at the first start. |
 
 **Your data.** SQLite lives in the named volume `sync-data` (`/data` in the container): `relay.sqlite`
@@ -468,7 +469,7 @@ nginx's own access log follows `AI_NUTRITION_COACH_ACCESS_LOG` as for the rest o
 **Limits worth knowing.** Rate limits are per address as the relay sees it (nginx sets `X-Real-IP`, so
 behind Caddy or Traefik that is the proxy unless you forward the client address, and then everyone shares
 a bucket, as with the AI proxy; the same goes for the cap nginx puts on requests in flight per address). Signup tells a person that a handle is taken (the usual trade-off; use
-`SYNC_SIGNUP=invite|closed` to bound it); login never says whether a handle exists. Identity is the handle:
+`SYNC_SIGNUP=invite|closed` to bound it); login never says whether a handle exists. A handle that is being guessed at from many addresses stops accepting logins from devices that have no token (`SYNC_RATE_HANDLE_DAY`), so a stranger cannot grind through passphrases; the price is that someone restoring onto a new device waits for the attack to stop (at most a day). Identity is the handle:
 single sign-on for the relay (a vault bound to your Authentik user) is planned, not built. Changing the
 passphrase, listing/revoking devices and deleting a copy from the server arrive in phase S4; until then
 removing a person means deleting their row or restoring the volume.

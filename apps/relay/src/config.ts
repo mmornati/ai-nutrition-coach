@@ -25,13 +25,18 @@ export interface RelayConfig {
   readonly maxDevicesPerVault: number;
   /** Requests per minute per client address across salt, login and signup. */
   readonly rateIpPerMinute: number;
-  /** Requests per minute per handle across salt, login and signup. */
+  /** Failed logins per minute per (client address, handle); beyond it that client is refused. */
   readonly rateHandlePerMinute: number;
+  /**
+   * Failed logins per day for one handle from ANYONE: past it, logins for that handle are refused
+   * (429) unless they present a device token of that same vault. Fails closed.
+   */
+  readonly rateHandlePerDay: number;
   /** Signups per hour per client address. */
   readonly rateSignupPerHour: number;
   /** Writes (PUT) per minute per device. */
   readonly rateWritePerMinute: number;
-  /** Vault uploads (signup, write) read at the same time; more are told to come back shortly. */
+  /** Vault writes read at the same time (signups get half, min 1); more are told to come back shortly. */
   readonly maxConcurrentUploads: number;
   /** Believe `X-Real-IP` (set by the nginx in front, the only thing that can reach the relay). */
   readonly trustProxy: boolean;
@@ -115,6 +120,7 @@ export function readConfig(env: Env): RelayConfig {
     maxDevicesPerVault: whole(env, 'SYNC_MAX_DEVICES', 20, 1, 1000),
     rateIpPerMinute: whole(env, 'SYNC_RATE_IP', 30, 1, 100_000),
     rateHandlePerMinute: whole(env, 'SYNC_RATE_HANDLE', 10, 1, 100_000),
+    rateHandlePerDay: whole(env, 'SYNC_RATE_HANDLE_DAY', 20, 1, 60_000),
     rateSignupPerHour: whole(env, 'SYNC_RATE_SIGNUP', 5, 1, 100_000),
     rateWritePerMinute: whole(env, 'SYNC_RATE_WRITE', 60, 1, 100_000),
     maxConcurrentUploads: whole(env, 'SYNC_MAX_UPLOADS', 3, 1, 16),

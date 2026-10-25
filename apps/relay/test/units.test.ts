@@ -165,11 +165,18 @@ describe('addressKey', () => {
       '2001:db8:1:2::',
       '2001:db8:1:2::1%eth0',
     ];
-    const keys = new Set(same.map(addressKey));
+    const keys = new Set(same.map((a) => addressKey(a)));
     expect(keys.size).toBe(1);
     expect(addressKey('2001:db8:1:3::1')).not.toBe([...keys][0]);
     expect(addressKey('2001:db8:2:2::1')).not.toBe([...keys][0]);
     expect(addressKey('::1')).toBe(addressKey('0:0:0:0:0:0:0:5'));
+  });
+
+  it('buckets by /48 when asked (the failed-login lockout), whatever the /64 inside it', () => {
+    expect(addressKey('2001:db8:1:2::1', 48)).toBe(addressKey('2001:db8:1:ffff:aaaa::9', 48));
+    expect(addressKey('2001:db8:1:2::1', 48)).not.toBe(addressKey('2001:db8:2:2::1', 48));
+    expect(addressKey('2001:db8:1:2::1', 48)).toBe('2001:0db8:0001::/48');
+    expect(addressKey('203.0.113.7', 48)).toBe('203.0.113.7');
   });
 
   it('leaves what is not an address alone', () => {

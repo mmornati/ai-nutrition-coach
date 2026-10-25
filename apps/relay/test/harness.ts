@@ -2,7 +2,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { encodeBase64Url, type RelayEnvelope } from '@anc/core';
-import { createRelay } from '../src/app';
+import { createRelay, type RelayTuning } from '../src/app';
 import { readConfig, type RelayConfig } from '../src/config';
 import { createServerKeys } from '../src/keys';
 import { openMemoryStore, type RelayStore } from '../src/store';
@@ -12,6 +12,10 @@ export interface Harness {
   readonly store: RelayStore;
   readonly config: RelayConfig;
   readonly errors: string[];
+  /** The login delays the relay asked for (it does not really wait in tests). */
+  readonly delays: number[];
+  /** Passphrase proofs checked so far (every login that got as far as the verifier, and signups). */
+  readonly proofs: { n: number };
   clock: number;
   advance(ms: number): void;
   close(): Promise<void>;
@@ -22,22 +26,41 @@ export const SECRET = new TextEncoder().encode('test-secret-0123456789abcdef0123
 export async function startRelay(
   env: Record<string, string> = {},
   store: RelayStore = openMemoryStore(),
+  tuning: Partial<RelayTuning> = {},
 ): Promise<Harness> {
   const config = readConfig({
     SYNC_RATE_IP: '1000',
     SYNC_RATE_HANDLE: '1000',
+    SYNC_RATE_HANDLE_DAY: '1000',
     SYNC_RATE_SIGNUP: '1000',
     ...env,
   });
   const errors: string[] = [];
+  const delays: number[] = [];
+  const proofs = { n: 0 };
+  const realKeys = createServerKeys(SECRET);
+  const keys = {
+    ...realKeys,
+    authDigest: (handle: string, authKey: Uint8Array) => {
+      proofs.n += 1;
+      return realKeys.authDigest(handle, authKey);
+    },
+  };
   const state = { clock: 1_700_000_000_000 };
   const server: Server = createServer(
     createRelay({
       config,
       store,
-      keys: createServerKeys(SECRET),
+      keys,
       now: () => state.clock,
       onError: (name) => errors.push(name),
+      tuning: {
+        sleep: (ms) => {
+          delays.push(ms);
+          return Promise.resolve();
+        },
+        ...tuning,
+      },
     }),
   );
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -47,6 +70,8 @@ export async function startRelay(
     store,
     config,
     errors,
+    delays,
+    proofs,
     get clock() {
       return state.clock;
     },

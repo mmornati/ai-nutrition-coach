@@ -39,8 +39,13 @@ export function expandIpv6(input: string): number[] | null {
   return numbers.length === 8 && numbers.every((n) => Number.isInteger(n)) ? numbers : null;
 }
 
-/** The limiter key for an address as text: IPv4 as is, IPv6 as its /64, anything else as is. */
-export function addressKey(address: string): string {
+/**
+ * The limiter key for an address as text: IPv4 as is, IPv6 as its /64 (or, for the failed-login
+ * lockout, its /48: one routed allocation hands out 65,536 /64s, each of which would otherwise be a
+ * fresh client with a fresh allowance), anything else as is.
+ */
+export function addressKey(address: string, prefix?: 48): string {
+  const bits = prefix === 48 ? 48 : 64;
   const groups = expandIpv6(address);
   if (groups === null) return address;
   // "::ffff:a.b.c.d" is the IPv4 address a.b.c.d reaching an IPv6 socket.
@@ -50,7 +55,7 @@ export function addressKey(address: string): string {
     return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
   }
   return `${groups
-    .slice(0, 4)
+    .slice(0, bits / 16)
     .map((g) => g.toString(16).padStart(4, '0'))
-    .join(':')}::/64`;
+    .join(':')}::/${bits}`;
 }

@@ -16,6 +16,8 @@ export interface ServerKeys {
   authDigest(handle: string, authKey: Uint8Array): Buffer;
   /** The stored form of a device token. */
   tokenDigest(token: string): Buffer;
+  /** Which of `slots` guess-budget slots a handle falls in: a secret-keyed hash, the same for known and unknown handles. */
+  guessSlot(handle: string, slots: number): number;
 }
 
 export function createServerKeys(secret: Uint8Array): ServerKeys {
@@ -28,6 +30,7 @@ export function createServerKeys(secret: Uint8Array): ServerKeys {
     fakeSalt: (handle) => encodeBase64Url(mac('salt', handle).subarray(0, SYNC_FIELD_BYTES.salt)),
     authDigest: (handle, authKey) => mac('auth', handle, authKey),
     tokenDigest: (token) => mac('token', token),
+    guessSlot: (handle, slots) => mac('guess', handle).readUInt32BE(0) % slots,
   };
 }
 
