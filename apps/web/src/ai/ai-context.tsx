@@ -74,6 +74,8 @@ export interface YourAiState {
   test(form: { endpointUrl: string; model: string; typedKey: string }): Promise<void>;
   revokeConsent(host: string): Promise<void>;
   setAskBeforeEveryPhoto(value: boolean): Promise<void>;
+  /** Prompt-cache markers to the BYOK endpoint on or off (default off). */
+  setByokCacheMarkers(value: boolean): Promise<void>;
   /** The speech-to-text model for voice on your own key; empty means the default. */
   setTranscriptionModel(model: string): Promise<void>;
   clearMessage(): void;
@@ -168,6 +170,7 @@ export function useYourAi(): YourAiState {
       },
       revokeConsent: (host) => controller.revokePhotoConsent(host),
       setAskBeforeEveryPhoto: (value) => controller.setAskBeforeEveryPhoto(value),
+      setByokCacheMarkers: (value) => controller.setByokCacheMarkers(value),
       setTranscriptionModel: (model) => controller.setByokTranscriptionModel(model),
       clearMessage: () => setHeld(null),
     }),

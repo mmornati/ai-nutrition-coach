@@ -66,7 +66,11 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
   const settings = await AiSettingsController.load(store);
   const keyStore = new KvByokKeyStore(options.kv);
   const permit = new PhotoUploadPermit(options.photoDigest);
-  const provider = (args: { endpointUrl: string; model: string }): OpenAiCompatibleByokProvider =>
+  const provider = (args: {
+    endpointUrl: string;
+    model: string;
+    cacheMarkers?: boolean;
+  }): OpenAiCompatibleByokProvider =>
     new OpenAiCompatibleByokProvider({
       ...args,
       sanitizePhoto: options.sanitizePhoto,
@@ -82,6 +86,9 @@ export async function createAiServices(options: CreateAiServicesOptions): Promis
     new OpenAiCompatibleByokProvider({
       ...args,
       sendKey: false,
+      // The proxy keeps the marker only when its operator set AI_PROXY_CACHE_MARKERS=1 and drops
+      // it otherwise, so the browser can always send it.
+      cacheMarkers: true,
       sanitizePhoto: options.sanitizePhoto,
       classifyFoodGroup: options.classifyFoodGroup,
       fetch: options.fetch,

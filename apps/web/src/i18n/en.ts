@@ -403,6 +403,9 @@ export const en = {
       askEveryPhotoLabel: 'Ask before every photo upload',
       askEveryPhotoHelp:
         'On: each photo needs its own yes. Off: you say yes once per service and photos then go without asking, until you revoke it below.',
+      cacheMarkersLabel: 'Prompt caching hints',
+      cacheMarkersHelp:
+        'Sends a cache hint with Ask the coach so a service that reads it (OpenRouter with a Claude or Gemini model) can bill the repeated part of the conversation for less. Nothing more about you is sent. Leave it off if Test connection works but the coach fails afterwards: some services refuse hints they do not know.',
       voiceModelLabel: 'Voice model',
       voiceModelHint: 'e.g. whisper-1',
       voiceModelInvalid:

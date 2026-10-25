@@ -9,6 +9,9 @@
 //     assistant; content a string or parts of type `text` / `image_url`; at most 24 KB of text in
 //     total; at most ONE image per request, and only a data:image/(jpeg|png|webp);base64 URI (no
 //     remote URL is ever fetched by the provider on a visitor's behalf). Unknown keys are dropped;
+//   - a prompt-cache marker (`cache_control`, exactly `{type: "ephemeral"}`: no longer TTL, which
+//     costs twice the write) is kept on at most ONE text part, and only when the operator set
+//     AI_PROXY_CACHE_MARKERS=1; otherwise it is dropped like any unknown key;
 //   - only `messages`, `temperature`, `top_p` and `response_format` are carried over: no `stream`,
 //     `n`, `tools`, `logprobs`, ...;
 //   - anything outside that becomes `{}`, which the provider refuses with a 400 (a js_set handler
@@ -35,11 +38,17 @@ function utf8Length(s) {
   return n;
 }
 
-// Returns the cleaned messages, or null when anything is outside the budget.
-function cleanMessages(messages) {
+function isEphemeralMarker(c) {
+  return c !== null && typeof c === 'object' && !Array.isArray(c) && c.type === 'ephemeral' && Object.keys(c).length === 1;
+}
+
+// Returns the cleaned messages, or null when anything is outside the budget. `keepCacheMarker`:
+// keep the first well-formed `cache_control` on a text part (and drop any other).
+function cleanMessages(messages, keepCacheMarker) {
   if (!Array.isArray(messages) || messages.length < 1 || messages.length > MAX_MESSAGES) return null;
   var text = 0;
   var images = 0;
+  var markerKept = !keepCacheMarker;
   var out = [];
   for (var i = 0; i < messages.length; i++) {
     var m = messages[i];
@@ -56,7 +65,12 @@ function cleanMessages(messages) {
       if (p === null || typeof p !== 'object') return null;
       if (p.type === 'text' && typeof p.text === 'string') {
         text += utf8Length(p.text);
-        parts.push({ type: 'text', text: p.text });
+        var part = { type: 'text', text: p.text };
+        if (!markerKept && isEphemeralMarker(p.cache_control)) {
+          part.cache_control = { type: 'ephemeral' };
+          markerKept = true;
+        }
+        parts.push(part);
       } else if (p.type === 'image_url' && p.image_url !== null && typeof p.image_url === 'object') {
         var url = p.image_url.url;
         images += 1;
@@ -85,7 +99,7 @@ function body(r) {
     return '{}';
   }
   if (req === null || typeof req !== 'object') return '{}';
-  var messages = cleanMessages(req.messages);
+  var messages = cleanMessages(req.messages, r.variables.anc_ai_cache_markers === '1');
   if (messages === null) return '{}';
 
   var out = { model: model, messages: messages };

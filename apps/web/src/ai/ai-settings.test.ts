@@ -95,6 +95,17 @@ describe('AiSettings JSON', () => {
     expect(off.toString()).toContain('askEveryPhoto: false');
   });
 
+  it('prompt-cache markers default to OFF, round-trip, and only a real true turns them on', () => {
+    expect(AiSettings.defaults.byokCacheMarkers).toBe(false);
+    expect(decodeAiSettings('{"v":1,"kind":"noOp"}').byokCacheMarkers).toBe(false);
+    expect(decodeAiSettings('{"cacheMarkers":"yes"}').byokCacheMarkers).toBe(false);
+    expect(decodeAiSettings('{"cacheMarkers":1}').byokCacheMarkers).toBe(false);
+    const on = AiSettings.defaults.copyWith({ byokCacheMarkers: true });
+    expect(decodeAiSettings(encodeAiSettings(on)).byokCacheMarkers).toBe(true);
+    expect(on.equals(AiSettings.defaults)).toBe(false);
+    expect(on.copyWith({}).byokCacheMarkers).toBe(true);
+  });
+
   it('never prints the endpoint (toString and JSON.stringify)', () => {
     const s = new AiSettings({ byokEndpointUrl: 'https://private.example.com/x' });
     expect(s.toString()).not.toContain('private');

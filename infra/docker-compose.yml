@@ -74,6 +74,8 @@ services:
       AI_PROXY_CONN: ${AI_PROXY_CONN:-2}
       AI_PROXY_TOKEN_PARAM: ${AI_PROXY_TOKEN_PARAM:-max_tokens}
       AI_PROXY_MAX_TOKENS: ${AI_PROXY_MAX_TOKENS:-2000}
+      # 1 keeps one prompt-cache marker (cache_control) per request; for providers that read it.
+      AI_PROXY_CACHE_MARKERS: ${AI_PROXY_CACHE_MARKERS:-0}
       # Voice transcription (POST /ai/v1/audio/transcriptions): off unless AI_PROXY_TRANSCRIPTION=1.
       AI_PROXY_TRANSCRIPTION: ${AI_PROXY_TRANSCRIPTION:-0}
       AI_PROXY_TRANSCRIPTION_MODEL: ${AI_PROXY_TRANSCRIPTION_MODEL:-whisper-1}

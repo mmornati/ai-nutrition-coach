@@ -286,6 +286,12 @@ export function YourAiScreen() {
                 ai.clearMessage();
               }}
             />
+            <SwitchRow
+              title={c.cacheMarkersLabel}
+              help={c.cacheMarkersHelp}
+              checked={settings.byokCacheMarkers}
+              onChange={(next) => void ai.setByokCacheMarkers(next)}
+            />
             <TextField
               label={c.keyLabel}
               placeholder={c.keyHint}
