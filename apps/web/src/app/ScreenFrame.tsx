@@ -7,6 +7,7 @@ import { useDay } from './day-context';
 import { useLog } from './log-context';
 import { hrefs, navigate, TODAY_HASH } from './router';
 import { useSession } from './session';
+import { useHeaderChip, usePlateSyncStatuses } from './sync-status';
 
 /** The phone dock's seven-stop week route, wired to the selected day. Tapping a stop shows that day. */
 export function DayRoute() {
@@ -46,17 +47,26 @@ export interface ScreenHeaderProps {
 }
 
 /**
- * The header every screen inside the shell uses: the "On this device" chip (no sync transport in
- * v1, so it never says synced), the manual Lock, and the Settings icon on a phone.
+ * The header every screen inside the shell uses: the status chip ("On this device" until the device
+ * is connected to a server copy, then pending, synced, retry later or "update the app"; it says
+ * synced only after the server acknowledged the data), the manual Lock, and the Settings icon on a
+ * phone.
  */
 export function ScreenHeader({ title, sub, back, hideSettings = false }: ScreenHeaderProps) {
   const { controller } = useSession();
+  const chip = useHeaderChip();
   return (
     <Header
       title={title}
       {...(sub === undefined ? {} : { sub })}
       {...(back === undefined ? {} : { back })}
-      chip={<StatusChip hasTransport={false} />}
+      chip={
+        <StatusChip
+          hasTransport={chip.hasTransport}
+          status={chip.status}
+          needsUpdate={chip.needsUpdate}
+        />
+      }
       actions={<LockButton unlocked onLock={() => void controller.lock()} />}
       {...(hideSettings ? {} : { settingsHref: hrefs.settings })}
     />
@@ -82,6 +92,8 @@ export function ScreenFrame({
     session.sync.getSnapshot,
     session.sync.getSnapshot,
   ).connected;
+  // The one polite announcement for the page: how many plates wait, never per plate.
+  const plates = usePlateSyncStatuses();
   return (
     <AppShell
       header={header}
@@ -89,6 +101,9 @@ export function ScreenFrame({
       current={current}
       onLog={log.open}
       storageNote={backedUp ? strings.shell.storageNoteServer : undefined}
+      {...(plates.hasTransport
+        ? { sync: { pending: plates.pending, retryLater: plates.retryLater } }
+        : {})}
     >
       {children}
     </AppShell>

@@ -580,10 +580,10 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 
 ## What's NOT in v1
 
-- **Live multi-device sync.** The optional encrypted-backup relay
-  ([above](#encrypted-backup-on-your-own-server)) restores a device and keeps a copy up to date;
-  pulling another device's changes on unlock or focus, and a per-plate "synced" chip, are phase S3. The
-  app still says "on this device" on every plate.
+- **Server accounts beyond a handle, a recovery key, a device list.** The optional encrypted-backup relay
+  ([above](#encrypted-backup-on-your-own-server)) restores a device and keeps several devices in step
+  (they pull on unlock and focus; an unchanged copy is a cheap "not modified"); the recovery key, device
+  list and revoking, deleting the copy from the app and single sign-on are phase S4.
 - **Server-side accounts or readable storage** — by design. The relay holds a person's handle and
   ciphertext, nothing it can read.
 

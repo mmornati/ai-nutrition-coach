@@ -616,6 +616,23 @@ describe('connected', () => {
     expect(await screen.findByText(/This server cannot be reached right now/)).toBeVisible();
   });
 
+  it('a copy from a newer app: says to update the app on this device, and the chip says it too', async () => {
+    const user = userEvent.setup();
+    const { relay, view } = await connected();
+    await screen.findByRole('heading', { level: 2, name: 'Backup on this server' });
+    relay.getVault = () => Promise.resolve({ kind: 'error', error: 'newerFormat' } as const);
+    await user.click(screen.getByRole('button', { name: 'Back up now' }));
+    expect(
+      await screen.findByText(
+        /Update the app on this device to keep syncing; until then nothing is sent/,
+      ),
+    ).toBeVisible();
+    expect(view.container.querySelector('[data-chip-state="updateNeeded"]')).toHaveTextContent(
+      'Update the app on this device to keep syncing',
+    );
+    expect(await axe(view.container)).toHaveNoViolations();
+  });
+
   it('stopping makes only this device forget the connection', async () => {
     const user = userEvent.setup();
     const { relay, bundle } = await connected();

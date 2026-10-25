@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { Recipe, SavedMeal } from '@anc/core';
 import { useSession } from '../../app/session';
 
@@ -10,9 +10,15 @@ export interface SavedLists {
   readonly reload: () => Promise<void>;
 }
 
-/** The person's saved meals and recipes, read when the view opens. A failed read is a calm line. */
+/**
+ * The person's saved meals and recipes, read when the view opens and again when a copy pulled from
+ * the server changed what this device holds (a meal renamed or a recipe added on another device).
+ * The lists are replaced in place; a name being typed or a sheet being open keeps its own state.
+ * A failed read is a calm line.
+ */
 export function useSavedLists(): SavedLists {
-  const { saved, live } = useSession();
+  const { saved, live, sync } = useSession();
+  const pulled = useSyncExternalStore(sync.onRemoteChange, sync.getRemoteRevision, () => 0);
   const [state, setState] = useState<Omit<SavedLists, 'reload'>>({
     status: 'loading',
     meals: [],
@@ -32,9 +38,10 @@ export function useSavedLists(): SavedLists {
     if (live()) setState(next);
   }, [saved, live]);
   useEffect(() => {
-    // Read once when the view opens; `reload` sets state after the awaited read.
+    // Read when the view opens and after each pull that changed something; `reload` sets state
+    // after the awaited read.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- an async read, not a cascading render.
     void reload();
-  }, [reload]);
+  }, [reload, pulled]);
   return { ...state, reload };
 }

@@ -24,6 +24,7 @@ const CONNECTION_KEYS = [
   KV_KEYS.syncVaultId,
   KV_KEYS.syncLastSeenVersion,
   KV_KEYS.syncDirty,
+  KV_KEYS.syncBaseline,
 ] as const;
 
 /** The connection, or `null` when this device has none (or what is stored is not a whole one). */
@@ -83,4 +84,11 @@ export async function readDirty(kv: KeyValueStore): Promise<boolean> {
 export async function writeDirty(kv: KeyValueStore, dirty: boolean): Promise<void> {
   if (dirty) await kv.write(KV_KEYS.syncDirty, '1');
   else await kv.delete(KV_KEYS.syncDirty);
+}
+
+export async function readBaseline(kv: KeyValueStore): Promise<string | null> {
+  return kv.read(KV_KEYS.syncBaseline);
+}
+export async function writeBaseline(kv: KeyValueStore, value: string): Promise<void> {
+  await kv.write(KV_KEYS.syncBaseline, value);
 }

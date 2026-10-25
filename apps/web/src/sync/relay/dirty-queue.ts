@@ -6,8 +6,10 @@
 //
 // It speaks the `SyncQueue` port, so the existing record-plate path and the drain use-case work
 // unchanged: a plate's op marks the flag, and `pending()` is one synthetic "vault" op while the
-// flag is set. It claims nothing per plate: `watchPerPlate` is always empty, so the status chip
-// keeps saying "on this device" until phase S3 can say more, honestly.
+// flag is set. What it says per plate (`watchPerPlate`) is not decided here: the sync service hands
+// it the statuses it derived from the ledger (a plate is `synced` only when a snapshot the relay
+// acknowledged contained it), and the queue just holds and announces them. A device that is not
+// connected has none, so the chip says "on this device".
 //
 // The flag only means something while this device is connected to a vault. A write marks it; it is
 // cleared only when the relay acknowledged a push that was started after the LAST write
@@ -50,6 +52,7 @@ export class DirtyFlagSyncQueue implements SyncQueue {
   #acknowledged = -1;
   #persisting: Promise<void> = Promise.resolve();
   #since = 0;
+  #plates: readonly SyncOpStatus[] = Object.freeze([]);
 
   constructor(kv: KeyValueStore, now: () => number = Date.now) {
     this.#kv = kv;
@@ -147,7 +150,20 @@ export class DirtyFlagSyncQueue implements SyncQueue {
   }
 
   watchPerPlate(observer: StoreObserver<readonly SyncOpStatus[]>): Unsubscribe {
-    return this.#subscribe(this.#plateObservers, observer, () => Object.freeze([]));
+    return this.#subscribe(this.#plateObservers, observer, () => this.#plates);
+  }
+
+  /** The per-plate statuses the service derived; announced to the watchers only when they changed. */
+  setPlateStatuses(next: readonly SyncOpStatus[]): void {
+    const same =
+      next.length === this.#plates.length &&
+      next.every((s, i) => {
+        const had = this.#plates[i];
+        return had !== undefined && had.plateLogId === s.plateLogId && had.status === s.status;
+      });
+    if (same) return;
+    this.#plates = Object.freeze([...next]);
+    for (const observer of [...this.#plateObservers]) safely(() => observer.next(this.#plates));
   }
 
   markSynced(opId: string): Promise<MarkResult> {

@@ -6,6 +6,7 @@
 
 import {
   parseVaultSnapshot,
+  type PlateIdentity,
   vaultFailed,
   vaultOk,
   type VaultResult,
@@ -31,6 +32,18 @@ export class WebVaultStore implements VaultStore {
       return parsed.kind === 'vaultSnapshotParsed'
         ? vaultOk(parsed.snapshot)
         : vaultFailed('storeOperation');
+    } catch (error) {
+      if (isProgrammingError(error)) throw error;
+      return vaultFailed(error instanceof SessionClosedError ? 'locked' : 'storeOperation');
+    }
+  }
+
+  async readPlateIdentities(): Promise<VaultResult<readonly PlateIdentity[]>> {
+    const db = this.source.database();
+    if (!db) return vaultFailed('locked');
+    try {
+      const rows = await db.readPlateUids();
+      return vaultOk(rows.map((r) => ({ plateLogId: r.id, uid: r.uid })));
     } catch (error) {
       if (isProgrammingError(error)) throw error;
       return vaultFailed(error instanceof SessionClosedError ? 'locked' : 'storeOperation');

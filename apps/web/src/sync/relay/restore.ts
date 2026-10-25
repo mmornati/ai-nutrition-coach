@@ -15,6 +15,7 @@ import type { KeyValueStore } from '../../storage/key-value-store';
 import { validateNewPassphrase, type PassphraseIssue } from '../../storage/passphrase';
 import type { UnlockOutcome } from '../../storage/store-controller';
 import { writeConnection, type RelayConnection } from './connection';
+import { writeHeld } from './ledger';
 import type { OpenedServerCopy } from './server-copy';
 
 export type RestoreFromServerResult =
@@ -72,6 +73,7 @@ export async function restoreServerCopyIntoNewStore(deps: {
     if (applied.kind === 'vault') {
       // What was just downloaded is what the server has: nothing to push.
       await writeConnection(deps.kv, connection, false);
+      await writeHeld(deps.kv, copy.snapshot);
       landed = true;
     }
   } catch {

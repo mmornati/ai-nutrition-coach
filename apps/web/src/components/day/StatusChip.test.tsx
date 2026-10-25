@@ -45,6 +45,16 @@ describe('StatusChip', () => {
     expect(container).toHaveTextContent(text);
   });
 
+  it('a copy from a newer app: the chip says to update this device, calmly, whatever the status', () => {
+    const { container } = render(<StatusChip hasTransport status="synced" needsUpdate />);
+    const chip = container.querySelector('[data-chip-state]');
+    expect(chip).toHaveAttribute('data-chip-state', 'updateNeeded');
+    expect(chip).toHaveTextContent('Update the app on this device to keep syncing');
+    // Without a transport there is nothing to update for.
+    const local = render(<StatusChip hasTransport={false} needsUpdate />);
+    expect(local.container).toHaveTextContent('On this device');
+  });
+
   it('is plain static text: no live region of its own', () => {
     const { container } = render(<StatusChip hasTransport status="pending" />);
     expect(container.querySelector('[role="status"], [aria-live]')).toBeNull();
@@ -77,6 +87,7 @@ describe('StatusChip', () => {
         <StatusChip hasTransport status="pending" />
         <StatusChip hasTransport status="synced" />
         <StatusChip hasTransport status="failed" />
+        <StatusChip hasTransport status="failed" needsUpdate />
       </>,
     );
     expect(await axe(container)).toHaveNoViolations();

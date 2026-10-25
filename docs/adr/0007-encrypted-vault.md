@@ -107,12 +107,53 @@ wrappedKey = nonce (12 B) || AES-256-GCM(KEK, vaultKey, aad "anc/vault/wrap/v1|<
 - **A push never overwrites blindly.** One round (`runSyncCycle`) is: `GET` with `If-None-Match: "<last seen>"`; a newer version is opened (associated data checked), merged into the store with the same decision functions the stores use, and remembered; the snapshot is read again, sealed as version + 1 and sent with `If-Match`; a 412 means another device pushed first, so the round starts again, at most four times. The flag is cleared only by an acknowledgement of a push that began after the last write (a generation counter), so a write that lands during a push keeps it set.
 - **Rollback protection.** The client keeps `sync.lastSeenVersion` and, if the relay returns an older version, a different vault, or an acknowledgement for a version other than the one written, it stops: nothing is merged or overwritten, and the screen says so.
 - **Refusals that retrying cannot fix stop the automatic backup** and say why on *Your data* (a copy from a newer app, a rolled-back relay, a revoked token, a vault too large for the server, a damaged copy); *Back up now* tries once more. Stopping from this device only forgets the connection (the relay's copy is untouched).
-- **The status chip is NOT lit.** It stays "On this device" everywhere. AD-6 allows `synced` only after a durable acknowledgement *of the data*, and the relay acknowledges whole snapshots, not plates: deriving a per-plate `synced` honestly needs the pull side (S3) and a record of what each acknowledged version contained. Until then the only place that says "backed up" is *Your data*, and only after an acknowledgement of a push that covered the last write. The relay `SyncAdapter` (`createRelaySyncAdapter`) answers `drained` only on such an acknowledgement and is otherwise a typed failure.
+- **The status chip is NOT lit (until S3, see "Phase S3" below).** It stays "On this device" everywhere. AD-6 allows `synced` only after a durable acknowledgement *of the data*, and the relay acknowledges whole snapshots, not plates: deriving a per-plate `synced` honestly needs the pull side (S3) and a record of what each acknowledged version contained. Until then the only place that says "backed up" is *Your data*, and only after an acknowledgement of a push that covered the last write. The relay `SyncAdapter` (`createRelaySyncAdapter`) answers `drained` only on such an acknowledgement and is otherwise a typed failure.
 - **Telemetry gate.** Two files are allow-listed for the network, both same-origin through the capped fetch helper: `sync/relay/offer.ts` (`GET /sync/config.json`, no identifier) and `sync/relay/client.ts` (the `/sync/v1` calls of a person who turned the backup on). The Privacy page names the opt-in path (EN and FR, awaiting the NDP reviewer).
 
 ### Self-hosting
 
 An opt-in compose profile `sync` (`sync-relay`: read-only root, `cap_drop: ALL`, `no-new-privileges`, non-root, health check, `tmpfs` for `/tmp`, a named volume `sync-data` for `/data`, **no published port**), its own image (`infra/Dockerfile.relay`, node pinned by version and digest, strict lockfile, one bundle), an nginx proxy for `/sync/config.json` and `/sync/v1/` only (rendered at start by `50-render-sync.sh`; `/sync/config.json` answers `{"enabled":false}` (as `/ai/config.json` does, so there is no red line in a console) and the rest of `/sync/` is a 404 unless `AI_NUTRITION_COACH_SYNC=1`; the vault is streamed, not buffered, because `/tmp` is a small tmpfs; the CSP is unchanged because everything is same-origin), and `bin/ai-nutrition-coach up --sync` (implies compose; also with `--tls` and `--traefik`). `scripts/smoke_self_host.sh` brings the profile up and exercises it. Operator backup is a plain copy of the volume (ciphertext, handles and keyed hashes only), together with `server.secret`.
+
+## Phase S3: real multi-device sync (implemented)
+
+`SyncService` (`apps/web/src/sync/relay/sync-service.ts`) now owns pulls as well as pushes; `runSyncCycle` is unchanged in shape (pull, merge, push only if needed, retry on 412) and a pull is simply a cycle with nothing to send.
+
+### Pull triggers
+
+| Trigger | Rule |
+|---|---|
+| Unlock | One cycle about 1 s after the session starts (5 s, and a push first, when changes were left unsent). |
+| `visibilitychange` to visible, window `focus` | One cycle, at most one per **45 s** (measured from the last attempt, whatever its outcome); the two events that fire together are one request. Not while offline, stopped or already running. |
+| `online` | A cycle at once (no throttle: the wait was real), never two at the same time. |
+| A write, `visibilitychange` to hidden | As in S2: a push ~30 s after the last write, and at once when the page is hidden, only if changes wait. |
+
+The pull is `GET` with `If-None-Match: "<last seen>"`, so an idle vault costs a 304 and nothing is decrypted, merged or applied. **A pulled copy is not a change to send** (S2's rewind rule, unchanged): the cycle pushes only if the device had unsent changes or what it holds now differs canonically from the relay's copy. Two idle devices therefore never ping-pong; a test drives two simulated devices through 100 focus events and asserts zero writes and an unmoved version.
+
+### What the screens do with a pulled copy
+
+Applying a snapshot already tells the store watches (`plates`, `notes`, `dismissals`), so the day board, the week, the plate page and the coach notes update through the same live reads as a local write, from a single transaction (no half-applied state is ever readable). What is cached beyond those watches is refreshed when the cycle reports that the pulled copy **changed** what the device holds (`onApplied`, decided by comparing the canonical snapshot before and after): the profile and the numbers preference (observable, so every screen follows), the interface language (applied at once, with the plaintext hint), the recipes in the food search, and the saved lists (`useSavedLists` re-reads on a revision count). Nothing replaces a component's own state: a plate being composed, a food search, a saved meal being renamed (keyed by its stable local id, since an apply updates a saved meal in place) and the allergy field keep what was typed. If the record being looked at was removed elsewhere, the plate page goes back to Today (as it did for a local removal). The refresh code only reads.
+
+### What `synced` means (AD-6)
+
+A **ledger** (`ledger.ts`) records which plates the relay is known to hold. The cycle feeds it with exactly three facts and nothing else:
+
+1. a snapshot **fetched** from the relay (it holds it, whether or not applying succeeds);
+2. the snapshot that was **sealed and acknowledged** (HTTP 200 to the `If-Match` PUT): the snapshot is the one read *before* sealing, so a record written after that read is not in it;
+3. with nothing to send, the snapshot **read in a round where no write landed** (generation unchanged).
+
+A plate is `synced` if its uid is in the ledger, `pending` if not, and `failed` ("Retry later") instead of `pending` while the last round failed or sync is stopped. The statuses are derived by the service and published through `SyncQueue.watchPerPlate` (`DirtyFlagSyncQueue.setPlateStatuses`); the relay `SyncAdapter` is the transport that produces the acknowledgements. A plate's record is written once and never edited, so its uid identifies its state; coach notes, saved meals and settings are separate records and do not move the plate's chip (the persisted dirty flag still covers them, and the header chip, below). The bridge from the screens' local ids to uids is one small store op (`readPlateUids`, ids and uids only).
+
+**Persistence.** The ledger is stored in the device-only `sync.baseline` key (never in a snapshot or export), as fixed-width tokens (a 53-bit hash of each plate uid, not the uid), rewritten when it changes and seeded by create/join/restore with what the relay was just given or handed over. After a reload a held plate is still `synced` and an unacknowledged one is `pending`; an absent or malformed baseline is "unknown", which reads as `pending` until the unlock pull establishes it. It errs one way only: a write that fails leaves an older baseline, never a larger one. Past 50,000 plates it is kept in memory only.
+
+**Header chip** (`chip.ts`): "On this device" without a connection; `pending` while changes wait or the device does not yet know; `synced` only when nothing waits and the ledger is known; `failed` ("Retry later") for a stopped sync or a failed push; and a distinct calm "update the app" state for schema skew. The page-level `SyncAnnouncer` is wired to the counts of pending and retry-later plates (aggregate, polite, never per plate, never on first render). A deletion's confirmation adds "It will also be removed from your other devices." only when the device is connected.
+
+### Schema skew
+
+A snapshot (or envelope) from a newer app, met on a pull, ends the cycle as `needsUpdate`: the copy is never applied, nothing is pushed (the pull comes first and a refusal ends the cycle), the stored version is not advanced, automatic sync stops (no further pulls or pushes from focus, writes or the hidden page) and the chip and *Your data* say "Update the app on this device to keep syncing". *Back up now* looks once more and still never writes. Updating the app and reloading starts a fresh session that syncs again.
+
+### Lifecycle
+
+Every guard from S2 (`isCurrent`) now also covers the pull: a cycle that outlives a lock, a disconnect or an erase applies nothing, writes no version, baseline or acknowledgement and tells no one. A revoked token (401) is `signedOut`, a rolled-back relay `rolledBack`, a copy dated beyond the drift bound `paused` (the store refuses the apply, nothing is written), a relay that cannot be reached `offline`/`failed` with the growing wait; each is a stated phase on *Your data*, a chip that does not say `synced` for anything unsent, and each is covered by a test.
 
 ## Identity and relay limits (as planned; see "Phase S2" above for what was built)
 
@@ -183,7 +224,7 @@ The relay operator or anyone who steals its volume learns the **size** of a vaul
 
 ## Obligations
 
-- **AD-6 and the status chip.** The chip may say `synced` only after a durable remote acknowledgement of the data. The in-memory queue is replaced by a persisted dirty flag (done in S2), the chip is deliberately left at "On this device" until S3 can derive a per-plate answer honestly (see "Phase S2").
+- **AD-6 and the status chip.** The chip may say `synced` only after a durable remote acknowledgement of the data. The in-memory queue is replaced by a persisted dirty flag (done in S2), the chip was deliberately left at "On this device" until S3 could derive a per-plate answer honestly; S3 does (see "Phase S3": the ledger and the three facts that feed it).
 - **`docs/your-data.md`** describes what exists (the encrypted backup, its restore, the opt-in backup to a server) and is updated with each phase. `docs/self-host.md` (enabling the profile, backing up the volume) and the telemetry gate's allow-list (two same-origin files) were updated in S2; `docs/telemetry-posture.md` and the threat-model write-up are completed in S4.
 - **Copy sign-off.** Every string about backup, restore and sync (English and French) is reviewed by the NDP reviewer; no nagging, no countdowns.
 - **Rollout:** S1 (encrypted backup file and restore, no server), S2 (relay and restore on a new device), S3 (real multi-device sync, two-device end-to-end test, schema-skew refusal), S4 (recovery key, change passphrase, device list and revoke, delete my copy, docs). Each phase is its own change and is useful alone.

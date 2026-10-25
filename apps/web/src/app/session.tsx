@@ -166,6 +166,8 @@ export interface SyncOptions {
   readonly offer?: SyncOfferSource;
   readonly debounceMs?: number;
   readonly startDelayMs?: number;
+  readonly pullDelayMs?: number;
+  readonly pullIntervalMs?: number;
   readonly isOnline?: () => boolean;
   readonly events?: SyncEvents;
   readonly timers?: SyncTimers;
@@ -207,6 +209,10 @@ export async function createSession(
     },
     ...(syncOptions.debounceMs === undefined ? {} : { debounceMs: syncOptions.debounceMs }),
     ...(syncOptions.startDelayMs === undefined ? {} : { startDelayMs: syncOptions.startDelayMs }),
+    ...(syncOptions.pullDelayMs === undefined ? {} : { pullDelayMs: syncOptions.pullDelayMs }),
+    ...(syncOptions.pullIntervalMs === undefined
+      ? {}
+      : { pullIntervalMs: syncOptions.pullIntervalMs }),
     ...(syncOptions.isOnline ? { isOnline: syncOptions.isOnline } : {}),
     ...(syncOptions.events ? { events: syncOptions.events } : {}),
     ...(syncOptions.timers ? { timers: syncOptions.timers } : {}),
@@ -336,6 +342,26 @@ export async function createSession(
     syncOpEnqueue: createRecordSyncOp(syncQueue),
   });
 
+  // A copy pulled from the relay changed what this device holds. The plates, notes and dismissals
+  // follow through their live watches (the store tells them when a snapshot lands); what is cached
+  // beyond those is read again here: the profile and the numbers preference (observable, so every
+  // screen follows), the interface language (applied at once), the recipes in the food search. The
+  // saved lists re-read on the revision count (`useSavedLists`). Nothing here writes, and nothing
+  // replaces a component's own state, so a plate being composed or a name being typed stays.
+  const localePrefs = new LocalePrefs(kv);
+  const stopRemote = sync.onRemoteChange(() => {
+    void (async () => {
+      try {
+        await Promise.all([profile.load(), numbers.load()]);
+        const stored = await localePrefs.readStored();
+        if (live) applyLocalePreference(localePrefs, stored);
+        if (live) catalog.invalidate();
+      } catch {
+        // The next pull or the next unlock reads it again.
+      }
+    })();
+  });
+
   const askCoach = new AskCoachConversation({ ...coachAiDeps, naming, live: () => live });
   // A conversation belongs to one destination: when the AI, the destination or the coaching consent
   // changes, it starts again (nothing of it is sent to a service the person did not agree to).
@@ -360,7 +386,7 @@ export async function createSession(
     clock,
     catalog,
     privacy,
-    localePrefs: new LocalePrefs(kv),
+    localePrefs,
     numbers,
     profile,
     syncQueue,
@@ -425,6 +451,7 @@ export async function createSession(
       catalog.invalidate();
       ai.permit.close();
       stopWrites();
+      stopRemote();
       sync.dispose();
       syncQueue.dispose();
     },

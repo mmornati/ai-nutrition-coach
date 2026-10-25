@@ -1,157 +1,27 @@
 // The automatic backup: when a push runs, what it does on a conflict, offline, and the refusals
 // that must stop it. Real store, real crypto (fast KDF), a fake relay that behaves like the real
 // one, and timers and page events the test drives by hand.
-import { describe, expect, it, vi } from 'vitest';
-import type { VaultSnapshot } from '@anc/core';
-import { at, memoryBundle, seedPlate, unlockedBundle } from '../../app/testing';
-import type { StoreBundle } from '../../storage';
+import { describe, expect, it } from 'vitest';
+import { decodeBase64Url, type VaultSnapshot } from '@anc/core';
+import { at, seedPlate, unlockedBundle } from '../../app/testing';
 import { KV_KEYS } from '../../storage/key-value-store';
-import { fastKdf } from '../vault/testing';
 import { readConnection } from './connection';
-import { createServerVault } from './create';
 import { importVaultKey, sealSnapshot } from './crypto';
-import { DirtyFlagSyncQueue } from './dirty-queue';
-import { restoreServerCopyIntoNewStore } from './restore';
-import { openServerCopy } from './server-copy';
-import {
-  adoptConnection,
-  SyncService,
-  type SyncEvents,
-  type SyncStatus,
-  type SyncTimers,
-} from './sync-service';
+import { adoptConnection } from './sync-service';
 import { FakeRelay } from './testing/fake-relay';
-import { decodeBase64Url } from '@anc/core';
-
-const PASS = 'a vault passphrase';
-const MAX = 20 * 1024 * 1024;
-
-const snapshotOf = async (bundle: StoreBundle): Promise<VaultSnapshot> => {
-  const read = await bundle.vault.readSnapshot();
-  if (read.kind !== 'vault') throw new Error('read');
-  return read.value;
-};
-const foods = async (bundle: StoreBundle) =>
-  (await snapshotOf(bundle)).plates.flatMap((p) => p.entries.map((e) => e.displayName)).sort();
-
-/** Timers and page events driven by hand. */
-function manual() {
-  const pending = new Map<number, { fn: () => void; ms: number }>();
-  let id = 0;
-  const hidden = new Set<() => void>();
-  const online = new Set<() => void>();
-  const timers: SyncTimers = {
-    set(fn, ms) {
-      const mine = ++id;
-      pending.set(mine, { fn, ms });
-      return () => void pending.delete(mine);
-    },
-  };
-  const events: SyncEvents = {
-    onHidden: (l) => (hidden.add(l), () => void hidden.delete(l)),
-    onOnline: (l) => (online.add(l), () => void online.delete(l)),
-  };
-  return {
-    timers,
-    events,
-    waits: () => [...pending.values()].map((t) => t.ms),
-    async fire(): Promise<void> {
-      const [key, t] = [...pending.entries()][0] ?? [];
-      if (key === undefined || t === undefined) throw new Error('no timer is pending');
-      pending.delete(key);
-      t.fn();
-      await settled();
-    },
-    hide: () => [...hidden].forEach((l) => l()),
-    online: () => [...online].forEach((l) => l()),
-  };
-}
-
-const settled = async (): Promise<void> => {
-  for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 0));
-};
-
-interface Device {
-  bundle: StoreBundle;
-  service: SyncService;
-  queue: DirtyFlagSyncQueue;
-  clock: ReturnType<typeof manual>;
-  online: { value: boolean };
-  stop(): void;
-}
-
-async function attach(bundle: StoreBundle, relay: FakeRelay): Promise<Device> {
-  const clock = manual();
-  const online = { value: true };
-  const queue = new DirtyFlagSyncQueue(bundle.kv);
-  const service = new SyncService({
-    kv: bundle.kv,
-    vault: bundle.vault,
-    client: relay,
-    queue,
-    timers: clock.timers,
-    events: clock.events,
-    isOnline: () => online.value,
-    maxVaultBytes: () => MAX,
-  });
-  await service.start();
-  const stopWrites = bundle.controller.onWrite(() => service.noteWrite());
-  return {
-    bundle,
-    service,
-    queue,
-    clock,
-    online,
-    stop: () => (stopWrites(), service.dispose()),
-  };
-}
-
-/** Device A created the vault; returns it attached. */
-async function connected(relay = new FakeRelay()) {
-  const bundle = await unlockedBundle();
-  await seedPlate(bundle, at(8, 0), [['Porridge', 'starch']]);
-  const made = await createServerVault({
-    client: relay,
-    kdf: fastKdf,
-    vault: bundle.vault,
-    kv: bundle.kv,
-    handle: 'alice',
-    passphrase: PASS,
-    maxVaultBytes: MAX,
-  });
-  if (made.kind !== 'created') throw new Error('create');
-  relay.requests.length = 0;
-  return { relay, a: await attach(bundle, relay) };
-}
-
-/** A second device that restored from the vault. */
-async function secondDevice(relay: FakeRelay) {
-  const b = memoryBundle();
-  await b.controller.initialize();
-  const opened = await openServerCopy({
-    client: relay,
-    kdf: fastKdf,
-    handle: 'alice',
-    passphrase: PASS,
-  });
-  if (opened.kind !== 'opened') throw new Error('open');
-  const restored = await restoreServerCopyIntoNewStore({
-    copy: opened.copy,
-    passphrase: PASS,
-    createStore: (p) => b.controller.createStore(p),
-    vault: b.vault,
-    kv: b.kv,
-    eraser: b.eraser,
-    now: Date.now,
-  });
-  if (restored.kind !== 'restored') throw new Error('restore');
-  return attach(b, relay);
-}
-
-const status = (d: Device): SyncStatus => d.service.getSnapshot();
-const phase = (d: Device) =>
-  status(d).connected ? (status(d) as { phase: string }).phase : 'none';
-const puts = (relay: FakeRelay) => relay.requests.filter((r) => r.method === 'PUT');
+import {
+  attach,
+  connected,
+  foods,
+  MAX,
+  PASS,
+  phase,
+  puts,
+  secondDevice,
+  settled,
+  snapshotOf,
+  status,
+} from './testing/devices';
 
 describe('starting', () => {
   it('a device with no connection stays silent: no timer, no request, nothing marked', async () => {
@@ -165,11 +35,17 @@ describe('starting', () => {
     expect(d.queue.dirty).toBe(false);
   });
 
-  it('a connected device with nothing changed makes no request at all', async () => {
+  it('a connected device with nothing changed asks nothing until it pulls, a moment after unlock', async () => {
     const { relay, a } = await connected();
     expect(phase(a)).toBe('backedUp');
-    expect(a.clock.waits()).toEqual([]);
+    expect(a.clock.waits()).toEqual([1_000]);
     expect(relay.requests).toEqual([]);
+    await a.clock.fire();
+    // One conditional read, answered "not modified": nothing is written, nothing is applied.
+    expect(relay.requests.map((r) => r.method)).toEqual(['GET']);
+    expect(relay.notModified).toBe(1);
+    expect(phase(a)).toBe('backedUp');
+    expect(a.clock.waits()).toEqual([]);
   });
 
   it('changes left unsent by the last session are sent a few seconds after the next unlock', async () => {
@@ -507,9 +383,11 @@ describe('connecting and disconnecting', () => {
   it('the status can be watched', async () => {
     const { a } = await connected();
     const seen: string[] = [];
-    a.service.subscribe(() => seen.push(phase(a)));
+    a.service.subscribe(() => {
+      if (seen[seen.length - 1] !== phase(a)) seen.push(phase(a));
+    });
     await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
     await a.clock.fire();
-    expect(seen).toEqual(['pending', 'syncing', 'backedUp']);
+    expect(seen).toEqual(['backedUp', 'pending', 'syncing', 'backedUp']);
   });
 });

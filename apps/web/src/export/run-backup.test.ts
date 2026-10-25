@@ -18,6 +18,7 @@ function setup(
   const vault: VaultStore = {
     readSnapshot: () => Promise.resolve(options.read ?? vaultOk(SNAPSHOT)),
     applySnapshot: () => Promise.reject(new Error('not used')),
+    readPlateIdentities: () => Promise.reject(new Error('not used')),
   };
   const seal = vi.fn(() =>
     options.seal === 'throw'

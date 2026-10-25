@@ -18,6 +18,7 @@ import type { KeyValueStore } from '../../storage/key-value-store';
 import type { VaultKdf } from '../vault/kdf';
 import type { RelayClient, RelayError } from './client';
 import { writeConnection, type RelayConnection } from './connection';
+import { writeHeld } from './ledger';
 import {
   derivePassphraseKeys,
   importVaultKey,
@@ -142,6 +143,8 @@ export async function createServerVault(deps: {
     } catch {
       return failed('storeProblem');
     }
+    // The relay was just given `uploaded`: those plates are on the server.
+    await writeHeld(deps.kv, uploaded);
     return { kind: 'created', connection, dirty };
   } catch {
     return failed('unavailable');

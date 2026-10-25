@@ -11,6 +11,12 @@
 // Refusals that must never be "retried until it works" end the cycle as `stopped` with a reason: an
 // older copy than this device has seen (rollback), a newer app's data, a revoked token, a vault too
 // large for the server. Everything else that fails is `retry`.
+//
+// A cycle is also what a pull is (on unlock, on focus): with nothing to send and nothing new, step 1
+// is a conditional read that comes back 304, and the cycle ends `upToDate` without a write of any
+// kind. What the cycle reports to the ledger (`onHeld`) is exactly what the relay is known to hold:
+// the snapshot it fetched, the snapshot it sealed and had acknowledged, or, with nothing to send,
+// the snapshot it read when no write had landed since. A write after that read is never in it.
 
 import { canonicalizeSnapshot, type VaultSnapshot, type VaultStore } from '@anc/core';
 import type { KeyValueStore } from '../../storage/key-value-store';
@@ -74,6 +80,14 @@ export interface CycleDeps {
   readonly isCurrent?: () => boolean;
   /** Pull-merge-push rounds before giving up on a vault that keeps changing under us. */
   readonly maxRounds?: number;
+  /**
+   * The relay is known to hold (at least) this snapshot's records in this state: called with a
+   * fetched copy (before it is applied), with a snapshot the relay acknowledged, and with the
+   * snapshot of a round that had nothing to send. Only while `isCurrent`.
+   */
+  readonly onHeld?: (snapshot: VaultSnapshot) => void;
+  /** A pulled copy changed what this device holds: the screens should read it again. */
+  readonly onApplied?: () => void;
 }
 
 const retry = (reason: RetryReason, retryAfterSeconds?: number): CycleResult => ({
@@ -114,8 +128,11 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
   for (let round = 0; round < rounds; round++) {
     // ── pull ────────────────────────────────────────────────────────────────────────────────
     const got = await client.getVault(connection.token, connection.lastSeenVersion);
+    // Disconnected (or locked) while that was in flight: nothing it brought is for this device now.
+    if (!current()) return { kind: 'locked' };
     if (got.kind === 'error') return fromClientError(got.error, got.retryAfterSeconds);
     let remote: VaultSnapshot | null = null;
+    let before: VaultSnapshot | null = null;
     if (got.value.kind === 'vault') {
       const fetched = got.value.vault;
       // The refusal that makes a malicious or restored-from-backup relay visible: it may never
@@ -138,6 +155,16 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
           if (opened.kind === 'tooLarge') return stopped('tooLarge');
           return stopped('damaged');
         }
+        // Disconnected while it was being opened: nothing of it is for this device now.
+        if (!current()) return { kind: 'locked' };
+        // The relay holds this, whether or not this device manages to apply it.
+        deps.onHeld?.(opened.snapshot);
+        // What the screens show now, to tell afterwards whether the pulled copy changed it.
+        if (deps.onApplied) {
+          const had = await vault.readSnapshot();
+          if (had.kind === 'vault') before = had.value;
+        }
+        if (!current()) return { kind: 'locked' };
         // A snapshot with a time far ahead of this clock is refused by the store (and by us first,
         // so nothing is half-applied).
         const beforeApply = queue.checkpoint();
@@ -170,6 +197,7 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
       return read.reason === 'locked' ? { kind: 'locked' } : stopped('storeProblem');
     }
     const local = read.value;
+    if (before !== null && current() && !same(before, local)) deps.onApplied?.();
     const differs = remote !== null && !same(local, remote);
     if (!queue.dirty && differs && current()) {
       // The device holds something the relay does not (a write that raced the apply): remember it,
@@ -179,7 +207,11 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
       if (queue.generation === generation + 1) generation += 1;
     }
     if (!queue.dirty && !differs) {
-      if (current()) queue.acknowledge(generation);
+      if (current()) {
+        queue.acknowledge(generation);
+        // Nothing was written since the read began, so what was read is what the relay holds.
+        if (queue.generation === generation) deps.onHeld?.(local);
+      }
       return { kind: 'upToDate' };
     }
 
@@ -205,6 +237,8 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
       if (current()) {
         await writeLastSeen(deps.kv, put.value.version).catch(() => undefined);
         queue.acknowledge(generation);
+        // The acknowledgement covers exactly the snapshot that was sealed, nothing written after.
+        deps.onHeld?.(local);
       }
       return { kind: 'pushed', version: put.value.version };
     }

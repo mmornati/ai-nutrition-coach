@@ -13,6 +13,7 @@ import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { replaceRoute, TODAY_HASH } from '../../app/router';
 import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
+import { usePlateSyncStatuses } from '../../app/sync-status';
 import { PlateCoach, useDismissals } from '../today/coach';
 import { CopyPlateSheet } from './CopyPlateSheet';
 import { SaveMealSheet } from './SaveMealSheet';
@@ -29,6 +30,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
   const { deletePlate, notes } = useSession();
   const day = useDay();
   const dismissed = useDismissals(notes);
+  const sync = usePlateSyncStatuses();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copying, setCopying] = useState(false);
@@ -86,7 +88,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
           {day.notice}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <StatusChip hasTransport={false} />
+          <StatusChip hasTransport={sync.hasTransport} status={sync.statusOf(plate.id)} />
           <Button variant="secondary" onClick={() => setCopying(true)}>
             {all.relog.again}
           </Button>
@@ -101,6 +103,7 @@ export function PlateScreen({ plateId }: { readonly plateId: number }) {
       <CopyPlateSheet open={copying} plate={plate} onClose={() => setCopying(false)} />
       <SaveMealSheet open={saving} plate={plate} onClose={() => setSaving(false)} />
       <RemovePlateDialog
+        elsewhere={sync.hasTransport}
         open={confirming}
         dish={plateSummary(plate)}
         busy={busy}

@@ -51,6 +51,10 @@ export class FakeRelay implements RelayClient {
   broken = false;
   /** Runs just before the next write is judged: another device pushing first, say. */
   racePending: (() => Promise<void>) | null = null;
+  /** Runs just before the next read is answered: the person locking the app while it is on the wire. */
+  racePull: (() => Promise<void>) | null = null;
+  /** How many reads were answered "not modified" (the cheap 304). */
+  notModified = 0;
   /** Refuse the device token (as if it had been revoked). */
   revoked = false;
   signupMode: 'open' | 'closed' | 'invite' = 'open';
@@ -145,19 +149,25 @@ export class FakeRelay implements RelayClient {
     return Promise.resolve(ok(this.session(vault)));
   }
 
-  getVault(token: string, haveVersion?: number): Promise<RelayResult<VaultFetch>> {
+  async getVault(token: string, haveVersion?: number): Promise<RelayResult<VaultFetch>> {
     this.log('GET', '/vault', undefined);
     const blocked = this.gate();
-    if (blocked) return Promise.resolve(blocked);
+    if (blocked) return blocked;
+    const race = this.racePull;
+    if (race !== null) {
+      this.racePull = null;
+      await race();
+    }
     const vault = this.vaultOf(token);
-    if (vault === null) return Promise.resolve(err('unauthorized'));
-    if (haveVersion === vault.version) return Promise.resolve(ok({ kind: 'notModified' }));
-    return Promise.resolve(
-      ok({
-        kind: 'vault',
-        vault: { vaultId: vault.vaultId, version: vault.version, envelope: vault.envelope },
-      }),
-    );
+    if (vault === null) return err('unauthorized');
+    if (haveVersion === vault.version) {
+      this.notModified++;
+      return ok({ kind: 'notModified' });
+    }
+    return ok({
+      kind: 'vault',
+      vault: { vaultId: vault.vaultId, version: vault.version, envelope: vault.envelope },
+    });
   }
 
   async putVault(
