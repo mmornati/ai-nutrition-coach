@@ -16,6 +16,8 @@ import { createStore, freshStart, plates, PASSPHRASE, unlockAfterReload } from '
 
 // The port playwright.config.ts starts the relay on.
 const RELAY_PORT = 4174;
+test.use({ blockServiceWorkers: true });
+
 const VAULT_PASSPHRASE = 'the vault passphrase 42';
 
 interface Wire {
@@ -70,7 +72,10 @@ async function anotherDevice(
   hold?: PutHold,
 ): Promise<{ page: Page; close: () => Promise<void> }> {
   const profile = mkdtempSync(join(tmpdir(), 'anc-e2e-device-'));
-  const context = await playwright[browserName].launchPersistentContext(profile, { baseURL });
+  const context = await playwright[browserName].launchPersistentContext(profile, {
+    baseURL,
+    serviceWorkers: 'block',
+  });
   await routeToRelay(context, wire, hold);
   const page = context.pages()[0] ?? (await context.newPage());
   return {
