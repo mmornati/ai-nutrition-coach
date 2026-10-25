@@ -1,6 +1,6 @@
 # ADR 0007: Encrypted vault: backup, restore and cross-device sync
 
-Status: accepted for S0 (groundwork) and S1 (encrypted backup file, no server), both implemented; S2 to S4 are accepted as a plan and still pending · 2026-10-22
+Status: accepted for S0 (groundwork) and S1 (encrypted backup file, no server), both implemented; S2 to S4 are accepted as a plan and still pending (join-device flow added 2026-10-25) · 2026-10-22
 Resolves: PRD open question OQ-1 (the sync path left open by FR-10), `_bmad-output/planning-artifacts/prds/prd-openplate-2026-08-12/prd.md`.
 Builds on: [ADR 0005](0005-web-encrypted-store.md) (the local encrypted store, unchanged by this ADR). The full plan, with phases and rough sizes, is [`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md); this ADR keeps the decisions.
 
@@ -66,6 +66,16 @@ optional recovery key (random 32 B, shown once) ──▶ a second wrap of vault
 - **Forward-auth** (optional): behind Authentik or Traefik the vault is bound to the SSO subject and the passphrase only decrypts.
 - After login a device gets a revocable token, stored hashed on the server. Rate limits per IP and per handle.
 - Limits: a maximum vault size (default 20 MB), a body cap, a cap on the number of vaults. The relay keeps **one previous envelope** per vault so a bad push can be rolled back by the client. Same container hardening as the app (read-only, `cap_drop: ALL`, non-root, healthcheck). A plain file backup of the relay volume is safe, since it holds ciphertext only.
+
+## Joining a device and conflicts (phases S2 and S3, decided 2026-10-25)
+
+The merge settles almost everything without a question; a choice is offered only where it cannot know what the person means. Details and copy are in the plan, §3.6.
+
+- **Handle and passphrase are always asked together.** Handles cannot be enumerated (fake salts), so the app cannot test a handle alone; a failed lookup is one ambiguous line ("nothing matches this handle and passphrase"). Rate limiting has its own message. Signup may say a handle is taken.
+- **A new device** restores without a question: the local store is created with the vault passphrase and the snapshot applied; a failure leaves no store behind.
+- **A device with its own data** joins through a **dry-run merge and a preview** (server count, device count, combined count) before anything is written. **Combine** is the default and deletes nothing. If the synced `profile` differs by content, the person picks which one to keep once, and that value is re-stamped so it wins everywhere (pre-v4 profiles carry legacy stamps, so last-writer-wins would choose by device id). Other synced keys stay last-writer-wins. **Start fresh from the server copy** is an advanced option: it names the records that will leave this device, offers an encrypted backup file first, erases the local store and restores; the server is untouched.
+- **"Replace the server copy with this device" is rejected.** Under a union merge, other devices merge the data back on their next sync; a working reset needs a vault epoch every device obeys, which is destructive for little gain. Starting over is *Delete my copy on this server* (S4), then a new vault.
+- **Automatic, silent sync after joining.** A persisted dirty flag in `kv`, a debounced push (about 30 s after the last write, and when the page is hidden) while unlocked and online; every push is a compare-and-swap (`If-Match`), and a conflict (412) pulls, merges and retries. A push never overwrites blindly, from S2 on. S3 adds the pull on unlock and focus and the honest `synced` chip.
 
 ## Data model (S0, implemented in schema v4)
 
