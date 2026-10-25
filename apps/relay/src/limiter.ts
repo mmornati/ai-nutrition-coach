@@ -117,6 +117,12 @@ export class RateLimiter {
     return true;
   }
 
+  /** How many hits the live window of `key` holds (0 when it has none). Counts nothing. */
+  count(key: string, now: number): number {
+    const window = this.#windows.get(key);
+    return window === undefined || now - window.start >= window.windowMs ? 0 : window.count;
+  }
+
   get size(): number {
     return this.#windows.size;
   }

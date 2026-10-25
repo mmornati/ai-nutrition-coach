@@ -25,13 +25,13 @@ export interface RelayConfig {
   readonly maxDevicesPerVault: number;
   /** Requests per minute per client address across salt, login and signup. */
   readonly rateIpPerMinute: number;
-  /** Requests per minute per handle across salt, login and signup. */
+  /** Failed logins per minute per (client address, handle); beyond it that client is refused. */
   readonly rateHandlePerMinute: number;
   /** Signups per hour per client address. */
   readonly rateSignupPerHour: number;
   /** Writes (PUT) per minute per device. */
   readonly rateWritePerMinute: number;
-  /** Vault uploads (signup, write) read at the same time; more are told to come back shortly. */
+  /** Vault writes read at the same time (signups get half, min 1); more are told to come back shortly. */
   readonly maxConcurrentUploads: number;
   /** Believe `X-Real-IP` (set by the nginx in front, the only thing that can reach the relay). */
   readonly trustProxy: boolean;

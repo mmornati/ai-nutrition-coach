@@ -451,8 +451,8 @@ is proxied, everything else under `/sync/` is a 404.
 | `SYNC_MAX_VAULT_MB` | `20` | The largest encrypted copy, 1 to 24. nginx's body limit follows it. |
 | `SYNC_MAX_VAULTS` | `50` | Handles this relay will hold. |
 | `SYNC_MAX_DEVICES` | `20` | Device tokens kept per handle (the one used least recently is dropped). |
-| `SYNC_MAX_UPLOADS` | `3` | Vault uploads (signup and writes) the relay reads at the same time, whoever sends them; the others are told to come back in a few seconds. Each can hold a whole vault in memory, so keep it small on a small host. |
-| `SYNC_RATE_IP` / `SYNC_RATE_HANDLE` / `SYNC_RATE_SIGNUP` / `SYNC_RATE_WRITE` | 30 / 10 / 5 / 60 | Per minute per address (salt, login and signup together; an IPv6 address counts as its /64), failed logins per minute per handle, signups per hour per address, uploads per minute per device. |
+| `SYNC_MAX_UPLOADS` | `3` | Vault writes the relay reads at the same time; signups have their own pool of half that (at least 1), and one client address holds at most one slot per pool. The others are told to come back in a few seconds. A body must arrive within about 10 s plus its size at 64 KiB/s (60 s at most) or it is dropped. Each can hold a whole vault in memory, so keep it small on a small host. |
+| `SYNC_RATE_IP` / `SYNC_RATE_HANDLE` / `SYNC_RATE_SIGNUP` / `SYNC_RATE_WRITE` | 30 / 10 / 5 / 60 | Per minute per address (salt, login and signup together; an IPv6 address counts as its /64), failed logins per minute per address and handle (a handle guessed at from many addresses is slowed, up to 2 s per login, never locked), signups per hour per address, uploads per minute per device. |
 | `SYNC_SERVER_SECRET` | generated | Optional. By default 32 random bytes are written to `server.secret` (mode 0600) in the data volume at the first start. |
 
 **Your data.** SQLite lives in the named volume `sync-data` (`/data` in the container): `relay.sqlite`
