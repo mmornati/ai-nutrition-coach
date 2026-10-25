@@ -82,11 +82,13 @@ export function PrivacyScreen() {
         <Prose>{s.leavesPhoto}</Prose>
         <Prose>{s.leavesInstance}</Prose>
         <Prose>{s.leavesCoaching}</Prose>
+        <Prose>{s.leavesServerCopy}</Prose>
         {session !== null && <OffSwitch session={session} />}
       </Section>
       <Section title={s.serverHeading}>
         <Prose>{s.serverBody}</Prose>
         <Prose>{s.serverInstance}</Prose>
+        <Prose>{s.serverRelay}</Prose>
       </Section>
       <Section title={s.neverHeading}>
         <Prose>{s.neverBody}</Prose>

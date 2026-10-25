@@ -11,7 +11,11 @@ import {
   ENVELOPE_LIMITS,
   ENVELOPE_VERSION,
   type EnvelopeKdf,
+  relayEnvelopeAadText,
+  type ParsedRelayEnvelope,
   type ParsedVaultEnvelope,
+  type RelayEnvelope,
+  type RelayEnvelopeHeader,
   type VaultEnvelope,
   type VaultEnvelopeHeader,
 } from '@anc/core';
@@ -73,6 +77,66 @@ export async function openEnvelope(
         name: 'AES-GCM',
         iv: parsed.nonce as BufferSource,
         additionalData: aadBytes(parsed.envelope) as BufferSource,
+        tagLength: ENVELOPE_LIMITS.tagBytes * 8,
+      },
+      key,
+      parsed.ciphertext as BufferSource,
+    );
+    return { kind: 'decrypted', plaintext: new Uint8Array(plaintext) };
+  } catch {
+    return { kind: 'authenticationFailed' };
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The relay variant (no KDF header): sealed with the random vault key, not a passphrase-derived one.
+// The associated data binds the vault id and the version, so the relay cannot move an envelope to
+// another vault or replay an old one under a newer number. A random 96-bit nonce per seal is safe
+// for the few thousand writes a person's vault will ever see under one key.
+
+export interface RelaySealInput {
+  readonly key: CryptoKey;
+  /** 16 bytes. */
+  readonly vaultId: Uint8Array;
+  readonly version: number;
+  /** 12 bytes, never reused with the same key. */
+  readonly nonce: Uint8Array;
+  readonly plaintext: Uint8Array;
+}
+
+export async function sealRelayEnvelope(input: RelaySealInput): Promise<RelayEnvelope> {
+  const header: RelayEnvelopeHeader = {
+    v: ENVELOPE_VERSION,
+    vaultId: encodeBase64Url(input.vaultId),
+    version: input.version,
+    alg: ENVELOPE_ALG,
+    nonce: encodeBase64Url(input.nonce),
+  };
+  const ciphertext = await globalThis.crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv: input.nonce as BufferSource,
+      additionalData: new TextEncoder().encode(relayEnvelopeAadText(header)) as BufferSource,
+      tagLength: ENVELOPE_LIMITS.tagBytes * 8,
+    },
+    input.key,
+    input.plaintext as BufferSource,
+  );
+  return { ...header, ct: encodeBase64Url(new Uint8Array(ciphertext)) };
+}
+
+export async function openRelayEnvelope(
+  key: CryptoKey,
+  parsed: ParsedRelayEnvelope,
+): Promise<OpenEnvelopeResult> {
+  try {
+    const plaintext = await globalThis.crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: parsed.nonce as BufferSource,
+        additionalData: new TextEncoder().encode(
+          relayEnvelopeAadText(parsed.envelope),
+        ) as BufferSource,
         tagLength: ENVELOPE_LIMITS.tagBytes * 8,
       },
       key,

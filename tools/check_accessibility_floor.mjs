@@ -33,6 +33,11 @@ export const COVERED_BY = Object.freeze({
   ChoiceGroup: 'YourDataScreen',
   BackupSection: 'YourDataScreen',
   RestoreSection: 'YourDataScreen',
+  // The relay backup (phase S2): four sections of Your data, tested through it in every state.
+  ServerSection: 'YourDataScreen',
+  ServerBackupSection: 'YourDataScreen',
+  ServerJoinSection: 'YourDataScreen',
+  ServerConnectedSection: 'YourDataScreen',
   SwitchRow: 'YourAiScreen',
   SettingsList: 'SettingsScreen',
   // The log flows: sheets and views rendered by the host, and tested through it.

@@ -5,7 +5,8 @@ that gives the full detail, and the [trust posture table](https://github.com/mmo
 that proves each promise. To report a vulnerability, see [`SECURITY.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/SECURITY.md).
 
 The idea is simple: trust comes from the architecture, not from a policy. There is no account, no server-side copy of
-your history and nothing sent by default. What could leave the device is listed, pinned by tests, and switched on only
+your history and nothing sent by default (an encrypted copy on the server you got the app from exists only if its
+operator turned the relay on and you chose it). What could leave the device is listed, pinned by tests, and switched on only
 by you.
 
 ## Your history stays in your browser

@@ -43,6 +43,20 @@ export const KV_KEYS = Object.freeze({
   uiShowNumbers: 'ui.showNumbers',
   /** The optional `Profile` as JSON; absent means no profile. Included in the JSON export. */
   profile: 'profile',
+  // The connection of THIS device to a relay vault (phase S2). All device-only: they never enter a
+  // snapshot, and none is ever exported. A device that is not connected has none of them.
+  /** The handle this device backs up under. */
+  syncHandle: 'sync.handle',
+  /** The revocable device token the relay issued at login (a secret). */
+  syncToken: 'sync.token',
+  /** The raw 32-byte vault key, base64url (a secret: it opens every snapshot on the relay). */
+  syncVaultKey: 'sync.vaultKey',
+  /** The vault id (16 bytes, base64url). */
+  syncVaultId: 'sync.vaultId',
+  /** The highest version of the vault this device has seen; an older one is refused (rollback). */
+  syncLastSeenVersion: 'sync.lastSeenVersion',
+  /** `1` while local changes have not been acknowledged by the relay (the persisted outbox). */
+  syncDirty: 'sync.dirty',
 } as const);
 
 export interface KeyValueStore {

@@ -21,10 +21,12 @@ export interface RailProps {
   readonly current: ShellRoute;
   readonly hrefs: Readonly<Record<ShellRoute, string>>;
   readonly onLog: () => void;
+  /** Replaces the usual storage line (e.g. while an encrypted copy is kept on the server). */
+  readonly storageNote?: string | undefined;
 }
 
 /** Desktop navigation (>= 1024px): brand, nav, Log button, storage status pinned to the bottom. */
-export function Rail({ current, hrefs, onLog }: RailProps) {
+export function Rail({ current, hrefs, onLog, storageNote }: RailProps) {
   const s = useStrings().shell;
   return (
     <aside className="border-seam bg-raised hidden w-60 shrink-0 flex-col border-r-2 px-4.5 py-6 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:overflow-y-auto">
@@ -58,7 +60,7 @@ export function Rail({ current, hrefs, onLog }: RailProps) {
           <span aria-hidden="true" className="bg-ink size-2.25 rounded-full" />
           {s.storage}
         </p>
-        <p>{s.storageNote}</p>
+        <p>{storageNote ?? s.storageNote}</p>
         <p className="font-display text-thread mt-3.5 text-small">{s.footmark}</p>
       </div>
     </aside>

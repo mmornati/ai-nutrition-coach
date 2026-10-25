@@ -1,6 +1,6 @@
 # Encrypted backup, restore and cross-device sync: plan
 
-Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · join-device flow (§3.6) added 2026-10-25 · S0 and S1 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
+Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · join-device flow (§3.6) added 2026-10-25 · S0, S1 and S2 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
 Goal: a person can lose a browser's storage (cleared site data, Safari's 7-day eviction, a new phone,
 an installed iOS web app that keeps its own storage) and get **all** their history back, and can use
 the app on several devices, while the server only ever holds **ciphertext it cannot read**.
@@ -262,15 +262,19 @@ This alone fixes "local storage lost" for anyone who keeps the file, on every in
   WebKit; a wrong passphrase or a tampered file gives one calm line, never a partial import.
 
 ### Phase S2: relay + restore on a new device + automatic backup
-- `apps/relay`, compose profile `sync`, nginx `/sync/` location, `bin/ai-nutrition-coach up --sync`.
-- App: *Your data → Back up to this server* (Case C, §3.6), *Connect to this server's copy*
+- [x] `apps/relay`, compose profile `sync`, nginx `/sync/` location, `bin/ai-nutrition-coach up --sync`.
+  (Handle identity only; forward-auth is deferred to S4. The relay has its own image,
+  `infra/Dockerfile.relay`.)
+- [x] App: *Your data → Back up to this server* (Case C, §3.6), *Connect to this server's copy*
   (Case B: dry-run preview, Combine by default, profile prompt, Start fresh as an advanced option)
   and, on the first-run screen, *Restore from this server* (Case A). Handle and passphrase are
   always asked together, with one ambiguous failure line.
-- Automatic backup: a persisted dirty flag in `kv` replaces the in-memory outbox; push debounced
+- [x] Automatic backup: a persisted dirty flag in `kv` replaces the in-memory outbox; push debounced
   (~30 s after the last write, and on `visibilitychange` hidden) while unlocked and online; every
-  push is `If-Match`, a 412 pulls, merges and retries (never a blind overwrite).
-- **Done when:** self-host smoke brings up the profile; e2e restores on a fresh browser context;
+  push is `If-Match`, a 412 pulls, merges and retries (never a blind overwrite). The status chip is
+  deliberately NOT lit yet (it says "On this device"): the relay acknowledges whole snapshots, and a
+  per-plate `synced` that is honest needs S3's pull side.
+- [x] **Done (met):** self-host smoke brings up the profile; e2e restores on a fresh browser context;
   e2e joins a device that has its own plates and sees the combined preview; relay tests show it
   never receives plaintext (assert on captured request bodies).
 

@@ -1,0 +1,91 @@
+# Encrypted-backup relay -- server-level locations (rendered by 50-render-sync.sh into
+# /tmp/ai-nutrition-coach-sync-locations.inc). Doubled-at-sign placeholders are substituted from
+# validated values; nginx's own $variables are left alone.
+#
+# The relay is a separate container (apps/relay) on the compose network; nobody but this nginx can
+# reach it. It stores ciphertext it cannot read and does its own rate limiting (per address, per
+# handle), keyed on the X-Real-IP set below. Same origin, so the CSP is unchanged.
+#
+# Only the paths the app uses are proxied: GET /sync/config.json and /sync/v1/{salt,login,signup,vault}.
+# The relay's health check and everything else under /sync/ are a plain 404. (With the relay off,
+# sync.disabled.inc.template answers {"enabled":false} for the config instead.)
+#
+# Resolved at request time (Docker's embedded DNS), so this server starts whether or not the relay
+# container is up yet; while it is down, /sync/ answers 503 and the app shows nothing about sync.
+
+location = /sync/config.json {
+    default_type application/json;
+    if ($request_method !~ "^(GET|HEAD)$") { return 405 '{"error":"methodNotAllowed"}'; }
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+
+    resolver @@ANC_SYNC_RESOLVER@@ valid=10s ipv6=off;
+    resolver_timeout 3s;
+    set $anc_sync_upstream "http://@@ANC_SYNC_HOST@@:@@ANC_SYNC_PORT@@";
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 10s;
+    proxy_redirect off;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header Set-Cookie;
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @ai_nutrition_coach_sync_down;
+    proxy_pass $anc_sync_upstream;
+}
+
+location ^~ /sync/v1/ {
+    default_type application/json;
+    if ($request_method !~ "^(GET|HEAD|POST|PUT)$") { return 405 '{"error":"methodNotAllowed"}'; }
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+
+    # A vault is at most SYNC_MAX_VAULT_MB of ciphertext, base64url and JSON included. The body is
+    # STREAMED to the relay (no request buffering): /tmp is a small tmpfs, and the relay bounds the
+    # body again while it reads it.
+    client_max_body_size @@ANC_SYNC_BODY@@;
+    # At most this many requests in flight per client address: a few big uploads at once cannot
+    # fill the relay's memory. Over it, the app is told the server is busy and tries again later.
+    limit_conn ai_nutrition_coach_sync_conn 8;
+    limit_conn_status 503;
+    client_body_timeout 60s;
+    proxy_request_buffering off;
+    proxy_buffering off;
+
+    resolver @@ANC_SYNC_RESOLVER@@ valid=10s ipv6=off;
+    resolver_timeout 3s;
+    set $anc_sync_upstream "http://@@ANC_SYNC_HOST@@:@@ANC_SYNC_PORT@@";
+
+    # The request URI, method, body and headers (Authorization, If-Match, If-None-Match, Content-Type,
+    # Sec-Fetch-Site) reach the relay as sent; only the address it limits on is set here, so a client
+    # cannot choose it.
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 3s;
+    proxy_send_timeout 120s;
+    proxy_read_timeout 120s;
+    proxy_redirect off;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header Set-Cookie;
+    error_page 502 503 504 = @ai_nutrition_coach_sync_down;
+    proxy_pass $anc_sync_upstream;
+}
+
+location @ai_nutrition_coach_sync_down {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 503 '{"error":"unavailable"}';
+}
+
+# Anything else under /sync/ (the relay's own health check included) is not the app shell.
+location ^~ /sync/ {
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 404;
+}

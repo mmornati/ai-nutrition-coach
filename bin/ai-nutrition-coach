@@ -12,6 +12,10 @@
 #                                 port, joins the Docker network Traefik is on
 #                                 and is routed for $AI_NUTRITION_COACH_DOMAIN over
 #                                 HTTPS (docs/pwa.md)
+#   bin/ai-nutrition-coach up --sync       add the opt-in encrypted-backup relay (compose profile
+#                                          `sync`; implies --compose; combine with --tls or
+#                                          --traefik). The relay keeps ciphertext it cannot read,
+#                                          in the named volume `sync-data` (docs/self-host.md)
 #   bin/ai-nutrition-coach down            stop and remove whatever `up` started
 #
 # The container is a static web server with NO server-side data: your data is
@@ -24,7 +28,8 @@
 #   31  container name already in use   40  compose stack failed to start
 #   41  --tls / --traefik without AI_NUTRITION_COACH_DOMAIN
 #   42  invalid AI_NUTRITION_COACH_DOMAIN / AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / Traefik /
-#       AI_PROXY_* setting
+#       AI_PROXY_* / SYNC_* setting
+#   44  --sync: the relay image build failed
 #   43  --traefik: the Docker network AI_NUTRITION_COACH_TRAEFIK_NETWORK does not exist
 #
 # POSIX sh. Works from any current directory.
@@ -43,6 +48,7 @@ BIND="${AI_NUTRITION_COACH_BIND:-127.0.0.1}"
 PORT="${AI_NUTRITION_COACH_PORT:-${AI_NUTRITION_COACH_HOST_PORT:-8080}}"
 CSP_EXTRA="${AI_NUTRITION_COACH_CONNECT_SRC_EXTRA:-}"
 COMPOSE_FILE="infra/docker-compose.yml"
+RELAY_IMAGE_TAG="${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}"
 TRAEFIK_COMPOSE_FILE="infra/docker-compose.traefik.yml"
 TRAEFIK_NETWORK="${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}"
 TRAEFIK_ENTRYPOINT="${AI_NUTRITION_COACH_TRAEFIK_ENTRYPOINT:-websecure}"
@@ -63,7 +69,8 @@ export AI_NUTRITION_COACH_IMAGE_TAG="$IMAGE_TAG" AI_NUTRITION_COACH_BIND="$BIND"
   AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS="$TRAEFIK_HSTS_SUBDOMAINS" \
   AI_NUTRITION_COACH_TRAEFIK_TLS="$TRAEFIK_TLS" \
   AI_NUTRITION_COACH_TRAEFIK_AUTH_MIDDLEWARE="$TRAEFIK_AUTH_MIDDLEWARE" \
-  AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE="$AUTHENTIK_OUTPOST_SERVICE"
+  AI_NUTRITION_COACH_AUTHENTIK_OUTPOST_SERVICE="$AUTHENTIK_OUTPOST_SERVICE" \
+  AI_NUTRITION_COACH_RELAY_IMAGE_TAG="$RELAY_IMAGE_TAG"
 
 # True if $1 contains only characters from the plain-origin set (no newline,
 # quote, semicolon, wildcard, ...). Mirrors infra/nginx/docker-entrypoint.d/05-validate-csp.sh.
@@ -126,6 +133,35 @@ validate_ai_proxy() {
     printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_MODEL (the model every request uses).\n' >&2
     exit 42
   }
+}
+
+# SYNC_* (optional, with --sync): the encrypted-backup relay. Checked here so a typo fails before
+# any build, the same way with or without Docker; the relay checks them again when it starts and
+# refuses to run on a bad value. Messages name the variable and never print a value (an invite code
+# is a credential).
+validate_sync() {
+  case "${SYNC_SIGNUP:-open}" in
+    open|invite|closed) ;;
+    *) printf 'ai-nutrition-coach: SYNC_SIGNUP must be open, invite or closed.\n' >&2; exit 42 ;;
+  esac
+  if [ "${SYNC_SIGNUP:-open}" = invite ] && [ -z "${SYNC_INVITE_CODES:-}" ]; then
+    printf 'ai-nutrition-coach: SYNC_SIGNUP=invite needs SYNC_INVITE_CODES (comma-separated invite codes).\n' >&2
+    exit 42
+  fi
+  case "${SYNC_MAX_VAULT_MB:-20}" in
+    ''|*[!0-9]*) printf 'ai-nutrition-coach: SYNC_MAX_VAULT_MB must be a whole number from 1 to 24.\n' >&2; exit 42 ;;
+  esac
+  if [ "${SYNC_MAX_VAULT_MB:-20}" -lt 1 ] || [ "${SYNC_MAX_VAULT_MB:-20}" -gt 24 ]; then
+    printf 'ai-nutrition-coach: SYNC_MAX_VAULT_MB must be a whole number from 1 to 24.\n' >&2
+    exit 42
+  fi
+}
+
+# A reminder, never a prompt: the relay holds only ciphertext, but it is still a service.
+note_sync() {
+  [ "$sync" = 1 ] || return 0
+  printf 'ai-nutrition-coach: the encrypted-backup relay is ON (signup: %s). It keeps ciphertext in the Docker volume\n' "${SYNC_SIGNUP:-open}" >&2
+  printf '           sync-data: back that volume up, and keep it on the same host as this stack.\n' >&2
 }
 
 # A reminder, never a prompt: anyone who can open the instance can spend the key.
@@ -251,11 +287,13 @@ warn_if_exposed() {
 
 up() {
   mode=run
+  sync=0
   for arg in "$@"; do
     case "$arg" in
       --compose) [ "$mode" = tls ] || [ "$mode" = traefik ] || mode=compose ;;
       --tls) mode=tls ;;
       --traefik) mode=traefik ;;
+      --sync) sync=1 ;;
       --with-persist)
         printf 'ai-nutrition-coach: --with-persist was removed: the container stores no data. Your data is\n' >&2
         printf '           encrypted in your browser (IndexedDB); use the in-app export to back it up.\n' >&2
@@ -265,11 +303,15 @@ up() {
     esac
   done
 
+  # The relay needs the compose network: --sync alone is the compose stack.
+  [ "$sync" = 0 ] || [ "$mode" != run ] || mode=compose
+
   # Validate everything that needs no Docker first: bad input fails fast and
   # the same way with or without Docker on the machine.
   validate_csp_extra
   validate_access_log
   validate_ai_proxy
+  [ "$sync" = 0 ] || validate_sync
   validate_project_url
   if [ "$mode" = tls ]; then
     if [ -z "${AI_NUTRITION_COACH_DOMAIN:-}" ]; then
@@ -311,21 +353,35 @@ up() {
     exit 20
   fi
 
+  # The relay is its own image (infra/Dockerfile.relay); the app container proxies /sync/ to it.
+  if [ "$sync" = 1 ]; then
+    export AI_NUTRITION_COACH_SYNC=1
+    printf 'ai-nutrition-coach: building %s ...\n' "$RELAY_IMAGE_TAG"
+    if ! docker build -f infra/Dockerfile.relay -t "$RELAY_IMAGE_TAG" . ; then
+      printf 'ai-nutrition-coach: relay image build failed — see the log tail above.\n' >&2
+      exit 44
+    fi
+  fi
+
   if [ "$mode" = traefik ]; then
     printf 'ai-nutrition-coach: starting compose stack behind Traefik (no published port) ...\n'
-    # shellcheck disable=SC2046
-    if ! docker compose $(traefik_compose_args) up -d ; then
+    syncprofile=""
+    [ "$sync" = 0 ] || syncprofile="--profile sync"
+    # shellcheck disable=SC2046,SC2086
+    if ! docker compose $(traefik_compose_args) $syncprofile up -d ; then
       printf 'ai-nutrition-coach: compose stack failed to start.\n' >&2
       exit 40
     fi
     printf 'ai-nutrition-coach is up behind Traefik: https://%s/ (once Traefik has picked up the labels)\n' "$AI_NUTRITION_COACH_DOMAIN"
     note_ai_proxy
+    note_sync
     exit 0
   fi
 
   if [ "$mode" != run ]; then
     profile=""
     [ "$mode" = tls ] && profile="--profile tls"
+    [ "$sync" = 0 ] || profile="$profile --profile sync"
     printf 'ai-nutrition-coach: starting compose stack ...\n'
     # shellcheck disable=SC2086
     if ! docker compose -f "$COMPOSE_FILE" $profile up -d ; then
@@ -339,6 +395,7 @@ up() {
       printf 'ai-nutrition-coach is up at http://%s:%s/\n' "$(url_host)" "$PORT"
     fi
     note_ai_proxy
+    note_sync
     exit 0
   fi
 
@@ -374,16 +431,17 @@ down() {
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
   fi
   if [ -f "$COMPOSE_FILE" ]; then
-    # --profile tls so the Caddy service is stopped too; AI_NUTRITION_COACH_DOMAIN only
+    # --profile tls and --profile sync so the Caddy and relay services are stopped too (the sync-data
+    # volume is kept: it holds people's backups); AI_NUTRITION_COACH_DOMAIN only
     # needs to be non-empty for compose to parse the file.
     AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
-      docker compose -f "$COMPOSE_FILE" --profile tls down >/dev/null 2>&1 || true
+      docker compose -f "$COMPOSE_FILE" --profile tls --profile sync down >/dev/null 2>&1 || true
   fi
   if [ -f "$TRAEFIK_COMPOSE_FILE" ]; then
     # Down needs the file to parse: any non-empty domain does. The network is
     # external, so it is never removed.
     AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
-      docker compose -f "$TRAEFIK_COMPOSE_FILE" down >/dev/null 2>&1 || true
+      docker compose -f "$TRAEFIK_COMPOSE_FILE" --profile sync down >/dev/null 2>&1 || true
   fi
   printf 'ai-nutrition-coach: stopped.\n'
 }
@@ -393,7 +451,7 @@ usage() {
 ai-nutrition-coach — self-host affordance (Story 4.4 / FR-11)
 
 Usage:
-  bin/ai-nutrition-coach up [--compose | --tls | --traefik]
+  bin/ai-nutrition-coach up [--compose | --tls | --traefik] [--sync]
   bin/ai-nutrition-coach down
 
 Environment:
@@ -427,6 +485,12 @@ Environment:
                                stays on the server and is never printed. Anyone who can
                                reach the instance can spend it: use a sign-in or an
                                allow-list (docs/self-host.md)
+  SYNC_SIGNUP                           --sync: open (default) | invite | closed. invite needs
+                               SYNC_INVITE_CODES (comma-separated codes, which are credentials).
+                               Also SYNC_MAX_VAULT_MB (1-24, default 20), SYNC_MAX_VAULTS,
+                               SYNC_MAX_DEVICES, SYNC_MAX_UPLOADS, SYNC_RATE_IP, SYNC_RATE_HANDLE, SYNC_RATE_SIGNUP
+                               (docs/self-host.md "Encrypted backup on your own server")
+  AI_NUTRITION_COACH_RELAY_IMAGE_TAG    --sync: relay image tag (default: ai-nutrition-coach-relay:dev)
   AI_NUTRITION_COACH_PROJECT_URL        project page compiled into the build (plain https URL;
                                default https://github.com/mmornati/ai-nutrition-coach)
   AI_NUTRITION_COACH_RELEASE            1 = release build: refuse an empty/.invalid project URL

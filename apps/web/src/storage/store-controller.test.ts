@@ -42,8 +42,7 @@ import {
   type RealStack,
 } from './testing/stacks';
 import { StoreController, type StoreStatus } from './store-controller';
-import { syncOp, type FoodEntryDraft } from '@anc/core';
-import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
+import type { FoodEntryDraft } from '@anc/core';
 
 class SpyBackend implements StoreBackend {
   openCalls = 0;
@@ -1004,31 +1003,38 @@ describe('a worker that dies on its own', () => {
   });
 });
 
-describe('the sync outbox follows the unlocked session', () => {
-  it('is cleared on a lock and on an erase of the real controller', async () => {
+describe('onWrite: the backup is told about every write that landed', () => {
+  it('fires after a write to the open store, not for reads or for settings that stay on the device', async () => {
     const c = build();
-    const queue = new InMemorySyncQueue();
-    const stop = scopeSyncQueueToSession(c.controller, queue);
     await c.controller.initialize();
     expect(await c.controller.createStore(GOOD)).toEqual({ kind: 'unlocked' });
-    const op = (opId: string) =>
-      syncOp({ opId, plateLogId: 1, enqueuedAtUtc: 1, kind: 'plateLogCreated' });
-
-    await queue.enqueue(op('a'));
-    expect(await queue.pending()).toHaveLength(1);
-    await c.controller.lock();
-    expect(await queue.pending()).toEqual([]);
-
-    expect(await c.controller.unlock(GOOD)).toEqual({ kind: 'unlocked' });
-    await queue.enqueue(op('b'));
-    expect(await queue.pending()).toHaveLength(1);
-    await c.controller.lock();
-    expect(await queue.pending()).toEqual([]);
-
-    await queue.enqueue(op('c'));
-    expect((await c.eraser.eraseAll()).kind).toBe('eraseLocalDataSuccess');
-    expect(await queue.pending()).toEqual([]);
+    let writes = 0;
+    const stop = c.controller.onWrite(() => writes++);
+    const db = c.controller.database();
+    await db?.kvGet('profile');
+    await db?.readVault();
+    expect(writes).toBe(0);
+    // A device-only key (the backup's own bookkeeping) is not a change of the person's data.
+    await db?.kvSet('sync.dirty', '1');
+    await db?.kvSet('ai.settings', '{}');
+    expect(writes).toBe(0);
+    // A synced key is.
+    await db?.kvSet('ui.locale', 'fr');
+    expect(writes).toBe(1);
+    await db?.kvDelete('ui.locale');
+    expect(writes).toBe(2);
     stop();
+    await db?.kvSet('ui.locale', 'en');
+    expect(writes).toBe(2);
+  });
+
+  it('is handed the same wrapped database while it stays open, and none once locked', async () => {
+    const c = build();
+    await c.controller.initialize();
+    await c.controller.createStore(GOOD);
+    expect(c.controller.database()).toBe(c.controller.database());
+    await c.controller.lock();
+    expect(c.controller.database()).toBeNull();
   });
 });
 

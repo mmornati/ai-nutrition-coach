@@ -1,0 +1,11 @@
+# Encrypted-backup relay -- http-level directives (copied by 50-render-sync.sh into
+# /tmp/ai-nutrition-coach-sync-http.inc, only when the relay is on).
+#
+# A vault upload is up to SYNC_MAX_VAULT_MB of ciphertext (about a third more as JSON), and the
+# relay holds a body in memory while it checks it. This caps the requests one client address can
+# have in flight at once (the location uses it with `limit_conn`); the relay also bounds the
+# uploads it handles at the same time, whoever sends them. Behind a reverse proxy (Traefik, Caddy)
+# the address nginx sees is the proxy's, so the cap is then shared by everyone (docs/self-host.md).
+# Rejections are logged at `info`, below the error_log level, so no client address is written.
+limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_sync_conn:1m;
+limit_conn_log_level info;

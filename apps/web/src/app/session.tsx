@@ -70,7 +70,18 @@ import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
 import { coachCopy } from './coach-copy';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
-import { InMemorySyncQueue, scopeSyncQueueToSession } from '../sync';
+import {
+  browserRelayClient,
+  browserSyncOffer,
+  DEFAULT_MAX_VAULT_BYTES,
+  DirtyFlagSyncQueue,
+  SyncService,
+  type RelayClient,
+  type SyncEvents,
+  type SyncOfferSource,
+  type SyncTimers,
+} from '../sync';
+import { browserKdf, type VaultKdf } from '../sync/vault';
 
 export interface Session {
   readonly controller: StoreController;
@@ -86,7 +97,15 @@ export interface Session {
   readonly numbers: NumbersPref;
   /** The optional profile and the daily guide derived from it. */
   readonly profile: ProfilePref;
-  readonly syncQueue: InMemorySyncQueue;
+  /** The persisted "not yet backed up" flag behind the `SyncQueue` port (it counts only while connected). */
+  readonly syncQueue: DirtyFlagSyncQueue;
+  /** The automatic backup to this server's relay, when this device is connected to one. */
+  readonly sync: SyncService;
+  /** Whether this server offers a relay (`/sync/config.json`), read strictly. */
+  readonly syncOffer: SyncOfferSource;
+  /** The relay protocol client and the Argon2id step, shared by the screens that connect a device. */
+  readonly syncClient: RelayClient;
+  readonly syncKdf: VaultKdf;
   readonly ai: AiServices;
   readonly coach: Coach;
   /**
@@ -140,10 +159,23 @@ export interface PlateToRecord {
   readonly loggedAtUtc: EpochMs;
 }
 
+/** Test seams for the relay backup; production uses the browser's own. */
+export interface SyncOptions {
+  readonly client?: RelayClient;
+  readonly kdf?: VaultKdf;
+  readonly offer?: SyncOfferSource;
+  readonly debounceMs?: number;
+  readonly startDelayMs?: number;
+  readonly isOnline?: () => boolean;
+  readonly events?: SyncEvents;
+  readonly timers?: SyncTimers;
+}
+
 export interface SessionOptions {
   readonly clock?: Clock;
   /** Injectable for tests; defaults to the browser's `fetch`. */
   readonly fetch?: FetchLike;
+  readonly sync?: SyncOptions;
 }
 
 /** The v1 template coach reads its questions from the typed copy catalogue by key. */
@@ -157,8 +189,30 @@ export async function createSession(
   const clock = options.clock ?? systemClock;
   const { controller, store, notes, kv, eraser } = bundle;
 
-  const syncQueue = new InMemorySyncQueue();
-  const stopScoping = scopeSyncQueueToSession(controller, syncQueue);
+  // The relay backup: a persisted "not yet backed up" flag (device-only `kv`), the service that
+  // decides when to push, and the write hook that sets the flag whichever screen made the change.
+  const syncOptions = options.sync ?? {};
+  const syncOffer = syncOptions.offer ?? browserSyncOffer();
+  const syncClient = syncOptions.client ?? browserRelayClient();
+  const syncQueue = new DirtyFlagSyncQueue(kv, clock);
+  const sync = new SyncService({
+    kv,
+    vault: bundle.vault,
+    client: syncClient,
+    queue: syncQueue,
+    now: clock,
+    maxVaultBytes: () => {
+      const offer = syncOffer.getSnapshot();
+      return offer.offered ? offer.maxVaultMb * 1024 * 1024 : DEFAULT_MAX_VAULT_BYTES;
+    },
+    ...(syncOptions.debounceMs === undefined ? {} : { debounceMs: syncOptions.debounceMs }),
+    ...(syncOptions.startDelayMs === undefined ? {} : { startDelayMs: syncOptions.startDelayMs }),
+    ...(syncOptions.isOnline ? { isOnline: syncOptions.isOnline } : {}),
+    ...(syncOptions.events ? { events: syncOptions.events } : {}),
+    ...(syncOptions.timers ? { timers: syncOptions.timers } : {}),
+  });
+  await sync.start();
+  const stopWrites = controller.onWrite(() => sync.noteWrite());
 
   // Aborted on dispose: any request still in flight (Open Food Facts, a BYOK endpoint) is cut and
   // can land nothing after the lock.
@@ -310,6 +364,10 @@ export async function createSession(
     numbers,
     profile,
     syncQueue,
+    sync,
+    syncOffer,
+    syncClient,
+    syncKdf: syncOptions.kdf ?? browserKdf(),
     ai,
     coach,
     targets: profile.targets,
@@ -366,8 +424,8 @@ export async function createSession(
       baseCatalog.clearCaches();
       catalog.invalidate();
       ai.permit.close();
-      stopScoping();
-      syncQueue.clear();
+      stopWrites();
+      sync.dispose();
       syncQueue.dispose();
     },
   };

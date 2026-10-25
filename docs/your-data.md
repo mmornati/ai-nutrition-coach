@@ -19,7 +19,9 @@ and cost, and a format version, kept in `localStorage` (`anc.pwa.store.meta`)
 with a copy inside IndexedDB so clearing `localStorage` alone does not orphan
 your data. Your passphrase is Unicode-normalised (NFC) before use, so the same
 visible passphrase works whatever keyboard typed it. There is no server mirror,
-no third-party sync, no telemetry. (Design and threat model: ADR 0005, which
+no third-party sync, no telemetry. (An encrypted copy on the server you got the app from is
+available if its operator turned it on and you choose it: see
+[Backing up to a server](#backing-up-to-a-server).) (Design and threat model: ADR 0005, which
 supersedes the storage part of the earlier ADR-0002.)
 
 What this means in practice:
@@ -157,7 +159,7 @@ and a deleted setting among the ones listed below. They are written in the same 
 delete, are kept until you choose *Erase all local data* (there is no pruning yet), and are removed
 with everything else. The device also stores a random device id (the `sync.deviceId` entry in the
 encrypted key/value table), and every stamp embeds it. The upgrade is automatic, re-runnable and
-loses no row. There is **still no sync**: the cross-device design is in
+loses no row. There is **no live multi-device sync yet** (phase S3); the cross-device design is in
 [`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
 [`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md). The encrypted backup file (next section) is
 the first part of it.
@@ -233,6 +235,70 @@ you to the passphrase field. A backup counts as an export for it. No badge, no m
 
 *Copy sign-off:* the backup and restore strings (English and French), including the privacy page
 paragraph, are awaiting the named reviewer's sign-off (ADR 0007, "Copy sign-off").
+
+## Backing up to a server
+
+If the person who runs the server you got this app from turned on its **encrypted backup relay**
+([`self-host.md`](./self-host.md#encrypted-backup-on-your-own-server)), *Your data* offers to keep an
+encrypted copy of your data there, so you can get it back on a new phone or after clearing this
+browser, and use it on another device. If the server has no relay, none of this is shown and the app
+is exactly what the sections above describe. There is never a server we run: the relay is part of the
+self-host image, off by default, and belongs to whoever hosts it.
+
+**What the server can see.** Your *handle* (a name you choose for the copy; not an email address), a
+random salt, a wrapped key it cannot open, a keyed hash of a value derived from your passphrase, the
+size of the copy and when it changed, and your internet address and browser type as any website sees
+them. It cannot read your foods, times, notes, saved meals, recipes, profile or language, and it never
+receives your passphrase. A person who steals its disk learns the same, and can try passphrases offline
+at the cost of one Argon2id run (64 MiB, 3 passes) per guess: pick a long one.
+
+**Keys.** Your passphrase is stretched with Argon2id into a master key, which makes two unrelated keys by
+HKDF-SHA256: one *proves* the passphrase to the server (it is what the server stores a keyed hash of),
+the other (a key-encryption key) wraps a **random vault key** with AES-256-GCM, bound to the vault's id.
+The vault key encrypts each snapshot (AES-256-GCM over the gzip of the same canonical snapshot a backup
+file holds, with the vault id and the version bound as associated data, so the server cannot swap vaults
+or replay an old copy). Changing a passphrase later only re-wraps the vault key (phase S4). The vault
+key and a revocable device token are kept in the encrypted store on each device that is connected, and
+in no snapshot and no export. A forgotten passphrase cannot be recovered, by us or by the server's
+operator (a recovery key is planned for S4).
+
+**Three ways in, always with the handle and the passphrase together.** The server never says whether a
+handle exists, so there is one calm line for "nothing on this server matches this handle and
+passphrase" (a wrong passphrase and an unknown handle look the same) and a separate one for "too many
+tries". Only creating a copy can say "that handle is already taken".
+
+- *Back up to this server* (*Your data*): the first device creates the copy. The passphrase may be the
+  app's or another one (then it protects only the copy).
+- *Connect to this server's copy* (*Your data*): a device that already has data joins. The copy is
+  downloaded and decrypted, then **a preview of the merge is shown before anything is written**: how many
+  plates are on the server, on this device (and how many of those the server already has) and together.
+  *Combine* keeps everything from both and deletes nothing. If the profile on the two sides differs in
+  content, you pick which to keep, once, and it is used on every device. *Start fresh from the server
+  copy*, behind *Other options*, is for a device whose data is not wanted: it names the plates that
+  would leave this device, offers to save an encrypted backup first, and after a confirmation erases this
+  device and restores the copy (the copy on the server is not changed). There is no "replace the server
+  copy with this device": under a merge the other devices would put the data back.
+- *Restore from this server* (the first screen of a new device): the copy is found and shown
+  ("Found your data: 412 plates, from March 2026 to today") before a store is created; the passphrase
+  becomes this device's, and if anything fails no store is left behind.
+
+**After that, the copy keeps itself up to date**, silently and only while the app is unlocked and
+online: about 30 seconds after your last change, when you switch away from the page, and when the
+connection returns. Every upload is a compare-and-swap: if another device uploaded first, the app
+downloads that copy, merges it with the same rules as a restore, and uploads again; it never overwrites
+blindly. The app remembers the newest version it has seen and refuses an older one ("the server returned
+an older copy than this device has seen"), a copy from a newer version of the app, a revoked device and
+a copy too large for the server, and says so on *Your data* instead of retrying. *Back up now* tries at
+once; *Stop backing up from this device* only makes this device forget the connection.
+
+**The status chip still says "On this device"** on every plate. *Your data* says "backed up" only after
+the server acknowledged an upload that included your last change; a per-plate "synced" waits for the pull
+side (phase S3). Pulling changes made on another device on unlock or focus is also S3: today another
+device's changes arrive when this device next uploads, or when you reconnect.
+
+*Not built yet (S4):* the recovery key, changing the passphrase, listing and revoking devices, deleting
+your copy on the server, single sign-on instead of a handle. *Copy sign-off:* these strings (English and
+French) await the named reviewer (ADR 0007, "Copy sign-off").
 
 ## Open Food Facts lookups
 

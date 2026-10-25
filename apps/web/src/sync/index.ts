@@ -1,3 +1,2 @@
-export * from './in-memory-sync-queue';
 export * from './local-only-sync-adapter';
-export * from './session-scope';
+export * from './relay';

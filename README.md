@@ -205,8 +205,11 @@ Stated, not hidden (details in [`docs/migration/parity-checklist.md`](./docs/mig
 - Exports are plaintext files you hold, and a CSV or JSON export cannot be imported (the encrypted backup file can be
   restored).
 - Devices shared by several people see one history.
-- There is no sync between devices yet: each browser is its own store, and the relay is a
-  [plan](./docs/encrypted-sync-plan.md). On iPhone, an installed app keeps its data apart from Safari's.
+- There is no live sync between devices yet. If the server you got the app from runs the optional relay, an
+  encrypted copy can be kept there (restore on a new device, join a device that has data of its own; the copy
+  updates itself), but another device's changes only arrive when you next connect or upload, and the "synced"
+  chip is not lit ([plan](./docs/encrypted-sync-plan.md), phase S3). On iPhone, an installed app keeps its data
+  apart from Safari's.
 - The hosted free-quota AI tier is not built (bring your own key, or use the AI your server offers); the local-model
   tier is a seam for a later version.
 - The Tip jar is pending the named reviewer.

@@ -10,14 +10,27 @@
 //
 // The unlocked branch is the ONLY place decrypted state exists; leaving it (lock, idle, hidden,
 // erase) unmounts it. See session.tsx.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { StoreProvider, useStoreBundle, useStoreSnapshot } from './store-context';
 import { AboutGate, AboutGateBeforeStore } from './AboutGate';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
-import { SessionBoundary, type SessionOptions } from './session';
+import { ServerHandoffContext, type ServerHandoff } from './server-handoff';
+import { SessionBoundary, type SessionOptions, type SyncOptions } from './session';
 import { UnlockedApp, type UnlockedAppProps } from './UnlockedApp';
 import { isPrivacyRoute, replaceRoute, TODAY_HASH, useRoute } from './router';
 import { CreatePassphraseScreen } from '../screens/gate/CreatePassphraseScreen';
+import {
+  ServerRestoringScreen,
+  type FindOnServerResult,
+} from '../screens/gate/RestoreFromServerScreen';
 import { LostStoreScreen } from '../screens/gate/LostStoreScreen';
 import { StoreUnavailableScreen } from '../screens/gate/StoreUnavailableScreen';
 import { UnlockScreen } from '../screens/gate/UnlockScreen';
@@ -32,6 +45,17 @@ import {
   type BackupService,
   type RestoreNewStoreResult,
 } from '../sync/vault';
+import { browserKdf } from '../sync/vault';
+import {
+  browserRelayClient,
+  browserSyncOffer,
+  openServerCopy,
+  restoreServerCopyIntoNewStore,
+  summarisePlates,
+  useSyncOffer,
+  type OpenedServerCopy,
+  type RestoreFromServerResult,
+} from '../sync';
 
 function Blank(): ReactNode {
   return <div data-gate="blank" className="min-h-dvh" />;
@@ -41,11 +65,82 @@ export interface GateProps extends UnlockedAppProps {
   readonly sessionOptions?: SessionOptions;
   /** Test seam: opens a backup on the create-passphrase screen (production: Argon2id in a worker). */
   readonly backup?: BackupService;
+  /** Test seam: the relay client, the Argon2id step and the offer behind "Restore from this server". */
+  readonly sync?: SyncOptions;
 }
 
-function GateContent({ sessionOptions, backup, ...app }: GateProps): ReactNode {
+/** A copy found on the server and the passphrase that will become this device's: memory only, used once. */
+interface ServerJob {
+  readonly copy: OpenedServerCopy;
+  readonly passphrase: string;
+}
+
+const wipeJob = (job: ServerJob | null): void => {
+  job?.copy.vaultKey.fill(0);
+};
+
+/**
+ * The create-passphrase screen, once the About notice has been dealt with. "Restore from this server"
+ * is offered only when this server's `/sync/config.json` says it has a relay (read strictly; anything
+ * else and the screen is exactly what it was). The file is read only when this screen is shown, so
+ * the About notice (the very first thing a visitor sees) makes no request at all.
+ */
+function FirstRunCreate({
+  controller,
+  restoreBackup,
+  serverRestore,
+  offer,
+  notice,
+}: {
+  readonly controller: StoreBundle['controller'];
+  readonly restoreBackup: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
+  readonly serverRestore: {
+    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly restore: () => Promise<RestoreFromServerResult>;
+    readonly cancel: () => void;
+  };
+  readonly offer: ReturnType<typeof browserSyncOffer>;
+  readonly notice: string | undefined;
+}): ReactNode {
+  const offered = useSyncOffer(offer).offered;
+  return (
+    <CreatePassphraseScreen
+      onCreate={(p) => controller.createStore(p)}
+      onRestore={restoreBackup}
+      {...(offered ? { serverRestore } : {})}
+      {...(notice === undefined ? {} : { notice })}
+    />
+  );
+}
+
+function FirstRun(props: {
+  readonly controller: StoreBundle['controller'];
+  readonly restoreBackup: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
+  readonly serverRestore: {
+    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly restore: () => Promise<RestoreFromServerResult>;
+    readonly cancel: () => void;
+  };
+  readonly offer: ReturnType<typeof browserSyncOffer>;
+  readonly notice: string | undefined;
+}): ReactNode {
+  return (
+    <AboutGateBeforeStore>
+      <FirstRunCreate {...props} />
+    </AboutGateBeforeStore>
+  );
+}
+
+function GateContent({ sessionOptions, backup, sync, ...app }: GateProps): ReactNode {
   const bundle = useStoreBundle();
   const { controller, eraser, vault: bundleVault } = bundle;
+  const syncSeams = sync ?? sessionOptions?.sync ?? {};
+  const syncOffer = syncSeams.offer ?? browserSyncOffer();
+  // The same seams reach the session (a stable object: a new one would rebuild the session).
+  const builtOptions = useMemo<SessionOptions | undefined>(
+    () => (sync && !sessionOptions?.sync ? { ...sessionOptions, sync } : sessionOptions),
+    [sessionOptions, sync],
+  );
   const snapshot = useStoreSnapshot();
   const route = useRoute();
   const wasUnlocked = useRef(false);
@@ -117,17 +212,132 @@ function GateContent({ sessionOptions, backup, ...app }: GateProps): ReactNode {
     [backup, controller, bundleVault, eraser],
   );
 
+  // "Restore from this server": the copy is found and opened before any store exists (the person
+  // sees what was found), then the store is created with the same passphrase and the copy applied.
+  // The copy and passphrase wait here, in memory, between those two steps.
+  const serverJob = useRef<ServerJob | null>(null);
+  const [serverNotice, setServerNotice] = useState<string | undefined>(undefined);
+  const [freshRestoring, setFreshRestoring] = useState(false);
+  const findOnServer = useCallback(
+    async (handle: string, passphrase: string): Promise<FindOnServerResult> => {
+      wipeJob(serverJob.current);
+      serverJob.current = null;
+      const opened = await openServerCopy({
+        client: syncSeams.client ?? browserRelayClient(),
+        kdf: syncSeams.kdf ?? browserKdf(),
+        handle,
+        passphrase,
+      });
+      if (opened.kind === 'failed') {
+        return {
+          kind: 'failed',
+          failure: opened.failure,
+          ...(opened.retryAfterSeconds === undefined
+            ? {}
+            : { retryAfterSeconds: opened.retryAfterSeconds }),
+        };
+      }
+      serverJob.current = { copy: opened.copy, passphrase };
+      return { kind: 'found', summary: summarisePlates(opened.copy.snapshot) };
+    },
+    [syncSeams.client, syncSeams.kdf],
+  );
+  const cancelServer = useCallback(() => {
+    wipeJob(serverJob.current);
+    serverJob.current = null;
+  }, []);
+  const runServerRestore = useCallback(
+    async (job: ServerJob | null): Promise<RestoreFromServerResult> => {
+      if (job === null) return { kind: 'storeProblem' };
+      inFlight.current += 1;
+      setRestoring(true);
+      try {
+        const result = await restoreServerCopyIntoNewStore({
+          copy: job.copy,
+          passphrase: job.passphrase,
+          createStore: (p) => controller.createStore(p),
+          vault: bundleVault,
+          kv: bundle.kv,
+          eraser,
+          now: Date.now,
+        });
+        if (result.kind === 'storeProblemNotRemoved') {
+          await controller.lock();
+          setLeftover(true);
+        }
+        return result;
+      } finally {
+        inFlight.current -= 1;
+        setRestoring(inFlight.current > 0);
+      }
+    },
+    [bundle.kv, bundleVault, controller, eraser],
+  );
+  const restoreFromServer = useCallback(async (): Promise<RestoreFromServerResult> => {
+    const result = await runServerRestore(serverJob.current);
+    if (result.kind === 'restored') cancelServer();
+    return result;
+  }, [cancelServer, runServerRestore]);
+  const serverRestore = useMemo(
+    () => ({ find: findOnServer, restore: restoreFromServer, cancel: cancelServer }),
+    [cancelServer, findOnServer, restoreFromServer],
+  );
+
+  // "Start fresh from the server copy" (Your data) erases this device, and the first-run state that
+  // follows restores the copy the person had already opened: no second typing of the passphrase.
+  // Its own job, so a copy found on the first-run screen is never restored by this path.
+  const handoffJob = useRef<ServerJob | null>(null);
+  const handoff = useMemo<ServerHandoff>(
+    () => ({
+      begin: (copy, passphrase) => {
+        wipeJob(handoffJob.current);
+        // Its own copy of the key: the screen that opened it goes away with the erase.
+        handoffJob.current = {
+          copy: { ...copy, vaultKey: new Uint8Array(copy.vaultKey) },
+          passphrase,
+        };
+      },
+      cancel: () => {
+        wipeJob(handoffJob.current);
+        handoffJob.current = null;
+      },
+    }),
+    [],
+  );
+  const firstRunStatus = snapshot.status === 'needsPassphraseCreation';
+  useEffect(() => {
+    const job = handoffJob.current;
+    if (!firstRunStatus || job === null) return;
+    handoffJob.current = null;
+    setServerNotice(undefined);
+    setFreshRestoring(true);
+    void runServerRestore(job)
+      .then((result) => {
+        if (result.kind !== 'restored' && result.kind !== 'storeProblemNotRemoved') {
+          setServerNotice(strings().server.freshFailed);
+        }
+      })
+      .catch(() => setServerNotice(strings().server.freshFailed))
+      .finally(() => {
+        wipeJob(job);
+        setFreshRestoring(false);
+      });
+  }, [firstRunStatus, runServerRestore]);
+
   // The privacy page explains the app before anything is unlocked.
   if (!unlocked && isPrivacyRoute(route)) return <SettingsScreen section="privacy" />;
 
+  if (freshRestoring) return <ServerRestoringScreen />;
+
   if (restoring) {
     return (
-      <AboutGateBeforeStore>
-        <CreatePassphraseScreen
-          onCreate={(p) => controller.createStore(p)}
-          onRestore={restoreBackup}
-        />
-      </AboutGateBeforeStore>
+      <FirstRun
+        controller={controller}
+        restoreBackup={restoreBackup}
+        serverRestore={serverRestore}
+        offer={syncOffer}
+        notice={serverNotice}
+      />
     );
   }
 
@@ -144,12 +354,13 @@ function GateContent({ sessionOptions, backup, ...app }: GateProps): ReactNode {
       );
     case 'needsPassphraseCreation':
       return (
-        <AboutGateBeforeStore>
-          <CreatePassphraseScreen
-            onCreate={(p) => controller.createStore(p)}
-            onRestore={restoreBackup}
-          />
-        </AboutGateBeforeStore>
+        <FirstRun
+          controller={controller}
+          restoreBackup={restoreBackup}
+          serverRestore={serverRestore}
+          offer={syncOffer}
+          notice={serverNotice}
+        />
       );
     case 'locked':
       return (
@@ -170,11 +381,13 @@ function GateContent({ sessionOptions, backup, ...app }: GateProps): ReactNode {
       return <LostStoreScreen onErase={erase} />;
     case 'unlocked':
       return (
-        <SessionBoundary bundle={bundle} {...(sessionOptions ? { options: sessionOptions } : {})}>
-          <AboutGate>
-            <UnlockedApp {...app} />
-          </AboutGate>
-        </SessionBoundary>
+        <ServerHandoffContext.Provider value={handoff}>
+          <SessionBoundary bundle={bundle} {...(builtOptions ? { options: builtOptions } : {})}>
+            <AboutGate>
+              <UnlockedApp {...app} />
+            </AboutGate>
+          </SessionBoundary>
+        </ServerHandoffContext.Provider>
       );
   }
 }

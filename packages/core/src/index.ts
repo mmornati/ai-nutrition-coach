@@ -7,6 +7,7 @@ export * from './vault/envelope';
 export * from './vault/hlc';
 export * from './vault/kv-allow-list';
 export * from './vault/merge';
+export * from './vault/relay-protocol';
 export * from './vault/snapshot';
 export * from './entities/byok-previous-rung';
 export * from './entities/coach-note';

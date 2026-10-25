@@ -3,6 +3,8 @@ import { validateNewPassphrase, type PassphraseIssue, type UnlockOutcome } from 
 import { useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { Button, FileField, TextField } from '../../components/primitives';
 import { openFailureText, type RestoreNewStoreResult } from '../../sync/vault';
+import { RestoreFromServerScreen, type FindOnServerResult } from './RestoreFromServerScreen';
+import type { RestoreFromServerResult } from '../../sync';
 import { GateFrame } from './GateFrame';
 import { unavailableText } from './unavailable-text';
 
@@ -138,14 +140,25 @@ function RestoreFromBackup({
 export function CreatePassphraseScreen({
   onCreate,
   onRestore,
+  serverRestore,
+  notice,
 }: {
   readonly onCreate: (passphrase: string) => Promise<UnlockOutcome>;
   /** Present when restoring from a backup is offered on this screen. */
   readonly onRestore?: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
+  /** Present when this server offers a relay: restoring from it is offered on this screen. */
+  readonly serverRestore?: {
+    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly restore: () => Promise<RestoreFromServerResult>;
+    readonly cancel: () => void;
+  };
+  /** A calm line from something that happened before this screen (a restore that did not land). */
+  readonly notice?: string;
 }) {
   const all = useStrings();
   const s = all.session;
   const [restoring, setRestoring] = useState(false);
+  const [restoringServer, setRestoringServer] = useState(false);
   const [passphrase, setPassphrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -181,11 +194,26 @@ export function CreatePassphraseScreen({
   if (restoring && onRestore) {
     return <RestoreFromBackup onRestore={onRestore} onBack={() => setRestoring(false)} />;
   }
+  if (restoringServer && serverRestore) {
+    return (
+      <RestoreFromServerScreen
+        onFind={serverRestore.find}
+        onRestore={serverRestore.restore}
+        onCancel={serverRestore.cancel}
+        onBack={() => setRestoringServer(false)}
+      />
+    );
+  }
 
   return (
     <GateFrame title={s.createTitle}>
       <p className="text-body text-ink-soft">{s.createExplain}</p>
       <p className="text-body">{s.createWarning}</p>
+      {notice !== undefined && (
+        <p role="status" className="text-body">
+          {notice}
+        </p>
+      )}
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {
@@ -234,6 +262,20 @@ export function CreatePassphraseScreen({
           }}
         >
           {all.restore.createLink}
+        </Button>
+      )}
+      {serverRestore && (
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={() => {
+            setPassphrase('');
+            setConfirm('');
+            setMessage(null);
+            setRestoringServer(true);
+          }}
+        >
+          {all.server.restoreLink}
         </Button>
       )}
     </GateFrame>

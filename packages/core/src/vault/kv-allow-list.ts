@@ -22,7 +22,8 @@ export const SYNCED_KV_KEYS: readonly string[] = Object.freeze([
  * "forgotten". `ai.settings` (the rung and endpoint chosen on THIS device), the two AI consents and
  * the Open Food Facts answer (consent to a network destination, given per device) and the BYOK key
  * (a secret that spends money: never leaves; plan decision 4) are excluded; `sync.deviceId`
- * identifies the device itself.
+ * identifies the device itself; the six `sync.*` connection keys (relay
+ * handle, token, vault key, vault id, last version seen, dirty flag) are this device's own.
  */
 export const DEVICE_ONLY_KV_KEYS: readonly string[] = Object.freeze([
   'ai.settings',
@@ -31,6 +32,14 @@ export const DEVICE_ONLY_KV_KEYS: readonly string[] = Object.freeze([
   'ai.byokKey',
   'privacy.offLookup',
   'sync.deviceId',
+  // This device's connection to a relay vault: the handle, the device token and the vault key (both
+  // secrets), the vault id, the last version seen and the "not yet backed up" flag.
+  'sync.handle',
+  'sync.token',
+  'sync.vaultKey',
+  'sync.vaultId',
+  'sync.lastSeenVersion',
+  'sync.dirty',
 ]);
 
 const synced = new Set(SYNCED_KV_KEYS);

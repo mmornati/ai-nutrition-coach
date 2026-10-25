@@ -9,7 +9,9 @@
 #          boot-guard.js carry no hash and decide what runs      -> no-cache;
 #        - fonts/, icons/, licenses/, favicon.svg: unhashed names -> short cache.
 #   4. The optional instance AI proxy under /ai/ (see below), off unless the operator sets it up.
-#   5. The security headers from ai-nutrition-coach-headers.inc on every response.
+#   5. The optional encrypted-backup relay under /sync/ (see below), off unless the operator turns on
+#      the compose profile `sync`.
+#   6. The security headers from ai-nutrition-coach-headers.inc on every response.
 
 # mime.types has no entry for ttf/otf/mjs/webmanifest, so they would be served
 # as application/octet-stream (a module script MUST be a JavaScript type) and
@@ -30,13 +32,18 @@ gzip_types application/javascript text/javascript application/wasm application/j
            application/manifest+json text/css text/plain image/svg+xml font/ttf font/otf;
 
 # GET and HEAD everywhere; POST only to the two AI proxy paths (chat, and voice transcription which
-# also needs AI_PROXY_TRANSCRIPTION=1): they exist only when the operator turned them on
-# (40-render-ai-proxy.sh), otherwise they are a plain 404.
+# also needs AI_PROXY_TRANSCRIPTION=1) and, for the encrypted-backup relay, POST to three login-ish
+# paths and PUT to the vault: they exist only when the operator turned them on
+# (40-render-ai-proxy.sh, 50-render-sync.sh), otherwise they are a plain 404.
 map "$request_method $uri" $ai_nutrition_coach_method_ok {
     default                           0;
     "~^(GET|HEAD) "                   1;
     "POST /ai/v1/chat/completions"    1;
     "POST /ai/v1/audio/transcriptions" 1;
+    "POST /sync/v1/salt"              1;
+    "POST /sync/v1/signup"            1;
+    "POST /sync/v1/login"             1;
+    "PUT /sync/v1/vault"              1;
 }
 
 server {
@@ -61,6 +68,11 @@ server {
     # /ai/config.json and /ai/v1/chat/completions, or just 404s when it is off. Rendered at
     # container start because it holds the provider key (mode 0600).
     include /tmp/ai-nutrition-coach-ai-locations.inc;
+
+    # The optional encrypted-backup relay (docs/self-host.md "Encrypted backup on your own server"):
+    # /sync/config.json and /sync/v1/..., proxied to the relay container, or just 404s when it is
+    # off. Rendered at container start.
+    include /tmp/ai-nutrition-coach-sync-locations.inc;
 
     # The document, the web manifest and the boot guard: always revalidate so an
     # upgrade is picked up on the next load. (The SPA fallback below re-enters

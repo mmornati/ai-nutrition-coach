@@ -22,6 +22,7 @@ import { ChoiceGroup } from './ChoiceGroup';
 import { formatLastExport } from './format';
 import { Prose, Section, SettingsPage } from './SettingsPage';
 import { RestoreSection } from './RestoreSection';
+import { ServerSection } from './ServerSection';
 import { useExportInfo, useExportServices } from './use-export';
 
 type ScopeKind = 'visibleDay' | 'week' | 'allHistory';
@@ -231,6 +232,7 @@ export function YourDataScreen({
         fieldRef={backupField}
       />
       <RestoreSection service={restoreService} vault={session.vault} live={session.live} />
+      <ServerSection backupField={backupField} />
 
       <Section title={s.lockHeading}>
         <ChoiceGroup

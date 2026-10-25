@@ -337,3 +337,139 @@ export function parseVaultEnvelope(input: unknown): VaultEnvelopeParseResult {
     },
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// The relay variant (phase S2)
+//
+//   { v: 1, vaultId, version, alg: "A256GCM", nonce, ct }
+//
+// The same container as the backup file without the passphrase step: the relay's envelope is
+// sealed with the random VAULT KEY (which the passphrase only unwraps), so there is no `kdf` and no
+// `salt` in it. The two variants are told apart by their exact field set, and a reader of the
+// other kind refuses it as malformed. Here `vaultId` is the vault's identity (16 random bytes,
+// chosen once by the first device) and `version` is the compare-and-swap counter: it grows by
+// exactly one with every accepted write. The associated data binds both, so the relay cannot swap
+// vaults or replay an old envelope under a newer number.
+
+export const RELAY_ENVELOPE_KEYS: readonly string[] = [
+  'v',
+  'vaultId',
+  'version',
+  'alg',
+  'nonce',
+  'ct',
+];
+
+export interface RelayEnvelopeHeader {
+  readonly v: typeof ENVELOPE_VERSION;
+  readonly vaultId: string;
+  readonly version: number;
+  readonly alg: typeof ENVELOPE_ALG;
+  readonly nonce: string;
+}
+
+export interface RelayEnvelope extends RelayEnvelopeHeader {
+  readonly ct: string;
+}
+
+/** The associated data of a relay envelope: every field but `ct`, sorted keys, no whitespace. */
+export function relayEnvelopeAadText(header: RelayEnvelopeHeader): string {
+  return JSON.stringify({
+    alg: header.alg,
+    nonce: header.nonce,
+    v: header.v,
+    vaultId: header.vaultId,
+    version: header.version,
+  });
+}
+
+export interface ParsedRelayEnvelope {
+  readonly envelope: RelayEnvelope;
+  readonly vaultId: Uint8Array;
+  readonly nonce: Uint8Array;
+  /** Ciphertext with the tag at the end. */
+  readonly ciphertext: Uint8Array;
+}
+
+export type RelayEnvelopeProblem =
+  'notAnObject' | 'newerFormat' | 'malformed' | 'unsupportedAlgorithm' | 'tooLarge';
+
+export type RelayEnvelopeParseResult =
+  | { readonly kind: 'relayEnvelopeParsed'; readonly parsed: ParsedRelayEnvelope }
+  | {
+      readonly kind: 'relayEnvelopeInvalid';
+      readonly problem: RelayEnvelopeProblem;
+      readonly path: string;
+    };
+
+const relayInvalid = (problem: RelayEnvelopeProblem, path: string): RelayEnvelopeParseResult => ({
+  kind: 'relayEnvelopeInvalid',
+  problem,
+  path,
+});
+
+/**
+ * Strictly reads a relay envelope (untrusted input on both sides: the relay reads what a device
+ * sends, a device reads what the relay returns). `maxCiphertextBytes` is the vault size cap.
+ */
+export function parseRelayEnvelope(
+  input: unknown,
+  maxCiphertextBytes: number = ENVELOPE_LIMITS.maxCiphertextBytes,
+): RelayEnvelopeParseResult {
+  if (!isRecord(input)) return relayInvalid('notAnObject', '$');
+  const format = input['v'];
+  if (isWhole(format) && format > ENVELOPE_VERSION) return relayInvalid('newerFormat', '$.v');
+  if (!hasExactKeys(input, RELAY_ENVELOPE_KEYS)) return relayInvalid('malformed', '$');
+  if (format !== ENVELOPE_VERSION) return relayInvalid('malformed', '$.v');
+  const version = input['version'];
+  if (!isWhole(version) || version < 1) return relayInvalid('malformed', '$.version');
+  if (input['alg'] !== ENVELOPE_ALG) return relayInvalid('unsupportedAlgorithm', '$.alg');
+
+  const fixed = (key: string, bytes: number): Uint8Array | null => {
+    const text = input[key];
+    if (typeof text !== 'string' || text.length !== Math.ceil((bytes * 4) / 3)) return null;
+    const decoded = decodeBase64Url(text);
+    return decoded !== null && decoded.length === bytes ? decoded : null;
+  };
+  const vaultId = fixed('vaultId', ENVELOPE_LIMITS.vaultIdBytes);
+  if (vaultId === null) return relayInvalid('malformed', '$.vaultId');
+  const nonce = fixed('nonce', ENVELOPE_LIMITS.nonceBytes);
+  if (nonce === null) return relayInvalid('malformed', '$.nonce');
+
+  const ct = input['ct'];
+  if (typeof ct !== 'string') return relayInvalid('malformed', '$.ct');
+  if (ct.length > Math.ceil((maxCiphertextBytes * 4) / 3)) return relayInvalid('tooLarge', '$.ct');
+  const ciphertext = decodeBase64Url(ct);
+  if (ciphertext === null || ciphertext.length < ENVELOPE_LIMITS.tagBytes) {
+    return relayInvalid('malformed', '$.ct');
+  }
+  if (ciphertext.length > maxCiphertextBytes) return relayInvalid('tooLarge', '$.ct');
+  return {
+    kind: 'relayEnvelopeParsed',
+    parsed: {
+      envelope: {
+        v: ENVELOPE_VERSION,
+        vaultId: input['vaultId'] as string,
+        version,
+        alg: ENVELOPE_ALG,
+        nonce: input['nonce'] as string,
+        ct,
+      },
+      vaultId,
+      nonce,
+      ciphertext,
+    },
+  };
+}
+
+/** The relay envelope as JSON text, in the documented field order. */
+export function serializeRelayEnvelope(envelope: RelayEnvelope): string {
+  return JSON.stringify({
+    v: envelope.v,
+    vaultId: envelope.vaultId,
+    version: envelope.version,
+    alg: envelope.alg,
+    nonce: envelope.nonce,
+    ct: envelope.ct,
+  });
+}

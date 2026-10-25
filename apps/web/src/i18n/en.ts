@@ -507,6 +507,8 @@ export const en = {
     brand: 'AI Nutrition Coach',
     storage: 'On this device',
     storageNote: 'All plates stored on this device. Nothing leaves home.',
+    /** Shown instead while this device backs up to this server (an encrypted copy). */
+    storageNoteServer: 'All plates stored on this device, with an encrypted copy on this server.',
     footmark: 'yours to run · open source',
     skip: 'Skip to content',
   },
@@ -1223,6 +1225,9 @@ export const en = {
       'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
     leavesCoaching:
       'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
+    // Awaiting named-reviewer sign-off (ADR 0007, "Copy sign-off").
+    leavesServerCopy:
+      'Backing up to this server: only if the person who runs this server turned it on and you choose Back up to this server in Settings, Your data. An encrypted copy of your data is then sent to this server, locked on this device before it leaves, and updated shortly after you make changes while the app is unlocked. This server sees the handle you chose, when the copy changes and how big it is, plus your internet address and browser type, like any website. It cannot read your foods, times, notes or profile, and it never receives your passphrase. You can stop at any time in Settings, Your data.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:
@@ -1233,9 +1238,11 @@ export const en = {
       'Nothing about you or your plates. The server only hands out the app’s files. Like any web server it may keep a short access log of page addresses and times, with client addresses shortened; in the standard self-host setup that log is off.',
     serverInstance:
       'The one exception is a photo you choose to send through the AI this server offers (see above): it passes through this server on its way to the provider, and is not stored there.',
+    serverRelay:
+      'If you also choose to back up to this server (see above), it keeps your handle and your encrypted copy. The person who runs it can see that the copy exists, how big it is and when it changes. They cannot read it.',
     neverHeading: 'Never collected',
     neverBody:
-      'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app.',
+      'No analytics, no tracking, no crash reports, no advertising and no accounts. Nothing is sent about how you use the app. If you back up to this server, the handle you choose for the copy is the only name involved; it is not an email address.',
     deleteHeading: 'Deleting your data',
     deleteBody:
       'To remove one plate, open it from Today and choose Remove this plate. To remove everything, use Erase all local data in Settings, Your data. Exports you saved or shared elsewhere are copies outside the app: delete them yourself.',
@@ -1306,6 +1313,166 @@ export const en = {
         licence: 'Etalab Open Licence 2.0',
       },
     ],
+  },
+  /**
+   * The relay backup (phase S2, docs/encrypted-sync-plan.md §3.6). Shown only when this server
+   * offers a relay. One ambiguous line when nothing matches (the server never says whether the
+   * handle exists), its own line for rate limiting, no urgency anywhere.
+   */
+  server: {
+    // Your data: not connected yet.
+    backupHeading: 'Back up to this server',
+    backupExplain:
+      'This server can keep an encrypted copy of your data, so you can get it back on a new phone or after clearing this browser, and use it on another device. Your data is locked on this device before it is sent: the server holds only what it cannot read. It never sees your foods, your times, your AI key or your passphrase.',
+    backupAuto:
+      'Once it is set up, the copy updates by itself shortly after you make changes, while the app is unlocked.',
+    backupHandleHelp:
+      'A handle is a name for your copy: 3 to 32 letters, digits, dots, dashes or underscores. It is not an email address.',
+    backupWarning:
+      'If you forget this passphrase, the copy cannot be opened — not by us, not by the person who runs this server.',
+    backupSame:
+      'Using the same passphrase as the one that unlocks this app means one thing to remember. A different one is allowed; it then protects only the copy on this server.',
+    handleLabel: 'Handle',
+    passphraseLabel: 'Passphrase for this copy',
+    confirmLabel: 'Confirm passphrase',
+    inviteLabel: 'Invite code',
+    inviteHelp: 'The person who runs this server asks for an invite code to start a copy.',
+    closedHelp: 'The person who runs this server is not taking new copies at the moment.',
+    backupAction: 'Back up to this server',
+    backupWorking: 'Locking and sending your copy…',
+    backedUp: 'Done. Your data is backed up to this server, and it will keep itself up to date.',
+    missingHandle: 'Enter a handle.',
+    missingPassphrase: 'Enter the passphrase.',
+    invalidHandle: 'A handle has 3 to 32 characters: letters, digits, dots, dashes or underscores.',
+    handleTaken:
+      'That handle is already taken on this server. If you made it a moment ago from this device and the connection dropped, use “Connect to this server’s copy” with the same passphrase. Otherwise, try another.',
+    signupClosed: 'This server is not taking new copies at the moment.',
+    inviteInvalid: 'That invite code is not accepted.',
+    serverFull: 'This server has no room for another copy.',
+    createTooLarge: 'Your data is larger than this server accepts. Nothing was sent.',
+    // Finding a copy (this device with data, or a new device). The same lines everywhere.
+    noMatch: 'Nothing on this server matches this handle and passphrase.',
+    rateLimited: 'Too many tries. Wait a few minutes, then try again.',
+    offline: 'This server could not be reached. Nothing was changed; you can try again.',
+    unavailable: 'This did not work just now. Nothing was changed; you can try again.',
+    newerVersion:
+      'This copy was made by a newer version of AI Nutrition Coach. Reload the page to update, then try again. Nothing was changed.',
+    damaged: 'The copy was found, but it would not open or it is damaged. Nothing was changed.',
+    tooLarge: 'The copy is larger than this app can open. Nothing was changed.',
+    clockAhead:
+      'This copy carries a date well ahead of this device’s clock. Check the date and time of this device, then try again. Nothing was changed.',
+    storeProblem:
+      'The copy opened, but it could not be added to this device just now. Nothing was changed; you can try again.',
+    storeProblemNotRemoved:
+      'The copy opened, but it could not be added just now, and the empty store this created could not be removed. It is empty and uses the copy’s passphrase: unlock it with that passphrase, or erase it with “Forgot your passphrase?” below, then try again.',
+    // Your data: a device with data of its own joins a copy that already exists.
+    joinHeading: 'Connect to this server’s copy',
+    joinExplain:
+      'Already backed up from another device? Enter the handle and passphrase of that copy. This device and the copy are combined: nothing is deleted from either.',
+    joinPassphraseLabel: 'Passphrase of the copy',
+    joinAction: 'Find my copy',
+    joinWorking: 'Looking for your copy…',
+    previewHeading: 'Found your copy',
+    previewServer: {
+      one: 'On this server: {count} plate',
+      other: 'On this server: {count} plates',
+    },
+    previewDevice: {
+      one: 'On this device: {count} plate',
+      other: 'On this device: {count} plates',
+    },
+    previewShared: '{count} already on the server',
+    previewTogether: {
+      one: 'Together: {count} plate',
+      other: 'Together: {count} plates',
+    },
+    combineAction: 'Combine',
+    combineWorking: 'Combining…',
+    combineHelp: 'Combine keeps everything from both. Nothing is deleted.',
+    cancelAction: 'Cancel',
+    combined: 'Done. This device and the copy are combined, and the copy is up to date.',
+    combinedPending:
+      'Done on this device. The copy on the server will be updated as soon as it can be reached.',
+    profileLegend: 'Which profile should be kept?',
+    profileExplain:
+      'This device and the copy have different profiles. Choose the one to keep; it is then used on every device.',
+    profileLine: '{field}: {device} on this device, {server} on the server',
+    profileUnset: 'not set',
+    profileFromDevice: 'The profile on this device',
+    profileFromServer: 'The profile on the server',
+    profileChoose: 'Choose which profile to keep.',
+    otherOptions: 'Other options',
+    freshHeading: 'Start fresh from the server copy',
+    freshExplain:
+      'For a device whose data was a test or is not wanted. What is on this device is replaced by the copy on the server, which is not changed.',
+    freshRemoves: {
+      one: 'The {count} plate that is only on this device will be removed from this device.',
+      other: 'The {count} plates that are only on this device will be removed from this device.',
+    },
+    freshNothing:
+      'Everything on this device is already in the server copy, so nothing would be lost.',
+    freshBackupFirst: 'Save an encrypted backup first',
+    freshAction: 'Erase this device and restore from the server',
+    freshWorking: 'Restoring from the server…',
+    freshConfirmTitle: 'Erase this device and restore from the server?',
+    freshKeep: 'Keep this device as it is',
+    freshConfirm: 'Erase and restore',
+    freshWeak:
+      'Starting fresh makes the passphrase of this copy the passphrase of this device, and it needs at least 10 characters, with a few different ones. Nothing was changed on this device. You can combine instead.',
+    freshAgain:
+      'To start fresh, find your copy again with its passphrase. Nothing was changed on this device.',
+    freshFailed:
+      'The copy on the server could not be put back on this device just now. The copy on the server is untouched; choose “Restore from this server” to try again.',
+    // Your data: this device is connected.
+    connectedHeading: 'Backup on this server',
+    connectedAs: 'This device backs up to this server as {handle}.',
+    statusBackedUp: 'Everything on this device is backed up.',
+    statusLast: 'Last copy sent at {time}.',
+    statusPending: 'Changes on this device will be sent shortly.',
+    statusSyncing: 'Sending a copy…',
+    statusOffline:
+      'This server cannot be reached right now. Your changes stay on this device and are sent when it can.',
+    statusFailed: 'The last copy did not go through. It will try again; nothing is lost.',
+    statusNeedsUpdate:
+      'The copy on this server comes from a newer version of the app. Reload the page to update; until then nothing is sent.',
+    statusRolledBack:
+      'The server returned an older copy than this device has already seen, so backup is paused and nothing is overwritten. You can try again, or stop backing up from this device.',
+    statusSignedOut:
+      'This device is no longer accepted by the server. Stop backing up from this device, then connect it again with your handle and passphrase.',
+    statusTooLarge: 'Your data is larger than this server accepts, so no copy is sent.',
+    statusPaused:
+      'Backup is paused because something about the copy or this device needs a look. Nothing was changed. You can try again.',
+    nowAction: 'Back up now',
+    nowWorking: 'Sending…',
+    nowDone: 'Done. Everything on this device is backed up.',
+    stopAction: 'Stop backing up from this device',
+    stopExplain:
+      'This device forgets the connection. The copy on the server stays as it is, and you can connect again with your handle and passphrase.',
+    stopped:
+      'This device no longer backs up to the server. The copy on the server was not touched.',
+    stopFailed: 'That did not work just now. Nothing was changed; you can try again.',
+    // The first-run screen: a new device restores.
+    restoreLink: 'Restore from this server',
+    restoreTitle: 'Restore from this server',
+    restoreExplain:
+      'Enter the handle and passphrase of your copy on this server. The copy is opened first; if anything is wrong, nothing is created on this device.',
+    restoreSame:
+      'This passphrase will also unlock the app on this device from now on. If you forget it, your data cannot be recovered.',
+    restoreFind: 'Find my copy',
+    restoreFound: 'Found your data: {plates}, {range}.',
+    restoreFoundEmpty: 'Found your copy. It has no plates yet.',
+    restorePlates: { one: '{count} plate', other: '{count} plates' },
+    rangeFromTo: 'from {from} to {to}',
+    rangeIn: 'in {when}',
+    rangeToday: 'today',
+    restoreAction: 'Restore and unlock',
+    restoreWorking: 'Restoring your data…',
+    restoreBack: 'Back to creating a passphrase',
+    restoreChange: 'Use another handle',
+    restoreWeak:
+      'To protect this device, the passphrase needs at least 10 characters, with a few different ones. Create a new passphrase instead, then connect to this server’s copy from Settings, Your data.',
+    restoringTitle: 'Restoring from the server',
+    restoringBody: 'Your data is being put back on this device. This takes a moment.',
   },
   sync: {
     onThisDevice: 'Saved on this device',

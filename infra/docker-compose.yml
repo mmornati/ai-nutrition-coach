@@ -6,9 +6,15 @@
 #
 # (`bin/ai-nutrition-coach up --compose` / `bin/ai-nutrition-coach up --tls` wrap these.)
 #
+#   docker compose -f infra/docker-compose.yml --profile sync up -d  # + the encrypted-backup relay
+#   (set AI_NUTRITION_COACH_SYNC=1 with it; `bin/ai-nutrition-coach up --sync` does both and builds
+#   the relay image)
+#
 # The app container is a STATIC web server: it holds no user data and has no
-# volume. Your data lives encrypted in your browser (IndexedDB, ADR-0002); use
-# the in-app export for backups. See docs/self-host.md.
+# volume. Your data lives encrypted in your browser (OPFS); use the in-app
+# export or encrypted backup. See docs/self-host.md. The OPT-IN `sync` profile adds a second container,
+# the relay, which keeps an encrypted copy that only the person's passphrase can open, in SQLite on the
+# named volume `sync-data` (back that volume up: it holds ciphertext only).
 #
 # Plain HTTP on anything but localhost is unsupported: the web store refuses to
 # run without a secure context (https:// or localhost). Hence the default bind
@@ -24,6 +30,10 @@
 #   (and AI_PROXY_TRANSCRIPTION* for voice to text)
 #                                one AI key for everyone on this instance (off by default; see
 #                                infra/server.env.example and docs/self-host.md)
+#   AI_NUTRITION_COACH_SYNC / AI_NUTRITION_COACH_RELAY_IMAGE_TAG / SYNC_SIGNUP / SYNC_INVITE_CODES /
+#   SYNC_MAX_VAULT_MB / SYNC_MAX_VAULTS ...
+#                                the encrypted-backup relay (profile `sync`; off by default; see
+#                                docs/self-host.md "Encrypted backup on your own server")
 #   AI_NUTRITION_COACH_DOMAIN             public DNS name for the tls profile (default
 #                                `localhost`: a local, self-signed trial)
 #   AI_NUTRITION_COACH_TLS_BIND           interface Caddy listens on (default 0.0.0.0)
@@ -70,6 +80,10 @@ services:
       AI_PROXY_TRANSCRIPTION_RATE: ${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}
       AI_PROXY_TRANSCRIPTION_RATE_ALL: ${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}
       AI_PROXY_TRANSCRIPTION_BURST: ${AI_PROXY_TRANSCRIPTION_BURST:-2}
+      # Encrypted-backup relay (profile `sync`): 1 proxies /sync/ to the `sync-relay` service below;
+      # 0 (the default) makes /sync/ a plain 404 and the app shows nothing about sync.
+      AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}
+      SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
@@ -99,6 +113,37 @@ services:
     # Binding 80/443 as root-in-container needs only this one capability.
     cap_add: [NET_BIND_SERVICE]
 
+  # Opt-in encrypted-backup relay (docs/encrypted-sync-plan.md §3.5). It stores ciphertext it cannot
+  # read: the handle, a salt, a wrapped key, a keyed hash of a value derived from the passphrase and
+  # the sealed snapshot. It publishes NO port: only the app container's nginx reaches it, on the
+  # compose network. Same hardening as the app: read-only root, no capabilities, non-root, health
+  # check. Writes only to /tmp (a tmpfs) and the data volume.
+  sync-relay:
+    <<: *hardening
+    profiles: ["sync"]
+    image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}
+    environment:
+      SYNC_IDENTITY: handle
+      # open | invite | closed. `invite` needs SYNC_INVITE_CODES (comma-separated codes).
+      SYNC_SIGNUP: ${SYNC_SIGNUP:-open}
+      SYNC_INVITE_CODES: ${SYNC_INVITE_CODES:-}
+      SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
+      SYNC_MAX_VAULTS: ${SYNC_MAX_VAULTS:-50}
+      SYNC_MAX_DEVICES: ${SYNC_MAX_DEVICES:-20}
+      SYNC_MAX_UPLOADS: ${SYNC_MAX_UPLOADS:-3}
+      SYNC_RATE_IP: ${SYNC_RATE_IP:-30}
+      SYNC_RATE_HANDLE: ${SYNC_RATE_HANDLE:-10}
+      SYNC_RATE_SIGNUP: ${SYNC_RATE_SIGNUP:-5}
+      SYNC_RATE_WRITE: ${SYNC_RATE_WRITE:-60}
+      # The only caller is the app container's nginx, which sets X-Real-IP: believe it.
+      SYNC_TRUST_PROXY: "1"
+    volumes:
+      - sync-data:/data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+
 volumes:
   caddy-data:
   caddy-config:
+  # The relay's SQLite file and its server secret: ciphertext, handles and keyed hashes only.
+  sync-data:

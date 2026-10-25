@@ -128,7 +128,12 @@ describe('nginx', () => {
     expect(conf).toMatch(/"~\^\(GET\|HEAD\) "\s+1;/);
     expect(conf).toMatch(/"POST \/ai\/v1\/chat\/completions"\s+1;/);
     expect(conf).toMatch(/"POST \/ai\/v1\/audio\/transcriptions"\s+1;/);
-    expect(conf.match(/^\s*"(?!~)[A-Z]+ /gm)).toHaveLength(2);
+    // The two AI proxy paths, and the relay's three POSTs and one PUT: nothing else.
+    expect(conf.match(/^\s*"(?!~)[A-Z]+ /gm)).toHaveLength(6);
+    for (const path of ['salt', 'signup', 'login']) {
+      expect(conf).toMatch(new RegExp(`"POST /sync/v1/${path}"\\s+1;`));
+    }
+    expect(conf).toMatch(/"PUT \/sync\/v1\/vault"\s+1;/);
     expect(conf).toContain('client_max_body_size 1k;');
     expect(`${conf}\n${read('infra/nginx/nginx.conf')}`).not.toMatch(
       /^\s*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b/m,
@@ -1487,5 +1492,216 @@ describe('njs multipart validation (infra/nginx/ai-proxy/ai-proxy.js checkTransc
       internalRedirect: (w) => none.push(w),
     });
     expect(none).toEqual(['@ai_nutrition_coach_ai_badrequest']);
+  });
+});
+
+
+describe('encrypted-backup relay (docs/self-host.md "Encrypted backup on your own server")', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/50-render-sync.sh');
+  const tplDir = join(root, 'infra/nginx/sync');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+  const relayfile = read('infra/Dockerfile.relay');
+
+  // Runs the real POSIX-sh entrypoint script (no Docker needed) into a temp "/tmp".
+  const render = (env) => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_sync_'));
+    try {
+      const resolv = join(dir, 'resolv.conf');
+      writeFileSync(resolv, 'search example.test\nnameserver 127.0.0.11\noptions ndots:0\n');
+      const r = spawnSync('sh', [script], {
+        env: { PATH, SYNC_OUT_DIR: dir, SYNC_TEMPLATE_DIR: tplDir, SYNC_RESOLV_CONF: resolv, ...env },
+        encoding: 'utf8',
+      });
+      const path = join(dir, 'ai-nutrition-coach-sync-locations.inc');
+      const httpPath = join(dir, 'ai-nutrition-coach-sync-http.inc');
+      return {
+        code: r.status,
+        out: `${r.stdout}${r.stderr}`,
+        locations: existsSync(path) ? readFileSync(path, 'utf8') : '',
+        http: existsSync(httpPath) ? readFileSync(httpPath, 'utf8') : '',
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const ON = { AI_NUTRITION_COACH_SYNC: '1' };
+
+  it('is OFF by default: the image says so, the config says disabled and the rest of /sync/ is a 404 that proxies nothing', () => {
+    expect(dockerfile).toContain('AI_NUTRITION_COACH_SYNC="0"');
+    for (const env of [{}, { AI_NUTRITION_COACH_SYNC: '0' }, { AI_NUTRITION_COACH_SYNC: 'true' }]) {
+      const r = render(env);
+      expect(r.code).toBe(0);
+      expect(r.locations).toContain('location = /sync/config.json {');
+      expect(r.locations).toContain(`return 200 '{"enabled":false}';`);
+      expect(r.locations).toContain('location ^~ /sync/ {');
+      expect(r.locations).toContain('return 404;');
+      expect(r.locations).not.toMatch(/^\s*(proxy_pass|resolver|proxy_set_header|set)\b/m);
+      // No zone, no limit: the http-level file is only a comment.
+      expect(r.http).not.toMatch(/^\s*limit_conn/m);
+    }
+  });
+
+  it('on: the config and the four API paths are proxied to the relay with a request-time lookup', () => {
+    const r = render(ON);
+    expect(r.code).toBe(0);
+    expect(r.locations).toContain('location = /sync/config.json {');
+    expect(r.locations).toContain('location ^~ /sync/v1/ {');
+    expect(r.locations).toContain('set $anc_sync_upstream "http://sync-relay:4100";');
+    expect(r.locations).toContain('resolver 127.0.0.11 valid=10s ipv6=off;');
+    expect(r.locations).toContain('proxy_pass $anc_sync_upstream;');
+    // The address the relay limits on is set here, never taken from the client.
+    expect(r.locations).toContain('proxy_set_header X-Real-IP $remote_addr;');
+    // A vault is streamed, not buffered into the small tmpfs.
+    expect(r.locations).toContain('proxy_request_buffering off;');
+    // Big uploads are bounded per address: the zone (http level) and its use (the API location).
+    expect(r.http).toContain('limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_sync_conn:1m;');
+    expect(r.locations).toContain('limit_conn ai_nutrition_coach_sync_conn 8;');
+    expect(r.locations).toContain('limit_conn_status 503;');
+    expect(read('infra/nginx/nginx.conf')).toContain('include /tmp/ai-nutrition-coach-sync-http.inc;');
+    // Everything else under /sync/ (the relay's health check included) is a 404.
+    expect(r.locations).toMatch(/location \^~ \/sync\/ \{[^}]*return 404;/);
+    expect(r.locations).not.toContain('@@');
+    expect(r.out).toContain('vaults up to 20 MB');
+  });
+
+  it('the body limit follows SYNC_MAX_VAULT_MB (a third more than the ciphertext, plus a little)', () => {
+    expect(render(ON).locations).toContain('client_max_body_size 27314k;');
+    expect(render({ ...ON, SYNC_MAX_VAULT_MB: '1' }).locations).toContain('client_max_body_size 1373k;');
+    expect(render({ ...ON, SYNC_MAX_VAULT_MB: '24' }).locations).toContain('client_max_body_size 32776k;');
+  });
+
+  it('every location re-includes the security headers (add_header is not inherited)', () => {
+    for (const file of ['sync.locations.inc.template', 'sync.disabled.inc.template']) {
+      const text = readFileSync(join(tplDir, file), 'utf8');
+      const bodies = [...text.matchAll(/^location [^{]+\{([\s\S]*?)^\}/gm)].map((m) => m[1]);
+      expect(bodies.length, file).toBeGreaterThanOrEqual(1);
+      for (const body of bodies) expect(body, file).toContain('include /tmp/ai-nutrition-coach-headers.inc;');
+    }
+  });
+
+  it('every bad value refuses to start and is never printed', () => {
+    const bad = [
+      ['SYNC_RELAY_HOST', 'relay;evil'],
+      ['SYNC_RELAY_HOST', 'a b'],
+      ['SYNC_RELAY_PORT', '99999'],
+      ['SYNC_RELAY_PORT', '80x'],
+      ['SYNC_MAX_VAULT_MB', '0'],
+      ['SYNC_MAX_VAULT_MB', '25'],
+      ['SYNC_MAX_VAULT_MB', 'lots'],
+      ['SYNC_RESOLVER', 'not-an-ip!'],
+    ];
+    for (const [name, value] of bad) {
+      const r = render({ ...ON, [name]: value });
+      expect(r.code, `${name}=${value}`).toBe(1);
+      expect(r.out).toContain(name);
+      if (value.length >= 4) expect(r.out).not.toContain(value);
+    }
+  });
+
+  it('accepts a real-world setup: another host name, a port, a resolver, a bigger vault', () => {
+    const r = render({
+      ...ON,
+      SYNC_RELAY_HOST: 'relay.internal',
+      SYNC_RELAY_PORT: '4200',
+      SYNC_RESOLVER: '10.0.0.2',
+      SYNC_MAX_VAULT_MB: '8',
+    });
+    expect(r.code).toBe(0);
+    expect(r.locations).toContain('"http://relay.internal:4200"');
+    expect(r.locations).toContain('resolver 10.0.0.2 valid=10s');
+    expect(r.locations).toContain('client_max_body_size 10930k;');
+  });
+
+  it('the server-level config includes the relay file, and the method map lets exactly four more through', () => {
+    expect(conf).toContain('include /tmp/ai-nutrition-coach-sync-locations.inc;');
+    expect(readCode('infra/nginx/templates/ai-nutrition-coach.conf.template')).not.toMatch(
+      /^\s*(proxy_pass|resolver|proxy_set_header)\b/m,
+    );
+    expect(dockerfile).toContain('COPY infra/nginx/sync/ /etc/ai-nutrition-coach/sync/');
+    expect(dockerfile).toContain('50-render-sync.sh');
+  });
+
+  it('no template or script logs a header, a body, a query string or an address', () => {
+    for (const f of [
+      'infra/nginx/sync/sync.locations.inc.template',
+      'infra/nginx/sync/sync.disabled.inc.template',
+      'infra/nginx/docker-entrypoint.d/50-render-sync.sh',
+    ]) {
+      const text = readCode(f);
+      expect(text, f).not.toMatch(/\baccess_log\b|\$request_body|\$args\b|\$query_string|set -x/);
+      // Only the client address, to be limited on; never a credential or an identifier.
+      expect(text, f).not.toMatch(/\$http_/);
+    }
+  });
+
+  it('compose: a profile, off by default, hardened, unpublished, with its own volume', () => {
+    // One service block: from `  name:` to the next two-space key or top-level key.
+    const service = (text, name) =>
+      new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [A-Za-z][\\w-]*:|^[A-Za-z])`, 'm').exec(text)?.[1] ?? '';
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const text = readCode(file);
+      const relay = service(text, 'sync-relay');
+      expect(relay, file).toContain('profiles: ["sync"]');
+      expect(relay, file).toContain('<<: *hardening');
+      expect(relay, file).toContain('sync-data:/data');
+      expect(relay, file).toContain('SYNC_TRUST_PROXY: "1"');
+      expect(relay, file).toContain('SYNC_IDENTITY: handle');
+      expect(relay, file).not.toContain('ports:');
+      expect(text, file).toContain('AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}');
+      expect(text, file).toMatch(/^volumes:\n(?:\s+.*\n)*?\s+sync-data:/m);
+      // The app container itself has no volume: only the relay (and Caddy's certificates) do.
+      expect(service(text, 'ai-nutrition-coach'), file).not.toContain('volumes:');
+    }
+  });
+
+  it('the relay image: pinned, strict lockfile, unprivileged, patched, health-checked, a volume for /data', () => {
+    const froms = [...relayfile.matchAll(/^FROM (\S+)/gm)].map((m) => m[1]);
+    expect(froms).toHaveLength(2);
+    for (const from of froms) expect(from).toMatch(/^node:24\.\d+\.\d+-alpine3\.\d+@sha256:[0-9a-f]{64}$/);
+    // The same node pin as the app image's build stage.
+    expect(froms[0]).toBe([...dockerfile.matchAll(/^FROM (\S+)/gm)][0][1]);
+    expect(relayfile).toContain('pnpm install --frozen-lockfile --filter @anc/relay...');
+    expect(relayfile).toMatch(/^USER node$/m);
+    expect(relayfile).toContain('apk upgrade --no-cache');
+    expect(relayfile).toMatch(/HEALTHCHECK[^\n]*\\\n\s+CMD node -e "fetch\('http:\/\/127\.0\.0\.1:4100\/sync\/health'\)/);
+    expect(relayfile).toContain('VOLUME ["/data"]');
+    expect(relayfile).toContain('chown node:node /data');
+    const pm = /"packageManager": "pnpm@([0-9.]+)"/.exec(read('package.json'))[1];
+    expect(relayfile).toContain(`corepack prepare pnpm@${pm} --activate`);
+    // No secret in the image: nothing is baked in, the server secret is made at the first start.
+    expect(relayfile).not.toMatch(/\b(ARG|ENV)\b[^\n]*(SECRET|INVITE)/);
+  });
+
+  it('the installer has --sync with strict validation (exit 42) and builds the relay image', () => {
+    const bin = read('bin/ai-nutrition-coach');
+    expect(bin).toContain('--sync) sync=1 ;;');
+    expect(bin).toContain('docker build -f infra/Dockerfile.relay');
+    expect(bin).toContain('--profile sync');
+    const run = (env) =>
+      spawnSync('sh', [join(root, 'bin/ai-nutrition-coach'), 'up', '--sync'], {
+        env: { PATH, ...env },
+        encoding: 'utf8',
+      });
+    for (const env of [
+      { SYNC_SIGNUP: 'maybe' },
+      { SYNC_SIGNUP: 'invite' },
+      { SYNC_MAX_VAULT_MB: '0' },
+      { SYNC_MAX_VAULT_MB: '25' },
+      { SYNC_MAX_VAULT_MB: 'x' },
+    ]) {
+      const r = run(env);
+      expect(r.status, JSON.stringify(env)).toBe(42);
+      expect(r.stderr).toContain('SYNC_');
+    }
+    // An invite code is a credential: it is never printed.
+    const withCodes = run({ SYNC_SIGNUP: 'bogus', SYNC_INVITE_CODES: 'blue-door-9' });
+    expect(`${withCodes.stdout}${withCodes.stderr}`).not.toContain('blue-door-9');
+  });
+
+  it('the server example documents the relay with no secret in it', () => {
+    const example = read('infra/server.env.example');
+    expect(example).toMatch(/^#?AI_NUTRITION_COACH_SYNC=/m);
+    expect(example).not.toMatch(/^SYNC_INVITE_CODES=\S/m);
+    expect(example).not.toMatch(/^SYNC_SERVER_SECRET=/m);
   });
 });
