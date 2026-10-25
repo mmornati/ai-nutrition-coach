@@ -12,6 +12,7 @@ import { KV_KEYS, type KeyValueStore } from '../storage/key-value-store';
 export class ProfilePref {
   private profile: Profile | undefined;
   private derived: DailyTargets = dailyTargetsFor();
+  private unreadable = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly kv: KeyValueStore) {}
@@ -20,10 +21,28 @@ export class ProfilePref {
   async load(): Promise<void> {
     try {
       this.apply(await this.read());
+      this.unreadable = false;
     } catch {
+      this.unreadable = true;
       this.apply(undefined);
     }
   }
+
+  /**
+   * Read the stored profile again (a pulled copy may have changed it). A failed read keeps what is
+   * shown: blanking it would let the next one-field edit save over the real profile.
+   */
+  async refresh(): Promise<void> {
+    try {
+      this.apply(await this.read());
+      this.unreadable = false;
+    } catch {
+      this.unreadable = true;
+    }
+  }
+
+  /** False when the last read failed: what `current` says is then a guess, not to be saved over. */
+  trusted = (): boolean => !this.unreadable;
 
   /** The stored profile, read fresh (for the export). */
   async read(): Promise<Profile | undefined> {

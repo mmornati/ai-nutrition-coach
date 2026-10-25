@@ -79,7 +79,7 @@ export interface Device {
 export async function attach(
   bundle: StoreBundle,
   relay: FakeRelay,
-  options: { now?: () => number } = {},
+  options: { now?: () => number; onNeedsUpdate?: () => void } = {},
 ): Promise<Device> {
   const clock = manual();
   const online = { value: true };
@@ -94,6 +94,7 @@ export async function attach(
     isOnline: () => online.value,
     maxVaultBytes: () => MAX,
     ...(options.now ? { now: options.now } : {}),
+    ...(options.onNeedsUpdate ? { onNeedsUpdate: options.onNeedsUpdate } : {}),
   });
   await service.start();
   const stopWrites = bundle.controller.onWrite(() => service.noteWrite());

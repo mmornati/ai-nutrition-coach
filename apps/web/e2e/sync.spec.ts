@@ -592,10 +592,11 @@ test('two devices at once: plates, a delete, a saved-meal conflict and the langu
   const boardB = await settledBoard(b);
   expect(boardA.plates).toHaveLength(2);
   // The one-off notice line under the title ("Saved as ...", "Plate removed.") belongs to the
-  // device where the person acted; everything else on the board is the data, and must be identical.
+  // device where the person acted, and the storage line is the browser's answer for that device;
+  // everything else on the board is the data, and must be identical.
   const withoutNotice = (text: string): string =>
     text.replace(
-      /^(Saved as .*|Plate removed\.|Renamed\.|Gardé sous .*|Assiette retirée\.|Renommé\.)\n+/gm,
+      /^(Saved as .*|Plate removed\.|Renamed\.|Gardé sous .*|Assiette retirée\.|Renommé\.|Storage: .*|Stockage\s*:\s.*)\n+/gm,
       '',
     );
   expect({ ...boardB, today: withoutNotice(boardB.today) }).toEqual({
@@ -612,6 +613,42 @@ test('two devices at once: plates, a delete, a saved-meal conflict and the langu
     return p.locator('main').innerText();
   };
   expect(await savedOf(b)).toEqual(await savedOf(page));
+
+  // Both devices write before either has synced, and both go to the background at once: a real
+  // 412 against the real relay. One wins, the other pulls, merges and sends again; they converge.
+  await openToday(page);
+  await openToday(b);
+  await logFood(page, 'appl', /^Apple/);
+  await logFood(b, 'rice', /^Rice/);
+  await expect(plates(page)).toHaveCount(3);
+  await expect(plates(b)).toHaveCount(3);
+  const racedA = acknowledged(wireA);
+  const racedB = acknowledged(wireB);
+  await Promise.all([sendToBackground(page), sendToBackground(b)]);
+  await expect
+    .poll(() => acknowledged(wireA) + acknowledged(wireB) - racedA - racedB, { timeout: 60_000 })
+    .toBeGreaterThanOrEqual(2);
+  await Promise.all([comeBack(page), comeBack(b)]);
+  await advance(61_000);
+  await Promise.all([comeBack(page), comeBack(b)]);
+  await expect(plates(page)).toHaveCount(4, { timeout: 60_000 });
+  await expect(plates(b)).toHaveCount(4, { timeout: 60_000 });
+  await expect(headerChip(page)).toHaveAttribute('data-chip-state', 'synced', { timeout: 60_000 });
+  await expect(headerChip(b)).toHaveAttribute('data-chip-state', 'synced', { timeout: 60_000 });
+
+  // Once idle, coming back to the page any number of times writes nothing.
+  const writes = (wire: Wire[]): number => wire.filter((w) => w.method === 'PUT').length;
+  const idleA = writes(wireA);
+  const idleB = writes(wireB);
+  for (let i = 0; i < 4; i++) {
+    await advance(61_000);
+    await Promise.all([comeBack(page), comeBack(b)]);
+    await page.waitForTimeout(500);
+  }
+  expect(writes(wireA)).toBe(idleA);
+  expect(writes(wireB)).toBe(idleB);
+  await expect(plates(page)).toHaveCount(4);
+  await expect(plates(b)).toHaveCount(4);
 
   // A changes the language; B turns French by itself, with no reload.
   await page.evaluate(() => {

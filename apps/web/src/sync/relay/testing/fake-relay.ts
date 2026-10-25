@@ -31,6 +31,8 @@ export interface LoggedRequest {
   /** What would go on the wire as the body (JSON text), or `''`. */
   readonly body: string;
   readonly ifMatch?: string;
+  /** The `If-None-Match` of a read: absent for an unconditional one. */
+  readonly ifNoneMatch?: string;
 }
 
 const ok = <T>(value: T): RelayResult<T> => ({ kind: 'ok', value });
@@ -61,12 +63,19 @@ export class FakeRelay implements RelayClient {
   #counter = 0;
   #tokens = 0;
 
-  private log(method: string, path: string, body: unknown, ifMatch?: number): void {
+  private log(
+    method: string,
+    path: string,
+    body: unknown,
+    ifMatch?: number,
+    ifNoneMatch?: number,
+  ): void {
     this.requests.push({
       method,
       path,
       body: body === undefined ? '' : JSON.stringify(body),
       ...(ifMatch === undefined ? {} : { ifMatch: etagOf(ifMatch) }),
+      ...(ifNoneMatch === undefined ? {} : { ifNoneMatch: etagOf(ifNoneMatch) }),
     });
   }
 
@@ -150,7 +159,7 @@ export class FakeRelay implements RelayClient {
   }
 
   async getVault(token: string, haveVersion?: number): Promise<RelayResult<VaultFetch>> {
-    this.log('GET', '/vault', undefined);
+    this.log('GET', '/vault', undefined, undefined, haveVersion);
     const blocked = this.gate();
     if (blocked) return blocked;
     const race = this.racePull;

@@ -74,6 +74,30 @@ describe('ProfilePref', () => {
     expect(pref.current()).toBeUndefined();
   });
 
+  it('a read that fails when a pulled copy is refreshed keeps the profile, and is not to be saved over', async () => {
+    const { kv } = await unlockedBundle();
+    const pref = new ProfilePref(kv);
+    await pref.set({ ...FULL, allergies: ['peanut'] });
+    expect(pref.trusted()).toBe(true);
+    let fail = true;
+    const flaky: KeyValueStore = {
+      read: (key) => (fail ? Promise.reject(new Error('busy')) : kv.read(key)),
+      write: kv.write.bind(kv),
+      delete: kv.delete.bind(kv),
+    };
+    const live = new ProfilePref(flaky);
+    fail = false;
+    await live.load();
+    fail = true;
+    await live.refresh();
+    expect(live.current()?.allergies).toEqual(['peanut']);
+    expect(live.trusted()).toBe(false);
+    fail = false;
+    await live.refresh();
+    expect(live.trusted()).toBe(true);
+    expect(live.current()?.sex).toBe('female');
+  });
+
   it('is erased by "Erase all local data"', async () => {
     const bundle = await unlockedBundle();
     await new ProfilePref(bundle.kv).set(FULL);

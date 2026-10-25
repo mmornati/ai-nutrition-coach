@@ -59,13 +59,14 @@ export class DirtyFlagSyncQueue implements SyncQueue {
     this.#now = now;
   }
 
-  /** Reads the stored flag (call once when the session is built). Never throws. */
+  /** Reads the stored flag (call once when the session is built). Never throws; unreadable means dirty. */
   async load(connected: boolean): Promise<void> {
     this.#connected = connected;
     try {
       this.#dirty = connected && (await readDirty(this.#kv));
     } catch {
-      this.#dirty = false;
+      // Fail closed: if the flag cannot be read, assume there is something to send.
+      this.#dirty = connected;
     }
     this.#since = this.#now();
     this.#emit();

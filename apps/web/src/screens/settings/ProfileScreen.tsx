@@ -45,6 +45,11 @@ export function ProfileScreen() {
   };
 
   const withField = <K extends keyof Profile>(key: K, value: Profile[K] | undefined) => {
+    // An unreadable profile is not an empty one: saving one field over it would erase the rest.
+    if (!pref.trusted()) {
+      setStatus(s.saveFailed);
+      return;
+    }
     const next: Record<string, unknown> = { ...profile };
     if (value === undefined) delete next[key];
     else next[key] = value;

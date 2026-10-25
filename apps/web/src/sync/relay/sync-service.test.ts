@@ -279,6 +279,60 @@ describe('failing', () => {
   });
 });
 
+describe('a pending retry is not cut short by coming back to the page', () => {
+  async function failing() {
+    let t = 1_900_000_000_000;
+    const { relay, a: first } = await connected();
+    first.stop();
+    const a = await attach(first.bundle, relay, { now: () => t });
+    return { relay, a, advance: (ms: number) => void (t += ms) };
+  }
+
+  it('a focus pull while the growing wait runs sends nothing and leaves the timer alone', async () => {
+    const { relay, a, advance } = await failing();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    relay.broken = true;
+    await a.clock.fire();
+    expect(phase(a)).toBe('failed');
+    expect(a.clock.waits()).toEqual([60_000]);
+    relay.requests.length = 0;
+    advance(46_000); // past the pull interval, before the retry
+    a.clock.return();
+    await settled();
+    expect(relay.requests).toEqual([]);
+    expect(a.clock.waits()).toEqual([60_000]);
+    // Once the wait is over a focus pull is allowed again.
+    advance(15_000);
+    relay.broken = false;
+    a.clock.return();
+    await settled();
+    expect(relay.vaults.get('alice')?.version).toBe(2);
+  });
+
+  it('the network coming back retries at once, unless the server asked for a wait', async () => {
+    const plain = await failing();
+    await seedPlate(plain.a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    plain.relay.broken = true;
+    await plain.a.clock.fire();
+    plain.relay.broken = false;
+    plain.relay.requests.length = 0;
+    plain.a.clock.online();
+    await settled();
+    expect(plain.relay.vaults.get('alice')?.version).toBe(2);
+
+    const limited = await failing();
+    await seedPlate(limited.a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    limited.relay.rateLimited = true;
+    await limited.a.clock.fire();
+    limited.relay.rateLimited = false;
+    limited.relay.requests.length = 0;
+    limited.a.clock.online();
+    await settled();
+    expect(limited.relay.requests).toEqual([]);
+    expect(limited.a.clock.waits()).toEqual([60_000]);
+  });
+});
+
 describe('refusals that retrying cannot fix stop the automatic backup', () => {
   it('an older copy than this device has seen: rolled back, nothing is written to the relay', async () => {
     const { relay, a } = await connected();
@@ -333,6 +387,29 @@ describe('refusals that retrying cannot fix stop the automatic backup', () => {
     expect(puts(relay)).toEqual([]);
     expect((await snapshotOf(a.bundle)).plates).toHaveLength(before.plates.length + 1);
     expect(remote.version).toBe(2);
+  });
+
+  it('a copy from a newer app asks the service worker for a newer build, once', async () => {
+    const first = await connected();
+    first.a.stop();
+    let asked = 0;
+    const a = await attach(first.a.bundle, first.relay, { onNeedsUpdate: () => void asked++ });
+    const connection = (await readConnection(a.bundle.kv))!;
+    const key = await importVaultKey(decodeBase64Url(connection.vaultKey)!);
+    const newer = {
+      ...(await snapshotOf(a.bundle)),
+      schemaVersion: 99,
+    } as unknown as VaultSnapshot;
+    const sealed = await sealSnapshot(key, connection.vaultId, 2, newer, MAX);
+    if (sealed.kind !== 'sealed') throw new Error('seal');
+    const remote = first.relay.vaults.get('alice')!;
+    remote.version = 2;
+    remote.envelope = sealed.envelope;
+    await a.clock.fire();
+    expect(phase(a)).toBe('needsUpdate');
+    expect(asked).toBe(1);
+    await a.service.syncNow();
+    expect(asked).toBe(1);
   });
 
   it('a damaged copy: paused, not overwritten', async () => {

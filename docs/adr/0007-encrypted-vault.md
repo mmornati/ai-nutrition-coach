@@ -129,11 +129,11 @@ An opt-in compose profile `sync` (`sync-relay`: read-only root, `cap_drop: ALL`,
 | Trigger | Rule |
 |---|---|
 | Unlock | One cycle about 1 s after the session starts (5 s, and a push first, when changes were left unsent). |
-| `visibilitychange` to visible, window `focus` | One cycle, at most one per **45 s** (measured from the last attempt, whatever its outcome); the two events that fire together are one request. Not while offline, stopped or already running. |
-| `online` | A cycle at once (no throttle: the wait was real), never two at the same time. |
+| `visibilitychange` to visible, window `focus` | One cycle, at most one per **45 s** (measured from the last attempt, whatever its outcome); the two events that fire together are one request. Not while offline, stopped, already running, or while a retry wait (backoff or the server's `Retry-After`) is pending. |
+| `online` | A cycle at once (no throttle: the wait was real), never two at the same time; not while a server `Retry-After` is pending. |
 | A write, `visibilitychange` to hidden | As in S2: a push ~30 s after the last write, and at once when the page is hidden, only if changes wait. |
 
-The pull is `GET` with `If-None-Match: "<last seen>"`, so an idle vault costs a 304 and nothing is decrypted, merged or applied. **A pulled copy is not a change to send** (S2's rewind rule, unchanged): the cycle pushes only if the device had unsent changes or what it holds now differs canonically from the relay's copy. Two idle devices therefore never ping-pong; a test drives two simulated devices through 100 focus events and asserts zero writes and an unmoved version.
+The pull is `GET` with `If-None-Match: "<last seen>"` (unconditional while the ledger is unknown), so an idle vault costs a 304 and nothing is decrypted, merged or applied. **A pulled copy is not a change to send** (S2's rewind rule, unchanged): the cycle pushes only if the device had unsent changes or what it holds now differs canonically from the relay's copy. Two idle devices therefore never ping-pong; a test drives two simulated devices through 100 focus events and asserts zero writes and an unmoved version.
 
 ### What the screens do with a pulled copy
 
@@ -141,25 +141,26 @@ Applying a snapshot already tells the store watches (`plates`, `notes`, `dismiss
 
 ### What `synced` means (AD-6)
 
-A **ledger** (`ledger.ts`) records which plates the relay is known to hold. The cycle feeds it with exactly three facts and nothing else:
+A **ledger** (`ledger.ts`) records which plates the relay is known to hold. The cycle feeds it with exactly two facts and nothing else:
 
 1. a snapshot **fetched** from the relay (it holds it, whether or not applying succeeds);
-2. the snapshot that was **sealed and acknowledged** (HTTP 200 to the `If-Match` PUT): the snapshot is the one read *before* sealing, so a record written after that read is not in it;
-3. with nothing to send, the snapshot **read in a round where no write landed** (generation unchanged).
+2. the snapshot that was **sealed and acknowledged** (HTTP 200 to the `If-Match` PUT): the snapshot is the one read *before* sealing, so a record written after that read is not in it.
+
+A round with nothing to send (a 304) is **not** a fact: what the device holds says nothing about what the relay holds, because the in-memory dirty flag can be falsely clean (its write is fire-and-forget after the plate's transaction, and a tab can die between the two). So a 304 never widens the ledger, which already reflects the last snapshot fetched or acknowledged. When the ledger is **unknown** (no baseline, a connection from before it, a history over 50,000 plates, a stale baseline dropped by a new connection), the pull is an unconditional `GET` (no `If-None-Match`): what it returns is fact 1, it is compared canonically with the local snapshot, and a difference marks the device as having changes to send (which also repairs a lost flag). A known ledger with a plate it does not hold and a clean flag is the same inconsistency: the service marks the device dirty, and the plate stays `pending` until a push is acknowledged. The stored flag fails closed: if it cannot be read while connected, the device is dirty.
 
 A plate is `synced` if its uid is in the ledger, `pending` if not, and `failed` ("Retry later") instead of `pending` while the last round failed or sync is stopped. The statuses are derived by the service and published through `SyncQueue.watchPerPlate` (`DirtyFlagSyncQueue.setPlateStatuses`); the relay `SyncAdapter` is the transport that produces the acknowledgements. A plate's record is written once and never edited, so its uid identifies its state; coach notes, saved meals and settings are separate records and do not move the plate's chip (the persisted dirty flag still covers them, and the header chip, below). The bridge from the screens' local ids to uids is one small store op (`readPlateUids`, ids and uids only).
 
-**Persistence.** The ledger is stored in the device-only `sync.baseline` key (never in a snapshot or export), as fixed-width tokens (a 53-bit hash of each plate uid, not the uid), rewritten when it changes and seeded by create/join/restore with what the relay was just given or handed over. After a reload a held plate is still `synced` and an unacknowledged one is `pending`; an absent or malformed baseline is "unknown", which reads as `pending` until the unlock pull establishes it. It errs one way only: a write that fails leaves an older baseline, never a larger one. Past 50,000 plates it is kept in memory only.
+**Persistence.** The ledger is stored in the device-only `sync.baseline` key (never in a snapshot or export), as fixed-width tokens (a 53-bit hash of each plate uid, not the uid), rewritten when it changes and seeded by create/join/restore with what the relay was just given or handed over. After a reload a held plate is still `synced` and an unacknowledged one is `pending`; an absent or malformed baseline is "unknown", which reads as `pending` until the unlock pull (unconditional while unknown) establishes it. It errs one way only: a write that fails leaves an older baseline, never a larger one, and a write that cannot be made (a failure, or past 50,000 plates, where it is kept in memory only) deletes the stored key rather than leaving an older vault's. A new connection and leaving a vault delete it first.
 
 **Header chip** (`chip.ts`): "On this device" without a connection; `pending` while changes wait or the device does not yet know; `synced` only when nothing waits and the ledger is known; `failed` ("Retry later") for a stopped sync or a failed push; and a distinct calm "update the app" state for schema skew. The page-level `SyncAnnouncer` is wired to the counts of pending and retry-later plates (aggregate, polite, never per plate, never on first render). A deletion's confirmation adds "It will also be removed from your other devices." only when the device is connected.
 
 ### Schema skew
 
-A snapshot (or envelope) from a newer app, met on a pull, ends the cycle as `needsUpdate`: the copy is never applied, nothing is pushed (the pull comes first and a refusal ends the cycle), the stored version is not advanced, automatic sync stops (no further pulls or pushes from focus, writes or the hidden page) and the chip and *Your data* say "Update the app on this device to keep syncing". *Back up now* looks once more and still never writes. Updating the app and reloading starts a fresh session that syncs again.
+A snapshot (or envelope) from a newer app, met on a pull, ends the cycle as `needsUpdate`: the copy is never applied, nothing is pushed (the pull comes first and a refusal ends the cycle), the stored version is not advanced, automatic sync stops (no further pulls or pushes from focus, writes or the hidden page) and the chip and *Your data* say "Update the app on this device to keep syncing". *Back up now* looks once more and still never writes. Reaching this state also asks the service worker for a newer build once. Updating the app and reloading starts a fresh session that syncs again.
 
 ### Lifecycle
 
-Every guard from S2 (`isCurrent`) now also covers the pull: a cycle that outlives a lock, a disconnect or an erase applies nothing, writes no version, baseline or acknowledgement and tells no one. A revoked token (401) is `signedOut`, a rolled-back relay `rolledBack`, a copy dated beyond the drift bound `paused` (the store refuses the apply, nothing is written), a relay that cannot be reached `offline`/`failed` with the growing wait; each is a stated phase on *Your data*, a chip that does not say `synced` for anything unsent, and each is covered by a test.
+Every guard from S2 (`isCurrent`) now also covers the pull and the gap between sealing and sending: a cycle that outlives a lock, a disconnect or an erase applies nothing, writes no version, baseline or acknowledgement and tells no one. A revoked token (401) is `signedOut`, a rolled-back relay `rolledBack`, a copy dated beyond the drift bound `paused` (the store refuses the apply, nothing is written), a relay that cannot be reached `offline`/`failed` with the growing wait; each is a stated phase on *Your data*, a chip that does not say `synced` for anything unsent, and each is covered by a test.
 
 ## Identity and relay limits (as planned; see "Phase S2" above for what was built)
 

@@ -145,9 +145,13 @@ export class SyncLedger {
 export async function writeHeld(kv: KeyValueStore, snapshot: VaultSnapshot): Promise<void> {
   try {
     const tokens = new Set(snapshot.plates.map((p) => uidToken(p.uid)));
-    if (tokens.size > MAX_PERSISTED) return;
+    if (tokens.size > MAX_PERSISTED) {
+      await kv.delete(KV_KEYS.syncBaseline);
+      return;
+    }
     await writeBaseline(kv, serialise(tokens));
   } catch {
-    // Unknown is safe.
+    // Unknown is safe, a stale baseline is not: drop whatever an earlier vault left.
+    await kv.delete(KV_KEYS.syncBaseline).catch(() => undefined);
   }
 }

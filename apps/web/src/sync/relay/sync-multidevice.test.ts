@@ -7,10 +7,12 @@ import { describe, expect, it } from 'vitest';
 import { decodeBase64Url, formatHlc, type SyncOpStatus, type VaultSnapshot } from '@anc/core';
 import { at, seedPlate } from '../../app/testing';
 import { KV_KEYS } from '../../storage/key-value-store';
-import { readConnection } from './connection';
+import { clearConnection, readConnection, writeConnection } from './connection';
+import { runSyncCycle } from './cycle';
 import { importVaultKey, sealSnapshot } from './crypto';
+import { DirtyFlagSyncQueue } from './dirty-queue';
 import { headerChipOf } from './chip';
-import { SyncLedger, uidToken } from './ledger';
+import { SyncLedger, uidToken, writeHeld } from './ledger';
 import { FakeRelay } from './testing/fake-relay';
 import {
   attach,
@@ -150,14 +152,138 @@ describe('the chip is honest: synced only after the relay acknowledged a snapsho
     const { relay, a } = await connected();
     a.stop();
     await a.bundle.kv.delete(KV_KEYS.syncBaseline);
-    const next = await attach(a.bundle, relay);
+    const clock = time();
+    const next = await attach(a.bundle, relay, { now: clock.now });
     expect(status(next)).toMatchObject({ known: false });
     expect(await chips(next)).toEqual({ Porridge: 'pending' });
     expect(header(next).status).toBe('pending');
-    // The pull after unlock finds the relay unchanged and nothing waiting: now it knows.
+    // The pull after unlock cannot be a 304 (that would tell nothing about what the relay holds):
+    // it reads the vault whole, and what it fetched is what the relay holds. Now it knows.
+    relay.requests.length = 0;
     await next.clock.fire();
+    expect(gets(relay)).toHaveLength(1);
+    expect(gets(relay)[0]?.ifNoneMatch).toBeUndefined();
+    expect(relay.notModified).toBe(0);
+    expect(puts(relay)).toEqual([]);
     expect(status(next)).toMatchObject({ known: true });
     expect(await chips(next)).toEqual({ Porridge: 'synced' });
+    // From then on the cheap conditional read is back.
+    relay.requests.length = 0;
+    clock.advance(61_000);
+    next.clock.return();
+    await idle(next);
+    expect(gets(relay)).toHaveLength(1);
+    expect(gets(relay)[0]?.ifNoneMatch).toBeDefined();
+  });
+
+  it('a lost dirty flag with an unknown ledger: the full read finds the unsent plate, marks it, and sends it (never "synced" for what the relay never got)', async () => {
+    const { relay, a } = await connected();
+    a.stop();
+    // The plate was logged but the flag never reached the store (tab killed), and the baseline is gone.
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    await a.bundle.kv.delete(KV_KEYS.syncDirty);
+    await a.bundle.kv.delete(KV_KEYS.syncBaseline);
+    const next = await attach(a.bundle, relay);
+    expect(next.queue.dirty).toBe(false);
+    expect(await chips(next)).toEqual({ Porridge: 'pending', Salmon: 'pending' });
+    relay.requests.length = 0;
+    await next.clock.fire();
+    expect(gets(relay)[0]?.ifNoneMatch).toBeUndefined();
+    expect(puts(relay)).toHaveLength(1);
+    expect(relay.vaults.get('alice')?.version).toBe(2);
+    expect(await chips(next)).toEqual({ Porridge: 'synced', Salmon: 'synced' });
+  });
+
+  it('a lost dirty flag with a known ledger: the unsent plate is pending, not synced, and is sent', async () => {
+    const { relay, a } = await connected();
+    a.stop();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    await a.bundle.kv.delete(KV_KEYS.syncDirty);
+    const next = await attach(a.bundle, relay);
+    expect(next.queue.dirty).toBe(false);
+    // The device notices that a plate it holds is in nothing the relay acknowledged, and marks it.
+    await tick();
+    expect(await chips(next)).toEqual({ Porridge: 'synced', Salmon: 'pending' });
+    expect(next.queue.dirty).toBe(true);
+    expect(puts(relay)).toEqual([]);
+    await next.clock.fire();
+    expect(puts(relay)).toHaveLength(1);
+    expect(await chips(next)).toEqual({ Porridge: 'synced', Salmon: 'synced' });
+  });
+
+  it('a 304 round never reports what the device merely holds as held by the relay', async () => {
+    const { relay, a } = await connected();
+    a.stop();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    const connection = (await readConnection(a.bundle.kv))!;
+    const queue = new DirtyFlagSyncQueue(a.bundle.kv);
+    await queue.load(true); // the stored flag says clean
+    expect(queue.dirty).toBe(false);
+    const held: VaultSnapshot[] = [];
+    const result = await runSyncCycle({
+      connection: { ...connection },
+      vaultKey: await importVaultKey(decodeBase64Url(connection.vaultKey)!),
+      client: relay,
+      vault: a.bundle.vault,
+      kv: a.bundle.kv,
+      queue,
+      maxVaultBytes: MAX,
+      now: Date.now,
+      ledgerKnown: () => true,
+      onHeld: (snapshot) => held.push(snapshot),
+    });
+    expect(result).toEqual({ kind: 'upToDate' });
+    expect(relay.notModified).toBe(1);
+    expect(held).toEqual([]);
+  });
+
+  it('a dirty flag that cannot be read is dirty (fail closed), not clean', async () => {
+    const { a } = await connected();
+    a.stop();
+    const kv = a.bundle.kv;
+    const broken = {
+      read: (key: string) =>
+        key === KV_KEYS.syncDirty ? Promise.reject(new Error('locked')) : kv.read(key),
+      write: kv.write.bind(kv),
+      delete: kv.delete.bind(kv),
+    };
+    const queue = new DirtyFlagSyncQueue(broken);
+    await queue.load(true);
+    expect(queue.dirty).toBe(true);
+    const off = new DirtyFlagSyncQueue(broken);
+    await off.load(false);
+    expect(off.dirty).toBe(false);
+  });
+
+  it('sealing is not a point of no return: a disconnect while the snapshot is sealed uploads nothing', async () => {
+    const { relay, a } = await connected();
+    a.stop();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    const connection = (await readConnection(a.bundle.kv))!;
+    const queue = new DirtyFlagSyncQueue(a.bundle.kv);
+    await queue.load(true);
+    queue.markDirty();
+    let current = true;
+    relay.requests.length = 0;
+    const result = await runSyncCycle({
+      connection: { ...connection },
+      vaultKey: await importVaultKey(decodeBase64Url(connection.vaultKey)!),
+      client: relay,
+      vault: a.bundle.vault,
+      kv: a.bundle.kv,
+      queue,
+      maxVaultBytes: MAX,
+      now: Date.now,
+      isCurrent: () => current,
+      // The nonce is drawn while sealing: the connection goes away right then.
+      random: (length) => {
+        current = false;
+        return globalThis.crypto.getRandomValues(new Uint8Array(length));
+      },
+    });
+    expect(result).toEqual({ kind: 'locked' });
+    expect(puts(relay)).toEqual([]);
+    expect(relay.vaults.get('alice')?.version).toBe(1);
   });
 
   it('a baseline that is damaged reads as unknown, never as synced', async () => {
@@ -335,6 +461,100 @@ describe('pulling on unlock and on focus', () => {
     expect(a.queue.dirty).toBe(false);
     expect(b.queue.dirty).toBe(false);
     expect(await chips(b)).toEqual({ Porridge: 'synced', Salmon: 'synced' });
+  });
+
+  it('every kind of record settles: saved meals, recipes, synced settings, notes, dismissals and tombstones never make two idle devices push', async () => {
+    const clock = time();
+    const { relay, a } = await connectedAt(clock);
+    const b = await secondDevice(relay, { now: clock.now });
+    await a.clock.fire();
+    await b.clock.fire();
+
+    const id = (n: number): string => `0190a1b2-c3d4-7e5f-8a9b-${String(n).padStart(12, '0')}`;
+    const hlc = formatHlc({
+      wallMs: Date.now() - 60_000,
+      counter: 1,
+      deviceId: 'abcdef0123456789',
+    });
+    const base = await snapshotOf(a.bundle);
+    const plate = base.plates[0]!;
+    const food = plate.entries[0]!;
+    const rich: VaultSnapshot = {
+      ...base,
+      plates: [
+        {
+          ...plate,
+          notes: [
+            {
+              uid: id(10),
+              anchor: 'plate',
+              questionKey: 'q1',
+              noteText: 'Nice and simple.',
+              generatedAt: '2026-01-01T08:00:00.000Z',
+              interactions: [{ uid: id(11), kind: 'seen', at: '2026-01-01T08:01:00.000Z' }],
+            },
+          ],
+        },
+      ],
+      dismissals: [{ key: `note:${id(10)}`, dismissedAtUtc: '2026-01-01T08:02:00.000Z' }],
+      savedMeals: [
+        {
+          uid: id(20),
+          name: 'Usual breakfast',
+          createdAtUtc: '2026-01-01T07:00:00.000Z',
+          updatedAtHlc: hlc,
+          items: [{ ...food, uid: id(21) }],
+        },
+      ],
+      recipes: [
+        {
+          uid: id(30),
+          name: 'Soup',
+          servings: 4,
+          cookedWeightGrams: '1200',
+          createdAtUtc: '2026-01-01T07:00:00.000Z',
+          updatedAtHlc: hlc,
+          items: [{ ...food, uid: id(31) }],
+        },
+      ],
+      kv: [
+        { key: 'ui.locale', value: 'fr', updatedAtHlc: hlc },
+        { key: 'ui.showNumbers', value: 'off', updatedAtHlc: hlc },
+      ],
+      tombstones: [{ uid: id(40), table: 'saved_meal', deletedAtHlc: hlc }],
+    };
+    const applied = await a.bundle.vault.applySnapshot(rich);
+    expect(applied.kind).not.toBe('vaultFailed');
+    a.service.noteWrite();
+    await a.clock.fire();
+    expect(puts(relay)).toHaveLength(1);
+    clock.advance(61_000);
+    b.clock.return();
+    await idle(b);
+    // Both hold the records now (b through a pull, a through its own write).
+    for (const d of [a, b]) {
+      const held = await snapshotOf(d.bundle);
+      expect(held.savedMeals.map((m) => m.name)).toEqual(['Usual breakfast']);
+      expect(held.recipes.map((r) => r.name)).toEqual(['Soup']);
+      expect(held.kv.map((e) => e.key)).toEqual(expect.arrayContaining(['ui.locale']));
+      expect(held.dismissals).toHaveLength(1);
+      expect(held.tombstones).toHaveLength(1);
+      expect(held.plates[0]?.notes).toHaveLength(1);
+    }
+    relay.requests.length = 0;
+    const version = relay.vaults.get('alice')?.version;
+
+    for (let i = 0; i < 40; i++) {
+      clock.advance(61_000);
+      a.clock.return();
+      await idle(a);
+      b.clock.return();
+      await idle(b);
+    }
+    expect(puts(relay)).toEqual([]);
+    expect(relay.vaults.get('alice')?.version).toBe(version);
+    expect(a.queue.dirty).toBe(false);
+    expect(b.queue.dirty).toBe(false);
   });
 
   it('a device with its own change pushes it (once) after the pull, and the other device takes it without pushing', async () => {
@@ -575,5 +795,46 @@ describe('lifecycle: every way a round can end leaves a clear state and no parti
     expect(relay.vaults.get('alice')?.version).toBe(3);
     expect(await foods(a.bundle)).toEqual(['Porridge', 'Salmon', 'Soup']);
     expect(await chips(a)).toEqual({ Porridge: 'synced', Salmon: 'synced', Soup: 'synced' });
+  });
+});
+
+describe('a stale baseline never describes another vault', () => {
+  const plateOf = (n: number) => ({
+    uid: `0190a1b2-c3d4-7e5f-8a9b-${String(n).padStart(12, '0')}`,
+  });
+  const withPlates = (n: number) =>
+    ({ plates: Array.from({ length: n }, (_, i) => plateOf(i)) }) as unknown as VaultSnapshot;
+
+  it('a history too large to keep drops the old baseline instead of leaving it', async () => {
+    const { a } = await connected();
+    expect(await a.bundle.kv.read(KV_KEYS.syncBaseline)).not.toBeNull();
+    await writeHeld(a.bundle.kv, withPlates(50_001));
+    expect(await a.bundle.kv.read(KV_KEYS.syncBaseline)).toBeNull();
+  });
+
+  it('a write that fails drops the old baseline instead of leaving it', async () => {
+    const { a } = await connected();
+    const kv = a.bundle.kv;
+    const failing = {
+      read: kv.read.bind(kv),
+      write: (key: string, value: string) =>
+        key === KV_KEYS.syncBaseline ? Promise.reject(new Error('full')) : kv.write(key, value),
+      delete: kv.delete.bind(kv),
+    };
+    await writeHeld(failing, withPlates(2));
+    expect(await kv.read(KV_KEYS.syncBaseline)).toBeNull();
+  });
+
+  it('a new connection clears what an earlier vault left; so does leaving one', async () => {
+    const { a } = await connected();
+    const kv = a.bundle.kv;
+    const connection = (await readConnection(kv))!;
+    expect(await kv.read(KV_KEYS.syncBaseline)).not.toBeNull();
+    await writeConnection(kv, connection);
+    expect(await kv.read(KV_KEYS.syncBaseline)).toBeNull();
+    await kv.write(KV_KEYS.syncBaseline, '1:' + 'a'.repeat(11));
+    await clearConnection(kv);
+    expect(await kv.read(KV_KEYS.syncBaseline)).toBeNull();
+    expect(await readConnection(kv)).toBeNull();
   });
 });

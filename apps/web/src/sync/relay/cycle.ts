@@ -15,8 +15,9 @@
 // A cycle is also what a pull is (on unlock, on focus): with nothing to send and nothing new, step 1
 // is a conditional read that comes back 304, and the cycle ends `upToDate` without a write of any
 // kind. What the cycle reports to the ledger (`onHeld`) is exactly what the relay is known to hold:
-// the snapshot it fetched, the snapshot it sealed and had acknowledged, or, with nothing to send,
-// the snapshot it read when no write had landed since. A write after that read is never in it.
+// the snapshot it fetched or the snapshot it sealed and had acknowledged. A 304 never widens it (the
+// in-memory dirty flag may be falsely clean). When the ledger is unknown the pull is unconditional,
+// so the fetched copy establishes it, and a device that differs from it is marked as having changes.
 
 import { canonicalizeSnapshot, type VaultSnapshot, type VaultStore } from '@anc/core';
 import type { KeyValueStore } from '../../storage/key-value-store';
@@ -82,10 +83,12 @@ export interface CycleDeps {
   readonly maxRounds?: number;
   /**
    * The relay is known to hold (at least) this snapshot's records in this state: called with a
-   * fetched copy (before it is applied), with a snapshot the relay acknowledged, and with the
-   * snapshot of a round that had nothing to send. Only while `isCurrent`.
+   * fetched copy (before it is applied) and with a snapshot the relay acknowledged. Never with what
+   * the device merely holds. Only while `isCurrent`.
    */
   readonly onHeld?: (snapshot: VaultSnapshot) => void;
+  /** Whether the ledger knows what the relay holds. When it does not, the pull is unconditional. */
+  readonly ledgerKnown?: () => boolean;
   /** A pulled copy changed what this device holds: the screens should read it again. */
   readonly onApplied?: () => void;
 }
@@ -127,7 +130,13 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
 
   for (let round = 0; round < rounds; round++) {
     // ── pull ────────────────────────────────────────────────────────────────────────────────
-    const got = await client.getVault(connection.token, connection.lastSeenVersion);
+    // When the ledger is unknown (no baseline, a connection from before it, a history too large to
+    // keep) the read is unconditional: a 304 would tell nothing about what the relay holds.
+    const force = deps.ledgerKnown?.() === false;
+    const got = await client.getVault(
+      connection.token,
+      force ? undefined : connection.lastSeenVersion,
+    );
     // Disconnected (or locked) while that was in flight: nothing it brought is for this device now.
     if (!current()) return { kind: 'locked' };
     if (got.kind === 'error') return fromClientError(got.error, got.retryAfterSeconds);
@@ -140,7 +149,7 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
       if (fetched.vaultId !== connection.vaultId || fetched.version < connection.lastSeenVersion) {
         return stopped('rolledBack');
       }
-      if (fetched.version > connection.lastSeenVersion) {
+      if (fetched.version > connection.lastSeenVersion || force) {
         const opened = await openSnapshot(
           deps.vaultKey,
           fetched.envelope,
@@ -208,9 +217,11 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
     }
     if (!queue.dirty && !differs) {
       if (current()) {
+        // No `onHeld` here: the in-memory flag can be falsely clean (a failed or lost write of it),
+        // so what this device holds says nothing about what the relay holds. The ledger already
+        // reflects the last snapshot fetched or acknowledged; an unknown one was filled by the
+        // unconditional read above.
         queue.acknowledge(generation);
-        // Nothing was written since the read began, so what was read is what the relay holds.
-        if (queue.generation === generation) deps.onHeld?.(local);
       }
       return { kind: 'upToDate' };
     }
@@ -227,6 +238,8 @@ export async function runSyncCycle(deps: CycleDeps): Promise<CycleResult> {
     );
     if (sealed.kind === 'tooLarge') return stopped('tooLarge');
     if (sealed.kind === 'unavailable') return retry('unavailable');
+    // Disconnected, locked or erased while it was being sealed: the stale snapshot is not sent.
+    if (!current()) return { kind: 'locked' };
     const put = await client.putVault(
       connection.token,
       sealed.envelope,

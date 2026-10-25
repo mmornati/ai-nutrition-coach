@@ -58,6 +58,8 @@ export async function writeConnection(
   connection: RelayConnection,
   dirty = false,
 ): Promise<void> {
+  // A baseline left by an earlier vault must never describe this one.
+  await kv.delete(KV_KEYS.syncBaseline);
   await kv.write(KV_KEYS.syncVaultKey, connection.vaultKey);
   await kv.write(KV_KEYS.syncToken, connection.token);
   await kv.write(KV_KEYS.syncVaultId, connection.vaultId);
@@ -70,7 +72,9 @@ export async function writeConnection(
 
 /** Forgets the connection on this device. The relay's copy is untouched. */
 export async function clearConnection(kv: KeyValueStore): Promise<void> {
-  // The handle first, so a failure half way leaves no readable (half) connection.
+  // The baseline first, then the handle, so a failure half way leaves neither a stale baseline nor
+  // a readable (half) connection.
+  await kv.delete(KV_KEYS.syncBaseline);
   for (const key of CONNECTION_KEYS) await kv.delete(key);
 }
 

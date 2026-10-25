@@ -70,6 +70,7 @@ import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
 import { coachCopy } from './coach-copy';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
+import { appUpdate } from '../pwa/app-update';
 import {
   browserRelayClient,
   browserSyncOffer,
@@ -203,6 +204,7 @@ export async function createSession(
     client: syncClient,
     queue: syncQueue,
     now: clock,
+    onNeedsUpdate: () => void appUpdate().checkForUpdate(),
     maxVaultBytes: () => {
       const offer = syncOffer.getSnapshot();
       return offer.offered ? offer.maxVaultMb * 1024 * 1024 : DEFAULT_MAX_VAULT_BYTES;
@@ -352,7 +354,7 @@ export async function createSession(
   const stopRemote = sync.onRemoteChange(() => {
     void (async () => {
       try {
-        await Promise.all([profile.load(), numbers.load()]);
+        await Promise.all([profile.refresh(), numbers.refresh()]);
         const stored = await localePrefs.readStored();
         if (live) applyLocalePreference(localePrefs, stored);
         if (live) catalog.invalidate();

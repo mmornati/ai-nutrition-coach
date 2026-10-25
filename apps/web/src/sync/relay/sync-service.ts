@@ -111,6 +111,8 @@ export interface SyncServiceDeps {
   readonly pullIntervalMs?: number;
   /** The record of what the relay holds (tests share one). */
   readonly ledger?: SyncLedger;
+  /** The relay holds a newer format than this build reads: look for a newer build (once). */
+  readonly onNeedsUpdate?: () => void;
 }
 
 export const DEFAULT_DEBOUNCE_MS = 30_000;
@@ -195,6 +197,9 @@ export class SyncService {
   #cancelTimer: (() => void) | null = null;
   #failures = 0;
   #halted: StopReason | null = null;
+  #retryAt = Number.NEGATIVE_INFINITY;
+  #retryAfterServer = false;
+  #updateChecked = false;
   #running: Promise<CycleResult> | null = null;
   #lastAttemptAt = Number.NEGATIVE_INFINITY;
   #remoteRevision = 0;
@@ -220,7 +225,9 @@ export class SyncService {
       }),
       events.onOnline(() => {
         // The wait was real: no throttle, but never two rounds at once.
-        if (this.#canRun()) void this.#pump();
+        if (this.#canRun() && !(this.#retryAfterServer && this.#now() < this.#retryAt)) {
+          void this.#pump();
+        }
       }),
     );
     // Coming back to the page or the window is when another device's work is worth fetching.
@@ -415,9 +422,17 @@ export class SyncService {
     const isOnline =
       this.#deps.isOnline ?? (() => typeof navigator === 'undefined' || navigator.onLine !== false);
     if (!isOnline()) return;
+    // A retry is waiting (a growing backoff, or the server's Retry-After): a focus pull must not
+    // cancel it and ask early.
+    if (this.#retryPending()) return;
     const interval = this.#deps.pullIntervalMs ?? DEFAULT_PULL_INTERVAL_MS;
     if (this.#now() - this.#lastAttemptAt < interval) return;
     void this.#pump();
+  }
+
+  #retryPending(): boolean {
+    const waiting = this.#phase === 'failed' || this.#phase === 'offline';
+    return waiting && this.#now() < this.#retryAt;
   }
 
   #runCycle(): Promise<CycleResult> {
@@ -435,6 +450,7 @@ export class SyncService {
       maxVaultBytes: this.#deps.maxVaultBytes?.() ?? DEFAULT_MAX_VAULT_BYTES,
       now: this.#now,
       onHeld: (snapshot) => this.#ledger.hold(snapshot),
+      ledgerKnown: () => this.#ledger.known,
       onApplied: () => {
         this.#remoteRevision++;
         for (const listener of [...this.#remoteListeners]) {
@@ -496,6 +512,8 @@ export class SyncService {
       case 'upToDate':
       case 'pushed':
         this.#failures = 0;
+        this.#retryAt = Number.NEGATIVE_INFINITY;
+        this.#retryAfterServer = false;
         if (result.kind === 'pushed') this.#backedUpAt = this.#now();
         if (this.#queue.dirty) {
           // A write landed while this was in flight: another round, after the usual wait.
@@ -510,12 +528,22 @@ export class SyncService {
         this.#set(result.reason === 'offline' ? 'offline' : 'failed');
         const backoff = Math.min(BACKOFF_MAX_MS, BACKOFF_FIRST_MS * 2 ** (this.#failures - 1));
         const wait = Math.max(backoff, (result.retryAfterSeconds ?? 0) * 1000);
+        this.#retryAt = this.#now() + wait;
+        this.#retryAfterServer = (result.retryAfterSeconds ?? 0) > 0;
         this.#schedule(wait);
         return;
       }
       case 'stopped':
         this.#halted = result.reason;
         this.#set(phaseOfStop[result.reason]);
+        if (result.reason === 'needsUpdate' && !this.#updateChecked) {
+          this.#updateChecked = true;
+          try {
+            this.#deps.onNeedsUpdate?.();
+          } catch {
+            // Looking for a newer build is a courtesy.
+          }
+        }
         return;
       case 'locked':
         // The session is ending; the flag stays set and the next unlock starts again.
@@ -606,6 +634,21 @@ export class SyncService {
     if (seq !== this.#plateSeq || this.#connection !== connection || this.#disposed) return;
     const trouble = this.#halted !== null || this.#phase === 'failed';
     const waiting: SyncOpStatusValue = trouble ? 'failed' : 'pending';
+    // A plate the relay is known not to hold while nothing is marked as waiting: the flag was lost
+    // (a write of it failed, the tab died). Mark it, so the plate is sent rather than left pending.
+    if (
+      this.#ledger.known &&
+      !this.#queue.dirty &&
+      this.#running === null &&
+      this.#halted === null &&
+      identities.value.some((identity) => !this.#ledger.holds(identity.uid))
+    ) {
+      this.#queue.markDirty();
+      this.#publish();
+      this.#set('pending');
+      this.#schedule(this.#deps.debounceMs ?? DEFAULT_DEBOUNCE_MS);
+      return;
+    }
     this.#queue.setPlateStatuses(
       identities.value.map((identity) => ({
         plateLogId: identity.plateLogId,
