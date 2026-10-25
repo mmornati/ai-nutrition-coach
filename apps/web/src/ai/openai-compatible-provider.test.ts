@@ -805,4 +805,46 @@ describe('completeChat (the text seam) and the key-less transport', () => {
     const unset = await provider(new FakeFetch(), { endpoint: '' }).completeChat({ messages });
     expect(unset).toMatchObject({ kind: 'failure', cause: 'notConfigured' });
   });
+
+  describe('prompt-cache markers', () => {
+    const marked = [
+      { role: 'system', content: 'Be kind.' },
+      { role: 'user', content: 'Data: {}', cacheBreakpoint: true },
+      { role: 'user', content: 'Hello' },
+    ] as const;
+    const sent = async (cacheMarkers?: boolean) => {
+      const f = new FakeFetch();
+      f.jsonBody = chatReply('Hi');
+      await new OpenAiCompatibleByokProvider({
+        endpointUrl: 'https://api.example.com/v1',
+        model: 'vision-1',
+        sanitizePhoto: stubSanitizer,
+        classifyFoodGroup: stubClassify,
+        fetch: f.fetch,
+        ...(cacheMarkers === undefined ? {} : { cacheMarkers }),
+      }).completeChat({ messages: marked, apiKey: TEST_KEY });
+      return (JSON.parse(f.last.body) as { messages: unknown }).messages;
+    };
+
+    it('off (the default): the hint is not sent, every message is plain text', async () => {
+      const plain = [
+        { role: 'system', content: 'Be kind.' },
+        { role: 'user', content: 'Data: {}' },
+        { role: 'user', content: 'Hello' },
+      ];
+      expect(await sent()).toEqual(plain);
+      expect(await sent(false)).toEqual(plain);
+    });
+
+    it('on: only the marked message becomes one text part with an ephemeral cache_control', async () => {
+      expect(await sent(true)).toEqual([
+        { role: 'system', content: 'Be kind.' },
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'Data: {}', cache_control: { type: 'ephemeral' } }],
+        },
+        { role: 'user', content: 'Hello' },
+      ]);
+    });
+  });
 });

@@ -47,6 +47,7 @@ export interface AiRungDeps {
   readonly createProvider: (args: {
     endpointUrl: string;
     model: string;
+    cacheMarkers?: boolean;
   }) => ByokProvider & Partial<ByokChatProvider>;
   /** What this server offers (the instance rung). Absent: the instance rung is unavailable. */
   readonly instance?: () => InstanceAiView;
@@ -173,6 +174,7 @@ function buildByokChat(settings: AiSettings, deps: AiRungDeps): ByokChat | null 
   const provider = deps.createProvider({
     endpointUrl: settings.byokEndpointUrl,
     model: settings.byokModel,
+    cacheMarkers: settings.byokCacheMarkers,
   });
   if (provider.completeChat === undefined) return null;
   const chatter = provider as ByokProvider & ByokChatProvider;
