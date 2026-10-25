@@ -5,7 +5,7 @@ import { InMemoryAiSettingsStore } from './ai-settings-store';
 import { InMemoryByokKeyStore } from './byok-key-store';
 import { OpenAiCompatibleByokProvider } from './openai-compatible-provider';
 import { PhotoUploadPermit } from './photo-upload-permit';
-import { buildAiRung, createLiveAiRung } from './rung-registry';
+import { buildAiRung, createLiveAiRung, createLiveChat } from './rung-registry';
 import {
   RUNG_LISTING,
   SELECTABLE_RUNGS,
@@ -166,5 +166,47 @@ describe('the live rung', () => {
       expect(await rung.recognize(photoBytes(1))).toMatchObject({ cause: 'unsupported' });
       expect(fake.requests).toHaveLength(0);
     }
+  });
+});
+
+describe('createLiveChat on your own key', () => {
+  const chatWith = (byokCacheMarkers: boolean) => {
+    const fake = new FakeFetch();
+    fake.jsonBody = chatReply('ok');
+    const settings = new AiSettings({
+      rung: { kind: 'byok', previousRung: { previousKind: 'noOp' } },
+      byokEndpointUrl: 'https://api.example.com/v1',
+      byokModel: 'm',
+      byokKeyHost: 'api.example.com',
+      byokCacheMarkers,
+    });
+    const chat = createLiveChat({
+      getSettings: () => settings,
+      keyStore: new InMemoryByokKeyStore(TEST_KEY),
+      permit: new PhotoUploadPermit(stubDigest),
+      createProvider: (a) =>
+        new OpenAiCompatibleByokProvider({
+          ...a,
+          sanitizePhoto: stubSanitizer,
+          classifyFoodGroup: stubClassify,
+          fetch: fake.fetch,
+        }),
+    });
+    return { chat, fake };
+  };
+  const messages = [{ role: 'user', content: 'data', cacheBreakpoint: true }] as const;
+
+  it('sends the cache marker only when the person turned it on', async () => {
+    const off = chatWith(false);
+    expect(await off.chat.completeChat(messages)).toEqual({ kind: 'text', text: 'ok' });
+    expect(JSON.parse(off.fake.last.body).messages).toEqual([{ role: 'user', content: 'data' }]);
+    const on = chatWith(true);
+    await on.chat.completeChat(messages);
+    expect(JSON.parse(on.fake.last.body).messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'data', cache_control: { type: 'ephemeral' } }],
+      },
+    ]);
   });
 });

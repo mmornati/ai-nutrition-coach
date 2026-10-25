@@ -133,6 +133,12 @@ export interface OpenAiCompatibleProviderOptions {
    * the key; the browser never holds it). Default `true` (BYOK).
    */
   readonly sendKey?: boolean | undefined;
+  /**
+   * `true`: a chat message marked as a cache breakpoint goes out as one text part with
+   * `cache_control: {type: "ephemeral"}` (OpenRouter forwards it to Anthropic and Gemini models).
+   * Off by default: a strict OpenAI-compatible server may refuse a field it does not know.
+   */
+  readonly cacheMarkers?: boolean | undefined;
 }
 
 function base64(bytes: Uint8Array): string {
@@ -363,7 +369,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         endpoint.chatCompletions,
         {
           model,
-          messages: args.messages.map((m) => ({ role: m.role, content: m.content })),
+          messages: args.messages.map((m) => this.#wireMessage(m)),
           max_tokens: args.maxTokens ?? RECOGNITION_MAX_TOKENS,
           temperature: args.temperature ?? RECOGNITION_TEMPERATURE,
         },
@@ -405,6 +411,17 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
       }
       return { kind: 'failure', cause: 'network', message: t.unreachable };
     }
+  }
+
+  /** A chat message as sent: plain text, or one marked text part when cache markers are on. */
+  #wireMessage(m: ChatMessage): unknown {
+    if (this.#opts.cacheMarkers !== true || m.cacheBreakpoint !== true) {
+      return { role: m.role, content: m.content };
+    }
+    return {
+      role: m.role,
+      content: [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }],
+    };
   }
 
   /** The model's text as recognised foods (see `parseRecognizedFoods`). */

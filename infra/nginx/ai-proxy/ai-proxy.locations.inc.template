@@ -53,6 +53,7 @@ location = /ai/v1/chat/completions {
     set $anc_ai_model "@@ANC_AI_MODEL@@";
     set $anc_ai_max_tokens "@@ANC_AI_MAX_TOKENS@@";
     set $anc_ai_token_param "@@ANC_AI_TOKEN_PARAM@@";
+    set $anc_ai_cache_markers "@@ANC_AI_CACHE_MARKERS@@";
     js_set $anc_ai_body anc_ai.body;
 
     proxy_http_version 1.1;

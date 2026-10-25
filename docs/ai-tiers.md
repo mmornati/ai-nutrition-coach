@@ -416,8 +416,30 @@ local emergency number now"), an eating worry (the existing support line), any o
 pharmacist). Keywords are matched on accent-folded text in English and French; such a question is also never part of the context of later
 questions. The conversation is kept in memory for the unlocked session only: not stored, not exported, gone on a lock.
 
-**Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text): the oldest turns of a
-chat go first, then the foods listed per day.
+**Size.** Requests stay inside the instance proxy's budget (at most 8 messages and 24 KB of text). For Ask the coach the
+seven-day document is sized from the data alone, with room kept for a full conversation (three questions and two
+answers at their longest): fewer foods per day, then only the newest three days. The turns then fit in what is left,
+the oldest question/answer pairs going first. The document is therefore the same, byte for byte, for every question of
+a conversation, unless a plate is logged in between.
+
+**Prompt caching.** Ask the coach resends the system prompt and the seven-day document with every question; those are
+the only requests long enough, and repeated often enough, for a provider's prompt cache to pay. Because the system
+prompt and the document come first and do not change during a conversation, a provider that caches on its own (OpenAI,
+DeepSeek, Gemini 2.5, directly or through OpenRouter) bills questions 2 to 6 at its cached price with nothing extra
+sent. A provider that caches only on request (Anthropic and Gemini models through OpenRouter) needs a marker. The
+data message is marked as the cache breakpoint (`PromptMessage.cacheBreakpoint`), and the transport turns it into
+`cache_control: {"type": "ephemeral"}` on that message's one text part only when someone opted in:
+
+- **Your own key:** the *Prompt caching hints* switch in *Settings, Your AI* (`AiSettings.byokCacheMarkers`), **off by
+  default**, because a strict OpenAI-compatible server may refuse a field it does not know. Off, the request is exactly
+  what it was before.
+- **This server's AI:** the browser always sends the marker. The proxy keeps it only when the operator set
+  `AI_PROXY_CACHE_MARKERS=1`, and then only one per request, only `{"type": "ephemeral"}` (the 5-minute cache: no
+  longer TTL, which costs twice the write) and only on a text part. Otherwise it drops it like any other unknown key.
+
+The marker says nothing about the person: it carries no text, id or time, and it changes nothing about what is sent.
+Photos, Describe, recipes, coach notes and the weekly paragraph are one-off requests whose fixed part is shorter than
+providers' minimum cacheable length (512 to 1024 tokens or more), so they are not marked.
 
 ## Describe a meal (typed, dictated or spoken)
 

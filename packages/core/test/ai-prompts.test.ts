@@ -203,6 +203,27 @@ describe('buildChatMessages and buildWeekMessages', () => {
     expect(messages[2]?.content).toBe('Is my week varied?');
   });
 
+  it('marks the data message, and only it, as the cache breakpoint', () => {
+    const messages = buildChatMessages({
+      locale: 'en',
+      context,
+      turns: [{ role: 'user', text: 'Hi' }],
+    });
+    expect(messages.map((m) => m.cacheBreakpoint === true)).toEqual([false, true, false]);
+  });
+
+  it('keeps system + data byte-identical for every question of a conversation', () => {
+    const prefixAt = (n: number) => {
+      const turns = Array.from({ length: 2 * n + 1 }, (_, i) => ({
+        role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+        text: 'é'.repeat(i % 2 === 0 ? COACH_LIMITS.inputChars : COACH_LIMITS.answerChars),
+      }));
+      return buildChatMessages({ locale: 'fr', context, turns }).slice(0, 2);
+    };
+    const first = prefixAt(0);
+    for (let n = 1; n < COACH_LIMITS.chatTurns; n++) expect(prefixAt(n)).toEqual(first);
+  });
+
   it('labels the data in French too', () => {
     const messages = buildChatMessages({ locale: 'fr', context, turns: [] });
     expect(messages[1]?.content).toMatch(/^Données sur la personne \(document JSON/);
@@ -297,6 +318,49 @@ describe('the proxy budget (8 messages, 24 KB of text)', () => {
       'assistant',
       'user',
     ]);
+  });
+
+  it('a near-full week keeps the same data message from the first question to the sixth', () => {
+    // About 18 KB of data: it fits with a short question, not with five long three-byte turns.
+    const near = (id: number): PlateLog =>
+      plateLog({
+        id,
+        loggedAtUtc: when - id * 86_400_000,
+        entries: Array.from({ length: 12 }, (_, i) => ({
+          id: i + 1,
+          plateLogId: id,
+          databaseFood: databaseFood({
+            sourceRef: `n:${id}:${i}`,
+            displayName: `Plat ${id} ${i} `.padEnd(60, '日'),
+            source: 'manual',
+            foodGroup: 'protein',
+            nutrientsPer100g: { energyKcal: 100, protein: 5 },
+          }),
+          quantity: gramsQuantity(100),
+        })),
+      });
+    const week = {
+      ...naming,
+      numbersOn: true,
+      plates: [0, 1, 2, 3, 4, 5, 6].map(near),
+      targets: EU_REFERENCE_INTAKES,
+    };
+    const at = (n: number) => {
+      const turns = Array.from({ length: 2 * n + 1 }, (_, i) => ({
+        role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+        text: '日'.repeat(i % 2 === 0 ? COACH_LIMITS.inputChars : COACH_LIMITS.answerChars),
+      }));
+      return buildChatMessages({ locale: 'en', context: week, turns });
+    };
+    const first = at(0);
+    expect((first[1]?.content.match(/Plat/g) ?? []).length).toBeGreaterThan(80);
+    for (let n = 1; n < COACH_LIMITS.chatTurns; n++) {
+      const messages = at(n);
+      expect(messages[1]).toEqual(first[1]);
+      // Three-byte answers do not all fit: the oldest pairs go, never the data or the question.
+      expect(fitsProxyBudget(messages)).toBe(true);
+      expect(messages.at(-1)?.content).toBe('日'.repeat(COACH_LIMITS.inputChars));
+    }
   });
 
   it('notes and the week paragraph fit too', () => {

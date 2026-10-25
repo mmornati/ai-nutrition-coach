@@ -43,6 +43,11 @@ export interface ByokProvider {
 export interface ChatMessage {
   readonly role: 'system' | 'user' | 'assistant';
   readonly content: string;
+  /**
+   * The request up to here repeats across a conversation. With cache markers on, the transport
+   * sends this message as one text part carrying `cache_control: {type: "ephemeral"}`.
+   */
+  readonly cacheBreakpoint?: true;
 }
 
 /** The outcome of one text completion before a rung maps it onto `ChatResult`. */

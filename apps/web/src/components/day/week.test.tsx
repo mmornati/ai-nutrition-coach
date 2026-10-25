@@ -236,9 +236,12 @@ describe('WeekRoute', () => {
   it('short day names except Today', () => {
     route();
     const nav = screen.getByRole('navigation');
+    // Short names are CSS content drawn from data-initial; only "Today" is text.
     const visible = within(nav)
       .getAllByRole('button')
-      .map((b) => b.textContent);
+      .map(
+        (b) => b.textContent || b.querySelector('[data-route-label]')?.getAttribute('data-initial'),
+      );
     expect(visible).toEqual(['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Today']);
   });
 
