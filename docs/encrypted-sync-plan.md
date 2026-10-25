@@ -1,6 +1,6 @@
 # Encrypted backup, restore and cross-device sync: plan
 
-Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · S0 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
+Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · join-device flow (§3.6) added 2026-10-25 · S0 and S1 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
 Goal: a person can lose a browser's storage (cleared site data, Safari's 7-day eviction, a new phone,
 an installed iOS web app that keeps its own storage) and get **all** their history back, and can use
 the app on several devices, while the server only ever holds **ciphertext it cannot read**.
@@ -172,6 +172,66 @@ stays read-only and data-free.
 Operator backup becomes possible and safe: the volume holds ciphertext only, so a plain file
 backup of the relay volume is a backup of every vault without exposing any of them.
 
+### 3.6 Joining a device, and what happens on a conflict (decided 2026-10-25)
+
+Most "conflicts" are not questions for the person: the S0 merge settles them deterministically
+(plates and their entries are a union by uid and a deletion wins; templates and settings are
+last-writer-wins). A choice is offered only where the merge cannot know what the person means.
+
+**Handle and passphrase are asked together.** The relay hides which handles exist (an unknown
+handle gets a fake salt, §3.3), so the app cannot check "is there a vault for this handle?" from
+the handle alone. Every screen that looks a vault up asks for both, and a failure is one ambiguous,
+calm line: *"Nothing on this server matches this handle and passphrase."* Rate limiting gets its
+own line ("Too many tries, wait a few minutes"); it is not a wrong passphrase. Signup does reveal
+that a handle is taken; that is the usual trade-off, bounded by rate limits and
+`SYNC_SIGNUP=invite|closed`, and documented.
+
+**Case A: a new device (no local store).** First-run screen → *Restore from this server* →
+handle + passphrase → *"Found your data: 412 plates, from March 2026 to today."* → *Restore*.
+The local store is created with the same passphrase (one passphrase for the person; it must pass
+the strength floor), the snapshot is applied, the device gets its token. Nothing exists locally,
+so nothing can be lost and no question is asked. Failure leaves no store behind (as the S1
+restore-into-new-store path).
+
+**Case B: a device that already has data joins an existing vault** (*Your data → Connect to this
+server's copy*). Handle + vault passphrase (it may differ from this device's local passphrase; the
+vault key is kept in the encrypted `kv` afterwards). The app downloads and decrypts the vault, then
+computes the merge **as a dry run** and shows a preview before writing anything:
+
+> On this server: 412 plates · On this device: 37 plates (5 already on the server) ·
+> Together: 444 plates.
+
+- **Combine (default, the primary button).** Merge, apply locally, push. Nothing is deleted.
+- **Profile conflict, asked once.** If the synced `profile` value differs between the two sides
+  (by content, not by stamp), the preview asks *"Keep the profile from this device or from the
+  server?"* (showing the few fields that differ). The chosen value is re-written with a fresh HLC
+  stamp so it wins everywhere. Reason: profiles written before schema v4 carry a legacy stamp
+  (wall time 0), so last-writer-wins would pick by device id, i.e. at random. Every other synced
+  key (`ui.locale`, `ui.showNumbers`, export reminder state, About acknowledgement) follows
+  last-writer-wins silently: getting one wrong costs a tap.
+- **Start fresh from the server copy (advanced, behind "Other options").** For a device whose
+  local data was a test or is unwanted. The confirmation names what goes: *"The 32 plates only on
+  this device will be removed from this device."* It offers *Save an encrypted backup first* (S1)
+  as a button, then erases the local store and runs Case A. Nothing on the server changes.
+- **Not offered: "replace the server copy with this device".** Under a union merge it cannot
+  work: every other device still holds the data and merges it back on its next sync. A real reset
+  would need a vault epoch that all devices obey and erase on, which is destructive for little
+  gain. The way to start over is S4's *Delete my copy on this server*, then create a new vault.
+
+**Case C: the first device creates the vault** (*Your data → Back up to this server*). Handle +
+passphrase (the local passphrase is suggested; a different one is allowed and stated plainly), an
+optional recovery key (S4), first push. "Handle taken" is the only signup error that names the
+cause.
+
+**After joining, sync is automatic and silent.** A persisted dirty flag in `kv` is set by every
+write; a push runs debounced (~30 s after the last write) and on `visibilitychange` → hidden, while
+unlocked and online. A push is always `If-Match`; a 412 means another device pushed, so the device
+pulls, merges and retries. **A push never blindly overwrites**, from S2 on. S3 adds the pull on
+unlock and on focus, and the chip reaches `synced`.
+
+**Schema skew.** A device on an older app that meets a newer snapshot says "Update the app on this
+device to sync" and stops syncing; it never overwrites (already enforced by the strict parser).
+
 ---
 
 ## 4. Phased plan
@@ -201,14 +261,18 @@ This alone fixes "local storage lost" for anyone who keeps the file, on every in
 - [x] **Done when (met):** e2e: log plates → backup → erase → restore → identical day board, in Chromium and
   WebKit; a wrong passphrase or a tampered file gives one calm line, never a partial import.
 
-### Phase S2: relay + restore on a new device
+### Phase S2: relay + restore on a new device + automatic backup
 - `apps/relay`, compose profile `sync`, nginx `/sync/` location, `bin/ai-nutrition-coach up --sync`.
-- App: *Your data → Back up to this server* (create vault: handle, optional recovery key) and, on the
-  first-run screen, *Restore from this server* (handle + passphrase → new local store).
+- App: *Your data → Back up to this server* (Case C, §3.6), *Connect to this server's copy*
+  (Case B: dry-run preview, Combine by default, profile prompt, Start fresh as an advanced option)
+  and, on the first-run screen, *Restore from this server* (Case A). Handle and passphrase are
+  always asked together, with one ambiguous failure line.
 - Automatic backup: a persisted dirty flag in `kv` replaces the in-memory outbox; push debounced
-  (e.g. 30 s after the last write, and on `visibilitychange` hidden) while unlocked and online.
+  (~30 s after the last write, and on `visibilitychange` hidden) while unlocked and online; every
+  push is `If-Match`, a 412 pulls, merges and retries (never a blind overwrite).
 - **Done when:** self-host smoke brings up the profile; e2e restores on a fresh browser context;
-  relay tests show it never receives plaintext (assert on captured request bodies).
+  e2e joins a device that has its own plates and sees the combined preview; relay tests show it
+  never receives plaintext (assert on captured request bodies).
 
 ### Phase S3: real multi-device sync
 - Pull on unlock and on focus, merge, push with If-Match, retry on 412; `SyncAdapter` gets a real
