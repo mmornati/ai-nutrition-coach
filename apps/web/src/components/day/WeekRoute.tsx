@@ -113,23 +113,20 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
                 )}
               </span>
               {/* Today's word only where its stop is wide enough for it (measured, since the word's
-                length depends on the language); otherwise the day's short name (drawn by CSS from
-                data-initial, so the text stays "Today"). All hidden from AT: the button's name
-                already says "today". */}
+                length depends on the language); otherwise the day's short name, drawn by CSS from
+                data-initial. The short name is CSS content, not text: "Sun" is not a word of the
+                button's name ("Sunday, …"), so as text it would fail axe's
+                label-content-name-mismatch. All hidden from AT: the button's name says it in full. */}
               <span
                 aria-hidden="true"
                 data-route-label
                 data-initial={weekdayAbbr(d.date)}
                 className={[
-                  d.isToday && !wordFits ? 'before:content-[attr(data-initial)]' : '',
+                  !d.isToday || !wordFits ? 'before:content-[attr(data-initial)]' : '',
                   d.isToday ? 'decoration-ink underline decoration-2 underline-offset-4' : '',
                 ].join(' ')}
               >
-                {d.isToday ? (
-                  <span className={wordFits ? undefined : 'hidden'}>{s.today}</span>
-                ) : (
-                  weekdayAbbr(d.date)
-                )}
+                {d.isToday && <span className={wordFits ? undefined : 'hidden'}>{s.today}</span>}
               </span>
               {d.isToday && (
                 // The ruler: the word drawn invisibly (as CSS content, so it is not text), anchored
