@@ -28,6 +28,11 @@ export interface AiSettingsInit {
   readonly photoConsentHosts?: Iterable<string>;
   /** Default ON: every photo needs its own yes. Off: the per-host agreement applies. */
   readonly askBeforeEveryPhoto?: boolean;
+  /**
+   * Default OFF: send prompt-cache markers (`cache_control`) to the BYOK endpoint, for a service
+   * that reads them (OpenRouter with an Anthropic or Gemini model). Other servers may refuse them.
+   */
+  readonly byokCacheMarkers?: boolean;
 }
 
 /** The speech-to-text model used when none was set. */
@@ -41,6 +46,7 @@ export class AiSettings {
   readonly byokKeyHost: string;
   readonly photoConsentHosts: ReadonlySet<string>;
   readonly askBeforeEveryPhoto: boolean;
+  readonly byokCacheMarkers: boolean;
 
   constructor(init: AiSettingsInit = {}) {
     this.rung = init.rung ?? { kind: 'noOp' };
@@ -52,6 +58,7 @@ export class AiSettings {
       [...(init.photoConsentHosts ?? [])].map((h) => h.toLowerCase()),
     );
     this.askBeforeEveryPhoto = init.askBeforeEveryPhoto ?? true;
+    this.byokCacheMarkers = init.byokCacheMarkers ?? false;
     Object.freeze(this);
   }
 
@@ -66,6 +73,7 @@ export class AiSettings {
       byokKeyHost: patch.byokKeyHost ?? this.byokKeyHost,
       photoConsentHosts: patch.photoConsentHosts ?? this.photoConsentHosts,
       askBeforeEveryPhoto: patch.askBeforeEveryPhoto ?? this.askBeforeEveryPhoto,
+      byokCacheMarkers: patch.byokCacheMarkers ?? this.byokCacheMarkers,
     });
   }
 
@@ -82,7 +90,8 @@ export class AiSettings {
       other.byokModel === this.byokModel &&
       other.byokTranscriptionModel === this.byokTranscriptionModel &&
       other.byokKeyHost === this.byokKeyHost &&
-      other.askBeforeEveryPhoto === this.askBeforeEveryPhoto
+      other.askBeforeEveryPhoto === this.askBeforeEveryPhoto &&
+      other.byokCacheMarkers === this.byokCacheMarkers
     );
   }
 
@@ -119,6 +128,7 @@ export function encodeAiSettings(settings: AiSettings): string {
     keyHost: settings.byokKeyHost,
     consents: [...settings.photoConsentHosts].sort(),
     askEveryPhoto: settings.askBeforeEveryPhoto,
+    cacheMarkers: settings.byokCacheMarkers,
   });
 }
 
@@ -153,7 +163,7 @@ export function decodeAiSettings(raw: string | null | undefined): AiSettings {
       }
     }
   }
-  const { endpoint, model, txModel, keyHost, askEveryPhoto } = blob;
+  const { endpoint, model, txModel, keyHost, askEveryPhoto, cacheMarkers } = blob;
   return new AiSettings({
     rung,
     byokEndpointUrl:
@@ -166,5 +176,7 @@ export function decodeAiSettings(raw: string | null | undefined): AiSettings {
     photoConsentHosts: consents,
     // Absent or unusable means the safe default: ask every time.
     askBeforeEveryPhoto: typeof askEveryPhoto === 'boolean' ? askEveryPhoto : true,
+    // Absent or unusable means off: nothing new is sent unless the person turned it on.
+    byokCacheMarkers: cacheMarkers === true,
   });
 }

@@ -939,6 +939,14 @@ describe('instance AI proxy: same origin, input budget, quiet upstream', () => {
     }
   });
 
+  it('AI_PROXY_CACHE_MARKERS is 0 by default, validated, and reaches njs', () => {
+    expect(render(ON).loc).toContain('set $anc_ai_cache_markers "0";');
+    expect(render({ ...ON, AI_PROXY_CACHE_MARKERS: '1' }).loc).toContain('set $anc_ai_cache_markers "1";');
+    for (const bad of ['yes', '2', '1; x']) {
+      expect(render({ ...ON, AI_PROXY_CACHE_MARKERS: bad }).code, bad).toBe(1);
+    }
+  });
+
   it('AI_PROXY_TOKEN_PARAM is validated and reaches njs', () => {
     expect(render(ON).loc).toContain('set $anc_ai_token_param "max_tokens";');
     expect(render({ ...ON, AI_PROXY_TOKEN_PARAM: 'max_completion_tokens' }).loc).toContain(
@@ -1046,6 +1054,38 @@ describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
     ],
   });
   const send = async (messages) => run(JSON.stringify({ messages }));
+
+  describe('prompt-cache markers', () => {
+    const marker = (cache_control) => ({ role: 'user', content: [{ type: 'text', text: 'data', cache_control }] });
+    const on = { anc_ai_model: 'm', anc_ai_max_tokens: '2000', anc_ai_cache_markers: '1' };
+    const sendOn = async (messages) => JSON.parse(await run(JSON.stringify({ messages }), on)).messages;
+
+    it('are dropped unless the operator turned them on', async () => {
+      const out = JSON.parse(await send([marker({ type: 'ephemeral' })])).messages;
+      expect(out).toEqual([{ role: 'user', content: [{ type: 'text', text: 'data' }] }]);
+      const off = { anc_ai_model: 'm', anc_ai_max_tokens: '2000', anc_ai_cache_markers: '0' };
+      expect(JSON.parse(await run(JSON.stringify({ messages: [marker({ type: 'ephemeral' })] }), off)).messages).toEqual(out);
+    });
+
+    it('when on, keep exactly one {type: "ephemeral"} and nothing else', async () => {
+      expect(await sendOn([marker({ type: 'ephemeral' })])).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'data', cache_control: { type: 'ephemeral' } }] },
+      ]);
+      // A longer TTL (twice the write price), another type or extra keys: dropped.
+      for (const c of [{ type: 'ephemeral', ttl: '1h' }, { type: 'persistent' }, 'ephemeral', ['ephemeral'], null]) {
+        expect(await sendOn([marker(c)]), JSON.stringify(c)).toEqual([
+          { role: 'user', content: [{ type: 'text', text: 'data' }] },
+        ]);
+      }
+      // A second marker is dropped: a visitor cannot spread cache writes over the request.
+      const two = await sendOn([marker({ type: 'ephemeral' }), marker({ type: 'ephemeral' })]);
+      expect(two[0].content[0].cache_control).toEqual({ type: 'ephemeral' });
+      expect(two[1].content[0]).not.toHaveProperty('cache_control');
+      // Never on an image part.
+      const img = await sendOn([{ role: 'user', content: [{ type: 'image_url', image_url: { url: IMG }, cache_control: { type: 'ephemeral' } }] }]);
+      expect(img[0].content[0]).toEqual({ type: 'image_url', image_url: { url: IMG } });
+    });
+  });
 
   it('accepts exactly the shapes the app sends and strips unknown keys', async () => {
     const out = JSON.parse(await send([{ role: 'system', content: 'Be kind.', name: 'x' }, photo(), { role: 'assistant', content: 'ok' }]));

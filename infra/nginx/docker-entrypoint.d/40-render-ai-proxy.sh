@@ -26,7 +26,9 @@
 #   10r/m per client address), AI_PROXY_RATE_ALL (default 30r/m for the whole instance),
 #   AI_PROXY_BURST (default 5), AI_PROXY_CONN (concurrent requests per address, default 2),
 #   AI_PROXY_MAX_TOKENS (default 2000), AI_PROXY_TOKEN_PARAM (max_tokens, or max_completion_tokens
-#   for reasoning models), AI_PROXY_RESOLVER (default: the first plain nameserver of /etc/resolv.conf).
+#   for reasoning models), AI_PROXY_CACHE_MARKERS (1 keeps one prompt-cache marker per request for a
+#   provider that reads them, e.g. OpenRouter with an Anthropic or Gemini model; default 0 drops it),
+#   AI_PROXY_RESOLVER (default: the first plain nameserver of /etc/resolv.conf).
 # Every value is validated against a strict pattern; an invalid value refuses to start, like a
 # bad AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (05-validate-csp.sh). Error messages name the variable
 # and never print its value.
@@ -62,7 +64,7 @@ render() {
       while ((i = index(s, k)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(k)) }
       return o s
     }
-    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM RESOLVER URL_TX TX_MODEL TX_RATE TX_RATE_ALL TX_BURST", names, " ") }
+    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM CACHE_MARKERS RESOLVER URL_TX TX_MODEL TX_RATE TX_RATE_ALL TX_BURST", names, " ") }
     {
       line = $0
       for (j = 1; j <= n; j++) line = rep(line, "@@ANC_AI_" names[j] "@@", ENVIRON["ANC_AI_" names[j]])
@@ -126,6 +128,8 @@ conn="${AI_PROXY_CONN:-2}"
 matches '^[1-9][0-9]{0,2}$' "$conn" || die "AI_PROXY_CONN must be a whole number from 1 to 999."
 token_param="${AI_PROXY_TOKEN_PARAM:-max_tokens}"
 case "$token_param" in max_tokens|max_completion_tokens) ;; *) die "AI_PROXY_TOKEN_PARAM must be max_tokens or max_completion_tokens." ;; esac
+cache_markers="${AI_PROXY_CACHE_MARKERS:-0}"
+case "$cache_markers" in 0|1) ;; *) die "AI_PROXY_CACHE_MARKERS must be 0 or 1." ;; esac
 burst="${AI_PROXY_BURST:-5}"
 matches '^[0-9]{1,3}$' "$burst" || die "AI_PROXY_BURST must be a whole number up to 999."
 max_tokens="${AI_PROXY_MAX_TOKENS:-2000}"
@@ -186,10 +190,11 @@ ANC_AI_BURST="$burst"
 ANC_AI_RATE_ALL="$rate_all"
 ANC_AI_CONN="$conn"
 ANC_AI_TOKEN_PARAM="$token_param"
+ANC_AI_CACHE_MARKERS="$cache_markers"
 ANC_AI_MAX_TOKENS="$max_tokens"
 ANC_AI_RESOLVER="$resolver"
 export ANC_AI_URL ANC_AI_HOST ANC_AI_KEY ANC_AI_MODEL ANC_AI_CONFIG_JSON ANC_AI_RATE ANC_AI_RATE_ALL \
-  ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_RESOLVER \
+  ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_CACHE_MARKERS ANC_AI_RESOLVER \
   ANC_AI_URL_TX ANC_AI_TX_MODEL ANC_AI_TX_RATE ANC_AI_TX_RATE_ALL ANC_AI_TX_BURST
 
 printf '%s\n' 'load_module /usr/lib/nginx/modules/ngx_http_js_module.so;' > "$main_inc"

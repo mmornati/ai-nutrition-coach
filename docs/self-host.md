@@ -205,6 +205,7 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL`                  | `10r/m` / `30r/m`        | Request rate per client address, and for the whole instance. Both apply.                                                                                                                                                |
 | `AI_PROXY_BURST` / `AI_PROXY_CONN`                     | `5` / `2`                | Burst allowance, and concurrent requests per client address.                                                                                                                                                            |
 | `AI_PROXY_MAX_TOKENS` / `AI_PROXY_TOKEN_PARAM`         | `2000` / `max_tokens`    | Cap on a reply, and the parameter that carries it (`max_completion_tokens` for reasoning models).                                                                                                                       |
+| `AI_PROXY_CACHE_MARKERS`                               | `0`                      | `1` keeps one prompt-cache marker per request on Ask the coach (see [AI tiers](./ai-tiers.md)), for providers that cache only on request (Anthropic or Gemini through OpenRouter).                                      |
 | `AI_PROXY_TRANSCRIPTION`                               | `0`                      | `1` also offers voice to text for _Describe a meal_ (`POST /ai/v1/audio/transcriptions`, see [Voice to text](#voice-to-text-describe-a-meal-by-voice)). Needs the proxy on and a provider with `/audio/transcriptions`. |
 | `AI_PROXY_TRANSCRIPTION_MODEL`                         | `whisper-1`              | The one model a recording may name (the app reads it from `/ai/config.json`; any other is refused).                                                                                                                     |
 | `AI_PROXY_TRANSCRIPTION_RATE` / `_RATE_ALL` / `_BURST` | `6r/m` / `20r/m` / `2`   | The voice route's own limits: per client address, for the whole instance, and the burst. Both rates apply.                                                                                                              |
@@ -324,7 +325,8 @@ CSP needs no change: `connect-src 'self'`). It forwards the request to `${AI_PRO
   `temperature`, `top_p` and `response_format` are kept (no `stream`, `n`, `tools`, ...). The **input** is bounded to what
   the app sends: at most 8 messages, roles system/user/assistant, content as text or parts of type `text` /
   `image_url`, at most 24 KB of text in all, at most **one** image and only as an inline `data:image/jpeg|png|webp;base64,`
-  URI (a remote URL is never forwarded). Anything else becomes `{}`, which the provider refuses with a 400 (njs cannot
+  URI (a remote URL is never forwarded). A `cache_control` marker is dropped unless `AI_PROXY_CACHE_MARKERS=1`, and
+  then only one `{"type": "ephemeral"}` on a text part is kept. Anything else becomes `{}`, which the provider refuses with a 400 (njs cannot
   change the status). Someone calling the endpoint directly cannot pick a dearer model, send a long prompt or have the
   provider fetch a URL;
 - accepts at most 2 MiB (one downscaled photo is a fraction of that), POST only, and answers `429` beyond the rate

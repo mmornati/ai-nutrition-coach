@@ -110,4 +110,9 @@ export class AiSettingsController {
   setAskBeforeEveryPhoto(value: boolean): Promise<void> {
     return this.update((s) => s.copyWith({ askBeforeEveryPhoto: value }));
   }
+
+  /** `true` = send prompt-cache markers to the BYOK endpoint (Ask the coach). Default off. */
+  setByokCacheMarkers(value: boolean): Promise<void> {
+    return this.update((s) => s.copyWith({ byokCacheMarkers: value }));
+  }
 }

@@ -406,6 +406,9 @@ export const fr: Strings = {
       askEveryPhotoLabel: 'Demander avant chaque envoi de photo',
       askEveryPhotoHelp:
         'Activé : chaque photo demande son propre accord. Désactivé : vous acceptez une fois par service, puis les photos partent sans demander, jusqu’à ce que vous révoquiez cet accord ci-dessous.',
+      cacheMarkersLabel: 'Indications de cache',
+      cacheMarkersHelp:
+        'Envoie une indication de cache avec Demander au coach, pour qu’un service qui la lit (OpenRouter avec un modèle Claude ou Gemini) facture moins cher la partie répétée de la conversation. Rien de plus sur vous n’est envoyé. Laissez désactivé si le test de connexion passe mais que le coach ne répond plus ensuite : certains services refusent les indications qu’ils ne connaissent pas.',
       voiceModelLabel: 'Modèle vocal',
       voiceModelHint: 'p. ex. whisper-1',
       voiceModelInvalid:
