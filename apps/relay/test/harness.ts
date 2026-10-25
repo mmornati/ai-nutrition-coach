@@ -14,6 +14,8 @@ export interface Harness {
   readonly errors: string[];
   /** The login delays the relay asked for (it does not really wait in tests). */
   readonly delays: number[];
+  /** Passphrase proofs checked so far (every login that got as far as the verifier, and signups). */
+  readonly proofs: { n: number };
   clock: number;
   advance(ms: number): void;
   close(): Promise<void>;
@@ -29,17 +31,27 @@ export async function startRelay(
   const config = readConfig({
     SYNC_RATE_IP: '1000',
     SYNC_RATE_HANDLE: '1000',
+    SYNC_RATE_HANDLE_DAY: '1000',
     SYNC_RATE_SIGNUP: '1000',
     ...env,
   });
   const errors: string[] = [];
   const delays: number[] = [];
+  const proofs = { n: 0 };
+  const realKeys = createServerKeys(SECRET);
+  const keys = {
+    ...realKeys,
+    authDigest: (handle: string, authKey: Uint8Array) => {
+      proofs.n += 1;
+      return realKeys.authDigest(handle, authKey);
+    },
+  };
   const state = { clock: 1_700_000_000_000 };
   const server: Server = createServer(
     createRelay({
       config,
       store,
-      keys: createServerKeys(SECRET),
+      keys,
       now: () => state.clock,
       onError: (name) => errors.push(name),
       tuning: {
@@ -59,6 +71,7 @@ export async function startRelay(
     config,
     errors,
     delays,
+    proofs,
     get clock() {
       return state.clock;
     },

@@ -868,3 +868,201 @@ describe('big bodies', () => {
     }
   });
 });
+
+describe('guessing one handle: concurrency, many clients, the global cap', () => {
+  const login = (
+    h: Harness,
+    handle: string,
+    authKey: string,
+    ip: string,
+    headers: Record<string, string> = {},
+  ) => post(h, '/sync/v1/login', { handle, authKey }, { headers: { 'x-real-ip': ip, ...headers } });
+  /** A different IPv6 /48 (and /64) per `n`. */
+  const net = (n: number, sub = 1): string => `2001:db8:${n.toString(16)}:${sub.toString(16)}::1`;
+  const env = (extra: Record<string, string> = {}) => ({
+    SYNC_RATE_IP: '100000',
+    SYNC_TRUST_PROXY: '1',
+    ...extra,
+  });
+  /** A sleep that, once closed, parks every login until `release()`. */
+  const gate = () => {
+    const state = { closed: false, parked: 0, open: () => {} };
+    const opened = new Promise<void>((resolve) => (state.open = resolve));
+    return {
+      state,
+      close: () => (state.closed = true),
+      release: () => state.open(),
+      sleep: async () => {
+        if (!state.closed) return;
+        state.parked += 1;
+        await opened;
+      },
+    };
+  };
+  const burst = async (
+    g: ReturnType<typeof gate>,
+    requests: Array<() => Promise<Response>>,
+  ): Promise<number[]> => {
+    g.close();
+    const pending = requests.map((send) => send());
+    await vi.waitFor(() => expect(g.state.parked).toBeGreaterThan(0));
+    // Give the rest of the burst time to arrive while the first is parked.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    g.release();
+    return (await Promise.all(pending)).map((r) => r.status).sort();
+  };
+
+  it('a parallel burst from one client cannot get past the lockout threshold', async () => {
+    const g = gate();
+    const h = (relay = await startRelay(env({ SYNC_RATE_HANDLE: '5' }), undefined, {
+      sleep: g.sleep,
+    }));
+    await signup(h, 'alice');
+    // Four failures: one short of the lockout, and the delay has started.
+    for (let i = 0; i < 4; i++) {
+      expect((await login(h, 'alice', b64(32, i), net(1))).status).toBe(401);
+    }
+    h.proofs.n = 0;
+    const statuses = await burst(
+      g,
+      Array.from({ length: 10 }, (_, i) => () => login(h, 'alice', b64(32, 50 + i), net(1, i + 1))),
+    );
+    // Only the one attempt left before the lockout got as far as the verifier.
+    expect(h.proofs.n).toBeLessThanOrEqual(1);
+    expect(statuses).toEqual([401, ...Array<number>(9).fill(429)]);
+    expect((await login(h, 'alice', b64(32, 99), net(1))).status).toBe(429);
+  });
+
+  it('a parallel burst from many clients cannot get past the global cap either', async () => {
+    const g = gate();
+    const h = (relay = await startRelay(env({ SYNC_RATE_HANDLE_DAY: '5' }), undefined, {
+      sleep: g.sleep,
+    }));
+    await signup(h, 'alice');
+    for (let i = 0; i < 4; i++) {
+      expect((await login(h, 'alice', b64(32, i), net(i + 1))).status).toBe(401);
+    }
+    h.proofs.n = 0;
+    const statuses = await burst(
+      g,
+      Array.from({ length: 10 }, (_, i) => () => login(h, 'alice', b64(32, 50 + i), net(100 + i))),
+    );
+    expect(h.proofs.n).toBeLessThanOrEqual(1);
+    expect(statuses).toEqual([401, ...Array<number>(9).fill(429)]);
+  });
+
+  it('a correct login gives its reservation back, so the owner is never worn down by logging in', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE: '3', SYNC_RATE_HANDLE_DAY: '3' }));
+    const alice = await signup(h, 'alice');
+    for (let i = 0; i < 12; i++) {
+      expect((await login(h, 'alice', alice.authKey, net(1))).status).toBe(200);
+    }
+  });
+
+  it('counts every /64 inside one /48 as one client for the lockout', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE: '3' }));
+    await signup(h, 'alice');
+    const results: number[] = [];
+    for (let sub = 1; sub <= 5; sub++) {
+      results.push((await login(h, 'alice', b64(32, sub), net(7, sub))).status);
+    }
+    expect(results).toEqual([401, 401, 401, 429, 429]);
+    // Another /48 is another client.
+    expect((await login(h, 'alice', b64(32, 9), net(8))).status).toBe(401);
+    // The per-address request limit (salt, login, signup) still buckets by /64.
+  });
+
+  it('caps failed logins on one handle across ALL clients, and fails closed', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE_DAY: '5' }));
+    const alice = await signup(h, 'alice');
+    const results: number[] = [];
+    for (let i = 0; i < 5; i++)
+      results.push((await login(h, 'alice', b64(32, i), net(i + 1))).status);
+    expect(results).toEqual([401, 401, 401, 401, 401]);
+    const refused = await login(h, 'alice', b64(32, 77), net(50));
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: 'rateLimited' });
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(80_000);
+    // Even the right proof, from a client never seen before, is refused while the cap holds.
+    expect((await login(h, 'alice', alice.authKey, net(51))).status).toBe(429);
+    // Another handle is unaffected.
+    expect((await login(h, 'bobby', b64(32, 1), net(52))).status).toBe(401);
+    // The cap ends with its window (a day after the first failure).
+    h.advance(24 * 3_600_000 + 1000);
+    expect((await login(h, 'alice', alice.authKey, net(53))).status).toBe(200);
+  });
+
+  it('a valid device token of that vault logs in while the cap holds; no token, or another vault’s, does not', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE_DAY: '4', SYNC_RATE_HANDLE: '3' }));
+    const alice = await signup(h, 'alice', 1);
+    const bobby = await signup(h, 'bobby', 2);
+    for (let i = 0; i < 4; i++) await login(h, 'alice', b64(32, i), net(i + 1));
+    expect((await login(h, 'alice', alice.authKey, net(60))).status).toBe(429);
+    expect(
+      (await login(h, 'alice', alice.authKey, net(61), { authorization: `Bearer ${bobby.token}` }))
+        .status,
+    ).toBe(429);
+    expect(
+      (await login(h, 'alice', alice.authKey, net(62), { authorization: `Bearer ${b64(32, 9)}` }))
+        .status,
+    ).toBe(429);
+    const ok = await login(h, 'alice', alice.authKey, net(63), {
+      authorization: `Bearer ${alice.token}`,
+    });
+    expect(ok.status).toBe(200);
+    // Still subject to the per-client lockout: a token does not make a client unlimited.
+    const own = { authorization: `Bearer ${alice.token}` };
+    const wrong: number[] = [];
+    for (let i = 0; i < 5; i++)
+      wrong.push((await login(h, 'alice', b64(32, 30 + i), net(70), own)).status);
+    expect(wrong).toEqual([401, 401, 401, 429, 429]);
+    // The token holder's own failures were not counted against everyone else.
+    expect((await login(h, 'alice', b64(32, 5), net(71))).status).toBe(429);
+  });
+
+  it('a token for a vault does not make another handle, or an unknown one, behave differently', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE_DAY: '2' }));
+    const alice = await signup(h, 'alice', 1);
+    await signup(h, 'bobby', 2);
+    const own = { authorization: `Bearer ${alice.token}` };
+    const run = async (handle: string, headers: Record<string, string>) => {
+      const out: Array<[number, unknown]> = [];
+      for (let i = 0; i < 4; i++) {
+        const r = await login(h, handle, b64(32, i), net(i + 1), headers);
+        out.push([r.status, await r.json()]);
+      }
+      return out;
+    };
+    expect(await run('bobby', own)).toEqual(await run('nobody', own));
+  });
+
+  it('answers a known and an unknown handle identically once the global cap is reached', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE_DAY: '3' }));
+    const alice = await signup(h, 'alice');
+    const run = async (handle: string) => {
+      const out: Array<[number, string | null, unknown]> = [];
+      for (let i = 0; i < 6; i++) {
+        const r = await login(h, handle, i === 5 ? alice.authKey : b64(32, i), net(i + 1));
+        out.push([r.status, r.headers.get('retry-after'), await r.json()]);
+      }
+      return out;
+    };
+    expect(await run('alice')).toEqual(await run('nobody'));
+  });
+
+  it('a flood of junk handles neither resets a real handle’s counter nor blocks unrelated handles', async () => {
+    const h = await start(env({ SYNC_RATE_HANDLE_DAY: '3' }), { limiterMaxKeys: 4 });
+    const alice = await signup(h, 'alice', 1);
+    const carol = await signup(h, 'carol', 2);
+    for (let i = 0; i < 3; i++) await login(h, 'alice', b64(32, i), net(i + 1));
+    expect((await login(h, 'alice', alice.authKey, net(9))).status).toBe(429);
+    for (let i = 0; i < 1500; i++) {
+      expect((await login(h, `junk${i}`, b64(32), net(200 + (i % 50)))).status).toBe(401);
+    }
+    // The real handle is still capped (the flood reset nothing)...
+    expect((await login(h, 'alice', alice.authKey, net(10))).status).toBe(429);
+    // ...and unrelated handles, known and unknown, are not refused.
+    expect((await login(h, 'carol', carol.authKey, net(11))).status).toBe(200);
+    expect((await login(h, 'someone', b64(32), net(12))).status).toBe(401);
+  });
+});

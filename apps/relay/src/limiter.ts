@@ -117,6 +117,13 @@ export class RateLimiter {
     return true;
   }
 
+  /** Takes back one counted hit (a reservation that turned out not to be a failure). */
+  refund(key: string, now: number): void {
+    const window = this.#windows.get(key);
+    if (window === undefined || now - window.start >= window.windowMs || window.count === 0) return;
+    window.count -= 1;
+  }
+
   /** How many hits the live window of `key` holds (0 when it has none). Counts nothing. */
   count(key: string, now: number): number {
     const window = this.#windows.get(key);
@@ -125,5 +132,58 @@ export class RateLimiter {
 
   get size(): number {
     return this.#windows.size;
+  }
+}
+
+/**
+ * A fixed-size array of failure counters, indexed by a secret-keyed hash of the handle (see
+ * `ServerKeys.guessSlot`). It is the relay's global cap on guessing one handle, and it is built so
+ * that no flood of other requests can reset or evade a counter, and so that a handle that exists
+ * and one that does not cannot be told apart through it:
+ * - Every handle, known or not, falls in a slot the same way; the table never grows, never evicts
+ *   and never refuses a key, so there is no "full" state to provoke.
+ * - A counter only ever leaves its window by time passing (fixed window from the first failure),
+ *   so junk handles can only ADD to a slot they happen to share, never reset it. The price is a
+ *   rare collision: another handle that hashes to the same slot shares its count (a flood can only
+ *   make a real handle's counter reach its cap sooner, which costs the flooder as many failed
+ *   logins as attacking that handle directly would).
+ * - The slot of a handle is unguessable without the server secret, so an attacker cannot aim a
+ *   flood of junk handles at a chosen slot.
+ */
+export class GuessBudget {
+  readonly #counts: Uint16Array;
+  readonly #starts: Float64Array;
+
+  constructor(slots: number) {
+    this.#counts = new Uint16Array(slots);
+    this.#starts = new Float64Array(slots);
+  }
+
+  /** Counts one failure in `slot` unless it already holds `limit` in its live window. */
+  reserve(slot: number, limit: number, windowMs: number, now: number): LimitDecision {
+    const start = this.#starts[slot] ?? 0;
+    if (now - start >= windowMs) {
+      this.#starts[slot] = now;
+      this.#counts[slot] = 0;
+    }
+    const count = this.#counts[slot] ?? 0;
+    if (count >= limit) {
+      const end = (this.#starts[slot] ?? now) + windowMs;
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((end - now) / 1000)) };
+    }
+    this.#counts[slot] = count + 1;
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  /** Gives back a reservation (the login turned out to be correct). */
+  refund(slot: number, windowMs: number, now: number): void {
+    const start = this.#starts[slot] ?? 0;
+    const count = this.#counts[slot] ?? 0;
+    if (now - start < windowMs && count > 0) this.#counts[slot] = count - 1;
+  }
+
+  /** Failures held in the live window of `slot`. */
+  count(slot: number, windowMs: number, now: number): number {
+    return now - (this.#starts[slot] ?? 0) >= windowMs ? 0 : (this.#counts[slot] ?? 0);
   }
 }

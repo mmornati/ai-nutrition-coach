@@ -27,6 +27,11 @@ export interface RelayConfig {
   readonly rateIpPerMinute: number;
   /** Failed logins per minute per (client address, handle); beyond it that client is refused. */
   readonly rateHandlePerMinute: number;
+  /**
+   * Failed logins per day for one handle from ANYONE: past it, logins for that handle are refused
+   * (429) unless they present a device token of that same vault. Fails closed.
+   */
+  readonly rateHandlePerDay: number;
   /** Signups per hour per client address. */
   readonly rateSignupPerHour: number;
   /** Writes (PUT) per minute per device. */
@@ -115,6 +120,7 @@ export function readConfig(env: Env): RelayConfig {
     maxDevicesPerVault: whole(env, 'SYNC_MAX_DEVICES', 20, 1, 1000),
     rateIpPerMinute: whole(env, 'SYNC_RATE_IP', 30, 1, 100_000),
     rateHandlePerMinute: whole(env, 'SYNC_RATE_HANDLE', 10, 1, 100_000),
+    rateHandlePerDay: whole(env, 'SYNC_RATE_HANDLE_DAY', 20, 1, 60_000),
     rateSignupPerHour: whole(env, 'SYNC_RATE_SIGNUP', 5, 1, 100_000),
     rateWritePerMinute: whole(env, 'SYNC_RATE_WRITE', 60, 1, 100_000),
     maxConcurrentUploads: whole(env, 'SYNC_MAX_UPLOADS', 3, 1, 16),

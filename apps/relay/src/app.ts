@@ -30,7 +30,7 @@ import {
 } from '@anc/core';
 import { addressKey } from './address';
 import type { RelayConfig } from './config';
-import { RateLimiter } from './limiter';
+import { GuessBudget, RateLimiter } from './limiter';
 import { newToken, sameDigest, type ServerKeys } from './keys';
 import type { RelayStore, VaultRow } from './store';
 
@@ -55,6 +55,8 @@ export interface RelayTuning {
   readonly bodyBytesPerSecond: number;
   /** Entries each failed-login table keeps. */
   readonly limiterMaxKeys: number;
+  /** Slots of the global per-handle guess budget (see `GuessBudget`). */
+  readonly guessSlots: number;
   /** Waits (a failed login makes the next ones for the same handle slower). */
   readonly sleep: (ms: number) => Promise<void>;
 }
@@ -65,6 +67,7 @@ const DEFAULT_TUNING: RelayTuning = {
   bodyCeilingMs: 60_000,
   bodyBytesPerSecond: 64 * 1024,
   limiterMaxKeys: 20_000,
+  guessSlots: 1 << 20,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
@@ -75,6 +78,8 @@ const BASE_LOGIN_DELAY_MS = 100;
 const MAX_LOGIN_DELAY_MS = 2000;
 /** How long failures on a handle weigh on its delay. */
 const DELAY_WINDOW_MS = 5 * 60_000;
+/** The window of the global per-handle failed-login cap (`SYNC_RATE_HANDLE_DAY`). */
+const GUESS_WINDOW_MS = 24 * 3_600_000;
 /** Uploads being read at once for one client address (per pool). */
 const UPLOADS_PER_CLIENT = 1;
 
@@ -215,15 +220,18 @@ function readJson(req: IncomingMessage, cap: number, tuning: RelayTuning): Promi
   });
 }
 
-/** The client address the limits are keyed on; IPv6 is bucketed by its /64 (see `address.ts`). */
-function clientKey(req: IncomingMessage, trustProxy: boolean): string {
+/**
+ * The client address the limits are keyed on; IPv6 is bucketed by its /64, or by its /48 for the
+ * failed-login lockout (see `address.ts`).
+ */
+function clientKey(req: IncomingMessage, trustProxy: boolean, prefix?: 48): string {
   let address = req.socket.remoteAddress ?? 'unknown';
   if (trustProxy) {
     const forwarded = req.headers['x-real-ip'];
     if (typeof forwarded === 'string' && /^[0-9A-Fa-f:.]{2,45}$/.test(forwarded))
       address = forwarded;
   }
-  return addressKey(address);
+  return addressKey(address, prefix);
 }
 
 function bearer(req: IncomingMessage): string | null {
@@ -248,14 +256,23 @@ export function createRelay(deps: RelayDeps): RequestListener {
   const ipLimiter = new RateLimiter();
   const signups = new RateLimiter({ whenFull: 'refuse' });
   const writeLimiter = new RateLimiter();
-  // Failed logins, in two tables that both forget the oldest entry when full (never refuse a key):
-  // - per (client address, handle): the hard lockout. Only the client that failed is locked, so
-  //   nobody can lock a person out of their own handle from somewhere else.
-  // - per handle, from anywhere: no refusal, only a growing delay (see `loginDelay`).
-  // Forgetting a counter hands its owner a fresh allowance, but to flush one an attacker must fill
-  // the table with other keys, and each key costs a request that the per-address limit counts.
+  // Failed logins, in three layers; every one counts a known and an unknown handle identically.
+  // - per (client, handle), the client being its address bucketed by /48 for IPv6: the hard
+  //   lockout. Only the client that failed is locked, so nobody can lock a person out of their own
+  //   handle from somewhere else. This table forgets its oldest entries when full; flushing it
+  //   only gives a client a fresh per-minute allowance, and the global cap below still binds.
+  // - per handle, from anywhere: a growing delay (max 2 s), never a refusal (`loginDelay`).
+  // - per handle, from anywhere, `config.rateHandlePerDay` failures a day, then a refusal (the
+  //   "guess budget"): the cap that makes distributed guessing infeasible. It is a fixed array of
+  //   counters indexed by a secret-keyed hash of the handle (see `GuessBudget`), so nothing can
+  //   flush it, it never refuses an unrelated handle, and known and unknown handles share the
+  //   same machinery. A valid device token of the same vault is exempt from this layer only.
   const failedByClient = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
   const failedByHandle = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
+  const guessBudget = new GuessBudget(tuning.guessSlots);
+  // Logins being decided right now, by (client, handle): one at a time, so a parallel burst cannot
+  // all pass the lockout check before the first failure is recorded.
+  const loginsInFlight = new Set<string>();
   // Uploads being read right now: each can hold tens of MB in memory. Signups (anyone) and vault
   // writes (a device token) have separate pools so one cannot starve the other, and one client
   // address holds at most `UPLOADS_PER_CLIENT` slots of a pool.
@@ -288,7 +305,7 @@ export function createRelay(deps: RelayDeps): RequestListener {
     return decision.allowed ? null : limited(decision.retryAfterSeconds);
   };
   const failureKey = (req: IncomingMessage, handle: string): string =>
-    `${clientKey(req, config.trustProxy)}|${handle}`;
+    `${clientKey(req, config.trustProxy, 48)}|${handle}`;
   /** Is this client locked out of this handle by its own failed logins? Looking is free. */
   const handleLocked = (req: IncomingMessage, handle: string): Reply | null => {
     const decision = failedByClient.peek(
@@ -298,9 +315,8 @@ export function createRelay(deps: RelayDeps): RequestListener {
     );
     return decision.allowed ? null : limited(decision.retryAfterSeconds);
   };
-  /** Counted the same for a handle that exists and one that does not. */
-  const noteFailedLogin = (req: IncomingMessage, handle: string): void => {
-    failedByClient.hit(failureKey(req, handle), config.rateHandlePerMinute, MINUTE, clock());
+  /** The delay table only: the guesses themselves are counted up front (see `login`). */
+  const noteFailedLogin = (handle: string): void => {
     failedByHandle.hit(handle, Number.MAX_SAFE_INTEGER, DELAY_WINDOW_MS, clock());
   };
   /** Slows every login on a handle that is being guessed at, its owner's too, but never refuses. */
@@ -386,21 +402,49 @@ export function createRelay(deps: RelayDeps): RequestListener {
     const body = await parseBody(req, SYNC_SMALL_BODY_BYTES, parseLoginRequest);
     if ('reply' in body) return body.reply;
     const { handle, authKey } = body.value;
+
+    // Everything up to the first `await` below is synchronous: the attempt is checked AND counted
+    // as a failure before anything else can run, then given back if the login turns out correct.
+    // (Counting after the verdict, past a delay, let a parallel burst all pass the check first.)
+    const key = failureKey(req, handle);
+    // One login at a time per (client, handle); the others are told what a lockout says.
+    if (loginsInFlight.has(key)) return limited(1);
     const locked = handleLocked(req, handle);
     if (locked) return locked;
-    // Before the verdict, for every login on the handle, so a guesser is slowed and known and
-    // unknown handles cannot be told apart by it.
-    const delay = loginDelay(handle);
-    if (delay > 0) await tuning.sleep(delay);
     const row = store.vaultByHandle(handle);
-    const proof = keys.authDigest(handle, decodeBase64Url(authKey) ?? new Uint8Array(0));
-    const matches = sameDigest(proof, row?.authDigest ?? dummyDigest);
-    // One answer for "no such handle" and "wrong passphrase".
-    if (row === null || !matches) {
-      noteFailedLogin(req, handle);
-      return fail('noMatch');
+    // A valid device token of THIS vault is exempt from the global per-handle cap (never from the
+    // per-client lockout): the owner's own devices are not denied while a stranger guesses. Any
+    // other token, or none, changes nothing, for a known handle and an unknown one alike.
+    const token = bearer(req);
+    const tokenVault =
+      token === null ? null : store.vaultForDevice(keys.tokenDigest(token), clock());
+    const exempt = row !== null && tokenVault === row.rowId;
+    const slot = keys.guessSlot(handle, tuning.guessSlots);
+    if (!exempt) {
+      const budget = guessBudget.reserve(slot, config.rateHandlePerDay, GUESS_WINDOW_MS, clock());
+      if (!budget.allowed) return limited(budget.retryAfterSeconds);
     }
-    return session(row, 200);
+    failedByClient.hit(key, config.rateHandlePerMinute, MINUTE, clock());
+    loginsInFlight.add(key);
+    try {
+      // Before the verdict, for every login on the handle, so a guesser is slowed and known and
+      // unknown handles cannot be told apart by it.
+      const delay = loginDelay(handle);
+      if (delay > 0) await tuning.sleep(delay);
+      const proof = keys.authDigest(handle, decodeBase64Url(authKey) ?? new Uint8Array(0));
+      const matches = sameDigest(proof, row?.authDigest ?? dummyDigest);
+      // One answer for "no such handle" and "wrong passphrase".
+      if (row === null || !matches) {
+        noteFailedLogin(handle);
+        return fail('noMatch');
+      }
+      // A correct login is not a failure: give the reservations back.
+      failedByClient.refund(key, clock());
+      if (!exempt) guessBudget.refund(slot, GUESS_WINDOW_MS, clock());
+      return session(row, 200);
+    } finally {
+      loginsInFlight.delete(key);
+    }
   }
 
   async function signup(req: IncomingMessage): Promise<Reply> {

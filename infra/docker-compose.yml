@@ -133,6 +133,7 @@ services:
       SYNC_MAX_UPLOADS: ${SYNC_MAX_UPLOADS:-3}
       SYNC_RATE_IP: ${SYNC_RATE_IP:-30}
       SYNC_RATE_HANDLE: ${SYNC_RATE_HANDLE:-10}
+      SYNC_RATE_HANDLE_DAY: ${SYNC_RATE_HANDLE_DAY:-20}
       SYNC_RATE_SIGNUP: ${SYNC_RATE_SIGNUP:-5}
       SYNC_RATE_WRITE: ${SYNC_RATE_WRITE:-60}
       # The only caller is the app container's nginx, which sets X-Real-IP: believe it.
