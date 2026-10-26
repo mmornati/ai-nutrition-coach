@@ -40,6 +40,15 @@
 #     forced, the provider's certificate is verified, a refused key is a bare 502, GET is
 #     405, an oversized body 413, a burst 429, and the key lives in one 0600 file only.
 #
+#   * the optional encrypted-backup relay (compose profile `sync`): OFF by default (/sync/config.json
+#     says {"enabled":false} and /sync/v1/... is a plain 404, the rendered nginx config proxies nothing); the compose profile
+#     defines a hardened relay with no published port and a named volume; ON (the relay image built
+#     from infra/Dockerfile.relay next to the app image): the config is served with the security
+#     headers, signup / login / vault read / compare-and-swap write behave (304, 412, one ambiguous
+#     login failure, a fake salt for an unknown handle), the relay is non-root with a read-only root
+#     filesystem, publishes nothing, logs nothing about a request and keeps its data in the volume
+#     across a restart.
+#
 # Exit codes: 0 ok; 10 no docker; 20 build failed; 30 readiness/HTTP failure;
 #             40 pin/config assertion failed; 50 header/CSP assertion failed;
 #             60 hardening assertion failed; 70 egress assertion failed.
@@ -53,11 +62,18 @@ NET="ai-nutrition-coach-smoke-internal"
 NAME_ISO="ai-nutrition-coach-smoke-iso"
 PORT="${AI_NUTRITION_COACH_SMOKE_PORT:-8088}"
 IMAGE="ai-nutrition-coach:smoke"
-BUDGET="${AI_NUTRITION_COACH_SMOKE_BUDGET:-300}"
+BUDGET="${AI_NUTRITION_COACH_SMOKE_BUDGET:-480}"
 START_TS=$(date +%s)
 TMP="$(mktemp -d)"
 
+NET_SYNC="ai-nutrition-coach-smoke-sync"
+RELAY_IMAGE="ai-nutrition-coach-relay:smoke"
+
 cleanup() {
+  docker rm -f "$NAME-sync-app" "$NAME-sync-relay" "$NAME-sync-off" >/dev/null 2>&1 || true
+  docker volume rm "$NAME-sync-data" >/dev/null 2>&1 || true
+  docker rmi "$RELAY_IMAGE" >/dev/null 2>&1 || true
+  docker network rm "$NET_SYNC" >/dev/null 2>&1 || true
   docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" \
     "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-ai5" "$NAME-ai6" "$NAME-aibad" >/dev/null 2>&1 || true
   docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
@@ -99,6 +115,30 @@ AI_NUTRITION_COACH_DOMAIN=plate.example.test docker compose -f infra/docker-comp
   | grep -q 'caddy:' || fail 40 "tls profile does not define caddy"
 ! grep -q 'ai-nutrition-coach-data' infra/docker-compose.yml || fail 40 "compose still references the removed /data volume"
 ok "compose: loopback by default, tls profile present, no /data volume"
+
+# The encrypted-backup relay is a profile: absent by default, hardened and unpublished when on.
+! grep -q 'sync-relay:' <<<"$compose_cfg" || fail 40 "the relay runs without the sync profile"
+sync_cfg="$(docker compose -f infra/docker-compose.yml --profile sync config 2>&1)" \
+  || fail 40 "the sync profile does not render: $sync_cfg"
+relay_cfg="$(sed -n '/^  sync-relay:/,/^  [a-z]/p' <<<"$sync_cfg")"
+for want in 'read_only: true' 'no-new-privileges:true' 'sync-data' 'SYNC_IDENTITY: handle' 'SYNC_TRUST_PROXY: "1"'; do
+  grep -qF "$want" <<<"$relay_cfg" || fail 40 "the relay service lacks: $want"
+done
+grep -q -- '- ALL' <<<"$relay_cfg" || fail 40 "the relay service does not drop capabilities"
+! grep -Eq '^[[:space:]]+(ports|published|host_ip):' <<<"$relay_cfg" || fail 40 "the relay service publishes a port"
+AI_NUTRITION_COACH_DOMAIN=plate.example.test docker compose -f infra/docker-compose.traefik.yml --profile sync config 2>&1 \
+  | grep -q 'sync-relay:' || fail 40 "the Traefik compose has no sync profile"
+grep -Eq '^FROM node:[0-9][^ @]*@sha256:[0-9a-f]{64} AS (build|run)' infra/Dockerfile.relay \
+  || fail 40 "the relay image is not a node image pinned by version and digest (infra/Dockerfile.relay)"
+grep -q 'pnpm install --frozen-lockfile' infra/Dockerfile.relay || fail 40 "the relay build does not install strictly from the lockfile"
+grep -q '^USER node$' infra/Dockerfile.relay || fail 40 "the relay image runs as root"
+rc=0
+SYNC_SIGNUP=maybe bin/ai-nutrition-coach up --sync >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 40 "bin/ai-nutrition-coach --sync accepted a bad SYNC_SIGNUP (exit $rc)"
+rc=0
+SYNC_SIGNUP=invite bin/ai-nutrition-coach up --sync >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 42 ]] || fail 40 "bin/ai-nutrition-coach --sync accepted invite signup without codes (exit $rc)"
+ok "sync profile: absent by default; the relay is hardened, publishes nothing, pinned, non-root; bad settings refused"
 
 # ── Traefik compose (docs/pwa.md): renders, no published port, right labels ──
 ! AI_NUTRITION_COACH_DOMAIN='' docker compose -f infra/docker-compose.traefik.yml config >/dev/null 2>&1 \
@@ -384,11 +424,11 @@ docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 ok "access log: off by default; =on logs the resolved file only, address truncated, no User-Agent/Referer/query; bad value refused"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
-cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /tmp/ai-nutrition-coach-ai-*.inc /etc/nginx/nginx.conf')"
+cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /tmp/ai-nutrition-coach-ai-*.inc /tmp/ai-nutrition-coach-sync-*.inc /etc/nginx/nginx.conf')"
 if grep -Eq '^[[:space:]]*(proxy_pass|resolver|fastcgi_pass|uwsgi_pass|scgi_pass|grpc_pass)\b' <<<"$cfg"; then
   fail 70 "rendered nginx config contains proxy_pass/resolver-style directives"
 fi
-ok "rendered nginx config (including the AI-proxy includes, which are empty when off) contains no proxy_pass / resolver"
+ok "rendered nginx config (including the AI-proxy and relay includes, which proxy nothing when off) contains no proxy_pass / resolver"
 
 # ── CSP injection: hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA must stop the container ──
 inject_cases=("https://a.test'; script-src *" "https://a.test; script-src 'unsafe-inline'" "*" "https:" \
@@ -413,6 +453,17 @@ rc=0
 AI_NUTRITION_COACH_DOMAIN=$'a.test\nevil' bin/ai-nutrition-coach up --tls >/dev/null 2>&1 || rc=$?
 [[ "$rc" -eq 42 ]] || fail 50 "bin/ai-nutrition-coach accepted a hostile AI_NUTRITION_COACH_DOMAIN (exit $rc)"
 ok "bin/ai-nutrition-coach rejects hostile AI_NUTRITION_COACH_CONNECT_SRC_EXTRA / AI_NUTRITION_COACH_DOMAIN"
+
+# ── encrypted-backup relay: OFF by default (a plain 404, so the app shows nothing about sync) ──
+[[ "$(curl -fsS "$BASE/sync/config.json")" == '{"enabled":false}' ]] \
+  || fail 50 "/sync/config.json is not {\"enabled\":false} when the relay is off"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{}' "$BASE/sync/v1/login")" == 404 ]] \
+  || fail 50 "POST /sync/v1/login is not a 404 when the relay is off"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -d '{}' "$BASE/sync/v1/vault")" == 404 ]] \
+  || fail 50 "PUT /sync/v1/vault is not a 404 when the relay is off"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -d '{}' "$BASE/other")" == 405 ]] \
+  || fail 50 "PUT elsewhere is no longer a 405"
+ok "relay off by default: the config says {\"enabled\":false}; login and vault are 404; PUT elsewhere is still 405"
 
 # ── instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on your instance") ──
 # OFF by default: the offer says so, the proxy path is a plain 404, nothing is precached.
@@ -725,6 +776,141 @@ JS
 else
   printf 'smoke: SKIP — openssl is not installed: the AI-proxy-on assertions did not run.\n' >&2
 fi
+
+
+# ── encrypted-backup relay ON: the relay image next to the app image, on one network ──
+# (docs/self-host.md "Encrypted backup on your own server"). A published port needs a network with
+# a route out, so this one is an ordinary bridge; the relay itself publishes nothing.
+printf 'smoke: building the relay image ...\n'
+rc=0
+docker build -f infra/Dockerfile.relay -t "$RELAY_IMAGE" . >"$TMP/relay-build.log" 2>&1 || rc=$?
+if [[ "$rc" -ne 0 ]]; then tail -30 "$TMP/relay-build.log" >&2; fail 20 "the relay image build failed"; fi
+docker network create "$NET_SYNC" >/dev/null
+docker volume create "$NAME-sync-data" >/dev/null
+RELAY="$NAME-sync-relay"
+SYNC_PORT_HOST="${AI_NUTRITION_COACH_SMOKE_SYNC_PORT:-8089}"
+start_relay() {
+  docker run -d --name "$RELAY" --network "$NET_SYNC" --network-alias sync-relay \
+    --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL --security-opt no-new-privileges:true \
+    -v "$NAME-sync-data:/data" -e SYNC_TRUST_PROXY=1 -e SYNC_RATE_IP=1000 -e SYNC_RATE_HANDLE=1000 \
+    -e SYNC_RATE_SIGNUP=1000 "$RELAY_IMAGE" >/dev/null
+  local ready=0
+  for _ in $(seq 1 60); do
+    if docker exec "$RELAY" node -e "fetch('http://127.0.0.1:4100/sync/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; then ready=1; break; fi
+    sleep 0.5
+  done
+  [[ "$ready" -eq 1 ]] || { docker logs "$RELAY" 2>&1 | tail -20 >&2; fail 30 "the relay does not become healthy"; }
+}
+start_relay
+docker run -d --name "$NAME-sync-app" --network "$NET_SYNC" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges:true -e AI_NUTRITION_COACH_SYNC=1 \
+  -p "127.0.0.1:${SYNC_PORT_HOST}:8080" "$IMAGE" >/dev/null
+SBASE="http://127.0.0.1:${SYNC_PORT_HOST}"
+ready=0
+for _ in $(seq 1 60); do
+  if curl -fsS -o /dev/null "$SBASE/" 2>/dev/null; then ready=1; break; fi
+  sleep 0.5
+done
+[[ "$ready" -eq 1 ]] || { docker logs "$NAME-sync-app" 2>&1 | tail -20 >&2; fail 30 "the app container with the relay proxy does not serve"; }
+
+# What the app reads before anything else: strictly this shape, with the security headers.
+cfg_out="$(curl -sS -D "$TMP/sync-cfg.h" "$SBASE/sync/config.json")"
+[[ "$cfg_out" == '{"enabled":true,"v":1,"identity":"handle","signup":"open","maxVaultMb":20}' ]] \
+  || fail 50 "/sync/config.json is not the expected offer: $cfg_out"
+tr -d '\r' <"$TMP/sync-cfg.h" | grep -qi '^content-type: application/json' || fail 50 "/sync/config.json is not JSON"
+tr -d '\r' <"$TMP/sync-cfg.h" | grep -qi '^cache-control: no-store' || fail 50 "/sync/config.json is cacheable"
+tr -d '\r' <"$TMP/sync-cfg.h" | grep -qi '^content-security-policy:' || fail 50 "/sync/config.json lacks the CSP"
+ok "relay on: /sync/config.json is the offer, no-store, with the security headers (CSP unchanged: same origin)"
+
+# A whole life of one vault through the real proxy, with random bytes standing in for ciphertext.
+b64u() { head -c "$1" /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n'; }
+HANDLE="smoke$RANDOM$RANDOM"
+SALT="$(b64u 16)"; AUTHKEY="$(b64u 32)"; WRAPPED="$(b64u 60)"; VID="$(b64u 16)"
+env_json() { printf '{"v":1,"vaultId":"%s","version":%s,"alg":"A256GCM","nonce":"%s","ct":"%s"}' "$VID" "$1" "$(b64u 12)" "$(b64u 64)"; }
+jpost() { curl -sS -o "$TMP/r.body" -D "$TMP/r.head" -w '%{http_code}' -X POST -H 'content-type: application/json' --data "$2" "$SBASE$1"; }
+code="$(jpost /sync/v1/signup "{\"handle\":\"$HANDLE\",\"salt\":\"$SALT\",\"authKey\":\"$AUTHKEY\",\"wrappedKey\":\"$WRAPPED\",\"envelope\":$(env_json 1)}")"
+[[ "$code" == 201 ]] || fail 50 "signup did not answer 201 (got $code): $(cat "$TMP/r.body")"
+TOKEN="$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$TMP/r.body")"
+[[ ${#TOKEN} -eq 43 ]] || fail 50 "signup did not return a device token"
+tr -d '\r' <"$TMP/r.head" | grep -qi '^content-security-policy:' || fail 50 "a /sync/v1 response lacks the CSP"
+tr -d '\r' <"$TMP/r.head" | grep -qi '^cache-control: no-store' || fail 50 "a /sync/v1 response is cacheable"
+code="$(jpost /sync/v1/signup "{\"handle\":\"$HANDLE\",\"salt\":\"$SALT\",\"authKey\":\"$AUTHKEY\",\"wrappedKey\":\"$WRAPPED\",\"envelope\":$(env_json 1)}")"
+[[ "$code" == 409 ]] || fail 50 "a taken handle did not answer 409 (got $code)"
+auth=(-H "authorization: Bearer $TOKEN")
+code="$(curl -sS -o "$TMP/r.body" -D "$TMP/r.head" -w '%{http_code}' "${auth[@]}" "$SBASE/sync/v1/vault")"
+[[ "$code" == 200 ]] && tr -d '\r' <"$TMP/r.head" | grep -qi '^etag: "1"$' || fail 50 "reading the vault did not answer 200 with ETag \"1\" (got $code)"
+code="$(curl -sS -o /dev/null -w '%{http_code}' "${auth[@]}" -H 'if-none-match: "1"' "$SBASE/sync/v1/vault")"
+[[ "$code" == 304 ]] || fail 50 "If-None-Match did not answer 304 (got $code)"
+jput() { curl -sS -o "$TMP/r.body" -w '%{http_code}' -X PUT "${auth[@]}" -H 'content-type: application/json' -H "if-match: $1" --data "{\"envelope\":$(env_json "$2")}" "$SBASE/sync/v1/vault"; }
+[[ "$(jput '"1"' 2)" == 200 ]] || fail 50 "a compare-and-swap write with the current version was refused"
+[[ "$(jput '"1"' 2)" == 412 ]] || fail 50 "a stale If-Match was not answered 412"
+grep -q '"version":2' "$TMP/r.body" || fail 50 "the 412 does not name the current version"
+code="$(curl -sS -o /dev/null -w '%{http_code}' -X PUT "${auth[@]}" -H 'content-type: application/json' --data "{\"envelope\":$(env_json 3)}" "$SBASE/sync/v1/vault")"
+[[ "$code" == 428 ]] || fail 50 "a write without If-Match did not answer 428 (got $code)"
+code="$(curl -sS -o /dev/null -w '%{http_code}' -X PUT "${auth[@]}" -H 'content-type: application/json' -H 'if-match: "2"' --data '{"snapshot":{"plates":[{"name":"Salmon"}]}}' "$SBASE/sync/v1/vault")"
+[[ "$code" == 400 ]] || fail 50 "the relay accepted something that is not an envelope (got $code)"
+code="$(jpost /sync/v1/login "{\"handle\":\"$HANDLE\",\"authKey\":\"$AUTHKEY\"}")"
+[[ "$code" == 200 ]] || fail 50 "login with the right proof did not answer 200 (got $code)"
+wrong="$(jpost /sync/v1/login "{\"handle\":\"$HANDLE\",\"authKey\":\"$(b64u 32)\"}"):$(cat "$TMP/r.body")"
+unknown="$(jpost /sync/v1/login "{\"handle\":\"nobody$RANDOM\",\"authKey\":\"$AUTHKEY\"}"):$(cat "$TMP/r.body")"
+[[ "$wrong" == '401:{"error":"noMatch"}' && "$unknown" == "$wrong" ]] \
+  || fail 50 "a wrong passphrase and an unknown handle are told apart: '$wrong' / '$unknown'"
+# An unknown handle gets a salt of the same shape, and the same one each time.
+jpost /sync/v1/salt "{\"handle\":\"nobody-here\"}" >/dev/null; s1="$(cat "$TMP/r.body")"
+jpost /sync/v1/salt "{\"handle\":\"nobody-here\"}" >/dev/null; s2="$(cat "$TMP/r.body")"
+jpost /sync/v1/salt "{\"handle\":\"$HANDLE\"}" >/dev/null; s3="$(cat "$TMP/r.body")"
+[[ "$s1" == "$s2" ]] || fail 50 "the fake salt of an unknown handle is not stable"
+[[ "$(sed 's/"salt":"[^"]*"/"salt":"S"/' <<<"$s1")" == "$(sed 's/"salt":"[^"]*"/"salt":"S"/' <<<"$s3")" ]] \
+  || fail 50 "known and unknown handles get salt answers of different shapes"
+code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'content-type: text/plain' --data 'x' "$SBASE/sync/v1/login")"
+[[ "$code" == 415 ]] || fail 50 "a non-JSON body was not refused with 415 (got $code)"
+code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'sec-fetch-site: cross-site' --data '{}' "$SBASE/sync/v1/salt")"
+[[ "$code" == 403 ]] || fail 50 "a cross-site write was not refused (got $code)"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' "$SBASE/sync/health")" == 404 ]] || fail 50 "the relay's health check is reachable through the app"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$SBASE/sync/v1/vault")" == 405 ]] || fail 50 "DELETE on the vault is not refused"
+ok "relay on: signup, 409 taken, read + ETag, 304, CAS write, 412, 428, non-envelope refused, one ambiguous login failure, fake salt, 415, cross-site refused"
+
+# The relay itself: non-root, read-only, no capabilities, nothing published, nothing logged.
+rid="$(docker exec "$RELAY" id -u)"
+[[ "$rid" != 0 ]] || fail 60 "the relay runs as root"
+[[ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$RELAY")" == true ]] || fail 60 "the relay root filesystem is not read-only"
+! docker exec "$RELAY" sh -c 'touch /app/.w 2>/dev/null' || fail 60 "the relay's code is writable"
+docker exec "$RELAY" sh -c 'touch /data/.w && rm /data/.w' || fail 60 "the relay cannot write its data directory"
+[[ -z "$(docker port "$RELAY")" ]] || fail 60 "the relay publishes a port"
+docker inspect -f '{{.HostConfig.CapDrop}}' "$RELAY" | grep -qi 'ALL' || fail 60 "the relay keeps capabilities"
+rlog="$(docker logs "$RELAY" 2>&1)"
+for secret in "$HANDLE" "$TOKEN" "$AUTHKEY" "$WRAPPED" "/sync/v1"; do
+  ! grep -qF "$secret" <<<"$rlog" || fail 50 "the relay log mentions a request value ($secret)"
+done
+# Ciphertext only on disk: the volume holds the database and the server secret, mode 0600.
+docker exec "$RELAY" ls /data | grep -q '^relay.sqlite$' || fail 50 "the relay database is not in the volume"
+[[ "$(docker exec "$RELAY" stat -c %a /data/server.secret)" == 600 ]] || fail 50 "the relay's server secret is not mode 0600"
+ok "relay: non-root (uid $rid), read-only root, cap_drop ALL, no published port, nothing logged about a request, data in the volume"
+
+# The data and the secret survive a restart: the same login works and the fake salt did not change.
+docker rm -f "$RELAY" >/dev/null
+start_relay
+code="$(jpost /sync/v1/login "{\"handle\":\"$HANDLE\",\"authKey\":\"$AUTHKEY\"}")"
+[[ "$code" == 200 ]] || fail 50 "login no longer works after the relay restarted (got $code)"
+jpost /sync/v1/salt "{\"handle\":\"nobody-here\"}" >/dev/null
+[[ "$(cat "$TMP/r.body")" == "$s1" ]] || fail 50 "the fake salt changed across a restart"
+ok "relay: data and server secret survive a restart (login still works, the fake salt is unchanged)"
+
+# While the relay is down, /sync/ says so calmly and the rest of the app is unaffected.
+docker stop "$RELAY" >/dev/null
+[[ "$(curl -s -o /dev/null -w '%{http_code}' "$SBASE/sync/config.json")" == 503 ]] || fail 50 "/sync/config.json is not a 503 while the relay is down"
+[[ "$(curl -s -o /dev/null -w '%{http_code}' "$SBASE/")" == 200 ]] || fail 30 "the app stopped serving while the relay was down"
+ok "relay down: /sync/ answers 503, the app itself keeps serving"
+docker rm -f "$NAME-sync-app" "$RELAY" >/dev/null 2>&1 || true
+
+# A bad relay setting is refused at start, without printing the value.
+docker run -d --name "$NAME-sync-off" --network "$NET_SYNC" -e AI_NUTRITION_COACH_SYNC=1 -e 'SYNC_MAX_VAULT_MB=99' \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL "$IMAGE" >/dev/null 2>&1 || true
+sleep 2
+[[ "$(docker inspect -f '{{.State.Running}}' "$NAME-sync-off" 2>/dev/null || echo false)" == false ]] \
+  || fail 50 "the app container started with SYNC_MAX_VAULT_MB=99"
+docker rm -f "$NAME-sync-off" >/dev/null 2>&1 || true
+ok "app container: a bad SYNC_MAX_VAULT_MB refuses to start"
 
 ELAPSED=$(($(date +%s) - START_TS))
 [[ "$ELAPSED" -le "$BUDGET" ]] || fail 30 "exceeded the ${BUDGET}s budget (took ${ELAPSED}s)"

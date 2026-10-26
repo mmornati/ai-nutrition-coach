@@ -7,14 +7,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test as base } from '@playwright/test';
 
-export const test = base.extend({
-  context: async ({ playwright, browserName, baseURL, channel }, provide) => {
+export const test = base.extend<{ blockServiceWorkers: boolean }>({
+  // A spec that routes requests with `context.route` (the relay in sync.spec.ts) sets this: once the
+  // app's service worker controls the page, its own network fetches (for what it does not cache,
+  // /sync/config.json included) are not seen by Playwright's routing in WebKit, so they reach the
+  // preview server (which has no relay) and the page falls back to its shell. The worker itself is
+  // covered by pwa.spec.ts and the image smoke test.
+  blockServiceWorkers: [false, { option: true }],
+  context: async ({ playwright, browserName, baseURL, channel, blockServiceWorkers }, provide) => {
     const type = playwright[browserName];
     // An ASCII-only profile path: the test output path follows the title ("Français"), which
     // WebKitGTK cannot parse as an argument without a UTF-8 locale.
     const profile = mkdtempSync(join(tmpdir(), 'anc-e2e-profile-'));
     const context = await type.launchPersistentContext(profile, {
       baseURL: baseURL ?? 'http://localhost:4173',
+      ...(blockServiceWorkers ? { serviceWorkers: 'block' as const } : {}),
       ...(browserName === 'chromium' && channel ? { channel } : {}),
     });
     await provide(context);

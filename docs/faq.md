@@ -66,9 +66,12 @@ you can restore it into a new store with the backup's passphrase.
 
 ### Can I use it on my phone and my laptop?
 
-Yes, but each browser has its own store for now: devices do not sync. You can carry your history across with an
-encrypted backup file. A relay for cross-device sync, where the server only holds ciphertext, is planned and not built;
-see [the roadmap](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md).
+Yes, but each browser has its own store, and live sync between devices is not built yet. You can carry your history
+across with an encrypted backup file, or, if the server you got the app from runs the optional relay, keep an
+encrypted copy there (*Your data → Back up to this server*) and restore it, or connect a second device to it, where the
+server only ever holds ciphertext
+([how it works](./your-data.md#backing-up-to-a-server);
+[the roadmap](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md)).
 
 ### I logged in Safari, then installed the app on my iPhone, and my plates are gone
 

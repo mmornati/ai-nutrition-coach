@@ -305,7 +305,7 @@ describe('Gate: the unlocked session is scoped to the unlock', () => {
     await waitFor(() => expect(seen.length).toBeGreaterThan(0));
     const first = seen.at(-1) as Session;
     expect(first.live()).toBe(true);
-    // The outbox holds an op for the plate recorded in this session...
+    // Not connected to a relay: nothing is queued, nothing is claimed...
     await first.recordPlate([
       {
         databaseFood: (await import('@anc/core')).databaseFood({
@@ -316,15 +316,14 @@ describe('Gate: the unlocked session is scoped to the unlock', () => {
         quantity: { low: 1, high: 1, unit: 'serving', displayLabel: '~1 serving' },
       },
     ]);
-    // `observer.next` is asynchronous; the op exists once the queue has it.
-    expect((await first.syncQueue.pending()).length).toBe(1);
+    expect((await first.syncQueue.pending()).length).toBe(0);
+    expect(first.sync.getSnapshot()).toEqual({ connected: false });
 
     await act(async () => {
       await bundle.controller.lock();
     });
-    // ...and the lock throws the session away: disposed, outbox emptied.
+    // ...and the lock throws the session away: disposed.
     expect(first.live()).toBe(false);
-    expect((await first.syncQueue.pending()).length).toBe(0);
 
     await act(async () => {
       await bundle.controller.unlock(PASSPHRASE);

@@ -16,18 +16,14 @@
 
 import {
   BACKUP_KDF,
-  canonicalizeSnapshot,
   ENVELOPE_LIMITS,
   parseVaultEnvelope,
-  parseVaultSnapshot,
   serializeEnvelope,
-  SNAPSHOT_VERSION,
   type VaultEnvelopeProblem,
   type VaultSnapshot,
 } from '@anc/core';
-import { SCHEMA_VERSION } from '../../storage/constants';
 import { sealEnvelope, openEnvelope } from './envelope';
-import { gunzip, gzip } from './gzip';
+import { decodeSnapshot, encodeSnapshot } from './snapshot-codec';
 import { deriveBackupKey, type VaultKdf } from './kdf';
 
 export type SealBackupResult =
@@ -71,17 +67,9 @@ export function createBackupService(deps: BackupServiceDeps): BackupService {
   const random = deps.random ?? platformRandom;
   return {
     async seal(snapshot, passphrase) {
-      const json = new TextEncoder().encode(JSON.stringify(canonicalizeSnapshot(snapshot)));
-      if (json.length > ENVELOPE_LIMITS.maxPlaintextBytes) return { kind: 'tooLarge' };
-      let compressed: Uint8Array;
-      try {
-        compressed = await gzip(json);
-      } catch {
-        return { kind: 'unavailable' };
-      }
-      if (compressed.length + ENVELOPE_LIMITS.tagBytes > ENVELOPE_LIMITS.maxCiphertextBytes) {
-        return { kind: 'tooLarge' };
-      }
+      const encoded = await encodeSnapshot(snapshot);
+      if (encoded.kind !== 'encoded') return encoded;
+      const compressed = encoded.bytes;
       const salt = random(ENVELOPE_LIMITS.saltBytes);
       try {
         const key = await deriveBackupKey(deps.kdf, passphrase, salt, BACKUP_KDF);
@@ -131,22 +119,12 @@ export function createBackupService(deps: BackupServiceDeps): BackupService {
       const opened = await openEnvelope(key, parsed.parsed);
       if (opened.kind === 'authenticationFailed') return { kind: 'wrongPassphraseOrDamaged' };
 
-      // From here the file is authentic: whatever is wrong with it is in its content.
-      const inflated = await gunzip(opened.plaintext, ENVELOPE_LIMITS.maxPlaintextBytes);
-      if (inflated.kind === 'tooLarge') return { kind: 'tooLarge' };
-      if (inflated.kind === 'corrupt') return { kind: 'invalidContent' };
-      let content: unknown;
-      try {
-        content = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(inflated.bytes));
-      } catch {
-        return { kind: 'invalidContent' };
-      }
-      // A snapshot from a newer app has fields this parser would call malformed: say "newer" first.
-      if (newerThanThisApp(content)) return { kind: 'schemaTooNew' };
-      const snapshot = parseVaultSnapshot(content);
-      return snapshot.kind === 'vaultSnapshotParsed'
-        ? { kind: 'opened', snapshot: snapshot.snapshot }
-        : { kind: 'invalidContent' };
+      // From here the file is authentic: whatever is wrong with it is in its content. A snapshot
+      // from a newer app is named as such before the strict parser could call it malformed.
+      const decoded = await decodeSnapshot(opened.plaintext);
+      return decoded.kind === 'decoded'
+        ? { kind: 'opened', snapshot: decoded.snapshot }
+        : { kind: decoded.kind };
     },
   };
 }
@@ -177,13 +155,4 @@ export function looksLikeEnvelopeText(text: string): boolean {
     } else if (c === 0x7d || c === 0x5d) depth--;
   }
   return true;
-}
-
-function newerThanThisApp(content: unknown): boolean {
-  if (typeof content !== 'object' || content === null) return false;
-  const { snapshotVersion, schemaVersion } = content as Record<string, unknown>;
-  return (
-    (typeof snapshotVersion === 'number' && snapshotVersion > SNAPSHOT_VERSION) ||
-    (typeof schemaVersion === 'number' && schemaVersion > SCHEMA_VERSION)
-  );
 }

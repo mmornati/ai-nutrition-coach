@@ -388,7 +388,9 @@ reloads after 10 s.
 
 ## Backup and restore
 
-There is **no server-side data** — the server cannot back anything up. Every browser/device is an independent
+There is **no server-side data** unless the person who runs the server turned on the optional encrypted-backup relay
+([`self-host.md`](./self-host.md#encrypted-backup-on-your-own-server)); then a person can choose to keep an encrypted
+copy there, which the server cannot read. Otherwise the server cannot back anything up. Every browser/device is an independent
 store: your phone, your partner's phone and the laptop each have their own history, protected by their own
 passphrase. Use **Your data → Save an encrypted backup** as the backup (a `.ancvault` file, restorable on the
 create-passphrase screen or in Your data; [`your-data.md`](./your-data.md#encrypted-backup-and-restore)); the app records
@@ -404,7 +406,8 @@ restore path. A forgotten passphrase cannot be recovered by anyone.
 - **Passphrase every time the app opens**, and again after the idle lock (15 minutes by default) or 5 minutes
   hidden. This is by design (ADR-0002); there is no "stay unlocked".
 - **One tab at a time.** A second tab/window says AI Nutrition Coach is open elsewhere.
-- **No sync.** Devices do not talk to each other.
+- **No live sync.** Devices do not talk to each other; the optional relay keeps an encrypted copy (restore, join,
+  automatic upload), and pulling another device's changes on unlock is a later phase.
 - **Camera** needs HTTPS (or localhost) and your permission; the scanner decodes on the device.
 - **Fonts:** Barlow is self-hosted; a character outside it falls back to the system font (no CDN, by design).
 

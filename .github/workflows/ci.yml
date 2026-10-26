@@ -15,7 +15,8 @@
 #                publish.yml pushes with), trivy (fixable HIGH/CRITICAL fail, B6), then the
 #                WebKit + Chromium smoke of that image (scripts/webkit_smoke.sh, ADR-0003).
 #   self-host  — scripts/smoke_self_host.sh: `bin/ai-nutrition-coach up` end to end, headers/CSP,
-#                container hardening, no egress, the kill switch, the AI proxy (FR-11).
+#                container hardening, no egress, the kill switch, the AI proxy (FR-11), and the
+#                encrypted-backup relay profile (`sync`).
 #   ci-ok      — the single required status check: green when every job above passed or was
 #                skipped by the path filter, red otherwise.
 #   publish    — push to main or a release tag only, once ci-ok is green: pushes the image to
@@ -354,7 +355,8 @@ jobs:
     # A standard hosted runner, so the budget is comparable to a self-hoster's first run on
     # commodity hardware.
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The app image, then the relay image (apps/relay) and a second stack for the `sync` profile.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

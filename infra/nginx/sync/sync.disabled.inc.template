@@ -1,0 +1,16 @@
+# Encrypted-backup relay -- OFF (the default). Rendered into /tmp/ai-nutrition-coach-sync-locations.inc.
+# Nothing here proxies anything. The config answers `{"enabled":false}` (the app reads that as "this
+# server offers no relay" and shows nothing about sync; a plain 404 would be the same to the app but
+# is a red line in a browser console), and everything else under /sync/ is a 404.
+location = /sync/config.json {
+    default_type application/json;
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 200 '{"enabled":false}';
+}
+
+location ^~ /sync/ {
+    add_header Cache-Control "no-store";
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 404;
+}

@@ -107,10 +107,18 @@ same-origin, so it needs no CSP change; see
   adds the product on openfoodfacts.org. Following the link is the person's own navigation, not a request made by the app
   (the host is already on the scanner's allow-list for the lookup).
 
-- **The optional sync transport** (Story 4.3). Only when the user
-  has configured a self-host relay. v1 ships the no-op
-  `LocalOnlySyncAdapter` — it opens zero sockets; a real relay
-  drops in behind the same `SyncAdapter` port in v1.1.
+- **The optional encrypted-backup relay** (ADR 0007, phase S2). Only when the server you got the app from
+  runs the relay *and* you choose *Back up to this server*, *Connect to this server's copy* or *Restore from
+  this server*. Two files make same-origin requests, through the capped fetch helper, and are on the telemetry
+  gate's allow-list for exactly that: `apps/web/src/sync/relay/offer.ts` (`GET /sync/config.json`, a few
+  hundred bytes, no identifier, read on the first-run screen and on *Your data*) and
+  `apps/web/src/sync/relay/client.ts` (`POST /sync/v1/{salt,signup,login}`, `GET`/`PUT /sync/v1/vault`).
+  What they send: a handle, a salt, a value derived from your passphrase that proves it, a wrapped key and
+  sealed envelopes (AES-256-GCM); never a food, a time, a note, a profile, your passphrase or an AI key. The
+  relay tests and the end-to-end test capture every request body and assert that no plaintext is in them. The
+  host is always this origin: `connect-src 'self'` is unchanged and no third-party host is added. Without a
+  relay the app makes one extra request on those two screens (the config, which answers `{"enabled":false}`) and
+  nothing else.
 
 ## Coaching
 

@@ -73,6 +73,10 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
       pin();
     });
     watch.observe(el);
+    // The route's own width follows the text size (21rem at least): a change of the root font size
+    // (a text-size setting, 200 % zoom) can leave the dock's box as it was while the route inside it
+    // grows past it, so it is watched too, and the selected stop is brought back into view.
+    if (el.firstElementChild) watch.observe(el.firstElementChild);
     return () => watch.disconnect();
   }, [selected, s.today]);
   return (

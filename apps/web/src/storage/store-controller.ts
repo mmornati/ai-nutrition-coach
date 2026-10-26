@@ -58,6 +58,7 @@ import {
 import type { StoreLock, StoreLockHandle } from './locks';
 import type { MetaStorage } from './meta-storage';
 import type { StoreDb } from './ops';
+import { observeWrites } from './write-observer';
 import {
   passphraseBytes,
   unlockDelayMs,
@@ -185,6 +186,8 @@ export class StoreController implements StoreSource {
 
   private snapshot: StoreSnapshot;
   private readonly listeners = new Set<() => void>();
+  private readonly writeListeners = new Set<() => void>();
+  private observed: { readonly raw: StoreDb; readonly wrapped: StoreDb } | null = null;
 
   constructor(deps: StoreControllerDeps) {
     this.storage = deps.storage;
@@ -226,8 +229,30 @@ export class StoreController implements StoreSource {
     return this.idleMinutes * 60_000;
   }
 
+  /**
+   * The open database (or `null` while locked), wrapped so that every write that lands tells the
+   * `onWrite` listeners (`write-observer.ts`). The same wrapper is handed out for as long as the
+   * same database stays open.
+   */
   database(): StoreDb | null {
-    return this.db;
+    const db = this.db;
+    if (db === null) return null;
+    if (this.observed?.raw !== db) {
+      this.observed = { raw: db, wrapped: observeWrites(db, () => this.emitWrite()) };
+    }
+    return this.observed.wrapped;
+  }
+
+  /** Called after each write to the store that landed (not for reads, and not for device-only settings). */
+  onWrite(listener: () => void): () => void {
+    this.writeListeners.add(listener);
+    return () => {
+      this.writeListeners.delete(listener);
+    };
+  }
+
+  private emitWrite(): void {
+    for (const listener of [...this.writeListeners]) listener();
   }
 
   private makeSnapshot(): StoreSnapshot {
@@ -671,6 +696,7 @@ export class StoreController implements StoreSource {
    */
   dispose(): void {
     this.disposed = true;
+    this.writeListeners.clear();
     this.clearTimers();
     const db = this.db;
     this.db = null;

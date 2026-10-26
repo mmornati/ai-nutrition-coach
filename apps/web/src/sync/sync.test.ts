@@ -7,7 +7,6 @@ import {
   type EncryptedStore,
   type FoodEntryDraft,
   type SyncOp,
-  type SyncOpStatus,
   type SyncQueueState,
   databaseFood,
   plateLog,
@@ -16,8 +15,8 @@ import {
   type RecordPlateResult,
 } from '@anc/core';
 import { describe, expect, it } from 'vitest';
-import { InMemorySyncQueue } from './in-memory-sync-queue';
-import { scopeSyncQueueToSession } from './session-scope';
+import type { KeyValueStore } from '../storage/key-value-store';
+import { DirtyFlagSyncQueue, VAULT_OP_ID } from './relay/dirty-queue';
 import { localOnlySyncAdapter } from './local-only-sync-adapter';
 
 const op = (opId: string, plateLogId = 1): SyncOp =>
@@ -25,114 +24,144 @@ const op = (opId: string, plateLogId = 1): SyncOp =>
 
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
-function watchState(q: InMemorySyncQueue): { seen: SyncQueueState[]; stop: () => void } {
+/** The encrypted `kv`, in memory. */
+function memoryKv(): KeyValueStore & { data: Map<string, string> } {
+  const data = new Map<string, string>();
+  return {
+    data,
+    read: (key) => Promise.resolve(data.get(key) ?? null),
+    write: (key, value) => {
+      data.set(key, value);
+      return Promise.resolve();
+    },
+    delete: (key) => {
+      data.delete(key);
+      return Promise.resolve();
+    },
+  };
+}
+
+const connectedQueue = async (kv = memoryKv()) => {
+  const queue = new DirtyFlagSyncQueue(kv, () => 5);
+  await queue.load(true);
+  return { queue, kv };
+};
+
+function watchState(q: DirtyFlagSyncQueue): { seen: SyncQueueState[]; stop: () => void } {
   const seen: SyncQueueState[] = [];
   const stop = q.watchState({ next: (v) => void seen.push(v), error: () => undefined });
   return { seen, stop };
 }
-function watchPlates(q: InMemorySyncQueue): {
-  seen: (readonly SyncOpStatus[])[];
-  stop: () => void;
-} {
-  const seen: (readonly SyncOpStatus[])[] = [];
-  const stop = q.watchPerPlate({ next: (v) => void seen.push(v), error: () => undefined });
-  return { seen, stop };
-}
 
-describe('InMemorySyncQueue', () => {
-  it('enqueue is idempotent on opId', async () => {
-    const q = new InMemorySyncQueue();
-    expect((await q.enqueue(op('a'))).kind).toBe('enqueued');
-    expect((await q.enqueue(op('a'))).kind).toBe('alreadyEnqueued');
-    expect(await q.pending()).toHaveLength(1);
+describe('DirtyFlagSyncQueue', () => {
+  it('counts nothing while the device is not connected to a vault', async () => {
+    const queue = new DirtyFlagSyncQueue(memoryKv());
+    await queue.load(false);
+    await queue.enqueue(op('a'));
+    queue.markDirty();
+    expect(queue.dirty).toBe(false);
+    expect(await queue.pending()).toEqual([]);
   });
 
-  it('pending is oldest first, honours the limit and skips non-pending', async () => {
-    const q = new InMemorySyncQueue();
-    for (const id of ['a', 'b', 'c']) await q.enqueue(op(id, 1));
-    await q.markSynced('a');
-    expect((await q.pending()).map((o) => o.opId)).toEqual(['b', 'c']);
-    expect((await q.pending({ limit: 1 })).map((o) => o.opId)).toEqual(['b']);
+  it('a write sets one persisted flag; pending() is one synthetic vault op', async () => {
+    const { queue, kv } = await connectedQueue();
+    expect((await queue.enqueue(op('a'))).kind).toBe('enqueued');
+    expect((await queue.enqueue(op('b'))).kind).toBe('alreadyEnqueued');
+    expect((await queue.pending()).map((o) => o.opId)).toEqual([VAULT_OP_ID]);
+    await tick();
+    expect(kv.data.get('sync.dirty')).toBe('1');
+  });
+
+  it('the flag survives a lock: a new queue over the same store reads it back', async () => {
+    const { queue, kv } = await connectedQueue();
+    queue.markDirty();
+    await tick();
+    const next = new DirtyFlagSyncQueue(kv);
+    await next.load(true);
+    expect(next.dirty).toBe(true);
+    // ...and it is not carried into a device that is not connected.
+    const other = new DirtyFlagSyncQueue(kv);
+    await other.load(false);
+    expect(other.dirty).toBe(false);
+  });
+
+  it('is cleared only by an acknowledgement of a push that started after the last write', async () => {
+    const { queue, kv } = await connectedQueue();
+    queue.markDirty();
+    const started = queue.generation;
+    queue.markDirty(); // a write lands while the push is in flight
+    queue.acknowledge(started);
+    expect((await queue.markSynced(VAULT_OP_ID)).kind).toBe('marked');
+    expect(queue.dirty).toBe(true);
+    queue.acknowledge(queue.generation);
+    await queue.markSynced(VAULT_OP_ID);
+    expect(queue.dirty).toBe(false);
+    await tick();
+    expect(kv.data.has('sync.dirty')).toBe(false);
+  });
+
+  it('a failed push leaves the flag set; an unknown op is a typed failure', async () => {
+    const { queue } = await connectedQueue();
+    queue.markDirty();
+    await queue.markFailed(VAULT_OP_ID, 'offline');
+    expect(queue.dirty).toBe(true);
+    expect(await queue.markSynced('zzz')).toEqual({ kind: 'markFailed', reason: 'unknown opId' });
+    expect((await queue.markFailed('zzz', 'r')).kind).toBe('markFailed');
+  });
+
+  it('leaving the vault forgets the flag', async () => {
+    const { queue, kv } = await connectedQueue();
+    queue.markDirty();
+    queue.setConnected(false);
+    expect(queue.dirty).toBe(false);
+    await tick();
+    expect(kv.data.has('sync.dirty')).toBe(false);
   });
 
   it('watchState emits the current value once asynchronously, then on every change', async () => {
-    const q = new InMemorySyncQueue();
-    const w = watchState(q);
+    const { queue } = await connectedQueue();
+    const w = watchState(queue);
     expect(w.seen).toEqual([]);
     await tick();
     expect(w.seen).toEqual([{ pending: 0, synced: 0, failed: 0 }]);
-    await q.enqueue(op('a'));
-    await q.markFailed('a', 'nope');
-    expect(w.seen.at(-1)).toEqual({ pending: 0, synced: 0, failed: 1 });
+    queue.markDirty();
+    expect(w.seen.at(-1)).toEqual({ pending: 1, synced: 0, failed: 0 });
     expect(Object.isFrozen(w.seen.at(-1))).toBe(true);
     w.stop();
+    w.stop();
+    queue.setConnected(false);
+    expect(w.seen.at(-1)).toEqual({ pending: 1, synced: 0, failed: 0 });
   });
 
-  it('a change before the first emission is covered by it (no stale initial value)', async () => {
-    const q = new InMemorySyncQueue();
-    const w = watchState(q);
-    await q.enqueue(op('a'));
+  it('never claims a plate is synced: the per-plate view is always empty', async () => {
+    const { queue } = await connectedQueue();
+    const seen: (readonly unknown[])[] = [];
+    queue.watchPerPlate({ next: (v) => void seen.push(v), error: () => undefined });
+    queue.markDirty();
     await tick();
-    expect(w.seen).toEqual([{ pending: 1, synced: 0, failed: 0 }]);
-  });
-
-  it('unsubscribe stops delivery, and is safe twice', async () => {
-    const q = new InMemorySyncQueue();
-    const w = watchState(q);
-    await tick();
-    w.stop();
-    w.stop();
-    await q.enqueue(op('a'));
-    expect(w.seen).toHaveLength(1);
+    expect(seen).toEqual([[]]);
   });
 
   it('a throwing observer does not break the queue or other observers', async () => {
-    const q = new InMemorySyncQueue();
-    q.watchState({
+    const { queue } = await connectedQueue();
+    queue.watchState({
       next: () => {
         throw new Error('bad observer');
       },
       error: () => undefined,
     });
-    const w = watchState(q);
+    const w = watchState(queue);
     await tick();
-    await expect(q.enqueue(op('a'))).resolves.toEqual({ kind: 'enqueued' });
+    await expect(queue.enqueue(op('a'))).resolves.toEqual({ kind: 'enqueued' });
     expect(w.seen.at(-1)?.pending).toBe(1);
   });
 
-  it('per-plate view: only plates with ops appear, any pending wins, then failed', async () => {
-    const q = new InMemorySyncQueue();
-    const w = watchPlates(q);
-    await tick();
-    expect(w.seen.at(-1)).toEqual([]);
-    await q.enqueue(op('a', 1));
-    await q.enqueue(op('b', 1));
-    await q.enqueue(op('c', 2));
-    await q.markSynced('a');
-    expect(w.seen.at(-1)).toEqual([
-      { plateLogId: 1, status: 'pending' },
-      { plateLogId: 2, status: 'pending' },
-    ]);
-    await q.markFailed('b', 'x');
-    await q.markSynced('c');
-    expect(w.seen.at(-1)).toEqual([
-      { plateLogId: 1, status: 'failed' },
-      { plateLogId: 2, status: 'synced' },
-    ]);
-  });
-
-  it('marking an unknown opId is a typed failure', async () => {
-    const q = new InMemorySyncQueue();
-    expect(await q.markSynced('zzz')).toEqual({ kind: 'markFailed', reason: 'unknown opId' });
-    expect((await q.markFailed('zzz', 'r')).kind).toBe('markFailed');
-  });
-
   it('dispose stops every subscription', async () => {
-    const q = new InMemorySyncQueue();
-    const w = watchState(q);
+    const { queue } = await connectedQueue();
+    const w = watchState(queue);
     await tick();
-    q.dispose();
-    await q.enqueue(op('a'));
+    queue.dispose();
+    queue.markDirty();
     expect(w.seen).toHaveLength(1);
   });
 });
@@ -143,13 +172,13 @@ describe('LocalOnlySyncAdapter', () => {
     expect(await localOnlySyncAdapter.drain(op('a'))).toEqual({ kind: 'drainSkippedNoTransport' });
   });
 
-  it('a drain pass over the in-memory queue leaves every op pending', async () => {
-    const queue = new InMemorySyncQueue();
+  it('a drain pass with no transport leaves the flag set', async () => {
+    const { queue } = await connectedQueue();
     await queue.enqueue(op('a'));
     const summary = await createDrainSyncQueue({ queue, adapter: localOnlySyncAdapter })();
     expect(summary.noTransport).toBe(true);
     expect(summary.drained).toBe(0);
-    expect((await queue.pending()).map((o) => o.opId)).toEqual(['a']);
+    expect(queue.dirty).toBe(true);
   });
 });
 
@@ -166,8 +195,8 @@ describe('RecordPlate + RecordSyncOp', () => {
   const storeReturning = (result: RecordPlateResult): EncryptedStore =>
     ({ recordPlate: () => Promise.resolve(result) }) as unknown as EncryptedStore;
 
-  it('enqueues after a successful local commit', async () => {
-    const queue = new InMemorySyncQueue();
+  it('marks the vault changed after a successful local commit', async () => {
+    const { queue } = await connectedQueue();
     const record = createRecordPlate({ generator, syncOpEnqueue: createRecordSyncOp(queue) });
     const committed = plateLog({ id: 42, loggedAtUtc: Date.UTC(2026, 7, 16), entries: [] });
     const result = await record({
@@ -178,13 +207,11 @@ describe('RecordPlate + RecordSyncOp', () => {
     const watch = watchState(queue);
     await tick();
     expect(watch.seen[0]).toEqual({ pending: 1, synced: 0, failed: 0 });
-    const [queued] = await queue.pending();
-    expect(queued?.plateLogId).toBe(42);
-    expect(queued?.kind).toBe('plateLogCreated');
+    expect((await queue.pending()).map((o) => o.opId)).toEqual([VAULT_OP_ID]);
   });
 
-  it('does not enqueue when the local commit fails', async () => {
-    const queue = new InMemorySyncQueue();
+  it('does not mark anything when the local commit fails', async () => {
+    const { queue } = await connectedQueue();
     const record = createRecordPlate({ generator, syncOpEnqueue: createRecordSyncOp(queue) });
     const result = await record({
       entries: [draftEntry],
@@ -194,59 +221,5 @@ describe('RecordPlate + RecordSyncOp', () => {
     const watch = watchState(queue);
     await tick();
     expect(watch.seen[0]).toEqual({ pending: 0, synced: 0, failed: 0 });
-  });
-});
-
-describe('the outbox is scoped to the unlocked session', () => {
-  it('clear() empties the queue and tells the observers', async () => {
-    const q = new InMemorySyncQueue();
-    await q.enqueue(op('a', 1));
-    await q.enqueue(op('b', 2));
-    const state = watchState(q);
-    const plates = watchPlates(q);
-    await tick();
-    q.clear();
-    expect(await q.pending()).toEqual([]);
-    expect(state.seen.at(-1)).toEqual({ pending: 0, synced: 0, failed: 0 });
-    expect(plates.seen.at(-1)).toEqual([]);
-    // Still usable, and the same opId is new again.
-    expect((await q.enqueue(op('a', 1))).kind).toBe('enqueued');
-  });
-
-  it('is cleared on every unlocked -> not-unlocked transition and when an erase begins, not otherwise', async () => {
-    let status = 'locked';
-    const listeners = new Set<() => void>();
-    const source = {
-      subscribe: (l: () => void) => {
-        listeners.add(l);
-        return () => void listeners.delete(l);
-      },
-      getSnapshot: () => ({ status }),
-    };
-    const move = (next: string) => {
-      status = next;
-      for (const l of [...listeners]) l();
-    };
-    const queue = new InMemorySyncQueue();
-    const stop = scopeSyncQueueToSession(source, queue);
-
-    move('unlocked');
-    await queue.enqueue(op('a'));
-    move('unlocked'); // a snapshot change that is not a transition
-    expect(await queue.pending()).toHaveLength(1);
-    move('locked');
-    expect(await queue.pending()).toEqual([]);
-
-    // Erase from a locked store clears whatever is there, too.
-    await queue.enqueue(op('b'));
-    move('erasing');
-    expect(await queue.pending()).toEqual([]);
-
-    // Not scoped any more after unsubscribing.
-    stop();
-    move('unlocked');
-    await queue.enqueue(op('c'));
-    move('locked');
-    expect(await queue.pending()).toHaveLength(1);
   });
 });

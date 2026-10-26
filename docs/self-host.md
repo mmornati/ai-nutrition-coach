@@ -179,6 +179,9 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 - A forgotten passphrase cannot be recovered by anyone.
 - The one thing that passes through the server is a photo someone chooses to send with the
   [instance-wide AI](#offer-ai-to-everyone-on-your-instance), if you turned it on: it is relayed, not stored.
+- The one thing the server can *keep* is an opt-in **encrypted** copy someone chooses to back up with the
+  [relay](#encrypted-backup-on-your-own-server), if you turned it on: ciphertext in the `sync-data` volume,
+  which you can back up like any file (it exposes no one's data).
 
 ## Configuration
 
@@ -421,6 +424,58 @@ instance behind a sign-in or an allow-list.
 against a throw-away local HTTPS upstream that reports whether the browser's `Authorization` header or cookie reached it
 and what the injected key looked like. `tools/pwa/infra.test.mjs` pins the rendered config and the script.
 
+### Encrypted backup on your own server
+
+Off by default. The app container stays a static server with no data. If you also run the **relay**
+(`apps/relay`), people on your instance can keep an *encrypted* copy of their data on it: to restore on
+a new phone or after clearing a browser, and to use the app on more than one device
+([`your-data.md`](./your-data.md#backing-up-to-a-server)). The relay stores ciphertext it cannot read
+(plus each person's handle, a salt, a wrapped key and a keyed hash of a value derived from their
+passphrase); there is no OpenPlate-owned server, ever.
+
+```sh
+bin/ai-nutrition-coach up --sync          # app on 127.0.0.1:8080 + the relay (implies --compose)
+bin/ai-nutrition-coach up --tls --sync    # + Caddy, automatic HTTPS (needed from other devices)
+bin/ai-nutrition-coach up --traefik --sync
+```
+
+That builds a second image from your checkout (`infra/Dockerfile.relay`: Node 24, pinned by digest, one
+bundle, no runtime dependencies, non-root; it is not published to a registry yet) and starts the compose
+profile `sync`. By hand: set `AI_NUTRITION_COACH_SYNC=1`
+for the app container (it then proxies `/sync/` to the relay) and run
+`docker compose -f infra/docker-compose.yml --profile sync up -d`. The proxy is the same origin, so the
+Content-Security-Policy does not change; nothing but `/sync/config.json` and `/sync/v1/{salt,signup,login,vault}`
+is proxied, everything else under `/sync/` is a 404.
+
+| Variable | Default | |
+|---|---|---|
+| `SYNC_SIGNUP` | `open` | `open`, `invite` (needs `SYNC_INVITE_CODES`, comma-separated; the codes are credentials) or `closed` (existing handles can still log in). |
+| `SYNC_MAX_VAULT_MB` | `20` | The largest encrypted copy, 1 to 24. nginx's body limit follows it. |
+| `SYNC_MAX_VAULTS` | `50` | Handles this relay will hold. |
+| `SYNC_MAX_DEVICES` | `20` | Device tokens kept per handle (the one used least recently is dropped). |
+| `SYNC_MAX_UPLOADS` | `3` | Vault writes the relay reads at the same time; signups have their own pool of half that (at least 1), and one client address holds at most one slot per pool. The others are told to come back in a few seconds. A body must arrive within about 10 s plus its size at 64 KiB/s (60 s at most) or it is dropped. Each can hold a whole vault in memory, so keep it small on a small host. |
+| `SYNC_RATE_IP` / `SYNC_RATE_HANDLE` / `SYNC_RATE_SIGNUP` / `SYNC_RATE_WRITE` | 30 / 10 / 5 / 60 | Per minute per address (salt, login and signup together; an IPv6 address counts as its /64), failed logins per minute per (address, handle) (for IPv6 the address is its /48; a lockout holds only the client that failed), signups per hour per address, uploads per minute per device. A handle being guessed at is also slowed, up to 2 s per login. |
+| `SYNC_RATE_HANDLE_DAY` | 20 | Failed logins per handle per 24 h from **everyone together**. Past it, logins for that handle are refused (429) until the window ends, **unless the request carries a valid device token of that same vault** (devices already connected never log in again, so they are unaffected). A brand-new device (restore or join) cannot sign in while a handle is under attack: raise the value if your people mistype often, lower it if you want a harder stop. Known and unknown handles behave identically. |
+| `SYNC_SERVER_SECRET` | generated | Optional. By default 32 random bytes are written to `server.secret` (mode 0600) in the data volume at the first start. |
+
+**Your data.** SQLite lives in the named volume `sync-data` (`/data` in the container): `relay.sqlite`
+(and its `-wal`/`-shm`) and `server.secret`. Back it up with the container stopped, or with
+`sqlite3 relay.sqlite ".backup ..."`, **together with `server.secret`** (without it, stored proofs and
+fake salts no longer match and people cannot log in). The volume holds ciphertext, handles, salts, wrapped
+keys and keyed hashes only, so a plain file backup of it exposes no one's data. `bin/ai-nutrition-coach down`
+stops the relay but keeps the volume.
+
+**What it does not log.** Nothing about a request: no address, handle, size or path (one line at start).
+nginx's own access log follows `AI_NUTRITION_COACH_ACCESS_LOG` as for the rest of the app.
+
+**Limits worth knowing.** Rate limits are per address as the relay sees it (nginx sets `X-Real-IP`, so
+behind Caddy or Traefik that is the proxy unless you forward the client address, and then everyone shares
+a bucket, as with the AI proxy; the same goes for the cap nginx puts on requests in flight per address). Signup tells a person that a handle is taken (the usual trade-off; use
+`SYNC_SIGNUP=invite|closed` to bound it); login never says whether a handle exists. A handle that is being guessed at from many addresses stops accepting logins from devices that have no token (`SYNC_RATE_HANDLE_DAY`), so a stranger cannot grind through passphrases; the price is that someone restoring onto a new device waits for the attack to stop (at most a day). Identity is the handle:
+single sign-on for the relay (a vault bound to your Authentik user) is planned, not built. Changing the
+passphrase, listing/revoking devices and deleting a copy from the server arrive in phase S4; until then
+removing a person means deleting their row or restoring the volume.
+
 ### Caddy
 
 The `caddy` service runs as root inside its container (binding 80/443 and
@@ -528,10 +583,12 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 
 ## What's NOT in v1
 
-- **A relay / sync server.** The sync seam ships an in-memory outbox and a
-  local-only adapter that sends nothing (so the app says "on this device" and
-  never "synced"); a self-host relay and a durable outbox are future work.
-- **Server-side accounts or storage** — by design.
+- **Live multi-device sync.** The optional encrypted-backup relay
+  ([above](#encrypted-backup-on-your-own-server)) restores a device and keeps a copy up to date;
+  pulling another device's changes on unlock or focus, and a per-plate "synced" chip, are phase S3. The
+  app still says "on this device" on every plate.
+- **Server-side accounts or readable storage** — by design. The relay holds a person's handle and
+  ciphertext, nothing it can read.
 
 ## Telemetry
 

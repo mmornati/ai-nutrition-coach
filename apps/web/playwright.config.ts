@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
@@ -22,8 +22,15 @@ mkdirSync(cameraDir, { recursive: true });
 const fakeCameraClip = join(cameraDir, `ean13-${FAKE_CAMERA_CODE}.y4m`);
 writeFileSync(fakeCameraClip, ean13Y4m(FAKE_CAMERA_CODE));
 
+// The encrypted-backup relay (apps/relay) the sync spec talks to: a REAL relay process on its own port
+// with a throw-away data directory. The preview server does not proxy to it; the spec routes the
+// app's same-origin /sync/ requests to it (e2e/sync.spec.ts), so every other spec sees a server with
+// no relay, exactly as a default self-host install does.
+export const RELAY_PORT = 4174;
+const relayData = mkdtempSync(join(tmpdir(), 'anc-e2e-relay-'));
+
 // The specs that run on the real encrypted store (a shared site-data store on WebKit).
-const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey', 'relog', 'backup'];
+const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey', 'relog', 'backup', 'sync'];
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,12 +38,29 @@ export default defineConfig({
   retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: 'http://localhost:4173', trace: 'on-first-retry' },
-  webServer: {
-    command: `pnpm exec tsc -b && VITE_GALLERY=1 VITE_STORAGE_HARNESS=1 pnpm exec vite build --outDir ${E2E_OUT} --emptyOutDir && node ../../tools/generate_precache_manifest.mjs ${E2E_OUT} && pnpm exec vite preview --outDir ${E2E_OUT} --port 4173 --strictPort`,
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env['CI'],
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: `pnpm exec tsc -b && VITE_GALLERY=1 VITE_STORAGE_HARNESS=1 pnpm exec vite build --outDir ${E2E_OUT} --emptyOutDir && node ../../tools/generate_precache_manifest.mjs ${E2E_OUT} && pnpm exec vite preview --outDir ${E2E_OUT} --port 4173 --strictPort`,
+      url: 'http://localhost:4173',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 120_000,
+    },
+    {
+      command: `pnpm --filter @anc/relay build && node --disable-warning=ExperimentalWarning ../relay/dist/relay.mjs`,
+      url: `http://127.0.0.1:${RELAY_PORT}/sync/health`,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 60_000,
+      env: {
+        SYNC_HOST: '127.0.0.1',
+        SYNC_PORT: String(RELAY_PORT),
+        SYNC_DATA_DIR: relayData,
+        // Generous: one test makes many calls from one address.
+        SYNC_RATE_IP: '10000',
+        SYNC_RATE_HANDLE: '10000',
+        SYNC_RATE_SIGNUP: '10000',
+      },
+    },
+  ],
   projects: [
     {
       name: 'chromium',

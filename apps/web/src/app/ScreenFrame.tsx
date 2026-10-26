@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { AppShell, Header, LockButton, type ShellRoute } from '../components/shell';
 import { StatusChip, WeekRoute } from '../components/day';
 import { BackIcon } from '../components/primitives';
@@ -74,8 +74,22 @@ export function ScreenFrame({
   readonly children: ReactNode;
 }) {
   const log = useLog();
+  const session = useSession();
+  const strings = useStrings();
+  // While this device backs up to a relay, the storage line says so (it is no longer "nothing leaves home").
+  const backedUp = useSyncExternalStore(
+    session.sync.subscribe,
+    session.sync.getSnapshot,
+    session.sync.getSnapshot,
+  ).connected;
   return (
-    <AppShell header={header} route={<DayRoute />} current={current} onLog={log.open}>
+    <AppShell
+      header={header}
+      route={<DayRoute />}
+      current={current}
+      onLog={log.open}
+      storageNote={backedUp ? strings.shell.storageNoteServer : undefined}
+    >
       {children}
     </AppShell>
   );

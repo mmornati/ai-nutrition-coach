@@ -1,0 +1,72 @@
+# ───────────────────────────────────────────────────────────────────────────
+# AI Nutrition Coach encrypted-backup relay (apps/relay) -- the opt-in `sync` compose profile.
+#
+#   Build from the repository root (the build context must be the repo root):
+#       docker build -f infra/Dockerfile.relay -t ai-nutrition-coach-relay:dev .
+#   (`bin/ai-nutrition-coach up --sync` does this.)
+#
+#   stage 1 (build):  node:24 LTS alpine (pinned by version AND digest, the same pin as
+#                     infra/Dockerfile) -> pnpm from corepack, pinned to the repo's packageManager
+#                     -> pnpm install --frozen-lockfile for the relay's own dependencies only
+#                     -> one esbuild bundle (apps/relay/dist/relay.mjs): the relay has no runtime
+#                        dependencies, it uses node:http and node:sqlite
+#
+#   stage 2 (run):    the same node image, patched, running as the unprivileged `node` user with
+#                     NOTHING but the bundle and the data directory. It stores ciphertext it cannot
+#                     read, in SQLite on a volume (/data), and listens on :4100 on the compose
+#                     network only: nginx (the app container) is the only thing that reaches it.
+#
+# Reproducibility: as infra/Dockerfile -- version AND digest, the lockfile is strict.
+# ───────────────────────────────────────────────────────────────────────────
+
+# ── stage 1: build ────────────────────────────────────────────────────────
+FROM node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+
+# Keep in step with package.json `packageManager`.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    CI=true
+RUN corepack enable && corepack prepare pnpm@11.14.0 --activate
+
+WORKDIR /work
+
+# The workspace manifests first, so the dependency layer is cached until one changes. The web app's
+# and the core's manifests are needed for the lockfile to match; only the relay's dependencies
+# (and the core, which has none at run time) are installed.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/relay/package.json apps/relay/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/core/package.json packages/core/package.json
+RUN pnpm install --frozen-lockfile --filter @anc/relay...
+
+COPY tsconfig.base.json ./
+COPY apps/relay apps/relay
+COPY packages/core packages/core
+
+RUN pnpm --filter @anc/relay build
+
+# ── stage 2: run ──────────────────────────────────────────────────────────
+FROM node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS run
+
+# Pull the distribution's security fixes on top of the digest-pinned base, as infra/Dockerfile does.
+# /data is created owned by the unprivileged user BEFORE it becomes a volume, so a named volume
+# mounted there starts out writable by it (and by nobody else).
+RUN apk upgrade --no-cache \
+ && mkdir -p /app /data \
+ && chown node:node /data \
+ && chmod 700 /data
+
+COPY --from=build /work/apps/relay/dist/relay.mjs /app/relay.mjs
+
+USER node
+ENV NODE_ENV=production \
+    SYNC_DATA_DIR=/data \
+    SYNC_HOST=0.0.0.0 \
+    SYNC_PORT=4100
+
+VOLUME ["/data"]
+EXPOSE 4100
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4100/sync/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+
+CMD ["node", "--disable-warning=ExperimentalWarning", "/app/relay.mjs"]

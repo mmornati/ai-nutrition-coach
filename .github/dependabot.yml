@@ -45,7 +45,8 @@ updates:
 
   # Container base images are pinned by digest (node build stage, nginx-unprivileged
   # serve stage). Version bumps and digest refreshes arrive as one grouped PR;
-  # ci.yml's self-host smoke and browser smoke prove the new image before merge.
+  # ci.yml's self-host smoke and browser smoke prove the new image before merge. infra/Dockerfile.relay (the
+  # opt-in encrypted-backup relay) carries the same node pin; tools/pwa/infra.test.mjs fails if the two drift.
   - package-ecosystem: docker
     directory: /infra
     schedule:

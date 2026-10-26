@@ -70,17 +70,17 @@ describe('Session.recordPlates (copying a day)', () => {
     session.dispose();
   });
 
-  it('enqueues one sync op per copied plate', async () => {
+  it('marks the device as having changes (one flag, not one op per plate) once it is connected to a relay', async () => {
     const bundle = await unlockedBundle();
     const session = await createSession(bundle);
+    session.syncQueue.setConnected(true);
     await session.recordPlates([
       plateOf('Toast', 'starch', 7, 45),
       plateOf('Chicken', 'protein', 12, 30),
       plateOf('Salad', 'vegFruit', 19),
     ]);
-    const ops = await session.syncQueue.pending();
-    expect(ops).toHaveLength(3);
-    expect(new Set(ops.map((o) => o.plateLogId)).size).toBe(3);
+    expect(session.syncQueue.dirty).toBe(true);
+    expect(await session.syncQueue.pending()).toHaveLength(1);
     session.dispose();
   });
 

@@ -134,12 +134,18 @@ COPY tools/pwa/sw.kill.js /etc/ai-nutrition-coach/sw.kill.js
 # the start if it would appear anywhere else. The njs script forces the model and caps the tokens.
 COPY infra/nginx/ai-proxy/ /etc/ai-nutrition-coach/ai-proxy/
 COPY --chmod=0755 infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh /docker-entrypoint.d/40-render-ai-proxy.sh
+# The optional encrypted-backup relay (docs/self-host.md "Encrypted backup on your own server"): this
+# step only renders the /sync/ proxy locations (404 unless AI_NUTRITION_COACH_SYNC=1). The relay
+# itself is a separate image (infra/Dockerfile.relay) and a separate compose profile.
+COPY infra/nginx/sync/ /etc/ai-nutrition-coach/sync/
+COPY --chmod=0755 infra/nginx/docker-entrypoint.d/50-render-sync.sh /docker-entrypoint.d/50-render-sync.sh
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
     NGINX_ENVSUBST_FILTER=AI_NUTRITION_COACH_ \
     NGINX_ENTRYPOINT_QUIET_LOGS=1 \
     AI_NUTRITION_COACH_CONNECT_SRC_EXTRA="" \
     AI_NUTRITION_COACH_ACCESS_LOG="off" \
-    AI_PROXY_ENABLED="0"
+    AI_PROXY_ENABLED="0" \
+    AI_NUTRITION_COACH_SYNC="0"
 
 # The release build output.
 COPY --from=build /work/apps/web/dist /usr/share/nginx/html

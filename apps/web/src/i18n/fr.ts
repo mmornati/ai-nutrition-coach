@@ -513,6 +513,8 @@ export const fr: Strings = {
     brand: 'AI Nutrition Coach',
     storage: 'Sur cet appareil',
     storageNote: 'Toutes les assiettes sont stockées sur cet appareil. Rien ne sort de chez vous.',
+    storageNoteServer:
+      'Toutes les assiettes sont stockées sur cet appareil, avec une copie chiffrée sur ce serveur.',
     footmark: 'à héberger vous-même · open source',
     skip: 'Aller au contenu',
   },
@@ -1223,6 +1225,8 @@ export const fr: Strings = {
       'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
     leavesCoaching:
       'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil. Les poids et les nutriments sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
+    leavesServerCopy:
+      'Sauvegarde sur ce serveur : seulement si la personne qui gère ce serveur l’a activée et que vous choisissez Sauvegarder sur ce serveur dans Réglages, Vos données. Une copie chiffrée de vos données est alors envoyée à ce serveur, verrouillée sur cet appareil avant de partir, et mise à jour peu après vos modifications tant que l’application est déverrouillée. Ce serveur voit l’identifiant que vous avez choisi, le moment où la copie change et sa taille, ainsi que votre adresse internet et le type de votre navigateur, comme tout site web. Il ne peut pas lire vos aliments, vos heures, vos notes ni votre profil, et il ne reçoit jamais votre phrase secrète. Vous pouvez arrêter à tout moment dans Réglages, Vos données.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',
     offToggleOn: 'Activé : un code-barres scanné est recherché en ligne.',
     offToggleOff:
@@ -1234,9 +1238,11 @@ export const fr: Strings = {
       'Rien sur vous ni sur vos assiettes. Le serveur ne fait que distribuer les fichiers de l’application. Comme tout serveur web, il peut tenir un court journal d’accès (adresses des pages et heures), avec les adresses des clients tronquées ; dans l’installation auto-hébergée standard, ce journal est désactivé.',
     serverInstance:
       'La seule exception est une photo que vous choisissez d’envoyer avec l’IA que ce serveur propose (voir plus haut) : elle transite par ce serveur avant d’arriver au fournisseur, et n’y est pas conservée.',
+    serverRelay:
+      'Si vous choisissez aussi de vous sauvegarder sur ce serveur (voir plus haut), il conserve votre identifiant et votre copie chiffrée. La personne qui le gère peut voir que la copie existe, sa taille et le moment où elle change. Elle ne peut pas la lire.',
     neverHeading: 'Jamais collecté',
     neverBody:
-      'Pas de statistiques, pas de pistage, pas de rapports de plantage, pas de publicité et pas de comptes. Rien n’est envoyé sur la façon dont vous utilisez l’application.',
+      'Pas de statistiques, pas de pistage, pas de rapports de plantage, pas de publicité et pas de comptes. Rien n’est envoyé sur la façon dont vous utilisez l’application. Si vous vous sauvegardez sur ce serveur, l’identifiant que vous choisissez pour la copie est le seul nom en jeu ; ce n’est pas une adresse e-mail.',
     deleteHeading: 'Supprimer vos données',
     deleteBody:
       'Pour retirer une assiette, ouvrez-la depuis Aujourd’hui et choisissez Retirer cette assiette. Pour tout retirer, utilisez Effacer toutes les données locales dans Réglages, Vos données. Les exports que vous avez enregistrés ou partagés ailleurs sont des copies hors de l’application : supprimez-les vous-même.',
@@ -1304,6 +1310,165 @@ export const fr: Strings = {
         licence: 'Licence Ouverte Etalab 2.0',
       },
     ],
+  },
+  server: {
+    backupHeading: 'Sauvegarder sur ce serveur',
+    backupExplain:
+      'Ce serveur peut conserver une copie chiffrée de vos données, pour les retrouver sur un nouveau téléphone ou après avoir vidé ce navigateur, et les utiliser sur un autre appareil. Vos données sont verrouillées sur cet appareil avant d’être envoyées : le serveur ne garde que ce qu’il ne peut pas lire. Il ne voit jamais vos aliments, vos heures, votre clé d’IA ni votre phrase secrète.',
+    backupAuto:
+      'Une fois en place, la copie se met à jour toute seule peu après vos modifications, tant que l’application est déverrouillée.',
+    backupHandleHelp:
+      'Un identifiant est un nom pour votre copie : de 3 à 32 lettres, chiffres, point, tiret ou tiret bas. Ce n’est pas une adresse e-mail.',
+    backupWarning:
+      'Si vous oubliez cette phrase secrète, la copie ne pourra pas être ouverte — ni par nous, ni par la personne qui gère ce serveur.',
+    backupSame:
+      'Utiliser la même phrase secrète que celle qui déverrouille cette application, c’est une seule chose à retenir. Une autre est permise ; elle ne protège alors que la copie sur ce serveur.',
+    handleLabel: 'Identifiant',
+    passphraseLabel: 'Phrase secrète de cette copie',
+    confirmLabel: 'Confirmez la phrase secrète',
+    inviteLabel: 'Code d’invitation',
+    inviteHelp:
+      'La personne qui gère ce serveur demande un code d’invitation pour créer une copie.',
+    closedHelp: 'La personne qui gère ce serveur n’accepte pas de nouvelles copies pour le moment.',
+    backupAction: 'Sauvegarder sur ce serveur',
+    backupWorking: 'Verrouillage et envoi de votre copie…',
+    backedUp:
+      'C’est fait. Vos données sont sauvegardées sur ce serveur, et la copie se tiendra à jour toute seule.',
+    missingHandle: 'Saisissez un identifiant.',
+    missingPassphrase: 'Saisissez la phrase secrète.',
+    invalidHandle:
+      'Un identifiant compte de 3 à 32 caractères : lettres, chiffres, point, tiret ou tiret bas.',
+    handleTaken:
+      'Cet identifiant est déjà pris sur ce serveur. Si vous venez de le créer depuis cet appareil et que la connexion a coupé, utilisez « Se connecter à la copie de ce serveur » avec la même phrase secrète. Sinon, essayez-en un autre.',
+    signupClosed: 'Ce serveur n’accepte pas de nouvelles copies pour le moment.',
+    inviteInvalid: 'Ce code d’invitation n’est pas accepté.',
+    serverFull: 'Ce serveur n’a plus de place pour une autre copie.',
+    createTooLarge: 'Vos données dépassent ce que ce serveur accepte. Rien n’a été envoyé.',
+    noMatch: 'Rien sur ce serveur ne correspond à cet identifiant et à cette phrase secrète.',
+    rateLimited: 'Trop d’essais. Attendez quelques minutes, puis réessayez.',
+    offline: 'Ce serveur n’a pas pu être joint. Rien n’a été modifié ; vous pouvez réessayer.',
+    unavailable:
+      'Cela n’a pas abouti pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
+    newerVersion:
+      'Cette copie a été créée par une version plus récente d’AI Nutrition Coach. Rechargez la page pour mettre à jour, puis réessayez. Rien n’a été modifié.',
+    damaged:
+      'La copie a été trouvée, mais elle ne s’ouvre pas ou elle est abîmée. Rien n’a été modifié.',
+    tooLarge:
+      'La copie est plus volumineuse que ce que cette application peut ouvrir. Rien n’a été modifié.',
+    clockAhead:
+      'Cette copie porte une date bien postérieure à l’horloge de cet appareil. Vérifiez la date et l’heure de cet appareil, puis réessayez. Rien n’a été modifié.',
+    storeProblem:
+      'La copie s’est ouverte, mais elle n’a pas pu être ajoutée à cet appareil pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
+    storeProblemNotRemoved:
+      'La copie s’est ouverte, mais elle n’a pas pu être ajoutée pour le moment, et le coffre vide créé n’a pas pu être supprimé. Il est vide et utilise la phrase secrète de la copie : déverrouillez-le avec cette phrase secrète, ou effacez-le avec « Phrase secrète oubliée ? » ci-dessous, puis réessayez.',
+    joinHeading: 'Se connecter à la copie de ce serveur',
+    joinExplain:
+      'Déjà sauvegardé depuis un autre appareil ? Saisissez l’identifiant et la phrase secrète de cette copie. Cet appareil et la copie sont combinés : rien n’est supprimé de part ni d’autre.',
+    joinPassphraseLabel: 'Phrase secrète de la copie',
+    joinAction: 'Trouver ma copie',
+    joinWorking: 'Recherche de votre copie…',
+    previewHeading: 'Votre copie est trouvée',
+    previewServer: {
+      one: 'Sur ce serveur : {count} assiette',
+      other: 'Sur ce serveur : {count} assiettes',
+    },
+    previewDevice: {
+      one: 'Sur cet appareil : {count} assiette',
+      other: 'Sur cet appareil : {count} assiettes',
+    },
+    previewShared: '{count} déjà sur le serveur',
+    previewTogether: {
+      one: 'Ensemble : {count} assiette',
+      other: 'Ensemble : {count} assiettes',
+    },
+    combineAction: 'Combiner',
+    combineWorking: 'Combinaison…',
+    combineHelp: 'Combiner garde tout ce qui est dans les deux. Rien n’est supprimé.',
+    cancelAction: 'Annuler',
+    combined: 'C’est fait. Cet appareil et la copie sont combinés, et la copie est à jour.',
+    combinedPending:
+      'C’est fait sur cet appareil. La copie du serveur sera mise à jour dès qu’il pourra être joint.',
+    profileLegend: 'Quel profil faut-il garder ?',
+    profileExplain:
+      'Cet appareil et la copie ont des profils différents. Choisissez celui à garder ; il sera ensuite utilisé sur tous les appareils.',
+    profileLine: '{field} : {device} sur cet appareil, {server} sur le serveur',
+    profileUnset: 'non renseigné',
+    profileFromDevice: 'Le profil de cet appareil',
+    profileFromServer: 'Le profil du serveur',
+    profileChoose: 'Choisissez le profil à garder.',
+    otherOptions: 'Autres options',
+    freshHeading: 'Repartir de la copie du serveur',
+    freshExplain:
+      'Pour un appareil dont les données étaient un essai ou ne sont pas voulues. Ce qui est sur cet appareil est remplacé par la copie du serveur, qui n’est pas modifiée.',
+    freshRemoves: {
+      one: 'L’assiette ({count}) qui n’est que sur cet appareil sera supprimée de cet appareil.',
+      other:
+        'Les {count} assiettes qui ne sont que sur cet appareil seront supprimées de cet appareil.',
+    },
+    freshNothing:
+      'Tout ce qui est sur cet appareil figure déjà dans la copie du serveur, rien ne serait donc perdu.',
+    freshBackupFirst: 'Enregistrer d’abord une sauvegarde chiffrée',
+    freshAction: 'Effacer cet appareil et restaurer depuis le serveur',
+    freshWorking: 'Restauration depuis le serveur…',
+    freshConfirmTitle: 'Effacer cet appareil et restaurer depuis le serveur ?',
+    freshKeep: 'Garder cet appareil tel quel',
+    freshConfirm: 'Effacer et restaurer',
+    freshWeak:
+      'Repartir de zéro fait de la phrase secrète de cette copie celle de cet appareil, et elle doit compter au moins 10 caractères, avec quelques caractères différents. Rien n’a été modifié sur cet appareil. Vous pouvez plutôt tout combiner.',
+    freshAgain:
+      'Pour repartir de zéro, retrouvez votre copie avec sa phrase secrète. Rien n’a été modifié sur cet appareil.',
+    freshFailed:
+      'La copie du serveur n’a pas pu être remise sur cet appareil pour le moment. La copie du serveur n’a pas été touchée ; choisissez « Restaurer depuis ce serveur » pour réessayer.',
+    connectedHeading: 'Sauvegarde sur ce serveur',
+    connectedAs: 'Cet appareil se sauvegarde sur ce serveur sous l’identifiant {handle}.',
+    statusBackedUp: 'Tout ce qui est sur cet appareil est sauvegardé.',
+    statusLast: 'Dernière copie envoyée à {time}.',
+    statusPending: 'Les modifications de cet appareil seront envoyées sous peu.',
+    statusSyncing: 'Envoi d’une copie…',
+    statusOffline:
+      'Ce serveur ne peut pas être joint pour le moment. Vos modifications restent sur cet appareil et seront envoyées dès que possible.',
+    statusFailed:
+      'La dernière copie n’est pas passée. Une nouvelle tentative aura lieu ; rien n’est perdu.',
+    statusNeedsUpdate:
+      'La copie de ce serveur vient d’une version plus récente de l’application. Rechargez la page pour mettre à jour ; d’ici là, rien n’est envoyé.',
+    statusRolledBack:
+      'Le serveur a renvoyé une copie plus ancienne que celle que cet appareil a déjà vue, la sauvegarde est donc suspendue et rien n’est écrasé. Vous pouvez réessayer, ou arrêter de sauvegarder depuis cet appareil.',
+    statusSignedOut:
+      'Cet appareil n’est plus accepté par le serveur. Arrêtez de sauvegarder depuis cet appareil, puis reconnectez-le avec votre identifiant et votre phrase secrète.',
+    statusTooLarge:
+      'Vos données dépassent ce que ce serveur accepte, aucune copie n’est donc envoyée.',
+    statusPaused:
+      'La sauvegarde est suspendue parce que la copie ou cet appareil demande un coup d’œil. Rien n’a été modifié. Vous pouvez réessayer.',
+    nowAction: 'Sauvegarder maintenant',
+    nowWorking: 'Envoi…',
+    nowDone: 'C’est fait. Tout ce qui est sur cet appareil est sauvegardé.',
+    stopAction: 'Arrêter de sauvegarder depuis cet appareil',
+    stopExplain:
+      'Cet appareil oublie la connexion. La copie du serveur reste telle quelle, et vous pouvez vous reconnecter avec votre identifiant et votre phrase secrète.',
+    stopped:
+      'Cet appareil ne se sauvegarde plus sur le serveur. La copie du serveur n’a pas été touchée.',
+    stopFailed: 'Cela n’a pas abouti pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
+    restoreLink: 'Restaurer depuis ce serveur',
+    restoreTitle: 'Restaurer depuis ce serveur',
+    restoreExplain:
+      'Saisissez l’identifiant et la phrase secrète de votre copie sur ce serveur. La copie est d’abord ouverte ; si quelque chose ne va pas, rien n’est créé sur cet appareil.',
+    restoreSame:
+      'Cette phrase secrète déverrouillera aussi l’application sur cet appareil désormais. Si vous l’oubliez, vos données ne pourront pas être récupérées.',
+    restoreFind: 'Trouver ma copie',
+    restoreFound: 'Vos données sont trouvées : {plates}, {range}.',
+    restoreFoundEmpty: 'Votre copie est trouvée. Elle ne contient encore aucune assiette.',
+    restorePlates: { one: '{count} assiette', other: '{count} assiettes' },
+    rangeFromTo: 'de {from} à {to}',
+    rangeIn: 'en {when}',
+    rangeToday: 'aujourd’hui',
+    restoreAction: 'Restaurer et déverrouiller',
+    restoreWorking: 'Restauration de vos données…',
+    restoreBack: 'Retour à la création d’une phrase secrète',
+    restoreChange: 'Utiliser un autre identifiant',
+    restoreWeak:
+      'Pour protéger cet appareil, la phrase secrète doit compter au moins 10 caractères, avec quelques caractères différents. Créez plutôt une nouvelle phrase secrète, puis connectez-vous à la copie de ce serveur depuis Réglages, Vos données.',
+    restoringTitle: 'Restauration depuis le serveur',
+    restoringBody: 'Vos données sont remises sur cet appareil. Cela prend un instant.',
   },
   sync: {
     onThisDevice: 'Enregistré sur cet appareil',

@@ -121,11 +121,16 @@ services:
       AI_PROXY_TRANSCRIPTION_RATE: ${AI_PROXY_TRANSCRIPTION_RATE:-6r/m}
       AI_PROXY_TRANSCRIPTION_RATE_ALL: ${AI_PROXY_TRANSCRIPTION_RATE_ALL:-20r/m}
       AI_PROXY_TRANSCRIPTION_BURST: ${AI_PROXY_TRANSCRIPTION_BURST:-2}
+      # Encrypted-backup relay (profile `sync`, see the service below): 1 proxies /sync/ to it.
+      AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}
+      SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
     networks:
       - traefik
+      # The project's own network, shared with the relay (profile `sync`) and nothing else.
+      - default
     labels:
       traefik.enable: "true"
       traefik.docker.network: ${AI_NUTRITION_COACH_TRAEFIK_NETWORK:-traefik}
@@ -138,6 +143,36 @@ services:
       traefik.http.middlewares.ai-nutrition-coach-hsts.headers.stsSeconds: "31536000"
       traefik.http.middlewares.ai-nutrition-coach-hsts.headers.stsIncludeSubdomains: ${AI_NUTRITION_COACH_TRAEFIK_HSTS_SUBDOMAINS:-false}
       traefik.http.middlewares.ai-nutrition-coach-hsts.headers.stsPreload: "false"
+
+  # Opt-in encrypted-backup relay (`--profile sync`, as in infra/docker-compose.yml): ciphertext
+  # only, NO published port, NOT on the Traefik network: only this stack's nginx reaches it.
+  sync-relay:
+    <<: *hardening
+    profiles: ["sync"]
+    image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}
+    environment:
+      SYNC_IDENTITY: handle
+      SYNC_SIGNUP: ${SYNC_SIGNUP:-open}
+      SYNC_INVITE_CODES: ${SYNC_INVITE_CODES:-}
+      SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
+      SYNC_MAX_VAULTS: ${SYNC_MAX_VAULTS:-50}
+      SYNC_MAX_DEVICES: ${SYNC_MAX_DEVICES:-20}
+      SYNC_MAX_UPLOADS: ${SYNC_MAX_UPLOADS:-3}
+      SYNC_RATE_IP: ${SYNC_RATE_IP:-30}
+      SYNC_RATE_HANDLE: ${SYNC_RATE_HANDLE:-10}
+      SYNC_RATE_HANDLE_DAY: ${SYNC_RATE_HANDLE_DAY:-20}
+      SYNC_RATE_SIGNUP: ${SYNC_RATE_SIGNUP:-5}
+      SYNC_RATE_WRITE: ${SYNC_RATE_WRITE:-60}
+      SYNC_TRUST_PROXY: "1"
+    volumes:
+      - sync-data:/data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    networks:
+      - default
+
+volumes:
+  sync-data:
 
 networks:
   traefik:

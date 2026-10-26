@@ -19,6 +19,8 @@ export interface AppShellProps {
   readonly banner?: ReactNode;
   /** Aggregate sync counts for the page-level announcer; omit when there is no sync transport. */
   readonly sync?: Pick<SyncAnnouncerProps, 'pending' | 'retryLater'>;
+  /** Replaces the rail's storage line. */
+  readonly storageNote?: string | undefined;
   readonly children: ReactNode;
 }
 
@@ -34,11 +36,12 @@ export function AppShell({
   onLog,
   banner,
   sync,
+  storageNote,
   children,
 }: AppShellProps) {
   return (
     <div className="min-h-dvh lg:flex">
-      <Rail current={current} hrefs={hrefs} onLog={onLog} />
+      <Rail current={current} hrefs={hrefs} onLog={onLog} storageNote={storageNote} />
       <div className="flex min-w-0 flex-1 flex-col">
         {header}
         <main className="flex-1 pb-[calc(var(--spacing-fab-clearance)+env(safe-area-inset-bottom))] lg:pb-16">

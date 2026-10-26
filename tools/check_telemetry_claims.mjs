@@ -76,6 +76,12 @@ export const ALLOW_LIST = {
   // The instance-wide AI offer (docs/ai-tiers.md): a same-origin GET of `/ai/config.json` through
   // the helper (no key, no query, no identifier); the container renders the file.
   'apps/web/src/ai/instance-config.ts': { kinds: ['network'], reason: 'same-origin /ai/config.json (the instance AI offer)' },
+  // The relay backup (docs/encrypted-sync-plan.md §3.5, phase S2): a same-origin GET of
+  // `/sync/config.json` (is a relay offered; no identifier, no query) and the same-origin `/sync/v1/...`
+  // calls of a person who turned the backup on. Both through the capped helper. They send sealed
+  // envelopes and a keyed proof of the passphrase, never a plaintext record (relay tests assert it).
+  'apps/web/src/sync/relay/offer.ts': { kinds: ['network'], reason: 'same-origin /sync/config.json (is a relay offered)' },
+  'apps/web/src/sync/relay/client.ts': { kinds: ['network'], reason: 'same-origin /sync/v1 calls of the opt-in encrypted backup' },
   // The service worker precaches OUR files (same-origin GET) and never intercepts anything else.
   'tools/pwa/sw.template.js': { kinds: ['network'], reason: 'same-origin precache (sw.behaviour.test.mjs)' },
   // The self-hosted zxing reader: a <script> from our own origin (script-src 'self' enforces it),
