@@ -11,6 +11,7 @@ import type {
   NoteRow,
   PlateRow,
   PlateRowSet,
+  PlateUidRow,
   RecipeRow,
   RecipeSet,
   SavedItemRow,
@@ -404,6 +405,12 @@ export class SqliteStoreDb implements StoreDbOps {
 
   readVault(): VaultSnapshot {
     return readVaultSnapshot(this.db);
+  }
+
+  readPlateUids(): readonly PlateUidRow[] {
+    return this.db
+      .all('SELECT id, uid FROM plate_log WHERE uid IS NOT NULL ORDER BY id DESC', [])
+      .map((r) => ({ id: int(r['id']), uid: text(r['uid']) }));
   }
 
   applyVault(snapshot: VaultSnapshot): VaultApplyOutcome {

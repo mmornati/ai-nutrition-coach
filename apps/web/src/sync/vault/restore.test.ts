@@ -119,6 +119,7 @@ describe('restoreIntoStore (Your data: a merge)', () => {
     const vault = {
       readSnapshot: () => Promise.reject(new Error('unused')),
       applySnapshot: () => Promise.resolve(vaultFailed('clockAhead')),
+      readPlateIdentities: () => Promise.reject(new Error('unused')),
     };
     expect(await restoreIntoStore({ service, vault, file, passphrase: BACKUP_PASSPHRASE })).toEqual(
       {

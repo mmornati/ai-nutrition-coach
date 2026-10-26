@@ -159,7 +159,8 @@ and a deleted setting among the ones listed below. They are written in the same 
 delete, are kept until you choose *Erase all local data* (there is no pruning yet), and are removed
 with everything else. The device also stores a random device id (the `sync.deviceId` entry in the
 encrypted key/value table), and every stamp embeds it. The upgrade is automatic, re-runnable and
-loses no row. There is **no live multi-device sync yet** (phase S3); the cross-device design is in
+loses no row. Several devices can now share one copy through the optional relay (phase S3, see
+[Backing up to a server](#backing-up-to-a-server)); the cross-device design is in
 [`docs/adr/0007-encrypted-vault.md`](./adr/0007-encrypted-vault.md) and
 [`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md). The encrypted backup file (next section) is
 the first part of it.
@@ -282,19 +283,34 @@ tries". Only creating a copy can say "that handle is already taken".
   ("Found your data: 412 plates, from March 2026 to today") before a store is created; the passphrase
   becomes this device's, and if anything fails no store is left behind.
 
-**After that, the copy keeps itself up to date**, silently and only while the app is unlocked and
-online: about 30 seconds after your last change, when you switch away from the page, and when the
-connection returns. Every upload is a compare-and-swap: if another device uploaded first, the app
+**After that, the devices keep each other up to date**, silently and only while the app is unlocked and
+online. Changes go up about 30 seconds after your last change, when you switch away from the page, and
+when the connection returns. Changes from your other devices come down a moment after you unlock, and
+when you come back to the page or the window (at most about once a minute; when nothing changed the
+server answers "not modified" and nothing is downloaded). What arrives shows up by itself: the day, the
+history, saved meals and recipes, your profile and the language update with no reload, and a name you are
+typing or a plate you are composing is left alone. A plate removed on one device is removed on the others
+(the confirmation says so); two devices that rename the same saved meal keep the later change. Every upload is a compare-and-swap: if another device uploaded first, the app
 downloads that copy, merges it with the same rules as a restore, and uploads again; it never overwrites
 blindly. The app remembers the newest version it has seen and refuses an older one ("the server returned
 an older copy than this device has seen"), a copy from a newer version of the app, a revoked device and
 a copy too large for the server, and says so on *Your data* instead of retrying. *Back up now* tries at
 once; *Stop backing up from this device* only makes this device forget the connection.
 
-**The status chip still says "On this device"** on every plate. *Your data* says "backed up" only after
-the server acknowledged an upload that included your last change; a per-plate "synced" waits for the pull
-side (phase S3). Pulling changes made on another device on unlock or focus is also S3: today another
-device's changes arrive when this device next uploads, or when you reconnect.
+**What the chip means.** Without a server copy every plate says "On this device". Once this device is
+connected, a plate says **Synced** only after the server *acknowledged* an upload that contained that plate
+(or handed the plate to this device); a plate you logged after that upload was read stays **Pending** until
+a later upload covers it, and says "Retry later" while the server cannot be reached or syncing is stopped
+(never red, and nothing nags). The header chip is Synced only when nothing on this device is waiting. After
+a reload the chips are still right: what the server is known to hold is kept on the device (as short
+hashes of plate ids, never the plates themselves), and if this device does not know yet it says Pending
+until the first check after unlock finds out. A plate's chip is about the plate itself (its time and
+foods); coach notes and settings travel with it but do not change it.
+
+**A copy from a newer version of the app.** A device on an older version of the app that finds a copy
+written by a newer one stops syncing: it never uploads or overwrites anything, and the chip and *Your
+data* say "Update the app on this device to keep syncing" until it is updated. Nothing on the device is
+changed.
 
 *Not built yet (S4):* the recovery key, changing the passphrase, listing and revoking devices, deleting
 your copy on the server, single sign-on instead of a handle. *Copy sign-off:* these strings (English and

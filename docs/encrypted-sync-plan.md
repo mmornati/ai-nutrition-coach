@@ -1,6 +1,6 @@
 # Encrypted backup, restore and cross-device sync: plan
 
-Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · join-device flow (§3.6) added 2026-10-25 · S0, S1 and S2 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
+Status: accepted 2026-10-22 (all five recommendations in §6 chosen) · join-device flow (§3.6) added 2026-10-25 · S0, S1, S2 and S3 implemented ([ADR 0007](./adr/0007-encrypted-vault.md)).
 Goal: a person can lose a browser's storage (cleared site data, Safari's 7-day eviction, a new phone,
 an installed iOS web app that keeps its own storage) and get **all** their history back, and can use
 the app on several devices, while the server only ever holds **ciphertext it cannot read**.
@@ -279,11 +279,20 @@ This alone fixes "local storage lost" for anyone who keeps the file, on every in
   never receives plaintext (assert on captured request bodies).
 
 ### Phase S3: real multi-device sync
-- Pull on unlock and on focus, merge, push with If-Match, retry on 412; `SyncAdapter` gets a real
-  transport, so the status chip finally reaches `synced` honestly (AD-6).
-- Two-device e2e: two browser contexts, interleaved writes and deletes, both converge.
-- Handle schema skew: a device on an older app version refuses a newer snapshot schema and says
-  "update the app on this device", never overwrites.
+- [x] Pull on unlock and on focus (`visibilitychange` to visible, `focus`, `online`), throttled to one per
+  ~45 s from focus churn, `If-None-Match` so an unchanged vault is a 304; merge, push with If-Match only
+  if needed, retry on 412. A pulled copy is never pushed back (two idle devices make zero writes, tested).
+  `SyncAdapter` is the real transport and `SyncQueue.watchPerPlate` carries the per-plate status, so the
+  status chip reaches `synced` honestly (AD-6): see ADR 0007, "Phase S3".
+- [x] The screens follow a pulled copy with no reload (day board, history, saved meals and recipes,
+  profile-derived numbers, language); in-progress input is never replaced.
+- [x] Schema skew: a device on an older app version refuses a newer snapshot schema (or envelope format),
+  stops, never overwrites, and says "Update the app on this device to keep syncing" on the chip and in
+  *Your data*.
+- [x] Two-device e2e: two live browser contexts against the real relay, interleaved plates, a delete,
+  a saved-meal conflict and a language change; both converge, and `synced` appears only after an
+  acknowledgement (Chromium; WebKit shares one site-data store between contexts, so the live pair is
+  Chromium-only and the other sync specs run in the WebKit chain as before).
 
 ### Phase S4: account hygiene
 - Recovery key flow (show once, confirm a few words, restore with it).

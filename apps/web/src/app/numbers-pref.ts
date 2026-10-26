@@ -29,6 +29,15 @@ export class NumbersPref {
     }
   }
 
+  /** Read the stored answer again; a failed read keeps what is shown. */
+  async refresh(): Promise<void> {
+    try {
+      this.apply((await this.kv.read(KV_KEYS.uiShowNumbers)) !== OFF);
+    } catch {
+      // Keep the current answer.
+    }
+  }
+
   /** Whether numbers are shown right now. */
   current = (): boolean => this.shown;
 

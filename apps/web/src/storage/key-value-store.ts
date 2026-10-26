@@ -57,6 +57,12 @@ export const KV_KEYS = Object.freeze({
   syncLastSeenVersion: 'sync.lastSeenVersion',
   /** `1` while local changes have not been acknowledged by the relay (the persisted outbox). */
   syncDirty: 'sync.dirty',
+  /**
+   * Which plates the relay durably holds (phase S3): fixed-width tokens of plate uids, written
+   * after every acknowledgement and every pull. It is what lets the "synced" chip survive a reload
+   * honestly; absent means unknown, and unknown reads as "not yet".
+   */
+  syncBaseline: 'sync.baseline',
 } as const);
 
 export interface KeyValueStore {

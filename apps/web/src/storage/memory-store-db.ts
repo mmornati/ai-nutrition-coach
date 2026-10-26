@@ -35,6 +35,7 @@ import type {
   NoteRow,
   PlateRow,
   PlateRowSet,
+  PlateUidRow,
   RecipeRow,
   RecipeSet,
   SavedItemRow,
@@ -332,6 +333,15 @@ export class MemoryStoreDb implements StoreDbOps {
     }
     this.kv.delete(key);
     this.kvStamps.delete(key);
+  }
+
+  readPlateUids(): readonly PlateUidRow[] {
+    return [...this.plates]
+      .sort((a, b) => b.id - a.id)
+      .flatMap((p) => {
+        const uid = this.uids.plate.get(p.id);
+        return uid === undefined ? [] : [{ id: p.id, uid }];
+      });
   }
 
   readVault(): VaultSnapshot {

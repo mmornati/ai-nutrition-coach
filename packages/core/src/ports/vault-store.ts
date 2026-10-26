@@ -6,6 +6,12 @@ import type { VaultSnapshot } from '../vault/snapshot';
  * yet (docs/encrypted-sync-plan.md, phase S0); the encrypted backup (S1) and sync (S3) are built
  * on it. The snapshot never holds the BYOK key or any other device-only `kv` entry.
  */
+/** A plate's local id (what the screens hold) and its uid (what a snapshot holds). */
+export interface PlateIdentity {
+  readonly plateLogId: number;
+  readonly uid: string;
+}
+
 export interface VaultStore {
   /** A consistent read of the whole store, in canonical order. */
   readSnapshot(): Promise<VaultResult<VaultSnapshot>>;
@@ -17,4 +23,9 @@ export interface VaultStore {
    * snapshot" are the same call. Idempotent. The snapshot must have passed `parseVaultSnapshot`.
    */
   applySnapshot(snapshot: VaultSnapshot): Promise<VaultResult<null>>;
+  /**
+   * The local id and uid of every plate, no content. The honest per-plate sync status (a plate is
+   * `synced` once a snapshot the relay acknowledged held its uid) is looked up through it.
+   */
+  readPlateIdentities(): Promise<VaultResult<readonly PlateIdentity[]>>;
 }

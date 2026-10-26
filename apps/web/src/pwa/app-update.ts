@@ -21,6 +21,8 @@ export interface AppUpdateSignal {
   subscribe(listener: () => void): () => void;
   /** Activate the waiting version and reload into it; reloads directly if nothing waits. */
   applyUpdate(): Promise<void>;
+  /** Look for a new version now (the sync says this build is too old). Never throws. */
+  checkForUpdate(): Promise<void>;
 }
 
 /** Never has an update (dev server, insecure context, no service-worker support). */
@@ -28,6 +30,7 @@ export const noAppUpdate: AppUpdateSignal = {
   getUpdateReady: () => false,
   subscribe: () => () => undefined,
   applyUpdate: () => Promise.resolve(),
+  checkForUpdate: () => Promise.resolve(),
 };
 
 export interface AppUpdateEnv {
@@ -101,14 +104,14 @@ export class AppUpdate implements AppUpdateSignal {
     }
   }
 
-  private async checkForUpdate(): Promise<void> {
+  readonly checkForUpdate = async (): Promise<void> => {
     try {
       await this.registration?.update();
       this.checkWaiting();
     } catch {
       // Offline or the server is unreachable: try again next time.
     }
-  }
+  };
 
   /** A waiting worker next to an ACTIVE controller is an update (not the very first install). */
   private checkWaiting(): void {

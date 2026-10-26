@@ -89,6 +89,11 @@ export interface RecipeSet {
   readonly items: readonly SavedItemRow[];
 }
 
+export interface PlateUidRow {
+  readonly id: number;
+  readonly uid: string;
+}
+
 export interface StoreDbOps {
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate;
   /** `[from, to)` on the UTC text, either bound optional. Newest first. */
@@ -137,6 +142,12 @@ export interface StoreDbOps {
    */
   readVault(): VaultSnapshot;
   /**
+   * Schema v4. The local id and the uid of every plate: the bridge between what the screens hold
+   * (local ids) and what a vault snapshot holds (uids). The per-plate sync status is looked up
+   * through it. Newest first; no content.
+   */
+  readPlateUids(): readonly PlateUidRow[];
+  /**
    * Writes a (validated) snapshot in ONE transaction, matching rows by uid; see `VaultStore`.
    * A failure rolls everything back. A uid used for something else here, or a stamp beyond the
    * drift bound, is answered (`conflict`, `clockAhead`) with nothing written.
@@ -169,6 +180,7 @@ export const STORE_OP_NAMES: readonly StoreOpName[] = [
   'kvSet',
   'kvDelete',
   'readVault',
+  'readPlateUids',
   'applyVault',
 ] as const;
 

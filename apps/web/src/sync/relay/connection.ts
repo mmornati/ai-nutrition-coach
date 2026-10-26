@@ -24,6 +24,7 @@ const CONNECTION_KEYS = [
   KV_KEYS.syncVaultId,
   KV_KEYS.syncLastSeenVersion,
   KV_KEYS.syncDirty,
+  KV_KEYS.syncBaseline,
 ] as const;
 
 /** The connection, or `null` when this device has none (or what is stored is not a whole one). */
@@ -57,6 +58,8 @@ export async function writeConnection(
   connection: RelayConnection,
   dirty = false,
 ): Promise<void> {
+  // A baseline left by an earlier vault must never describe this one.
+  await kv.delete(KV_KEYS.syncBaseline);
   await kv.write(KV_KEYS.syncVaultKey, connection.vaultKey);
   await kv.write(KV_KEYS.syncToken, connection.token);
   await kv.write(KV_KEYS.syncVaultId, connection.vaultId);
@@ -69,7 +72,9 @@ export async function writeConnection(
 
 /** Forgets the connection on this device. The relay's copy is untouched. */
 export async function clearConnection(kv: KeyValueStore): Promise<void> {
-  // The handle first, so a failure half way leaves no readable (half) connection.
+  // The baseline first, then the handle, so a failure half way leaves neither a stale baseline nor
+  // a readable (half) connection.
+  await kv.delete(KV_KEYS.syncBaseline);
   for (const key of CONNECTION_KEYS) await kv.delete(key);
 }
 
@@ -83,4 +88,11 @@ export async function readDirty(kv: KeyValueStore): Promise<boolean> {
 export async function writeDirty(kv: KeyValueStore, dirty: boolean): Promise<void> {
   if (dirty) await kv.write(KV_KEYS.syncDirty, '1');
   else await kv.delete(KV_KEYS.syncDirty);
+}
+
+export async function readBaseline(kv: KeyValueStore): Promise<string | null> {
+  return kv.read(KV_KEYS.syncBaseline);
+}
+export async function writeBaseline(kv: KeyValueStore, value: string): Promise<void> {
+  await kv.write(KV_KEYS.syncBaseline, value);
 }

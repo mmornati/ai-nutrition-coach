@@ -2,7 +2,7 @@ import type { SyncOpStatusValue } from '@anc/core';
 import { useStrings } from '../../i18n';
 import { Chip, cn } from '../primitives';
 
-export type ChipState = 'onDevice' | 'pending' | 'synced' | 'retryLater';
+export type ChipState = 'onDevice' | 'pending' | 'synced' | 'retryLater' | 'updateNeeded';
 
 /** Core sync status to chip state. `null` (never queued, or no transport) is "on this device". */
 export function chipStateFor(status: SyncOpStatusValue | null | undefined): ChipState {
@@ -23,6 +23,7 @@ const DOT: Readonly<Record<ChipState, string>> = {
   synced: 'bg-ink outline outline-1 outline-offset-1 outline-ink',
   pending: 'border-2 border-solid border-ink',
   retryLater: 'border-2 border-dashed border-thread',
+  updateNeeded: 'border-2 border-dashed border-thread',
 };
 
 export interface StatusChipProps {
@@ -33,6 +34,11 @@ export interface StatusChipProps {
   readonly hasTransport: boolean;
   /** Core per-plate sync rollup; omit or null for "on this device". */
   readonly status?: SyncOpStatusValue | null;
+  /**
+   * The server's copy comes from a newer app, so this device has stopped syncing: the chip says to
+   * update (calmly, in the same place), whatever `status` is.
+   */
+  readonly needsUpdate?: boolean;
   readonly className?: string | undefined;
 }
 
@@ -40,8 +46,17 @@ export interface StatusChipProps {
  * Where a plate's data lives. Not a button, never red, plain static text: changes are announced
  * once for the whole page by `SyncAnnouncer`, not by each chip.
  */
-export function StatusChip({ hasTransport, status = null, className }: StatusChipProps) {
-  const state = hasTransport ? chipStateFor(status) : 'onDevice';
+export function StatusChip({
+  hasTransport,
+  status = null,
+  needsUpdate = false,
+  className,
+}: StatusChipProps) {
+  const state: ChipState = !hasTransport
+    ? 'onDevice'
+    : needsUpdate
+      ? 'updateNeeded'
+      : chipStateFor(status);
   const label = useStrings().chip[state];
   return (
     <Chip

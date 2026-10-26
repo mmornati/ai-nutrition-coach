@@ -492,6 +492,7 @@ export const fr: Strings = {
     body: 'L’assiette « {dish} » sera retirée de votre historique sur cet appareil, avec sa note du coach. C’est définitif.',
     keep: 'La garder',
     confirm: 'Retirer',
+    elsewhere: 'Elle sera aussi retirée de vos autres appareils.',
   },
   update: {
     message:
@@ -546,6 +547,7 @@ export const fr: Strings = {
     pending: 'En attente',
     synced: 'Synchronisé',
     retryLater: 'Nouvel essai plus tard',
+    updateNeeded: 'Mettez l’application à jour sur cet appareil pour continuer à synchroniser',
     allSynced: 'Toutes les assiettes sont synchronisées',
     waiting: {
       one: '{count} assiette en attente de synchronisation',
@@ -1430,7 +1432,7 @@ export const fr: Strings = {
     statusFailed:
       'La dernière copie n’est pas passée. Une nouvelle tentative aura lieu ; rien n’est perdu.',
     statusNeedsUpdate:
-      'La copie de ce serveur vient d’une version plus récente de l’application. Rechargez la page pour mettre à jour ; d’ici là, rien n’est envoyé.',
+      'La copie de ce serveur vient d’une version plus récente de l’application. Mettez l’application à jour sur cet appareil pour continuer à synchroniser ; d’ici là, rien n’est envoyé et la copie du serveur n’est pas modifiée.',
     statusRolledBack:
       'Le serveur a renvoyé une copie plus ancienne que celle que cet appareil a déjà vue, la sauvegarde est donc suspendue et rien n’est écrasé. Vous pouvez réessayer, ou arrêter de sauvegarder depuis cet appareil.',
     statusSignedOut:

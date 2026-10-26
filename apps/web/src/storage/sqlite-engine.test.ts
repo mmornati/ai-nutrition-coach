@@ -967,6 +967,10 @@ describe('schema v4: uid, stamps and tombstones (docs/encrypted-sync-plan.md S0)
     const after = engine.call('readVault', []) as VaultSnapshot;
     expect(after.plates).toHaveLength(3);
     expect(after.plates.every((p) => isUuid(p.uid))).toBe(true);
+    // The id <-> uid bridge the per-plate sync status is looked up through.
+    const identities = engine.call('readPlateUids', []) as { id: number; uid: string }[];
+    expect(identities.map((i) => i.id)).toEqual([3, 2, 1]);
+    expect(identities.map((i) => i.uid).sort()).toEqual(after.plates.map((p) => p.uid).sort());
   });
 
   async function withDb(

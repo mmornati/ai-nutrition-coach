@@ -35,6 +35,7 @@ import { useLog } from '../../app/log-context';
 import { hrefs, navigate } from '../../app/router';
 import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
+import { usePlateSyncStatuses } from '../../app/sync-status';
 import { useStoreSnapshot } from '../../app/store-context';
 import { PlateCoach, useDismissals } from './coach';
 import { plateSummary } from '../plate/summary';
@@ -103,6 +104,7 @@ export function TodayScreen() {
   const showNumbers = useShowNumbers();
   const day = useDay();
   const log = useLog();
+  const sync = usePlateSyncStatuses();
   const dismissed = useDismissals(notes);
   const [removing, setRemoving] = useState<PlateLog | null>(null);
   const [busy, setBusy] = useState(false);
@@ -303,7 +305,8 @@ export function TodayScreen() {
                       <PlateRow
                         plate={plate}
                         slot={entry.slot}
-                        hasTransport={false}
+                        hasTransport={sync.hasTransport}
+                        syncStatus={sync.statusOf(plate.id)}
                         onOpen={(id) => navigate(hrefs.plate(id))}
                         onRequestDelete={() => setRemoving(plate)}
                       >
@@ -360,6 +363,7 @@ export function TodayScreen() {
         onCopy={() => void copyDay()}
       />
       <RemovePlateDialog
+        elsewhere={sync.hasTransport}
         open={removing !== null}
         dish={removing ? plateSummary(removing) : ''}
         busy={busy}

@@ -21,6 +21,7 @@ import {
 } from '@anc/core';
 import { KV_KEYS, type KeyValueStore } from '../../storage/key-value-store';
 import { writeConnection, type RelayConnection } from './connection';
+import { writeHeld } from './ledger';
 import type { OpenedServerCopy } from './server-copy';
 import { encodeBase64Url } from '@anc/core';
 
@@ -187,6 +188,8 @@ export async function joinServerCopy(deps: {
       lastSeenVersion: copy.version,
     };
     await writeConnection(kv, connection, dirty);
+    // The server holds its own copy as it was fetched; what was merged in from this device waits.
+    await writeHeld(kv, copy.snapshot);
     return { kind: 'joined', connection, dirty };
   } catch {
     return { kind: 'failed', reason: 'storeProblem' };

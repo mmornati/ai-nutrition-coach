@@ -489,6 +489,8 @@ export const en = {
     body: '{dish} will be removed from your history on this device, along with its coach note. This can’t be undone.',
     keep: 'Keep it',
     confirm: 'Remove',
+    /** Added when this device keeps a copy on a server (the removal travels with the sync). */
+    elsewhere: 'It will also be removed from your other devices.',
   },
   update: {
     message:
@@ -544,6 +546,7 @@ export const en = {
     pending: 'Pending',
     synced: 'Synced',
     retryLater: 'Retry later',
+    updateNeeded: 'Update the app on this device to keep syncing',
     /** Page-level sync announcements (aggregate, never per plate). */
     allSynced: 'All plates synced',
     waiting: { one: '{count} plate waiting to sync', other: '{count} plates waiting to sync' },
@@ -1437,7 +1440,7 @@ export const en = {
       'This server cannot be reached right now. Your changes stay on this device and are sent when it can.',
     statusFailed: 'The last copy did not go through. It will try again; nothing is lost.',
     statusNeedsUpdate:
-      'The copy on this server comes from a newer version of the app. Reload the page to update; until then nothing is sent.',
+      'The copy on this server comes from a newer version of the app. Update the app on this device to keep syncing; until then nothing is sent and the copy on the server is not changed.',
     statusRolledBack:
       'The server returned an older copy than this device has already seen, so backup is paused and nothing is overwritten. You can try again, or stop backing up from this device.',
     statusSignedOut:
