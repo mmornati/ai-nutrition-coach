@@ -106,8 +106,10 @@ USER root
 # Pull the distribution's security fixes on top of the digest-pinned base:
 # the base tag lags Alpine's package updates (CI's Trivy gate failed on
 # fixable HIGH CVEs in pcre2/tiff). Dependabot keeps the digest moving; this
-# step closes the window between base-image releases.
-RUN apk upgrade --no-cache \
+# step closes the window between base-image releases. APK_UPGRADE_DATE (CI passes the UTC day)
+# keeps the GitHub Actions layer cache from replaying a stale upgrade for as long as the digest holds.
+ARG APK_UPGRADE_DATE=unset
+RUN echo "apk upgrade: $APK_UPGRADE_DATE" && apk upgrade --no-cache \
   && rm -f /etc/nginx/conf.d/default.conf /usr/share/nginx/html/50x.html
 USER 101
 

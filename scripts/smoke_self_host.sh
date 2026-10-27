@@ -239,6 +239,9 @@ WORKER="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/assets' | grep -E 
 [[ -n "$WORKER" ]] || fail 30 "no store worker chunk in the image"
 
 hdr() { curl -sS -D - -o /dev/null "$BASE$1"; }
+# Buffer the headers before grepping: with pipefail, `hdr | tr | grep -q` fails at random when
+# grep -q exits on its match and tr then dies of SIGPIPE writing the rest.
+has_hdr() { local h; h="$(hdr "$1" | tr -d '\r')"; grep -qi "$2" <<<"$h"; }
 for path in "/" "$ENTRY" "$CSS" "/assets/$WORKER" "/boot-guard.js" "/$WASM" "/$MJS" "/manifest.webmanifest" "/sw.js" "/precache-manifest.json" "/icons/icon-192.png"; do
   h="$(hdr "$path")"
   head -1 <<<"$h" | grep -q ' 200' || fail 30 "$path did not return 200"
@@ -251,15 +254,15 @@ for path in "/" "$ENTRY" "$CSS" "/assets/$WORKER" "/boot-guard.js" "/$WASM" "/$M
 done
 ok "security headers on html, js, css, worker, wasm, manifest and icon responses; Server has no version"
 
-hdr "/$WASM" | tr -d '\r' | grep -qi '^content-type: application/wasm' || fail 50 "$WASM is not application/wasm"
-hdr "/$WASM" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "$WASM is not immutable"
-hdr "/$MJS" | tr -d '\r' | grep -qi '^content-type: text/javascript' || fail 50 "$MJS is not served as text/javascript"
-hdr "/$MJS" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "$MJS is not immutable"
+has_hdr "/$WASM" '^content-type: application/wasm' || fail 50 "$WASM is not application/wasm"
+has_hdr "/$WASM" '^cache-control:.*immutable' || fail 50 "$WASM is not immutable"
+has_hdr "/$MJS" '^content-type: text/javascript' || fail 50 "$MJS is not served as text/javascript"
+has_hdr "/$MJS" '^cache-control:.*immutable' || fail 50 "$MJS is not immutable"
 for p in "$ENTRY" "$CSS" "/assets/$WORKER"; do
-  hdr "$p" | tr -d '\r' | grep -qi '^cache-control: public, max-age=31536000, immutable$' || fail 50 "$p (hashed asset) is not immutable"
+  has_hdr "$p" '^cache-control: public, max-age=31536000, immutable$' || fail 50 "$p (hashed asset) is not immutable"
 done
 for p in / /boot-guard.js /manifest.webmanifest /index.html; do
-  hdr "$p" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
+  has_hdr "$p" '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
 done
 ok "wasm: application/wasm + immutable; .mjs text/javascript; hashed assets immutable; index/boot guard/web manifest: no-cache"
 
@@ -267,21 +270,21 @@ ok "wasm: application/wasm + immutable; .mjs text/javascript; hashed assets immu
 # are served as JavaScript / JSON, and agree on the build id; the versioned
 # zxing decoder is immutable and served as wasm.
 for p in /sw.js /precache-manifest.json /manifest.webmanifest; do
-  hdr "$p" | tr -d '\r' | grep -qi '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
+  has_hdr "$p" '^cache-control: no-cache$' || fail 50 "$p is not no-cache"
 done
-hdr /sw.js | tr -d '\r' | grep -qi '^content-type: application/javascript' || fail 50 "sw.js is not served as JavaScript"
-hdr /precache-manifest.json | tr -d '\r' | grep -qi '^content-type: application/json' || fail 50 "precache-manifest.json is not served as JSON"
-hdr /manifest.webmanifest | tr -d '\r' | grep -qi '^content-type: application/manifest+json' || fail 50 "the web manifest is not application/manifest+json"
+has_hdr /sw.js '^content-type: application/javascript' || fail 50 "sw.js is not served as JavaScript"
+has_hdr /precache-manifest.json '^content-type: application/json' || fail 50 "precache-manifest.json is not served as JSON"
+has_hdr /manifest.webmanifest '^content-type: application/manifest+json' || fail 50 "the web manifest is not application/manifest+json"
 sw_id="$(curl -fsS "$BASE/sw.js" | sed -n "s/^const BUILD_ID = '\([^']*\)';.*/\1/p")"
 man_id="$(curl -fsS "$BASE/precache-manifest.json" | sed -n 's/.*"buildId": "\([^"]*\)".*/\1/p' | head -1)"
 [[ -n "$sw_id" && "$sw_id" == "$man_id" ]] || fail 50 "sw.js build id '$sw_id' differs from the precache manifest's '$man_id'"
 ZX="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/zxing' | head -1)"
 [[ -n "$ZX" ]] || fail 30 "no self-hosted zxing decoder in the image"
-hdr "/zxing/$ZX/zxing_reader.wasm" | tr -d '\r' | grep -qi '^content-type: application/wasm' || fail 50 "the zxing wasm is not application/wasm"
-hdr "/zxing/$ZX/reader.js" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "the zxing reader is not immutable"
+has_hdr "/zxing/$ZX/zxing_reader.wasm" '^content-type: application/wasm' || fail 50 "the zxing wasm is not application/wasm"
+has_hdr "/zxing/$ZX/reader.js" '^cache-control:.*immutable' || fail 50 "the zxing reader is not immutable"
 AR="$(docker exec "$NAME" sh -c 'ls /usr/share/nginx/html/argon2' | head -1)"
 [[ -n "$AR" ]] || fail 30 "no self-hosted Argon2id build in the image"
-hdr "/argon2/$AR/argon2.umd.min.js" | tr -d '\r' | grep -qi '^cache-control:.*immutable' || fail 50 "the Argon2id build is not immutable"
+has_hdr "/argon2/$AR/argon2.umd.min.js" '^cache-control:.*immutable' || fail 50 "the Argon2id build is not immutable"
 ok "PWA: sw.js + manifests no-cache and consistent (build $sw_id); zxing decoder and Argon2id build served, immutable"
 
 # Every file the precache manifest lists is served, byte for byte (the worker verifies each SHA-256
@@ -319,8 +322,8 @@ done
 ok "CSP: strict script-src, explicit connect-src allow-list"
 
 for p in "$ENTRY" "$CSS" "/$WASM" "/$MJS"; do
-  curl -sS -H 'Accept-Encoding: gzip' -D - -o /dev/null "$BASE$p" | tr -d '\r' \
-    | grep -qi '^content-encoding: gzip' || fail 50 "$p is not gzip-compressed"
+  h="$(curl -sS -H 'Accept-Encoding: gzip' -D - -o /dev/null "$BASE$p" | tr -d '\r')"
+  grep -qi '^content-encoding: gzip' <<<"$h" || fail 50 "$p is not gzip-compressed"
 done
 ok "js, css, wasm and mjs are compressed"
 
