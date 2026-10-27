@@ -20,7 +20,7 @@
 # ───────────────────────────────────────────────────────────────────────────
 
 # ── stage 1: build ────────────────────────────────────────────────────────
-FROM node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS build
 
 # Keep in step with package.json `packageManager`.
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -45,7 +45,7 @@ COPY packages/core packages/core
 RUN pnpm --filter @anc/relay build
 
 # ── stage 2: run ──────────────────────────────────────────────────────────
-FROM node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS run
+FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS run
 
 # Pull the distribution's security fixes on top of the digest-pinned base, as infra/Dockerfile does.
 # /data is created owned by the unprivileged user BEFORE it becomes a volume, so a named volume
