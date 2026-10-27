@@ -28,7 +28,7 @@
 # ───────────────────────────────────────────────────────────────────────────
 
 # ── stage 1: build ────────────────────────────────────────────────────────
-FROM node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS build
 
 # What the fetch scripts and the build scans use. Nothing here ends up in the
 # runtime image, and every download is verified against pinned SHA-256 values.
@@ -106,8 +106,10 @@ USER root
 # Pull the distribution's security fixes on top of the digest-pinned base:
 # the base tag lags Alpine's package updates (CI's Trivy gate failed on
 # fixable HIGH CVEs in pcre2/tiff). Dependabot keeps the digest moving; this
-# step closes the window between base-image releases.
-RUN apk upgrade --no-cache \
+# step closes the window between base-image releases. APK_UPGRADE_DATE (CI passes the UTC day)
+# keeps the GitHub Actions layer cache from replaying a stale upgrade for as long as the digest holds.
+ARG APK_UPGRADE_DATE=unset
+RUN echo "apk upgrade: $APK_UPGRADE_DATE" && apk upgrade --no-cache \
   && rm -f /etc/nginx/conf.d/default.conf /usr/share/nginx/html/50x.html
 USER 101
 
