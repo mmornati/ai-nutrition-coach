@@ -97,7 +97,7 @@ RUN bash tools/check_no_secrets_in_build.sh apps/web/dist \
 # Pinned by digest so the production image is byte-stable across rebuilds
 # (tag 1.31.6-alpine; bump tag + digest together, keep scripts/smoke_self_host.sh
 # in sync).
-FROM nginxinc/nginx-unprivileged:1.31.6-alpine@sha256:884e0b7f42f303641b0f4e78755aea647521dca0b89ca3be7992ad78b5c07434 AS serve
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS serve
 
 # The base image already runs as uid 101 (`nginx`) and listens on 8080; no
 # user juggling is needed.
