@@ -1,28 +1,36 @@
-import { useId, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type MutableRefObject,
+} from 'react';
 import {
   HEIGHT_RANGE_CM,
-  MEASUREMENT_RANGE,
   localDayText,
   type MeasurementKind,
   type Profile,
   type UnitSystem,
 } from '@anc/core';
-import { SupportLine } from '../../components/nutrition';
+import { SupportLine, useShowNumbers } from '../../components/nutrition';
 import { Button, TextField } from '../../components/primitives';
 import { fill, useLocale, useStrings } from '../../i18n';
 import type { Locale } from '../../i18n/locale';
+import { hrefs } from '../../app/router';
 import { useSession } from '../../app/session';
 import {
   cmToFeetInches,
   cmToInches,
   feetInchesToCm,
-  inchesToCm,
   kgToLb,
-  lbToKg,
   MAX_INCHES_PART,
+  parseMeasurementText,
   parseTypedNumber,
   splitFeetAndInches,
+  weightNeedsConfirmation,
 } from './body-input';
+import { WeightConfirm } from './WeightConfirm';
 import { ChoiceGroup } from './ChoiceGroup';
 import { Prose, Section } from './SettingsPage';
 
@@ -48,15 +56,31 @@ export function formatDay(day: string, locale: Locale): string {
 export function ProfileBodySection({
   profile,
   onProfile,
+  compact = false,
+  title,
+  commitRef,
 }: {
   readonly profile: Profile | undefined;
+  /** The welcome asks only for what the guide needs: no waist, no list of earlier weigh-ins. */
+  readonly compact?: boolean;
+  /** Replaces the section title (the welcome has its own heading). */
+  readonly title?: string;
+  /**
+   * The welcome (`compact`) fills this with a function that settles what is typed before the step is
+   * left: it saves valid entries and, for one that is not valid, shows the message on the field, moves
+   * focus to it and answers `false`, so "Next" does not leave an answer behind.
+   */
+  readonly commitRef?: MutableRefObject<(() => Promise<boolean>) | null>;
   /** Writes one profile field (or removes it); resolves once the screen state is up to date. */
   readonly onProfile: <K extends keyof Profile>(key: K, value: Profile[K] | undefined) => void;
 }) {
-  const s = useStrings().profile;
+  const all = useStrings();
+  const s = all.profile;
   const { locale } = useLocale();
   const { profile: pref, clock, live } = useSession();
   const body = useSyncExternalStore(pref.subscribe, pref.measurementList);
+  // With nutrition numbers hidden no weight or waist figure is echoed back (entry still works).
+  const showNumbers = useShowNumbers();
   const units: UnitSystem = profile?.units ?? 'metric';
   const imperial = units === 'imperial';
   const latestWeight = body.find((m) => m.kind === 'weight');
@@ -71,6 +95,12 @@ export function ProfileBodySection({
   const [heightInDraft, setHeightIn] = useState<string | null>(null);
   const [weightDraft, setWeight] = useState<string | null>(null);
   const [waistDraft, setWaist] = useState<string | null>(null);
+  // The typed weight is far from the last one: asked once before it is saved.
+  const [confirmingWeight, setConfirmingWeight] = useState(false);
+  const cmField = useRef<HTMLInputElement>(null);
+  const feetField = useRef<HTMLInputElement>(null);
+  const inchesField = useRef<HTMLInputElement>(null);
+  const weightField = useRef<HTMLInputElement>(null);
   const storedHeight = profile?.heightCm;
   const storedFeetInches = storedHeight === undefined ? undefined : cmToFeetInches(storedHeight);
   const heightCm =
@@ -90,6 +120,7 @@ export function ProfileBodySection({
     setHeightIn(null);
     setWeight(null);
     setWaist(null);
+    setConfirmingWeight(false);
   };
 
   const heightErrorId = useId();
@@ -129,7 +160,17 @@ export function ProfileBodySection({
       inches: asText(cmToFeetInches(n).inches, locale),
     });
 
-  const saveHeight = (): void => {
+  /**
+   * Check the height typed and, when it is valid and not what is stored already, write it. Returns
+   * `false` when what is typed is not a valid height (the message is on the field, and focus goes
+   * there when `focusOnError`).
+   */
+  const saveHeight = (focusOnError = false): boolean => {
+    const refuse = (message: string): false => {
+      fail('height', message);
+      if (focusOnError) (imperial ? feetField : cmField).current?.focus();
+      return false;
+    };
     let cm: number | null;
     if (imperial) {
       const split = splitFeetAndInches(heightFt);
@@ -142,17 +183,16 @@ export function ProfileBodySection({
       const ft = parseTypedNumber(feetText);
       const inch = inchesText.trim() === '' ? 0 : parseTypedNumber(inchesText);
       if (ft === null || inch === null || !Number.isInteger(ft)) {
-        return fail('height', fill(s.errorNumber, { example: '5' }));
+        return refuse(fill(s.errorNumber, { example: '5' }));
       }
-      if (inch > MAX_INCHES_PART) return fail('height', s.errorInches);
+      if (inch > MAX_INCHES_PART) return refuse(s.errorInches);
       cm = feetInchesToCm(ft, inch);
     } else {
       cm = parseTypedNumber(heightCm);
     }
-    if (cm === null) return fail('height', fill(s.errorNumber, { example: '170' }));
+    if (cm === null) return refuse(fill(s.errorNumber, { example: '170' }));
     if (cm < HEIGHT_RANGE_CM.min || cm > HEIGHT_RANGE_CM.max) {
-      return fail(
-        'height',
+      return refuse(
         imperial
           ? fill(s.errorHeightImperial, {
               min: feetInches(HEIGHT_RANGE_CM.min),
@@ -168,44 +208,93 @@ export function ProfileBodySection({
     setHeightCm(null);
     setHeightFt(null);
     setHeightIn(null);
-    onProfile('heightCm', cm);
+    // A value that is already stored is not written again (leaving a field must not be a write).
+    if (cm !== storedHeight) onProfile('heightCm', cm);
+    return true;
   };
 
-  const saveMeasurement = async (kind: MeasurementKind): Promise<void> => {
+  /**
+   * Check and write the weight or waist typed. Returns `false` when it was not written: not a valid
+   * number (the message is on the field), a weight that needs the one question first, or a failed
+   * write. `focusOnError` also moves focus to the field.
+   */
+  const saveMeasurement = async (
+    kind: MeasurementKind,
+    { focusOnError = false, fromBlur = false } = {},
+  ): Promise<boolean> => {
     const text = kind === 'weight' ? weight : waist;
-    const typed = parseTypedNumber(text);
     const field = kind;
-    if (typed === null) {
-      return fail(
-        field,
-        fill(s.errorNumber, {
-          example: kind === 'weight' ? (imperial ? '154' : '70') : imperial ? '32' : '81',
+    const target = kind === 'weight' ? weightField : null;
+    const parsed = parseMeasurementText(kind, text, units);
+    const refuse = (message: string): false => {
+      fail(field, message);
+      if (focusOnError) target?.current?.focus();
+      return false;
+    };
+    if (parsed.kind === 'number') return refuse(fill(s.errorNumber, { example: parsed.example }));
+    if (parsed.kind === 'range') {
+      return refuse(
+        fill(kind === 'weight' ? s.errorWeight : s.errorWaist, {
+          ...range(parsed.min, parsed.max),
+          unit: unitName[parsed.unit],
         }),
       );
     }
-    const value =
-      kind === 'weight' ? (imperial ? lbToKg(typed) : typed) : imperial ? inchesToCm(typed) : typed;
-    const { min, max } = MEASUREMENT_RANGE[kind];
-    if (value < min || value > max) {
-      const shown =
-        kind === 'weight'
-          ? imperial
-            ? { ...range(kgToLb(min), kgToLb(max)), unit: unitName.lb }
-            : { ...range(min, max), unit: unitName.kg }
-          : imperial
-            ? { ...range(cmToInches(min), cmToInches(max)), unit: unitName.in }
-            : { ...range(min, max), unit: unitName.cm };
-      return fail(field, fill(kind === 'weight' ? s.errorWeight : s.errorWaist, shown));
+    const value = parsed.value;
+    const today = localDayText(clock());
+    const sameToday = body.find((m) => m.kind === kind && m.day === today);
+    // Leaving the field with what is already recorded for today is not a write.
+    if (fromBlur && sameToday !== undefined && Math.abs(sameToday.value - value) < 1e-9) {
+      ok(field);
+      (kind === 'weight' ? setWeight : setWaist)(null);
+      return true;
+    }
+    if (kind === 'weight' && !confirmingWeight) {
+      const last = body.find((m) => m.kind === 'weight' && m.day !== today);
+      if (weightNeedsConfirmation(value, last?.value)) {
+        ok(field);
+        setConfirmingWeight(true);
+        return false;
+      }
     }
     ok(field);
     try {
-      await pref.record(kind, value, clock(), localDayText(clock()));
-      if (live()) (kind === 'weight' ? setWeight : setWaist)(null);
-      if (live()) setStatus('');
+      await pref.record(kind, value, clock(), today);
+      if (live()) {
+        (kind === 'weight' ? setWeight : setWaist)(null);
+        setConfirmingWeight(false);
+        setStatus('');
+      }
+      return true;
     } catch {
       if (live()) setStatus(s.saveFailed);
+      return false;
     }
   };
+
+  // The welcome settles what is typed before it moves on (see `commitRef`).
+  const commit = async (): Promise<boolean> => {
+    if (heightCmDraft !== null || heightFtDraft !== null || heightInDraft !== null) {
+      const typed = (imperial ? heightFt + heightIn : heightCm).trim() !== '';
+      if (typed && !saveHeight(true)) return false;
+    }
+    // The question is already on screen: Next is not an answer to it.
+    if (confirmingWeight && weight.trim() !== '') {
+      document.querySelector<HTMLElement>('[data-change]')?.focus();
+      return false;
+    }
+    if (weight.trim() !== '' && !(await saveMeasurement('weight', { focusOnError: true }))) {
+      return false;
+    }
+    return true;
+  };
+  useEffect(() => {
+    if (commitRef === undefined) return;
+    commitRef.current = commit;
+    return () => {
+      commitRef.current = null;
+    };
+  });
 
   const remove = async (kind: MeasurementKind, day: string): Promise<void> => {
     try {
@@ -222,7 +311,7 @@ export function ProfileBodySection({
       : `${asText(imperial ? cmToInches(value) : value, locale)} ${imperial ? unitName.in : unitName.cm}`;
 
   return (
-    <Section title={s.bodyTitle}>
+    <Section title={title ?? s.bodyTitle}>
       <Prose>{s.bodyHelp}</Prose>
       <ChoiceGroup<UnitSystem>
         label={s.units}
@@ -249,12 +338,21 @@ export function ProfileBodySection({
                 inputMode="decimal"
                 autoComplete="off"
                 value={heightFt}
+                ref={feetField}
                 aria-describedby={errors['height'] ? heightErrorId : undefined}
                 onChange={(e) => setHeightFt(e.target.value)}
                 onPaste={(e) => {
                   if (splitHeight(e.clipboardData.getData('text')) !== null) e.preventDefault();
                 }}
-                onBlur={(e) => void splitHeight(e.target.value)}
+                onBlur={(e) => {
+                  void splitHeight(e.target.value);
+                  // In the welcome there is no Save button to find: what was typed is kept on leaving,
+                  // once both feet and inches are settled (never a transient "5 ft 0 in" on the way to
+                  // the inches field).
+                  if (e.relatedTarget === inchesField.current) return;
+                  if (compact && e.target.value.trim() !== '' && heightIn.trim() !== '')
+                    saveHeight();
+                }}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -263,8 +361,12 @@ export function ProfileBodySection({
                 inputMode="decimal"
                 autoComplete="off"
                 value={heightIn}
+                ref={inchesField}
                 aria-describedby={errors['height'] ? heightErrorId : undefined}
                 onChange={(e) => setHeightIn(e.target.value)}
+                onBlur={() => {
+                  if (compact && heightFt.trim() !== '') saveHeight();
+                }}
               />
             </div>
           </div>
@@ -274,7 +376,11 @@ export function ProfileBodySection({
             inputMode="decimal"
             autoComplete="off"
             value={heightCm}
+            ref={cmField}
             onChange={(e) => setHeightCm(e.target.value)}
+            onBlur={() => {
+              if (compact && heightCmDraft !== null && heightCm.trim() !== '') saveHeight();
+            }}
             message={errors['height']}
           />
         )}
@@ -284,7 +390,7 @@ export function ProfileBodySection({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={saveHeight}>
+          <Button variant="secondary" onClick={() => saveHeight()}>
             {s.heightSave}
           </Button>
           {storedHeight !== undefined && (
@@ -298,7 +404,7 @@ export function ProfileBodySection({
       <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
         <legend className="font-display text-label text-thread mb-1.5 p-0">{s.weightLabel}</legend>
         <p className="text-body-small text-ink-soft">{s.weightHelp}</p>
-        {latestWeight !== undefined && (
+        {showNumbers && latestWeight !== undefined && (
           <p className="text-body-small text-ink-soft">
             {fill(s.weightFrom, {
               date: formatDay(latestWeight.day, locale),
@@ -311,15 +417,33 @@ export function ProfileBodySection({
           inputMode="decimal"
           autoComplete="off"
           value={weight}
-          onChange={(e) => setWeight(e.target.value)}
+          ref={weightField}
+          onChange={(e) => {
+            setWeight(e.target.value);
+            setConfirmingWeight(false);
+          }}
+          onBlur={() => {
+            if (compact && weight.trim() !== '' && !confirmingWeight) {
+              void saveMeasurement('weight', { fromBlur: true });
+            }
+          }}
           message={errors['weight']}
         />
+        {confirmingWeight && (
+          <WeightConfirm
+            onSave={() => void saveMeasurement('weight')}
+            onChange={() => {
+              setConfirmingWeight(false);
+              weightField.current?.focus();
+            }}
+          />
+        )}
         <div>
           <Button variant="secondary" onClick={() => void saveMeasurement('weight')}>
             {s.weightSave}
           </Button>
         </div>
-        {weights.length > 0 && (
+        {!compact && weights.length > 0 && (
           <div>
             <h3 className="font-display text-label text-thread">{s.weighIns}</h3>
             <ul className="flex flex-col">
@@ -330,8 +454,7 @@ export function ProfileBodySection({
                 >
                   <span className="text-body">
                     {formatDay(m.day, locale)}
-                    {': '}
-                    {display('weight', m.value)}
+                    {showNumbers ? `: ${display('weight', m.value)}` : ''}
                   </span>
                   <button
                     type="button"
@@ -344,54 +467,64 @@ export function ProfileBodySection({
                 </li>
               ))}
             </ul>
+            <a
+              href={hrefs.progress}
+              className="text-ink inline-flex min-h-12 items-center text-body-small underline underline-offset-4"
+            >
+              {s.weighInsAll}
+            </a>
           </div>
         )}
       </fieldset>
 
-      <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
-        <legend className="font-display text-label text-thread mb-1.5 p-0">{s.waistLabel}</legend>
-        <details className="group text-body-small text-ink-soft">
-          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 underline underline-offset-4 [&::-webkit-details-marker]:hidden">
-            <span
-              aria-hidden="true"
-              className="border-ink-soft size-2 shrink-0 -rotate-45 border-r-2 border-b-2 transition-transform group-open:rotate-45"
-            />
-            <span>{s.waistHow}</span>
-          </summary>
-          <p className="pb-2">{s.waistHowBody}</p>
-        </details>
-        <TextField
-          label={imperial ? s.waistIn : s.waistCm}
-          inputMode="decimal"
-          autoComplete="off"
-          value={waist}
-          onChange={(e) => setWaist(e.target.value)}
-          message={errors['waist']}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => void saveMeasurement('waist')}>
-            {s.waistSave}
-          </Button>
-        </div>
-        {latestWaist !== undefined && (
-          <div className="flex min-h-12 items-center justify-between gap-3">
-            <p className="text-body-small text-ink-soft">
-              {fill(s.waistFrom, {
-                date: formatDay(latestWaist.day, locale),
-                value: display('waist', latestWaist.value),
-              })}
-            </p>
-            <button
-              type="button"
-              aria-label={fill(s.waistRemove, { date: formatDay(latestWaist.day, locale) })}
-              onClick={() => void remove('waist', latestWaist.day)}
-              className="text-ink inline-flex min-h-12 min-w-12 items-center justify-center text-body-small underline underline-offset-4"
-            >
-              ×
-            </button>
+      {!compact && (
+        <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+          <legend className="font-display text-label text-thread mb-1.5 p-0">{s.waistLabel}</legend>
+          <details className="group text-body-small text-ink-soft">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 underline underline-offset-4 [&::-webkit-details-marker]:hidden">
+              <span
+                aria-hidden="true"
+                className="border-ink-soft size-2 shrink-0 -rotate-45 border-r-2 border-b-2 transition-transform group-open:rotate-45"
+              />
+              <span>{s.waistHow}</span>
+            </summary>
+            <p className="pb-2">{s.waistHowBody}</p>
+          </details>
+          <TextField
+            label={imperial ? s.waistIn : s.waistCm}
+            inputMode="decimal"
+            autoComplete="off"
+            value={waist}
+            onChange={(e) => setWaist(e.target.value)}
+            message={errors['waist']}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => void saveMeasurement('waist')}>
+              {s.waistSave}
+            </Button>
           </div>
-        )}
-      </fieldset>
+          {latestWaist !== undefined && (
+            <div className="flex min-h-12 items-center justify-between gap-3">
+              <p className="text-body-small text-ink-soft">
+                {showNumbers
+                  ? fill(s.waistFrom, {
+                      date: formatDay(latestWaist.day, locale),
+                      value: display('waist', latestWaist.value),
+                    })
+                  : fill(all.progress.hiddenWaist, { date: formatDay(latestWaist.day, locale) })}
+              </p>
+              <button
+                type="button"
+                aria-label={fill(s.waistRemove, { date: formatDay(latestWaist.day, locale) })}
+                onClick={() => void remove('waist', latestWaist.day)}
+                className="text-ink inline-flex min-h-12 min-w-12 items-center justify-center text-body-small underline underline-offset-4"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </fieldset>
+      )}
       {/* Once, covering the weight, the height and the waist (docs/no-dark-patterns-standard.md). */}
       <SupportLine />
       <p role="status" className="text-body-small text-ink-soft empty:hidden">

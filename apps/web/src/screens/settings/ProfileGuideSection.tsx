@@ -3,6 +3,8 @@ import {
   CUSTOM_ENERGY_RANGE_KCAL,
   ENERGY_FLOOR_KCAL,
   bodyMassIndex,
+  localDayText,
+  weighInIsStale,
   customEnergyVerdict,
   waistToHeightRatio,
   whtrApplies,
@@ -17,6 +19,9 @@ import { useSession } from '../../app/session';
 import { hrefs } from '../../app/router';
 import { SECTIONS } from './sections';
 import { parseTypedNumber } from './body-input';
+import { PaceNotice } from '../progress/PaceNotice';
+import { weightText } from '../progress/weight-format';
+import { formatDay } from './ProfileBodySection';
 import { Prose, Section } from './SettingsPage';
 
 const decimals = (locale: Locale, digits: number) =>
@@ -78,6 +83,57 @@ export function guideNoticeText(
 }
 
 /**
+ * The headline of the guide: the energy and protein (or the line that says it is the general
+ * reference), the notice when a safeguard or the floor decided it, and with numbers off only the
+ * notice and the pointer to the switch. Shared by Profile and the first-run welcome so the wording
+ * and its rules exist once.
+ */
+export function GuideSummary({ profile }: { readonly profile: Profile | undefined }) {
+  const s = useStrings().profile;
+  const { locale } = useLocale();
+  const { profile: pref } = useSession();
+  const showNumbers = useShowNumbers();
+  const guide: DailyGuide = useSyncExternalStore(pref.subscribe, pref.guide);
+  const e = guide.explanation;
+  const floor = ENERGY_FLOOR_KCAL[profile?.sex ?? 'unspecified'];
+  const floorText = showNumbers ? formatWhole(e.flooredAt ?? floor, locale) : null;
+  const notice = guideNoticeText(e, profile?.goal, floorText, s);
+  if (!showNumbers) {
+    // Numbers are off: no kcal, protein, maintenance, BMI or ratio. The calm notices stay.
+    return (
+      <>
+        {notice !== null && <p className="text-body-small text-ink-soft">{notice}</p>}
+        <p className="text-body-small text-ink-soft">
+          {s.guideNumbersOff}{' '}
+          <a
+            href={hrefs.section(SECTIONS.nutrition)}
+            className="inline-flex min-h-12 items-center underline underline-offset-4"
+          >
+            {s.guideNumbersOffLink}
+          </a>
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <Prose>
+        {guide.personal
+          ? fill(s.guideComplete, {
+              energy: formatWhole(guide.targets.energyKcal, locale),
+              protein: formatWhole(guide.targets.protein, locale),
+            })
+          : s.guideIncomplete}
+      </Prose>
+      {guide.personal && e.inputs.weightKg === undefined && e.basis === 'personal' && (
+        <p className="text-body-small text-ink-soft">{s.guideMakePersonal}</p>
+      )}
+      {notice !== null && <p className="text-body-small text-ink-soft">{notice}</p>}
+    </>
+  );
+}
+
+/**
  * Settings, Profile, "Your daily guide": the energy and protein, the one-line reason when the guide
  * is held at maintenance, "How this is worked out", the person's own figure, and the BMI and
  * waist-to-height numbers behind a disclosure with their reference ranges written as text. Plain
@@ -92,7 +148,7 @@ export function ProfileGuideSection({
 }) {
   const s = useStrings().profile;
   const { locale } = useLocale();
-  const { profile: pref } = useSession();
+  const { profile: pref, clock } = useSession();
   const showNumbers = useShowNumbers();
   const guide: DailyGuide = useSyncExternalStore(pref.subscribe, pref.guide);
   const body = useSyncExternalStore(pref.subscribe, pref.measurementList);
@@ -101,9 +157,8 @@ export function ProfileGuideSection({
 
   const e = guide.explanation;
   const floor = ENERGY_FLOOR_KCAL[profile?.sex ?? 'unspecified'];
-  const floorText = showNumbers ? formatWhole(e.flooredAt ?? floor, locale) : null;
-  const notice = guideNoticeText(e, profile?.goal, floorText, s);
-  const weight = body.find((m) => m.kind === 'weight')?.value;
+  const latestWeight = body.find((m) => m.kind === 'weight');
+  const weight = latestWeight?.value;
   const waist = body.find((m) => m.kind === 'waist')?.value;
   const bmi = bodyMassIndex(weight, profile?.heightCm);
   const whtr = waistToHeightRatio(waist, profile?.heightCm);
@@ -161,37 +216,18 @@ export function ProfileGuideSection({
   const activityName = e.inputs.activity === undefined ? '' : s.activityOptions[e.inputs.activity];
 
   if (!showNumbers) {
-    // Numbers are off: no kcal, protein, maintenance, BMI or ratio here. The calm notices stay.
     return (
       <Section title={s.guideTitle}>
-        {notice !== null && <p className="text-body-small text-ink-soft">{notice}</p>}
-        <p className="text-body-small text-ink-soft">
-          {s.guideNumbersOff}{' '}
-          <a
-            href={hrefs.section(SECTIONS.nutrition)}
-            className="inline-flex min-h-12 items-center underline underline-offset-4"
-          >
-            {s.guideNumbersOffLink}
-          </a>
-        </p>
+        <GuideSummary profile={profile} />
+        <PaceNotice />
       </Section>
     );
   }
 
   return (
     <Section title={s.guideTitle}>
-      <Prose>
-        {guide.personal
-          ? fill(s.guideComplete, {
-              energy: formatWhole(guide.targets.energyKcal, locale),
-              protein: formatWhole(guide.targets.protein, locale),
-            })
-          : s.guideIncomplete}
-      </Prose>
-      {guide.personal && e.inputs.weightKg === undefined && e.basis === 'personal' && (
-        <p className="text-body-small text-ink-soft">{s.guideMakePersonal}</p>
-      )}
-      {notice !== null && <p className="text-body-small text-ink-soft">{notice}</p>}
+      <GuideSummary profile={profile} />
+      <PaceNotice />
       {e.customRefused !== null && e.customRefused !== 'outOfRange' && (
         <p className="text-body-small text-ink-soft">
           {e.customRefused === 'belowFloor'
@@ -252,6 +288,17 @@ export function ProfileGuideSection({
               grams: formatWhole(guide.targets.protein, locale),
             })}
           </p>
+          {latestWeight !== undefined && e.inputs.weightKg !== undefined && (
+            <p>
+              {fill(s.howWeighIn, {
+                value: weightText(latestWeight.value, profile?.units ?? 'metric', locale, s),
+                date: formatDay(latestWeight.day, locale),
+              })}
+              {weighInIsStale(latestWeight.day, localDayText(clock()))
+                ? ` ${s.howWeighInStale}`
+                : ''}
+            </p>
+          )}
           <p>{fill(s.howOthers, { fibre: formatWhole(guide.targets.fibre, locale) })}</p>
           <p>{s.howAccuracy}</p>
         </Disclosure>

@@ -1,29 +1,20 @@
 import { useState, useSyncExternalStore } from 'react';
 import {
-  ACTIVITIES,
-  AGE_BANDS,
   DIETS,
   GOALS,
   MAX_ALLERGY_TAGS,
   MAX_ALLERGY_TAG_LENGTH,
-  PACES,
-  SEXES,
   sanitizeAllergyTags,
-  type Pace,
-  type Profile,
 } from '@anc/core';
 import { SupportLine } from '../../components/nutrition';
 import { ConfirmDialog } from '../../components/dialogs';
 import { Checkbox } from '../../components/primitives';
 import { fill, useStrings } from '../../i18n';
 import { useSession } from '../../app/session';
-import { ChoiceGroup, type Choice } from './ChoiceGroup';
+import { PaceChoice, ProfileAboutFields, useProfileEditor } from './profile-editor';
 import { ProfileBodySection } from './ProfileBodySection';
 import { ProfileGuideSection } from './ProfileGuideSection';
 import { Prose, Section, SettingsPage } from './SettingsPage';
-
-const UNSET = 'unset';
-type OrUnset<T extends string> = T | typeof UNSET;
 
 /**
  * Settings, Profile, in sections with a line on what each answer changes: About you, Body, Goal,
@@ -36,55 +27,12 @@ export function ProfileScreen() {
   const all = useStrings();
   const s = all.profile;
   const { profile: pref, live } = useSession();
-  const profile = useSyncExternalStore(pref.subscribe, pref.current);
+  const editor = useProfileEditor();
+  const { profile, status, setStatus, withField, group } = editor;
   const measurements = useSyncExternalStore(pref.subscribe, pref.measurementList);
-  const [status, setStatus] = useState('');
   const [draft, setDraft] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
-
-  const save = async (next: Profile | undefined, ok = '') => {
-    try {
-      await pref.set(next);
-      if (live()) setStatus(ok);
-    } catch {
-      if (live()) setStatus(s.saveFailed);
-    }
-  };
-
-  const withField = <K extends keyof Profile>(key: K, value: Profile[K] | undefined) => {
-    // An unreadable profile is not an empty one: saving one field over it would erase the rest.
-    if (!pref.trusted()) {
-      setStatus(s.saveFailed);
-      return;
-    }
-    const next: Record<string, unknown> = { ...profile };
-    if (value === undefined) delete next[key];
-    else next[key] = value;
-    void save(next as Profile);
-  };
-
-  const choicesOf = <T extends string>(
-    values: readonly T[],
-    label: (value: T) => string,
-  ): readonly Choice<OrUnset<T>>[] => [
-    { value: UNSET, label: s.notSet },
-    ...values.map((value) => ({ value, label: label(value) })),
-  ];
-
-  const group = <K extends 'ageBand' | 'sex' | 'activity' | 'goal' | 'diet'>(
-    key: K,
-    legend: string,
-    values: readonly NonNullable<Profile[K]>[],
-    label: (value: NonNullable<Profile[K]>) => string,
-  ) => (
-    <ChoiceGroup<OrUnset<NonNullable<Profile[K]>>>
-      label={legend}
-      choices={choicesOf(values, label)}
-      value={profile?.[key] ?? UNSET}
-      onChange={(value) => withField(key, value === UNSET ? undefined : (value as Profile[K]))}
-    />
-  );
 
   const tags = profile?.allergies ?? [];
   const addTag = () => {
@@ -94,10 +42,6 @@ export function ProfileScreen() {
   };
 
   const goal = profile?.goal;
-  const weighsToMove = goal === 'lose' || goal === 'gain';
-  const pace: Pace = profile?.pace ?? 'gentle';
-  const imperial = profile?.units === 'imperial';
-  const activityHelp = profile?.activity === undefined ? '' : s.activityHelp[profile.activity];
 
   return (
     <SettingsPage title={s.title}>
@@ -106,10 +50,7 @@ export function ProfileScreen() {
 
         <Section title={s.aboutTitle}>
           <Prose>{s.aboutHelp}</Prose>
-          {group('ageBand', s.ageBand, AGE_BANDS, (v) => v)}
-          {group('sex', s.sex, SEXES, (v) => s.sexOptions[v])}
-          {group('activity', s.activity, ACTIVITIES, (v) => s.activityOptions[v])}
-          {activityHelp !== '' && <p className="text-body-small text-ink-soft">{activityHelp}</p>}
+          <ProfileAboutFields editor={editor} />
         </Section>
 
         <ProfileBodySection profile={profile} onProfile={withField} />
@@ -121,26 +62,7 @@ export function ProfileScreen() {
             <p className="text-body-small text-ink-soft">{s.goalEffect[goal]}</p>
           )}
           <SupportLine />
-          {weighsToMove && (
-            <div className="flex flex-col gap-2">
-              <ChoiceGroup<Pace>
-                label={s.pace}
-                choices={PACES.map((value) => ({ value, label: s.paceOptions[value] }))}
-                value={pace}
-                onChange={(value) => withField('pace', value)}
-              />
-              <p className="text-body-small text-ink-soft">
-                {goal === 'lose' ? s.paceHelpLose[pace] : s.paceHelpGain[pace]}
-              </p>
-              <p className="text-body-small text-ink-soft">
-                {goal === 'lose'
-                  ? imperial
-                    ? s.paceExpectationLoseImperial
-                    : s.paceExpectationLose
-                  : s.paceExpectationGain}
-              </p>
-            </div>
-          )}
+          <PaceChoice editor={editor} />
           {goal === 'lose' && profile?.sex !== 'male' && (
             <div>
               <Checkbox

@@ -46,6 +46,17 @@ export const KV_KEYS = Object.freeze({
    * (docs/adr/0008); absent means off (the default). Synced with the vault like the numbers switch.
    */
   uiShowDistanceToGuide: 'ui.showDistanceToGuide',
+  /**
+   * `done` | `skipped`: the first-run welcome was finished or set aside (docs/adr/0008 follow-up).
+   * Synced, so a second device of the same person does not replay it. Absent: not yet shown.
+   */
+  uiWelcome: 'ui.welcome',
+  /** The welcome step the person was on (1 to 4), so a reload resumes there. This device only. */
+  uiWelcomeStep: 'ui.welcomeStep',
+  /** `on` once the person closed the quiet "add a few details for a guide of your own" line on Today. */
+  uiGuideHintDismissed: 'ui.guideHintDismissed',
+  /** UTC ISO-8601 time the person hid the pace line (it returns after 14 days if it still holds). */
+  uiPaceNoticeDismissedAtUtc: 'ui.paceNoticeDismissedAtUtc',
   /** The optional `Profile` as JSON; absent means no profile. Included in the JSON export. */
   profile: 'profile',
   // The connection of THIS device to a relay vault (phase S2). All device-only: they never enter a

@@ -1,9 +1,9 @@
 import type { EpochMs } from '@anc/core';
 import { isSameLocalDay } from '@anc/core';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { useStrings } from '../../i18n';
+import { fill, useStrings } from '../../i18n';
 import { LINES } from '../primitives';
-import { weekdayAbbr } from './format';
+import { formatDayMonthLong, weekdayAbbr } from './format';
 import { dayKind, dayRouteLabel } from './week';
 import type { WeekDayData } from './week';
 
@@ -43,6 +43,16 @@ function foldClass(d: WeekDayData, current: boolean): string {
  */
 export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekRouteProps) {
   const s = useStrings().week;
+  // A route that holds no today is an earlier week: its label says which one.
+  const first = days[0];
+  const last = days[days.length - 1];
+  const label =
+    first !== undefined && last !== undefined && !days.some((d) => d.isToday)
+      ? fill(s.routeLabelEarlier, {
+          from: formatDayMonthLong(first.date),
+          to: formatDayMonthLong(last.date),
+        })
+      : s.routeLabel;
   const nav = useRef<HTMLElement>(null);
   // Today's word ("Today", "Aujourd’hui") is shown only when it fits inside its stop.
   const [wordFits, setWordFits] = useState(false);
@@ -82,7 +92,7 @@ export function WeekRoute({ days, selected, onSelectDay, className = '' }: WeekR
   return (
     <nav
       ref={nav}
-      aria-label={s.routeLabel}
+      aria-label={label}
       data-scroll-x
       className={`overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
     >

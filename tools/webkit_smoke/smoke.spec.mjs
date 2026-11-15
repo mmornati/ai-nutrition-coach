@@ -144,6 +144,8 @@ async function createStore(page) {
   await page.getByLabel('Passphrase', { exact: true }).fill(PASSPHRASE);
   await page.getByLabel('Confirm passphrase').fill(PASSPHRASE);
   await page.getByRole('button', { name: 'Create and unlock' }).click();
+  // A new store opens on the welcome; "Not now" sets it aside for good.
+  await page.getByRole('button', { name: 'Not now' }).click({ timeout: 30_000 });
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible({ timeout: 30_000 });
 }
 

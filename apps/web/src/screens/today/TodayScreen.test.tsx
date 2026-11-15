@@ -560,4 +560,27 @@ describe('TodayScreen: nutrient-aware coach', () => {
       ),
     ).toBeVisible();
   });
+
+  it('a weigh-in is one quiet tap away and a link leads to Trends', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(screen.getByRole('link', { name: 'Your trends' })).toHaveAttribute('href', '#/progress');
+    await userEvent.click(screen.getByRole('button', { name: 'Add a weigh-in' }));
+    const sheet = screen.getByRole('dialog', { name: 'Weigh-in' });
+    await userEvent.type(within(sheet).getByLabelText('Weight in kg'), '81.4');
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Weigh-in saved.')).toBeVisible();
+    const listed = await bundle.measurements.list('weight');
+    expect(listed.kind === 'measurement' && listed.value[0]).toMatchObject({
+      day: '2026-10-14',
+      value: 81.4,
+    });
+  });
+
+  it('no reminder, no nudge: nothing about weighing in appears unless it is asked for', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<TodayScreen />, { bundle });
+    await screen.findByRole('heading', { level: 1, name: 'Today' });
+    expect(document.body.textContent).not.toMatch(/haven.t weighed|time to weigh|remind/i);
+  });
 });

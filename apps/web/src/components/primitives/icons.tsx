@@ -113,6 +113,14 @@ export const WeekIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ProgressIcon = (p: IconProps) => (
+  <Icon {...p}>
+    {/* A running stitch rising and settling: the trend through the days. */}
+    <path d="M3 20h18M3 20V4" />
+    <path d="M6 15l4-3 3 2 5-6" />
+  </Icon>
+);
+
 export const TorchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />
@@ -149,6 +157,7 @@ export const ICONS = {
   check: CheckIcon,
   today: TodayIcon,
   week: WeekIcon,
+  progress: ProgressIcon,
   torch: TorchIcon,
   describe: DescribeIcon,
   mic: MicIcon,

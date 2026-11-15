@@ -75,6 +75,20 @@ ADR 0008 (`docs/adr/0008-goals-body-data-daily-guide.md`) adds the following. Th
   ("you are overweight"), never colour-coded.
 - A coach that may help with weight loss when the person chose that goal, within the safeguards of ADR 0008.
 
+- **Trends** (the weight trend, the weigh-in history and the intake history; the neutral name, never "Progress"
+  or "Progrès": a weight is not progress or its opposite): the trend is drawn in one neutral ink with the weigh-ins
+  as faint dots, an axis that never narrows below 4 kg or 5 % of the body weight, no goal line and no fill; it is
+  described in words ("lower than", "higher than", "about the same as"), the value is always in text and a table
+  carries the same data. The comparison names the real span between the points ("5.0 kg lower than 60 days ago").
+  A weigh-in far from its neighbours is taken for a typing slip and left out of the trend, marked "not used for the
+  trend" and still editable; a weight far from the last one is asked about once ("That is quite different from your
+  last weigh-in. Save it as typed?", no figure repeated). One calm fixed line appears when the trend falls faster
+  than about 1 % of body weight a week over 14 days, given at least 28 days of history, three weigh-ins spanning
+  14 days within the last 28 and a latest weigh-in at most 14 days old (ADR 0008, Safeguards). **It appears in
+  exactly three places: on Trends, next to the daily guide in Profile, and on Today**; it is the same ink and the
+  same words, links to the pace choice, can be hidden for 14 days, and stays visible with numbers hidden. The
+  first-run welcome and the one quiet "add a few details" line on Today are dismissible and asked of nobody twice.
+
 Still banned with it: birth date, weight-change targets used as scores, streaks of weigh-ins, weigh-in reminders by
 default, charts coloured good or bad, and any countdown or ring.
 

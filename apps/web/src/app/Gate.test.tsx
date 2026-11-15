@@ -9,6 +9,8 @@ import { StoreUnavailableError } from '../storage/errors';
 import { PrivacyPrefs } from '../catalog';
 import { fastBackupService } from '../sync/vault/testing';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
+import { clearFreshStore, isFreshStore } from './fresh-store';
+import { KV_KEYS } from '../storage/key-value-store';
 import { Gate } from './Gate';
 import { useSession, type Session } from './session';
 import {
@@ -23,6 +25,7 @@ import {
 
 afterEach(() => {
   forgetAcknowledgedBeforeStore();
+  clearFreshStore();
   window.location.hash = '';
 });
 
@@ -48,8 +51,13 @@ describe('Gate: first run', () => {
     await user.type(screen.getByLabelText('Confirm passphrase'), PASSPHRASE);
     await user.click(screen.getByRole('button', { name: 'Create and unlock' }));
 
-    expect(await today()).toBeVisible();
+    // A store made here opens the short welcome, not an empty Today; "Not now" sets it aside once.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Welcome' })).toBeVisible();
     expect(bundle.controller.getSnapshot().status).toBe('unlocked');
+    await user.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(await today()).toBeVisible();
+    await waitFor(async () => expect(await bundle.kv.read(KV_KEYS.uiWelcome)).toBe('skipped'));
+    expect(isFreshStore()).toBe(false);
     // The notice was shown before the store existed: it is written into the store silently.
     await waitFor(async () =>
       expect(await new PrivacyPrefs(bundle.kv).aboutAcknowledged()).toBe(true),

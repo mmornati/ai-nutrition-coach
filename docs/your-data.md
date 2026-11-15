@@ -92,6 +92,14 @@ and BMI themselves are never sent to an AI; the coach receives your daily guide,
 your weight and height if you entered them.
 The earlier promise "no weight and no height" no longer holds: they are optional, and they stay yours.
 
+*Trends* (weigh-ins, the weight trend and the intake history) adds no new data: the weigh-ins are the same dated
+measurements, and the trend, its change and its pace are worked out on the screen and never stored, synced or
+exported (the export carries the raw weigh-ins only). Three small answers are kept in the encrypted key/value table:
+`ui.welcome` (`done` or `skipped`: the first-run welcome was finished or set aside; synced, so a second device does
+not replay it), `ui.guideHintDismissed` (`on`: the quiet "add a few details" line on Today was closed; synced) and
+`ui.paceNoticeDismissedAtUtc` (when the pace line was hidden; synced). The welcome's current step, `ui.welcomeStep`,
+stays on the device. All of them are erased with *Erase all local data*.
+
 ## Your saved meals and recipes
 
 *Settings → Saved meals* lists the meals you chose to keep (*Save as a meal* on a plate's page) and

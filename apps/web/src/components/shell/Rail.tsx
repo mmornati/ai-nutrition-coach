@@ -1,19 +1,21 @@
 import type { ReactNode } from 'react';
 import { useStrings } from '../../i18n';
-import { Button, PlusIcon, TodayIcon, WeekIcon, GearIcon, cn } from '../primitives';
+import { Button, PlusIcon, ProgressIcon, TodayIcon, WeekIcon, GearIcon, cn } from '../primitives';
 import { BrandMark } from './BrandMark';
 
-export type ShellRoute = 'today' | 'week' | 'settings';
+export type ShellRoute = 'today' | 'week' | 'progress' | 'settings';
 
 export const DEFAULT_ROUTE_HREFS: Readonly<Record<ShellRoute, string>> = {
   today: '#/',
   week: '#/week',
+  progress: '#/progress',
   settings: '#/settings',
 };
 
 const ITEMS: readonly { route: ShellRoute; icon: ReactNode }[] = [
   { route: 'today', icon: <TodayIcon /> },
   { route: 'week', icon: <WeekIcon /> },
+  { route: 'progress', icon: <ProgressIcon /> },
   { route: 'settings', icon: <GearIcon /> },
 ];
 

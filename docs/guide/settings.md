@@ -63,7 +63,14 @@ daily guide part shows no figures, only the calm notices and a link to *Settings
 
 There is no field for a name or a birth date. *Clear profile* empties the answers. *Remove all measurements* is a
 separate button: it asks first, and removes every weigh-in and waist measurement on every device that syncs. The
-weigh-in and waist fields start empty, with the last one shown as text beside them.
+weigh-in and waist fields start empty, with the last one shown as text beside them. A weigh-in for another day, the
+history, the trend and the chart are in [Trends](progress.md); the guide always uses your latest weigh-in, and *How
+this is worked out* says which one and when it was taken (a quiet line suggests an update after 60 days). If the
+weight trend falls faster than about 1 % a week for a while, one calm line points to a gentler pace or to a doctor or
+a dietitian.
+
+The first-run welcome asks the same questions as *About you*, *Body* (height and weight), *Goal* and *Pace*, and
+writes them to the same place.
 
 ## Nutrition
 

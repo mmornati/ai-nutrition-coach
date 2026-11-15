@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { weeklyReview, type WeeklyHighlight } from '@anc/core';
+import { addCalendarDays, weeklyReview, type WeeklyHighlight } from '@anc/core';
 import { coachCopyVars } from '../../app/coach-copy';
 import { useDay } from '../../app/day-context';
 import { foodGroupsOfFood } from '../../catalog';
@@ -17,7 +17,9 @@ import { WeekAiSummary } from './WeekAiSummary';
 export function WeekReview({ className }: { readonly className?: string }) {
   const all = useStrings();
   const { locale } = useLocale();
-  const { plates, today } = useDay();
+  const { plates, today: now, viewEnd, viewingEarlierWeek } = useDay();
+  // An earlier week is all finished days: nothing in it is "still being logged".
+  const today = viewingEarlierWeek ? addCalendarDays(viewEnd, 1) : now;
   const targets = useTargets();
   const showNumbers = useShowNumbers();
   const t = all.week.review;
@@ -87,7 +89,7 @@ export function WeekReview({ className }: { readonly className?: string }) {
           <p className="text-lead">{tryNext}</p>
         </div>
       )}
-      <WeekAiSummary review={review} />
+      <WeekAiSummary key={viewEnd} review={review} />
     </section>
   );
 }

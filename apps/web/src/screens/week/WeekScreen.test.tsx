@@ -89,4 +89,107 @@ describe('WeekScreen', () => {
     await screen.findByRole('heading', { level: 1, name: 'This week' });
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('moves to earlier weeks and back; today stays one tap away', async () => {
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    // Monday 5 October: nine days before "today" (Wednesday 14 October), in the week before.
+    await seedPlate(bundle, at(12, 0, -9), [
+      ['Eggs', 'protein'],
+      ['Spinach', 'vegFruit'],
+      ['Toast', 'starch'],
+      ['Milk', 'dairy'],
+    ]);
+    window.location.hash = '#/week';
+    await renderUnlockedApp(bundle);
+    await screen.findByRole('heading', { level: 1, name: 'This week' });
+    expect(screen.getByRole('button', { name: 'Later week' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Earlier week' })).toBeVisible();
+    expect(await screen.findByText('1 – 7 October')).toBeVisible();
+    // The dock's route follows the week in view, says which week that is, and no day of it is "today".
+    expect(
+      screen.queryByRole('navigation', { name: 'This week: choose a day' }),
+    ).not.toBeInTheDocument();
+    const route = screen.getByRole('navigation', {
+      name: 'Week from 1 October to 7 October: choose a day',
+    });
+    expect(within(route).getAllByRole('button')).toHaveLength(7);
+    expect(within(route).queryByRole('button', { name: /, today$/ })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /Monday: all four groups/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Monday' })).toBeVisible();
+    expect(await screen.findByText('Eggs, Spinach, Toast, Milk')).toBeVisible();
+
+    // One tap back to today, from Today.
+    await user.click(screen.getByRole('button', { name: 'Back to today' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Back to today' })).not.toBeInTheDocument();
+  });
+
+  it('"Later week" and "Back to this week" return to the week ending today', async () => {
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    window.location.hash = '#/week';
+    await renderUnlockedApp(bundle);
+    await screen.findByRole('heading', { level: 1, name: 'This week' });
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    expect(await screen.findByText('24 – 30 September')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Later week' }));
+    expect(await screen.findByText('1 – 7 October')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Back to this week' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Later week' })).toBeDisabled();
+  });
+});
+
+describe('WeekScreen: an earlier week says so', () => {
+  async function earlierWeek() {
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(12, 0, -9), [
+      ['Eggs', 'protein'],
+      ['Spinach', 'vegFruit'],
+      ['Toast', 'starch'],
+      ['Milk', 'dairy'],
+    ]);
+    window.location.hash = '#/week';
+    await renderUnlockedApp(bundle);
+    await screen.findByRole('heading', { level: 1, name: 'This week' });
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    await screen.findByRole('heading', { level: 1, name: 'Earlier week' });
+    return { user, bundle };
+  }
+
+  it('names its dates in the week note, never "this week"', async () => {
+    await earlierWeek();
+    expect(
+      await screen.findByText(
+        'All four food groups showed up in the week from 1 October to 7 October.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/showed up this week/)).not.toBeInTheDocument();
+  });
+
+  it('an earlier week with nothing logged says it for those dates', async () => {
+    const { user } = await earlierWeek();
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    expect(
+      await screen.findByText('No plates logged in the week from 24 September to 30 September.'),
+    ).toBeVisible();
+  });
+
+  it('moves focus to the heading when "Later week" or "Back to this week" brings this week back', async () => {
+    const { user } = await earlierWeek();
+    await user.click(screen.getByRole('button', { name: 'Later week' }));
+    const heading = await screen.findByRole('heading', { level: 1, name: 'This week' });
+    await waitFor(() => expect(heading).toHaveFocus());
+
+    await user.click(screen.getByRole('button', { name: 'Earlier week' }));
+    await screen.findByRole('heading', { level: 1, name: 'Earlier week' });
+    await user.click(screen.getByRole('button', { name: 'Back to this week' }));
+    const again = await screen.findByRole('heading', { level: 1, name: 'This week' });
+    await waitFor(() => expect(again).toHaveFocus());
+  });
 });

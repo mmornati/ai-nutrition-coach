@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   ALL_HISTORY_SCOPE,
+  addCalendarDays,
   visibleDayScope,
   weekScope,
   type ExportFormat,
@@ -87,7 +88,8 @@ export function YourDataScreen({
         // The "Today" scope is the real today, whichever day was last looked at on Today.
         return visibleDayScope(day.today);
       case 'week':
-        return weekScope(day.days[0]?.date ?? day.today);
+        // "This week" is the current week (the seven days ending today), not the week in view.
+        return weekScope(addCalendarDays(day.today, -6));
       case 'allHistory':
         return ALL_HISTORY_SCOPE;
     }

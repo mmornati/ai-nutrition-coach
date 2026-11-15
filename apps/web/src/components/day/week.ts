@@ -10,11 +10,13 @@ import {
   noteQuietNever,
   noteSome,
   noteText,
+  type WeekSpan,
   routeStop,
   stateSome,
 } from '../../i18n/sentences';
 import { LINE_GROUPS, groupsOfPlate, orderedGroups, type LineGroup } from '../primitives';
-import { weekdayName } from './format';
+import { formatDayMonthLong, weekdayName } from './format';
+import { fill } from '../../i18n';
 
 /** One day of the week, as the route, the network and the list draw it. */
 export interface WeekDayData {
@@ -26,17 +28,21 @@ export interface WeekDayData {
   readonly isToday: boolean;
 }
 
-/** Seven days ending `today`, oldest first. */
-export function buildWeekDays(plates: Iterable<PlateLog>, today: EpochMs): WeekDayData[] {
+/** Seven days ending `end` (today by default), oldest first; the day that is `today` is marked. */
+export function buildWeekDays(
+  plates: Iterable<PlateLog>,
+  today: EpochMs,
+  end: EpochMs = today,
+): WeekDayData[] {
   const all = Array.from(plates);
   return Array.from({ length: 7 }, (_, i) => {
-    const date = addCalendarDays(startOfLocalDay(today), i - 6);
+    const date = addCalendarDays(startOfLocalDay(end), i - 6);
     const dayPlates = all.filter((p) => isSameLocalDay(p.loggedAtUtc, date));
     return {
       date,
       groups: orderedGroups(dayPlates.flatMap(groupsOfPlate)),
       plateCount: dayPlates.length,
-      isToday: i === 6,
+      isToday: isSameLocalDay(date, today),
     };
   });
 }
@@ -101,24 +107,36 @@ export interface WeekNote {
  */
 export function weekNoteParts(days: readonly WeekDayData[]): WeekNote {
   const w = strings().week;
+  // A week that does not hold today is an earlier one: its sentences name its dates, not "this week".
+  const firstDay = days[0];
+  const lastDay = days[days.length - 1];
+  const span: WeekSpan | undefined =
+    firstDay !== undefined && lastDay !== undefined && !days.some((d) => d.isToday)
+      ? { from: formatDayMonthLong(firstDay.date), to: formatDayMonthLong(lastDay.date) }
+      : undefined;
   const logged = days.filter((d) => d.plateCount > 0 || d.groups.length > 0);
   if (logged.length === 0) {
-    return { lead: w.noteNone, detail: '', text: w.noteNone };
+    const none = span === undefined ? w.noteNone : fill(w.noteNoneEarlier, span);
+    return { lead: none, detail: '', text: none };
   }
   const ran = LINE_GROUPS.filter((g) => days.some((d) => d.groups.includes(g)));
   const lead =
     ran.length === LINE_GROUPS.length
-      ? w.noteAllRan
+      ? span === undefined
+        ? w.noteAllRan
+        : fill(w.noteAllRanEarlier, span)
       : ran.length === 0
-        ? w.noteNoneRan
-        : noteSome(lineNames(ran));
+        ? span === undefined
+          ? w.noteNoneRan
+          : fill(w.noteNoneRanEarlier, span)
+        : noteSome(lineNames(ran), span);
 
   const earlier = logged.filter((d) => !d.isToday);
   if (earlier.length === 0) return { lead, detail: '', text: lead };
 
   const sentences: string[] = [];
   const never = LINE_GROUPS.filter((g) => !ran.includes(g));
-  if (never.length > 0) sentences.push(noteQuietNever(lineNames(never)));
+  if (never.length > 0) sentences.push(noteQuietNever(lineNames(never), span));
   const partial = LINE_GROUPS.filter((g) => ran.includes(g))
     .map((g) => ({ g, onDays: earlier.filter((d) => !d.groups.includes(g)) }))
     .filter((q) => q.onDays.length > 0)

@@ -153,6 +153,21 @@ describe('buildWeekDays', () => {
     expect(days[4]).toMatchObject({ plateCount: 2, groups: ['protein', 'dairy'] });
     expect(days[0]).toMatchObject({ plateCount: 0, groups: [] });
   });
+
+  it('buckets an earlier week by its own last day, and marks no day as today', () => {
+    const lastDay = localTime(2026, 10, 6); // the week before: Wed 30 Sep .. Tue 6 Oct
+    const days = buildWeekDays(
+      [makePlate(1, 8, 0, ALL, 6), makePlate(2, 9, 0, ['protein'], 13)],
+      TODAY,
+      lastDay,
+    );
+    expect(days).toHaveLength(7);
+    expect(days[6]).toMatchObject({ date: lastDay, plateCount: 1, isToday: false });
+    expect(days.some((d) => d.isToday)).toBe(false);
+    // The plate of today is outside that week.
+    expect(days.reduce((n, d) => n + d.plateCount, 0)).toBe(1);
+    expect(buildWeekDays([], TODAY, localTime(2026, 10, 13))[6]?.isToday).toBe(true);
+  });
 });
 
 describe('logged, no food group', () => {

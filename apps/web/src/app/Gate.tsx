@@ -22,6 +22,7 @@ import {
 import { StoreProvider, useStoreBundle, useStoreSnapshot } from './store-context';
 import { AboutGate, AboutGateBeforeStore } from './AboutGate';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
+import { clearFreshStore, markFreshStore } from './fresh-store';
 import { ServerHandoffContext, type ServerHandoff } from './server-handoff';
 import { SessionBoundary, type SessionOptions, type SyncOptions } from './session';
 import { UnlockedApp, type UnlockedAppProps } from './UnlockedApp';
@@ -107,7 +108,18 @@ function FirstRunCreate({
   const signInRequired = useSyncSignInRequired(offer);
   return (
     <CreatePassphraseScreen
-      onCreate={(p) => controller.createStore(p)}
+      onCreate={async (p) => {
+        // A store made here, not restored: the welcome is shown once for it (see WelcomeHost).
+        markFreshStore();
+        try {
+          const result = await controller.createStore(p);
+          if (result.kind !== 'unlocked') clearFreshStore();
+          return result;
+        } catch (error) {
+          clearFreshStore();
+          throw error;
+        }
+      }}
       onRestore={restoreBackup}
       {...(offered ? { serverRestore } : {})}
       {...(notice === undefined ? {} : { notice })}
@@ -162,6 +174,7 @@ function GateContent({ sessionOptions, backup, sync, ...app }: GateProps): React
     // flag before any code after the `await` could run. If the erase fails, nothing is lost: the
     // answer is also in the store, which the next unlock reads.
     forgetAcknowledgedBeforeStore();
+    clearFreshStore();
     return eraser.eraseAll();
   };
 

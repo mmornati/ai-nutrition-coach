@@ -68,6 +68,18 @@ export const COVERED_BY = Object.freeze({
   DescribeConsentCard: 'LogHost',
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
+  GuideHint: 'TodayScreen',
+  // Progress: the chart, the intake list, the weigh-in sheet and the pace line, tested through it.
+  TrendChart: 'ProgressScreen',
+  IntakeHistory: 'ProgressScreen',
+  WeighInSheet: 'ProgressScreen',
+  PaceNotice: 'ProgressScreen',
+  // The one question before a weight far from the last one is saved, in the sheet and the Profile.
+  WeightConfirm: 'ProgressScreen',
+  // The Profile editor's building blocks, shared with the first-run welcome.
+  GuideSummary: 'ProfileScreen',
+  ProfileAboutFields: 'ProfileScreen',
+  PaceChoice: 'ProfileScreen',
   // The frame of the gate screens.
   GateFrame: 'UnlockScreen',
 });

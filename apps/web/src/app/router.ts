@@ -3,6 +3,7 @@
 //
 //   #/               Today
 //   #/week           Week
+//   #/progress       Progress (weight trend, weigh-ins, intake history)
 //   #/coach          Ask the coach (optional AI chat)
 //   #/plate/<id>     Plate detail
 //   #/plate/<id>/edit  The same, with the edit sheet open (the links that complete a food)
@@ -13,6 +14,7 @@ import { useSyncExternalStore } from 'react';
 export type Route =
   | { readonly name: 'today' }
   | { readonly name: 'week' }
+  | { readonly name: 'progress' }
   | { readonly name: 'coach' }
   | { readonly name: 'plate'; readonly id: number; readonly edit?: boolean }
   | {
@@ -26,6 +28,7 @@ export const TODAY_HASH = '#/';
 export const hrefs = {
   today: TODAY_HASH,
   week: '#/week',
+  progress: '#/progress',
   coach: '#/coach',
   settings: '#/settings',
   privacy: '#/privacy',
@@ -42,6 +45,8 @@ export function parseRoute(hash: string): Route {
   switch (head) {
     case 'week':
       return { name: 'week' };
+    case 'progress':
+      return { name: 'progress' };
     case 'coach':
       return { name: 'coach' };
     case 'plate': {

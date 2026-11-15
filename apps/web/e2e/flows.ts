@@ -36,13 +36,26 @@ export async function freshStart(page: Page, base = ''): Promise<string[]> {
   return errors;
 }
 
-export async function createStore(page: Page): Promise<void> {
+/**
+ * The About notice and the passphrase screen, up to the first-run welcome (which a new store opens
+ * before Today). `createStore` sets that welcome aside; a spec that is about the welcome uses this.
+ */
+export async function createStoreToWelcome(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'About this app' })).toBeVisible();
   await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Protect your history' })).toBeVisible();
   await page.getByLabel('Passphrase', { exact: true }).fill(PASSPHRASE);
   await page.getByLabel('Confirm passphrase').fill(PASSPHRASE);
   await page.getByRole('button', { name: 'Create and unlock' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome' })).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
+/** A new store, the welcome set aside with "Not now", Today on screen (what most specs start from). */
+export async function createStore(page: Page): Promise<void> {
+  await createStoreToWelcome(page);
+  await page.getByRole('button', { name: 'Not now' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible({
     timeout: 30_000,
   });

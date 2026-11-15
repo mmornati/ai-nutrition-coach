@@ -205,3 +205,35 @@ describe('Copy this day: a partial failure retries only what did not land', () =
     expect(await plates(bundle)).toHaveLength(7);
   });
 });
+
+describe('Copy this day from an earlier week', () => {
+  /** Show a day of an earlier week, as the intake history's link does. */
+  function ViewEarlierDay({ offset }: { readonly offset: number }) {
+    const { showDay, today } = useDay();
+    useEffect(() => showDay(addCalendarDays(today, -offset)), [showDay, today, offset]);
+    return null;
+  }
+
+  it('brings today (and its week) into view, so the copied plates are in front of the person', async () => {
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await seedMeasuredPlate(bundle, at(12, 30, -9), [
+      { name: 'Lentil soup', group: 'protein', grams: 300 },
+    ]);
+    await renderInSession(
+      <>
+        <ViewEarlierDay offset={9} />
+        <TodayScreen />
+      </>,
+      { bundle },
+    );
+    expect(await screen.findByRole('heading', { level: 1, name: 'Monday' })).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Copy this day to today' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Copy this day to today' });
+    await user.click(within(dialog).getByRole('button', { name: 'Copy to today' }));
+    expect(await screen.findByText('Copied 1 plate to today.')).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+    expect((await screen.findAllByText('Lentil soup'))[0]).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Back to today' })).not.toBeInTheDocument();
+  });
+});

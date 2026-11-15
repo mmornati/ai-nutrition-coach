@@ -13,9 +13,12 @@ export const SYNCED_KV_KEYS: readonly string[] = Object.freeze([
   'export.reminderDismissedAtUtc',
   'privacy.aboutAckAtUtc',
   'profile',
+  'ui.guideHintDismissed',
   'ui.locale',
+  'ui.paceNoticeDismissedAtUtc',
   'ui.showDistanceToGuide',
   'ui.showNumbers',
+  'ui.welcome',
 ]);
 
 /**
@@ -32,6 +35,8 @@ export const DEVICE_ONLY_KV_KEYS: readonly string[] = Object.freeze([
   'ai.describeConsent',
   'ai.byokKey',
   'privacy.offLookup',
+  // The welcome step this device was on: a position in a flow, not a fact about the person.
+  'ui.welcomeStep',
   'sync.deviceId',
   // This device's connection to a relay vault: the handle, the device token and the vault key (both
   // secrets), the vault id, the last version seen and the "not yet backed up" flag.
@@ -48,6 +53,16 @@ export const DEVICE_ONLY_KV_KEYS: readonly string[] = Object.freeze([
 const synced = new Set(SYNCED_KV_KEYS);
 
 export const isSyncedKvKey = (key: string): boolean => synced.has(key);
+
+const deviceOnly = new Set(DEVICE_ONLY_KV_KEYS);
+
+/**
+ * A key this build knows about, synced or kept on the device. A key in neither list comes from a
+ * newer app (a later preference): the snapshot parser drops it instead of refusing the snapshot,
+ * so a new client-side key never breaks an older build's sync. A device-only key in a snapshot is
+ * still refused (it should never have left its device).
+ */
+export const isDeviceOnlyKvKey = (key: string): boolean => deviceOnly.has(key);
 
 /** Longest kv value a snapshot may carry (the profile is the largest, and is far smaller). */
 export const MAX_KV_VALUE_LENGTH = 16_384;
@@ -77,12 +92,16 @@ export function isValidKvValue(key: string, value: string): boolean {
     case 'ui.showNumbers':
       return value === 'off';
     case 'ui.showDistanceToGuide':
+    case 'ui.guideHintDismissed':
       return value === 'on';
+    case 'ui.welcome':
+      return value === 'done' || value === 'skipped';
     case 'profile':
       return isJsonObjectText(value);
     case 'export.lastAtUtc':
     case 'export.reminderDismissedAtUtc':
     case 'privacy.aboutAckAtUtc':
+    case 'ui.paceNoticeDismissedAtUtc':
       return isStoredInstant(value);
     default:
       return false;

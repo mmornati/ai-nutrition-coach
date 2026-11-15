@@ -16,6 +16,16 @@ const ids = async (p: Promise<ExportResult>): Promise<number[]> => {
 };
 
 describe('serializePlatesToJson', () => {
+  it('carries the raw weigh-ins that Progress shows and nothing derived (no trend, no pace)', () => {
+    const json = serializePlatesToJson([], undefined, undefined, [
+      { kind: 'weight', day: '2026-08-01', measuredAtUtc: at(1), value: 81.2 },
+      { kind: 'waist', day: '2026-08-01', measuredAtUtc: at(1), value: 90 },
+    ]);
+    const decoded = JSON.parse(json) as { bodyMeasurements: Record<string, unknown>[] };
+    expect(decoded.bodyMeasurements).toHaveLength(2);
+    expect(json).not.toMatch(/trend|pace|ewma|average/i);
+  });
+
   it('includes grams, gramsEstimated, nutrientsPer100g and extra when present', () => {
     const base = entry(1, 1, 'Yogurt');
     const e = {
