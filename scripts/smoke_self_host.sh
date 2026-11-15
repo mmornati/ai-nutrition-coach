@@ -907,6 +907,7 @@ start_relay() {
 start_relay
 docker run -d --name "$NAME-sync-app" --network "$NET_SYNC" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --cap-drop ALL --security-opt no-new-privileges:true -e AI_NUTRITION_COACH_SYNC=1 \
+  -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY=smoke-key -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=m \
   -p "127.0.0.1:${SYNC_PORT_HOST}:8080" "$IMAGE" >/dev/null
 SBASE="http://127.0.0.1:${SYNC_PORT_HOST}"
 ready=0

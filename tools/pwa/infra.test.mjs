@@ -629,8 +629,17 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
       /limit_req_zone \$anc_ai_key zone=ai_nutrition_coach_ai:\d+m rate=10r\/m;/,
     );
     // Rejections are logged below the error_log level: no client address in the container log.
-    expect(r.http).toContain('limit_req_log_level info;');
-    expect(r.http).toContain('limit_conn_log_level info;');
+    // Set once in nginx.conf, never in an optional include: the AI proxy and the relay are both
+    // http-level includes, and nginx refuses to start on a directive declared twice at one level.
+    const main = read('infra/nginx/nginx.conf');
+    expect(main.match(/^\s*limit_req_log_level info;/gm)).toHaveLength(1);
+    expect(main.match(/^\s*limit_conn_log_level info;/gm)).toHaveLength(1);
+    for (const inc of [
+      'infra/nginx/ai-proxy/ai-proxy.http.inc.template',
+      'infra/nginx/sync/sync.http.inc.template',
+    ]) {
+      expect(read(inc)).not.toMatch(/^\s*limit_(req|conn)_log_level /m);
+    }
     // TLS to the provider, verified against the system CA bundle; timeouts sit just above the app's 45 s.
     expect(loc).toContain('proxy_ssl_server_name on;');
     expect(loc).toContain('proxy_ssl_verify on;');

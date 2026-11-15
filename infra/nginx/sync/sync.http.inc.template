@@ -6,6 +6,6 @@
 # have in flight at once (the location uses it with `limit_conn`); the relay also bounds the
 # uploads it handles at the same time, whoever sends them. Behind a reverse proxy (Traefik, Caddy)
 # the address nginx sees is the proxy's, so the cap is then shared by everyone (docs/self-host.md).
-# Rejections are logged at `info`, below the error_log level, so no client address is written.
+# Rejections are logged at `info`, below the error_log level, so no client address is written
+# (limit_conn_log_level, set once in nginx.conf: the AI proxy include needs it too).
 limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_sync_conn:1m;
-limit_conn_log_level info;
