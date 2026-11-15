@@ -68,8 +68,22 @@ Tap a band to open its plate:
 - each food with its portion and weight. A weight you typed is shown as it is; a weight that is a guess, from a
   preset or a photo, is marked ≈;
 - the plate's nutrition (below);
-- *Save as a meal*, *Log this again*, and *Remove this plate*. Removing asks once, calmly, and takes the plate's
-  coach note with it.
+- *Edit this plate*, *Save as a meal*, *Log this again*, and *Remove this plate*. Removing asks once, calmly, and
+  takes the plate's coach note with it.
+
+### Editing a plate
+
+*Edit this plate* opens a sheet where you can change the amount of a food (*Change*: its portions, or a weight in
+grams), take a food off (*Remove*), add one (*Add a food*, the same search as Type it), and move the plate to another
+**day** (the last seven) or **meal**. A food with no weight or no nutrition opens already, with fields to complete
+it. Nothing changes until *Save changes*. A plate must keep at least one food; to drop the whole plate, remove it.
+
+Saving swaps the plate for the edited one in one step and **writes a new coach note** for it, so a note never
+describes food that is no longer there; the old note goes with the old plate. If you move the plate to a different
+meal or day, its time becomes that meal's usual hour; otherwise the time stays exactly as it was. On
+synced devices the edit travels as "the old plate was removed, here is the new one": every device ends
+with the edited plate, and none brings the old one back. If you edit the same plate on two devices before they sync,
+both versions are kept and you can remove the one you do not want.
 
 ## Nutrients, against the EU reference intakes
 
@@ -91,6 +105,11 @@ How the numbers are kept honest:
 - **Estimates carry "~"**. A value worked out from a guessed weight is never shown as exact.
 - **Unknown is left empty, never shown as zero.** When some foods have no weight or no nutrition data, a sentence
   says what the total is based on ("Based on 3 foods with a weight and nutrition data; 1 without.").
+- **A total that leaves something out says "at least".** If any food has no weight, or has no value for that one
+  nutrient (a food that knows its energy but not its fibre), the figure reads "at least 1,450 kcal" and the day's
+  energy adds "2 foods not counted". One line under the bars explains the words. The sentence about what the total
+  is based on opens to a list of those foods, each with *Complete*, which opens the plate's edit sheet. Plate, day
+  and week averages all follow the same rule; nothing turns red.
 - **Past the reference, it says so in plain words** ("about 120% of the reference"). Nothing turns red, nothing says
   "over budget", "remaining" or "exceeded", and the bars never change colour.
 - No rings, no gauges, no grades, no score of you. Open Food Facts' Nutri-Score and NOVA can appear on a packaged
@@ -123,10 +142,27 @@ Below the towels:
 - **Day by day**, under a 2px ink rule: each day's name, four small stripe segments (dashed when a group is
   absent) and its number of plates. Tap a day to open its board.
 - **The week, in short**: how many days have meals logged, the **daily average** of each nutrient over the days that
-  have weights and nutrition data, *What went well* and *One thing to try*. These remarks are rules worked out on
+  are complete enough (see below), *What went well* and *One thing to try*. These remarks are rules worked out on
   the device; they need no AI.
 - With an AI and AI coaching turned on, **Ask the coach about this week** writes a short paragraph about it. See
   [The coach](coach.md).
+
+### Which days the average uses
+
+A day counts toward the daily average only when **both** hold:
+
+1. it is **finished**: it is before today, so a day you are still logging never pulls the average down;
+2. it has **at least two plates that each have at least one food with a weight and nutrition data**.
+
+The week says it in words, for example *Average over the 5 finished days with enough logged. Today joins once it is
+over.*, and, when some days were left out, *1 other finished day had too little logged to count.* Why two plates: a
+day with a single snack logged is usually a day you did not log, not a day you ate little, and averaging it in would
+make protein or fibre look low. Two is a deliberately small bar. Days are calendar days in your time zone, so the
+clock change does not move a day's edges.
+
+*One thing to try* only suggests more protein or fibre (or less salt or sugars) when at least **three** counted days
+know that nutrient. With fewer, the week stays quiet about it. Today and the days left out still show on the towels
+and in the day count; they are only not averaged.
 
 A line on the page says it plainly: no streaks, no countdowns, no guilt.
 

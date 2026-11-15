@@ -9,6 +9,7 @@ import {
   CiqualParseError,
   createCiqualFetchLoader,
   indexTokens,
+  withinOneEdit,
 } from './ciqual-index';
 
 const table = JSON.parse(
@@ -215,5 +216,107 @@ describe('cooked first', () => {
     const bias = index.search('poulet', 10).map((h) => h.score);
     expect(bias).toEqual([...bias].sort((a, b) => b - a));
     expect(meat.length).toBeGreaterThan(0);
+  });
+});
+
+describe('cooked meat, poultry and fish first', () => {
+  const isRaw = (name: string) => /\bcrue?s?\b/i.test(name);
+  const rows = (query: string, locale: 'en' | 'fr' = 'fr') =>
+    index.search(query, 400, { locale }).map((h) => h.entry);
+
+  it.each([
+    ['poulet', 'fr'],
+    ['chicken', 'en'],
+    ['saumon', 'fr'],
+    ['boeuf', 'fr'],
+  ] as const)('"%s": the first result is not a raw row, raw rows are still listed', (q, locale) => {
+    const all = rows(q, locale);
+    expect(isRaw(all[0]!.nameFr)).toBe(false);
+    expect(all.some((e) => isRaw(e.nameFr))).toBe(true);
+  });
+
+  it('puts every raw chicken row after the cooked or prepared ones of the same score band', () => {
+    const hits = index.search('poulet', 400, { locale: 'fr' });
+    const firstRaw = hits.findIndex((h) => isRaw(h.entry.nameFr));
+    const lastReady = hits
+      .map((h) => /cuit|rôti|grillé|préemballé/i.test(h.entry.nameFr))
+      .lastIndexOf(true);
+    expect(firstRaw).toBeGreaterThan(0);
+    expect(lastReady).toBeGreaterThan(-1);
+    // the best raw row is below the best cooked one
+    expect(hits.findIndex((h) => /cuit|rôti|grillé|préemballé/i.test(h.entry.nameFr))).toBeLessThan(
+      firstRaw,
+    );
+  });
+
+  it('does not demote raw rows when the query asks for them', () => {
+    const top = index.search('poulet cru', 5, { locale: 'fr' }).map((h) => h.entry.nameFr);
+    expect(top.every((n) => isRaw(n))).toBe(true);
+    expect(index.search('chicken raw', 1, { locale: 'en' })[0]!.entry.nameEn).toMatch(/raw/i);
+  });
+
+  it('leaves vegetables alone: raw carrot is still first for "carotte"', () => {
+    expect(names('carotte', 1)[0]).toMatch(/^Carotte/);
+  });
+});
+
+describe('typo tolerance', () => {
+  const nm = (q: string, limit = 5) =>
+    index.search(q, limit, { locale: 'fr' }).map((h) => h.entry.nameFr);
+
+  it('withinOneEdit counts insert, delete, substitute and swap as one', () => {
+    expect(withinOneEdit('brocolli', 'brocoli')).toBe(true);
+    expect(withinOneEdit('tomatoe', 'tomato')).toBe(true);
+    expect(withinOneEdit('pouelt', 'poulet')).toBe(true); // one swap
+    expect(withinOneEdit('poulte', 'poulet')).toBe(true); // one swap
+    expect(withinOneEdit('pouelte', 'poulet')).toBe(false); // two edits
+    expect(withinOneEdit('carotte', 'carotta')).toBe(true);
+    expect(withinOneEdit('carotte', 'carotte')).toBe(false);
+    expect(withinOneEdit('carotte', 'carrotta')).toBe(false);
+  });
+
+  it('finds the food despite a one-letter slip', () => {
+    expect(nm('brocolli')[0]).toMatch(/^Brocoli/);
+    expect(nm('pouelt', 40).some((n) => /^Poulet/.test(n))).toBe(true);
+    expect(nm('yogourt', 20).some((n) => /yaourt|yogourt/i.test(n))).toBe(true);
+    expect(index.search('tomatoe', 5, { locale: 'en' }).map((h) => h.entry.nameEn)[0]).toMatch(
+      /tomato/i,
+    );
+  });
+
+  it('accents stay optional', () => {
+    expect(nm('creme', 3).length).toBeGreaterThan(0);
+    expect(names('crème')).toEqual(names('creme'));
+  });
+
+  it('never fuzzy-matches a word shorter than 5 letters', () => {
+    expect(index.search('zorq', 5)).toEqual([]);
+    expect(index.search('lait', 3).length).toBeGreaterThan(0);
+    expect(index.search('pomm', 3).length).toBeGreaterThan(0); // prefix, not fuzzy
+    expect(index.search('xufz', 5)).toEqual([]);
+  });
+
+  it('leaves a correct query untouched', () => {
+    for (const q of ['poulet', 'riz', 'saumon']) {
+      const hits = index.search(q, 30);
+      expect(hits.length).toBeGreaterThanOrEqual(3);
+      expect(index.search(q, 30)).toEqual(hits);
+    }
+  });
+
+  it('ranks typo hits after exact and prefix ones', () => {
+    // "poulet" matches exactly; the extra misspelled word makes the fallback run on a 2-token query
+    const hits = index.search('saumon fume', 40);
+    expect(hits.length).toBeGreaterThan(0);
+    const typo = index.search('broccolli', 5);
+    for (let i = 1; i < typo.length; i++)
+      expect(typo[i]!.score).toBeLessThanOrEqual(typo[i - 1]!.score);
+  });
+
+  it('stays fast even when the fallback runs (generous bound)', () => {
+    index.search('brocolli', 10); // builds the vocabulary once
+    const start = performance.now();
+    for (let i = 0; i < 20; i++) index.search('brocolli', 10);
+    expect((performance.now() - start) / 20).toBeLessThan(50);
   });
 });

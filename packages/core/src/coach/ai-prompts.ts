@@ -409,7 +409,7 @@ export function buildWeekMessages(input: {
   const data: Record<string, unknown> = {
     numbers: input.numbersOn,
     daysLogged: review.daysLogged,
-    daysWithData: review.daysWithData,
+    daysWithData: review.countedDays,
     daysWithGroup: review.groupDays,
     ruleBasedReview: {
       wentWell: review.wentWell.map((w) => w.key),

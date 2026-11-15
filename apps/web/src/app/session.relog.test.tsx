@@ -5,7 +5,7 @@ import { at, draft, unlockedBundle } from './testing';
 import { createSession } from './session';
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 21, 9, 0) });
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 21, 21, 0) });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -20,6 +20,27 @@ describe('Session.recordPlate at a given time', () => {
     if (result.kind !== 'recordPlateSuccess') throw new Error('not recorded');
     expect(result.plateLog.loggedAtUtc).toBe(when);
     expect((await session.notes.forPlate(result.plateLog.id)).length).toBe(1);
+    session.dispose();
+  });
+});
+
+describe('Session: no plate in the future', () => {
+  it('refuses a plate logged later than the clock, for a new plate and for an edit', async () => {
+    const bundle = await unlockedBundle();
+    const session = await createSession(bundle);
+    const later = at(23, 0);
+    expect(await session.recordPlate([draft('Chicken', 'protein')], later)).toEqual({
+      kind: 'storeFailure',
+      reason: 'futureTime',
+    });
+    const ok = await session.recordPlate([draft('Chicken', 'protein')], at(20, 0));
+    if (ok.kind !== 'recordPlateSuccess') throw new Error('not recorded');
+    expect(
+      await session.replacePlate(ok.plateLog.id, [draft('Chicken', 'protein')], later),
+    ).toEqual({ kind: 'storeFailure', reason: 'futureTime' });
+    // The plate is untouched.
+    const read = await bundle.store.readRange();
+    expect(read.kind === 'platesRead' && read.plates.map((p) => p.id)).toEqual([ok.plateLog.id]);
     session.dispose();
   });
 });

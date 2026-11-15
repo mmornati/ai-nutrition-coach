@@ -5,6 +5,7 @@
 //   #/week           Week
 //   #/coach          Ask the coach (optional AI chat)
 //   #/plate/<id>     Plate detail
+//   #/plate/<id>/edit  The same, with the edit sheet open (the links that complete a food)
 //   #/settings[/..]  Settings and its sub-screens (part B owns the sub-routes)
 //   #/privacy        What this app stores and sends (reachable before the store is open)
 import { useSyncExternalStore } from 'react';
@@ -13,7 +14,7 @@ export type Route =
   | { readonly name: 'today' }
   | { readonly name: 'week' }
   | { readonly name: 'coach' }
-  | { readonly name: 'plate'; readonly id: number }
+  | { readonly name: 'plate'; readonly id: number; readonly edit?: boolean }
   | {
       readonly name: 'settings';
       /** `null` is the Settings list; otherwise the sub-screen name (`ai`, `data`, `privacy`, ...). */
@@ -29,6 +30,7 @@ export const hrefs = {
   settings: '#/settings',
   privacy: '#/privacy',
   plate: (id: number): string => `#/plate/${id}`,
+  plateEdit: (id: number): string => `#/plate/${id}/edit`,
   section: (section: string): string => `#/settings/${section}`,
 } as const;
 
@@ -36,7 +38,7 @@ export const hrefs = {
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').split('?')[0] ?? '';
   const parts = path.split('/').filter((p) => p.length > 0);
-  const [head, second] = parts;
+  const [head, second, third] = parts;
   switch (head) {
     case 'week':
       return { name: 'week' };
@@ -44,7 +46,11 @@ export function parseRoute(hash: string): Route {
       return { name: 'coach' };
     case 'plate': {
       const id = Number(second);
-      return Number.isInteger(id) && id > 0 ? { name: 'plate', id } : { name: 'today' };
+      return Number.isInteger(id) && id > 0
+        ? third === 'edit'
+          ? { name: 'plate', id, edit: true }
+          : { name: 'plate', id }
+        : { name: 'today' };
     }
     case 'settings':
       return { name: 'settings', section: second ?? null };

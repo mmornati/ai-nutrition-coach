@@ -229,6 +229,13 @@ The relay operator or anyone who steals its volume learns the **size** of a vaul
 - **A restore applies, it does not replace**: rows absent from the snapshot are not deleted from the store.
 - The schema change is automatic, lossless and re-runnable; nothing about it is visible to the person.
 
+## Editing a plate: known limits
+
+An edit is a delete plus a create in one transaction (`replacePlate`): the old plate, its entries and its coach notes get tombstones, and the edited plate is new rows under new uids. A tombstone always wins a merge, so no device brings the old version back. Two limits follow, both accepted:
+
+- **Two devices that edit the same plate before they sync keep both versions.** Each produced a new plate; nothing is lost, and the person removes the one they do not want.
+- **An edit beats a concurrent delete only if it synced first.** `replacePlate` on a plate that is gone (deleted here, or removed by a pull that landed while the sheet was open) answers `notFound` and writes nothing, so an edit never resurrects a plate this device already knows is deleted. If the delete is still unsynced on the other device, the edited plate arrives and stays, and the old plate's tombstone applies to the old rows only.
+
 ## Obligations
 
 - **AD-6 and the status chip.** The chip may say `synced` only after a durable remote acknowledgement of the data. The in-memory queue is replaced by a persisted dirty flag (done in S2), the chip was deliberately left at "On this device" until S3 could derive a per-plate answer honestly; S3 does (see "Phase S3": the ledger and the three facts that feed it).

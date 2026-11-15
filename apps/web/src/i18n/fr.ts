@@ -16,6 +16,7 @@ export const fr: Strings = {
     back: 'Retour',
     logging: 'Enregistrement…',
     log: 'Noter',
+    remove: 'Retirer',
     logFailed: 'L’enregistrement n’a pas abouti. Rien n’est perdu ; vous pouvez réessayer.',
   },
   groups: {
@@ -110,6 +111,9 @@ export const fr: Strings = {
   capture: {
     title: 'Noter une assiette',
     nextStation: 'Prochain repas : {meal}',
+    forToday: 'Pour aujourd’hui',
+    forDay: 'Pour {day}',
+    mealLabel: 'Repas',
     snapshot: 'Photo',
     snapshotHint: 'Une seule photo de l’assiette suffit.',
     barcode: 'Code-barres',
@@ -177,8 +181,48 @@ export const fr: Strings = {
     typeNameFirst: 'Tapez d’abord un nom',
     customFoodName: 'Nom de l’aliment',
     logCustomFood: 'Noter cet aliment',
-    matchLabel: '{name}, {group}, {presets} portions proposées',
+    matchLabel: {
+      one: '{name}, {group}{kcal}, {presets} portion proposée',
+      other: '{name}, {group}{kcal}, {presets} portions proposées',
+    },
     results: 'Correspondances',
+    matchKcal: '{value} kcal pour 100 g',
+    chosenFood: 'Choisi : {name}. Réglez la quantité ci-dessous.',
+    otherResults: 'Voir les autres résultats',
+    amountFor: 'Quantité pour {name}',
+    addAnother: 'Ajouter un autre aliment',
+    logPlate: 'Noter l’assiette',
+    onPlate: 'Sur cette assiette',
+    removeItem: 'Retirer {name}',
+    plateTotal: 'Total de l’assiette',
+    itemNotCounted: 'Non compté dans les totaux',
+    customDetails: 'Poids et nutrition (facultatif)',
+    customOptional:
+      'Ajoutez un poids et des calories, et cet aliment compte dans vos totaux. Laissez vide pour noter environ une portion.',
+    customBasis: 'Les valeurs sont données',
+    customPer100: 'pour 100 g',
+    customPerServing: 'par portion',
+    customGramsEaten: 'Poids mangé (g)',
+    customGramsServing: 'Poids d’une portion (g)',
+    customFields: {
+      energyKcal: 'Énergie (kcal)',
+      protein: 'Protéines (g)',
+      carbohydrate: 'Glucides (g)',
+      sugars: 'dont sucres (g)',
+      fat: 'Lipides (g)',
+      saturatedFat: 'dont saturés (g)',
+      fibre: 'Fibres (g)',
+      salt: 'Sel (g)',
+    },
+    customIssues: {
+      needsGrams: 'Ajoutez le poids pour que ces valeurs comptent.',
+      value: 'Tapez un nombre, ou laissez le champ vide.',
+      tooHigh: 'C’est plus qu’un aliment ne contient pour 100 g. Vérifiez la valeur.',
+      sugars: 'Les sucres ne peuvent pas dépasser les glucides.',
+      saturates: 'Les saturés ne peuvent pas dépasser les lipides.',
+      macros:
+        'Protéines, glucides, lipides, fibres et sel ensemble ne peuvent pas dépasser 100 g pour 100 g. Vérifiez les valeurs.',
+    },
   },
   barcodeMatch: {
     groupLabel: 'Groupe d’aliments',
@@ -605,9 +649,16 @@ export const fr: Strings = {
       },
       averagesTitle: 'Moyenne par jour',
       averagesNote: {
-        one: 'Moyenne sur le {count} jour qui a des poids et des données nutritionnelles.',
-        other: 'Moyenne sur les {count} jours qui ont des poids et des données nutritionnelles.',
+        one: 'Moyenne sur le {count} jour terminé avec assez de repas notés. Aujourd’hui s’y ajoute une fois la journée finie.',
+        other:
+          'Moyenne sur les {count} jours terminés avec assez de repas notés. Aujourd’hui s’y ajoute une fois la journée finie.',
       },
+      averagesExcluded: {
+        one: '{count} autre jour terminé avait trop peu de repas notés pour compter.',
+        other: '{count} autres jours terminés avaient trop peu de repas notés pour compter.',
+      },
+      averagesNone:
+        'La moyenne par jour apparaît dès qu’un jour terminé a au moins deux assiettes avec poids et données nutritionnelles.',
       wentWellTitle: 'Ce qui s’est bien passé',
       tryTitle: 'Une chose à essayer',
       positives: {
@@ -761,6 +812,15 @@ export const fr: Strings = {
     referencePersonal: 'environ {percent} % de votre repère du jour ({reference})',
     referenceUnderOnePersonal: 'moins de 1 % de votre repère du jour ({reference})',
     barsLabel: 'Quantités de nutriments par rapport aux apports de référence',
+    atLeast: 'au moins {value}',
+    notCounted: { one: '{count} aliment non compté', other: '{count} aliments non comptés' },
+    partialNote:
+      'Marqué « au moins » : certains aliments n’ont pas cette donnée, la quantité réelle peut donc être plus élevée.',
+    uncountedLabel: 'Aliments sans données',
+    uncountedNoWeight: 'Sans poids',
+    uncountedNoData: 'Sans données nutritionnelles',
+    uncountedFix: 'Compléter',
+    uncountedFixOf: 'Ajouter le poids ou la nutrition de {name}',
     coverage: {
       one: 'Calculé sur {count} aliment avec un poids et des données nutritionnelles ; {missing} sans.',
       other:
@@ -953,6 +1013,19 @@ export const fr: Strings = {
   },
   plate: {
     removeAction: 'Retirer cette assiette',
+    editAction: 'Modifier cette assiette',
+    editTitle: 'Modifier l’assiette',
+    editIntro:
+      'Changez les quantités, retirez ou ajoutez un aliment, ou déplacez l’assiette vers un autre repas ou un autre jour.',
+    editRemove: 'Retirer {name}',
+    editAddFood: 'Ajouter un aliment',
+    editAddConfirm: 'Ajouter à l’assiette',
+    editSave: 'Enregistrer les modifications',
+    editSaved: 'Assiette modifiée.',
+    editFailed: 'Impossible d’enregistrer les modifications. Rien n’a été changé.',
+    editEmpty:
+      'Une assiette doit contenir au moins un aliment. Pour la supprimer, utilisez « Retirer cette assiette ».',
+    editInvalid: 'Un des montants n’est pas encore un nombre valide. Corrigez-le pour enregistrer.',
   },
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'environ {pct} %', underOne: 'moins de 1 %' },

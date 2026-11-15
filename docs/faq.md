@@ -16,6 +16,25 @@ plain values against the EU reference intakes. It never frames them as "calories
 have failed. If numbers about food feel stressful, *Settings → Nutrition* hides them. See
 [nutrients, against the EU reference intakes](./guide/day-and-week.md#nutrients-against-the-eu-reference-intakes).
 
+### Can I change a plate I already logged?
+
+Yes. Open the plate and choose *Edit this plate*: change an amount, remove or add a food, or move it to another meal
+or day. A food without a weight or nutrition can be completed there too. See
+[editing a plate](./guide/day-and-week.md#editing-a-plate).
+
+An edit replaces the plate with the edited one, so its coach note is rewritten. Two limits are worth knowing when you
+use more than one device. If two devices edit the same plate before they sync, both edited versions are kept, and you
+can remove the one you do not want. If one device deletes a plate while another edits it, the edit wins only when it
+reaches the sync first; otherwise the plate stays deleted, and the editing device says it could not save the changes.
+
+### Why does a total say "at least"?
+
+Because some food on it has no weight, or no value for that nutrient, so the real amount may be higher. A food with
+no weight always makes the energy total "at least". For any other nutrient the mark appears only when the foods that
+do not know it are more than a tenth of what you ate (by energy, or by weight when the energy is unknown), so one
+pinch of herbs without fibre data does not turn the whole day's fibre into "at least". The day lists the foods it
+could not count, each with a way to complete it.
+
 ### Is there a score, a streak or a badge?
 
 No, and there will not be. The [No-Dark-Patterns Standard](./no-dark-patterns-standard.md) rules them out and tests

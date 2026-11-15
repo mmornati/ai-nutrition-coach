@@ -1,5 +1,5 @@
-import type { NutrientKey, NutrientTotals } from '@anc/core';
-import { useLocale, useStrings } from '../../i18n';
+import { isPartial, type FoodEntry, type NutrientKey, type NutrientTotals } from '@anc/core';
+import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { formatNutrient } from './format';
 import { hasNutrition, NutrientBars } from './NutrientBars';
 import { useShowNumbers } from './use-show-numbers';
@@ -16,10 +16,13 @@ export function NutritionSection({
   title,
   nutrition,
   className,
+  fixHref,
 }: {
   readonly title: string;
   readonly nutrition: NutrientTotals;
   readonly className?: string;
+  /** Where to complete a food without a weight or nutrition (see NutrientBars). */
+  readonly fixHref?: ((entry: FoodEntry) => string) | undefined;
 }) {
   const show = useShowNumbers();
   const targets = useTargets();
@@ -41,13 +44,26 @@ export function NutritionSection({
             <div key={key} className="flex flex-col">
               <span className="text-body-small text-ink-soft">{t.names[key]}</span>
               <span className="font-display quantity text-title font-extrabold whitespace-nowrap">
-                {formatNutrient(key, nutrition.totals[key] ?? 0, nutrition.estimated, locale)}
+                {formatNutrient(
+                  key,
+                  nutrition.totals[key] ?? 0,
+                  nutrition.estimated,
+                  locale,
+                  isPartial(nutrition, key),
+                )}
               </span>
+              {key === 'energyKcal' && nutrition.uncounted.length > 0 && (
+                <span className="text-body-small text-ink-soft">
+                  {fill(plural(t.notCounted, nutrition.uncounted.length, locale), {
+                    count: nutrition.uncounted.length,
+                  })}
+                </span>
+              )}
             </div>
           ))}
         </div>
       )}
-      <NutrientBars nutrition={nutrition} targets={targets} />
+      <NutrientBars nutrition={nutrition} targets={targets} fixHref={fixHref} />
     </section>
   );
 }

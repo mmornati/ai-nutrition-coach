@@ -25,6 +25,10 @@ export class FailedEncryptedStore implements EncryptedStore {
     return Promise.resolve(this.failure);
   }
 
+  replacePlate(): Promise<RecordPlateResult> {
+    return Promise.resolve(this.failure);
+  }
+
   watchRange(_range: unknown, observer: StoreObserver<readonly never[]>): Unsubscribe {
     let active = true;
     queueMicrotask(() => {

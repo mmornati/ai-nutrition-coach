@@ -4,6 +4,7 @@ import {
   databaseFood,
   instantForSlot,
   localTime,
+  mealSlotForHour,
   planDayCopy,
   slotsAvailable,
   plateLog,
@@ -159,5 +160,23 @@ describe('slotsAvailable', () => {
         candidates: all.slice(0, 3),
       }),
     ).toEqual(['breakfast', 'lunch', 'dinner']);
+  });
+});
+
+describe('the log target: meals offered and chosen', () => {
+  it('lunch is still lunch when it is logged at 16:10 (the meal is chosen, not derived from the clock)', () => {
+    const now = new Date(2026, 9, 14, 16, 10).getTime();
+    const day = new Date(2026, 9, 14).getTime();
+    expect(mealSlotForHour(new Date(now).getHours())).toBe('dinner');
+    const lunch = instantForSlot({ day, slot: 'lunch', now });
+    expect(mealSlotForHour(new Date(lunch).getHours())).toBe('lunch');
+    expect(lunch).toBeLessThanOrEqual(now);
+  });
+
+  it("yesterday's dinner lands yesterday at the dinner hour", () => {
+    const now = new Date(2026, 9, 14, 9, 0).getTime();
+    const yesterday = new Date(2026, 9, 13).getTime();
+    const at = new Date(instantForSlot({ day: yesterday, slot: 'dinner', now }));
+    expect([at.getDate(), at.getHours()]).toEqual([13, 19]);
   });
 });

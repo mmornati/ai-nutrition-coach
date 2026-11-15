@@ -24,10 +24,15 @@ import {
 } from 'react';
 import {
   addCalendarDays,
+  classifyForDate,
+  dayBoardSlot,
+  instantForSlot,
+  isSameLocalDay,
   mealSlotForHour,
   startOfNextLocalDay,
   type FoodEntryDraft,
   type FoodMatch,
+  type MealSlot,
   type RecognitionResult,
 } from '@anc/core';
 import {
@@ -43,11 +48,19 @@ import { photoFlowConsentDeps, photoUploadHost } from '../../ai';
 import { PhotoConsentDialog } from '../../components/dialogs';
 import { CaptureSheet, RecognizedMatchSheet } from '../../components/sheets';
 import { useDay } from '../../app/day-context';
-import { LogContext, type LogState } from '../../app/log-context';
+import {
+  LogContext,
+  LogTargetContext,
+  type LogState,
+  type RecordHere,
+} from '../../app/log-context';
 import { hrefs, isPrivacyRoute, navigate, parseRoute, TODAY_HASH } from '../../app/router';
 import { useSession } from '../../app/session';
+import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { fill, joinPlain, strings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
+import { slotChoices } from '../plate/DaySlotFields';
+import { ChoiceGroup } from '../settings/ChoiceGroup';
 import { BarcodeSheet } from './BarcodeScan';
 import { DescribeSheet, type DescribeResultPayload } from './Describe';
 import { PhotoDeniedSheet, SnapSheet } from './PhotoSheets';
@@ -61,7 +74,12 @@ type Flow =
   | { readonly kind: 'snap' }
   | { readonly kind: 'barcode' }
   | { readonly kind: 'describe' }
-  | { readonly kind: 'type'; readonly prefill?: string }
+  | {
+      readonly kind: 'type';
+      readonly prefill?: string;
+      /** Foods already on the plate (a scanned food the person wants to add to). */
+      readonly items?: readonly FoodEntryDraft[];
+    }
   | { readonly kind: 'saved' }
   | { readonly kind: 'recipe' };
 
@@ -181,6 +199,46 @@ export function LogHost({
 
   const close = useCallback(() => setFlow({ kind: 'closed' }), []);
 
+  // Where a new plate lands: the day selected in the week strip, and the meal chosen in the log
+  // sheet (the clock's meal on today, else the first meal of that day with nothing in it). A plate
+  // is never put in the future (see `slotChoices`).
+  const [slotWanted, setSlotWanted] = useState<MealSlot | null>(null);
+  const targetDay = day.selected;
+  const now = session.clock();
+  const viewingToday = isSameLocalDay(targetDay, day.today);
+  const defaultSlot: MealSlot = viewingToday
+    ? mealSlotForHour(new Date(now).getHours())
+    : ((['breakfast', 'lunch', 'dinner'] as const).find(
+        (s) => dayBoardSlot(classifyForDate(day.plates, targetDay), s).plates.length === 0,
+      ) ?? 'dinner');
+  const { slots: slotOptions, slot: targetSlot } = slotChoices({
+    day: targetDay,
+    now,
+    wanted: slotWanted ?? defaultSlot,
+  });
+  const latestTarget = useRef({ day: targetDay, slot: targetSlot });
+  useEffect(() => {
+    latestTarget.current = { day: targetDay, slot: targetSlot };
+  });
+  const recordAt = useCallback(
+    (drafts: readonly FoodEntryDraft[], target: { day: number; slot: MealSlot }) =>
+      session.recordPlate(
+        drafts,
+        instantForSlot({ day: target.day, slot: target.slot, now: session.clock() }),
+      ),
+    [session],
+  );
+  const recordHere = useCallback<RecordHere>(
+    (drafts) => recordAt(drafts, latestTarget.current),
+    [recordAt],
+  );
+  // The target of a photo is fixed when the photo is taken, not read again when the result is
+  // logged: the person may move around the week while the plate is being recognised.
+  const [photoTarget, setPhotoTarget] = useState<{
+    readonly day: number;
+    readonly slot: MealSlot;
+  } | null>(null);
+
   // The privacy page is a link inside several dialogs. Following it leaves the dialog behind, so
   // it closes (an unanswered consent question is a "no": the photo is dropped, nothing is sent).
   useEffect(() => {
@@ -196,19 +254,24 @@ export function LogHost({
   }, []);
 
   /** A plate was recorded: close everything, show Today, offer the quick repeat. */
-  const logged = useCallback(() => {
-    setFlow({ kind: 'closed' });
-    setPhotoOpen(false);
-    day.select(day.today);
-    day.markLogged();
-    setDescribed(null);
-    navigate(TODAY_HASH);
-  }, [day]);
+  const logged = useCallback(
+    (landedOn: number = latestTarget.current.day) => {
+      setFlow({ kind: 'closed' });
+      setPhotoOpen(false);
+      setPhotoTarget(null);
+      // Stay on the day the plate went to (it may not be today).
+      day.select(landedOn);
+      day.markLogged();
+      setDescribed(null);
+      navigate(TODAY_HASH);
+    },
+    [day],
+  );
 
   const startPhoto = (source: PhotoSource) => {
     setFlow({ kind: 'closed' });
+    setPhotoTarget({ ...latestTarget.current });
     setPhotoOpen(true);
-    day.select(day.today);
     navigate(TODAY_HASH);
     photo.start(source);
   };
@@ -219,9 +282,15 @@ export function LogHost({
   };
 
   const commit = async (drafts: readonly FoodEntryDraft[]) => {
-    const result = await session.recordPlate(drafts);
+    const result = await recordHere(drafts);
     if (result.kind !== 'recordPlateSuccess') throw new Error('not recorded');
     logged();
+  };
+  const commitPhoto = async (drafts: readonly FoodEntryDraft[]) => {
+    const target = photoTarget ?? latestTarget.current;
+    const result = await recordAt(drafts, target);
+    if (result.kind !== 'recordPlateSuccess') throw new Error('not recorded');
+    logged(target.day);
   };
 
   const showDescribed = useCallback(
@@ -246,110 +315,133 @@ export function LogHost({
   const state = photoOpen ? photo.state : null;
   const value = useMemo<LogState>(
     () => ({
-      open: () => setFlow({ kind: 'capture' }),
+      open: () => {
+        setSlotWanted(null);
+        setFlow({ kind: 'capture' });
+      },
       resolving: state?.kind === 'resolving',
+      resolvingTarget: state?.kind === 'resolving' ? photoTarget : null,
     }),
-    [state?.kind],
+    [state?.kind, photoTarget],
   );
 
   return (
     <LogContext.Provider value={value}>
-      {children}
-      <CaptureSheet
-        open={flow.kind === 'capture'}
-        onClose={close}
-        onSnapshot={() => setFlow({ kind: 'snap' })}
-        onBarcode={() => setFlow({ kind: 'barcode' })}
-        onType={() => setFlow({ kind: 'type' })}
-        onSaved={() => setFlow({ kind: 'saved' })}
-        onDescribe={() => setFlow({ kind: 'describe' })}
-        nextMeal={slotName(mealSlotForHour(new Date().getHours()))}
-      />
-      <SnapSheet
-        open={flow.kind === 'snap'}
-        onClose={close}
-        onSource={startPhoto}
-        onTypeInstead={() => typeInstead()}
-        aiSetupHref={aiSetupHref}
-        instanceOffered={instanceLabel !== undefined}
-      />
-      <BarcodeSheet
-        open={flow.kind === 'barcode'}
-        {...(scannerOptions ? { scannerOptions } : {})}
-        onClose={close}
-        onTypeInstead={typeInstead}
-        onLogged={logged}
-      />
-      <DescribeSheet
-        open={flow.kind === 'describe'}
-        onClose={close}
-        onResult={(payload) => void showDescribed(payload)}
-        onTypeInstead={typeInstead}
-        {...(voiceEnv ? { voiceEnv } : {})}
-      />
-      <TypeItSheet
-        open={flow.kind === 'type'}
-        prefill={flow.kind === 'type' ? flow.prefill : undefined}
-        onClose={close}
-        onLogged={logged}
-      />
-      <SavedSheet
-        open={flow.kind === 'saved'}
-        onClose={close}
-        onLogged={logged}
-        onFindRecipe={(name) => setFlow({ kind: 'type', prefill: name })}
-        onNewRecipe={() => setFlow({ kind: 'recipe' })}
-      />
-      <RecipeEditorSheet
-        open={flow.kind === 'recipe'}
-        onClose={() => setFlow({ kind: 'saved' })}
-        onSaved={(recipe) => {
-          day.setNotice((a) => fill(a.relog.recipe.saved, { name: recipe.name }));
-          setFlow({ kind: 'saved' });
-        }}
-      />
-      <PhotoConsentDialog
-        open={consent !== null}
-        host={consent?.host ?? ''}
-        via={consent?.via}
-        perPhoto={consent?.perPhoto ?? false}
-        privacyHref={hrefs.privacy}
-        onAllow={() => answerConsent(true)}
-        onDecline={() => answerConsent(false)}
-      />
-      <PhotoDeniedSheet
-        open={state?.kind === 'denied'}
-        onClose={() => setPhotoOpen(false)}
-        onTypeInstead={() => typeInstead()}
-      />
-      {state?.kind === 'ready' && (
-        <RecognizedMatchSheet
-          open
-          onClose={() => setPhotoOpen(false)}
-          result={state.result}
-          closestMatches={state.closestMatches}
-          onLog={commit}
-          aiSetupHref={hrefs.section('ai')}
+      <LogTargetContext.Provider value={recordHere}>
+        {children}
+        <CaptureSheet
+          open={flow.kind === 'capture'}
+          onClose={close}
+          onSnapshot={() => setFlow({ kind: 'snap' })}
+          onBarcode={() => setFlow({ kind: 'barcode' })}
+          onType={() => setFlow({ kind: 'type' })}
+          onSaved={() => setFlow({ kind: 'saved' })}
+          onDescribe={() => setFlow({ kind: 'describe' })}
+          nextMeal={slotName(mealSlotForHour(new Date().getHours()))}
+          target={{
+            label: viewingToday
+              ? strings().capture.forToday
+              : fill(strings().capture.forDay, {
+                  day: `${weekdayName(targetDay)} ${formatDayMonth(targetDay)}`,
+                }),
+            choice: (
+              <ChoiceGroup
+                label={strings().capture.mealLabel}
+                choices={slotOptions.map((s) => ({ value: s, label: slotName(s) }))}
+                value={targetSlot}
+                onChange={setSlotWanted}
+              />
+            ),
+          }}
+        />
+        <SnapSheet
+          open={flow.kind === 'snap'}
+          onClose={close}
+          onSource={startPhoto}
+          onTypeInstead={() => typeInstead()}
+          aiSetupHref={aiSetupHref}
           instanceOffered={instanceLabel !== undefined}
         />
-      )}
-      {described !== null && (
-        <RecognizedMatchSheet
-          open
-          onClose={() => setDescribed(null)}
-          result={described.result}
-          closestMatches={described.closestMatches}
-          onLog={commit}
-          source="description"
-          errorMessage={
-            described.unmatched.length === 0
-              ? undefined
-              : fill(strings().recognized.describedUnmatched, {
-                  names: joinPlain(described.unmatched),
-                })
-          }
+        <BarcodeSheet
+          open={flow.kind === 'barcode'}
+          {...(scannerOptions ? { scannerOptions } : {})}
+          onClose={close}
+          onTypeInstead={typeInstead}
+          onLogged={logged}
+          onAddAnother={(draft) => setFlow({ kind: 'type', items: [draft] })}
         />
-      )}
+        <DescribeSheet
+          open={flow.kind === 'describe'}
+          onClose={close}
+          onResult={(payload) => void showDescribed(payload)}
+          onTypeInstead={typeInstead}
+          {...(voiceEnv ? { voiceEnv } : {})}
+        />
+        <TypeItSheet
+          open={flow.kind === 'type'}
+          prefill={flow.kind === 'type' ? flow.prefill : undefined}
+          initialItems={flow.kind === 'type' ? flow.items : undefined}
+          onClose={close}
+          onLogged={logged}
+        />
+        <SavedSheet
+          open={flow.kind === 'saved'}
+          onClose={close}
+          onLogged={logged}
+          onFindRecipe={(name) => setFlow({ kind: 'type', prefill: name })}
+          onNewRecipe={() => setFlow({ kind: 'recipe' })}
+        />
+        <RecipeEditorSheet
+          open={flow.kind === 'recipe'}
+          onClose={() => setFlow({ kind: 'saved' })}
+          onSaved={(recipe) => {
+            day.setNotice((a) => fill(a.relog.recipe.saved, { name: recipe.name }));
+            setFlow({ kind: 'saved' });
+          }}
+        />
+        <PhotoConsentDialog
+          open={consent !== null}
+          host={consent?.host ?? ''}
+          via={consent?.via}
+          perPhoto={consent?.perPhoto ?? false}
+          privacyHref={hrefs.privacy}
+          onAllow={() => answerConsent(true)}
+          onDecline={() => answerConsent(false)}
+        />
+        <PhotoDeniedSheet
+          open={state?.kind === 'denied'}
+          onClose={() => setPhotoOpen(false)}
+          onTypeInstead={() => typeInstead()}
+        />
+        {state?.kind === 'ready' && (
+          <RecognizedMatchSheet
+            open
+            onClose={() => setPhotoOpen(false)}
+            result={state.result}
+            closestMatches={state.closestMatches}
+            onLog={commitPhoto}
+            aiSetupHref={hrefs.section('ai')}
+            instanceOffered={instanceLabel !== undefined}
+          />
+        )}
+        {described !== null && (
+          <RecognizedMatchSheet
+            open
+            onClose={() => setDescribed(null)}
+            result={described.result}
+            closestMatches={described.closestMatches}
+            onLog={commit}
+            source="description"
+            errorMessage={
+              described.unmatched.length === 0
+                ? undefined
+                : fill(strings().recognized.describedUnmatched, {
+                    names: joinPlain(described.unmatched),
+                  })
+            }
+          />
+        )}
+      </LogTargetContext.Provider>
     </LogContext.Provider>
   );
 }

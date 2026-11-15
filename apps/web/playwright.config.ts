@@ -30,7 +30,17 @@ export const RELAY_PORT = 4174;
 const relayData = mkdtempSync(join(tmpdir(), 'anc-e2e-relay-'));
 
 // The specs that run on the real encrypted store (a shared site-data store on WebKit).
-const STORE_SPECS = ['storage', 'language', 'french', 'pwa', 'journey', 'relog', 'backup', 'sync'];
+const STORE_SPECS = [
+  'storage',
+  'language',
+  'french',
+  'pwa',
+  'journey',
+  'relog',
+  'edit',
+  'backup',
+  'sync',
+];
 
 export default defineConfig({
   testDir: './e2e',

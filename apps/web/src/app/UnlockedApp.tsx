@@ -23,7 +23,7 @@ function Routes() {
     case 'coach':
       return <AskCoachScreen />;
     case 'plate':
-      return <PlateScreen plateId={route.id} />;
+      return <PlateScreen plateId={route.id} editing={route.edit === true} />;
     case 'settings':
       return <SettingsScreen section={route.section} />;
     case 'today':

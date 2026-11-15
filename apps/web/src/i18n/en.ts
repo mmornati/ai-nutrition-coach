@@ -13,6 +13,7 @@ export const en = {
     back: 'Back',
     logging: 'Logging…',
     log: 'Log',
+    remove: 'Remove',
     logFailed: 'That did not save just now. Nothing was lost; you can try again.',
   },
   groups: {
@@ -114,6 +115,9 @@ export const en = {
   capture: {
     title: 'Log a plate',
     nextStation: 'Next meal: {meal}',
+    forToday: 'Logging for today',
+    forDay: 'Logging for {day}',
+    mealLabel: 'Meal',
     snapshot: 'Snapshot',
     snapshotHint: 'One photo of the plate is plenty.',
     barcode: 'Barcode',
@@ -180,8 +184,48 @@ export const en = {
     typeNameFirst: 'Type a name first',
     customFoodName: 'Custom food name',
     logCustomFood: 'Log custom food',
-    matchLabel: '{name}, {group}, {presets} presets',
+    matchLabel: {
+      one: '{name}, {group}{kcal}, {presets} portion suggested',
+      other: '{name}, {group}{kcal}, {presets} portions suggested',
+    },
     results: 'Matches',
+    matchKcal: '{value} kcal per 100 g',
+    chosenFood: 'Selected: {name}. Set the amount below.',
+    otherResults: 'Show other results',
+    amountFor: 'Amount for {name}',
+    addAnother: 'Add another food',
+    logPlate: 'Log plate',
+    onPlate: 'On this plate',
+    removeItem: 'Remove {name}',
+    plateTotal: 'Plate total',
+    itemNotCounted: 'Not counted in totals',
+    customDetails: 'Weight and nutrition (optional)',
+    customOptional:
+      'Add a weight and calories, and this food counts in your totals. Leave them empty to log about one serving.',
+    customBasis: 'The values are',
+    customPer100: 'per 100 g',
+    customPerServing: 'per serving',
+    customGramsEaten: 'Weight eaten (g)',
+    customGramsServing: 'Serving weight (g)',
+    customFields: {
+      energyKcal: 'Energy (kcal)',
+      protein: 'Protein (g)',
+      carbohydrate: 'Carbohydrate (g)',
+      sugars: 'of which sugars (g)',
+      fat: 'Fat (g)',
+      saturatedFat: 'of which saturates (g)',
+      fibre: 'Fibre (g)',
+      salt: 'Salt (g)',
+    },
+    customIssues: {
+      needsGrams: 'Add the weight so these values can count.',
+      value: 'Type a number, or leave the field empty.',
+      tooHigh: 'That is more than a food holds per 100 g. Check the value.',
+      sugars: 'Sugars cannot be more than carbohydrate.',
+      saturates: 'Saturates cannot be more than fat.',
+      macros:
+        'Protein, carbohydrate, fat, fibre and salt together cannot be more than 100 g per 100 g. Check the values.',
+    },
   },
   barcodeMatch: {
     groupLabel: 'Food group',
@@ -600,9 +644,16 @@ export const en = {
       },
       averagesTitle: 'Daily average',
       averagesNote: {
-        one: 'Averaged over the {count} day that has weights and nutrition data.',
-        other: 'Averaged over the {count} days that have weights and nutrition data.',
+        one: 'Average over the {count} finished day with enough logged. Today joins once it is over.',
+        other:
+          'Average over the {count} finished days with enough logged. Today joins once it is over.',
       },
+      averagesExcluded: {
+        one: '{count} other finished day had too little logged to count.',
+        other: '{count} other finished days had too little logged to count.',
+      },
+      averagesNone:
+        'The daily average appears once a finished day has at least two plates with weights and nutrition data.',
       wentWellTitle: 'What went well',
       tryTitle: 'One thing to try',
       positives: {
@@ -760,6 +811,15 @@ export const en = {
       fibre: 'Fibre',
       salt: 'Salt',
     },
+    atLeast: 'at least {value}',
+    notCounted: { one: '{count} food not counted', other: '{count} foods not counted' },
+    partialNote:
+      'Marked “at least”: some foods have no data for that value, so the real amount may be higher.',
+    uncountedLabel: 'Foods without data',
+    uncountedNoWeight: 'No weight',
+    uncountedNoData: 'No nutrition data',
+    uncountedFix: 'Complete',
+    uncountedFixOf: 'Add weight or nutrition for {name}',
     reference: 'about {percent}% of the EU reference intake ({reference})',
     /** The same, when a profile drives the guide. */
     referencePersonal: 'about {percent}% of your daily guide ({reference})',
@@ -956,6 +1016,18 @@ export const en = {
   /** The Plate screen. */
   plate: {
     removeAction: 'Remove this plate',
+    editAction: 'Edit this plate',
+    editTitle: 'Edit plate',
+    editIntro: 'Change amounts, remove a food, add one, or move the plate to another meal or day.',
+    editRemove: 'Remove {name}',
+    editAddFood: 'Add a food',
+    editAddConfirm: 'Add to plate',
+    editSave: 'Save changes',
+    editSaved: 'Plate updated.',
+    editFailed: 'Couldn’t save the changes. Nothing was changed.',
+    editEmpty:
+      'A plate needs at least one food. To remove the whole plate, use “Remove this plate”.',
+    editInvalid: 'One of the amounts is not a valid number yet. Fix it to save the changes.',
   },
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   /** How a share of the day's reference reads inside a coach note. */

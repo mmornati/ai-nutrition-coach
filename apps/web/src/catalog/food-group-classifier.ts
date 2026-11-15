@@ -43,6 +43,7 @@ import { foldText } from './fold';
 export function classifyFoodGroup(descriptors: readonly string[]): FoodGroup {
   const normalized = descriptors.map((d) => tokens(d));
   for (const t of normalized) if (isNutButter(t)) return 'protein';
+  for (const t of normalized) if (hasProteinHead(t)) return 'protein';
   for (const t of normalized) if (isPlantMilk(t)) return 'dairy';
   for (const t of normalized) {
     const group = phraseGroup(t);
@@ -76,7 +77,8 @@ export function classifyFoodByName(name: string): FoodGroup {
 export function classifyFoodGroupsByName(name: string): readonly FoodGroup[] {
   const ts = tokens(name);
   if (isNutButter(ts)) return ['protein'];
-  if (isPlantMilk(ts)) return ['dairy'];
+  const proteinHead = hasProteinHead(ts);
+  if (!proteinHead && isPlantMilk(ts)) return ['dairy'];
 
   const found = new Set<FoodGroup>();
   const masked = new Set<number>();
@@ -94,6 +96,11 @@ export function classifyFoodGroupsByName(name: string): readonly FoodGroup[] {
 
   // `lieu` (pollock) is a fish, but `au lieu de` ("instead of") is not a food.
   const rest = ts.filter((t, i) => !masked.has(i) && !(t === 'lieu' && ts[i - 1] === 'au'));
+  // A meat / fish dish "X au Y": X is the food; a plant milk in the sauce is not dairy.
+  if (proteinHead) {
+    const real = rest.filter((t, i) => !(MILK_WORDS_FR.has(t) && plantFollows(rest, i)));
+    rest.splice(0, rest.length, ...real);
+  }
   const any = (set: ReadonlySet<string>): boolean => rest.some((t) => set.has(t));
   if (any(DAIRY)) found.add('dairy');
   if (any(PROTEIN)) found.add('protein');
@@ -241,6 +248,31 @@ const MILK_WORDS = words('milk', 'drink', 'yogurt', 'yoghurt');
 const MILK_WORDS_FR = words('lait', 'boisson', 'yaourt', 'yogourt');
 /** How far after a French milk word its plant may stand (`boisson à l'avoine`: three tokens). */
 const PLANT_AFTER = 3;
+
+function plantFollows(ts: readonly string[], i: number): boolean {
+  for (let j = i + 1; j < ts.length && j <= i + PLANT_AFTER; j++) {
+    if (PLANT_WORDS.has(ts[j] as string)) return true;
+  }
+  return false;
+}
+
+/** Words that join a dish's main food to its sauce or garnish: "poulet AU curry", "fish WITH cream". */
+const DISH_CONNECTORS: ReadonlySet<string> = new Set(['au', 'aux', 'avec', 'with']);
+
+/**
+ * "X au Y" / "X with Y" names the dish after X: when X (the words before the first connector) is a
+ * meat, poultry or fish and not itself a dairy word, the dish is PROTEIN whatever its sauce says
+ * (`poulet au curry et au lait de coco`, `poulet au lait`, `chicken with cream`). Without this the
+ * generic scan lets "lait" win over "poulet", and plant-milk detection files a coconut-milk sauce
+ * as a dairy product. A dish whose HEAD is the milk or the rice (`riz au lait`) is untouched.
+ */
+function hasProteinHead(ts: readonly string[]): boolean {
+  const cut = ts.findIndex((t, i) => i > 0 && DISH_CONNECTORS.has(t));
+  if (cut <= 0) return false;
+  const head = ts.slice(0, cut);
+  if (head.some((t) => DAIRY.has(t) || NUT_WORDS.has(t) || PLANT_WORDS.has(t))) return false;
+  return head.some((t) => PROTEIN.has(t));
+}
 
 function isPlantMilk(ts: readonly string[]): boolean {
   for (let i = 0; i < ts.length; i++) {

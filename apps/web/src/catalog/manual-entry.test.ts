@@ -248,3 +248,48 @@ describe('ManualEntrySession', () => {
     expect(s.state.chosenPreset?.displayLabel.startsWith('~')).toBe(true);
   });
 });
+
+describe('ManualEntrySession: building one plate of several foods', () => {
+  const rice: FoodEntryDraft = {
+    databaseFood: databaseFood({ sourceRef: 'seed:rice', displayName: 'Rice', source: 'seed' }),
+    quantity: { low: 1, high: 1, unit: 'fist', displayLabel: '~1 fist' },
+  };
+
+  it('draft() is the selected food with its chosen preset, null before', async () => {
+    const s = new ManualEntrySession(fakeCatalog({ salm: rankedMatches([salmon]) }));
+    expect(s.draft()).toBeNull();
+    await s.updateQuery('salm');
+    s.selectMatch(salmon);
+    expect(s.draft()).toEqual({ databaseFood: salmon.food, quantity: salmon.presets[0] });
+    s.selectPreset(salmon.presets[1] as never);
+    expect(s.draft()?.quantity).toBe(salmon.presets[1]);
+  });
+
+  it('logSelected puts the foods already on the plate and the selected one in ONE commit', async () => {
+    const s = new ManualEntrySession(fakeCatalog({ salm: rankedMatches([salmon]) }));
+    await s.updateQuery('salm');
+    s.selectMatch(salmon);
+    const { commit, drafts } = recorder();
+    expect(await s.logSelected(commit, [rice])).toEqual({ kind: 'logged' });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.map((d) => d.databaseFood.displayName)).toEqual(['Rice', 'Salmon']);
+  });
+
+  it('with nothing selected the plate is just the foods already on it; with neither, a quantity is needed', async () => {
+    const s = new ManualEntrySession(fakeCatalog({}));
+    const { commit, drafts } = recorder();
+    expect(await s.logSelected(commit)).toEqual({ kind: 'needsQuantity' });
+    expect(await s.logSelected(commit, [rice])).toEqual({ kind: 'logged' });
+    expect(drafts[0]?.map((d) => d.databaseFood.displayName)).toEqual(['Rice']);
+  });
+
+  it('resetSearch forgets the query and the selection', async () => {
+    const s = new ManualEntrySession(fakeCatalog({ salm: rankedMatches([salmon]) }));
+    await s.updateQuery('salm');
+    s.selectMatch(salmon);
+    s.resetSearch();
+    expect(s.state.query).toBe('');
+    expect(s.state.selected).toBeNull();
+    expect(s.draft()).toBeNull();
+  });
+});

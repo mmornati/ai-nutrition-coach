@@ -36,14 +36,17 @@ async function openWeek(
   const bundle = await unlockedBundle();
   if (options.numbersOff) await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
   for (const offset of [-1, -2, -3]) {
-    await seedMeasuredPlate(bundle, at(12, 0, offset), [
-      {
-        name: 'Salad',
-        group: 'vegFruit',
-        grams: 200,
-        per100g: { energyKcal: 20, protein: 1, fibre: 3, salt: 0.2 },
-      },
-    ]);
+    // Two plates a day: the day is complete enough to count in the review.
+    for (const hour of [12, 19]) {
+      await seedMeasuredPlate(bundle, at(hour, 0, offset), [
+        {
+          name: 'Salad',
+          group: 'vegFruit',
+          grams: 200,
+          per100g: { energyKcal: 20, protein: 1, fibre: 3, salt: 0.2 },
+        },
+      ]);
+    }
   }
   if (options.configure === 'noConsent') await configureByokCoaching(bundle, { consent: false });
   if (options.configure === 'ready') await configureByokCoaching(bundle);
@@ -144,7 +147,11 @@ describe('WeekAiSummary', () => {
 
 describe('WeekAiSummary: accessibility', () => {
   it('has no axe violations (off, and ready with a paragraph)', async () => {
-    const review = weeklyReview({ plates: [], targets: EU_REFERENCE_INTAKES });
+    const review = weeklyReview({
+      plates: [],
+      today: new Date(2026, 9, 14, 20).getTime(),
+      targets: EU_REFERENCE_INTAKES,
+    });
     const bundle = await unlockedBundle();
     const off = await renderInSession(<WeekAiSummary review={review} />, { bundle });
     await screen.findByText(/choose an AI and turn on AI coaching/);
@@ -179,7 +186,11 @@ describe('WeekAiSummary: numbers switched off afterwards', () => {
       session = useSession();
       return null;
     }
-    const review = weeklyReview({ plates: [], targets: EU_REFERENCE_INTAKES });
+    const review = weeklyReview({
+      plates: [],
+      today: new Date(2026, 9, 14, 20).getTime(),
+      targets: EU_REFERENCE_INTAKES,
+    });
     await renderInSession(
       <>
         <Probe />

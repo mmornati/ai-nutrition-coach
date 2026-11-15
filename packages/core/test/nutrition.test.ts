@@ -5,6 +5,7 @@ import {
   entryNutrients,
   EU_REFERENCE_INTAKES,
   gramsQuantity,
+  isPartial,
   isValidQuantity,
   plateLog,
   plateNutrients,
@@ -223,8 +224,65 @@ describe('nutrient totals', () => {
       totals: {},
       entriesCounted: 0,
       entriesTotal: 0,
+      gaps: {},
+      uncoveredShare: {},
+      unweighed: 0,
+      uncounted: [],
       estimated: false,
     });
+  });
+
+  it('records per-nutrient gaps and the entries left out', () => {
+    const noFibre = { energyKcal: 100, protein: 5 };
+    const t = sumNutrients([
+      entry(1, { ...noFibre, fibre: 2 }, gramsQuantity(100)),
+      entry(2, noFibre, gramsQuantity(100)),
+      entry(3, undefined, gramsQuantity(100)),
+      entry(4, yogurt, noGrams),
+    ]);
+    expect(t.gaps.fibre).toBe(3);
+    expect(t.gaps.energyKcal).toBe(2);
+    expect(t.uncounted.map((e) => e.id)).toEqual([3, 4]);
+    expect(isPartial(t, 'fibre')).toBe(true);
+    const whole = sumNutrients([entry(1, noFibre, gramsQuantity(100))]);
+    expect(isPartial(whole, 'energyKcal')).toBe(false);
+    expect(whole.gaps).toEqual({
+      fibre: 1,
+      carbohydrate: 1,
+      sugars: 1,
+      fat: 1,
+      saturatedFat: 1,
+      salt: 1,
+    });
+  });
+
+  it('flags a nutrient as "at least" only when the foods missing it are a real share', () => {
+    const grain = { energyKcal: 300, fibre: 8, protein: 10 };
+    const herb = { energyKcal: 250, protein: 5 }; // no fibre data
+    // 2 g of herb next to 300 g of grain: well under 10% of the weight.
+    const tiny = sumNutrients([
+      entry(1, grain, gramsQuantity(300)),
+      entry(2, herb, gramsQuantity(2)),
+    ]);
+    expect(tiny.gaps.fibre).toBe(1);
+    expect(isPartial(tiny, 'fibre')).toBe(false);
+    // A large food without fibre data next to the grain: well over 10%.
+    const big = sumNutrients([
+      entry(1, grain, gramsQuantity(100)),
+      entry(2, herb, gramsQuantity(100)),
+    ]);
+    expect(isPartial(big, 'fibre')).toBe(true);
+    expect(isPartial(big, 'protein')).toBe(false);
+  });
+
+  it('an unweighed food always marks energy "at least", never another nutrient by itself', () => {
+    const t = sumNutrients([
+      entry(1, { energyKcal: 300, fibre: 8 }, gramsQuantity(300)),
+      entry(2, yogurt, noGrams),
+    ]);
+    expect(t.unweighed).toBe(1);
+    expect(isPartial(t, 'energyKcal')).toBe(true);
+    expect(isPartial(t, 'fibre')).toBe(false);
   });
 
   it('keeps full precision (no rounding in sums)', () => {

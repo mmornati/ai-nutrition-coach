@@ -19,6 +19,7 @@ import {
   createDeletePlate,
   createRecordCoachInteraction,
   createRecordPlate,
+  createReplacePlate,
   createRecordSyncOp,
   createTemplateCoach,
   localDayRange,
@@ -149,6 +150,15 @@ export interface Session {
     readonly failedPlates: readonly P[];
   }>;
   readonly deletePlate: DeletePlate;
+  /**
+   * Edits a plate (entries, time): the store swaps it for the edited one in one transaction and a
+   * fresh coach note is written for it. The edited plate has a NEW id (the result carries it).
+   */
+  readonly replacePlate: (
+    plateLogId: number,
+    drafts: readonly FoodEntryDraft[],
+    loggedAtUtc: EpochMs,
+  ) => Promise<RecordPlateResult>;
   /** False once the session was disposed: late async results must not touch the UI. */
   readonly live: () => boolean;
   dispose(): void;
@@ -333,6 +343,12 @@ export async function createSession(
   const record = createRecordPlate({
     generator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
+    clock,
+  });
+  const replace = createReplacePlate({
+    generator,
+    syncOpEnqueue: createRecordSyncOp(syncQueue),
+    clock,
   });
   // The same path without a coach note: the earlier plates of a copied day stay quiet.
   const quietGenerator: CoachNoteGenerator = {
@@ -342,6 +358,7 @@ export async function createSession(
   const recordQuietly = createRecordPlate({
     generator: quietGenerator,
     syncOpEnqueue: createRecordSyncOp(syncQueue),
+    clock,
   });
 
   // A copy pulled from the relay changed what this device holds. The plates, notes and dismissals
@@ -441,6 +458,8 @@ export async function createSession(
       };
     },
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
+    replacePlate: (plateLogId, entries, loggedAtUtc) =>
+      replace({ plateLogId, entries, loggedAtUtc, store }),
     live: () => live,
     dispose() {
       if (!live) return;

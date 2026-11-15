@@ -57,6 +57,9 @@ export class FakeStore implements EncryptedStore {
   recordPlate(): never {
     throw new Error('read-only in these tests');
   }
+  replacePlate(): never {
+    throw new Error('read-only in these tests');
+  }
   watchRange(): never {
     throw new Error('not used');
   }

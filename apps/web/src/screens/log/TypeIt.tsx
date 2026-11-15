@@ -1,178 +1,222 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FoodEntryDraft, FoodUse, RecordPlateResult } from '@anc/core';
-import { useMessage, useStrings } from '../../i18n';
-import { Button, TextField } from '../../components/primitives';
-import { QuantityPicker, Sheet } from '../../components/sheets';
-import { useManualEntry } from '../../catalog';
-import type { LogOutcome } from '../../catalog';
-import { useSession } from '../../app/session';
-import { MatchList } from './MatchList';
+import {
+  isPartial,
+  sumNutrients,
+  type FoodEntry,
+  type FoodEntryDraft,
+  type FoodUse,
+  type RecordPlateResult,
+} from '@anc/core';
+import { fill, useLocale, useMessage, useStrings } from '../../i18n';
+import { Button } from '../../components/primitives';
+import { Sheet } from '../../components/sheets';
+import {
+  entryQuantityText,
+  formatNutrient,
+  energyOf,
+  useShowNumbers,
+} from '../../components/nutrition';
+import { foodName } from '../../catalog';
+import { useRecordHere } from '../../app/log-context';
+import { FoodPicker } from './FoodPicker';
 import { RecentFoods } from './RecentFoods';
 
+/** A draft as an entry, so the totals model can sum a plate that is not stored yet. */
+const asEntry = (draft: FoodEntryDraft, id: number): FoodEntry => ({
+  id,
+  plateLogId: 0,
+  databaseFood: draft.databaseFood,
+  quantity: draft.quantity,
+});
+
 /**
- * Type it: ranked matches as you type, honest portion presets (the first is the default), Log. A
- * name that matches nothing (or a catalog that cannot answer) opens the custom food form, which
- * logs `~1 serving` with an unknown group. A scanned barcode the catalog did not know arrives
- * prefilled. Works fully offline: the search never touches the network.
+ * "On this plate": the foods put on the plate so far, each with its amount and (numbers on) its
+ * energy, the plate total, and a remove button per food. Totals say "at least" while a food has
+ * no weight or no energy; that food is marked "not counted".
+ */
+export function PlateDraftList({
+  items,
+  onRemove,
+  onEmptied,
+}: {
+  readonly items: readonly FoodEntryDraft[];
+  readonly onRemove: (index: number) => void;
+  /** The last food was removed and the list is gone: the caller puts focus somewhere sensible. */
+  readonly onEmptied?: (() => void) | undefined;
+}) {
+  const s = useStrings();
+  const c = s.catalog;
+  const { locale } = useLocale();
+  const showNumbers = useShowNumbers();
+  const listRef = useRef<HTMLUListElement>(null);
+  // After a removal focus moves to the Remove button now at the same place (the next food, or
+  // the previous one when the last was removed), not to the page behind.
+  const focusIndex = useRef<number | null>(null);
+  useEffect(() => {
+    const index = focusIndex.current;
+    focusIndex.current = null;
+    if (index === null) return;
+    const buttons = listRef.current?.querySelectorAll<HTMLElement>('[data-remove]');
+    buttons?.[Math.min(index, buttons.length - 1)]?.focus();
+  });
+  if (items.length === 0) return null;
+  const total = sumNutrients(items.map(asEntry));
+  const kcal = total.totals.energyKcal;
+  return (
+    <section aria-label={c.onPlate} className="flex flex-col gap-1">
+      <h3 className="font-display text-section text-thread">{c.onPlate}</h3>
+      <ul ref={listRef} className="border-ink border-t-2">
+        {items.map((item, index) => {
+          const name = foodName(item.databaseFood, locale);
+          const energy = energyOf(item.databaseFood, item.quantity.grams);
+          return (
+            <li
+              // A draft has no id; the list is only ever appended to or removed from by index.
+              key={`${index}:${item.databaseFood.sourceRef}`}
+              className="border-seam flex items-stretch justify-between gap-3 border-b"
+            >
+              <span className="min-w-0 py-2.5">
+                <span className="block text-lead">{name}</span>
+                <span className="text-body-small text-ink-soft block">
+                  {entryQuantityText(item.quantity, locale)}
+                  {showNumbers && energy !== undefined
+                    ? ` · ${formatNutrient('energyKcal', energy, false, locale)}`
+                    : ''}
+                </span>
+                {showNumbers && energy === undefined && (
+                  <span className="text-body-small text-ink-soft block">{c.itemNotCounted}</span>
+                )}
+              </span>
+              <button
+                type="button"
+                aria-label={fill(c.removeItem, { name })}
+                data-remove
+                onClick={() => {
+                  focusIndex.current = index;
+                  onRemove(index);
+                  if (items.length === 1) onEmptied?.();
+                }}
+                className="text-body-small text-ink-soft min-h-12 min-w-12 shrink-0 cursor-pointer bg-transparent px-2 underline underline-offset-4"
+              >
+                {s.common.remove}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {showNumbers && kcal !== undefined && (
+        <p className="font-display quantity text-lead pt-1 font-semibold">
+          {c.plateTotal}
+          {': '}
+          {formatNutrient(
+            'energyKcal',
+            kcal,
+            total.estimated,
+            locale,
+            isPartial(total, 'energyKcal'),
+          )}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Type it: build a plate. Search a food, set its amount, then "Log" (one food, one extra tap at
+ * most) or "Add another food" and repeat; the foods so far are listed with their energy and a
+ * plate total, and can be removed before logging. A name that matches nothing opens the custom
+ * food form (with optional weight and nutrition so it counts). A scanned barcode the catalog did
+ * not know arrives prefilled; a barcode food added to the plate arrives in `initialItems`.
  */
 export function TypeIt({
   prefill,
+  initialItems,
   onLogged,
 }: {
   readonly prefill?: string | undefined;
+  readonly initialItems?: readonly FoodEntryDraft[] | undefined;
   readonly onLogged: () => void;
 }) {
   const s = useStrings();
   const c = s.catalog;
-  const { catalog, recordPlate } = useSession();
-  const { session, state } = useManualEntry(catalog);
+  const record = useRecordHere();
+  const [items, setItems] = useState<readonly FoodEntryDraft[]>(initialItems ?? []);
+  const [draft, setDraft] = useState<FoodEntryDraft | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+  const [idle, setIdle] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [note, setNote] = useMessage();
-  // False while the Grams field holds text that is not a weight: Log stays off until it is.
-  const [weightValid, setWeightValid] = useState(true);
-  // A one-tap log from the recent lists is in flight: a second tap must not make a second plate.
-  const [rowBusy, setRowBusy] = useState(false);
-  // The selection came from a recent food's "Change": the lists step aside and focus goes to the
-  // amount, so the person lands where the editing is.
-  const [fromRecent, setFromRecent] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (prefill) void session.prefill(prefill);
-  }, [session, prefill]);
-
-  const commit = (drafts: readonly FoodEntryDraft[]): Promise<RecordPlateResult> =>
-    recordPlate(drafts);
-
-  const finish = (outcome: LogOutcome) => {
-    switch (outcome.kind) {
-      case 'logged':
-        setNote(null);
-        onLogged();
-        return;
-      case 'needsQuantity':
-        setNote((a) => a.catalog.pickQuantity);
-        return;
-      case 'needsName':
-        setNote((a) => a.catalog.typeNameFirst);
-        return;
-      case 'failed':
-        setNote((a) => a.common.logFailed);
-        return;
-      case 'busy':
-        return;
-    }
-  };
-
-  // One tap on a recent or frequent food: the same food snapshot with the quantity it last had.
-  const logRecent = async (use: FoodUse) => {
-    if (state.submitting || rowBusy) return;
-    setRowBusy(true);
+  const log = async (drafts: readonly FoodEntryDraft[]) => {
+    if (busy || drafts.length === 0) return;
+    setBusy(true);
+    let result: RecordPlateResult | null;
     try {
-      const result = await commit([{ databaseFood: use.food, quantity: use.quantity }]);
-      if (result.kind === 'recordPlateSuccess') onLogged();
-      else setNote((a) => a.common.logFailed);
+      result = await record(drafts);
     } catch {
+      result = null;
+    }
+    setBusy(false);
+    if (result?.kind === 'recordPlateSuccess') {
+      setNote(null);
+      onLogged();
+    } else {
       setNote((a) => a.common.logFailed);
-    } finally {
-      setRowBusy(false);
     }
   };
 
-  const selectedRef = state.selected?.food.sourceRef;
-  useEffect(() => {
-    if (fromRecent && selectedRef !== undefined) {
-      pickerRef.current?.querySelector<HTMLElement>('input')?.focus();
-    }
-  }, [fromRecent, selectedRef]);
+  const addAnother = () => {
+    if (draft === null) return;
+    setItems((list) => [...list, draft]);
+    setNote(null);
+    setResetKey((k) => k + 1);
+  };
 
-  const hasMatches = state.matches.length > 0;
-  const showCustom =
-    !hasMatches &&
-    state.query.trim() !== '' &&
-    (state.catalogStatus === 'notFound' || state.catalogStatus === 'catalogFailure');
-  const selected = state.selected;
-  const chosen = state.chosenPreset ?? selected?.presets[0] ?? null;
-  const message = state.lastError === 'searchUnavailable' ? c.searchUnavailable : note;
+  const withDraft = draft === null ? items : [...items, draft];
+  const canLog = withDraft.length > 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <TextField
-        label={c.searchLabel}
-        value={state.query}
-        autoComplete="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        onChange={(e) => {
-          setNote(null);
-          setFromRecent(false);
-          void session.updateQuery(e.target.value);
-        }}
+    <div ref={rootRef} className="flex flex-col gap-4">
+      <PlateDraftList
+        items={items}
+        onRemove={(index) => setItems((list) => list.filter((_, i) => i !== index))}
+        onEmptied={() => rootRef.current?.querySelector<HTMLElement>('input')?.focus()}
       />
-      {state.query.trim() === '' && !hasMatches && (
-        <p className="text-body-small text-ink-soft">{c.typeHint}</p>
-      )}
-      {hasMatches && (
-        <MatchList
-          matches={state.matches}
-          selected={selected}
-          onSelect={(match) => session.selectMatch(match)}
-        />
-      )}
-      {showCustom && (
-        <div className="flex flex-col gap-3">
-          <p className="text-body-small text-ink-soft">{c.customHint}</p>
-          <TextField
-            label={c.customFoodName}
-            value={state.customName}
-            onChange={(e) => session.setCustomName(e.target.value)}
+      <FoodPicker
+        prefill={prefill}
+        resetKey={resetKey}
+        onDraftChange={setDraft}
+        onIdleChange={setIdle}
+        recents={({ select }) => (
+          <RecentFoods
+            busy={busy}
+            onLog={(use: FoodUse) =>
+              void log([...items, { databaseFood: use.food, quantity: use.quantity }])
+            }
+            onEdit={select}
           />
-          <Button
-            variant="secondary"
-            fullWidth
-            busy={state.submitting}
-            busyLabel={s.common.logging}
-            onClick={() => void session.logCustom(commit).then(finish)}
-          >
-            {c.logCustomFood}
-          </Button>
-        </div>
-      )}
-      {selected && chosen && (
-        <div ref={pickerRef}>
-          <QuantityPicker
-            key={selected.food.sourceRef}
-            food={selected.food}
-            presets={selected.presets}
-            value={chosen}
-            onChange={(preset) => session.selectPreset(preset)}
-            onValidityChange={setWeightValid}
-          />
-        </div>
-      )}
+        )}
+      />
       {/* Always mounted: a live region is announced reliably only when its text changes. */}
       <p role="status" className="text-body-small text-ink-soft empty:hidden">
-        {message}
+        {note}
       </p>
-      {(hasMatches || selected !== null) && (
-        <Button
-          fullWidth
-          disabled={selected === null || !weightValid}
-          busy={state.submitting}
-          busyLabel={s.common.logging}
-          onClick={() => void session.logSelected(commit).then(finish)}
-        >
-          {s.common.log}
-        </Button>
-      )}
-      {!hasMatches && state.query.trim() === '' && selected === null && (
-        <RecentFoods
-          busy={state.submitting || rowBusy}
-          onLog={(use) => void logRecent(use)}
-          onEdit={(match) => {
-            setFromRecent(true);
-            session.selectMatch(match);
-          }}
-        />
+      {(!idle || items.length > 0) && (
+        <div className="flex flex-col gap-2">
+          <Button
+            fullWidth
+            disabled={!canLog}
+            busy={busy}
+            busyLabel={s.common.logging}
+            onClick={() => void log(withDraft)}
+          >
+            {items.length > 0 ? c.logPlate : s.common.log}
+          </Button>
+          <Button variant="secondary" fullWidth disabled={draft === null} onClick={addAnother}>
+            {c.addAnother}
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -182,18 +226,20 @@ export function TypeIt({
 export function TypeItSheet({
   open,
   prefill,
+  initialItems,
   onClose,
   onLogged,
 }: {
   readonly open: boolean;
   readonly prefill?: string | undefined;
+  readonly initialItems?: readonly FoodEntryDraft[] | undefined;
   readonly onClose: () => void;
   readonly onLogged: () => void;
 }) {
   const s = useStrings().catalog;
   return (
     <Sheet open={open} onClose={onClose} title={s.title}>
-      <TypeIt prefill={prefill} onLogged={onLogged} />
+      <TypeIt prefill={prefill} initialItems={initialItems} onLogged={onLogged} />
     </Sheet>
   );
 }

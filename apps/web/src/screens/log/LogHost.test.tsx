@@ -72,12 +72,66 @@ describe('LogHost: the capture sheet', () => {
       expect(tiles[1]).toContain('Snapshot');
       expect(tiles.some((t) => t?.includes('Barcode'))).toBe(true);
       expect(tiles.some((t) => t?.includes('Type it'))).toBe(true);
-      expect(within(dialog).getByText('Next meal: Lunch')).toBeVisible();
+      // Where the plate lands: today, and the meal that is on now, changeable.
+      expect(within(dialog).getByText(s.capture.forToday)).toBeVisible();
+      expect(within(dialog).getByRole('radio', { name: 'Lunch' })).toBeChecked();
       await user.keyboard('{Escape}');
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       // Esc returns focus to the button that opened it.
       expect(button).toHaveFocus();
     }
+  });
+
+  it('logs onto the day selected in the week, in the meal chosen in the sheet', async () => {
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await renderInSession(screenWithGrab, { bundle });
+    await screen.findByText('Breakfast');
+    // Select yesterday on the week route, then open the log sheet.
+    const route = screen.getByRole('navigation', { name: s.week.routeLabel });
+    await user.click(within(route).getAllByRole('button')[5] as HTMLElement);
+    await screen.findByRole('heading', { level: 1, name: 'Yesterday' });
+    const dialog = await openSheet(user);
+    expect(within(dialog).getByText(/^Logging for /)).toHaveTextContent(/Logging for \w+ \d+/);
+    // Another day offers every meal, and starts on the first one with nothing in it.
+    expect(within(dialog).getByRole('radio', { name: 'Breakfast' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Dinner' }));
+    await user.click(within(dialog).getByRole('button', { name: /Type it/ }));
+    const sheet = await screen.findByRole('dialog', { name: s.catalog.title });
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'apple');
+    await user.click(await within(sheet).findByRole('button', { name: /^Apple/ }));
+    await user.click(within(sheet).getByRole('button', { name: s.common.log }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const plate = read.kind === 'platesRead' ? read.plates[0] : undefined;
+    const when = new Date(plate?.loggedAtUtc ?? 0);
+    // Yesterday at the usual dinner hour, not "now".
+    expect(when.getDate()).toBe(13);
+    expect(when.getHours()).toBe(19);
+    // The screen stays on that day.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Yesterday' })).toBeVisible();
+  });
+
+  it('lunch logged after 16:00 stays lunch when the meal is chosen', async () => {
+    vi.setSystemTime(new Date(2026, 9, 14, 16, 10));
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await renderInSession(screenWithGrab, { bundle });
+    await screen.findByText('Breakfast');
+    const dialog = await openSheet(user);
+    expect(within(dialog).getByRole('radio', { name: 'Dinner' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Lunch' }));
+    await user.click(within(dialog).getByRole('button', { name: /Type it/ }));
+    const sheet = await screen.findByRole('dialog', { name: s.catalog.title });
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'apple');
+    await user.click(await within(sheet).findByRole('button', { name: /^Apple/ }));
+    await user.click(within(sheet).getByRole('button', { name: s.common.log }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const hour = new Date(
+      read.kind === 'platesRead' ? (read.plates[0]?.loggedAtUtc ?? 0) : 0,
+    ).getHours();
+    expect(hour).toBe(12);
   });
 
   it('has no monetisation and no pressure copy', async () => {
@@ -173,6 +227,51 @@ describe('Type it', () => {
     expect(within(sheet).getByRole('button', { name: s.common.log })).toBeDisabled();
   });
 
+  it('puts the cursor in the search field when it opens, and folds the list to the chosen food', async () => {
+    const { user, sheet } = await open();
+    expect(within(sheet).getByLabelText(s.catalog.searchLabel)).toHaveFocus();
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'a');
+    const rows = await within(sheet).findAllByRole('button', { pressed: false });
+    const before = within(sheet).getByRole('list', { name: s.catalog.results }).children.length;
+    expect(before).toBeGreaterThan(1);
+    const first = rows.find((b) => b.getAttribute('aria-pressed') === 'false');
+    if (first) await user.click(first);
+    expect(within(sheet).getByRole('list', { name: s.catalog.results }).children).toHaveLength(1);
+    // The amount is the next thing, and the way back to the other results is there.
+    expect(within(sheet).getByRole('group', { name: /^Amount for / })).toBeVisible();
+    await user.click(within(sheet).getByRole('button', { name: s.catalog.otherResults }));
+    expect(within(sheet).getByRole('list', { name: s.catalog.results }).children.length).toBe(
+      before,
+    );
+  });
+
+  it('builds a plate of several foods and logs them as ONE plate with a total', async () => {
+    const { user, bundle, sheet } = await open();
+    const search = within(sheet).getByLabelText(s.catalog.searchLabel);
+    await user.type(search, 'apple');
+    await user.click(await within(sheet).findByRole('button', { name: /^Apple/ }));
+    await user.click(within(sheet).getByRole('button', { name: s.catalog.addAnother }));
+    const list = within(sheet).getByRole('region', { name: s.catalog.onPlate });
+    expect(within(list).getByText('Apple')).toBeVisible();
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'salm');
+    await user.click(await within(sheet).findByRole('button', { name: /^Salmon/ }));
+    await user.click(within(sheet).getByRole('button', { name: s.catalog.logPlate }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const plates = read.kind === 'platesRead' ? read.plates : [];
+    expect(plates).toHaveLength(1);
+    expect(plates[0]?.entries.map((e) => e.databaseFood.displayName)).toEqual(['Apple', 'Salmon']);
+  });
+
+  it('removes a food from the plate before logging', async () => {
+    const { user, sheet } = await open();
+    await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'apple');
+    await user.click(await within(sheet).findByRole('button', { name: /^Apple/ }));
+    await user.click(within(sheet).getByRole('button', { name: s.catalog.addAnother }));
+    await user.click(within(sheet).getByRole('button', { name: 'Remove Apple' }));
+    expect(within(sheet).queryByRole('region', { name: s.catalog.onPlate })).toBeNull();
+  });
+
   it('Log is off while the Grams field holds something that is not a weight, and clearing it restores the preset', async () => {
     const { user, bundle, sheet } = await open();
     await user.type(within(sheet).getByLabelText(s.catalog.searchLabel), 'salm');
@@ -198,11 +297,11 @@ describe('Type it', () => {
     expect(await within(sheet).findByText(s.catalog.customHint)).toBeVisible();
     const name = within(sheet).getByLabelText(s.catalog.customFoodName);
     await user.clear(name);
-    await user.click(within(sheet).getByRole('button', { name: s.catalog.logCustomFood }));
-    expect(await within(sheet).findByText(s.catalog.typeNameFirst)).toBeVisible();
+    // Nothing to log until the food has a name.
+    expect(within(sheet).getByRole('button', { name: s.common.log })).toBeDisabled();
 
     await user.type(name, 'Mystery Stew');
-    await user.click(within(sheet).getByRole('button', { name: s.catalog.logCustomFood }));
+    await user.click(within(sheet).getByRole('button', { name: s.common.log }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const read = await bundle.store.readRange();
     const entry = read.kind === 'platesRead' ? read.plates[0]?.entries[0] : undefined;
@@ -344,6 +443,31 @@ describe('Barcode', () => {
     const typeIt = await screen.findByRole('dialog', { name: s.catalog.title });
     expect(within(typeIt).getByLabelText(s.catalog.searchLabel)).toHaveValue(NUTELLA);
     expect(await within(typeIt).findByLabelText(s.catalog.customFoodName)).toHaveValue(NUTELLA);
+  });
+
+  it('"Add another food" after a scan carries the food into Type it, on one plate', async () => {
+    const fetch = new FakeFetch();
+    fetch.jsonBody = offBody('Nutella');
+    const { user, bundle } = await scan(NUTELLA, fetch);
+    await user.click(
+      within(await screen.findByRole('dialog', { name: s.offNotice.title })).getByRole('button', {
+        name: s.offNotice.ok,
+      }),
+    );
+    const match = await screen.findByRole('dialog', { name: 'Nutella' });
+    await user.click(within(match).getByRole('button', { name: s.catalog.addAnother }));
+    const typeIt = await screen.findByRole('dialog', { name: s.catalog.title });
+    expect(within(typeIt).getByRole('region', { name: s.catalog.onPlate })).toHaveTextContent(
+      'Nutella',
+    );
+    await user.type(within(typeIt).getByLabelText(s.catalog.searchLabel), 'apple');
+    await user.click(await within(typeIt).findByRole('button', { name: /^Apple/ }));
+    await user.click(within(typeIt).getByRole('button', { name: s.catalog.logPlate }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const read = await bundle.store.readRange();
+    const plates = read.kind === 'platesRead' ? read.plates : [];
+    expect(plates).toHaveLength(1);
+    expect(plates[0]?.entries.map((e) => e.databaseFood.displayName)).toEqual(['Nutella', 'Apple']);
   });
 
   it('the notice is asked once: a later scan goes straight to the lookup', async () => {
@@ -570,6 +694,52 @@ describe('Snapshot', () => {
     expect(await screen.findByText(s.day.reading)).toBeVisible();
     expect(screen.getByText(s.day.reading).closest('li')).toHaveTextContent('Lunch');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('reads the plate in the day and meal it was taken for: moving around the week does not move it', async () => {
+    const fetch = new FakeFetch();
+    fetch.hang = true;
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await renderInSession(screenWithGrab, {
+      bundle,
+      session: { fetch: fetch.fetch },
+      createCapture: capture(photo),
+    });
+    await screen.findByText('Lunch');
+    await act(async () => {
+      const ai = (grabbed as Session).ai;
+      await ai.settings.setByokTarget({
+        endpointUrl: 'https://ai.example.test/v1',
+        model: 'vision-1',
+        keyHost: 'ai.example.test',
+      });
+      await ai.keyStore.write(TEST_KEY);
+      await ai.settings.setRung({ kind: 'byok' });
+    });
+    const route = screen.getByRole('navigation', { name: s.week.routeLabel });
+    await user.click(within(route).getAllByRole('button')[5] as HTMLElement);
+    await screen.findByRole('heading', { level: 1, name: 'Yesterday' });
+    const dialog = await openSheet(user);
+    await user.click(within(dialog).getByRole('radio', { name: 'Dinner' }));
+    await user.click(within(dialog).getByRole('button', { name: /Snapshot/ }));
+    await screen.findByRole('dialog', { name: s.capture.snapTitle });
+    await user.click(screen.getByRole('button', { name: s.capture.takePhoto }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: s.consent.allowOnce,
+      }),
+    );
+    // Yesterday's dinner, not today's current meal.
+    const reading = await screen.findByText(s.day.reading);
+    expect(reading.closest('li')).toHaveTextContent('Dinner');
+    // Back to today: the plate is not going to land here, so no band is shown here.
+    await user.click(within(route).getAllByRole('button')[6] as HTMLElement);
+    await screen.findByRole('heading', { level: 1, name: 'Today' });
+    expect(screen.queryByText(s.day.reading)).not.toBeInTheDocument();
+    // On the day it will land in, it is shown again.
+    await user.click(within(route).getAllByRole('button')[5] as HTMLElement);
+    expect((await screen.findByText(s.day.reading)).closest('li')).toHaveTextContent('Dinner');
   });
 
   it('the Snap sheet has no axe violations', async () => {

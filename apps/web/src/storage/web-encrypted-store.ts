@@ -79,6 +79,40 @@ export class WebEncryptedStore implements EncryptedStore {
     return this.source.database() !== null;
   }
 
+  async replacePlate(input: {
+    readonly plateLogId: number;
+    readonly entries: readonly FoodEntryDraft[];
+    readonly loggedAtUtc: EpochMs;
+  }): Promise<RecordPlateResult> {
+    if (input.entries.length === 0) return storeFailure('emptyPlate');
+    if (!input.entries.every((e) => isValidQuantity(e.quantity))) {
+      return storeFailure('invalidQuantity');
+    }
+    const db = this.source.database();
+    if (!db) return LOCKED_FAILURE;
+    const at = Math.floor(input.loggedAtUtc);
+    if (!Number.isFinite(at)) return storeFailure('storeOperation');
+    try {
+      const inserted = await db.replacePlate(
+        input.plateLogId,
+        toStoredInstant(at),
+        input.entries.map(toInsert),
+      );
+      if (inserted === null) return storeFailure('notFound');
+      const entries: FoodEntry[] = input.entries.map((draft, i) => ({
+        id: inserted.entryIds[i] ?? 0,
+        plateLogId: inserted.plateId,
+        databaseFood: databaseFood(draft.databaseFood),
+        quantity: { ...draft.quantity },
+      }));
+      this.bus.emit('plates', 'notes', 'dismissals');
+      return recordPlateSuccess(plateLog({ id: inserted.plateId, loggedAtUtc: at, entries }));
+    } catch (error) {
+      if (isProgrammingError(error)) throw error;
+      return mapStoreError(error);
+    }
+  }
+
   async recordPlate(input: {
     readonly entries: readonly FoodEntryDraft[];
     readonly loggedAtUtc?: EpochMs | undefined;

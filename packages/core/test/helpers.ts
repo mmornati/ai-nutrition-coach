@@ -253,6 +253,30 @@ export class FakeStore implements EncryptedStore {
       ),
     );
   }
+  lastReplace: { plateLogId: number; loggedAtUtc: number } | undefined;
+  replacePlate(input: {
+    plateLogId: number;
+    entries: readonly FoodEntryDraft[];
+    loggedAtUtc: number;
+  }): Promise<RecordPlateResult> {
+    this.lastReplace = { plateLogId: input.plateLogId, loggedAtUtc: input.loggedAtUtc };
+    this.lastEntries = input.entries;
+    if (this.fixed !== undefined) return Promise.resolve(this.fixed);
+    return Promise.resolve(
+      recordPlateSuccess(
+        plateLog({
+          id: input.plateLogId + 100,
+          loggedAtUtc: input.loggedAtUtc,
+          entries: input.entries.map((e, i) => ({
+            id: i + 1,
+            plateLogId: input.plateLogId + 100,
+            databaseFood: e.databaseFood,
+            quantity: e.quantity,
+          })),
+        }),
+      ),
+    );
+  }
   watchRange(): Unsubscribe {
     return () => undefined;
   }

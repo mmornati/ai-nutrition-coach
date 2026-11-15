@@ -14,8 +14,10 @@ export interface CaptureSheetProps {
   readonly onSaved?: () => void;
   /** Describe a meal in words or by voice. Absent: the tile is not shown. */
   readonly onDescribe?: (() => void) | undefined;
-  /** Name of the next meal slot, shown as "Next meal: <meal>". */
+  /** Name of the next meal slot, shown as "Next meal: <meal>". Used when there is no `target`. */
   readonly nextMeal?: string;
+  /** Where the plate lands ("Logging for yesterday") and the meal choice, shown above the tiles. */
+  readonly target?: { readonly label: string; readonly choice: ReactNode } | undefined;
 }
 
 function Tile({
@@ -65,6 +67,7 @@ export function CaptureSheet({
   onSaved,
   onDescribe,
   nextMeal,
+  target,
 }: CaptureSheetProps) {
   const all = useStrings();
   const s = all.capture;
@@ -77,8 +80,11 @@ export function CaptureSheet({
       open={open}
       onClose={onClose}
       title={s.title}
-      subtitle={nextMeal ? fill(s.nextStation, { meal: nextMeal }) : undefined}
+      subtitle={
+        target ? target.label : nextMeal ? fill(s.nextStation, { meal: nextMeal }) : undefined
+      }
     >
+      {target?.choice}
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
           main

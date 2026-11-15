@@ -46,13 +46,15 @@ lands: offline, without AI, or with an unknown barcode, you get the closest matc
 
 | Way | In short |
 | --- | --- |
-| **Type it** | Ranked matches from the built-in food list and the CIQUAL table (about 3,500 generic foods), portion presets or grams. Works offline. |
+| **Type it** | Ranked matches from the built-in food list and the CIQUAL table (about 3,500 generic foods, typos forgiven), portion presets or grams, several foods on one plate, custom foods with their own nutrition. Works offline. |
 | **Barcode** | Read on the device, looked up on Open Food Facts with only the barcode sent. |
 | **Describe** | "Two eggs, toast with butter, a coffee with milk", written or, with an AI, said out loud. Without AI, matched on the device. |
 | **Paste a recipe** | The ingredients or the whole text of a recipe page; nothing is fetched from the web. |
 | **Snapshot** | One photo, with an AI you chose, after your yes; location and camera details are removed first. |
 | **Saved meals and recipes** | A plate kept under a name, or a home recipe worked out per serving. |
 | **Again and copy** | *Log this again* on any plate, or *Copy this day to today*. |
+| **Edit a plate** | Change amounts, remove or add a food, move it to another meal or day; totals and the coach note follow. |
+| **Another day or meal** | Select a day in the week strip and choose the meal in the log sheet: yesterday's dinner, or a lunch logged at 16:10. |
 
 All of it, step by step: [Log a plate](guide/log-a-plate.md).
 

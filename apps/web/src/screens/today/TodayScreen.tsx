@@ -125,13 +125,19 @@ export function TodayScreen() {
   );
   const nowSlot: MealSlot = mealSlotForHour(new Date().getHours());
 
+  // The band reads "Reading the plate…" in the meal and on the day the photo will land in (fixed
+  // when it was taken); on another day it shows once that day is selected.
+  const target = log.resolvingTarget;
+  const resolvingSlot: MealSlot | null =
+    target !== null && isSameLocalDay(target.day, day.selected) ? target.slot : null;
+
   const { stations, slotOf } = useMemo(() => {
     const out: LineMapStation[] = [];
     const slots = new Map<string, { slot: MealSlot; plate: PlateLog | null }>();
     for (const entry of visibleSlots(board)) {
       if (entry.plates.length === 0) {
         const id = `open-${entry.slot}`;
-        const resolving = log.resolving && viewingToday && entry.slot === nowSlot;
+        const resolving = resolvingSlot === entry.slot;
         out.push({ id, status: resolving ? 'resolving' : 'open' });
         slots.set(id, { slot: entry.slot, plate: null });
         continue;
@@ -144,12 +150,12 @@ export function TodayScreen() {
     }
     // The meal being read already has a plate (or is `late`, which is only shown once used): the
     // new band arrives after the others.
-    if (log.resolving && viewingToday && !out.some((st) => st.status === 'resolving')) {
+    if (resolvingSlot !== null && !out.some((st) => st.status === 'resolving')) {
       out.push({ id: 'resolving', status: 'resolving' });
-      slots.set('resolving', { slot: nowSlot, plate: null });
+      slots.set('resolving', { slot: resolvingSlot, plate: null });
     }
     return { stations: out, slotOf: slots };
-  }, [board, log.resolving, viewingToday, nowSlot]);
+  }, [board, resolvingSlot]);
 
   // The coach hint belongs to the first open meal from now on (today only); once dismissed it
   // stays dismissed. A meal already behind us never gets a nudge.
@@ -331,6 +337,7 @@ export function TodayScreen() {
                 className="mx-5 mt-6 lg:mx-7"
                 title={viewingToday ? all.nutrition.sectionTitleToday : all.nutrition.sectionTitle}
                 nutrition={dayTotals}
+                fixHref={(entry) => hrefs.plateEdit(entry.plateLogId)}
               />
             </>
           )}

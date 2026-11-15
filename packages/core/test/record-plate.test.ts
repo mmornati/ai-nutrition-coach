@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createCoachNoteGenerator,
   createRecordPlate,
+  createReplacePlate,
   databaseFood,
   plateLog,
   recordPlateSuccess,
@@ -93,5 +94,82 @@ describe('RecordPlate use-case', () => {
     const result = await ok({ entries: [apple], store: new FakeStore() });
     expect(result.kind).toBe('recordPlateSuccess');
     expect(result.kind === 'recordPlateSuccess' && result.warnings).toEqual([]);
+  });
+});
+
+describe('ReplacePlate use-case (editing a logged plate)', () => {
+  const replace = createReplacePlate({ generator });
+  const at = utc(2026, 8, 15, 19);
+
+  it('hands the edited entries and time to the store, then generates a note for the NEW plate', async () => {
+    const coach = new FakeCoach();
+    const notes = new FakeCoachNoteStore();
+    const withNotes = createReplacePlate({
+      generator: createCoachNoteGenerator({ coach, store: notes }),
+    });
+    const store = new FakeStore();
+    const result = await withNotes({ plateLogId: 5, entries: [apple], loggedAtUtc: at, store });
+    expect(result.kind).toBe('recordPlateSuccess');
+    expect(store.lastReplace).toEqual({ plateLogId: 5, loggedAtUtc: at });
+    expect(store.lastEntries).toEqual([apple]);
+    // The coach was asked about the edited plate (id 105 in the fake), not the old one (5).
+    expect(result.kind === 'recordPlateSuccess' && result.plateLog.id).toBe(105);
+  });
+
+  it('refuses an empty plate and an invalid quantity before the store', async () => {
+    const store = new FakeStore();
+    expect(await replace({ plateLogId: 5, entries: [], loggedAtUtc: at, store })).toEqual(
+      storeFailure('emptyPlate'),
+    );
+    expect(
+      await replace({
+        plateLogId: 5,
+        entries: [{ ...apple, quantity: q(3, 1) }],
+        loggedAtUtc: at,
+        store,
+      }),
+    ).toEqual(storeFailure('invalidQuantity'));
+    expect(store.lastReplace).toBeUndefined();
+  });
+
+  it('a store failure propagates typed', async () => {
+    const failure: RecordPlateResult = storeFailure('storeOperation');
+    expect(
+      await replace({
+        plateLogId: 5,
+        entries: [apple],
+        loggedAtUtc: at,
+        store: new FakeStore(failure),
+      }),
+    ).toEqual(failure);
+  });
+});
+
+describe('a plate is never logged after now', () => {
+  const now = utc(2026, 8, 15, 12);
+  const clock = () => now;
+  const replace = createReplacePlate({ generator, clock });
+  const record = createRecordPlate({ generator, clock });
+
+  it('replacePlate refuses an instant after now with a typed failure, before the store', async () => {
+    const store = new FakeStore();
+    const result = await replace({
+      plateLogId: 5,
+      entries: [apple],
+      loggedAtUtc: now + 1,
+      store,
+    });
+    expect(result).toEqual(storeFailure('futureTime'));
+    expect(store.lastReplace).toBeUndefined();
+    const ok = await replace({ plateLogId: 5, entries: [apple], loggedAtUtc: now, store });
+    expect(ok.kind).toBe('recordPlateSuccess');
+  });
+
+  it('recordPlate refuses an instant after now; an omitted instant is left to the store', async () => {
+    const store = new FakeStore();
+    expect(await record({ entries: [apple], loggedAtUtc: now + 60_000, store })).toEqual(
+      storeFailure('futureTime'),
+    );
+    expect((await record({ entries: [apple], store })).kind).toBe('recordPlateSuccess');
   });
 });

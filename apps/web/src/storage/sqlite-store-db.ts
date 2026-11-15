@@ -93,16 +93,34 @@ export class SqliteStoreDb implements StoreDbOps {
   }
 
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
+    return this.db.transaction(() => this.insertPlateRows(loggedAtUtc, entries));
+  }
+
+  private insertPlateRows(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
+    this.db.run('INSERT INTO plate_log (uid, logged_at_utc) VALUES (?, ?)', [
+      this.clock.newUid(),
+      loggedAtUtc,
+    ]);
+    const plateId = this.db.lastInsertRowid();
+    const entryIds: number[] = [];
+    for (const e of entries)
+      entryIds.push(insertEntryRow(this.db, plateId, this.clock.newUid(), e));
+    return { plateId, entryIds };
+  }
+
+  replacePlate(
+    plateLogId: number,
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+  ): InsertedPlate | null {
+    // An edit is a delete plus a create under NEW uids, in ONE transaction: the old plate, its
+    // entries and notes are tombstoned (a tombstone always wins a merge, so no device resurrects
+    // the old version) and the new rows carry fresh uids. See docs/adr/0007-encrypted-vault.md.
     return this.db.transaction(() => {
-      this.db.run('INSERT INTO plate_log (uid, logged_at_utc) VALUES (?, ?)', [
-        this.clock.newUid(),
-        loggedAtUtc,
-      ]);
-      const plateId = this.db.lastInsertRowid();
-      const entryIds: number[] = [];
-      for (const e of entries)
-        entryIds.push(insertEntryRow(this.db, plateId, this.clock.newUid(), e));
-      return { plateId, entryIds };
+      const exists = this.db.all('SELECT 1 AS present FROM plate_log WHERE id = ?', [plateLogId]);
+      if (exists.length === 0) return null;
+      this.deletePlateRows(plateLogId);
+      return this.insertPlateRows(loggedAtUtc, entries);
     });
   }
 
@@ -153,14 +171,16 @@ export class SqliteStoreDb implements StoreDbOps {
     // Set-based sub-selects (nothing is read into JS): the note ids and their dismissal keys. The
     // tombstones are written first (they read the rows about to go), in the SAME transaction, with
     // one stamp for the whole delete: a delete that rolls back leaves no tombstone behind.
-    this.db.transaction(() => {
-      const stamp = this.clock.stamp();
-      tombstoneRowsWhere(this.db, 'food_entry', 'plate_log_id = ?', [plateLogId], stamp);
-      this.deleteNotesInTransaction(plateLogId, stamp);
-      tombstoneRowsWhere(this.db, 'plate_log', 'id = ?', [plateLogId], stamp);
-      this.db.run('DELETE FROM food_entry WHERE plate_log_id = ?', [plateLogId]);
-      this.db.run('DELETE FROM plate_log WHERE id = ?', [plateLogId]);
-    });
+    this.db.transaction(() => this.deletePlateRows(plateLogId));
+  }
+
+  private deletePlateRows(plateLogId: number): void {
+    const stamp = this.clock.stamp();
+    tombstoneRowsWhere(this.db, 'food_entry', 'plate_log_id = ?', [plateLogId], stamp);
+    this.deleteNotesInTransaction(plateLogId, stamp);
+    tombstoneRowsWhere(this.db, 'plate_log', 'id = ?', [plateLogId], stamp);
+    this.db.run('DELETE FROM food_entry WHERE plate_log_id = ?', [plateLogId]);
+    this.db.run('DELETE FROM plate_log WHERE id = ?', [plateLogId]);
   }
 
   insertNote(note: NoteInsert): number {

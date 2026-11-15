@@ -15,9 +15,16 @@ export interface BarcodeMatchSheetProps {
   readonly onLog: (draft: FoodEntryDraft) => void | Promise<void>;
   /** A calm line shown when the last attempt failed. */
   readonly errorMessage?: string | undefined;
+  /** Put this food on a plate and go on to add another. Absent: no such button. */
+  readonly onAddAnother?: ((draft: FoodEntryDraft) => void) | undefined;
 }
 
-function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open' | 'onClose'>) {
+function Body({
+  match,
+  onLog,
+  errorMessage,
+  onAddAnother,
+}: Omit<BarcodeMatchSheetProps, 'open' | 'onClose'>) {
   const s = useStrings();
   const presets = effectivePresets(match.presets);
   const [chosen, setChosen] = useState(presets[0] ?? oneServing());
@@ -65,6 +72,16 @@ function Body({ match, onLog, errorMessage }: Omit<BarcodeMatchSheetProps, 'open
       >
         {s.common.log}
       </Button>
+      {onAddAnother && (
+        <Button
+          variant="secondary"
+          fullWidth
+          disabled={!valid}
+          onClick={() => onAddAnother({ databaseFood: match.food, quantity: chosen })}
+        >
+          {s.catalog.addAnother}
+        </Button>
+      )}
     </>
   );
 }
@@ -76,6 +93,7 @@ export function BarcodeMatchSheet({
   match,
   onLog,
   errorMessage,
+  onAddAnother,
 }: BarcodeMatchSheetProps) {
   return (
     <Sheet
@@ -85,7 +103,7 @@ export function BarcodeMatchSheet({
       focusTitle
       subtitle={<GroupMarker group={match.food.foodGroup} />}
     >
-      <Body match={match} onLog={onLog} errorMessage={errorMessage} />
+      <Body match={match} onLog={onLog} errorMessage={errorMessage} onAddAnother={onAddAnother} />
     </Sheet>
   );
 }
