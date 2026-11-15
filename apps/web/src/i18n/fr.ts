@@ -271,6 +271,7 @@ export const fr: Strings = {
     voiceFailed:
       'Cet enregistrement n’a pas pu être transformé en texte. Vous pouvez réessayer, ou écrire à la place.',
     voiceKey: 'Le service n’a pas accepté votre clé. Vérifiez-la dans Réglages → Votre IA.',
+    voiceSignIn: 'Ce serveur vous demande de vous reconnecter. Rechargez la page pour continuer.',
     voiceTooLong:
       'Cet enregistrement est trop long. Essayez-en un plus court, ou écrivez à la place.',
     voiceUnsupported:
@@ -346,6 +347,9 @@ export const fr: Strings = {
       rungHostedLabel: 'Modèle hébergé gratuit',
       rungLocalLabel: 'Modèle sur cet appareil',
       rungUnavailable: 'Pas encore disponible',
+      signInRequired:
+        'Ce serveur vous demande de vous reconnecter. Rechargez la page pour continuer.',
+      reloadAction: 'Recharger',
       rungInstanceLabel: 'Fournie par ce serveur',
       rungInstanceHelp:
         'Aucune clé nécessaire. Les photos vont à ce serveur, qui les transmet à {label}.',
@@ -465,6 +469,8 @@ export const fr: Strings = {
       instanceUnavailable:
         'Ce serveur ne propose pas d’IA pour le moment. Vous pouvez choisir une autre option dans Réglages → Votre IA.',
       instanceBusy: 'L’IA de ce serveur est occupée. Réessayez dans un instant.',
+      instanceSignIn:
+        'Ce serveur vous demande de vous reconnecter. Rechargez la page pour continuer.',
       instanceError: 'L’IA de ce serveur n’a pas répondu. Réessayez dans un instant.',
       blockedByBrowser:
         'Si le service fonctionne, le navigateur a peut-être bloqué l’appel : le service doit autoriser les requêtes venant de cette page (CORS), et la Content-Security-Policy de ce site doit indiquer son adresse. Si vous hébergez vous-même cette application, ajoutez l’adresse à AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (voir les notes d’auto-hébergement).',
@@ -1349,6 +1355,9 @@ export const fr: Strings = {
     noMatch: 'Rien sur ce serveur ne correspond à cet identifiant et à cette phrase secrète.',
     rateLimited: 'Trop d’essais. Attendez quelques minutes, puis réessayez.',
     offline: 'Ce serveur n’a pas pu être joint. Rien n’a été modifié ; vous pouvez réessayer.',
+    signInRequired:
+      'Ce serveur vous demande de vous reconnecter. Rechargez la page pour continuer.',
+    reloadAction: 'Recharger',
     unavailable:
       'Cela n’a pas abouti pour le moment. Rien n’a été modifié ; vous pouvez réessayer.',
     newerVersion:
@@ -1431,6 +1440,8 @@ export const fr: Strings = {
       'Ce serveur ne peut pas être joint pour le moment. Vos modifications restent sur cet appareil et seront envoyées dès que possible.',
     statusFailed:
       'La dernière copie n’est pas passée. Une nouvelle tentative aura lieu ; rien n’est perdu.',
+    statusSignInRequired:
+      'Ce serveur vous demande de vous reconnecter, aucune copie n’est donc envoyée pour le moment. Rechargez la page pour continuer ; vos modifications restent sur cet appareil.',
     statusNeedsUpdate:
       'La copie de ce serveur vient d’une version plus récente de l’application. Mettez l’application à jour sur cet appareil pour continuer à synchroniser ; d’ici là, rien n’est envoyé et la copie du serveur n’est pas modifiée.',
     statusRolledBack:

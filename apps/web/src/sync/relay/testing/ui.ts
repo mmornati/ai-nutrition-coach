@@ -26,6 +26,18 @@ export function offerOf(config: unknown | null): SyncOfferSource {
   });
 }
 
+/** An offer source whose read is turned away by the sign-in in front of the server (a redirect). */
+export function signedOutOffer(): SyncOfferSource {
+  return new SyncOfferSource({
+    fetch: () => {
+      const r = new Response(null, { status: 200 });
+      Object.defineProperty(r, 'type', { value: 'opaqueredirect' });
+      Object.defineProperty(r, 'status', { value: 0 });
+      return Promise.resolve(r);
+    },
+  });
+}
+
 /** Timers and page events that never fire by themselves. */
 export function inertSync(): { timers: SyncTimers; events: SyncEvents } {
   return {

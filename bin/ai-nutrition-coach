@@ -140,14 +140,10 @@ validate_ai_proxy() {
 # refuses to run on a bad value. Messages name the variable and never print a value (an invite code
 # is a credential).
 validate_sync() {
-  case "${SYNC_SIGNUP:-open}" in
+  case "${SYNC_SIGNUP:-invite}" in
     open|invite|closed) ;;
     *) printf 'ai-nutrition-coach: SYNC_SIGNUP must be open, invite or closed.\n' >&2; exit 42 ;;
   esac
-  if [ "${SYNC_SIGNUP:-open}" = invite ] && [ -z "${SYNC_INVITE_CODES:-}" ]; then
-    printf 'ai-nutrition-coach: SYNC_SIGNUP=invite needs SYNC_INVITE_CODES (comma-separated invite codes).\n' >&2
-    exit 42
-  fi
   case "${SYNC_MAX_VAULT_MB:-20}" in
     ''|*[!0-9]*) printf 'ai-nutrition-coach: SYNC_MAX_VAULT_MB must be a whole number from 1 to 24.\n' >&2; exit 42 ;;
   esac
@@ -160,7 +156,10 @@ validate_sync() {
 # A reminder, never a prompt: the relay holds only ciphertext, but it is still a service.
 note_sync() {
   [ "$sync" = 1 ] || return 0
-  printf 'ai-nutrition-coach: the encrypted-backup relay is ON (signup: %s). It keeps ciphertext in the Docker volume\n' "${SYNC_SIGNUP:-open}" >&2
+  printf 'ai-nutrition-coach: the encrypted-backup relay is ON (signup: %s). It keeps ciphertext in the Docker volume\n' "${SYNC_SIGNUP:-invite}" >&2
+  if [ "${SYNC_SIGNUP:-invite}" = invite ] && [ -z "${SYNC_INVITE_CODES:-}" ]; then
+    printf '           signups are closed until you set SYNC_INVITE_CODES (or SYNC_SIGNUP=open); existing handles can log in.\n' >&2
+  fi
   printf '           sync-data: back that volume up, and keep it on the same host as this stack.\n' >&2
 }
 
@@ -485,8 +484,9 @@ Environment:
                                stays on the server and is never printed. Anyone who can
                                reach the instance can spend it: use a sign-in or an
                                allow-list (docs/self-host.md)
-  SYNC_SIGNUP                           --sync: open (default) | invite | closed. invite needs
-                               SYNC_INVITE_CODES (comma-separated codes, which are credentials).
+  SYNC_SIGNUP                           --sync: invite (default) | open | closed. invite needs
+                               SYNC_INVITE_CODES (comma-separated codes, which are credentials);
+                               with none, signups stay closed and existing handles can log in.
                                Also SYNC_MAX_VAULT_MB (1-24, default 20), SYNC_MAX_VAULTS,
                                SYNC_MAX_DEVICES, SYNC_MAX_UPLOADS, SYNC_RATE_IP, SYNC_RATE_HANDLE, SYNC_RATE_SIGNUP
                                (docs/self-host.md "Encrypted backup on your own server")

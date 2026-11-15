@@ -291,6 +291,24 @@ describe('YourAiScreen: the AI this server offers', () => {
   };
   const noAi = () => new AiSettings({ rung: { kind: 'noOp' } });
 
+  it('a sign-in redirect on the offer says so calmly with a Reload action, instead of silently hiding the rung', async () => {
+    const fake = new FakeFetch();
+    fake.configOpaqueRedirect = true;
+    await openAi({ fake });
+    const note = await screen.findByText(
+      'This server asks you to sign in again. Reload the page to continue.',
+    );
+    expect(note).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeVisible();
+    expect(screen.queryByRole('radio', { name: /Provided by this server/ })).toBeNull();
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it('shows no sign-in line when the server simply offers no AI', async () => {
+    await openAi();
+    expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull();
+  });
+
   it('is not listed while the server offers none (the default)', async () => {
     await openAi();
     expect(screen.queryByRole('radio', { name: /Provided by this server/ })).toBeNull();

@@ -72,7 +72,7 @@ same-origin, so it needs no CSP change; see
   `GET /ai/config.json` (read when you unlock and when you open Your AI: whether the AI is
   on, the model name and a provider label; no key, no identifier, no body) and, per photo you
   agree to send, `POST /ai/v1/chat/completions` (the shrunk, metadata-free photo and the same
-  fixed instruction as the other rungs). The browser sends **no Authorization header**: the
+  fixed instruction as the other rungs). The browser sends **no Authorization header** (and, when a sign-in proxy fronts the instance, only that server's own session cookie, which nginx drops): the
   container's nginx (it logs upstream failures at `crit` only, through a location-level `error_log`, so no client address
   is written) adds the operator's key, strips your cookies and headers, forces the
   configured model and passes the request to the provider. The key never reaches the browser,

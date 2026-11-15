@@ -33,7 +33,13 @@ export interface CycleConnection {
   lastSeenVersion: number;
 }
 
-export type RetryReason = 'offline' | 'unavailable' | 'rateLimited' | 'conflict';
+export type RetryReason =
+  | 'offline'
+  /** The server's sign-in turned the call away: reloading the page asks the person to sign in. */
+  | 'signInRequired'
+  | 'unavailable'
+  | 'rateLimited'
+  | 'conflict';
 export type StopReason =
   | 'needsUpdate'
   | 'rolledBack'
@@ -104,6 +110,8 @@ function fromClientError(error: RelayError, retryAfterSeconds?: number): CycleRe
   switch (error) {
     case 'offline':
       return retry('offline');
+    case 'signInRequired':
+      return retry('signInRequired');
     case 'rateLimited':
       return retry('rateLimited', retryAfterSeconds);
     case 'unauthorized':

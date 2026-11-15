@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { PrivacyPrefs } from '../catalog';
 import { readConnection, createServerVault } from '../sync';
 import { FakeRelay } from '../sync/relay/testing/fake-relay';
-import { inertSync, offerOf, OPEN_CONFIG } from '../sync/relay/testing/ui';
+import { inertSync, offerOf, OPEN_CONFIG, signedOutOffer } from '../sync/relay/testing/ui';
 import { fastKdf } from '../sync/vault/testing';
 import { KV_KEYS } from '../storage';
 import { forgetAcknowledgedBeforeStore } from './about-ack';
@@ -74,6 +74,17 @@ describe('first run: Restore from this server', () => {
   it('is not there when this server has no relay: the screen is what it was', async () => {
     await firstRun(new FakeRelay(), null);
     expect(screen.getByRole('button', { name: 'Restore from a backup' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Restore from this server' })).toBeNull();
+  });
+
+  it('shows the sign-in notice (not nothing) when this server asks for a fresh session', async () => {
+    const user = userEvent.setup();
+    const bundle = memoryBundle();
+    await bundle.controller.initialize();
+    render(<Gate bundle={bundle} sync={{ ...seams(new FakeRelay()), offer: signedOutOffer() }} />);
+    await dismissAbout(user);
+    await screen.findByRole('heading', { name: 'Protect your history' });
+    expect(await screen.findByRole('button', { name: 'Reload' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Restore from this server' })).toBeNull();
   });
 

@@ -209,6 +209,9 @@ export function Describe({
       case 'keyRejected':
         setNote((a) => a.describe.voiceKey);
         return;
+      case 'signInRequired':
+        setNote((a) => a.describe.voiceSignIn);
+        return;
       case 'unsupported':
         setNote((a) => a.describe.voiceUnsupported);
         return;

@@ -53,6 +53,7 @@ import {
   restoreServerCopyIntoNewStore,
   summarisePlates,
   useSyncOffer,
+  useSyncSignInRequired,
   type OpenedServerCopy,
   type RestoreFromServerResult,
 } from '../sync';
@@ -103,12 +104,14 @@ function FirstRunCreate({
   readonly notice: string | undefined;
 }): ReactNode {
   const offered = useSyncOffer(offer).offered;
+  const signInRequired = useSyncSignInRequired(offer);
   return (
     <CreatePassphraseScreen
       onCreate={(p) => controller.createStore(p)}
       onRestore={restoreBackup}
       {...(offered ? { serverRestore } : {})}
       {...(notice === undefined ? {} : { notice })}
+      signInRequired={signInRequired}
     />
   );
 }

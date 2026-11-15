@@ -38,6 +38,7 @@ export type CreateVaultFailure =
   | 'serverFull'
   | 'rateLimited'
   | 'offline'
+  | 'signInRequired'
   | 'unavailable'
   | 'tooLarge'
   /** The local store could not be read (locked). */
@@ -65,6 +66,7 @@ const asFailure = (error: RelayError): CreateVaultFailure => {
     case 'serverFull':
     case 'rateLimited':
     case 'offline':
+    case 'signInRequired':
     case 'tooLarge':
       return error;
     default:

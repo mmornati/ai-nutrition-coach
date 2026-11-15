@@ -18,7 +18,13 @@
  * for that destination until the settings change. Never throws; every outcome is a calm kind.
  */
 import type { Locale } from '../i18n/locale';
-import { cappedFetch, type FetchLike } from '../net/capped-fetch';
+import {
+  cappedFetch,
+  isSameOriginUrl,
+  isSignInAnswer,
+  parseJsonBody,
+  type FetchLike,
+} from '../net/capped-fetch';
 import { DEFAULT_TRANSCRIPTION_MODEL, type AiSettings } from './ai-settings';
 import { validateByokEndpoint } from './byok-endpoint';
 import { HostBoundByokKeyStore, type ByokKeyStore } from './byok-key-store';
@@ -36,6 +42,8 @@ export type TranscribeOutcome =
   | { readonly kind: 'empty' }
   | { readonly kind: 'busy' }
   | { readonly kind: 'keyRejected' }
+  /** This server's sign-in turned the call away (a redirect, or a 401 / 403 that is not JSON). */
+  | { readonly kind: 'signInRequired' }
   /** 404 / 405 / 501: this destination has no transcription. */
   | { readonly kind: 'unsupported' }
   | { readonly kind: 'tooLarge' }
@@ -88,14 +96,29 @@ export async function postTranscription(args: PostArgs): Promise<TranscribeOutco
   form.append('file', args.audio, recordingFilename(args.audio.type));
   const r = await cappedFetch(args.url, {
     method: 'POST',
+    // 4xx bodies are read too: a sign-in page tells a proxy's answer from a provider's JSON error.
+    readBodyWhen: (status) => (status >= 200 && status < 300) || isSignInAnswer(status),
     // No Content-Type: the browser writes multipart/form-data with its boundary.
     headers: args.apiKey === null ? {} : { Authorization: `Bearer ${args.apiKey.trim()}` },
     body: form,
+    // This server's proxy (no key) is its own path and needs the sign-in cookie; your own key's
+    // endpoint is another host and never gets one.
+    sameOriginCredentials: args.apiKey === null && isSameOriginUrl(args.url),
     ...(args.fetch ? { fetchImpl: args.fetch } : {}),
     ...(args.signal ? { signal: args.signal } : {}),
   });
-  if (r.kind === 'failure') return { kind: 'failure' };
+  const ownServer = args.apiKey === null;
+  if (r.kind === 'failure') {
+    return ownServer && r.reason === 'redirect' ? { kind: 'signInRequired' } : { kind: 'failure' };
+  }
   const { status } = r;
+  if (ownServer && isSignInAnswer(status)) {
+    // A provider's own refusal is a JSON object; anything else came from the sign-in in front.
+    const json = parseJsonBody(r.body);
+    if (typeof json !== 'object' || json === null || Array.isArray(json)) {
+      return { kind: 'signInRequired' };
+    }
+  }
   if (status === 401 || status === 403) return { kind: 'keyRejected' };
   if (status === 429) return { kind: 'busy' };
   if (status === 404 || status === 405 || status === 501) return { kind: 'unsupported' };

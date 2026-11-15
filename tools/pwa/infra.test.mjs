@@ -1023,6 +1023,34 @@ describe('njs body rewrite (infra/nginx/ai-proxy/ai-proxy.js)', () => {
     });
   });
 
+  it('response_format: json_object and text pass; json_schema, extra keys and other shapes are refused (never forwarded)', async () => {
+    const m = [{ role: 'user', content: 'x' }];
+    const withFormat = (response_format) => run(JSON.stringify({ messages: m, response_format }));
+    expect(JSON.parse(await withFormat({ type: 'json_object' })).response_format).toEqual({
+      type: 'json_object',
+    });
+    expect(JSON.parse(await withFormat({ type: 'text' })).response_format).toEqual({ type: 'text' });
+    // Absent or null: no response_format at all, the request goes through as before.
+    expect(JSON.parse(await run(JSON.stringify({ messages: m }))).response_format).toBeUndefined();
+    expect(JSON.parse(await withFormat(null)).response_format).toBeUndefined();
+    // A schema is client-sized and sits outside the 24 KB text budget: refused, small or huge.
+    const schema = { name: 's', schema: { type: 'object', properties: { a: { type: 'string' } } } };
+    for (const bad of [
+      { type: 'json_schema', json_schema: schema },
+      { type: 'json_schema', json_schema: { name: 'big', schema: { description: 'x'.repeat(5_000_000) } } },
+      { type: 'json_object', extra: 'x'.repeat(100_000) },
+      { type: 'json_object', json_schema: schema },
+      { type: 'grammar' },
+      {},
+      [],
+      'json_object',
+      7,
+      { type: ['json_object'] },
+    ]) {
+      expect(await withFormat(bad), JSON.stringify(bad).slice(0, 60)).toBe('{}');
+    }
+  });
+
   it('sets max_tokens when the client sent none and keeps a smaller one', async () => {
     const m = [{ role: 'user', content: 'x' }];
     expect(JSON.parse(await run(JSON.stringify({ messages: m }))).max_tokens).toBe(2000);
@@ -1661,6 +1689,18 @@ describe('encrypted-backup relay (docs/self-host.md "Encrypted backup on your ow
     expect(dockerfile).toContain('50-render-sync.sh');
   });
 
+  it('the relay is never handed the sign-in session cookie the app now sends to this server own paths', () => {
+    const text = readCode('infra/nginx/sync/sync.locations.inc.template');
+    expect(text.match(/proxy_set_header Cookie "";/g)).toHaveLength(2); // the config and the API location
+    // The AI proxy forwards no browser header at all (so no cookie), chat and voice alike.
+    for (const f of [
+      'infra/nginx/ai-proxy/ai-proxy.locations.inc.template',
+      'infra/nginx/ai-proxy/ai-proxy.transcription.inc.template',
+    ]) {
+      expect(readCode(f), f).toContain('proxy_pass_request_headers off;');
+    }
+  });
+
   it('no template or script logs a header, a body, a query string or an address', () => {
     for (const f of [
       'infra/nginx/sync/sync.locations.inc.template',
@@ -1687,6 +1727,10 @@ describe('encrypted-backup relay (docs/self-host.md "Encrypted backup on your ow
       expect(relay, file).toContain('SYNC_TRUST_PROXY: "1"');
       expect(relay, file).toContain('SYNC_IDENTITY: handle');
       expect(relay, file).not.toContain('ports:');
+      // `docker compose up -d --build` builds the relay image too (the build context is the repo
+      // root, like bin/ai-nutrition-coach's `docker build -f infra/Dockerfile.relay .`).
+      expect(relay, file).toMatch(/build:\n\s+context: \.\.\n\s+dockerfile: infra\/Dockerfile\.relay\n/);
+      expect(relay, file).toContain('SYNC_SIGNUP: ${SYNC_SIGNUP:-invite}');
       expect(text, file).toContain('AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}');
       expect(text, file).toMatch(/^volumes:\n(?:\s+.*\n)*?\s+sync-data:/m);
       // The app container itself has no volume: only the relay (and Caddy's certificates) do.
@@ -1724,7 +1768,6 @@ describe('encrypted-backup relay (docs/self-host.md "Encrypted backup on your ow
       });
     for (const env of [
       { SYNC_SIGNUP: 'maybe' },
-      { SYNC_SIGNUP: 'invite' },
       { SYNC_MAX_VAULT_MB: '0' },
       { SYNC_MAX_VAULT_MB: '25' },
       { SYNC_MAX_VAULT_MB: 'x' },
@@ -1743,5 +1786,140 @@ describe('encrypted-backup relay (docs/self-host.md "Encrypted backup on your ow
     expect(example).toMatch(/^#?AI_NUTRITION_COACH_SYNC=/m);
     expect(example).not.toMatch(/^SYNC_INVITE_CODES=\S/m);
     expect(example).not.toMatch(/^SYNC_SERVER_SECRET=/m);
+  });
+});
+
+describe('real client address behind a reverse proxy (45-render-real-ip.sh)', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/45-render-real-ip.sh');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+
+  // Runs the real POSIX-sh entrypoint script (no Docker needed) into a temp file.
+  const render = (env) => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_realip_'));
+    try {
+      const out = join(dir, 'real-ip.inc');
+      const r = spawnSync('sh', [script], {
+        env: { PATH, AI_NUTRITION_COACH_REAL_IP_OUT: out, ...env },
+        encoding: 'utf8',
+      });
+      return {
+        code: r.status,
+        log: `${r.stdout}${r.stderr}`,
+        conf: existsSync(out) ? readFileSync(out, 'utf8') : '',
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const directives = (conf) =>
+    conf.split('\n').filter((l) => l.trim() !== '' && !l.trimStart().startsWith('#'));
+
+  it('is OFF by default: no directive at all, so nginx behaves exactly as before', () => {
+    for (const env of [{}, { AI_NUTRITION_COACH_TRUSTED_PROXIES: '' }, { AI_NUTRITION_COACH_REAL_IP_HEADER: 'CF-Connecting-IP' }]) {
+      const r = render(env);
+      expect(r.code).toBe(0);
+      expect(directives(r.conf)).toEqual([]);
+    }
+    expect(read('infra/Dockerfile')).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES=""');
+  });
+
+  it('on: one set_real_ip_from per entry, the header (X-Forwarded-For by default) and real_ip_recursive on', () => {
+    const r = render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: '172.18.0.0/16, 10.0.0.5,fd00::/16' });
+    expect(r.code).toBe(0);
+    expect(directives(r.conf)).toEqual([
+      'set_real_ip_from 172.18.0.0/16;',
+      'set_real_ip_from 10.0.0.5;',
+      'set_real_ip_from fd00::/16;',
+      'real_ip_header X-Forwarded-For;',
+      'real_ip_recursive on;',
+    ]);
+    const cf = render({
+      AI_NUTRITION_COACH_TRUSTED_PROXIES: '10.0.0.0/8',
+      AI_NUTRITION_COACH_REAL_IP_HEADER: 'cf-connecting-ip',
+    });
+    expect(directives(cf.conf)).toContain('real_ip_header CF-Connecting-IP;');
+  });
+
+  it('names the variable and the limit for a too-broad range, without echoing it', () => {
+    for (const value of ['0.0.0.0/1,128.0.0.0/1', '10.0.0.0/7', 'fd00::/8']) {
+      const r = render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: value });
+      expect(r.code).toBe(1);
+      expect(r.log).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES');
+      expect(r.log).toContain('too broad');
+      expect(r.log).not.toContain(value);
+    }
+    for (const ok of ['10.0.0.0/8', '127.0.0.1/32', 'fd00::/16', '2001:db8::/32']) {
+      expect(render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: ok }).code, ok).toBe(0);
+    }
+  });
+
+  it('refuses to start on anything that is not an address or CIDR, and never echoes the value', () => {
+    const bad = [
+      '0.0.0.0/0',
+      '::/0',
+      '10.0.0.0/33',
+      '10.0.0.0/0',
+      '0.0.0.0/1,128.0.0.0/1',
+      '0.0.0.0/7',
+      '10.0.0.0/7',
+      '::/1',
+      'fd00::/8',
+      '2000::/15',
+      '1.2.3.256',
+      '1.2.3',
+      'proxy.example.com',
+      '10.0.0.1; allow all',
+      '10.0.0.1\nreal_ip_header X-Evil',
+      '10.0.0.1 10.0.0.2',
+      '10.0.0.1,,10.0.0.2',
+      '10.0.0.1,',
+      '1::2::3',
+      '1:2:3',
+      '12345::1',
+      '10.0.0.1/8/8',
+      '$(id)',
+      '`id`',
+      '10.0.0.1}',
+      ' ',
+      Array.from({ length: 33 }, (_, i) => `10.0.${i}.1`).join(','),
+    ];
+    for (const value of bad) {
+      const r = render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: value });
+      expect(r.code, JSON.stringify(value)).toBe(1);
+      expect(r.log).toContain('refusing to start');
+      expect(r.log).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES');
+      expect(r.log).not.toContain('allow all');
+      expect(r.log).not.toContain('X-Evil');
+      expect(r.conf).toBe('');
+    }
+    for (const header of ['Host', 'X-Forwarded-For; x', 'X-Forwarded-Host', 'Forwarded', '$http_x', '']) {
+      const r = render({
+        AI_NUTRITION_COACH_TRUSTED_PROXIES: '10.0.0.1',
+        AI_NUTRITION_COACH_REAL_IP_HEADER: header,
+      });
+      if (header === '') {
+        expect(r.code).toBe(0); // empty is the default header
+        continue;
+      }
+      expect(r.code, header).toBe(1);
+      expect(r.log).toContain('AI_NUTRITION_COACH_REAL_IP_HEADER');
+    }
+  });
+
+  it('is wired: copied by the Dockerfile, included before the zones and the log, passed by every compose file', () => {
+    const dockerfile = read('infra/Dockerfile');
+    expect(dockerfile).toContain('45-render-real-ip.sh /docker-entrypoint.d/45-render-real-ip.sh');
+    const conf = read('infra/nginx/nginx.conf');
+    expect(conf).toContain('include /tmp/ai-nutrition-coach-real-ip.inc;');
+    expect(conf.indexOf('real-ip.inc')).toBeLessThan(conf.indexOf('ai-nutrition-coach-ai-http.inc'));
+    expect(conf.indexOf('real-ip.inc')).toBeLessThan(conf.indexOf('access-log.inc;'));
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const text = readCode(file);
+      expect(text, file).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES: ${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}');
+      expect(text, file).toContain('AI_NUTRITION_COACH_REAL_IP_HEADER: ${AI_NUTRITION_COACH_REAL_IP_HEADER:-X-Forwarded-For}');
+    }
+    expect(read('infra/server.env.example')).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES');
+    // The script logs no value.
+    expect(readCode('infra/nginx/docker-entrypoint.d/45-render-real-ip.sh')).not.toMatch(/set -x|\$proxies"? *>&2/);
   });
 });

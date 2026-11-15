@@ -271,6 +271,7 @@ export const en = {
     voiceFailed:
       'That recording could not be turned into text. You can try again, or type instead.',
     voiceKey: 'The service did not accept your key. Check it in Settings → Your AI.',
+    voiceSignIn: 'This server asks you to sign in again. Reload the page to continue.',
     voiceTooLong: 'That recording is too long. Try a shorter one, or type instead.',
     voiceUnsupported:
       'This service cannot turn voice into text, so the microphone button is hidden. You can type instead.',
@@ -344,6 +345,8 @@ export const en = {
       rungHostedLabel: 'Free hosted model',
       rungLocalLabel: 'Model on this device',
       rungUnavailable: 'Not available yet',
+      signInRequired: 'This server asks you to sign in again. Reload the page to continue.',
+      reloadAction: 'Reload',
       rungInstanceLabel: 'Provided by this server',
       rungInstanceHelp: 'No key needed. Photos go to this server, which sends them on to {label}.',
       instanceHeading: 'AI on this server',
@@ -461,6 +464,7 @@ export const en = {
       instanceUnavailable:
         'This server does not offer AI right now. You can choose another option in Settings → Your AI.',
       instanceBusy: 'The AI on this server is busy. Try again in a moment.',
+      instanceSignIn: 'This server asks you to sign in again. Reload the page to continue.',
       instanceError: 'The AI on this server did not answer. Try again in a moment.',
       /** Browsers report a CORS or Content-Security-Policy block exactly like an offline host. */
       blockedByBrowser:
@@ -1360,6 +1364,8 @@ export const en = {
     noMatch: 'Nothing on this server matches this handle and passphrase.',
     rateLimited: 'Too many tries. Wait a few minutes, then try again.',
     offline: 'This server could not be reached. Nothing was changed; you can try again.',
+    signInRequired: 'This server asks you to sign in again. Reload the page to continue.',
+    reloadAction: 'Reload',
     unavailable: 'This did not work just now. Nothing was changed; you can try again.',
     newerVersion:
       'This copy was made by a newer version of AI Nutrition Coach. Reload the page to update, then try again. Nothing was changed.',
@@ -1439,6 +1445,8 @@ export const en = {
     statusOffline:
       'This server cannot be reached right now. Your changes stay on this device and are sent when it can.',
     statusFailed: 'The last copy did not go through. It will try again; nothing is lost.',
+    statusSignInRequired:
+      'This server asks you to sign in again, so no copy is sent for now. Reload the page to continue; your changes stay on this device.',
     statusNeedsUpdate:
       'The copy on this server comes from a newer version of the app. Update the app on this device to keep syncing; until then nothing is sent and the copy on the server is not changed.',
     statusRolledBack:

@@ -318,7 +318,7 @@ sent about the person: no name, no history, no other plates, no coach notes.
 Every request the app makes goes through one capped fetch: connect 10 s / send 30 s /
 receive 45 s budgets (the browser exposes one wait for the headers, so the longest
 applies), the response read as a stream and aborted past 2 MiB, no redirects followed,
-no cookies, referrer or cache. At most 20 foods are kept from a model reply, and every
+no cookies (except this server's own session cookie on calls to its own `/ai/*` and `/sync/*` paths, so a sign-in proxy in front of the instance lets them through; never on another origin), referrer or cache. At most 20 foods are kept from a model reply, and every
 name and quantity hint is cleaned of control characters and capped at 100
 characters — the reply is untrusted text that ends up in the UI and in
 exports. Open Food Facts lookups ask only for the fields the parser reads

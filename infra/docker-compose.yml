@@ -51,6 +51,14 @@ services:
   ai-nutrition-coach:
     <<: *hardening
     image: ${AI_NUTRITION_COACH_IMAGE_TAG:-ai-nutrition-coach:dev}
+    # Used by `docker compose up --build` only (bin/ai-nutrition-coach builds the image itself,
+    # with the same arguments). The build context is the repository root.
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        AI_NUTRITION_COACH_PROJECT_URL: ${AI_NUTRITION_COACH_PROJECT_URL:-}
+        AI_NUTRITION_COACH_RELEASE: ${AI_NUTRITION_COACH_RELEASE:-0}
     ports:
       - "${AI_NUTRITION_COACH_BIND:-127.0.0.1}:${AI_NUTRITION_COACH_PORT:-8080}:8080"
     environment:
@@ -86,6 +94,15 @@ services:
       # 0 (the default) makes /sync/ a plain 404 and the app shows nothing about sync.
       AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}
       SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
+      # Behind Caddy (profile `tls`) or any proxy every request reaches nginx from the proxy's
+      # address, so the per-address limits are one bucket. Opt in to the real client address: the
+      # proxies to believe (the compose network's subnet for Caddy) and the header they set.
+      # Empty = off (docs/self-host.md).
+      # Prefer the proxy's own address (/32) or a network only it and the app share, not a whole
+      # shared subnet; the header is believed only if the app is reachable ONLY through the proxy.
+      #   AI_NUTRITION_COACH_TRUSTED_PROXIES=172.18.0.5/32
+      AI_NUTRITION_COACH_TRUSTED_PROXIES: ${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}
+      AI_NUTRITION_COACH_REAL_IP_HEADER: ${AI_NUTRITION_COACH_REAL_IP_HEADER:-X-Forwarded-For}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
@@ -124,10 +141,16 @@ services:
     <<: *hardening
     profiles: ["sync"]
     image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}
+    # Used by `docker compose --profile sync up --build` only (bin/ai-nutrition-coach up --sync
+    # builds the image itself, from the same Dockerfile). The build context is the repository root.
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.relay
     environment:
       SYNC_IDENTITY: handle
-      # open | invite | closed. `invite` needs SYNC_INVITE_CODES (comma-separated codes).
-      SYNC_SIGNUP: ${SYNC_SIGNUP:-open}
+      # invite (default) | open | closed. `invite` needs codes in SYNC_INVITE_CODES (comma-separated);
+      # with none set, signups are closed and existing handles still log in.
+      SYNC_SIGNUP: ${SYNC_SIGNUP:-invite}
       SYNC_INVITE_CODES: ${SYNC_INVITE_CODES:-}
       SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
       SYNC_MAX_VAULTS: ${SYNC_MAX_VAULTS:-50}

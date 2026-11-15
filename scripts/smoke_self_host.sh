@@ -28,6 +28,8 @@
 #     no line (and no User-Agent) in `docker logs`; AI_NUTRITION_COACH_ACCESS_LOG=on
 #     logs the resolved file only, with the client address truncated, and never the
 #     User-Agent, Referer or query string; a bad value refuses to start;
+#   * AI_NUTRITION_COACH_TRUSTED_PROXIES: a valid list (also with the CF-Connecting-IP header) boots
+#     and serves the app shell; a too-broad range (0.0.0.0/1, fd00::/8) refuses to start;
 #   * AI_NUTRITION_COACH_CONNECT_SRC_EXTRA values that could rewrite the CSP (quote
 #     injection, `;`, `*`, newline) make the container refuse to start;
 #   * the AI_NUTRITION_COACH_CONNECT_SRC_EXTRA knob reaches the CSP;
@@ -121,7 +123,7 @@ ok "compose: loopback by default, tls profile present, no /data volume"
 sync_cfg="$(docker compose -f infra/docker-compose.yml --profile sync config 2>&1)" \
   || fail 40 "the sync profile does not render: $sync_cfg"
 relay_cfg="$(sed -n '/^  sync-relay:/,/^  [a-z]/p' <<<"$sync_cfg")"
-for want in 'read_only: true' 'no-new-privileges:true' 'sync-data' 'SYNC_IDENTITY: handle' 'SYNC_TRUST_PROXY: "1"'; do
+for want in 'read_only: true' 'no-new-privileges:true' 'sync-data' 'SYNC_IDENTITY: handle' 'SYNC_TRUST_PROXY: "1"' 'dockerfile: infra/Dockerfile.relay'; do
   grep -qF "$want" <<<"$relay_cfg" || fail 40 "the relay service lacks: $want"
 done
 grep -q -- '- ALL' <<<"$relay_cfg" || fail 40 "the relay service does not drop capabilities"
@@ -135,9 +137,6 @@ grep -q '^USER node$' infra/Dockerfile.relay || fail 40 "the relay image runs as
 rc=0
 SYNC_SIGNUP=maybe bin/ai-nutrition-coach up --sync >/dev/null 2>&1 || rc=$?
 [[ "$rc" -eq 42 ]] || fail 40 "bin/ai-nutrition-coach --sync accepted a bad SYNC_SIGNUP (exit $rc)"
-rc=0
-SYNC_SIGNUP=invite bin/ai-nutrition-coach up --sync >/dev/null 2>&1 || rc=$?
-[[ "$rc" -eq 42 ]] || fail 40 "bin/ai-nutrition-coach --sync accepted invite signup without codes (exit $rc)"
 ok "sync profile: absent by default; the relay is hardened, publishes nothing, pinned, non-root; bad settings refused"
 
 # ── Traefik compose (docs/pwa.md): renders, no published port, right labels ──
@@ -425,6 +424,36 @@ sleep 2
   || fail 50 "container started with an invalid AI_NUTRITION_COACH_ACCESS_LOG"
 docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
 ok "access log: off by default; =on logs the resolved file only, address truncated, no User-Agent/Referer/query; bad value refused"
+
+# ── trusted proxies (real client address): boots and serves with a valid list; a too-broad one refuses ──
+# (IPv6 prefixes shorter than /16 are refused, so the ULA example is fd00::/16.)
+proxy_cases=("10.0.0.0/8,fd00::/16|" "10.0.0.0/8,fd00::/16|CF-Connecting-IP")
+for pc in "${proxy_cases[@]}"; do
+  docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+  hdr_args=()
+  [[ -z "${pc#*|}" ]] || hdr_args=(-e "AI_NUTRITION_COACH_REAL_IP_HEADER=${pc#*|}")
+  docker run -d --name "$NAME_ISO-log" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m     --cap-drop ALL --security-opt no-new-privileges:true     -e "AI_NUTRITION_COACH_TRUSTED_PROXIES=${pc%%|*}" ${hdr_args[@]+"${hdr_args[@]}"} "$IMAGE" >/dev/null
+  up=false
+  for _ in $(seq 1 40); do
+    if [[ "$(docker run --rm --network "$NET" --entrypoint wget "$IMAGE" -q -O - "http://$NAME_ISO-log:8080/" 2>/dev/null || true)" != "" ]]; then up=true; break; fi
+    sleep 0.5
+  done
+  [[ "$up" == true ]] || fail 30 "container with AI_NUTRITION_COACH_TRUSTED_PROXIES (${pc}) did not serve the app shell: $(docker logs "$NAME_ISO-log" 2>&1 | tail -3)"
+  docker exec "$NAME_ISO-log" grep -q '^set_real_ip_from 10.0.0.0/8;' /tmp/ai-nutrition-coach-real-ip.inc \
+    || fail 50 "the trusted-proxies list was not rendered into nginx"
+  docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+done
+for broad in "0.0.0.0/1,128.0.0.0/1" "0.0.0.0/0" "fd00::/8"; do
+  docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+  docker run -d --name "$NAME_ISO-log" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --cap-drop ALL --security-opt no-new-privileges:true \
+    -e "AI_NUTRITION_COACH_TRUSTED_PROXIES=$broad" "$IMAGE" >/dev/null 2>&1 || true
+  sleep 2
+  [[ "$(docker inspect -f '{{.State.Running}}' "$NAME_ISO-log" 2>/dev/null || echo false)" == false ]] \
+    || fail 50 "container started with a too-broad AI_NUTRITION_COACH_TRUSTED_PROXIES: $broad"
+  docker rm -f "$NAME_ISO-log" >/dev/null 2>&1 || true
+done
+ok "trusted proxies: a valid list (and with CF-Connecting-IP) boots and serves the app shell (there is no /healthz; the image's own healthcheck probes /); too-broad ranges refuse to start"
 
 # The rendered config cannot make a request: no proxying, no DNS resolver.
 cfg="$(docker exec "$NAME_ISO" sh -c 'cat /tmp/ai-nutrition-coach.conf /tmp/ai-nutrition-coach-headers.inc /tmp/ai-nutrition-coach-ai-*.inc /tmp/ai-nutrition-coach-sync-*.inc /etc/nginx/nginx.conf')"
@@ -796,7 +825,7 @@ start_relay() {
   docker run -d --name "$RELAY" --network "$NET_SYNC" --network-alias sync-relay \
     --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL --security-opt no-new-privileges:true \
     -v "$NAME-sync-data:/data" -e SYNC_TRUST_PROXY=1 -e SYNC_RATE_IP=1000 -e SYNC_RATE_HANDLE=1000 \
-    -e SYNC_RATE_SIGNUP=1000 "$RELAY_IMAGE" >/dev/null
+    -e SYNC_RATE_SIGNUP=1000 -e SYNC_SIGNUP=open "$RELAY_IMAGE" >/dev/null
   local ready=0
   for _ in $(seq 1 60); do
     if docker exec "$RELAY" node -e "fetch('http://127.0.0.1:4100/sync/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; then ready=1; break; fi

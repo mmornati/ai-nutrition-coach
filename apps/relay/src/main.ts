@@ -3,7 +3,7 @@
 
 import { createServer } from 'node:http';
 import { createRelay } from './app';
-import { ConfigError, readConfig } from './config';
+import { ConfigError, readConfig, signupNotice } from './config';
 import { createServerKeys, loadServerSecret } from './keys';
 import { openStore } from './store';
 
@@ -36,6 +36,8 @@ function main(): void {
   );
   server.listen(config.port, config.host, () => {
     console.log(`relay: listening on port ${config.port} (signup ${config.signup})`);
+    const notice = signupNotice(config);
+    if (notice !== null) console.log(notice);
   });
   const stop = (): void => {
     server.close(() => {

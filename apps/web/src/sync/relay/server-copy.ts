@@ -33,6 +33,8 @@ export type OpenServerCopyFailure =
   | 'rateLimited'
   /** No answer from the server. */
   | 'offline'
+  /** The server's sign-in turned the call away: reload the page to sign in again. */
+  | 'signInRequired'
   /** The server answered something unusable, or the key derivation could not run. */
   | 'unavailable'
   /** The copy was written by a newer version of the app. */
@@ -141,6 +143,8 @@ function mapAsk(error: string): OpenServerCopyFailure {
       return 'rateLimited';
     case 'offline':
       return 'offline';
+    case 'signInRequired':
+      return 'signInRequired';
     case 'tooLarge':
       return 'tooLarge';
     case 'newerFormat':

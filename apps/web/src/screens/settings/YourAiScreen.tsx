@@ -1,6 +1,6 @@
 import { useId, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { Button, TextField } from '../../components/primitives';
-import { TierRadio, type Tier } from '../../components/shell';
+import { ReloadNotice, TierRadio, type Tier } from '../../components/shell';
 import { fill, useStrings } from '../../i18n';
 import {
   describeInstanceConsent,
@@ -221,6 +221,8 @@ export function YourAiScreen() {
   return (
     <SettingsPage title={c.title}>
       <Prose>{c.intro}</Prose>
+
+      {instance.signInRequired && <ReloadNotice text={c.signInRequired} action={c.reloadAction} />}
 
       <Section title={c.rungHeading}>
         <TierRadio tiers={tiers} value={radioValue} onChange={choose} label={c.rungHeading} />

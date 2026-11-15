@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   OpenAiCompatibleByokProvider,
   RECOGNITION_PROMPT,
@@ -846,5 +846,74 @@ describe('completeChat (the text seam) and the key-less transport', () => {
         { role: 'user', content: 'Hello' },
       ]);
     });
+  });
+});
+
+describe('the instance proxy behind a sign-in (same-origin cookie, never for your own key)', () => {
+  const HERE = 'https://plate.example.test';
+  afterEach(() => vi.unstubAllGlobals());
+  const messages = [{ role: 'user', content: 'Hello' }] as const;
+
+  const instance = (f: FakeFetch, endpoint = `${HERE}/ai/v1`) =>
+    new OpenAiCompatibleByokProvider({
+      endpointUrl: endpoint,
+      model: 'vendor/model-x',
+      sanitizePhoto: stubSanitizer,
+      classifyFoodGroup: stubClassify,
+      fetch: f.fetch,
+      sendKey: false,
+    });
+
+  it('sends the cookie to this server own proxy, and omits it for your own key and for another host', async () => {
+    vi.stubGlobal('location', { origin: HERE });
+    const f = new FakeFetch();
+    f.jsonBody = chatReply('[]');
+    await instance(f).completeChat({ messages });
+    expect(f.last.init.credentials).toBe('same-origin');
+    expect(f.last.init.redirect).toBe('manual');
+    // The same class pointed at another host as an "instance" never carries the cookie.
+    await instance(f, 'https://api.example.com/v1').completeChat({ messages });
+    expect(f.last.init.credentials).toBe('omit');
+    // Your own key, even on a same-origin endpoint, is a key-bearing call: no cookie.
+    await new OpenAiCompatibleByokProvider({
+      endpointUrl: `${HERE}/v1`,
+      model: 'm',
+      sanitizePhoto: stubSanitizer,
+      classifyFoodGroup: stubClassify,
+      fetch: f.fetch,
+    }).completeChat({ messages, apiKey: TEST_KEY });
+    expect(f.last.init.credentials).toBe('omit');
+  });
+
+  it('a sign-in redirect, or a 401 / 403 that is not a provider JSON error, says "sign in again"', async () => {
+    vi.stubGlobal('location', { origin: HERE });
+    const g = new FakeFetch();
+    g.opaqueRedirect = true;
+    for (const out of [
+      await instance(g).completeChat({ messages }),
+      await recognize(instance(g)),
+    ]) {
+      expect(out).toMatchObject({ kind: 'failure', cause: 'httpError', status: 302 });
+      expect((out as { message: string }).message).toContain('sign in again');
+    }
+    for (const status of [401, 403]) {
+      const h = new FakeFetch();
+      h.status = status;
+      h.jsonBody = '<html>sign in</html>';
+      expect(await instance(h).completeChat({ messages })).toMatchObject({
+        kind: 'failure',
+        status: 302,
+      });
+    }
+    // A provider's own JSON 401 stays what it was (the operator's key problem).
+    const j = new FakeFetch();
+    j.status = 401;
+    j.jsonBody = { error: { message: 'bad key' } };
+    expect(await instance(j).completeChat({ messages })).toEqual({ kind: 'keyRejected' });
+    // Your own key never reads a redirect as "sign in again".
+    const k = new FakeFetch();
+    k.opaqueRedirect = true;
+    const own = await provider(k).completeChat({ messages, apiKey: TEST_KEY });
+    expect((own as { message: string }).message).not.toContain('sign in again');
   });
 });

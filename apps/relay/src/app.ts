@@ -512,19 +512,24 @@ export function createRelay(deps: RelayDeps): RequestListener {
     const previous = url.searchParams.get('previous');
     if (previous !== null) {
       if (previous !== '1') return fail('invalidRequest');
-      if (row.previousEnvelope === null || row.previousVersion === null) return fail('notFound');
+      if (row.previousVersion === null) return fail('notFound');
+      const stored = store.vaultBody(row.rowId);
+      if (stored === null || stored.previousEnvelope === null) return fail('notFound');
       return {
         status: 200,
-        body: `{"vaultId":${JSON.stringify(row.vaultId)},"version":${row.previousVersion},"envelope":${row.previousEnvelope}}`,
+        body: `{"vaultId":${JSON.stringify(row.vaultId)},"version":${row.previousVersion},"envelope":${stored.previousEnvelope}}`,
         headers: { ETag: etagOf(row.previousVersion) },
       };
     }
     const etag = { ETag: etagOf(row.version) };
     if (versionOfEtag(req.headers['if-none-match']) === row.version)
       return { status: 304, headers: etag };
+    // The envelope is read only here, where the vault is actually returned.
+    const stored = store.vaultBody(row.rowId);
+    if (stored === null) return fail('notFound');
     return {
       status: 200,
-      body: `{"vaultId":${JSON.stringify(row.vaultId)},"version":${row.version},"envelope":${row.envelope}}`,
+      body: `{"vaultId":${JSON.stringify(row.vaultId)},"version":${row.version},"envelope":${stored.envelope}}`,
       headers: etag,
     };
   }

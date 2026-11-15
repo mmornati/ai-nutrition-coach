@@ -1,5 +1,5 @@
 import type { Unsubscribe } from '@anc/core';
-import { cappedFetch, type FetchLike } from '../net/capped-fetch';
+import { cappedFetch, isSignInAnswer, type FetchLike } from '../net/capped-fetch';
 
 /**
  * The instance-wide AI tier: the person who hosts this app may keep ONE AI key on the server
@@ -80,6 +80,12 @@ export interface InstanceAiView {
   readonly host: string;
   /** `<origin>/ai/v1`: what the OpenAI-compatible provider is pointed at. */
   readonly endpointUrl: string;
+  /**
+   * The last read was turned away by the sign-in in front of this server (a redirect to the
+   * identity provider, or a 401 / 403): the offer is not "off", it is out of reach until the page
+   * is reloaded and the proxy asks the person to sign in again.
+   */
+  readonly signInRequired: boolean;
 }
 
 export interface InstanceAiSourceOptions {
@@ -104,6 +110,7 @@ export class InstanceAiSource {
   #config: InstanceAiConfig = INSTANCE_AI_OFF;
   #loaded = false;
   #inflight: Promise<void> | null = null;
+  #signInRequired = false;
   #view: InstanceAiView;
 
   constructor(options: InstanceAiSourceOptions = {}) {
@@ -128,7 +135,12 @@ export class InstanceAiSource {
         return '';
       }
     })();
-    return { config: this.#config, host, endpointUrl: `${origin}${INSTANCE_BASE_PATH}` };
+    return {
+      config: this.#config,
+      host,
+      endpointUrl: `${origin}${INSTANCE_BASE_PATH}`,
+      signInRequired: this.#signInRequired,
+    };
   }
 
   getSnapshot = (): InstanceAiView => this.#view;
@@ -155,9 +167,12 @@ export class InstanceAiSource {
 
   async #read(): Promise<void> {
     let next: InstanceAiConfig = INSTANCE_AI_OFF;
+    let signIn = false;
     try {
       const r = await cappedFetch(INSTANCE_CONFIG_PATH, {
         method: 'GET',
+        // This server's own path: the sign-in cookie goes with it (and with nothing cross-origin).
+        sameOriginCredentials: true,
         headers: { Accept: 'application/json' },
         maxBytes: MAX_CONFIG_BYTES,
         headersTimeoutMs: CONFIG_TIMEOUT_MS,
@@ -167,17 +182,23 @@ export class InstanceAiSource {
       });
       if (r.kind === 'response' && r.status === 200 && r.body.byteLength > 0) {
         next = parseInstanceAiConfig(JSON.parse(new TextDecoder().decode(r.body)));
+      } else if (
+        (r.kind === 'failure' && r.reason === 'redirect') ||
+        (r.kind === 'response' && isSignInAnswer(r.status))
+      ) {
+        signIn = true;
       }
     } catch {
       next = INSTANCE_AI_OFF;
     }
     this.#loaded = true;
     if (this.#signal?.aborted === true) return;
-    this.#publish(next);
+    this.#publish(next, signIn);
   }
 
-  #publish(next: InstanceAiConfig): void {
+  #publish(next: InstanceAiConfig, signIn: boolean): void {
     const same =
+      signIn === this.#signInRequired &&
       next.enabled === this.#config.enabled &&
       (!next.enabled ||
         (this.#config.enabled &&
@@ -185,6 +206,7 @@ export class InstanceAiSource {
           next.label === this.#config.label &&
           next.transcriptionModel === this.#config.transcriptionModel));
     this.#config = next;
+    this.#signInRequired = signIn;
     if (same) return;
     this.#view = this.#makeView();
     for (const l of [...this.#listeners]) l();

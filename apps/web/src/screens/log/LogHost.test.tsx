@@ -657,7 +657,8 @@ describe('Snapshot with the AI this server offers', () => {
     expect(request?.url).toBe(`${window.location.origin}/ai/v1/chat/completions`);
     expect(request?.init.method).toBe('POST');
     expect(request?.headers).toEqual({ 'content-type': 'application/json' });
-    expect(request?.init.credentials).toBe('omit');
+    // This server's own proxy: the sign-in cookie goes with it (nothing cross-origin gets one).
+    expect(request?.init.credentials).toBe('same-origin');
     const body = JSON.parse(request?.body ?? '{}') as { model: string };
     expect(body.model).toBe('vendor/model-x');
     expect(request?.body).not.toMatch(/sk-|Bearer/);

@@ -9,6 +9,7 @@ import {
   RECEIVE_TIMEOUT_MS,
   SEND_TIMEOUT_MS,
   cappedFetch,
+  isSameOriginUrl,
   parseJsonBody,
 } from './capped-fetch';
 import { FakeFetch } from './testing';
@@ -185,5 +186,98 @@ describe('parseJsonBody', () => {
     expect(parseJsonBody(new TextEncoder().encode('{not json'))).toBeUndefined();
     expect(parseJsonBody(Uint8Array.from([0xff, 0xfe, 0xfd]))).toBeUndefined();
     expect(parseJsonBody(new TextEncoder().encode('null'))).toBeNull();
+  });
+});
+
+describe('same-origin credentials (instance behind a single-sign-on proxy)', () => {
+  const stubOrigin = (): void => {
+    vi.stubGlobal('location', { origin: 'https://nutrition.example.test' });
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends the session cookie to this server own paths when asked, and still never follows a redirect', async () => {
+    stubOrigin();
+    const f = new FakeFetch();
+    for (const url of [
+      '/ai/config.json',
+      '/sync/v1/salt',
+      'https://nutrition.example.test/ai/v1/chat/completions',
+    ]) {
+      const r = await cappedFetch(url, { sameOriginCredentials: true, fetchImpl: f.fetch });
+      expect(r.kind).toBe('response');
+      expect(f.last.init.credentials).toBe('same-origin');
+      expect(f.last.init.redirect).toBe('manual');
+      expect(f.last.init.referrerPolicy).toBe('no-referrer');
+    }
+  });
+
+  it('every cross-origin call keeps credentials omit, option or not', async () => {
+    stubOrigin();
+    const f = new FakeFetch();
+    for (const url of [
+      'https://world.openfoodfacts.org/api/v2/product/1.json',
+      'https://api.example.test/v1/chat/completions',
+      'http://nutrition.example.test/ai/config.json', // same host, other scheme
+      'https://nutrition.example.test:8443/ai/config.json', // same host, other port
+    ]) {
+      const r = await cappedFetch(url, { fetchImpl: f.fetch });
+      expect(r.kind).toBe('response');
+      expect(f.last.init.credentials).toBe('omit');
+    }
+    // A same-origin call that did not ask is also cookieless.
+    await cappedFetch('/ai/config.json', { fetchImpl: f.fetch });
+    expect(f.last.init.credentials).toBe('omit');
+  });
+
+  it('refuses the option for a URL that is not this origin: nothing is sent', async () => {
+    stubOrigin();
+    const f = new FakeFetch();
+    for (const url of [
+      'https://api.example.test/v1/chat/completions',
+      '//evil.example.test/ai/config.json',
+      '/\\evil.example.test/ai/config.json',
+      'https://nutrition.example.test.evil.test/ai/config.json',
+      'http://nutrition.example.test/ai/config.json',
+      '/\t/evil.example.test/ai/config.json',
+      'http://[bad',
+    ]) {
+      const r = await cappedFetch(url, { sameOriginCredentials: true, fetchImpl: f.fetch });
+      expect(r).toEqual({ kind: 'failure', reason: 'network' });
+    }
+    expect(f.requests).toHaveLength(0);
+  });
+
+  it('isSameOriginUrl: only a plain path counts without a location', () => {
+    vi.stubGlobal('location', undefined);
+    expect(isSameOriginUrl('/ai/config.json')).toBe(true);
+    expect(isSameOriginUrl('https://nutrition.example.test/ai/config.json')).toBe(false);
+    expect(isSameOriginUrl('//host/x')).toBe(false);
+    for (const bad of [
+      '/\t/evil.test/x',
+      '/\r/evil.test/x',
+      '/\n/evil.test/x',
+      '/\\evil.test/x',
+      '/a\\b',
+    ]) {
+      expect(isSameOriginUrl(bad)).toBe(false);
+    }
+  });
+
+  it('isSameOriginUrl: with a location it asks the URL parser, so tricks resolving elsewhere are refused', () => {
+    vi.stubGlobal('location', { origin: 'https://app.test', href: 'https://app.test/#/x' });
+    expect(isSameOriginUrl('/ai/config.json')).toBe(true);
+    expect(isSameOriginUrl('https://app.test/ai/config.json')).toBe(true);
+    for (const bad of [
+      '/\t/evil.test/x',
+      '/\r\n/evil.test/x',
+      '/\\evil.test/x',
+      '//evil.test/x',
+      'https://evil.test/x',
+      'https://app.test.evil.test/x',
+      'http://app.test/x',
+      'http://[bad',
+    ]) {
+      expect(isSameOriginUrl(bad)).toBe(false);
+    }
   });
 });

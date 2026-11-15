@@ -13,9 +13,15 @@ import { at, renderInSession, seedPlate, unlockedBundle } from '../../app/testin
 import { KV_KEYS, type StoreBundle } from '../../storage';
 import { createServerVault, readConnection } from '../../sync';
 import { FakeRelay } from '../../sync/relay/testing/fake-relay';
-import { inertSync, offerOf, OPEN_CONFIG } from '../../sync/relay/testing/ui';
+import { inertSync, offerOf, OPEN_CONFIG, signedOutOffer } from '../../sync/relay/testing/ui';
 import { fastBackupService, fastKdf } from '../../sync/vault/testing';
 import { YourDataScreen } from './YourDataScreen';
+
+const signInAgain = vi.hoisted(() => vi.fn());
+vi.mock('../../net/sign-in', async (orig) => ({
+  ...(await orig<typeof import('../../net/sign-in')>()),
+  signInAgain,
+}));
 
 const VAULT_PASSPHRASE = 'a vault passphrase';
 
@@ -27,7 +33,10 @@ const snapshotOf = async (bundle: StoreBundle): Promise<VaultSnapshot> => {
 const foods = async (bundle: StoreBundle) =>
   (await snapshotOf(bundle)).plates.flatMap((p) => p.entries.map((e) => e.displayName)).sort();
 
-beforeEach(() => forgetAcknowledgedBeforeStore());
+beforeEach(() => {
+  forgetAcknowledgedBeforeStore();
+  signInAgain.mockClear();
+});
 afterEach(() => vi.restoreAllMocks());
 
 /** A device that has these plates and a vault on the relay under `alice`. */
@@ -56,6 +65,7 @@ async function open(
     bundle?: StoreBundle;
     seed?: (b: StoreBundle) => Promise<void>;
     handoff?: ServerHandoff;
+    offer?: ReturnType<typeof offerOf>;
   } = {},
 ) {
   const relay = options.relay ?? new FakeRelay();
@@ -74,7 +84,8 @@ async function open(
       sync: {
         client: relay,
         kdf: fastKdf,
-        offer: offerOf(options.config === undefined ? OPEN_CONFIG : options.config),
+        offer:
+          options.offer ?? offerOf(options.config === undefined ? OPEN_CONFIG : options.config),
         ...inertSync(),
       },
     },
@@ -112,6 +123,45 @@ async function find(user: ReturnType<typeof userEvent.setup>, handle: string, pa
   await user.type(s.getByLabelText('Passphrase of the copy'), pass);
   await user.click(s.getByRole('button', { name: 'Find my copy' }));
 }
+
+describe('when the sign-in in front of this server turns the call away', () => {
+  it('says so calmly with a Reload action, instead of hiding the section', async () => {
+    await open({ offer: signedOutOffer() });
+    const note = await screen.findByText(
+      'This server asks you to sign in again. Reload the page to continue.',
+    );
+    expect(note).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeVisible();
+    expect(heading2('Back up to this server')).toBeNull();
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it('a connected device whose backup is turned away says so and offers Reload', async () => {
+    const relay = new FakeRelay();
+    await open({
+      relay,
+      seed: async (b) => {
+        const made = await createServerVault({
+          client: relay,
+          kdf: fastKdf,
+          vault: b.vault,
+          kv: b.kv,
+          handle: 'alice',
+          passphrase: VAULT_PASSPHRASE,
+          maxVaultBytes: 20 * 1024 * 1024,
+        });
+        if (made.kind !== 'created') throw new Error('create');
+      },
+    });
+    relay.signInRequired = true;
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Back up now' }));
+    await screen.findByText(/This server asks you to sign in again, so no copy is sent for now/);
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(signInAgain).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('when this server has no relay', () => {
   it('shows nothing about it: the screen is what it was', async () => {
