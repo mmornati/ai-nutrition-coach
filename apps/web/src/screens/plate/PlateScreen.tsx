@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   copyDrafts,
   mealSlotForHour,
+  type MealSlot,
   plateNutrients,
   startOfLocalDay,
   type FoodEntryDraft,
@@ -85,17 +86,25 @@ export function PlateScreen({
     if (editing) replaceRoute(hrefs.plate(plate.id));
   };
 
-  const saveEdit = async (drafts: readonly FoodEntryDraft[], loggedAtUtc: number) => {
+  const saveEdit = async (
+    drafts: readonly FoodEntryDraft[],
+    loggedAtUtc: number,
+    slot: MealSlot | null,
+  ) => {
     // Nothing changed: nothing to write. A replace would wipe the plate's coach interactions,
     // bring back a dismissed note, ask the AI for a new one and leave tombstones for no reason.
-    if (loggedAtUtc === plate.loggedAtUtc && sameDrafts(drafts, copyDrafts(plate.entries))) {
+    if (
+      loggedAtUtc === plate.loggedAtUtc &&
+      slot === (plate.slot ?? null) &&
+      sameDrafts(drafts, copyDrafts(plate.entries))
+    ) {
       closeEdit();
       return true;
     }
     setSwappedFrom(plate.id);
     let result: RecordPlateResult | null;
     try {
-      result = await replacePlate(plate.id, drafts, loggedAtUtc);
+      result = await replacePlate(plate.id, drafts, loggedAtUtc, slot);
     } catch {
       result = null;
     }
@@ -137,7 +146,7 @@ export function PlateScreen({
       header={
         <ScreenHeader
           back={<BackToToday />}
-          title={slotName(mealSlotForHour(new Date(plate.loggedAtUtc).getHours()))}
+          title={slotName(plate.slot ?? mealSlotForHour(new Date(plate.loggedAtUtc).getHours()))}
           sub={formatTime(plate.loggedAtUtc)}
         />
       }

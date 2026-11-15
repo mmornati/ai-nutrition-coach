@@ -442,7 +442,14 @@ describe('YourAiScreen: AI coaching consent', () => {
         /the names and food groups of your foods, their weights and nutrient totals/,
       ),
     ).toBeVisible();
-    expect(screen.getByText(/Never your photos, never your passphrase/)).toBeVisible();
+    expect(screen.getByText(/never your photos, never your passphrase/)).toBeVisible();
+    // The guide is sent, rounded and worked out from the weight and height; those themselves never are.
+    expect(
+      screen.getByText(
+        /your daily guide, rounded, which is worked out from your weight and height if you entered them/,
+      ),
+    ).toBeVisible();
+    expect(screen.getByText(/Never the weight, height or waist themselves/)).toBeVisible();
     expect(screen.getByText('Destination: api.example.com, the service you chose.')).toBeVisible();
     expect(await consentRow(bundle)).toBeNull();
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { SupportLine, useShowNumbers } from '../../components/nutrition';
 import { useStrings } from '../../i18n';
 import { useSession } from '../../app/session';
@@ -12,13 +12,23 @@ import { SwitchRow } from './SwitchRow';
  */
 export function NutritionScreen() {
   const s = useStrings().nutritionSettings;
-  const { numbers, live } = useSession();
+  const { numbers, distance, live } = useSession();
   const shown = useShowNumbers();
+  const distanceOn = useSyncExternalStore(distance.subscribe, distance.current);
   const [failed, setFailed] = useState(false);
 
   const change = async (next: boolean) => {
     try {
       await numbers.set(next);
+      if (live()) setFailed(false);
+    } catch {
+      if (live()) setFailed(true);
+    }
+  };
+
+  const changeDistance = async (next: boolean) => {
+    try {
+      await distance.set(next);
       if (live()) setFailed(false);
     } catch {
       if (live()) setFailed(true);
@@ -33,6 +43,12 @@ export function NutritionScreen() {
           help={s.switchHelp}
           checked={shown}
           onChange={(next) => void change(next)}
+        />
+        <SwitchRow
+          title={s.distanceTitle}
+          help={s.distanceHelp}
+          checked={distanceOn}
+          onChange={(next) => void changeDistance(next)}
         />
         <p role="status" className="text-body-small text-ink-soft empty:hidden">
           {failed ? s.saveFailed : ''}

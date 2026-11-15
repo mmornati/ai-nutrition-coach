@@ -6,7 +6,7 @@ import { setCurrentLocale } from '../../i18n';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
 import { EU_REFERENCE_INTAKES, dailyTargetsFor } from '@anc/core';
-import { NutrientBars, barFill } from './NutrientBars';
+import { NutrientBars, REFERENCE_TICK, barFill } from './NutrientBars';
 import { SupportLine } from './SupportLine';
 import { NutritionSection } from './NutritionSection';
 
@@ -91,7 +91,8 @@ describe('NutrientBars', () => {
     const { container: triple } = render(<NutrientBars nutrition={totals({ protein: 150 })} />);
     const fills = [half, triple].map((c) => c.querySelector<HTMLElement>('[aria-hidden] > div'));
     expect(fills[0]?.className).toBe(fills[1]?.className);
-    expect(fills[0]?.style.width).toBe('50%');
+    // The track shows 0 to 150 % of the reference: 50 % fills a third, 300 % is capped at the end.
+    expect(Number.parseFloat(fills[0]?.style.width ?? '')).toBeCloseTo(100 / 3, 5);
     expect(fills[1]?.style.width).toBe('100%');
     // Nothing in the row's markup changes class with the amount either.
     const classes = (c: HTMLElement) =>
@@ -132,11 +133,26 @@ describe('NutrientBars', () => {
     expect(screen.getByText('about 15% of the EU reference intake (2000 kcal)')).toBeVisible();
   });
 
-  it('barFill clamps at the track end', () => {
+  it('barFill draws 0 to 150 % of the reference and caps at the track end; the tick marks 100 %', () => {
     expect(barFill(0, 50)).toBe(0);
-    expect(barFill(25, 50)).toBe(0.5);
-    expect(barFill(50, 50)).toBe(1);
+    expect(barFill(25, 50)).toBeCloseTo(1 / 3, 10);
+    expect(barFill(50, 50)).toBeCloseTo(2 / 3, 10); // exactly at the tick
+    expect(barFill(75, 50)).toBe(1);
     expect(barFill(500, 50)).toBe(1);
+    expect(barFill(-5, 50)).toBe(0);
+    expect(REFERENCE_TICK).toBeCloseTo(2 / 3, 10);
+  });
+
+  it('a value past the reference continues past the tick on the same neutral bar, and the text carries the real percentage', () => {
+    const { container } = render(<NutrientBars nutrition={totals({ protein: 56 })} />);
+    const fill = container.querySelector<HTMLElement>('[aria-hidden] > div');
+    const tick = container.querySelector<HTMLElement>('[aria-hidden] > div + div');
+    expect(Number.parseFloat(fill?.style.width ?? '')).toBeGreaterThan(
+      Number.parseFloat(tick?.style.left ?? ''),
+    );
+    expect(Number.parseFloat(tick?.style.left ?? '')).toBeCloseTo(100 * REFERENCE_TICK, 5);
+    expect(screen.getByText('about 112% of the EU reference intake (50 g)')).toBeVisible();
+    expect(container.innerHTML).not.toMatch(/red|amber|rose|orange|alert|warn/i);
   });
 
   it('says how many foods had data when some had none', () => {

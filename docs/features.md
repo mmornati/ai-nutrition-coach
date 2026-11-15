@@ -78,8 +78,9 @@ More: [Your day and your week](guide/day-and-week.md).
 
 Grams per food, and for each plate and each day: energy, protein, carbohydrate, sugars, fat, saturated fat, fibre and
 salt. Each value comes with a neutral bar and a sentence, for example "about 9% of the EU reference intake (2000
-kcal)". Estimates are marked `~`; unknown values are left empty, never shown as zero. An optional profile tunes the
-daily guide, and one switch hides the numbers if they feel stressful. Open Food Facts' Nutri-Score and NOVA can appear
+kcal)". Estimates are marked `~`; unknown values are left empty, never shown as zero. An optional profile (with height, weight and waist if you choose to enter them,
+encrypted and erasable) tunes your daily guide, and one switch hides the numbers if they feel stressful. Going past
+the guide is said in plain text, never in red; an opt-in line can state the distance to it. Open Food Facts' Nutri-Score and NOVA can appear
 as information about a product, never as a score of you.
 
 More: [Nutrients, against the EU reference intakes](guide/day-and-week.md#nutrients-against-the-eu-reference-intakes).
@@ -142,7 +143,7 @@ More: [Self-host](self-host.md).
   real browser. Sizes are in rem and follow the browser's text size. See [Accessibility](accessibility.md).
 - The [No-Dark-Patterns Standard](no-dark-patterns-standard.md) is binding and enforced by tests: no streaks, badges,
   points, countdowns, celebratory pop-ups, red guilt states or spinners. Numbers are allowed; pressure is not.
-- Adults only: no child or teen profiles, no biometric API ([Adults only](adults-only.md)).
+- Adults only: no child or teen profiles, no biometric API, no birth date ([Adults only](adults-only.md)).
 
 ## Not built yet
 

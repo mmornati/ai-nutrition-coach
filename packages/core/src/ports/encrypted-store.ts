@@ -1,4 +1,5 @@
 import type { EpochMs, Unsubscribe } from '../common';
+import type { MealSlot } from '../day/meal-slot';
 import type { PlateLog } from '../entities/plate-log';
 import type { DeletePlateResult, ReadPlatesResult, RecordPlateResult } from '../results/store';
 import type { FoodEntryDraft } from '../value-types/food-entry-draft';
@@ -8,6 +9,8 @@ export interface EncryptedStore {
   recordPlate(input: {
     readonly entries: readonly FoodEntryDraft[];
     readonly loggedAtUtc?: EpochMs | undefined;
+    /** The meal the person chose; omitted or null = derived from the time. */
+    readonly slot?: MealSlot | null | undefined;
   }): Promise<RecordPlateResult>;
   /**
    * Edits a logged plate: its entries and time are replaced by `entries` / `loggedAtUtc`. ONE
@@ -23,6 +26,7 @@ export interface EncryptedStore {
     readonly plateLogId: number;
     readonly entries: readonly FoodEntryDraft[];
     readonly loggedAtUtc: EpochMs;
+    readonly slot?: MealSlot | null | undefined;
   }): Promise<RecordPlateResult>;
   /** Half-open `[from, to)` on `loggedAtUtc`, newest first. */
   watchRange(

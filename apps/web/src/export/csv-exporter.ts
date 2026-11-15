@@ -2,6 +2,8 @@ import {
   entryNutrients,
   exportReady,
   exportScopeRange,
+  measurementValueText,
+  type BodyMeasurement,
   type EncryptedStore,
   type ExportFormat,
   type ExportResult,
@@ -20,7 +22,8 @@ export const CSV_HEADER =
   'quantity_low,quantity_high,quantity_unit,' +
   'quantity_display_label,food_group,' +
   'grams,grams_estimated,' +
-  'energy_kcal,protein_g,carbohydrate_g,sugars_g,fat_g,saturated_fat_g,fibre_g,salt_g';
+  'energy_kcal,protein_g,carbohydrate_g,sugars_g,fat_g,saturated_fat_g,fibre_g,salt_g,' +
+  'meal';
 
 /** Longest text cell written, in characters (code points). */
 export const MAX_CSV_FIELD_LENGTH = 1000;
@@ -68,6 +71,11 @@ function csvFixed(value: number): string {
   return text.endsWith('.0') ? text.slice(0, -2) : text;
 }
 
+/** A measurement as stored: a weight to two decimals (kg), a waist to one (cm), no trailing zeros. */
+function csvMeasurement(m: BodyMeasurement): string {
+  return measurementValueText(m.kind, m.value);
+}
+
 /** A scaled nutrient cell: dot decimal, at most one decimal, empty when unknown. */
 function csvNutrient(value: number | undefined): string {
   return value === undefined ? '' : csvFixed(value);
@@ -107,9 +115,31 @@ export function serializePlatesToCsv(plates: readonly PlateLog[]): string {
           csvNutrient(n?.saturatedFat),
           csvNutrient(n?.fibre),
           csvNutrient(n?.salt),
+          // The meal the person chose (schema v5); empty when it is derived from the time.
+          plate.slot === undefined ? '' : csvText(plate.slot),
         ].join(','),
       );
     }
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+/** The header of the body measurements CSV: one row per dated measurement, SI units. */
+export const MEASUREMENTS_CSV_HEADER = 'day,measured_at_utc,kind,value,unit';
+
+/** One row per dated measurement (weight in kg, waist in cm); an empty list is header-only. */
+export function serializeMeasurementsToCsv(measurements: readonly BodyMeasurement[]): string {
+  const lines = [MEASUREMENTS_CSV_HEADER];
+  for (const m of measurements) {
+    lines.push(
+      [
+        m.day,
+        new Date(m.measuredAtUtc).toISOString(),
+        m.kind,
+        csvMeasurement(m),
+        m.kind === 'weight' ? 'kg' : 'cm',
+      ].join(','),
+    );
   }
   return `${lines.join('\n')}\n`;
 }

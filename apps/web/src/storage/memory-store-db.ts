@@ -7,9 +7,11 @@ import {
   canonicalizeSnapshot,
   canonicalText,
   compareHlc,
+  isPlateSlot,
   isSyncedKvKey,
   KV_UID_PREFIX,
   kvTombstoneUid,
+  measurementUid,
   newestHlc,
   pickStamped,
   SNAPSHOT_VERSION,
@@ -18,9 +20,11 @@ import {
   tombstoneKey,
   vaultConflict,
   ZERO_HLC,
+  type MeasurementKind,
   type TombstoneTable,
   type VaultCoachNote,
   type VaultEntry,
+  type VaultMeasurement,
   type VaultPlate,
   type VaultRecipe,
   type VaultSavedMeal,
@@ -31,6 +35,7 @@ import type {
   EntryInsert,
   EntryRow,
   InsertedPlate,
+  MeasurementRow,
   NoteInsert,
   NoteRow,
   PlateRow,
@@ -86,6 +91,8 @@ export class MemoryStoreDb implements StoreDbOps {
   private readonly mealStamps = new Map<number, string>();
   private readonly recipeStamps = new Map<number, string>();
   private readonly kvStamps = new Map<string, string>();
+  /** Change stamps of body measurements, by their derived uid. */
+  private readonly measurementStamps = new Map<string, string>();
   /** Keyed by table and uid (`tombstoneKey`). */
   private readonly tombstones = new Map<
     string,
@@ -102,6 +109,7 @@ export class MemoryStoreDb implements StoreDbOps {
   private savedMealItems: SavedItemRow[] = [];
   private recipes: RecipeRow[] = [];
   private recipeItems: SavedItemRow[] = [];
+  private measurements: MeasurementRow[] = [];
   private readonly nextId = {
     plate: 1,
     entry: 1,
@@ -112,6 +120,7 @@ export class MemoryStoreDb implements StoreDbOps {
     savedItem: 1,
     recipe: 1,
     recipeItem: 1,
+    measurement: 1,
   };
 
   constructor(env: VaultEnv = systemVaultEnv) {
@@ -131,6 +140,7 @@ export class MemoryStoreDb implements StoreDbOps {
           ...this.mealStamps.values(),
           ...this.recipeStamps.values(),
           ...this.kvStamps.values(),
+          ...this.measurementStamps.values(),
           ...[...this.tombstones.values()].map((t) => t.at),
         ]) {
           if (newest === null || compareHlc(stamp, newest) > 0) newest = stamp;
@@ -150,9 +160,13 @@ export class MemoryStoreDb implements StoreDbOps {
     }
   }
 
-  insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
+  insertPlate(
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+    slot: string | null = null,
+  ): InsertedPlate {
     const plateId = this.nextId.plate++;
-    this.plates.push({ id: plateId, loggedAtUtc });
+    this.plates.push({ id: plateId, loggedAtUtc, slot });
     this.uids.plate.set(plateId, this.clock.newUid());
     const entryIds: number[] = [];
     for (const e of entries) {
@@ -168,10 +182,11 @@ export class MemoryStoreDb implements StoreDbOps {
     plateLogId: number,
     loggedAtUtc: string,
     entries: readonly EntryInsert[],
+    slot: string | null = null,
   ): InsertedPlate | null {
     if (!this.plates.some((p) => p.id === plateLogId)) return null;
     this.deletePlate(plateLogId);
-    return this.insertPlate(loggedAtUtc, entries);
+    return this.insertPlate(loggedAtUtc, entries, slot);
   }
 
   readPlateRows(fromUtc: string | null, toUtc: string | null): PlateRowSet {
@@ -328,6 +343,33 @@ export class MemoryStoreDb implements StoreDbOps {
     this.recipes = this.recipes.filter((r) => r.id !== id);
   }
 
+  upsertMeasurement(kind: string, day: string, measuredAtUtc: string, value: string): void {
+    const uid = measurementUid(kind as MeasurementKind, day);
+    const existing = this.measurements.find((m) => m.kind === kind && m.day === day);
+    if (existing) {
+      this.measurements = this.measurements.map((m) =>
+        m === existing ? { ...m, measuredAtUtc, value } : m,
+      );
+    } else {
+      this.measurements.push({ id: this.nextId.measurement++, kind, day, measuredAtUtc, value });
+    }
+    this.measurementStamps.set(uid, this.clock.stamp());
+  }
+
+  readMeasurements(): MeasurementRow[] {
+    return [...this.measurements].sort((a, b) =>
+      a.day === b.day ? (a.kind < b.kind ? -1 : 1) : a.day < b.day ? 1 : -1,
+    );
+  }
+
+  deleteMeasurement(kind: string, day: string): void {
+    if (!this.measurements.some((m) => m.kind === kind && m.day === day)) return;
+    const uid = measurementUid(kind as MeasurementKind, day);
+    this.tombstone(uid, 'body_measurement', this.clock.stamp());
+    this.measurements = this.measurements.filter((m) => !(m.kind === kind && m.day === day));
+    this.measurementStamps.delete(uid);
+  }
+
   kvGet(key: string): string | null {
     return this.kv.get(key) ?? null;
   }
@@ -370,6 +412,7 @@ export class MemoryStoreDb implements StoreDbOps {
     const plates = this.plates.map((p): VaultPlate => ({
       uid: this.uids.plate.get(p.id) ?? '',
       loggedAtUtc: p.loggedAtUtc,
+      slot: isPlateSlot(p.slot) ? p.slot : null,
       entries: byId(this.entries.filter((e) => e.plateLogId === p.id)).map((e): VaultEntry => ({
         uid: this.uids.entry.get(e.id) ?? '',
         ...food(e),
@@ -407,6 +450,17 @@ export class MemoryStoreDb implements StoreDbOps {
       updatedAtHlc: this.recipeStamps.get(r.id) ?? ZERO_HLC,
       items: items(this.recipeItems, this.uids.recipeItem, r.id),
     }));
+    const bodyMeasurements = this.measurements.map((m): VaultMeasurement => {
+      const uid = measurementUid(m.kind as MeasurementKind, m.day);
+      return {
+        uid,
+        kind: m.kind as MeasurementKind,
+        day: m.day,
+        measuredAtUtc: m.measuredAtUtc,
+        value: m.value,
+        updatedAtHlc: this.measurementStamps.get(uid) ?? ZERO_HLC,
+      };
+    });
     const kv = [...this.kv]
       .filter(([key]) => isSyncedKvKey(key))
       .map(([key, value]) => ({ key, value, updatedAtHlc: this.kvStamps.get(key) ?? ZERO_HLC }));
@@ -425,6 +479,7 @@ export class MemoryStoreDb implements StoreDbOps {
       dismissals,
       savedMeals,
       recipes,
+      bodyMeasurements,
       kv,
       tombstones,
     });
@@ -438,6 +493,7 @@ export class MemoryStoreDb implements StoreDbOps {
     const meals = new Map(before.savedMeals.map((m) => [m.uid, m] as const));
     const recipes = new Map(before.recipes.map((r) => [r.uid, r] as const));
     const entries = new Map(before.kv.map((e) => [e.key, e] as const));
+    const storedMeasurements = new Map(before.bodyMeasurements.map((m) => [m.uid, m] as const));
 
     // Only rows that are still stored count (a deleted row's uid is remembered in `uids`).
     const idOf = (
@@ -527,6 +583,19 @@ export class MemoryStoreDb implements StoreDbOps {
           }
           break;
         }
+        case 'body_measurement': {
+          const found = this.measurements.find(
+            (m) => measurementUid(m.kind as MeasurementKind, m.day) === t.uid,
+          );
+          if (
+            found &&
+            !survivesTombstone(this.measurementStamps.get(t.uid) ?? ZERO_HLC, t.deletedAtHlc)
+          ) {
+            this.measurements = this.measurements.filter((m) => m !== found);
+            this.measurementStamps.delete(t.uid);
+          }
+          break;
+        }
         case 'saved_meal_item':
         case 'recipe_item':
           break;
@@ -538,7 +607,7 @@ export class MemoryStoreDb implements StoreDbOps {
       let plateId = idOf(this.uids.plate, plate.uid, this.plates);
       if (plateId === null) {
         plateId = this.nextId.plate++;
-        this.plates.push({ id: plateId, loggedAtUtc: plate.loggedAtUtc });
+        this.plates.push({ id: plateId, loggedAtUtc: plate.loggedAtUtc, slot: plate.slot });
         this.uids.plate.set(plateId, plate.uid);
       }
       for (const entry of plate.entries) {
@@ -648,6 +717,19 @@ export class MemoryStoreDb implements StoreDbOps {
       }
     }
 
+    for (const m of snapshot.bodyMeasurements) {
+      if (!incomingWins(m, storedMeasurements.get(m.uid), deletedAt('body_measurement', m.uid))) {
+        continue;
+      }
+      const row = { kind: m.kind, day: m.day, measuredAtUtc: m.measuredAtUtc, value: m.value };
+      const found = this.measurements.find((x) => x.kind === m.kind && x.day === m.day);
+      if (found) {
+        this.measurements = this.measurements.map((x) => (x === found ? { ...x, ...row } : x));
+      } else {
+        this.measurements.push({ id: this.nextId.measurement++, ...row });
+      }
+      this.measurementStamps.set(m.uid, m.updatedAtHlc);
+    }
     for (const entry of snapshot.kv) {
       if (!isSyncedKvKey(entry.key)) continue;
       const at = deletedAt('kv', kvTombstoneUid(entry.key));

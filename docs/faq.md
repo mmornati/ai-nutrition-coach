@@ -12,9 +12,24 @@ No. There is no account and no sign-up. You choose a passphrase that encrypts yo
 ### Does it count calories?
 
 It shows energy alongside protein, carbohydrate, sugars, fat, saturated fat, fibre and salt, per plate and per day, as
-plain values against the EU reference intakes. It never frames them as "calories remaining", a budget or a limit you
-have failed. If numbers about food feel stressful, *Settings → Nutrition* hides them. See
+plain values against the EU reference intakes, or against your daily guide when you fill in the optional profile. It never
+frames them as "calories remaining", a budget or a limit you have failed; past your guide it only says a plain
+percentage. An opt-in setting can add one plain line with the distance to your guide. If numbers about food feel stressful, *Settings → Nutrition* hides them. See
 [nutrients, against the EU reference intakes](./guide/day-and-week.md#nutrients-against-the-eu-reference-intakes).
+
+### Does it need my weight or height?
+
+No. Both are optional, as is the waist. If you enter them, your daily guide becomes more personal, they stay encrypted
+on your device (and in your encrypted backup or sync), you can export and erase them, and they are never sent to an
+AI (the coach receives your daily guide, rounded, which is worked out from them). The app never asks for a name or a birth date. See [Settings](./guide/settings.md#profile).
+
+### Can it help me lose weight?
+
+If you choose that goal and have entered your height and weight, yes, gently: a modest pace, a floor your daily guide
+never goes under, and a pointer to a doctor or a dietitian when it would not be wise to go further (a low BMI,
+pregnancy or breastfeeding, 65 and over). Without a height and a weight, the guide stays at what keeps your weight
+steady and asks for them.
+It never labels you and never colours a weight. The floors are conventions, not clinical thresholds.
 
 ### Can I change a plate I already logged?
 

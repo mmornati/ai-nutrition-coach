@@ -4,6 +4,8 @@ import {
   buildNoteMessages,
   buildWeekMessages,
   cleanPromptLabel,
+  coarseGuideJson,
+  dailyGuideFor,
   COACH_LIMITS,
   coachSystemPrompt,
   databaseFood,
@@ -14,6 +16,7 @@ import {
   weeklyReview,
   type CoachPromptKind,
   type PlateLog,
+  profileJson,
 } from '../src/index';
 
 // A parsed prompt document, read loosely in assertions.
@@ -429,5 +432,97 @@ describe('the proxy budget (8 messages, 24 KB of text)', () => {
       targets: EU_REFERENCE_INTAKES,
     });
     expect((JSON.parse(user?.content ?? '{}') as Doc).daySoFar.foods).toEqual(['Eggs']);
+  });
+});
+
+describe('what an AI is told about the person (docs/adr/0008)', () => {
+  it('sends exactly the profile fields it sent before the body profile: no height, weight, waist, BMI, pace, units, pregnancy or own figure', () => {
+    const everything = {
+      goal: 'lose',
+      diet: 'vegan',
+      allergies: ['peanut'],
+      ageBand: '30-49',
+      sex: 'female',
+      activity: 'veryHigh',
+      heightCm: 170,
+      units: 'imperial',
+      pace: 'faster',
+      customEnergyKcal: 1800,
+      pregnantOrBreastfeeding: true,
+      // Not even typed fields, but a hostile or future object must not leak through either.
+      weightKg: 70,
+      waistCm: 80,
+      bmi: 24,
+      birthDate: '1990-01-01',
+    } as const;
+    const sent = profileJson(everything as never);
+    expect(Object.keys(sent ?? {}).sort()).toEqual([
+      'activity',
+      'ageBand',
+      'allergies',
+      'diet',
+      'goal',
+      'sex',
+    ]);
+    expect(JSON.stringify(sent)).not.toMatch(
+      /height|weight|waist|bmi|pace|units|pregnan|custom|birth/i,
+    );
+  });
+});
+
+describe('the daily guide that is sent is coarse (it is worked out from the weight and height)', () => {
+  const profile = { sex: 'female', ageBand: '30-49', activity: 'moderate', heightCm: 165 } as const;
+  const guide = (kg: number) => dailyGuideFor(profile, kg).targets;
+
+  it('rounds energy to 100 kcal and protein and the other gram figures to 10 g, and the precise guide differs', () => {
+    const precise = guide(73);
+    expect(precise.protein % 10).not.toBe(0);
+    const sent = coarseGuideJson(precise);
+    expect((sent['kcal'] as number) % 100).toBe(0);
+    for (const key of ['protein_g', 'carbohydrate_g', 'sugars_g', 'fat_g', 'saturated_fat_g']) {
+      expect((sent[key] as number) % 10).toBe(0);
+    }
+    expect(sent['kcal']).toBe(Math.round(precise.energyKcal / 100) * 100);
+    expect(sent['protein_g']).toBe(Math.round(precise.protein / 10) * 10);
+    expect(sent['salt_g']).toBe(6);
+  });
+
+  it('every builder uses it, so two nearby weights send the same guide', () => {
+    const a = guide(72);
+    const b = guide(74);
+    expect(a.protein).not.toBe(b.protein);
+    const week = (targets: typeof a) =>
+      JSON.parse(
+        buildWeekMessages({
+          locale: 'en',
+          numbersOn: true,
+          review: weeklyReview({ plates: [], today: TODAY, targets }),
+          targets,
+        })[1]?.content ?? '{}',
+      ).dailyGuide;
+    const note = (targets: typeof a) =>
+      JSON.parse(
+        buildNoteMessages({
+          ...naming,
+          locale: 'en',
+          numbersOn: true,
+          plate: plate(1, 'Salmon'),
+          earlierPlates: [],
+          slot: 'lunch',
+          targets,
+        })[1]?.content ?? '{}',
+      ).daySoFar.dailyGuide;
+    const chat = (targets: typeof a) => {
+      const data = buildChatMessages({
+        locale: 'en',
+        context: { ...naming, numbersOn: true, plates: [plate(1, 'Salmon')], targets },
+        turns: [{ role: 'user', text: 'Hi' }],
+      })[1]?.content as string;
+      return JSON.parse(data.slice(data.indexOf('\n') + 1)).dailyGuide;
+    };
+    for (const build of [week, note, chat]) {
+      expect(build(a)).toEqual(build(b));
+      expect(build(a).kcal % 100).toBe(0);
+    }
   });
 });

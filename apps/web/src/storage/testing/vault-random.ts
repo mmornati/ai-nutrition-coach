@@ -5,6 +5,7 @@
 
 import {
   formatHlc,
+  measurementUid,
   mergeVaultSnapshots,
   SNAPSHOT_VERSION,
   type VaultEntry,
@@ -49,6 +50,7 @@ export const emptySnapshot = (): VaultSnapshot => ({
   dismissals: [],
   savedMeals: [],
   recipes: [],
+  bodyMeasurements: [],
   kv: [],
   tombstones: [],
 });
@@ -107,7 +109,14 @@ export function randomVaultSnapshot(random: () => number): VaultSnapshot {
         interactions,
       });
     }
-    plates.push({ uid: uuid(p), loggedAtUtc: `2026-01-0${p}T12:00:00.000Z`, entries, notes });
+    plates.push({
+      uid: uuid(p),
+      loggedAtUtc: `2026-01-0${p}T12:00:00.000Z`,
+      // A plate never changes after it is written: one uid, one meal, on every device.
+      slot: p % 2 === 0 ? ('snack' as const) : null,
+      entries,
+      notes,
+    });
   }
 
   const itemBase = (templateUid: string): number => parseInt(templateUid.slice(-12), 16) * 10;
@@ -177,6 +186,39 @@ export function randomVaultSnapshot(random: () => number): VaultSnapshot {
     if (chance(0.2))
       tombstones.push({ uid: `kv:${key}`, table: 'kv' as const, deletedAtHlc: when() });
   }
+  const bodyMeasurements = [];
+  for (const kind of ['weight', 'waist'] as const) {
+    for (let d = 1; d <= 3; d++) {
+      const day = `2026-01-0${d}`;
+      if (!chance(0.5)) {
+        // A tombstone with no live row at all (the delete arrived, or won, before the record did).
+        if (chance(0.3)) {
+          tombstones.push({
+            uid: measurementUid(kind, day),
+            table: 'body_measurement' as const,
+            deletedAtHlc: when(),
+          });
+        }
+        continue;
+      }
+      bodyMeasurements.push({
+        uid: measurementUid(kind, day),
+        kind,
+        day,
+        measuredAtUtc: `${day}T08:00:00.000Z`,
+        value: oneOf(kind === 'weight' ? ['70', '70.5', '71.2'] : ['80', '81.5']),
+        updatedAtHlc: when(),
+      });
+      if (chance(0.2)) {
+        tombstones.push({
+          uid: measurementUid(kind, day),
+          table: 'body_measurement' as const,
+          deletedAtHlc: when(),
+        });
+      }
+    }
+  }
+
   const dismissals = noteUids
     .filter(() => chance(0.5))
     .map((id) => ({ key: `note:${id}`, dismissedAtUtc: `2026-01-0${1 + pick(5)}T00:00:00.000Z` }));
@@ -192,6 +234,7 @@ export function randomVaultSnapshot(random: () => number): VaultSnapshot {
     plates,
     savedMeals,
     recipes,
+    bodyMeasurements,
     kv,
     tombstones,
     dismissals,

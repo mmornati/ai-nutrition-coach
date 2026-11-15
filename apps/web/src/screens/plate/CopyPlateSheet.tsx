@@ -41,7 +41,8 @@ export function CopyPlateSheet({
   const t = all.relog;
   const { recordPlate, clock } = useSession();
   const day = useDay();
-  const originalSlot = mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
+  const originalSlot: MealSlot =
+    plate.slot ?? mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
   const [target, setTarget] = useState<EpochMs>(day.today);
   const [slot, setSlot] = useState<MealSlot>(() => mealSlotForHour(new Date(clock()).getHours()));
   const [busy, setBusy] = useState(false);
@@ -65,8 +66,8 @@ export function CopyPlateSheet({
   const clockSlot = mealSlotForHour(new Date(now).getHours());
   const candidates: readonly MealSlot[] =
     originalSlot === 'late' || clockSlot === 'late'
-      ? ['breakfast', 'lunch', 'dinner', 'late']
-      : ['breakfast', 'lunch', 'dinner'];
+      ? ['breakfast', 'lunch', 'dinner', 'snack', 'late']
+      : ['breakfast', 'lunch', 'dinner', 'snack'];
   const slots = slotsAvailable({ day: target, now, candidates });
   // The chosen meal is always one of the radios: else the plate's own, else the first offered.
   const chosen: MealSlot = slots.includes(slot)
@@ -83,6 +84,7 @@ export function CopyPlateSheet({
       const result = await recordPlate(
         copyDrafts(plate.entries),
         instantForSlot({ day: target, slot: chosen, now }),
+        chosen,
       );
       recorded = result.kind === 'recordPlateSuccess';
     } catch {

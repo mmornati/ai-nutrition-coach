@@ -87,6 +87,94 @@ describe('runExport', () => {
     expect(Object.keys(JSON.parse(t.written[2]?.text ?? '{}') as object)).toEqual(['plates']);
   });
 
+  it('puts the dated body measurements in the json export, and in their own CSV file; a failing read fails the export', async () => {
+    const t = setup();
+    const measurements = [
+      { kind: 'weight' as const, day: '2026-08-16', measuredAtUtc: NOW, value: 70.4 },
+      { kind: 'waist' as const, day: '2026-08-16', measuredAtUtc: NOW, value: 81 },
+    ];
+    const run = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readMeasurements: () => Promise.resolve(measurements),
+    });
+    await run({ format: 'json', scope: ALL_HISTORY_SCOPE });
+    expect(JSON.parse(t.written[0]?.text ?? '{}')).toMatchObject({
+      bodyMeasurements: [
+        { kind: 'weight', day: '2026-08-16', value: 70.4, unit: 'kg' },
+        { kind: 'waist', day: '2026-08-16', value: 81, unit: 'cm' },
+      ],
+    });
+    await run({ format: 'csv', scope: ALL_HISTORY_SCOPE });
+    expect(t.written.slice(1).map((w) => w.filename)).toEqual([
+      '2026-08-16-ai-nutrition-coach.csv',
+      '2026-08-16-ai-nutrition-coach-body.csv',
+    ]);
+    expect(t.written[1]?.text).not.toContain('70.4'); // the plates CSV stays one row per food entry
+    expect(t.written[2]?.text).toContain(
+      `2026-08-16,${new Date(NOW).toISOString()},weight,70.4,kg`,
+    );
+    // A scope that holds none of them writes no second file and no key.
+    const before = t.written.length;
+    await run({ format: 'csv', scope: { kind: 'visibleDay', day: NOW - 5 * 86_400_000 } });
+    await run({ format: 'json', scope: { kind: 'visibleDay', day: NOW - 5 * 86_400_000 } });
+    expect(t.written).toHaveLength(before + 2);
+    expect(Object.keys(JSON.parse(t.written[before + 1]?.text ?? '{}') as object)).toEqual([
+      'plates',
+    ]);
+    const failing = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readMeasurements: () => Promise.reject(new Error('locked')),
+    });
+    expect(await failing({ format: 'json', scope: ALL_HISTORY_SCOPE })).toEqual({
+      kind: 'failed',
+      failure: { kind: 'savedUnavailable' },
+    });
+  });
+
+  it('filters the measurements by their stored local day, not by the UTC instant', async () => {
+    const t = setup();
+    // Taken just now, but filed under three days earlier (a back-dated weigh-in), and one taken
+    // three days ago in UTC terms but filed under today.
+    const measurements = [
+      { kind: 'weight' as const, day: '2026-08-13', measuredAtUtc: NOW, value: 70 },
+      {
+        kind: 'weight' as const,
+        day: '2026-08-16',
+        measuredAtUtc: NOW - 3 * 86_400_000,
+        value: 71,
+      },
+    ];
+    const run = createRunExport({
+      exporters: t.exporters,
+      destination: t.destination,
+      history: t.history,
+      clock: () => NOW,
+      readMeasurements: () => Promise.resolve(measurements),
+    });
+    await run({ format: 'json', scope: { kind: 'visibleDay', day: NOW } });
+    expect(
+      (
+        JSON.parse(t.written[0]?.text ?? '{}') as { bodyMeasurements: { day: string }[] }
+      ).bodyMeasurements.map((m) => m.day),
+    ).toEqual(['2026-08-16']);
+    await run({ format: 'json', scope: { kind: 'visibleDay', day: NOW - 3 * 86_400_000 } });
+    expect(
+      (
+        JSON.parse(t.written[1]?.text ?? '{}') as { bodyMeasurements: { day: string }[] }
+      ).bodyMeasurements.map((m) => m.day),
+    ).toEqual(['2026-08-13']);
+    await run({ format: 'json', scope: { kind: 'week', start: NOW - 6 * 86_400_000 } });
+    expect(
+      (JSON.parse(t.written[2]?.text ?? '{}') as { bodyMeasurements: unknown[] }).bodyMeasurements,
+    ).toHaveLength(2);
+  });
+
   it('puts saved meals and recipes in the json export only, and a failing read fails the export', async () => {
     const t = setup();
     const entry = {

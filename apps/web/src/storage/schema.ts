@@ -1,7 +1,8 @@
-// Schema version 4 (v1 -> v2 adds grams and per-100 g nutrients to food_entry; docs/adr/0006;
+// Schema version 5 (v1 -> v2 adds grams and per-100 g nutrients to food_entry; docs/adr/0006;
 // v2 -> v3 adds the person's saved meals and home recipes, with their items; v3 -> v4 gives every
 // synced row a `uid`, stamps the mutable records, and adds tombstones, the groundwork for an
-// encrypted backup and sync: docs/encrypted-sync-plan.md §3.4).
+// encrypted backup and sync: docs/encrypted-sync-plan.md §3.4; v4 -> v5 adds dated body
+// measurements and the meal a plate was filed under: docs/adr/0008).
 //
 // Tables:
 //   plate_log         one row per logged meal
@@ -15,6 +16,7 @@
 //   saved_meal_item   (v3) its entries, in order, same food snapshot columns as food_entry
 //   recipe            (v3) a home recipe: name, servings, optional cooked weight
 //   recipe_item       (v3) its ingredients, in order, same food snapshot columns
+//   body_measurement  (v5) one dated weigh-in or waist per (kind, local day), stamped, synced
 //   tombstone         (v4) one row per deleted synced record: its uid, its table and when (an HLC stamp)
 //
 // v4 columns: `uid TEXT` (UUIDv7, unique) on plate_log, food_entry, coach_note, coach_interaction,
@@ -27,6 +29,13 @@
 // `uid` is nullable in the table (SQLite cannot add a NOT NULL column without a default) but a
 // BEFORE INSERT trigger per table refuses a NULL, so no row is ever written without one. A tombstone
 // is keyed by (table_name, uid): the same uid in another table is another record.
+//
+// v5: `plate_log.slot TEXT` (nullable: the meal the person chose - breakfast, lunch, dinner, snack,
+// late; NULL derives it from the time, as every plate did before) and `body_measurement` (id, uid,
+// kind 'weight'|'waist', day 'yyyy-MM-dd' local, measured_at_utc, value TEXT, updated_at_hlc), unique
+// on uid and on (kind, day). The uid of a measurement is DERIVED from kind and day, so two devices
+// recording one day's weight write the same record and the later stamp wins. Existing plates keep a
+// NULL slot; nothing else changes, so no row is lost.
 //
 // There are deliberately NO database-level foreign keys: the references are enforced in use-cases,
 // and the delete cascade is one explicit transaction (which also writes the tombstones). There is
@@ -62,6 +71,7 @@ export const TABLE_NAMES = [
   'saved_meal_item',
   'recipe',
   'recipe_item',
+  'body_measurement',
   'tombstone',
 ] as const;
 
@@ -250,6 +260,30 @@ function migrateToV4(db: SqlHandle, env: VaultEnv): void {
    )`);
 }
 
+/**
+ * v4 -> v5. Check-before-alter and `IF NOT EXISTS`, so re-running after a rolled-back user_version
+ * changes nothing and loses no row. The measurement uid is derived (see the header), so unlike the
+ * v4 uids it is not drawn from the store's uid generator and is not part of its sequence.
+ */
+export const V5_STATEMENTS: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS body_measurement (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     uid TEXT NOT NULL,
+     kind TEXT NOT NULL,
+     day TEXT NOT NULL,
+     measured_at_utc TEXT NOT NULL,
+     value TEXT NOT NULL,
+     updated_at_hlc TEXT NOT NULL
+   )`,
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_body_measurement_uid ON body_measurement (uid)',
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_body_measurement_day ON body_measurement (kind, day)',
+];
+
+function migrateToV5(db: SqlHandle): void {
+  if (!columnsOf(db, 'plate_log').has('slot')) db.run('ALTER TABLE plate_log ADD COLUMN slot TEXT');
+  for (const statement of V5_STATEMENTS) db.run(statement);
+}
+
 /** Step `n` (0-based) upgrades a database from version n to n + 1. Each must be re-runnable. */
 const MIGRATIONS: readonly ((db: SqlHandle, env: VaultEnv) => void)[] = [
   (db) => {
@@ -269,6 +303,8 @@ const MIGRATIONS: readonly ((db: SqlHandle, env: VaultEnv) => void)[] = [
   },
   // v4: uid, updated_at_hlc, tombstone (see the header of this file).
   migrateToV4,
+  // v5: body measurements and the plate's meal (see the header of this file).
+  (db) => migrateToV5(db),
 ];
 
 if (MIGRATIONS.length !== SCHEMA_VERSION) {

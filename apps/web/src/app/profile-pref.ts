@@ -2,30 +2,54 @@
  * The optional profile (`KV_KEYS.profile`, JSON), kept in the ENCRYPTED key/value table with the
  * other preferences, so it goes with "Erase all local data" and into the JSON export. No profile
  * is the absence of the row. Read once when the session is built, then synchronously readable
- * (`current`) and observable (`subscribe`); the daily guide (`targets`) is derived from it and
- * stable between changes. An unreadable or malformed row reads as no profile; a write that fails
- * changes nothing and throws, so the screen can say so.
+ * (`current`) and observable (`subscribe`); the daily guide (`targets`, `guide`) is derived from it
+ * and from the latest weigh-in, and stable between changes. An unreadable or malformed row reads
+ * as no profile; a write that fails changes nothing and throws, so the screen can say so.
+ *
+ * The person's dated body measurements (docs/adr/0008) live in their own synced table behind the
+ * `MeasurementStore`; this holds the latest of each kind so the guide follows a new weight at once.
  */
-import { dailyTargetsFor, sanitizeProfile, type DailyTargets, type Profile } from '@anc/core';
+import {
+  dailyGuideFor,
+  sanitizeProfile,
+  type BodyMeasurement,
+  type DailyGuide,
+  type DailyTargets,
+  type EpochMs,
+  type MeasurementKind,
+  type MeasurementStore,
+  type Profile,
+} from '@anc/core';
 import { KV_KEYS, type KeyValueStore } from '../storage/key-value-store';
 
 export class ProfilePref {
   private profile: Profile | undefined;
-  private derived: DailyTargets = dailyTargetsFor();
+  private body: readonly BodyMeasurement[] = [];
+  private derived: DailyGuide = dailyGuideFor();
   private unreadable = false;
   private readonly listeners = new Set<() => void>();
 
-  constructor(private readonly kv: KeyValueStore) {}
+  constructor(
+    private readonly kv: KeyValueStore,
+    private readonly measurements?: MeasurementStore,
+  ) {}
 
   /** Read the stored profile (call once when the session is built). Never throws. */
   async load(): Promise<void> {
     try {
-      this.apply(await this.read());
+      this.apply(await this.read(), await this.readBody());
       this.unreadable = false;
     } catch {
       this.unreadable = true;
-      this.apply(undefined);
+      this.apply(undefined, []);
     }
+  }
+
+  /** All dated measurements, newest day first; an unreadable list reads as none. */
+  private async readBody(): Promise<readonly BodyMeasurement[]> {
+    if (this.measurements === undefined) return [];
+    const listed = await this.measurements.list();
+    return listed.kind === 'measurement' ? listed.value : this.body;
   }
 
   /**
@@ -34,7 +58,7 @@ export class ProfilePref {
    */
   async refresh(): Promise<void> {
     try {
-      this.apply(await this.read());
+      this.apply(await this.read(), await this.readBody());
       this.unreadable = false;
     } catch {
       this.unreadable = true;
@@ -58,10 +82,41 @@ export class ProfilePref {
   current = (): Profile | undefined => this.profile;
 
   /** The daily guide for the current profile (the EU reference intakes without one). */
-  targets = (): DailyTargets => this.derived;
+  targets = (): DailyTargets => this.derived.targets;
 
-  /** Whether a profile drives the guide (sex, age band and activity are all set). */
-  personal = (): boolean => this.derived !== dailyTargetsFor();
+  /** The guide with how it was worked out (`explanation`) and any calm notice. */
+  guide = (): DailyGuide => this.derived;
+
+  /** Whether the person's own figures drive the guide (not the EU reference intakes). */
+  personal = (): boolean => this.derived.personal;
+
+  /** Every dated measurement, newest day first. */
+  measurementList = (): readonly BodyMeasurement[] => this.body;
+
+  /** The most recent measurement of a kind, if any. */
+  latest = (kind: MeasurementKind): BodyMeasurement | undefined =>
+    this.body.find((m) => m.kind === kind);
+
+  /** Record (or replace the day's) measurement, then re-read; throws when it could not be kept. */
+  async record(kind: MeasurementKind, value: number, at: EpochMs, day?: string): Promise<void> {
+    if (this.measurements === undefined) throw new Error('no measurement store');
+    const result = await this.measurements.record({
+      kind,
+      value,
+      measuredAtUtc: at,
+      ...(day === undefined ? {} : { day }),
+    });
+    if (result.kind !== 'measurement') throw new Error(`measurement ${result.reason}`);
+    this.apply(this.profile, await this.readBody());
+  }
+
+  /** Remove one day's measurement of a kind; throws when it could not be done. */
+  async removeMeasurement(kind: MeasurementKind, day: string): Promise<void> {
+    if (this.measurements === undefined) throw new Error('no measurement store');
+    const result = await this.measurements.remove(kind, day);
+    if (result.kind !== 'measurement') throw new Error(`measurement ${result.reason}`);
+    this.apply(this.profile, await this.readBody());
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -75,17 +130,43 @@ export class ProfilePref {
     const clean = sanitizeProfile(next);
     if (clean === undefined) await this.kv.delete(KV_KEYS.profile);
     else await this.kv.write(KV_KEYS.profile, JSON.stringify(clean));
-    this.apply(clean);
+    this.apply(clean, this.body);
   }
 
+  /** Clears the profile answers only (height included); the dated measurements stay. */
   clear(): Promise<void> {
     return this.set(undefined);
   }
 
-  private apply(next: Profile | undefined): void {
-    if (JSON.stringify(next) === JSON.stringify(this.profile)) return;
+  /**
+   * Removes EVERY dated measurement, each leaving a tombstone that syncs to the other devices. It
+   * reads the list from the store itself, not from the cached one, so a row another device just
+   * pulled in and this screen has not shown yet goes too. Throws when one could not be removed.
+   */
+  async removeAllMeasurements(): Promise<void> {
+    if (this.measurements === undefined) throw new Error('no measurement store');
+    const listed = await this.measurements.list();
+    if (listed.kind !== 'measurement') throw new Error(`measurement ${listed.reason}`);
+    try {
+      for (const m of listed.value) {
+        const result = await this.measurements.remove(m.kind, m.day);
+        if (result.kind !== 'measurement') throw new Error(`measurement ${result.reason}`);
+      }
+    } finally {
+      this.apply(this.profile, await this.readBody());
+    }
+  }
+
+  private apply(next: Profile | undefined, body: readonly BodyMeasurement[]): void {
+    if (
+      JSON.stringify(next) === JSON.stringify(this.profile) &&
+      JSON.stringify(body) === JSON.stringify(this.body)
+    ) {
+      return;
+    }
     this.profile = next;
-    this.derived = dailyTargetsFor(next);
+    this.body = body;
+    this.derived = dailyGuideFor(next, this.latest('weight')?.value);
     for (const listener of [...this.listeners]) listener();
   }
 

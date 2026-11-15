@@ -122,5 +122,6 @@ nav:
           - The encrypted store: adr/0005-web-encrypted-store.md
           - Calm nutrition numbers: adr/0006-nutrition-numbers-calm-framing.md
           - The encrypted vault: adr/0007-encrypted-vault.md
+          - Goals, body data and your daily guide: adr/0008-goals-body-data-daily-guide.md
   - Videos: videos.md
   - FAQ: faq.md

@@ -27,6 +27,7 @@ export const en = {
     breakfast: 'Breakfast',
     lunch: 'Lunch',
     dinner: 'Dinner',
+    snack: 'Snack',
     late: 'Late',
   },
   lineBar: {
@@ -483,7 +484,7 @@ export const en = {
       coachingSwitchHelpOn:
         'On: after you log a plate, and when you ask the coach, your meal data goes to the destination below. You can turn this off at any time.',
       coachingSent:
-        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), and what you type in Ask the coach along with the earlier answers of that conversation. Never your photos, never your passphrase. With nutrition numbers turned off, weights and nutrients are left out.',
+        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), your daily guide, rounded, which is worked out from your weight and height if you entered them, and what you type in Ask the coach along with the earlier answers of that conversation. Never the weight, height or waist themselves, never your photos, never your passphrase. With nutrition numbers turned off, weights, nutrients and the daily guide are left out.',
       coachingDestinationInstance:
         'Destination: {host}, this server, which passes it on to {label}.',
       coachingDestinationByok: 'Destination: {host}, the service you chose.',
@@ -517,7 +518,7 @@ export const en = {
   },
   erase: {
     title: 'Erase everything on this device?',
-    body: 'Your plates, coach notes, saved AI key and exports still on this device will be deleted for good. Copies you shared or downloaded elsewhere are not affected.',
+    body: 'Your plates, coach notes, body measurements, saved AI key and exports still on this device will be deleted for good. Copies you shared or downloaded elsewhere are not affected.',
     confirm: 'Erase',
     keep: 'Keep my data',
     failed:
@@ -826,6 +827,9 @@ export const en = {
     referenceUnderOnePersonal: 'less than 1% of your daily guide ({reference})',
     /** A value above zero that rounds to 0%. */
     referenceUnderOne: 'less than 1% of the EU reference intake ({reference})',
+    /** The opt-in line (Settings, Nutrition): the ONLY place this wording may appear. Plain text. */
+    distanceTo: 'about {amount} kcal to your daily guide',
+    distancePast: 'about {amount} kcal past your daily guide',
     barsLabel: 'Nutrient amounts against reference intakes',
     coverage: {
       one: 'Based on {count} food with a weight and nutrition data; {missing} without.',
@@ -835,7 +839,7 @@ export const en = {
     whatAreBody:
       'Reference intakes are the daily amounts set in EU Regulation 1169/2011 for an average adult eating 2000 kcal a day. Fibre has no EU value; 25 g is a general recommendation. Your own needs may differ, and the bars are information, not a target.',
     whatAreBodyPersonal:
-      'The bars use your daily guide, worked out from the profile you chose in Settings: energy from European (EFSA) reference values for your age range, sex and activity, and the other nutrients scaled from it. It is an estimate for an average adult, not advice, and the bars are information, not a target. Without a profile, the EU reference intakes are used (2000 kcal a day).',
+      'The bars use your daily guide, worked out from the profile you chose in Settings: your age range, sex, activity, and your weight and height if you entered them, with European (EFSA) reference values and the Henry (2005) equations. It is an estimate, usually within about 10 %, not advice, and the bars are information, not a target. A bar goes on past the tick when an amount is above the guide; the figure says how much. Without a profile, the EU reference intakes are used (2000 kcal a day).',
   },
   /** Eating-disorder support: always available, calm, one canonical organisation per language. */
   support: {
@@ -846,20 +850,48 @@ export const en = {
   profile: {
     title: 'Profile',
     intro:
-      'Optional. It only tunes the daily guide and the coach. It stays encrypted on this device.',
+      'Optional. It tunes your daily guide and the coach. It stays encrypted on this device, and in your backup if you make one. When AI coaching is on, your goal, diet, allergies, age range, sex and activity are sent to the coach, along with your daily guide, rounded. Your weight, height and waist never are.',
     notSet: 'Not set',
     ageBand: 'Age range',
     sex: 'Sex',
     activity: 'Activity',
     goal: 'Goal',
     diet: 'Diet',
+    aboutTitle: 'About you',
+    aboutHelp: 'Your age range, sex and activity set the starting point of your daily guide.',
+    bodyTitle: 'Body',
+    bodyHelp:
+      'Optional. A height and a weight make your guide more personal. Without a weight, an average adult weight is used.',
+    goalTitle: 'Goal',
+    goalHelp:
+      'Your goal sets how your daily guide moves from the energy that keeps your weight steady.',
+    guideTitle: 'Your daily guide',
+    foodTitle: 'Food',
+    foodHelp: 'Your diet and allergies tune what the coach suggests.',
     sexOptions: { female: 'Female', male: 'Male', unspecified: 'Prefer not to say' },
-    activityOptions: { low: 'Mostly seated', moderate: 'Some movement', high: 'Very active' },
+    activityOptions: {
+      low: 'Mostly seated',
+      moderate: 'Some movement',
+      high: 'Active',
+      veryHigh: 'Very active',
+    },
+    activityHelp: {
+      low: 'Desk or home most of the day, little exercise.',
+      moderate: 'On your feet for part of the day, or light exercise a few times a week.',
+      high: 'On your feet most of the day, or regular exercise on most days.',
+      veryHigh: 'Physical work, or hard training on most days.',
+    },
     goalOptions: {
       eatBetter: 'Eat better',
       maintain: 'Stay as I am',
-      lose: 'Lose a little weight',
-      gain: 'Gain a little weight',
+      lose: 'Lose weight',
+      gain: 'Gain weight',
+    },
+    goalEffect: {
+      eatBetter: 'The daily guide stays at the energy that keeps your weight steady.',
+      maintain: 'The daily guide stays at the energy that keeps your weight steady.',
+      lose: 'The daily guide is a little below the energy that keeps your weight steady.',
+      gain: 'The daily guide is a little above the energy that keeps your weight steady.',
     },
     dietOptions: {
       omnivore: 'Everything',
@@ -871,12 +903,165 @@ export const en = {
     allergiesHelp: 'Type one at a time, then add it.',
     allergyAdd: 'Add',
     allergyRemove: 'Remove {tag}',
-    guideComplete: 'Your daily guide is about {energy} kcal.',
+    units: 'Units',
+    unitsHelp: 'Only changes how lengths and weights are shown and typed.',
+    unitsOptions: { metric: 'kg and cm', imperial: 'lb and ft/in' },
+    heightLabel: 'Height',
+    heightHelp: 'Used with your weight to make the guide more personal.',
+    heightCm: 'Height in cm',
+    heightFt: 'Feet',
+    heightIn: 'Inches',
+    heightSave: 'Save height',
+    heightRemove: 'Remove height',
+    weightLabel: 'Current weight',
+    weightHelp:
+      'Saving a weight adds a dated weigh-in for today. A second one the same day replaces it.',
+    weightKg: 'Weight in kg',
+    weightLb: 'Weight in lb',
+    weightSave: 'Save weight',
+    weightFrom: 'Last: {value} on {date}.',
+    weighIns: 'Recent weigh-ins',
+    weighInRemove: 'Remove the weigh-in of {date}',
+    waistLabel: 'Waist (optional)',
+    waistCm: 'Waist in cm',
+    waistIn: 'Waist in inches',
+    waistSave: 'Save waist',
+    waistFrom: 'Measured on {date}: {value}.',
+    waistRemove: 'Remove the waist measurement of {date}',
+    waistHow: 'How to measure',
+    waistHowBody:
+      'Stand relaxed and measure midway between the lowest rib and the top of the hip bone, after breathing out, with the tape snug but not pressing.',
+    unitKg: 'kg',
+    unitLb: 'lb',
+    unitCm: 'cm',
+    unitIn: 'in',
+    errorNumber: 'Please type a number, for example {example}.',
+    errorHeight: 'Please type a height between {min} and {max} {unit}.',
+    errorHeightImperial: 'Please type a height between {min} and {max}.',
+    errorInches: 'Inches go from 0 to 11.9.',
+    heightFtIn: '{feet} ft {inches} in',
+    errorWeight: 'Please type a weight between {min} and {max} {unit}.',
+    errorWaist: 'Please type a waist between {min} and {max} {unit}.',
+    pace: 'Pace',
+    paceOptions: { gentle: 'Gentle', standard: 'Standard', faster: 'Faster' },
+    paceHelpLose: {
+      gentle: 'About 250 kcal a day below the energy that keeps your weight steady.',
+      standard: 'About 500 kcal a day below the energy that keeps your weight steady.',
+      faster:
+        'About 750 kcal a day below, never more than a quarter of the energy that keeps your weight steady.',
+    },
+    paceHelpGain: {
+      gentle: 'About 250 kcal a day above the energy that keeps your weight steady.',
+      standard: 'About 250 kcal a day above the energy that keeps your weight steady.',
+      faster: 'About 400 kcal a day above the energy that keeps your weight steady.',
+    },
+    paceExpectationLose:
+      'About 0.25 to 0.75 kg a week at first, slowing over time. 5 to 10 % of your weight in six months is a realistic result. These are estimates, not promises.',
+    paceExpectationLoseImperial:
+      'About 0.5 to 1.5 lb a week at first, slowing over time. 5 to 10 % of your weight in six months is a realistic result. These are estimates, not promises.',
+    paceExpectationGain: 'Gaining slowly is easier to keep. These are estimates, not promises.',
+    pregnantLabel: 'I am pregnant or breastfeeding',
+    pregnantHelp: 'Then your daily guide does not aim to lose weight.',
+    pregnantNote:
+      'The guide does not account for the extra needs of pregnancy or breastfeeding. A midwife or a doctor is the right person to ask.',
+    guideComplete: 'Your daily guide is about {energy} kcal and {protein} g of protein.',
     guideIncomplete:
       'Set sex, age range and activity to tailor the daily guide. Until then the EU reference intake is used.',
-    goalNote: 'A goal only moves the energy guide by 10 %, and never below 1500 kcal.',
+    guideMakePersonal:
+      'It uses an average adult weight. Enter your weight in Body to make it personal.',
+    noticeHeld:
+      'Your daily guide stays at what keeps your weight steady. If you want to lose weight, talking to a doctor or a dietitian first can help.',
+    noticeOlder:
+      'After 65, weight loss is best decided with a doctor. Your daily guide stays at what keeps your weight steady.',
+    noticeGain:
+      'Your daily guide stays at what keeps your weight steady. If you want to gain weight, talking to a doctor or a dietitian first can help.',
+    noticeBodyUnknownLose:
+      'To work out a weight-loss guide, add your height and your weight in Body. Until then your daily guide is the energy that keeps your weight steady.',
+    noticeBodyUnknownGain:
+      'To work out a weight-gain guide, add your height and your weight in Body. Until then your daily guide is the energy that keeps your weight steady.',
+    noticeHeldRaised:
+      'Your daily guide is {floor} kcal, the lowest figure used for a guide, a little above what keeps your weight steady. If you want to lose weight, talking to a doctor or a dietitian first can help.',
+    noticeOlderRaised:
+      'After 65, weight loss is best decided with a doctor. Your daily guide is {floor} kcal, the lowest figure used for a guide, a little above what keeps your weight steady.',
+    noticeFloor: 'Your daily guide is kept at {floor} kcal at least.',
+    noticeFloorRaised:
+      'Your daily guide is {floor} kcal, the lowest figure used for a guide, a little above what keeps your weight steady.',
+    how: 'How this is worked out',
+    howResting:
+      'Resting energy: about {kcal} kcal a day, from the Henry (2005) equations, using {inputs}.',
+    howInputsWeightHeight: 'your weight and height',
+    howInputsWeight: 'your weight',
+    howInputsReference: 'an average adult weight, because no weight is set',
+    howActivity: 'Activity: multiplied by {pal} for “{activity}”.',
+    howMaintenance: 'The energy that keeps your weight steady: about {kcal} kcal.',
+    howAdjustLess: 'Your goal and pace: {kcal} kcal a day below that.',
+    howAdjustMore: 'Your goal and pace: {kcal} kcal a day above that.',
+    howNone: 'Your goal asks for no change to that.',
+    howCustom: 'You set this figure yourself.',
+    howFloorLimited:
+      'A deficit of that size would take the guide below {floor} kcal, the lowest figure used for a guide, so it is set at {floor} kcal.',
+    howFloorRaised:
+      'What keeps your weight steady is estimated below {floor} kcal, the lowest figure used for a guide, so the guide is set at {floor} kcal.',
+    howHeld:
+      'A safeguard decided this figure: your daily guide stays at what keeps your weight steady instead of moving below it.',
+    howHeldUnknown:
+      'Your height and weight are needed first, so for now your guide is what keeps your weight steady.',
+    howCustomIgnoredFloor:
+      'Your own figure was below {floor} kcal, the lowest figure used for a guide, so it was not used.',
+    howCustomIgnoredSafeguard:
+      'Your own figure was below what keeps your weight steady while the safeguard above applies, so it was not used.',
+    howSteps:
+      'These rules have thresholds, so the guide can change in steps rather than smoothly: a small change in your weight or height can move it by a few hundred kcal.',
+    howProtein: 'Protein: {perKg} g per kg of {basis}, about {grams} g.',
+    howBasisWeight: 'your weight',
+    howBasisBmi25: 'the weight at a BMI of 25 (your BMI is above 30)',
+    howBasisReference: 'an average adult weight',
+    howBasisCapped:
+      'the weight at a BMI of 30 for an average height, because no height is set and your weight is above it',
+    howOthers:
+      'Fat is 35 % of the energy and saturates 10 %; carbohydrate is the rest. Fibre is {fibre} g (30 g is a common aim) and salt 6 g, the EU label reference.',
+    howAccuracy:
+      'This is an estimate, usually within about 10 %. It is a starting point you can change, not advice.',
+    customToggle: 'Set my own guide',
+    customHelp: 'Type the daily energy you want as your guide. It replaces the computed one.',
+    customLabel: 'Daily energy in kcal',
+    customSave: 'Use this figure',
+    customReset: 'Go back to the computed guide',
+    customActive: 'You are using your own figure: {kcal} kcal.',
+    customRefused:
+      'The figure you set is below {floor} kcal, so the computed guide is used instead.',
+    customRefusedSafeguard:
+      'The figure you set is below what keeps your weight steady, and your daily guide is held there for now, so the computed guide is used instead. A lower figure is best set with a doctor or a dietitian.',
+    errorCustomSafeguard:
+      'That is lower than what keeps your weight steady, and your daily guide is held there for now. A lower figure is best set with a doctor or a dietitian.',
+    errorCustomRange: 'Please type a figure between {min} and {max} kcal.',
+    errorCustomFloor:
+      'That is lower than the lowest figure used for a guide ({floor} kcal). A guide that low is best set with a doctor or a dietitian.',
+    guideNumbersOff: 'Nutrition numbers are hidden, so the figures are not shown here.',
+    guideNumbersOffLink: 'Show them in Settings, Nutrition',
+    bmiToggle: 'Body mass index and waist-to-height ratio',
+    bmiIntro:
+      'Two plain numbers some people like to know. They are rough, say nothing about you as a person, and can be left closed.',
+    bmiValue: 'Body mass index (BMI): {value}.',
+    bmiNeeds: 'Enter a height and a weight to see a BMI.',
+    bmiRanges:
+      'Reference ranges for adults (WHO): below 18.5; 18.5 to 24.9; 25 to 29.9; 30 or more.',
+    bmiCaveats:
+      'A BMI is less reliable with a muscular build, at 65 and over, and in pregnancy. For people of South Asian, Chinese, other Asian, Middle Eastern, Black African or African-Caribbean background, lower cut-offs are used: 23 and 27.5 in place of 25 and 30.',
+    whtrValue: 'Waist-to-height ratio: {value}.',
+    whtrNeeds: 'Enter a height and a waist to see a waist-to-height ratio.',
+    whtrRanges: 'Reference ranges for adults (NICE): 0.4 to 0.49; 0.5 to 0.59; 0.6 or more.',
+    whtrNotUseful:
+      'The waist-to-height ratio is not a useful extra measure at a BMI of 35 or more.',
     clear: 'Clear profile',
     cleared: 'Profile cleared.',
+    removeMeasurements: 'Remove all measurements',
+    measurementsRemoved: 'Measurements removed.',
+    removeMeasurementsTitle: 'Remove all measurements?',
+    removeMeasurementsBody:
+      'This removes every weigh-in and every waist measurement. It applies on every device that syncs with this one, and it cannot be undone.',
+    removeMeasurementsConfirm: 'Remove them all',
+    removeMeasurementsKeep: 'Keep them',
     saveFailed: 'That did not save just now. Nothing changed.',
   },
   nutritionSettings: {
@@ -884,6 +1069,9 @@ export const en = {
     switchTitle: 'Show nutrition numbers',
     switchHelp:
       'If numbers about food feel stressful, you can hide nutrient values and bars. Weights and your meals stay.',
+    distanceTitle: 'Show the distance to my daily guide',
+    distanceHelp:
+      'Adds one plain line under the energy bar with how far the day is from your daily guide, in kcal. Nothing changes colour and nothing is counted. Off unless you turn it on.',
     saveFailed: 'That did not save just now. The switch stays where it was.',
   },
   /** Log again: copy a plate or a day, recent foods, saved meals, home recipes. */
@@ -1191,7 +1379,7 @@ export const en = {
     exportHeading: 'Export',
     eraseLabel: 'Erase local data',
     eraseExplain:
-      'Removes your history, coach notes, saved AI key and any exports still on this device. Copies you shared or downloaded elsewhere are not affected. There is no other copy of your data, so this cannot be undone — export first if you want to keep one.',
+      'Removes your history, coach notes, body measurements, saved AI key and any exports still on this device. Copies you shared or downloaded elsewhere are not affected. There is no other copy of your data, so this cannot be undone — export first if you want to keep one.',
     eraseButton: 'Erase all local data',
   },
   /** ExportStrings (the earlier client) and the export lines of app_en.arb. */
@@ -1223,7 +1411,7 @@ export const en = {
     failedFormat: 'That file format is not available.',
     failedDelivery: 'export failed — try again',
     failedSaved:
-      'Your saved meals and recipes could not be read just now, so nothing was exported. Nothing was lost; you can try again.',
+      'Your saved meals, recipes or body measurements could not be read just now, so nothing was exported. Nothing was lost; you can try again.',
   },
   /**
    * The encrypted backup file (phase S1 of docs/encrypted-sync-plan.md). Copy awaiting the named
@@ -1232,7 +1420,7 @@ export const en = {
   backup: {
     heading: 'Encrypted backup',
     explain:
-      'One file with your plates, coach notes, saved meals, recipes, profile and language, locked with a passphrase. Keep it somewhere you trust: it is the way back if this browser ever loses your data. It never includes your AI key or AI settings.',
+      'One file with your plates, coach notes, saved meals, recipes, profile, body measurements and language, locked with a passphrase. Keep it somewhere you trust: it is the way back if this browser ever loses your data. It never includes your AI key or AI settings.',
     suggest:
       'Using the same passphrase as the one that unlocks this app means one thing to remember. Any passphrase works.',
     warning:
@@ -1297,7 +1485,7 @@ export const en = {
     intro: 'A plain list. Nothing here is hidden, and nothing about you is collected.',
     storedHeading: 'Stored on this device, encrypted',
     storedBody:
-      'Your plates and the foods in them, the coach notes shown with them, your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked. The one exception is your chosen language, which is also kept as a plain note on this device so the unlock screen can use it; it reveals nothing else.',
+      'Your plates and the foods in them, the coach notes shown with them, your profile and, if you enter them, your height, weight and waist (dated), your choices (such as your AI settings and these notices) and, if you add one, your AI key. All of it is encrypted on this device. The key is made from your passphrase and kept only while the app is unlocked. The one exception is your chosen language, which is also kept as a plain note on this device so the unlock screen can use it; it reveals nothing else.',
     leavesHeading: 'What leaves this device, and when',
     leavesBarcode:
       'Scanning a barcode: the barcode number is looked up on Open Food Facts, a public database with no account. Only the barcode is sent. Open Food Facts also sees the internet details any website sees: your internet address, your device or browser type and the address of this site (the browser adds it as the Origin header). You can turn this off below.',
@@ -1306,10 +1494,10 @@ export const en = {
     leavesInstance:
       'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
     leavesCoaching:
-      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile. Weights and nutrients are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
+      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile, and your daily guide, rounded, which is worked out from your weight and height if you entered them (never the weight, height or waist themselves). Weights, nutrients and the daily guide are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
     // Awaiting named-reviewer sign-off (ADR 0007, "Copy sign-off").
     leavesServerCopy:
-      'Backing up to this server: only if the person who runs this server turned it on and you choose Back up to this server in Settings, Your data. An encrypted copy of your data is then sent to this server, locked on this device before it leaves, and updated shortly after you make changes while the app is unlocked. This server sees the handle you chose, when the copy changes and how big it is, plus your internet address and browser type, like any website. It cannot read your foods, times, notes or profile, and it never receives your passphrase. You can stop at any time in Settings, Your data.',
+      'Backing up to this server: only if the person who runs this server turned it on and you choose Back up to this server in Settings, Your data. An encrypted copy of your data is then sent to this server, locked on this device before it leaves, and updated shortly after you make changes while the app is unlocked. This server sees the handle you chose, when the copy changes and how big it is, plus your internet address and browser type, like any website. It cannot read your foods, times, notes, profile or body measurements, and it never receives your passphrase. You can stop at any time in Settings, Your data.',
     offToggle: 'Look up barcodes on Open Food Facts',
     offToggleOn: 'On: a scanned barcode is looked up online.',
     offToggleOff:
@@ -1334,7 +1522,7 @@ export const en = {
     backupHeading: 'Encrypted backups',
     // Awaiting named-reviewer sign-off (ADR 0007, "Copy sign-off").
     backupBody:
-      'Settings, Your data, Save an encrypted backup writes one file, locked on this device with a passphrase you choose (Argon2id and AES-256-GCM). It holds your plates, coach notes, saved meals, recipes, profile and language, and never your AI key, AI settings or consents. Nothing is uploaded: the file goes where you save it. If you forget its passphrase it cannot be opened — not by us, not by anyone. Restoring merges it into what is already on the device.',
+      'Settings, Your data, Save an encrypted backup writes one file, locked on this device with a passphrase you choose (Argon2id and AES-256-GCM). It holds your plates, coach notes, saved meals, recipes, profile, body measurements and language, and never your AI key, AI settings or consents. Nothing is uploaded: the file goes where you save it. If you forget its passphrase it cannot be opened — not by us, not by anyone. Restoring merges it into what is already on the device.',
     sharedHeading: 'Shared devices',
     sharedBody:
       'Everyone who can open AI Nutrition Coach in this browser profile and knows the passphrase sees the same history; there are no separate in-app profiles. For separate histories use a separate device or a separate browser profile, each with its own passphrase.',

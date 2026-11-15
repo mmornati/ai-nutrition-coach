@@ -33,6 +33,53 @@ describe('NutritionScreen', () => {
     ).toBeVisible();
   });
 
+  it('the distance to the daily guide is OFF by default, with a one-sentence description', async () => {
+    await renderInSession(<NutritionScreen />, { bundle: await unlockedBundle() });
+    const distance = screen.getByRole('switch', { name: 'Show the distance to my daily guide' });
+    expect(distance).not.toBeChecked();
+    expect(screen.getByText(/Adds one plain line under the energy bar/)).toBeVisible();
+  });
+
+  it('turning the distance on is kept in the encrypted store as "on", and survives a new session', async () => {
+    const bundle = await unlockedBundle();
+    const first = await renderInSession(<NutritionScreen />, { bundle });
+    await userEvent.click(
+      screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+      ).toBeChecked(),
+    );
+    expect(await bundle.kv.read(KV_KEYS.uiShowDistanceToGuide)).toBe('on');
+    // The numbers switch is untouched.
+    expect(screen.getByRole('switch', SWITCH)).toBeChecked();
+    first.unmount();
+    await renderInSession(<NutritionScreen />, { bundle });
+    expect(
+      screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+    ).toBeChecked();
+    await userEvent.click(
+      screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+    );
+    await waitFor(async () =>
+      expect(await bundle.kv.read(KV_KEYS.uiShowDistanceToGuide)).toBeNull(),
+    );
+  });
+
+  it('a distance switch that cannot be kept stays where it was, and says so', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<NutritionScreen />, { bundle });
+    vi.spyOn(bundle.kv, 'write').mockRejectedValue(new Error('locked'));
+    await userEvent.click(
+      screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+    );
+    expect(await screen.findByText(/did not save just now/)).toBeVisible();
+    expect(
+      screen.getByRole('switch', { name: 'Show the distance to my daily guide' }),
+    ).not.toBeChecked();
+  });
+
   it('turning it off is kept in the encrypted store and survives a new session', async () => {
     const bundle = await unlockedBundle();
     const first = await renderInSession(<NutritionScreen />, { bundle });

@@ -32,7 +32,9 @@ describe('ProfilePref', () => {
     await next.load();
     expect(next.current()?.goal).toBe('lose');
     expect(next.personal()).toBe(true);
-    expect(next.targets().energyKcal).toBe(1800);
+    // No height and no weight: a deficit needs a known BMI, so the guide is held at maintenance.
+    expect(next.targets().energyKcal).toBe(2000);
+    expect(next.guide().explanation.notice).toBe('bodyUnknown');
   });
 
   it('targets are stable between changes and notify once per change', async () => {
@@ -112,5 +114,89 @@ describe('ProfilePref', () => {
     expect(Object.keys(decoded)).toEqual(['plates', 'profile']);
     expect(decoded['profile']).toEqual(FULL);
     expect(Object.keys(JSON.parse(serializePlatesToJson([])) as object)).toEqual(['plates']);
+  });
+
+  it("the daily guide follows the latest weigh-in, and a new one replaces the day's, and is read back in a new session", async () => {
+    const { kv, measurements } = await unlockedBundle();
+    const pref = new ProfilePref(kv, measurements);
+    await pref.set({ ...FULL, heightCm: 165 });
+    const before = pref.targets().energyKcal;
+    expect(pref.guide().explanation.equation).toBe('referenceWeight');
+    const t = Date.parse('2026-08-16T07:00:00.000Z');
+    await pref.record('weight', 80, t, '2026-08-16');
+    expect(pref.latest('weight')?.value).toBe(80);
+    expect(pref.guide().explanation.equation).toBe('weightHeight');
+    expect(pref.targets().energyKcal).toBeGreaterThan(before);
+    await pref.record('weight', 60, t + 3_600_000, '2026-08-16'); // the same day: replaces
+    expect(pref.measurementList()).toHaveLength(1);
+    expect(pref.latest('weight')?.value).toBe(60);
+    const next = new ProfilePref(kv, measurements);
+    await next.load();
+    expect(next.latest('weight')?.value).toBe(60);
+    expect(next.targets()).toEqual(pref.targets());
+    await next.removeMeasurement('weight', '2026-08-16');
+    expect(next.guide().explanation.equation).toBe('referenceWeight');
+  });
+
+  it('notifies once per change, also for a measurement, and clear / removeAllMeasurements do one thing each', async () => {
+    const { kv, measurements } = await unlockedBundle();
+    const pref = new ProfilePref(kv, measurements);
+    const listener = vi.fn();
+    pref.subscribe(listener);
+    await pref.set(FULL);
+    await pref.record('weight', 70, Date.now());
+    await pref.record('waist', 80, Date.now());
+    expect(listener).toHaveBeenCalledTimes(3);
+    await pref.clear();
+    expect(pref.current()).toBeUndefined();
+    expect(pref.measurementList()).toHaveLength(2); // the answers only
+    expect(await kv.read(KV_KEYS.profile)).toBeNull();
+    await pref.removeAllMeasurements();
+    expect(pref.measurementList()).toEqual([]);
+    const listed = await measurements.list();
+    expect(listed.kind === 'measurement' && listed.value).toEqual([]);
+  });
+
+  it('removeAllMeasurements goes through the store: a row this device has not refreshed yet goes too, with a tombstone', async () => {
+    const { kv, measurements, vault } = await unlockedBundle();
+    const pref = new ProfilePref(kv, measurements);
+    await pref.record('weight', 70, Date.now());
+    expect(pref.measurementList()).toHaveLength(1);
+    // Another device's weigh-in arrives (here: written straight to the store), the cache is stale.
+    await measurements.record({
+      kind: 'weight',
+      value: 71,
+      measuredAtUtc: Date.now() - 86_400_000,
+      day: '2020-01-01',
+    });
+    await measurements.record({ kind: 'waist', value: 80, measuredAtUtc: Date.now() });
+    expect(pref.measurementList()).toHaveLength(1);
+    await pref.removeAllMeasurements();
+    const listed = await measurements.list();
+    expect(listed.kind === 'measurement' && listed.value).toEqual([]);
+    const read = await vault.readSnapshot();
+    expect(read.kind === 'vault' && read.value.tombstones.map((t) => t.table)).toEqual([
+      'body_measurement',
+      'body_measurement',
+      'body_measurement',
+    ]);
+    expect(pref.measurementList()).toEqual([]);
+  });
+
+  it('a measurement that cannot be kept throws and changes nothing', async () => {
+    const { kv, measurements } = await unlockedBundle();
+    const pref = new ProfilePref(kv, measurements);
+    await expect(pref.record('weight', 5, Date.now())).rejects.toThrow(); // under 20 kg
+    expect(pref.measurementList()).toEqual([]);
+  });
+
+  it('is erased, with every measurement, by "Erase all local data"', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.measurements.record({ kind: 'weight', value: 70, measuredAtUtc: Date.now() });
+    await bundle.eraser.eraseAll();
+    await bundle.controller.initialize();
+    await bundle.controller.createStore('a long enough passphrase');
+    const listed = await bundle.measurements.list();
+    expect(listed.kind === 'measurement' && listed.value).toEqual([]);
   });
 });

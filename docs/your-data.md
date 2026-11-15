@@ -78,12 +78,19 @@ What this means in practice:
 
 ## Your profile
 
-*Settings → Profile* is optional: an age range, sex, activity, a goal, a diet and a few free
-allergy tags, all "Not set" by default. There is no name, no birth date, no weight and no height.
-It only tunes the daily guide (the reference the nutrient bars are drawn against) and the coach.
-It is one row in the encrypted key/value table (`profile`), readable only after you unlock,
-deleted by *Clear profile* and by *Erase all local data*, and included in the JSON export (see
-below). Without a profile the bars use the EU Reference Intakes.
+*Settings → Profile* is optional: an age range, sex, activity, a goal and its pace, a diet and a few free
+allergy tags, all "Not set" by default, and, if you choose to enter them, your height, your weight and your
+waist. There is no name and no birth date (an age range only). Weight and waist are dated weigh-ins, kept in
+their own table (`body_measurement`, schema v5), one per calendar day per kind; the height is part of the
+profile. All of it tunes your daily guide (the reference the nutrient bars are drawn against) and the coach.
+The profile is one row in the encrypted key/value table (`profile`); everything is readable only after you
+unlock, encrypted at rest like the rest of your data, synced with the encrypted vault if you turn sync on,
+included in the JSON export (see below), and deleted by *Erase all local data*. *Clear profile* clears the answers
+(the height included); the weigh-ins and waists are removed separately, by *Remove all measurements*, which asks first
+and applies on every device that syncs. Without a profile the bars use the EU Reference Intakes. Weight, height, waist
+and BMI themselves are never sent to an AI; the coach receives your daily guide, rounded, which is worked out from
+your weight and height if you entered them.
+The earlier promise "no weight and no height" no longer holds: they are optional, and they stay yours.
 
 ## Your saved meals and recipes
 

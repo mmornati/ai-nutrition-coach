@@ -1,0 +1,82 @@
+# ADR 0008: Goals, optional body data and "your daily guide"
+
+Status: accepted · 2026-11-15
+Supersedes: the public promise "no weight and no height" (`docs/your-data.md`, `docs/guide/settings.md`, `PRODUCT.md` "no biometrics") and the "a goal only moves the energy guide by 10 %" rule. Amends [ADR 0006](0006-nutrition-numbers-calm-framing.md) and `docs/no-dark-patterns-standard.md` for the points below.
+
+## Context
+
+The optional profile (age range, sex, activity, goal) gave a daily guide that could only be a rough reference: no height or weight, so no personal resting energy, no protein per kilogram, and a goal that nudged the figure by 10 %. The full application audit (`reports/audit-2026-11-15.md`) found that the goals did not do what a person choosing "lose a little weight" would expect, and that people who want to lose weight were left without help from a tool that holds their food data.
+
+The maintainer decided on 2026-11-15 that the rule to protect is again pressure, not information. Body measurements the person chooses to enter are information they already know. What stays banned is a verdict on the person and a sense of an allowance being spent.
+
+## Decision
+
+**1. The personal energy figure is "your daily guide"** (French: "votre repère du jour"). It is a reference to understand a day against, not a target to hit and not a limit.
+
+- Going past it is visible but neutral: same colour, plain text ("about 112 % of your daily guide").
+- One new, opt-in, per-person setting, off by default, in *Settings → Nutrition*: **Show the distance to my daily guide**. When on, one plain text line states the distance: "about 450 kcal to your daily guide", and once past it "about 120 kcal past your daily guide". No colour change, no icon, no countdown ring, no allowance-being-spent visual, and never in the coach's voice. It is stored as the key/value setting `ui.showDistanceToGuide`.
+
+**2. Optional body data is allowed.** Height, weight (dated weigh-ins) and waist (dated), all optional, all inside the encrypted store, synced with the vault, included in the export and erased by *Erase all local data* and *Clear profile*. The profile gains `heightCm`, `units` (metric or imperial; storage is always metric), `pace` (gentle, standard, faster), `customEnergyKcal`, `pregnantOrBreastfeeding` and the activity level `veryHigh`. Weigh-ins and waist live in a new synced table, `body_measurement` (weight in kg, 20 to 400, stored to two decimals so that a weight typed in pounds comes back as the same pounds; waist in cm, 30 to 250, one decimal; one per calendar day per kind: a second entry the same day replaces the first). Plates gain a nullable meal slot (breakfast, lunch, dinner, snack, late). This ships as schema version 5. **Older data stays readable:** a snapshot tagged with a schema version below 5 (an `.ancvault` backup or a relay copy written by the previous app) is parsed with the v4 key set, with no measurements and every plate's slot `null`, and is a v5 snapshot once read; a v4-tagged snapshot that carries a v5 key is malformed, and a newer version is still refused.
+
+- **Birth date stays banned.** Age remains an age band.
+- **BMI and the waist-to-height ratio** may be shown as plain numbers next to the WHO and NICE reference ranges written as text ("Reference ranges for adults: 18.5 to 24.9 ..."), behind a disclosure, never as a label attached to the person ("you are overweight"), never colour-coded. The caveats are shown with them: a muscular build, age 65 and over, pregnancy, and the lower ranges of 23 and 27.5 for people of South Asian, Chinese, other Asian, Middle Eastern, Black African or African-Caribbean background.
+
+**3. The coach may help with weight loss when the person chose that goal.** The rule is recorded here; it is implemented in a later lot. It never moves outside the person's chosen goal, never praises or blames a change in weight, and follows the safeguards below.
+
+**4. No server accounts** (unchanged) and **adaptive expenditure estimation is out of scope**: the guide is computed from the profile, not from a person's logged intake and weight history.
+
+## Evidence defaults
+
+The guide is an estimate, usually within about 10 %. It is worked out like this.
+
+- **Resting energy.** Henry (2005) equations from weight and height when both are known; the weight-only equations when only weight is known; a reference-weight fallback otherwise (EFSA 2013, scientific opinion on dietary reference values for energy). The age bands are 18-29 (Henry 18-29), 30-49 (Henry 30-59) and 65+ (Henry 60+); the 50-64 band straddles Henry's 30-59 and 60+ ranges (60-64 belongs to 60+), so it uses the mean of the two equations.
+- **Activity (PAL).** 1.4 (low), 1.6 (moderate), 1.8 (high), 2.0 (very high).
+- **Goal adjustment.**
+
+| Goal | Adjustment |
+| --- | --- |
+| Lose | A deficit by pace: gentle -250, standard -500, faster -750 kcal per day, capped at 25 % of maintenance (the cap is floored to the 50 kcal below, so it is never exceeded). With no pace chosen, gentle. Only when the BMI is known and at least 18.5. |
+| Gain | +250 (gentle or standard) or +400 (faster) kcal per day. Only when the BMI is known and below 30. |
+| Maintain, eat better | 0. |
+
+- **Floors.** 1500 kcal (male or unspecified) and 1200 kcal (female). The guide is never set below the floor by a goal. When the deficit of the chosen pace would cross the floor but at least 250 kcal (the gentle step) still fits between maintenance and the floor, the guide is the floor and the explanation says so. When less than that fits, no deficit is applied at all: the guide stays at maintenance and the calm line under Safeguards is shown (the 250 kcal threshold is itself a convention). When the estimate of maintenance is itself under the floor, the guide is raised to the floor whatever the goal, and the screen says so with the floor wording ("the lowest figure used for a guide, a little above what keeps your weight steady"), never as an effect of "your goal and pace".
+- **Protein.** 0.83 g per kg of body weight; 1.0 g per kg at 65 and over; 1.2 g per kg when a deficit is applied. Computed on actual weight; on the weight at a BMI of 25 when the BMI is above 30 and the height is known; on the actual weight capped at the weight of a BMI of 30 at the reference stature of the sex when no height is known (1.76 m for men, 1.63 m for women, the reference statures behind the EFSA 2013 reference weights; the mean of the two weights for "prefer not to say"), so a large weight without a height cannot inflate it (300 kg gives about 77 g from the base rule, not 250 g); the reference weight when no weight is known. The figure is then bounded: at least 40 g, at most 160 g, and never more than 30 % of energy, so that carbohydrate stays at 35 % of energy or more.
+- **Fat** 35 % of energy; **saturates** 10 % of energy; **carbohydrate** the remainder; **sugars** 90 g scaled by energy over 2000; **fibre** 25 g (30 g is named as the aim in the explanation text only); **salt** 6 g, the EU label reference.
+
+Sources named in the app and the docs: Henry (2005), the Henry equations as used by EFSA; EFSA (2013) energy opinion; EFSA (2012) protein opinion and ANSES; the AHA/ACC/TOS 2013 obesity guideline; NICE NG246 (2025) on overweight and obesity management; CDC guidance on adult BMI and healthy weight; and the NIH Body Weight Planner, a dynamic model in which weight loss slows over time.
+
+Be plain about what these figures are. **The floors of 1500 and 1200 kcal, and the rule-of-thumb "5 to 10 % of body weight in six months", are conventions from clinical guidance practice, not clinical thresholds.** They are used because they are widely accepted starting points, and they are labelled that way.
+
+## What stays banned
+
+- Birth date (age band only).
+- The banned vocabulary stays banned by default: maximum, limit, budget, exceeded, over, and remaining as pressure. The only place the wording "to your daily guide" and "past your daily guide" may appear is the opt-in distance line above.
+- Labels on the person ("overweight", "underweight", "obese", "healthy weight" as a verdict).
+- Colour-coding of BMI, of the waist-to-height ratio, of a weight or of any chart.
+- Countdown rings, progress rings and any allowance-being-spent visual.
+- The coach's voice for the distance line: the coach never quotes it.
+- Weekly weight-change targets used as scores, streaks of weigh-ins, weigh-in reminders by default, charts coloured good or bad.
+
+## Safeguards
+
+- **The guide stays at maintenance, with no deficit, and a calm fixed line shows the pointer to support or a professional,** when: the goal is lose and BMI is below 18.5; the guide could only be reached below the floor; the person is pregnant or breastfeeding; or the person is 65 or over with a BMI below 30. The line reads: "Your daily guide stays at what keeps your weight steady. If you want to lose weight, talking to a doctor or a dietitian first can help." For 65 and over: "After 65, weight loss is best decided with a doctor. Your daily guide stays at what keeps your weight steady."
+- **A deficit needs a known body.** With the goal to lose weight and no height or no weight (the BMI is unknown), the guide stays at maintenance and a calm notice asks for height and weight to work out a weight-loss guide. A BMI under 18.5 holds it too. The same for the goal to gain: the BMI must be known and below 30; unknown holds with a notice asking for the same, 30 or more gives no surplus.
+- **The pregnancy and breastfeeding flag** is ignored by the guide when the sex is male and is cleared when the person switches to male. Under the checkbox one calm line says the guide does not account for the extra needs of pregnancy or breastfeeding and that a midwife or a doctor is the right person to ask.
+- **A custom energy figure** set by the person is accepted from the floor up, with one exception: wherever a safeguard above holds the guide at maintenance (pregnant or breastfeeding, a BMI under 18.5, 65 and over with a BMI under 30 or unknown, the goal to lose weight with an unknown BMI), a figure below the maintenance estimate is refused in the form with a calm explanation and ignored by the guide (`customRefused` carries the reason), and the notice is shown; a figure at or above maintenance is accepted. The "How this is worked out" disclosure says what happened.
+- **One weigh-in per calendar day per kind**; a second the same day replaces the first.
+- **No** weekly weight-change targets as scores, no streaks of weigh-ins, no weigh-in reminders by default, no charts coloured good or bad.
+- **Weight, height, waist and BMI are never sent to any AI.** What the coach receives is "your daily guide, rounded, which is worked out from your weight and height if you entered them": the guide is encoded by one helper (`coarseGuideJson`) before it is sent, energy rounded to the nearest 100 kcal and protein and the other gram figures to the nearest 10 g, because the precise protein figure is a factor times the weight. The screens keep the precise figures. `docs/ai-tiers.md` and the in-app copy say exactly this. A later lot would need its own ADR to send more.
+- **Discontinuities.** The floor, the cap and the safeguards are thresholds, so the guide can move by a few hundred kcal for a small change of weight or height. No smoothing is applied; the disclosure says so honestly when the floor or a safeguard decided the figure.
+- **The support line** ("If food or weight worries take up a lot of your thoughts, talking to someone can help.", with the link) also sits next to the goal and pace choice, always (not only for a weight goal), and once in the Body section, covering weight, height and waist, besides the places listed in the standard.
+- **Removing measurements.** *Clear profile* clears the answers only. *Remove all measurements* is a separate action behind the app's confirm dialog; it names what is removed and that it applies on every device that syncs, and it deletes through the store so that rows another device just synced go too.
+- **Numbers off.** With nutrition numbers turned off, the Profile's guide section shows no kcal, protein, maintenance, BMI or waist-to-height figure; the notices stay, with a line saying figures are hidden and a link to *Settings, Nutrition*.
+
+## Consequences
+
+- **The public promise changes.** "No weight and no height" is removed from `docs/your-data.md`, `docs/guide/settings.md`, `PRODUCT.md` (Users, Positioning, Capabilities, Principles), `docs/features.md`, `docs/faq.md`, the README and the website text. What stays true: no name, no birth date, no account, nothing readable by the server.
+- **More health data.** Weight together with what a person eats is health data under GDPR Article 9. `docs/self-host.md` carries a short non-legal note for operators. The server only ever sees ciphertext.
+- **Adults only is unchanged.** Age is still an age band; body measurements are not age and not an identity. "No biometric identification" is unchanged: height, weight and waist are measurements the person types, not biometric identifiers.
+- **Sync, export and erase cover the new data.** The new synced table is `body_measurement`; the new key/value keys include `ui.showDistanceToGuide`. Merge is by uid like every other table (ADR 0007), the JSON export includes them, and erase removes them.
+- **The AI context** gains nothing about the person's body: the daily guide it already carried is now sent rounded (see Safeguards), and the copy says it is worked out from the weight and height if entered.
+- **Tests.** Copy tests pin the opt-in distance wording to its one place and keep the banned vocabulary banned everywhere else; calculation tests pin the equations, floors, caps and safeguards; day-boundary and daylight-saving tests cover "one weigh-in per calendar day" and the meal slot.
+- **Risk.** Weight can be a sensitive subject. Mitigation: everything is optional, the safeguards above, the support line beside every body-data entry point, and the named-reviewer gate on every copy change.

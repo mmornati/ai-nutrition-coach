@@ -89,3 +89,41 @@ describe('classifyForDate (Day Board slots)', () => {
     });
   });
 });
+
+describe('a plate filed under a chosen meal (schema v5)', () => {
+  const chosen = (id: number, h: number, slot: 'snack' | 'dinner' | 'late' | 'breakfast') => ({
+    ...at(id, h),
+    slot,
+  });
+
+  it('goes in the meal the person chose, wherever its hour falls', () => {
+    const board = classifyForDate(
+      [chosen(1, 10, 'snack'), at(2, 12), chosen(3, 12, 'dinner')],
+      day,
+    );
+    expect(dayBoardSlot(board, 'snack').plates.map((p) => p.id)).toEqual([1]);
+    expect(dayBoardSlot(board, 'lunch').plates.map((p) => p.id)).toEqual([2]);
+    expect(dayBoardSlot(board, 'dinner').plates.map((p) => p.id)).toEqual([3]);
+  });
+
+  it('plates without a choice keep deriving from the time, as before', () => {
+    const board = classifyForDate([at(1, 8), at(2, 23, 30)], day);
+    expect(dayBoardSlot(board, 'breakfast').plates.map((p) => p.id)).toEqual([1]);
+    expect(dayBoardSlot(board, 'late').plates.map((p) => p.id)).toEqual([2]);
+    expect(isSlotOpen(dayBoardSlot(board, 'snack'))).toBe(true);
+  });
+
+  it('the snack is its own row, after dinner and before late, drawn only when it holds a plate', () => {
+    const empty = classifyForDate([at(1, 12)], day);
+    expect(visibleSlots(empty).map((s) => s.slot)).toEqual(['breakfast', 'lunch', 'dinner']);
+    const used = classifyForDate([at(1, 12), chosen(2, 15, 'snack'), at(3, 23, 30)], day);
+    expect(visibleSlots(used).map((s) => s.slot)).toEqual([
+      'breakfast',
+      'lunch',
+      'dinner',
+      'snack',
+      'late',
+    ]);
+    expect(allPlates(used).map((p) => p.id)).toEqual([1, 2, 3]);
+  });
+});

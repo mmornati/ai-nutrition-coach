@@ -4,6 +4,7 @@ import {
   instantForSlot,
   isSameLocalDay,
   mealSlotForHour,
+  type MealSlot,
   startOfLocalDay,
   type FoodEntryDraft,
   type PlateLog,
@@ -207,12 +208,17 @@ export function EditPlateSheet({
   readonly plate: PlateLog;
   readonly onClose: () => void;
   /** Resolves true when the edited plate was stored. */
-  readonly onSave: (drafts: readonly FoodEntryDraft[], loggedAtUtc: number) => Promise<boolean>;
+  readonly onSave: (
+    drafts: readonly FoodEntryDraft[],
+    loggedAtUtc: number,
+    slot: MealSlot | null,
+  ) => Promise<boolean>;
 }) {
   const all = useStrings();
   const p = all.plate;
   const { clock } = useSession();
-  const originalSlot = mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
+  const originalSlot: MealSlot =
+    plate.slot ?? mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
   const plateDay = startOfLocalDay(plate.loggedAtUtc);
   // Each food on the sheet carries a local id, so removing one does not shift the rows' own state.
   const nextId = useRef(plate.entries.length);
@@ -276,7 +282,9 @@ export function EditPlateSheet({
       : Math.min(instantForSlot({ day: choice.day, slot: choice.slot, now }), now);
     let saved: boolean;
     try {
-      saved = await onSave(drafts, at);
+      // Unchanged day and meal: the plate keeps what it had (a chosen meal, or none). Moved: the
+      // meal now chosen is kept.
+      saved = await onSave(drafts, at, unchanged ? (plate.slot ?? null) : choice.slot);
     } catch {
       saved = false;
     }

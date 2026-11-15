@@ -1,4 +1,5 @@
 import type {
+  BodyMeasurement,
   EncryptedStore,
   Exporter,
   FoodEntry,
@@ -67,10 +68,25 @@ function recipeToJson(recipe: Recipe): Record<string, unknown> {
   };
 }
 
+/** Weight in kg, waist in cm: the stored units, whatever the person's display units are. */
+export const MEASUREMENT_UNIT = Object.freeze({ weight: 'kg', waist: 'cm' });
+
+function measurementToJson(m: BodyMeasurement): Record<string, unknown> {
+  return {
+    kind: m.kind,
+    day: m.day,
+    measuredAtUtc: new Date(m.measuredAtUtc).toISOString(),
+    value: m.value,
+    unit: MEASUREMENT_UNIT[m.kind],
+  };
+}
+
 function plateToJson(plate: PlateLog): Record<string, unknown> {
   return {
     id: plate.id,
     loggedAtUtc: new Date(plate.loggedAtUtc).toISOString(),
+    // The meal the person chose (schema v5); absent when it is derived from the time.
+    ...(plate.slot !== undefined ? { meal: plate.slot } : {}),
     entries: plate.entries.map(entryToJson),
   };
 }
@@ -78,13 +94,15 @@ function plateToJson(plate: PlateLog): Record<string, unknown> {
 /**
  * The top-level `{"plates": [...]}` envelope, so fields can be added without breaking consumers.
  * Plates, plus the optional `profile` key when the person set one (the only preference exported),
- * and the `savedMeals` and `recipes` keys when the person keeps any. No coach notes, settings or
- * notices. The CSV carries none of these.
+ * the `savedMeals` and `recipes` keys when the person keeps any, and `bodyMeasurements` (dated
+ * weigh-ins and waist, SI units) when they entered any. No coach notes, settings or notices. The
+ * CSV carries none of these (body measurements have their own CSV file).
  */
 export function serializePlatesToJson(
   plates: readonly PlateLog[],
   profile?: Profile,
   saved?: SavedExport,
+  measurements?: readonly BodyMeasurement[],
 ): string {
   return JSON.stringify({
     plates: plates.map(plateToJson),
@@ -94,6 +112,9 @@ export function serializePlatesToJson(
       : {}),
     ...(saved !== undefined && saved.recipes.length > 0
       ? { recipes: saved.recipes.map(recipeToJson) }
+      : {}),
+    ...(measurements !== undefined && measurements.length > 0
+      ? { bodyMeasurements: measurements.map(measurementToJson) }
       : {}),
   });
 }

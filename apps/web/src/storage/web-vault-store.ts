@@ -64,7 +64,7 @@ export class WebVaultStore implements VaultStore {
       const outcome = await db.applyVault(parsed.snapshot);
       if (outcome === 'clockAhead') return vaultFailed('clockAhead');
       if (outcome === 'conflict') return vaultFailed('invalid');
-      this.bus.emit('plates', 'notes', 'dismissals', 'saved', 'kv');
+      this.bus.emit('plates', 'notes', 'dismissals', 'saved', 'kv', 'measurements');
       return vaultOk(null);
     } catch (error) {
       if (isProgrammingError(error)) throw error;

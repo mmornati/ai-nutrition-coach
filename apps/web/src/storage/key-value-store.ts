@@ -41,6 +41,11 @@ export const KV_KEYS = Object.freeze({
   uiLocale: 'ui.locale',
   /** `off` when the person hid nutrition numbers; absent means shown (the default). */
   uiShowNumbers: 'ui.showNumbers',
+  /**
+   * `on` when the person asked for the plain text line with the distance to their daily guide
+   * (docs/adr/0008); absent means off (the default). Synced with the vault like the numbers switch.
+   */
+  uiShowDistanceToGuide: 'ui.showDistanceToGuide',
   /** The optional `Profile` as JSON; absent means no profile. Included in the JSON export. */
   profile: 'profile',
   // The connection of THIS device to a relay vault (phase S2). All device-only: they never enter a

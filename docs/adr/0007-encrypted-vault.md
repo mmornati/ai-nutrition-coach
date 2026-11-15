@@ -4,6 +4,8 @@ Status: accepted; S0 (groundwork), S1 (encrypted backup file, no server) and S2 
 Resolves: PRD open question OQ-1 (the sync path left open by FR-10), `_bmad-output/planning-artifacts/prds/prd-openplate-2026-08-12/prd.md`.
 Builds on: [ADR 0005](0005-web-encrypted-store.md) (the local encrypted store, unchanged by this ADR). The full plan, with phases and rough sizes, is [`docs/encrypted-sync-plan.md`](https://github.com/mmornati/ai-nutrition-coach/blob/main/docs/encrypted-sync-plan.md); this ADR keeps the decisions.
 
+> Later addition (ADR [0008](0008-goals-body-data-daily-guide.md), schema v5): the synced snapshot also carries the table `body_measurement` and the new `kv` keys (such as `ui.showDistanceToGuide`).
+
 ## Context
 
 FR-10 asks for "sync across their own devices … on user-controlled infrastructure only", and leaves the path (a self-hosted relay or manual export and import) open as OQ-1. AD-6 already says writes are local-first, a sync adapter drains a durable outbox to user-controlled infrastructure, and a record is `synced` only after a durable remote acknowledgement. The repository has only the seam: ports, an in-memory queue and a local-only adapter that never reports `drained`. Export exists, import does not, and the JSON export is not a full-fidelity dump.

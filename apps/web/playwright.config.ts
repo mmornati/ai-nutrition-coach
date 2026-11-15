@@ -38,6 +38,7 @@ const STORE_SPECS = [
   'journey',
   'relog',
   'edit',
+  'profile',
   'backup',
   'sync',
 ];

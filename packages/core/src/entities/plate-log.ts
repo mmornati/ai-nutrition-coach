@@ -1,4 +1,5 @@
 import { frozenList, type EpochMs } from '../common';
+import type { MealSlot } from '../day/meal-slot';
 import type { FoodEntry } from './food-entry';
 
 /**
@@ -10,16 +11,20 @@ export interface PlateLog {
   readonly id: number;
   readonly loggedAtUtc: EpochMs;
   readonly entries: readonly FoodEntry[];
+  /** The meal the person filed it under; absent = derived from `loggedAtUtc` (schema v5). */
+  readonly slot?: MealSlot;
 }
 
 export function plateLog(input: {
   readonly id: number;
   readonly loggedAtUtc: EpochMs;
   readonly entries: Iterable<FoodEntry>;
+  readonly slot?: MealSlot | null | undefined;
 }): PlateLog {
   return {
     id: input.id,
     loggedAtUtc: input.loggedAtUtc,
     entries: frozenList(input.entries),
+    ...(input.slot ? { slot: input.slot } : {}),
   };
 }

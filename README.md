@@ -56,7 +56,7 @@ nothing.
 
 |     |     |
 | --- | --- |
-| **Real numbers, no pressure** | Grams and nutrients per plate and per day, as plain values and neutral bars against EU reference intakes, or a daily guide tuned by your optional profile. No streaks, badges, points, countdowns, "calories remaining" or red "over budget" states. Numbers can be hidden in one switch if they feel stressful. |
+| **Real numbers, no pressure** | Grams and nutrients per plate and per day, as plain values and neutral bars against EU reference intakes, or your daily guide, tuned by an optional profile that can include height, weight and waist (encrypted, erasable; weight, height and waist are never sent to an AI, the coach receives only a rounded daily guide). No streaks, badges, points, countdowns, "calories remaining" or red "over budget" states. Numbers can be hidden in one switch if they feel stressful. |
 | **Yours, not ours** | No account. Your history lives in an encrypted database in your browser, opened by a passphrase only you know. The server serves the app and holds none of your data. |
 | **Proved, not promised** | Every trust claim below names the test that proves it, and a release gate fails the build if a proof goes missing. |
 | **AI is optional** | The no-AI app is complete: type it, describe, paste a recipe, the coach's questions and the week review all run on the device, offline. Add your own key, or use the AI your server's operator offers, when you want photo recognition or a coach that writes. |
@@ -85,7 +85,7 @@ nothing.
         <li><b>Nutrition</b>: energy, protein, carbohydrate, sugars, fat, saturated fat, fibre, salt, against EU reference intakes</li>
         <li><b>This week</b>: seven towels, daily averages, a short rule-based review</li>
         <li><b>The coach asks</b> a question, never a verdict; with AI and your yes, it writes notes and answers in <b>Ask the coach</b></li>
-        <li><b>Optional profile</b> (age range, activity, goal, diet, allergies) tunes the daily guide</li>
+        <li><b>Optional profile</b> (age range, activity, goal and pace, diet, allergies, and height, weight and waist if you choose) tunes your daily guide</li>
         <li>About 3,500 generic foods from the <b>CIQUAL</b> table, shipped with the app</li>
       </ul>
     </td>

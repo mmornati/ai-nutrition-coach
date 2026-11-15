@@ -14,6 +14,7 @@ export const SYNCED_KV_KEYS: readonly string[] = Object.freeze([
   'privacy.aboutAckAtUtc',
   'profile',
   'ui.locale',
+  'ui.showDistanceToGuide',
   'ui.showNumbers',
 ]);
 
@@ -75,6 +76,8 @@ export function isValidKvValue(key: string, value: string): boolean {
       return value === 'system' || value === 'en' || value === 'fr';
     case 'ui.showNumbers':
       return value === 'off';
+    case 'ui.showDistanceToGuide':
+      return value === 'on';
     case 'profile':
       return isJsonObjectText(value);
     case 'export.lastAtUtc':

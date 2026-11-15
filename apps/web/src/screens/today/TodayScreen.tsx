@@ -337,6 +337,7 @@ export function TodayScreen() {
                 className="mx-5 mt-6 lg:mx-7"
                 title={viewingToday ? all.nutrition.sectionTitleToday : all.nutrition.sectionTitle}
                 nutrition={dayTotals}
+                distance
                 fixHref={(entry) => hrefs.plateEdit(entry.plateLogId)}
               />
             </>
