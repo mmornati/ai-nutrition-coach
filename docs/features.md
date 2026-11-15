@@ -85,6 +85,14 @@ as information about a product, never as a score of you.
 
 More: [Nutrients, against the EU reference intakes](guide/day-and-week.md#nutrients-against-the-eu-reference-intakes).
 
+## Weigh-ins, trend and history
+
+An optional, one-tap weigh-in (weight for any past day, a waist if you like), a smoothed trend drawn as one ink line,
+the weeks as ticks, and what you logged each day against your daily guide, on a **Trends** screen. Descriptive
+only: "lower than", "higher than", never a target, a streak, a reminder or a colour for better or worse. A calm line
+appears if the trend falls faster than about 1 % a week. A short first-run welcome sets up your goal and guide, and
+you can move back through earlier weeks on the week screen. See [Trends](guide/progress.md).
+
 ## The coach
 
 The coach asks rather than tells. After a plate it may offer one question, with *Sure* and *Ask later*; dismissing it

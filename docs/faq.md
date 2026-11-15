@@ -23,6 +23,11 @@ No. Both are optional, as is the waist. If you enter them, your daily guide beco
 on your device (and in your encrypted backup or sync), you can export and erase them, and they are never sent to an
 AI (the coach receives your daily guide, rounded, which is worked out from them). The app never asks for a name or a birth date. See [Settings](./guide/settings.md#profile).
 
+### Does it remind me to weigh myself?
+
+No. There are no reminders, no notifications and no "you have not weighed in" lines. A weigh-in is something you add
+when you want to; [Trends](./guide/progress.md) shows a trend through them, in words, without a target.
+
 ### Can it help me lose weight?
 
 If you choose that goal and have entered your height and weight, yes, gently: a modest pace, a floor your daily guide

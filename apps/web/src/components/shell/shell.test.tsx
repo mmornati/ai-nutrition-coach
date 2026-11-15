@@ -60,7 +60,7 @@ describe('AppShell', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Today', 'Week', 'Settings']);
+    ).toEqual(['Today', 'Week', 'Trends', 'Settings']);
   });
 
   it('on a phone the dock holds only the route; Log a plate is a floating ink pill above it', () => {

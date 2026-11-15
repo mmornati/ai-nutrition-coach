@@ -40,6 +40,9 @@ import { useStoreSnapshot } from '../../app/store-context';
 import { PlateCoach, useDismissals } from './coach';
 import { plateSummary } from '../plate/summary';
 import { CopyDayDialog } from './CopyDayDialog';
+import { GuideHint } from './GuideHint';
+import { PaceNotice } from '../progress/PaceNotice';
+import { WeighInSheet } from '../progress/WeighInSheet';
 
 const QUICK_REPEAT_MS = 5000;
 
@@ -109,6 +112,7 @@ export function TodayScreen() {
   const [removing, setRemoving] = useState<PlateLog | null>(null);
   const [busy, setBusy] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [weighing, setWeighing] = useState(false);
 
   useNoticeTimeout(day.notice, () => day.setNotice(null));
 
@@ -263,8 +267,8 @@ export function TodayScreen() {
           ? fill(plural(a.relog.copiedDayPartial, recorded), { total })
           : a.common.logFailed,
     );
-    // Only a complete copy moves on to today: after a failure the rest can be tried again here.
-    if (failedPlates.length === 0) day.select(day.today);
+    // Only a complete copy moves on to today (and its week, so the copied plates are in view): after a failure the rest can be tried again here.
+    if (failedPlates.length === 0) day.goToToday();
   };
 
   const dayTotals = useMemo(
@@ -282,6 +286,16 @@ export function TodayScreen() {
       <p role="status" className="text-thread mx-5 mt-3 text-meta empty:hidden lg:mx-7">
         {day.notice}
       </p>
+      {(!viewingToday || day.viewingEarlierWeek) && (
+        <button
+          type="button"
+          onClick={day.goToToday}
+          className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+        >
+          {s.backToToday}
+        </button>
+      )}
+      <GuideHint />
       {copyPlan.length > 0 && (
         <button
           type="button"
@@ -342,11 +356,25 @@ export function TodayScreen() {
               />
             </>
           )}
+          <button
+            type="button"
+            onClick={() => setWeighing(true)}
+            className="text-ink-soft mx-5 mt-2 flex min-h-12 w-fit cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+          >
+            {s.weighInLink}
+          </button>
+          <PaceNotice className="mx-5 mt-2 lg:mx-7" />
           <a
             href={hrefs.week}
             className="text-ink-soft mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
           >
             {s.seeWeekNetwork}
+          </a>
+          <a
+            href={hrefs.progress}
+            className="text-ink-soft mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
+          >
+            {s.seeProgress}
           </a>
           <a
             href={hrefs.coach}
@@ -362,6 +390,7 @@ export function TodayScreen() {
           <NoStreaksLine className="mt-4" />
         </section>
       </div>
+      <WeighInSheet open={weighing} onClose={() => setWeighing(false)} />
       <CopyDayDialog
         open={copying}
         lines={linesOf(copyPlan)}

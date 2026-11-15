@@ -73,6 +73,8 @@ describe('check_accessibility_floor', () => {
       'PrivacyScreen',
       'InstallScreen',
       'AboutScreen',
+      'ProgressScreen',
+      'WelcomeScreen',
     ]) {
       expect(names).toContain(screen);
     }

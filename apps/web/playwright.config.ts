@@ -39,6 +39,7 @@ const STORE_SPECS = [
   'relog',
   'edit',
   'profile',
+  'progress',
   'backup',
   'sync',
 ];

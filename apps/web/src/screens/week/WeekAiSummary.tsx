@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { containsNumberWithUnit, type WeeklyReview } from '@anc/core';
+import { addCalendarDays, containsNumberWithUnit, type WeeklyReview } from '@anc/core';
 
+import { useDay } from '../../app/day-context';
 import { hrefs } from '../../app/router';
 import { useSession } from '../../app/session';
 import { useSessionCoachingStatus, type WeekSummaryResult } from '../../coaching';
+import { formatDayMonthLong } from '../../components/day/format';
 import { Button } from '../../components/primitives';
 import { useShowNumbers } from '../../components/nutrition';
 import { fill, useStrings, type Strings } from '../../i18n';
@@ -38,6 +40,12 @@ function problemText(s: Strings['week']['review']['ai'], result: WeekSummaryResu
 export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
   const s = useStrings().week.review.ai;
   const { summariseWeek } = useSession();
+  const { viewingEarlierWeek, viewEnd } = useDay();
+  // An earlier week says which one it is; the answer is about the week the question was asked on.
+  const span = {
+    from: formatDayMonthLong(addCalendarDays(viewEnd, -6)),
+    to: formatDayMonthLong(viewEnd),
+  };
   const status = useSessionCoachingStatus();
   const showNumbers = useShowNumbers();
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
@@ -64,7 +72,7 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
             busyLabel={s.reading}
             onClick={ask}
           >
-            {s.button}
+            {viewingEarlierWeek ? fill(s.buttonEarlier, span) : s.button}
           </Button>
           <p className="text-body-small text-ink-soft mt-2">
             {fill(s.note, { host: status.destination.host })}
@@ -84,7 +92,9 @@ export function WeekAiSummary({ review }: { readonly review: WeeklyReview }) {
       <div role="status" className="mt-3 empty:hidden">
         {text !== '' ? (
           <>
-            <h3 className="text-lead mb-1 font-semibold">{s.heading}</h3>
+            <h3 className="text-lead mb-1 font-semibold">
+              {viewingEarlierWeek ? fill(s.headingEarlier, span) : s.heading}
+            </h3>
             <p className="text-lead [overflow-wrap:anywhere] whitespace-pre-line">
               {hidden ? s.hiddenByNumbers : text}
             </p>

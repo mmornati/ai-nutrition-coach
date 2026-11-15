@@ -110,6 +110,21 @@ export class ProfilePref {
     this.apply(this.profile, await this.readBody());
   }
 
+  /**
+   * Move a measurement to another day with a new value: the new day's entry is written first, then
+   * the original day's is removed, so a failure leaves the original in place (never neither).
+   */
+  async moveMeasurement(
+    kind: MeasurementKind,
+    fromDay: string,
+    value: number,
+    at: EpochMs,
+    toDay: string,
+  ): Promise<void> {
+    await this.record(kind, value, at, toDay);
+    if (fromDay !== toDay) await this.removeMeasurement(kind, fromDay);
+  }
+
   /** Remove one day's measurement of a kind; throws when it could not be done. */
   async removeMeasurement(kind: MeasurementKind, day: string): Promise<void> {
     if (this.measurements === undefined) throw new Error('no measurement store');

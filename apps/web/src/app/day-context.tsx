@@ -33,8 +33,23 @@ export interface DayState {
   /** The day Today shows (00:00 local). */
   readonly selected: EpochMs;
   readonly select: (day: EpochMs) => void;
-  /** The last seven days' plates, newest first. */
+  /**
+   * Where a new plate lands: the day the person explicitly picked in the strip (or opened from a
+   * link), else today. Browsing an earlier week never moves it.
+   */
+  readonly logDay: EpochMs;
+  /** The plates of the seven days in view (the week ending `viewEnd`), newest first. */
   readonly plates: readonly PlateLog[];
+  /** The last day of the seven in view: today, or an earlier day when an earlier week is shown. */
+  readonly viewEnd: EpochMs;
+  /** An earlier week is in view (the day board, the dock's route and the week screen follow it). */
+  readonly viewingEarlierWeek: boolean;
+  /** Move the week in view back or forward by seven days (never past the week ending today). */
+  readonly shiftWeek: (direction: -1 | 1) => void;
+  /** Back to the week ending today and the day today: one tap from anywhere. */
+  readonly goToToday: () => void;
+  /** Show a day wherever it is: the week that holds it comes into view and the day is selected. */
+  readonly showDay: (day: EpochMs) => void;
   readonly status: PlatesStatus;
   readonly days: readonly WeekDayData[];
   /** One calm line shown on Today (a plate was removed, or could not be). */
@@ -83,15 +98,20 @@ export function DayProvider({ children }: { children: ReactNode }) {
   const { store, clock } = useSession();
   const today = useToday(clock);
   const [chosen, setChosen] = useState<EpochMs | null>(null);
+  // The last day of the week in view; `null` follows today (across midnight too). An earlier week
+  // is anchored to its own day, so it does not slide when the clock rolls over.
+  const [endChosen, setEndChosen] = useState<EpochMs | null>(null);
   const [plates, setPlates] = useState<readonly PlateLog[]>([]);
   const [status, setStatus] = useState<PlatesStatus>('loading');
   const [notice, setNotice] = useMessage();
   const [lastLoggedAt, setLastLoggedAt] = useState<number | null>(null);
   const [durableSeen, setDurableSeen] = useState(false);
 
+  const viewEnd = endChosen !== null && endChosen < today ? endChosen : today;
+
   useEffect(() => {
     return store.watchRange(
-      { from: addCalendarDays(today, -6), to: startOfNextLocalDay(today) },
+      { from: addCalendarDays(viewEnd, -6), to: startOfNextLocalDay(viewEnd) },
       {
         next: (value) => {
           setPlates(value);
@@ -103,23 +123,65 @@ export function DayProvider({ children }: { children: ReactNode }) {
         },
       },
     );
-  }, [store, today]);
+  }, [store, viewEnd]);
 
-  // A selection older than the week (the day rolled over under it) falls back to today.
+  // A selection outside the week in view (the day rolled over under it, or another week was
+  // chosen) falls back to the last day of that week: today, for the current one.
   const selected =
-    chosen !== null && chosen >= addCalendarDays(today, -6) && chosen <= today ? chosen : today;
+    chosen !== null && chosen >= addCalendarDays(viewEnd, -6) && chosen <= viewEnd
+      ? chosen
+      : viewEnd;
+
+  const logDay = chosen !== null && selected === chosen ? chosen : today;
 
   const select = useCallback((day: EpochMs) => setChosen(startOfLocalDay(day)), []);
+  const shiftWeek = useCallback(
+    (direction: -1 | 1) => {
+      setChosen(null);
+      setEndChosen((current) => {
+        const base = current !== null && current < today ? current : today;
+        const next = addCalendarDays(base, 7 * direction);
+        return next >= today ? null : next;
+      });
+    },
+    [today],
+  );
+  const goToToday = useCallback(() => {
+    setChosen(null);
+    setEndChosen(null);
+  }, []);
+  const showDay = useCallback(
+    (day: EpochMs) => {
+      const target = startOfLocalDay(day);
+      if (target >= today) {
+        setEndChosen(null);
+        setChosen(null);
+        return;
+      }
+      // The week that holds it ends at the day `7 * k` days before today, the first whose window includes it.
+      const back = Math.round((today - target) / 86_400_000);
+      const end = addCalendarDays(today, -7 * Math.floor(back / 7));
+      setEndChosen(end >= today ? null : end);
+      setChosen(target);
+    },
+    [today],
+  );
   const markLogged = useCallback(() => setLastLoggedAt(Date.now()), []);
   const markDurableSeen = useCallback(() => setDurableSeen(true), []);
-  const days = useMemo(() => buildWeekDays(plates, today), [plates, today]);
+  const days = useMemo(() => buildWeekDays(plates, today, viewEnd), [plates, today, viewEnd]);
 
   const value = useMemo<DayState>(
     () => ({
       today,
       selected,
       select,
+      logDay,
       plates,
+      viewEnd,
+      viewingEarlierWeek: viewEnd !== today,
+      shiftWeek,
+      goToToday,
+      showDay,
       status,
       days,
       notice,
@@ -133,7 +195,12 @@ export function DayProvider({ children }: { children: ReactNode }) {
       today,
       selected,
       select,
+      logDay,
       plates,
+      viewEnd,
+      shiftWeek,
+      goToToday,
+      showDay,
       status,
       days,
       notice,

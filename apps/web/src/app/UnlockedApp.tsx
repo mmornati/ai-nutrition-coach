@@ -1,11 +1,13 @@
 import { DayProvider } from './day-context';
 import { parseRoute, useHash } from './router';
 import { AskCoachScreen } from '../screens/coach/AskCoachScreen';
+import { ProgressScreen } from '../screens/progress/ProgressScreen';
 import { PlateScreen } from '../screens/plate/PlateScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TodayScreen } from '../screens/today/TodayScreen';
 import { WeekScreen } from '../screens/week/WeekScreen';
 import { LogHost } from '../screens/log/LogHost';
+import { WelcomeHost } from './WelcomeHost';
 import type { UseBarcodeScannerOptions } from '../barcode';
 import type { UsePhotoFlowDeps } from '../capture';
 
@@ -20,6 +22,8 @@ function Routes() {
   switch (route.name) {
     case 'week':
       return <WeekScreen />;
+    case 'progress':
+      return <ProgressScreen />;
     case 'coach':
       return <AskCoachScreen />;
     case 'plate':
@@ -39,7 +43,9 @@ export function UnlockedApp({ scannerOptions, createCapture }: UnlockedAppProps)
         {...(scannerOptions ? { scannerOptions } : {})}
         {...(createCapture ? { createCapture } : {})}
       >
-        <Routes />
+        <WelcomeHost>
+          <Routes />
+        </WelcomeHost>
       </LogHost>
     </DayProvider>
   );

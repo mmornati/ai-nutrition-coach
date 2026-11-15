@@ -74,18 +74,24 @@ export const dayDetail = (stopped: readonly string[], quiet: readonly string[]):
 export const dayDescription = (day: string, state: string): string =>
   sentence(strings().week.dayDescription, { day, state });
 
-export const noteSome = (names: readonly string[]): string =>
-  sentence(strings().week.noteSome, { names: joinNames(names) });
+/** The first and last day of an earlier week, in words ("1 October", "7 October"). */
+export type WeekSpan = { readonly from: string; readonly to: string };
+
+export const noteSome = (names: readonly string[], span?: WeekSpan): string =>
+  span === undefined
+    ? sentence(strings().week.noteSome, { names: joinNames(names) })
+    : sentence(strings().week.noteSomeEarlier, { names: joinNames(names), ...span });
 
 export const noteQuietDays = (name: string, days: readonly string[]): string =>
   sentence(strings().week.noteQuietDays, { name, days: joinNames(days) });
 
 /** Every line that never ran, in ONE sentence: "Dairy stayed quiet all week." / "A and b were quiet this week." */
-export const noteQuietNever = (names: readonly string[]): string => {
+export const noteQuietNever = (names: readonly string[], span?: WeekSpan): string => {
   const w = strings().week;
-  return names.length === 1
-    ? sentence(w.noteQuietAll, { name: names[0] ?? '' })
-    : sentence(w.noteQuietMany, { names: joinNames(names) });
+  if (names.length === 1) return sentence(w.noteQuietAll, { name: names[0] ?? '' });
+  return span === undefined
+    ? sentence(w.noteQuietMany, { names: joinNames(names) })
+    : sentence(w.noteQuietManyEarlier, { names: joinNames(names), ...span });
 };
 
 /** A day as one sentence: "Monday: all four lines." */

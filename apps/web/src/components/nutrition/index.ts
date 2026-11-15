@@ -7,6 +7,7 @@ export {
   energyOf,
   formatAmount,
   formatNutrient,
+  formatReference,
   formatWhole,
   formatWeight,
   previewLine,

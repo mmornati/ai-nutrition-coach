@@ -1,8 +1,9 @@
 // Settings, Profile: optional radio groups, kept in the encrypted store, with the support line.
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
+import { localDayText } from '@anc/core';
 import { renderInSession, renderUnlockedApp, unlockedBundle } from '../../app/testing';
 import { KV_KEYS } from '../../storage';
 import { ProfileScreen } from './ProfileScreen';
@@ -48,6 +49,22 @@ describe('ProfileScreen', () => {
     expect(
       await screen.findByText(/Your daily guide is about 2000 kcal and 49 g of protein/),
     ).toBeVisible();
+  });
+
+  it('three taps in quick succession all land (no write is made over a stale copy)', async () => {
+    const bundle = await unlockedBundle();
+    await renderInSession(<ProfileScreen />, { bundle });
+    // Fired in the same tick, before any write has been applied back to the screen.
+    fireEvent.click(within(group('Age range')).getByRole('radio', { name: '30-49' }));
+    fireEvent.click(within(group('Sex')).getByRole('radio', { name: 'Female' }));
+    fireEvent.click(within(group('Activity')).getByRole('radio', { name: 'Some movement' }));
+    await waitFor(async () =>
+      expect(await stored(bundle)).toEqual({
+        ageBand: '30-49',
+        sex: 'female',
+        activity: 'moderate',
+      }),
+    );
   });
 
   it('radio targets are at least 48px tall', async () => {
@@ -296,6 +313,54 @@ describe('ProfileScreen', () => {
     expect(screen.getByText(/Your goal and pace: 500 kcal a day below that\./)).toBeVisible();
     expect(screen.getByText(/usually within about 10 %/)).toBeVisible();
     expect(screen.queryByText(/thresholds/)).toBeNull();
+    // It says which weigh-in it used and its date, and a recent one gets no nudge.
+    expect(
+      screen.getByText(/^The weight used is 70 kg, from your weigh-in of \w+ \d+, \d{4}\.$/),
+    ).toBeVisible();
+  });
+
+  it('a latest weigh-in older than 60 days adds a quiet line suggesting an update', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(
+      KV_KEYS.profile,
+      JSON.stringify({ sex: 'female', ageBand: '30-49', activity: 'moderate', heightCm: 165 }),
+    );
+    const old = Date.now() - 90 * 86_400_000;
+    await bundle.measurements.record({ kind: 'weight', value: 60, measuredAtUtc: old });
+    await renderInSession(<ProfileScreen />, { bundle });
+    await userEvent.click(await screen.findByText('How this is worked out'));
+    expect(screen.getByText(/The weight used is 60 kg, from your weigh-in of /)).toBeVisible();
+    expect(screen.getByText(/That weigh-in is more than two months old\./)).toBeVisible();
+  });
+
+  it('next to the daily guide: the fixed pace line when the weight trend falls fast, never conditioned on the goal', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.profile, JSON.stringify({ goal: 'maintain' }));
+    for (let i = 30; i >= 0; i--) {
+      await bundle.measurements.record({
+        kind: 'weight',
+        value: 90 - ((30 - i) * 1.5) / 7,
+        measuredAtUtc: Date.now() - i * 86_400_000,
+        day: localDayText(Date.now() - i * 86_400_000),
+      });
+    }
+    await renderInSession(<ProfileScreen />, { bundle });
+    expect(
+      await screen.findByText(/^Your weight is going down faster than about 1 % a week\./),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Choose a pace in Profile' })).toBeVisible();
+  });
+
+  it('with numbers off the Body section echoes no weight or waist figure, but entry still works', async () => {
+    const bundle = await unlockedBundle();
+    await bundle.kv.write(KV_KEYS.uiShowNumbers, 'off');
+    await bundle.measurements.record({ kind: 'weight', value: 70.4, measuredAtUtc: Date.now() });
+    await bundle.measurements.record({ kind: 'waist', value: 88, measuredAtUtc: Date.now() });
+    await renderInSession(<ProfileScreen />, { bundle });
+    await screen.findByRole('heading', { level: 1, name: 'Profile' });
+    const body = screen.getByRole('heading', { level: 2, name: 'Body' }).closest('section');
+    expect(within(body as HTMLElement).queryByText(/70\.4|88/)).toBeNull();
+    expect(within(body as HTMLElement).getByLabelText('Weight in kg')).toBeVisible();
   });
 
   it('without a height or a weight a weight-loss goal holds at maintenance and asks for them; the disclosure says so', async () => {
@@ -557,5 +622,34 @@ describe('ProfileScreen', () => {
     // Every disclosure open, so the axe pass covers all the text.
     for (const summary of document.querySelectorAll('summary')) await userEvent.click(summary);
     expect(await axe(document.body)).toHaveNoViolations();
+  });
+  it('asks once before saving a weight far from the last one, without echoing a figure', async () => {
+    const bundle = await unlockedBundle();
+    const yesterday = Date.now() - 86_400_000;
+    await bundle.measurements.record({
+      kind: 'weight',
+      value: 82,
+      measuredAtUtc: yesterday,
+      day: localDayText(yesterday),
+    });
+    await renderInSession(<ProfileScreen />, { bundle });
+    await userEvent.type(screen.getByLabelText('Weight in kg'), '182');
+    await userEvent.click(screen.getByRole('button', { name: 'Save weight' }));
+    const question = await screen.findByText(
+      'That is quite different from your last weigh-in. Save it as typed?',
+    );
+    expect(question.textContent).not.toMatch(/\d/);
+    expect(screen.getByRole('button', { name: 'Change it' })).toHaveFocus();
+    const before = await bundle.measurements.list('weight');
+    expect(before.kind === 'measurement' && before.value.map((m) => m.value)).toEqual([82]);
+    await userEvent.click(screen.getByRole('button', { name: 'Change it' }));
+    expect(screen.getByLabelText('Weight in kg')).toHaveFocus();
+    expect(screen.getByLabelText('Weight in kg')).toHaveValue('182');
+    await userEvent.click(screen.getByRole('button', { name: 'Save weight' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(async () => {
+      const after = await bundle.measurements.list('weight');
+      expect(after.kind === 'measurement' && after.value.map((m) => m.value)).toEqual([182, 82]);
+    });
   });
 });

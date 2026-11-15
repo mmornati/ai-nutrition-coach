@@ -558,6 +558,7 @@ export const fr: Strings = {
     mainNav: 'Principale',
     today: 'Aujourd’hui',
     week: 'Semaine',
+    progress: 'Évolution',
     settings: 'Réglages',
     logAPlate: 'Noter une assiette',
     logShort: 'Noter',
@@ -611,9 +612,15 @@ export const fr: Strings = {
   },
   week: {
     title: 'Cette semaine',
+    earlierTitle: 'Semaine passée',
+    weekNav: 'Choisir une semaine',
+    earlier: 'Semaine précédente',
+    later: 'Semaine suivante',
+    backToThisWeek: 'Revenir à cette semaine',
     dayByDay: 'Jour par jour',
     noStreaks: 'Ni séries, ni compte à rebours, ni culpabilité.',
     routeLabel: 'Cette semaine : choisissez un jour',
+    routeLabelEarlier: 'Semaine du {from} au {to} : choisissez un jour',
     today: 'Aujourd’hui',
     stateAllFour: 'les quatre groupes',
     stateNone: 'rien de noté',
@@ -634,6 +641,11 @@ export const fr: Strings = {
     dayDetail: '{stopped} ; {quiet}',
     dayDescription: '{day} : {state}',
     noteAllRan: 'Les quatre groupes d’aliments étaient là cette semaine.',
+    noteAllRanEarlier: 'Les quatre groupes d’aliments étaient là la semaine du {from} au {to}.',
+    noteNoneEarlier: 'Aucune assiette notée la semaine du {from} au {to}.',
+    noteNoneRanEarlier: 'Aucun groupe d’aliments la semaine du {from} au {to}.',
+    noteSomeEarlier: 'Présents la semaine du {from} au {to} : {names}.',
+    noteQuietManyEarlier: 'Pas de {names} la semaine du {from} au {to}.',
     noteNone: 'Aucune assiette notée cette semaine pour l’instant.',
     noteNoneRan: 'Aucun groupe d’aliments cette semaine.',
     noteSome: 'Présents cette semaine : {names}.',
@@ -687,7 +699,9 @@ export const fr: Strings = {
       },
       ai: {
         button: 'Interroger le coach sur cette semaine',
+        buttonEarlier: 'Interroger le coach sur la semaine du {from} au {to}',
         heading: 'Le coach, sur cette semaine',
+        headingEarlier: 'Le coach, sur la semaine du {from} au {to}',
         reading: 'Le coach relit votre semaine…',
         mark: 'Écrit par une IA',
         busy: 'L’IA est occupée. Réessayez dans un instant.',
@@ -706,6 +720,7 @@ export const fr: Strings = {
   },
   about: {
     title: 'À propos de cette application',
+    lead: 'Une façon calme de noter ce que vous mangez et de comprendre votre journée. Trois choses à savoir avant de commencer.',
     adults: 'AI Nutrition Coach est conçu pour les adultes.',
     ai: 'La reconnaissance de photos est désactivée par défaut. Si vous l’activez, une photo est envoyée à un service de votre choix, et seulement après votre accord.',
     local:
@@ -782,6 +797,13 @@ export const fr: Strings = {
     plateRemoveFailed: 'Impossible de la retirer. Réessayez.',
     networkHeading: 'La semaine d’un coup d’œil',
     seeWeekNetwork: 'Voir toute la semaine',
+    seeProgress: 'Votre évolution',
+    backToToday: 'Revenir à aujourd’hui',
+    weighInLink: 'Ajouter une pesée',
+    guideHint:
+      'Votre journée est montrée face à une référence générale. Ajoutez quelques détails pour un repère à vous.',
+    guideHintLink: 'Ajouter des détails dans le Profil',
+    guideHintDismiss: 'Fermer',
     askCoachLink: 'Interroger le coach',
   },
   nutrition: {
@@ -916,6 +938,10 @@ export const fr: Strings = {
     weightSave: 'Enregistrer le poids',
     weightFrom: 'Dernier : {value} le {date}.',
     weighIns: 'Pesées récentes',
+    weighInsAll: 'Toutes les pesées et la tendance',
+    howWeighIn: 'Le poids utilisé est {value}, d’après votre pesée du {date}.',
+    howWeighInStale:
+      'Cette pesée a plus de deux mois. Vous pouvez en ajouter une nouvelle quand cela vous convient.',
     weighInRemove: 'Retirer la pesée du {date}',
     waistLabel: 'Tour de taille (facultatif)',
     waistCm: 'Tour de taille en cm',
@@ -1748,6 +1774,147 @@ export const fr: Strings = {
       'Pour protéger cet appareil, la phrase secrète doit compter au moins 10 caractères, avec quelques caractères différents. Créez plutôt une nouvelle phrase secrète, puis connectez-vous à la copie de ce serveur depuis Réglages, Vos données.',
     restoringTitle: 'Restauration depuis le serveur',
     restoringBody: 'Vos données sont remises sur cet appareil. Cela prend un instant.',
+  },
+  /** Pesées : la saisie rapide (Aujourd’hui et Évolution). */
+  weighIn: {
+    title: 'Pesée',
+    help: 'Une pesée par jour. Choisissez le jour si vous en ajoutez une plus ancienne.',
+    day: 'Jour',
+    waistCm: 'Tour de taille en cm (facultatif)',
+    waistIn: 'Tour de taille en pouces (facultatif)',
+    protocolMetric:
+      'Même balance, le matin, avant de manger. Un écart d’un kilo environ d’un jour à l’autre, c’est surtout de l’eau.',
+    protocolImperial:
+      'Même balance, le matin, avant de manger. Un écart de deux livres environ d’un jour à l’autre, c’est surtout de l’eau.',
+    replaces: 'Vous avez déjà une pesée pour ce jour. Enregistrer la remplace.',
+    replacesWaist: 'Vous avez déjà un tour de taille pour ce jour. Enregistrer le remplace.',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    futureDay: 'Choisissez aujourd’hui ou un jour passé.',
+    needsValue: 'Saisissez un poids, un tour de taille, ou les deux.',
+    saved: 'Pesée enregistrée.',
+    removed: 'Retiré.',
+    saveFailed: 'L’enregistrement n’a pas abouti. Rien n’a changé ; vous pouvez réessayer.',
+    link: 'Ajouter une pesée',
+    edit: 'Modifier',
+    editWeight: 'Modifier la pesée du {date}',
+    editWaist: 'Modifier le tour de taille du {date}',
+    invalidDay: 'Choisissez une date.',
+    confirmDifferent:
+      'C’est assez différent de votre dernière pesée. L’enregistrer telle que saisie ?',
+    confirmSave: 'Enregistrer',
+    confirmChange: 'La modifier',
+    removeTitle: 'Retirer cette entrée ?',
+    removeBodyWeight: 'La pesée du {date} sera retirée, sur chaque appareil synchronisé.',
+    removeBodyWaist: 'Le tour de taille du {date} sera retiré, sur chaque appareil synchronisé.',
+    removeKeep: 'La garder',
+  },
+  /** Évolution : la tendance du poids, l’historique des pesées et de ce qui a été noté. */
+  progress: {
+    title: 'Évolution',
+    intro:
+      'Une courbe lissée à travers vos pesées, et ce que vous avez noté chaque jour. Elle décrit, elle ne note pas, et elle ne demande rien.',
+    addWeighIn: 'Ajouter une pesée',
+    rangeLabel: 'Période',
+    ranges: { fourWeeks: '4 semaines', threeMonths: '3 mois', oneYear: '1 an', all: 'Tout' },
+    numbersOff:
+      'Les chiffres de nutrition sont masqués, la tendance et les totaux aussi. Les pesées s’enregistrent quand même.',
+    numbersOffLink: 'Afficher les chiffres dans Réglages, Nutrition',
+    weightTitle: 'Poids',
+    noWeighIns:
+      'Pas encore de pesée. Quelques-unes sur deux semaines suffisent pour tracer une tendance.',
+    oneWeighIn: 'Pesée du {date} : {value}. Il en faut quelques autres pour une tendance.',
+    trendOnly:
+      'Tendance : {value}. Pour voir un écart, il faut des pesées réparties sur au moins une semaine.',
+    trendLower: 'Tendance : {value}, environ {amount} de moins {ago}.',
+    trendHigher: 'Tendance : {value}, environ {amount} de plus {ago}.',
+    trendSame: 'Tendance : {value}, à peu près la même {ago}.',
+    agoWeek: 'qu’il y a une semaine',
+    agoFourWeeks: 'qu’il y a quatre semaines',
+    agoDays: 'qu’il y a {count} jours',
+    paceLower:
+      'Sur les {count} derniers jours, la tendance a baissé d’environ {amount} par semaine, soit {pct} de votre poids.',
+    paceHigher:
+      'Sur les {count} derniers jours, la tendance a monté d’environ {amount} par semaine, soit {pct} de votre poids.',
+    paceSame: 'Sur les {count} derniers jours, la tendance est restée à peu près la même.',
+    gaps: 'Il y a des trous entre certaines pesées. La courbe prolonge la tendance à travers eux et n’invente aucune valeur.',
+    outsideRange: 'Aucune pesée sur cette période. Essayez-en une plus longue.',
+    legend: 'La ligne est la tendance. Les ronds sont vos pesées.',
+    chartLabel: 'Graphique du poids et de la tendance',
+    xAxisWeeks: 'Les repères marquent les semaines.',
+    tableSummary: 'Pesées et tendance sous forme de tableau',
+    tableCaption: 'Les pesées et la tendance de chaque jour',
+    colDay: 'Jour',
+    colWeighIn: 'Pesée',
+    colTrend: 'Tendance',
+    stale:
+      'Votre dernière pesée date du {date}. Vous pouvez en ajouter une nouvelle quand vous voulez.',
+    paceNotice:
+      'Votre poids baisse plus vite qu’environ 1 % par semaine. Un rythme plus lent est plus facile à tenir et plus doux pour le corps ; pensez à un rythme plus doux dans le Profil, ou parlez-en à un médecin ou à un diététicien.',
+    paceNoticeLink: 'Choisir un rythme dans le Profil',
+    paceNoticeDismiss: 'Masquer pendant 14 jours',
+    historyTitle: 'Pesées',
+    waistHistoryTitle: 'Tour de taille',
+    rowWeighIn: '{date} : {value}',
+    removeWeight: 'Retirer la pesée du {date}',
+    removeWaist: 'Retirer le tour de taille du {date}',
+    showAll: 'Tout afficher ({count})',
+    showFewer: 'En afficher moins',
+    hiddenValue: 'Pesée du {date}',
+    hiddenWaist: 'Tour de taille du {date}',
+    notUsed: 'non retenue pour la tendance',
+    notUsedNote:
+      'Certaines pesées sont très différentes de celles qui les entourent : la tendance les laisse de côté, au cas où ce serait une faute de frappe. Elles restent dans votre liste et vous pouvez les modifier.',
+    tableCapped: 'Le tableau liste les {count} dernières pesées de cette période.',
+    waistFirstLatest: 'Tour de taille : {first} le {firstDate}, {latest} le {latestDate}.',
+    waistOne: 'Tour de taille : {value} le {date}.',
+    intakeTitle: 'Ce que vous avez noté',
+    intakeIntroPersonal:
+      'L’énergie et les protéines de chaque jour. Le repère marque votre repère du jour. Un jour sans rien de noté reste vide, il n’est pas compté comme zéro.',
+    intakeIntroReference:
+      'L’énergie et les protéines de chaque jour. Le repère marque l’apport de référence de l’UE. Un jour sans rien de noté reste vide, il n’est pas compté comme zéro.',
+    intakeNothing: 'Rien de noté',
+    intakeNoFigures: 'Noté, sans chiffres',
+    intakeCapped: 'Les {count} derniers jours sont affichés.',
+    intakeOpenDay: 'Afficher le {date} dans Aujourd’hui',
+  },
+  /** L’accueil de la première fois (après la phrase secrète, une seule fois). */
+  welcome: {
+    stepOf: 'Étape {step} sur {total}',
+    next: 'Suivant',
+    back: 'Retour',
+    notNow: 'Pas maintenant',
+    introTitle: 'Bienvenue',
+    introLead: 'Voici ce que fait l’application.',
+    introLine1: 'Notez ce que vous mangez par photo, code-barres, saisie, ou en le décrivant.',
+    introLine2: 'Voyez chaque journée face à votre propre repère, en chiffres simples, sans note.',
+    introLine3: 'Un coach qui pose une question plutôt que de porter un jugement.',
+    introData:
+      'Vos données restent sur cet appareil, chiffrées par votre phrase secrète. Trois choses peuvent envoyer quelque chose, et seulement une fois que vous avez dit oui : une IA que vous connectez pour les photos et les descriptions, la synchronisation entre vos appareils si vous la mettez en place, et la recherche des codes-barres sur Open Food Facts après un avis unique.',
+    goalTitle: 'Pourquoi vous êtes là',
+    goalHelp:
+      'Cela façonne votre repère du jour. Vous pouvez le changer à tout moment dans Réglages, Profil.',
+    aboutTitle: 'À propos de vous',
+    aboutHelp:
+      'Seulement ce dont le repère a besoin. Chaque réponse est facultative, et vous pouvez les changer dans Réglages, Profil.',
+    guideTitle: 'Votre repère du jour',
+    firstTitle: 'Votre première assiette',
+    firstHelp: 'Quatre façons de noter une assiette.',
+    firstSnapshot: 'Photo : prenez l’assiette en photo. Cela demande une IA.',
+    firstBarcode:
+      'Code-barres : scannez un aliment emballé. Le code-barres est recherché sur Open Food Facts.',
+    firstType:
+      'Saisie : cherchez un aliment et choisissez la quantité. Cela fonctionne sur cet appareil.',
+    firstDescribe:
+      'Décrire : écrivez ce que vous avez mangé. Sans IA, vos mots sont comparés à la liste d’aliments de cet appareil ; parler demande une IA pour transformer votre voix en texte.',
+    aiReady:
+      'Une IA est connectée, une photo peut donc être lue. Décrire avec l’IA et parler fonctionnent une fois que vous les avez autorisés dans Réglages, Votre IA. On vous demande avant d’envoyer quoi que ce soit.',
+    aiOffered:
+      'Ce serveur propose une IA ({label}). Activez-la dans Réglages, Votre IA pour utiliser la photo et pour dicter une description. La saisie d’un aliment, la description écrite et le code-barres fonctionnent sans elle.',
+    aiNone:
+      'Aucune IA n’est connectée, une photo ne peut donc pas être lue et parler ne fonctionnera pas encore. La saisie d’un aliment, la description écrite (comparée à la liste d’aliments de cet appareil) et le scan d’un code-barres fonctionnent sans elle.',
+    aiLink: 'Réglages, Votre IA',
+    start: 'Noter ma première assiette',
   },
   sync: {
     onThisDevice: 'Enregistré sur cet appareil',

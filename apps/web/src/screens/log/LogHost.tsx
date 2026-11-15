@@ -199,11 +199,11 @@ export function LogHost({
 
   const close = useCallback(() => setFlow({ kind: 'closed' }), []);
 
-  // Where a new plate lands: the day selected in the week strip, and the meal chosen in the log
+  // Where a new plate lands: the day the person picked in the week strip (today until they pick one, whichever week is in view), and the meal chosen in the log
   // sheet (the clock's meal on today, else the first meal of that day with nothing in it). A plate
   // is never put in the future (see `slotChoices`).
   const [slotWanted, setSlotWanted] = useState<MealSlot | null>(null);
-  const targetDay = day.selected;
+  const targetDay = day.logDay;
   const now = session.clock();
   const viewingToday = isSameLocalDay(targetDay, day.today);
   const defaultSlot: MealSlot = viewingToday

@@ -96,7 +96,19 @@ it at once.
 
 Already have an encrypted backup from another device? Choose *Restore from a backup* on the same screen.
 
-## 5. Log your first plate
+## 5. A short welcome
+
+After you choose your passphrase, a short welcome (four steps at most, skippable with *Not now* at any time) says
+what the app is, asks what you are here for (eat better, stay as I am, lose weight or gain weight), asks only what a
+daily guide needs (age range, sex, activity, and, if you want, height and weight), and shows the four ways to log a
+plate, saying what needs an AI (a photo, and speaking a description) and what does not (typing a food, describing in
+writing, which is matched against the food list on your device, and a barcode, which is looked up on Open Food Facts
+after a one-time notice). A height or weight that is not valid stays on its field with a message and *Next* waits for
+you to correct it. Everything is optional and can be changed later in *Settings → Profile*. It appears once, after a new store
+is created here, never on a restore or a later unlock, and a second device of yours does not replay it. If you set it
+aside and have no profile yet, Today shows one quiet line to add details, which you can dismiss.
+
+## 6. Log your first plate
 
 Press **Log**. Pick the way that suits the moment:
 
@@ -113,9 +125,9 @@ group on the plate. Tap it to see the foods, the grams and the nutrients against
 may ask a question underneath; *Ask later* is always fine.
 
 Every way in, step by step, is in [Log a plate](guide/log-a-plate.md); the day, the plate and the week are in
-[Your day and your week](guide/day-and-week.md).
+[Your day and your week](guide/day-and-week.md); weigh-ins and the weight trend are in [Trends](guide/progress.md).
 
-## 6. Optional: connect an AI
+## 7. Optional: connect an AI
 
 The app is complete without AI. An AI adds photo recognition, a smarter *Describe*, and, if you also say yes to
 coaching, notes written by the AI and *Ask the coach*. Open *Settings → Your AI*:
@@ -130,7 +142,7 @@ Photos, descriptions and coaching each have their own yes, recorded for one dest
 upload by default. The user's view is [Your AI](guide/your-ai.md); exactly what is sent, field by field, is in
 [AI tiers, in detail](ai-tiers.md).
 
-## 7. Keep a backup
+## 8. Keep a backup
 
 Your history lives only in this browser. The server cannot back it up. In *Settings → Your data*:
 

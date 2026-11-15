@@ -11,6 +11,7 @@ export function AboutNotice({ onDismiss }: { readonly onDismiss: () => void }) {
   const s = useStrings().about;
   return (
     <GateFrame title={s.title}>
+      <p className="text-lead font-medium">{s.lead}</p>
       <p className="text-body">{s.adults}</p>
       <p className="text-body">{s.ai}</p>
       <p className="text-body">{s.local}</p>

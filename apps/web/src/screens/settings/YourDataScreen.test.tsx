@@ -166,6 +166,39 @@ describe('YourDataScreen: export', () => {
     expect(writes[1]?.text).not.toContain('Old rice');
   });
 
+  it('"This week" is the current week even while an earlier week is shown', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 20, 0) });
+    const user = userEvent.setup();
+    const bundle = await unlockedBundle();
+    await seedPlate(bundle, at(12, 0), [['Salmon', 'protein']]);
+    await seedPlate(bundle, at(12, 0, -3), [['Oats', 'starch']]);
+    await seedPlate(bundle, at(12, 0, -9), [['Earlier eggs', 'protein']]);
+    const { writes, destination } = fakeDestination();
+    function Back() {
+      const day = useDay();
+      return (
+        <button type="button" onClick={() => day.shiftWeek(-1)}>
+          earlier week
+        </button>
+      );
+    }
+    await renderInSession(
+      <>
+        <Back />
+        <YourDataScreen destination={destination} />
+      </>,
+      { bundle },
+    );
+    await screen.findByRole('heading', { level: 1, name: 'Your data' });
+    await user.click(screen.getByRole('button', { name: 'earlier week' }));
+    await user.click(screen.getByRole('radio', { name: 'This week' }));
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.text).toContain('Salmon');
+    expect(writes[0]?.text).toContain('Oats');
+    expect(writes[0]?.text).not.toContain('Earlier eggs');
+  });
+
   it('the "Today" scope is the real today even after another day was selected', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 14, 20, 0) });
     const user = userEvent.setup();

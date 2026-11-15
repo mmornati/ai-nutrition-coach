@@ -130,6 +130,7 @@ const go = (page: Page, hash: string) =>
 const SCREENS = [
   ['#/', 'Aujourd’hui'],
   ['#/week', 'Cette semaine'],
+  ['#/progress', 'Évolution'],
   ['#/settings', 'Réglages'],
   ['#/settings/ai', 'Votre IA'],
   ['#/settings/data', 'Vos données'],

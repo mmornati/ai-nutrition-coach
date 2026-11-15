@@ -26,6 +26,10 @@ const dayMonthLong = perLocale(
 export const formatDayMonth = (ms: EpochMs, locale: Locale = currentLocale()): string =>
   dayMonth(locale).format(new Date(ms));
 
+/** "13 October". */
+export const formatDayMonthLong = (ms: EpochMs, locale: Locale = currentLocale()): string =>
+  dayMonthLong(locale).format(new Date(ms));
+
 /** "7 – 13 October" for a span of days (the week screen's sub-header). */
 export function formatDaySpan(
   from: EpochMs,

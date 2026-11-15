@@ -174,8 +174,8 @@ describe('parseVaultSnapshot', () => {
     expect(problemOf({ ...base, kv: [...base.kv, ...base.kv] })).toBe('duplicate $.kv[1].key');
   });
 
-  it('refuses a kv key outside the allow-list: device-only keys and the BYOK key never travel', () => {
-    for (const key of [...DEVICE_ONLY_KV_KEYS, 'ai.byokKey', 'something.new']) {
+  it('refuses a device-only kv key: device-only keys and the BYOK key never travel', () => {
+    for (const key of [...DEVICE_ONLY_KV_KEYS, 'ai.byokKey']) {
       expect(problemOf({ ...full(), kv: [{ key, value: 'x', updatedAtHlc: stamp(1) }] })).toBe(
         'malformed $.kv[0].key',
       );
@@ -396,6 +396,53 @@ describe('the kv allow-list', () => {
   });
 });
 
+describe('a kv key from a newer app (forward compatibility)', () => {
+  const future = { key: 'ui.futurePreference', value: 'on', updatedAtHlc: stamp(5) };
+  const parse = (value: unknown) => parseVaultSnapshot(JSON.parse(JSON.stringify(value)));
+
+  it('is dropped on parse: not an error, not kept', () => {
+    const result = parse({ ...full(), kv: [...full().kv, future] });
+    expect(result.kind).toBe('vaultSnapshotParsed');
+    if (result.kind !== 'vaultSnapshotParsed') return;
+    expect(result.snapshot.kv.map((e) => e.key)).toEqual(full().kv.map((e) => e.key));
+    expect(JSON.stringify(result.snapshot)).not.toContain('ui.futurePreference');
+  });
+
+  it('drops the tombstone of such a key too', () => {
+    const result = parse({
+      ...full(),
+      tombstones: [
+        ...full().tombstones,
+        { uid: 'kv:ui.futurePreference', table: 'kv', deletedAtHlc: stamp(6) },
+      ],
+    });
+    expect(result.kind).toBe('vaultSnapshotParsed');
+    if (result.kind !== 'vaultSnapshotParsed') return;
+    expect(result.snapshot.tombstones.some((t) => t.uid.includes('futurePreference'))).toBe(false);
+  });
+
+  it('still fails for a malformed value of a KNOWN key, and for a device-only key', () => {
+    const bad = (key: string, value: string) =>
+      problemOf({ ...full(), kv: [{ key, value, updatedAtHlc: stamp(1) }, future] });
+    expect(bad('ui.locale', 'klingon')).toBe('malformed $.kv[0].value');
+    expect(bad('ai.byokKey', 'x')).toBe('malformed $.kv[0].key');
+  });
+
+  it('is not echoed back by this device, and a newer device keeps it when it merges', () => {
+    const received = parse({ ...full(), kv: [...full().kv, future] });
+    if (received.kind !== 'vaultSnapshotParsed') throw new Error('should parse');
+    // What an older device writes next is built from what it holds: no such key.
+    const oldDevice = received.snapshot;
+    expect(oldDevice.kv.some((e) => e.key === future.key)).toBe(false);
+    // A newer device that has the key merges the older device's snapshot: nothing deletes it.
+    const newer = { ...full(), kv: [...full().kv, future] } as VaultSnapshot;
+    const merged = mergeVaultSnapshots(newer, oldDevice);
+    expect(merged.kind).toBe('vaultMerged');
+    if (merged.kind !== 'vaultMerged') return;
+    expect(merged.snapshot.kv.some((e) => e.key === future.key)).toBe(true);
+  });
+});
+
 describe('vaultConflict', () => {
   it('is true only when a uid means two different things across two snapshots', () => {
     const plate = (id: number, entries = [entry(id * 100 + 1)]) => ({
@@ -543,6 +590,27 @@ describe('schema v5: plate meal and body measurements', () => {
       kv: [{ key: 'ui.showDistanceToGuide', value: 'off', updatedAtHlc: stamp(1) }],
     };
     expect(problem(snap)).toBe('malformed $.kv[0].value');
+  });
+
+  it('the kv allow-list carries the welcome answer and the quiet-line answers, and keeps the resume step on the device', () => {
+    for (const key of ['ui.welcome', 'ui.guideHintDismissed', 'ui.paceNoticeDismissedAtUtc']) {
+      expect(isSyncedKvKey(key)).toBe(true);
+    }
+    expect(isSyncedKvKey('ui.welcomeStep')).toBe(false);
+    const bad = (key: string, value: string) =>
+      problem({ ...full(), kv: [{ key, value, updatedAtHlc: stamp(1) }] });
+    expect(bad('ui.welcome', 'maybe')).toBe('malformed $.kv[0].value');
+    expect(bad('ui.guideHintDismissed', 'yes')).toBe('malformed $.kv[0].value');
+    expect(bad('ui.paceNoticeDismissedAtUtc', 'yesterday')).toBe('malformed $.kv[0].value');
+    expect(bad('ui.welcomeStep', '3')).not.toBe('');
+    for (const [key, value] of [
+      ['ui.welcome', 'done'],
+      ['ui.welcome', 'skipped'],
+      ['ui.guideHintDismissed', 'on'],
+      ['ui.paceNoticeDismissedAtUtc', '2026-10-14T20:00:00.000Z'],
+    ] as const) {
+      expect(bad(key, value)).toBe('ok');
+    }
   });
 });
 

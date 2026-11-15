@@ -1,7 +1,7 @@
 // Typing and showing body measurements (docs/adr/0008). Storage is always SI (kg, cm); the profile's
 // `units` only changes the input and the display. A decimal comma is accepted in every language.
 
-import type { UnitSystem } from '@anc/core';
+import { MEASUREMENT_RANGE, type MeasurementKind, type UnitSystem } from '@anc/core';
 
 export const KG_PER_LB = 0.45359237;
 export const CM_PER_INCH = 2.54;
@@ -64,3 +64,54 @@ export const weightForDisplay = (kg: number, units: UnitSystem): number =>
 /** The waist in the display system (cm or inches), one decimal. */
 export const waistForDisplay = (cm: number, units: UnitSystem): number =>
   units === 'imperial' ? cmToInches(cm) : cm;
+
+export type MeasurementParse =
+  | { readonly kind: 'ok'; readonly value: number }
+  | { readonly kind: 'number'; readonly example: string }
+  | {
+      readonly kind: 'range';
+      readonly min: number;
+      readonly max: number;
+      readonly unit: 'kg' | 'lb' | 'cm' | 'in';
+    };
+
+/**
+ * A typed weight or waist, in the person's units, read once for every place that takes one (the
+ * Profile's Body section, the weigh-in sheet, the welcome): the value in kg or cm when it is a
+ * number in range, else what to tell the person (the example to type, or the accepted range in
+ * THEIR units). A decimal comma is accepted.
+ */
+export function parseMeasurementText(
+  kind: MeasurementKind,
+  text: string,
+  units: UnitSystem,
+): MeasurementParse {
+  const imperial = units === 'imperial';
+  const typed = parseTypedNumber(text);
+  if (typed === null) {
+    return {
+      kind: 'number',
+      example: kind === 'weight' ? (imperial ? '154' : '70') : imperial ? '32' : '81',
+    };
+  }
+  const value =
+    kind === 'weight' ? (imperial ? lbToKg(typed) : typed) : imperial ? inchesToCm(typed) : typed;
+  const { min, max } = MEASUREMENT_RANGE[kind];
+  if (value < min || value > max) {
+    return kind === 'weight'
+      ? imperial
+        ? { kind: 'range', min: kgToLb(min), max: kgToLb(max), unit: 'lb' }
+        : { kind: 'range', min, max, unit: 'kg' }
+      : imperial
+        ? { kind: 'range', min: cmToInches(min), max: cmToInches(max), unit: 'in' }
+        : { kind: 'range', min, max, unit: 'cm' };
+  }
+  return { kind: 'ok', value };
+}
+
+/**
+ * A typed weight that differs from the last known one by more than 10 % or 5 kg (whichever is
+ * larger) is asked about once before it is saved: a slip like 182 for 82 is the likely reason.
+ */
+export const weightNeedsConfirmation = (newKg: number, lastKg: number | undefined): boolean =>
+  lastKg !== undefined && Math.abs(newKg - lastKg) > Math.max(lastKg * 0.1, 5);

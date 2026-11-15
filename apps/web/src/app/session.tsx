@@ -72,6 +72,7 @@ import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
 import { coachCopy } from './coach-copy';
 import { DistancePref } from './distance-pref';
+import { NoticePrefs } from './notice-prefs';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
 import { appUpdate } from '../pwa/app-update';
@@ -104,6 +105,8 @@ export interface Session {
   readonly distance: DistancePref;
   /** The optional profile and the daily guide derived from it. */
   readonly profile: ProfilePref;
+  /** The welcome's answer and the quiet lines the person closed (guide hint, pace line). */
+  readonly notices: NoticePrefs;
   /** The persisted "not yet backed up" flag behind the `SyncQueue` port (it counts only while connected). */
   readonly syncQueue: DirtyFlagSyncQueue;
   /** The automatic backup to this server's relay, when this device is connected to one. */
@@ -300,6 +303,8 @@ export async function createSession(
   await profile.load();
   const distance = new DistancePref(kv);
   await distance.load();
+  const notices = new NoticePrefs(kv);
+  await notices.load();
 
   const coach = createTemplateCoach(coachLookup);
   const templateGenerator = createCoachNoteGenerator({
@@ -385,7 +390,12 @@ export async function createSession(
   const stopRemote = sync.onRemoteChange(() => {
     void (async () => {
       try {
-        await Promise.all([profile.refresh(), numbers.refresh(), distance.refresh()]);
+        await Promise.all([
+          profile.refresh(),
+          numbers.refresh(),
+          distance.refresh(),
+          notices.refresh(),
+        ]);
         const stored = await localePrefs.readStored();
         if (live) applyLocalePreference(localePrefs, stored);
         if (live) catalog.invalidate();
@@ -423,6 +433,7 @@ export async function createSession(
     numbers,
     distance,
     profile,
+    notices,
     syncQueue,
     sync,
     syncOffer,

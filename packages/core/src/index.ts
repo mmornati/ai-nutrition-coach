@@ -40,6 +40,7 @@ export * from './value-types/plate-range';
 export * from './value-types/quantity-range';
 export * from './value-types/recents';
 export * from './value-types/recipe';
+export * from './value-types/weight-trend';
 export * from './value-types/recognized-food';
 export * from './value-types/relog';
 export * from './results/catalog';

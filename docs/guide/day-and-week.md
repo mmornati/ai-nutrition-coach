@@ -14,6 +14,20 @@ stripes first, and the numbers one tap away.
 </div>
 <!-- /anc-video -->
 
+## Earlier weeks
+
+The week in view is the seven days ending today. On **This week**, *Earlier week* moves back seven days at a time
+(the dock's route, the towels, the day-by-day list and *The week, in short* follow it), *Later week* moves forward,
+and *Back to this week* returns. Pick a day and it opens on Today; *Back to today* on Today is one tap from anywhere.
+An earlier week says which week it is, by its dates: the week note ("All four food groups showed up in the week from
+1 October to 7 October"), the dock's label ("Week from 1 October to 7 October: choose a day") and the coach's
+"Ask the coach about the week from ..." all name it, never "this week". Browsing an earlier week does not move where
+a new plate lands: that is today, unless you picked a day in the strip, and the log sheet names the day. *Copy this
+day to today* from an earlier week brings today back into view so you see the copied plates. The *This week* choice
+when you export means the current week, whichever week you are looking at. When *Later week* or *Back to this week*
+brings the current week back, focus goes to the page's heading.
+Only the week in view is read from the store. For months and years, see [Trends](progress.md).
+
 ## The four groups
 
 Every food belongs to one group, and every group has one dye, always shown beside its name:
@@ -49,9 +63,10 @@ figure. A meal that is still to come is an open band with a dashed edge: *Nothin
 - On a **phone**, the dock at the bottom holds the week as seven folded towels: small stripes for the groups logged
   each day, a dashed edge for a day with nothing logged. Tap one to see that day. The floating **Log** pill sits
   above it.
-- On a **computer**, a rail on the left holds Today, Week, Settings and *Log a plate*, and *This week at a glance*
+- On a **computer**, a rail on the left holds Today, Week, Trends, Settings and *Log a plate*, and *This week at a glance*
   sits beside the day.
-- Under the bands, **Today's nutrition** adds up the day.
+- Under the bands, **Today's nutrition** adds up the day. A quiet *Add a weigh-in* link sits under it, and on a phone a
+  link to [Trends](progress.md).
 - A small label says where your plates are: *On this device*. Once per session, a plain line also says whether the
   browser has agreed to keep your data safe from automatic clean-up; if it has not, it suggests a regular backup.
 

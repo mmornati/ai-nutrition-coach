@@ -38,6 +38,7 @@ import { compareHlc, hlcBeyond, isHlc } from './hlc';
 import {
   isJsonObjectText,
   isStoredInstant,
+  isDeviceOnlyKvKey,
   isSyncedKvKey,
   isValidKvValue,
   MAX_KV_VALUE_LENGTH,
@@ -692,24 +693,28 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
     });
 
     const kvKeys = new Set<string>();
-    const kv = list(root['kv'], '$.kv', SNAPSHOT_LIMITS.kv).map((e, i) => {
+    const kv: VaultKvEntry[] = [];
+    list(root['kv'], '$.kv', SNAPSHOT_LIMITS.kv).forEach((e, i) => {
       const path = `$.kv[${i}]`;
       const o = object(e, path, ['key', 'value', 'updatedAtHlc']);
       const key = str(o, 'key', path);
       // Fail closed: a device-only key (or the BYOK secret) in a file is refused, never applied.
-      if (!isSyncedKvKey(key)) throw new Invalid('malformed', `${path}.key`);
+      if (isDeviceOnlyKvKey(key)) throw new Invalid('malformed', `${path}.key`);
+      // A key this build has never heard of comes from a newer app: dropped, not applied, not
+      // written and not an error. A malformed value of a KNOWN key still fails below.
+      if (!isSyncedKvKey(key)) return;
       if (kvKeys.has(key)) throw new Invalid('duplicate', `${path}.key`);
       kvKeys.add(key);
-      return {
+      kv.push({
         key,
         value: formatted(o, 'value', path, (v) => isValidKvValue(key, v), MAX_KV_VALUE_LENGTH),
         updatedAtHlc: hlc(o, 'updatedAtHlc', path),
-      };
+      });
     });
 
     const tombstoneUids = new Set<string>();
-    const tombstones = list(root['tombstones'], '$.tombstones', SNAPSHOT_LIMITS.tombstones).map(
-      (t, i): VaultTombstone => {
+    const tombstones = list(root['tombstones'], '$.tombstones', SNAPSHOT_LIMITS.tombstones)
+      .map((t, i): VaultTombstone | null => {
         const path = `$.tombstones[${i}]`;
         const o = object(t, path, ['uid', 'table', 'deletedAtHlc']);
         const table = o['table'];
@@ -717,6 +722,15 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
           throw new Invalid('malformed', `${path}.table`);
         }
         const id = o['uid'];
+        if (
+          table === 'kv' &&
+          typeof id === 'string' &&
+          id.startsWith(KV_UID_PREFIX) &&
+          !isSyncedKvKey(id.slice(KV_UID_PREFIX.length)) &&
+          !isDeviceOnlyKvKey(id.slice(KV_UID_PREFIX.length))
+        ) {
+          return null; // a tombstone for a key of a newer app: dropped with the key
+        }
         const valid =
           table === 'kv'
             ? typeof id === 'string' &&
@@ -737,8 +751,8 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
           table: table as TombstoneTable,
           deletedAtHlc: hlc(o, 'deletedAtHlc', path),
         };
-      },
-    );
+      })
+      .filter((t): t is VaultTombstone => t !== null);
 
     // A tombstone removes a plate-family record; it must not sit beside one.
     tombstones.forEach((t, i) => {
