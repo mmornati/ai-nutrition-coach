@@ -1,7 +1,7 @@
 import { useStrings } from '../../i18n';
-import { Button, LockIcon } from '../primitives';
+import { IconButton, LockIcon } from '../primitives';
 
-/** Manual lock. Renders nothing unless the store is unlocked. */
+/** Manual lock, an icon button named "Lock". Renders nothing unless the store is unlocked. */
 export function LockButton({
   unlocked,
   onLock,
@@ -12,8 +12,8 @@ export function LockButton({
   const s = useStrings().lock;
   if (!unlocked) return null;
   return (
-    <Button variant="secondary" icon={<LockIcon size={20} />} onClick={onLock}>
-      {s.action}
-    </Button>
+    <IconButton label={s.action} onClick={onLock}>
+      <LockIcon size={20} />
+    </IconButton>
   );
 }

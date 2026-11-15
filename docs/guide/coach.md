@@ -71,7 +71,7 @@ preferences, so it syncs, goes into the JSON export and is erased with everythin
 
 ### The coach page
 
-*Ask the coach* on Today opens **The coach**, a page that is useful with or without an AI: your step, the latest notes of the
+The **Coach** tab (and *Ask the coach* on Today) opens **The coach**, a page that is useful with or without an AI: your step, the latest notes of the
 last days, the week in short, your daily guide with a link to Profile and, only when an AI is available and you said yes, the
 conversation below. Without an AI it says so in one line, with the link to *Your AI*; nothing on the page is greyed out.
 
@@ -103,8 +103,8 @@ off by default, the coach can do three more things:
 - **The coach, on this week**: *Ask the coach about this week* writes a short paragraph under the week's review.
 
 <figure markdown>
-![Ask the coach: the note about what the AI sees, a question box with a character count, and an answer marked Written by AI](../assets/shots/phone-ask-coach.webp){ .anc-phone loading=lazy }
-<figcaption>Ask the coach, with an AI you chose.</figcaption>
+![The coach page: your step, the latest notes, the week in short and your daily guide; the conversation joins them once an AI is chosen](../assets/shots/phone-ask-coach.webp){ .anc-phone loading=lazy }
+<figcaption>The coach page. With an AI you chose, the conversation sits below the daily guide.</figcaption>
 </figure>
 
 What the AI receives for coaching: the names and food groups of your foods, their weights and nutrient totals, the

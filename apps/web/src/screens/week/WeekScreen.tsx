@@ -13,7 +13,7 @@ import { useStrings } from '../../i18n';
 import { useDay } from '../../app/day-context';
 import { hrefs, navigate, TODAY_HASH } from '../../app/router';
 import { WeekReview } from './WeekReview';
-import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
+import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 
 /**
  * Week: the seven days as four lines (which lines served each day, in words as well as
@@ -45,7 +45,6 @@ export function WeekScreen() {
       current="week"
       header={
         <ScreenHeader
-          back={<BackToToday />}
           title={day.viewingEarlierWeek ? w.earlierTitle : w.title}
           {...(first && last ? { sub: formatDaySpan(first.date, last.date) } : {})}
         />

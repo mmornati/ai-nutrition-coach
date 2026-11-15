@@ -62,7 +62,7 @@ export function WelcomeScreen({ step, onStep, onSkip, onFinish }: WelcomeScreenP
   const goal = editor.profile?.goal;
 
   return (
-    <GateFrame key={current} title={title} diagram={current === 1}>
+    <GateFrame key={current} title={title} diagram={current === 1 ? true : 'hem'}>
       <p className="text-body-small text-ink-soft">
         {fill(w.stepOf, { step: current, total: WELCOME_STEPS })}
       </p>

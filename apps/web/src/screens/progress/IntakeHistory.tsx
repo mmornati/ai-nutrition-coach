@@ -45,6 +45,30 @@ export function intakeByDay(
   });
 }
 
+type IntakeRow = ReturnType<typeof intakeByDay>[number];
+
+/** The rows with every run of two or more empty days folded into one entry. */
+function groupEmptyRuns(
+  rows: readonly IntakeRow[],
+): readonly (IntakeRow | { readonly run: readonly IntakeRow[] })[] {
+  const out: (IntakeRow | { readonly run: readonly IntakeRow[] })[] = [];
+  let pending: IntakeRow[] = [];
+  const flush = () => {
+    if (pending.length === 1 && pending[0] !== undefined) out.push(pending[0]);
+    else if (pending.length > 1) out.push({ run: pending });
+    pending = [];
+  };
+  for (const row of rows) {
+    if (row.totals === null) pending.push(row);
+    else {
+      flush();
+      out.push(row);
+    }
+  }
+  flush();
+  return out;
+}
+
 /**
  * Energy and protein for each day of the range, newest first, against the daily guide (the tick,
  * drawn as in the Nutrient Bars: one neutral colour, the value always in text). A total that leaves
@@ -75,7 +99,23 @@ export function IntakeHistory({ range }: { readonly range: RangeKey }) {
       </p>
       {status === 'ready' && (
         <ul className="border-ink flex flex-col border-t-2">
-          {rows.map(({ date, totals }) => {
+          {groupEmptyRuns(rows).map((entry) => {
+            if ('run' in entry) {
+              // Two or more days in a row with nothing logged: one line, not a column of them.
+              const first = entry.run[0];
+              const last = entry.run[entry.run.length - 1];
+              if (first === undefined || last === undefined) return null;
+              const name = (d: number) => `${capitalise(weekdayName(d))} ${formatDayMonth(d)}`;
+              return (
+                <li key={`run-${first.date}`} className="border-seam border-b py-3">
+                  <p className="text-ink-soft text-body-small">
+                    {name(first.date)} – {name(last.date)}
+                  </p>
+                  <p className="text-body-small text-ink-soft">{s.intakeNothing}</p>
+                </li>
+              );
+            }
+            const { date, totals } = entry;
             const label = `${capitalise(weekdayName(date))} ${formatDayMonth(date)}`;
             const known = SHOWN.filter((key) => totals?.totals[key] !== undefined);
             return (

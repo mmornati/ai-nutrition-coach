@@ -356,7 +356,8 @@ describe('ProgressScreen: the intake history', () => {
     const rows = screen
       .getAllByRole('link', { name: /Show .* on Today/ })
       .map((a) => a.closest('li') as HTMLElement);
-    expect(rows).toHaveLength(28);
+    // Today is empty (one row), two days hold plates, and the 25 empty days before them fold into one.
+    expect(rows).toHaveLength(3);
     expect(within(rows[0] as HTMLElement).getByText('Nothing logged')).toBeVisible(); // today
     expect(within(rows[1] as HTMLElement).getByText('260 kcal')).toBeVisible();
     expect(within(rows[2] as HTMLElement).getByText(/^at least 260 kcal$/)).toBeVisible();
@@ -370,7 +371,9 @@ describe('ProgressScreen: the intake history', () => {
     await open(bundle);
     await userEvent.click(screen.getByRole('radio', { name: 'All' }));
     expect(await screen.findByText(/Showing the last 90 days\./)).toBeVisible();
-    expect(screen.getAllByRole('link', { name: /Show .* on Today/ })).toHaveLength(90);
+    // Ninety empty days are one folded line, not ninety rows.
+    expect(screen.queryAllByRole('link', { name: /Show .* on Today/ })).toHaveLength(0);
+    expect(screen.getAllByText('Nothing logged')).toHaveLength(1);
   });
 });
 

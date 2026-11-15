@@ -12,7 +12,11 @@ export interface TextFieldProps extends Omit<
   readonly ref?: Ref<HTMLInputElement> | undefined;
 }
 
-/** A white field in a 2px control edge, 56px tall, 8px corners; the frame takes the ink focus ring. */
+/**
+ * A white field in a 2px control edge, 56px tall, 8px corners; the frame takes the ink focus ring.
+ * A numeric field (`inputMode` decimal or numeric) stops at 14rem: a number has no use for a
+ * full-width box, and the label and message still use the whole row.
+ */
 export function TextField({ label, message, ...input }: TextFieldProps) {
   const id = useId();
   const messageId = `${id}-msg`;
@@ -24,6 +28,7 @@ export function TextField({ label, message, ...input }: TextFieldProps) {
       <div
         className={cn(
           'border-control bg-raised rounded-cloth flex min-h-14 border-2',
+          (input.inputMode === 'decimal' || input.inputMode === 'numeric') && 'max-w-56',
           'focus-within:border-ink focus-within:outline-ink focus-within:outline-3 focus-within:outline-offset-2',
         )}
       >

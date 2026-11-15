@@ -562,9 +562,11 @@ export const en = {
   },
   shell: {
     mainNav: 'Main',
+    tabNav: 'Sections',
     today: 'Today',
     week: 'Week',
     progress: 'Trends',
+    coach: 'Coach',
     settings: 'Settings',
     logAPlate: 'Log a plate',
     logShort: 'Log',
@@ -939,6 +941,7 @@ export const en = {
   },
   /** The durable-storage answer, shown once and quietly on Today after create or unlock. */
   durable: {
+    hide: 'Hide',
     persisted: 'Storage: protected from automatic clean-up.',
     notPersisted: 'Storage: the browser may clear this data if space runs low — export regularly.',
   },
@@ -952,8 +955,6 @@ export const en = {
     plateRemoved: 'Plate removed.',
     plateRemoveFailed: 'Couldn’t remove it. Try again.',
     networkHeading: 'This week at a glance',
-    seeWeekNetwork: 'See the whole week',
-    seeProgress: 'Your trends',
     backToToday: 'Back to today',
     weighInLink: 'Add a weigh-in',
     guideHint:
@@ -961,6 +962,9 @@ export const en = {
     guideHintLink: 'Add details in Profile',
     guideHintDismiss: 'Dismiss',
     askCoachLink: 'Ask the coach',
+    summaryLabel: 'The day so far',
+    summaryMore: 'All nutrients',
+    moreLabel: 'Around this day',
   },
   /** Nutrition numbers (docs/adr/0006): grams, previews, Nutrient Bars. */
   nutrition: {
@@ -1638,6 +1642,10 @@ export const en = {
     v2Spoken: 'not in version 1',
     title: 'Settings',
     backToSettings: 'Settings',
+    groupYou: 'You',
+    groupCoach: 'Coach and AI',
+    groupData: 'Data and privacy',
+    groupApp: 'App',
     rowAi: 'Your AI',
     rowData: 'Your data',
     rowDataSubtitle: 'export · lock · erase',

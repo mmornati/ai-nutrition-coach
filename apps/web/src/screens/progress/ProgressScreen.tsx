@@ -6,7 +6,7 @@ import { useShowNumbers } from '../../components/nutrition';
 import { fill, useLocale, useStrings } from '../../i18n';
 import { useDay, useNoticeTimeout } from '../../app/day-context';
 import { hrefs } from '../../app/router';
-import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
+import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
 import { ChoiceGroup } from '../settings/ChoiceGroup';
 import { formatDay } from '../settings/ProfileBodySection';
@@ -169,10 +169,7 @@ export function ProgressScreen() {
   };
 
   return (
-    <ScreenFrame
-      current="progress"
-      header={<ScreenHeader back={<BackToToday />} title={s.title} />}
-    >
+    <ScreenFrame current="progress" header={<ScreenHeader title={s.title} />}>
       <div className="flex max-w-3xl flex-col gap-7 px-5 pt-6 pb-8 lg:px-7">
         <p className="text-body text-ink-soft">{s.intro}</p>
         <p role="status" className="text-thread text-meta empty:hidden">

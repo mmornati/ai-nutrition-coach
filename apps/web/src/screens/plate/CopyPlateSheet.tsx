@@ -11,7 +11,7 @@ import {
   type PlateLog,
 } from '@anc/core';
 import { Button } from '../../components/primitives';
-import { Sheet } from '../../components/sheets';
+import { Sheet, SheetFooter } from '../../components/sheets';
 import { formatDayMonth, weekdayName } from '../../components/day/format';
 import { capitalise, fill, useMessage, useStrings } from '../../i18n';
 import { slotName } from '../../i18n/sentences';
@@ -126,9 +126,11 @@ export function CopyPlateSheet({
       <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
-      <Button fullWidth busy={busy} busyLabel={all.common.logging} onClick={() => void submit()}>
-        {t.againConfirm}
-      </Button>
+      <SheetFooter>
+        <Button fullWidth busy={busy} busyLabel={all.common.logging} onClick={() => void submit()}>
+          {t.againConfirm}
+        </Button>
+      </SheetFooter>
     </Sheet>
   );
 }

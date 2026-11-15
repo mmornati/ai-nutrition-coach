@@ -10,6 +10,7 @@ export function Chip({
   children,
   dot = false,
   dotClassName = 'bg-ink',
+  quiet = false,
   className,
   ...rest
 }: Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
@@ -17,12 +18,16 @@ export function Chip({
   readonly dot?: boolean;
   /** Replaces the dot's fill (the default is the on-device ink dot). */
   readonly dotClassName?: string;
+  /** Plain thread-grey text with the dot: the header's quiet storage word, no label, no stitch. */
+  readonly quiet?: boolean;
 }) {
   return (
     <span
       {...rest}
       className={cn(
-        'font-display text-label stitched relative inline-flex min-h-9 items-center gap-1.75 rounded-tag border-2 border-ink bg-raised max-w-full px-3 py-1.5 font-bold',
+        quiet
+          ? 'font-display text-small text-thread inline-flex max-w-full items-center gap-1.75 font-semibold'
+          : 'font-display text-label stitched relative inline-flex min-h-9 items-center gap-1.75 rounded-tag border-2 border-ink bg-raised max-w-full px-3 py-1.5 font-bold',
         className,
       )}
     >

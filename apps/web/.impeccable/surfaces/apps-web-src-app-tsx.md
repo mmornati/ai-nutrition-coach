@@ -26,6 +26,10 @@ SIGNATURE INTERACTION: When a plate resolves, its stripes weave in left to right
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## Revision (Lot 7, 2026-11-15): UI/UX pass, same world
+
+Refinement only, no new direction. Header is one row (title, date and a quiet "On this device" word, Lock and Settings icon buttons). Phone wayfinding is a four-tab text row under the header (Today, Week, Trends, Coach) on every screen, Settings the gear; the dock keeps only the week and Log stays the thumb-side pill. Today opens on a compact Day Summary (numbers on), then notes, bands, the full nutrition and one ruled list of quiet rows. Settings is four headed groups with Profile first. Sheets carry a sticky footer for the primary action. Profile sets the daily guide beside the form from 1024px. The welcome keeps a towel hem on every step. See DESIGN.md (Navigation, Day Summary, Sheets).
+
 ## Unresolved
 - Copy that named the transit metaphor ("lines", "stations", "passed through") moves to plain plate wording; maintainer sign-off on the French strings.
 - Dark variant: not built; the use scene (kitchen, table, shop aisle in daylight) sets light.

@@ -7,6 +7,7 @@ import { ERASE_SUCCESS, eraseLocalDataFailure } from '@anc/core';
 import type { UnlockOutcome } from '../../storage';
 import { strings } from '../../i18n';
 import type { RestoreNewStoreResult } from '../../sync/vault';
+import { TowelHem } from './GateFrame';
 import { CreatePassphraseScreen } from './CreatePassphraseScreen';
 import { LostStoreScreen } from './LostStoreScreen';
 import { StoreUnavailableScreen } from './StoreUnavailableScreen';
@@ -480,6 +481,18 @@ describe('StoreUnavailableScreen', () => {
     const { container } = render(
       <StoreUnavailableScreen reason="storage" onRetry={() => Promise.resolve()} />,
     );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('TowelHem (the thin towel the later welcome steps keep)', () => {
+  it('is decorative and has no axe violations', async () => {
+    const { container } = render(
+      <main>
+        <TowelHem />
+      </main>,
+    );
+    expect(container.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

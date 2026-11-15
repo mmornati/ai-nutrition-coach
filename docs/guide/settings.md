@@ -1,7 +1,7 @@
 # Settings
 
-**Settings** (in the rail on a computer, from the gear on a phone) is a short list. Each row says what it holds in a
-few words.
+**Settings** (in the rail on a computer, from the gear at the top right on a phone) is a short list in four groups,
+each under its own heading, with Profile first. Each row says what it holds in a few words.
 
 <div class="anc-shots" markdown>
 <figure markdown>
@@ -14,19 +14,24 @@ few words.
 </figure>
 </div>
 
-| Row | What it holds |
-| --- | --- |
-| **Your AI** | No AI, this server's AI or your own key, and a switch for each use. See [Your AI](your-ai.md). |
-| **Your data** | Lock, export, encrypted backup, restore and erase. See [Back up, export, erase](your-data.md). |
-| **Privacy** | What is stored, what is sent, and to whom. |
-| **Nutrition** | Show or hide the nutrition numbers, and, if you like, the distance to your daily guide. |
-| **Profile** | Optional; it tunes your daily guide and the coach. |
-| **Language** | Match your device, or choose. See [Languages](languages.md). |
-| **Install on your phone** | How to add the app to your home screen. |
-| **Saved meals** | Your saved meals and recipes: rename or delete them. |
-| **About** | The project, and the open-source licences of what it is built with. |
+| Group | Row | What it holds |
+| --- | --- | --- |
+| **You** | **Profile** | Optional; it tunes your daily guide and the coach. |
+| | **Nutrition** | Show or hide the nutrition numbers, and, if you like, the distance to your daily guide. |
+| | **Language** | Match your device, or choose. See [Languages](languages.md). |
+| **Coach and AI** | **Your AI** | No AI, this server's AI or your own key, and a switch for each use. See [Your AI](your-ai.md). |
+| **Data and privacy** | **Your data** | Lock, export, encrypted backup, restore and erase. See [Back up, export, erase](your-data.md). |
+| | **Privacy** | What is stored, what is sent, and to whom. |
+| | **Saved meals** | Your saved meals and recipes: rename or delete them. |
+| **App** | **Install on your phone** | How to add the app to your home screen. |
+| | **About** | The project, and the open-source licences of what it is built with. |
 
 ## Profile
+
+<figure markdown>
+![Profile: about you, body, goal and the daily guide, every answer optional](../assets/shots/phone-profile.webp){ .anc-phone loading=lazy }
+<figcaption>Profile on a phone. On a computer the daily guide sits beside the form, in view while you change a field.</figcaption>
+</figure>
 
 Optional, and empty until you fill it in. It tunes your daily guide, the reference the nutrient bars are drawn
 against, and what the coach takes into account. It stays encrypted on the device and travels with your encrypted

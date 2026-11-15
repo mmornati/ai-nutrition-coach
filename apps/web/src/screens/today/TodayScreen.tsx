@@ -26,7 +26,13 @@ import {
   type LineMapStation,
 } from '../../components/day';
 import { foodGroupsOfFood } from '../../catalog';
-import { NutritionSection, useShowNumbers, useTargets } from '../../components/nutrition';
+import {
+  DaySummary,
+  NutritionSection,
+  useShowNumbers,
+  useTargets,
+} from '../../components/nutrition';
+import { ChevronIcon } from '../../components/primitives';
 import { formatDayMonth, formatTime, weekdayName } from '../../components/day/format';
 import { RemovePlateDialog } from '../../components/dialogs';
 import { capitalise, fill, plural, useLocale, useStrings } from '../../i18n';
@@ -47,6 +53,10 @@ import { WeighInSheet } from '../progress/WeighInSheet';
 
 const QUICK_REPEAT_MS = 5000;
 
+/** A row of the quiet list under the day: text left, chevron right, a hairline below. */
+const MORE_ROW =
+  'text-ink flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 bg-transparent py-2 text-left text-lead';
+
 /** The quiet line after a log: "+ log another plate", gone after five seconds. */
 function QuickRepeat({ at, onOpen }: { readonly at: number | null; readonly onOpen: () => void }) {
   const s = useStrings().today;
@@ -64,7 +74,7 @@ function QuickRepeat({ at, onOpen }: { readonly at: number | null; readonly onOp
       type="button"
       aria-label={s.logAnother}
       onClick={onOpen}
-      className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+      className="text-ink-soft mx-5 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
     >
       {s.logAnotherLink}
     </button>
@@ -89,9 +99,20 @@ function DurableLine() {
   }, [visible, markDurableSeen]);
   const line = !visible ? '' : durable === 'persisted' ? s.persisted : s.notPersisted;
   return (
-    <p role="status" className="text-thread mx-5 mt-3 text-meta empty:hidden lg:mx-7">
-      {line}
-    </p>
+    <div className={visible ? 'mx-5 flex flex-wrap items-center gap-x-3 lg:mx-7' : 'contents'}>
+      <p role="status" className="text-thread min-w-0 text-small empty:hidden">
+        {line}
+      </p>
+      {visible && (
+        <button
+          type="button"
+          onClick={markDurableSeen}
+          className="text-thread inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center bg-transparent text-small underline underline-offset-4"
+        >
+          {s.hide}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -294,29 +315,23 @@ export function TodayScreen() {
       header={<ScreenHeader title={title} sub={formatDayMonth(day.selected)} />}
     >
       <DurableLine />
-      <p role="status" className="text-thread mx-5 mt-3 text-meta empty:hidden lg:mx-7">
+      <p role="status" className="text-thread mx-5 mt-2 text-meta empty:hidden lg:mx-7">
         {day.notice}
       </p>
       {(!viewingToday || day.viewingEarlierWeek) && (
         <button
           type="button"
           onClick={day.goToToday}
-          className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+          className="text-ink-soft mx-5 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
         >
           {s.backToToday}
         </button>
       )}
+      {/* The day in numbers first (numbers on), then what needs a look; the bands follow. */}
+      <DaySummary nutrition={dayTotals} className="mx-5 mt-3 lg:mx-7 lg:max-w-xl" />
       <GuideHint />
+      <PaceNotice className="mx-5 mt-3 lg:mx-7" />
       <StepLine />
-      {copyPlan.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setCopying(true)}
-          className="text-ink-soft mx-5 mt-3 inline-flex min-h-12 cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
-        >
-          {all.relog.copyDay}
-        </button>
-      )}
       <QuickRepeat at={day.lastLoggedAt} onOpen={log.open} />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="min-w-0 pb-6">
@@ -324,7 +339,7 @@ export function TodayScreen() {
             <p className="text-ink-soft px-5 pt-6 text-lead lg:px-7">{s.historyCannotLoad}</p>
           ) : (
             <>
-              <LineLegend className="lg:px-7" />
+              {stations.some((st) => st.status === 'logged') && <LineLegend className="lg:px-7" />}
               <LineMap
                 className="px-0"
                 stations={stations}
@@ -364,36 +379,36 @@ export function TodayScreen() {
                 title={viewingToday ? all.nutrition.sectionTitleToday : all.nutrition.sectionTitle}
                 nutrition={dayTotals}
                 distance
+                jumpTarget
                 fixHref={(entry) => hrefs.plateEdit(entry.plateLogId)}
               />
             </>
           )}
-          <button
-            type="button"
-            onClick={() => setWeighing(true)}
-            className="text-ink-soft mx-5 mt-2 flex min-h-12 w-fit cursor-pointer items-center bg-transparent text-lead underline underline-offset-4 lg:mx-7"
+          <ul
+            aria-label={s.moreLabel}
+            className="border-ink mx-5 mt-6 list-none border-t-2 lg:mx-7"
           >
-            {s.weighInLink}
-          </button>
-          <PaceNotice className="mx-5 mt-2 lg:mx-7" />
-          <a
-            href={hrefs.week}
-            className="text-ink-soft mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
-          >
-            {s.seeWeekNetwork}
-          </a>
-          <a
-            href={hrefs.progress}
-            className="text-ink-soft mx-5 mt-2 inline-flex min-h-12 items-center text-lead underline underline-offset-4 lg:hidden"
-          >
-            {s.seeProgress}
-          </a>
-          <a
-            href={hrefs.coach}
-            className="text-ink-soft mx-5 mt-2 flex min-h-12 w-fit items-center text-lead underline underline-offset-4 lg:mx-7"
-          >
-            {s.askCoachLink}
-          </a>
+            <li className="border-seam border-b">
+              <button type="button" onClick={() => setWeighing(true)} className={MORE_ROW}>
+                {s.weighInLink}
+                <ChevronIcon size={18} />
+              </button>
+            </li>
+            {copyPlan.length > 0 && (
+              <li className="border-seam border-b">
+                <button type="button" onClick={() => setCopying(true)} className={MORE_ROW}>
+                  {all.relog.copyDay}
+                  <ChevronIcon size={18} />
+                </button>
+              </li>
+            )}
+            <li className="border-seam border-b">
+              <a href={hrefs.coach} className={MORE_ROW}>
+                {s.askCoachLink}
+                <ChevronIcon size={18} />
+              </a>
+            </li>
+          </ul>
         </section>
         <section className="border-seam hidden px-7 pt-6 lg:block lg:border-l-2">
           <h2 className="font-display text-section text-thread mb-4">{s.networkHeading}</h2>

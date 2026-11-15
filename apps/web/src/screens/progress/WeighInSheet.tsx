@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { dayNumberOf, dayTextOf, localDayText, type MeasurementKind } from '@anc/core';
 import { Button, TextField } from '../../components/primitives';
-import { Sheet } from '../../components/sheets';
+import { Sheet, SheetFooter } from '../../components/sheets';
 import { SupportLine } from '../../components/nutrition';
 import { fill, useLocale, useStrings, type Strings } from '../../i18n';
 import type { Locale } from '../../i18n/locale';
@@ -255,14 +255,14 @@ function WeighInForm({
         />
       )}
       <SupportLine />
-      <div className="flex flex-wrap gap-2">
+      <SheetFooter className="flex-row flex-wrap gap-2">
         <Button type="submit" busy={busy}>
           {s.save}
         </Button>
         <Button variant="secondary" onClick={onClose}>
           {s.cancel}
         </Button>
-      </div>
+      </SheetFooter>
     </form>
   );
 }

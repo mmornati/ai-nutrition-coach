@@ -60,13 +60,18 @@ figure. A meal that is still to come is an open band with a dashed edge: *Nothin
 </figure>
 </div>
 
+- At the top, **one header row**: the day, its date and a quiet *On this device* word, with the lock and the gear at the
+  right. On a phone a row of four tabs under it (**Today, Week, Trends, Coach**) is on every screen. With numbers on, a
+  short **summary of the day** comes first: energy against your daily guide (with the tick and "about 54 % of your
+  daily guide"), protein, fibre and how many foods are not counted, and *All nutrients* takes you down to the full
+  section. It never says "remaining". Any note that needs a look (the pace notice, this week's step) follows it.
 - On a **phone**, the dock at the bottom holds the week as seven folded towels: small stripes for the groups logged
   each day, a dashed edge for a day with nothing logged. Tap one to see that day. The floating **Log** pill sits
   above it.
 - On a **computer**, a rail on the left holds Today, Week, Trends, Settings and *Log a plate*, and *This week at a glance*
   sits beside the day.
-- Under the bands, **Today's nutrition** adds up the day. A quiet *Add a weigh-in* link sits under it, and on a phone a
-  link to [Trends](progress.md).
+- Under the bands, **Today's nutrition** adds up the day. One short list follows it: *Add a weigh-in*, *Copy this day*
+  (on an earlier day) and *Ask the coach*. [Trends](progress.md) and the coach are also the tabs under the header.
 - A small label says where your plates are: *On this device*. Once per session, a plain line also says whether the
   browser has agreed to keep your data safe from automatic clean-up; if it has not, it suggests a regular backup.
 
@@ -87,6 +92,11 @@ Tap a band to open its plate:
   takes the plate's coach note with it.
 
 ### Editing a plate
+
+<figure markdown>
+![The edit sheet: each food with Change and Remove, Add a food, the day and meal choices, and Save changes pinned at the bottom](../assets/shots/phone-plate-edit.webp){ .anc-phone loading=lazy }
+<figcaption>The edit sheet. Save changes stays at the bottom while the rest scrolls.</figcaption>
+</figure>
 
 *Edit this plate* opens a sheet where you can change the amount of a food (*Change*: its portions, or a weight in
 grams), take a food off (*Remove*), add one (*Add a food*, the same search as Type it), and move the plate to another

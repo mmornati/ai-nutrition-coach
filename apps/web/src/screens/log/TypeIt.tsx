@@ -9,7 +9,7 @@ import {
 } from '@anc/core';
 import { fill, useLocale, useMessage, useStrings } from '../../i18n';
 import { Button } from '../../components/primitives';
-import { Sheet } from '../../components/sheets';
+import { Sheet, SheetFooter } from '../../components/sheets';
 import {
   entryQuantityText,
   formatNutrient,
@@ -203,7 +203,7 @@ export function TypeIt({
         {note}
       </p>
       {(!idle || items.length > 0) && (
-        <div className="flex flex-col gap-2">
+        <SheetFooter>
           <Button
             fullWidth
             disabled={!canLog}
@@ -216,7 +216,7 @@ export function TypeIt({
           <Button variant="secondary" fullWidth disabled={draft === null} onClick={addAnother}>
             {c.addAnother}
           </Button>
-        </div>
+        </SheetFooter>
       )}
     </div>
   );

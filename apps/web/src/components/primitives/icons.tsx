@@ -121,6 +121,13 @@ export const ProgressIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const CoachIcon = (p: IconProps) => (
+  <Icon {...p}>
+    {/* A speech outline: the coach asks one question. */}
+    <path d="M4 5h16v11H11l-4.5 4v-4H4z" />
+  </Icon>
+);
+
 export const TorchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

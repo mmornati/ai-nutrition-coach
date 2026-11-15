@@ -601,7 +601,7 @@ test('two devices at once: plates, a delete, a saved-meal conflict and the langu
   // everything else on the board is the data, and must be identical.
   const withoutNotice = (text: string): string =>
     text.replace(
-      /^(Saved as .*|Plate removed\.|Renamed\.|Gardé sous .*|Assiette retirée\.|Renommé\.|Storage: .*|Stockage\s*:\s.*)\n+/gm,
+      /^(Saved as .*|Plate removed\.|Renamed\.|Gardé sous .*|Assiette retirée\.|Renommé\.|Storage: .*|Stockage\s*:\s.*|Hide|Masquer)\n+/gm,
       '',
     );
   expect({ ...boardB, today: withoutNotice(boardB.today) }).toEqual({

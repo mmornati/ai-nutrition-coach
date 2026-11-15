@@ -65,6 +65,7 @@ export function ScreenHeader({ title, sub, back, hideSettings = false }: ScreenH
           hasTransport={chip.hasTransport}
           status={chip.status}
           needsUpdate={chip.needsUpdate}
+          quiet
         />
       }
       actions={<LockButton unlocked onLock={() => void controller.lock()} />}

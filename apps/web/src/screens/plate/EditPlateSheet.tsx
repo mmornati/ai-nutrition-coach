@@ -12,7 +12,7 @@ import {
 } from '@anc/core';
 import { EMPTY_CUSTOM_FOOD, foodName, parseCustomFood, type CustomFoodInput } from '../../catalog';
 import { Button } from '../../components/primitives';
-import { QuantityPicker, Sheet } from '../../components/sheets';
+import { QuantityPicker, Sheet, SheetFooter } from '../../components/sheets';
 import { uniqueQuantities } from '../../components/sheets/foods';
 import {
   energyOf,
@@ -348,16 +348,18 @@ export function EditPlateSheet({
         <p id={statusId} role="status" className="text-body-small text-ink-soft empty:hidden">
           {invalid.size > 0 ? p.editInvalid : note}
         </p>
-        <Button
-          fullWidth
-          aria-disabled={invalid.size > 0 ? true : undefined}
-          aria-describedby={invalid.size > 0 ? statusId : undefined}
-          busy={busy}
-          busyLabel={all.common.logging}
-          onClick={() => void save()}
-        >
-          {p.editSave}
-        </Button>
+        <SheetFooter>
+          <Button
+            fullWidth
+            aria-disabled={invalid.size > 0 ? true : undefined}
+            aria-describedby={invalid.size > 0 ? statusId : undefined}
+            busy={busy}
+            busyLabel={all.common.logging}
+            onClick={() => void save()}
+          >
+            {p.editSave}
+          </Button>
+        </SheetFooter>
       </div>
     </Sheet>
   );

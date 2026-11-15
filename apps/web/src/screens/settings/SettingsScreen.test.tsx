@@ -21,22 +21,28 @@ async function openSettings(hash = '#/settings') {
 const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
 
 describe('SettingsScreen', () => {
-  it('lists Your AI, Your data, Privacy, Language, Nutrition, Profile, Saved meals, Install on your phone and About, in that order, with their subtitles', async () => {
+  it('lists Profile, Nutrition, Language, Your AI, Your data, Privacy, Saved meals, Install on your phone and About, in four groups with headings, with their subtitles', async () => {
     await openSettings();
     await heading('Settings');
     const rows = screen
       .getAllByRole('button')
       .filter((b) => b.closest('ul') !== null && b.closest('li') !== null);
     expect(rows.map((r) => r.querySelector('span span')?.textContent)).toEqual([
+      'Profile',
+      'Nutrition',
+      'Language',
       'Your AI',
       'Your data',
       'Privacy',
-      'Language',
-      'Nutrition',
-      'Profile',
       'Saved meals',
       'Install on your phone',
       'About',
+    ]);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'You',
+      'Coach and AI',
+      'Data and privacy',
+      'App',
     ]);
     expect(screen.getByText('offline (no AI)')).toBeVisible();
     expect(screen.getByText('export · lock · erase')).toBeVisible();
