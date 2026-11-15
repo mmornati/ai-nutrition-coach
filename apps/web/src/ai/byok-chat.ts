@@ -58,7 +58,11 @@ export class ByokChat implements TextCompletionPort {
       case 'keyRejected':
         return { kind: 'failure', message: t.keyRejected };
       case 'failure':
-        return { kind: 'failure', message: outcome.message };
+        return {
+          kind: 'failure',
+          message: outcome.message,
+          ...(outcome.status === undefined ? {} : { status: outcome.status }),
+        };
     }
   }
 

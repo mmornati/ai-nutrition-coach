@@ -28,14 +28,69 @@ const MEAL =
 
 interface Rule {
   readonly re: RegExp;
+  /** The same pattern with the global flag, compiled once (`matchAll` copies it per call). */
+  readonly all: RegExp;
   /** `true`: advising AGAINST it ("do not skip meals") is acceptable. */
   readonly negatable: boolean;
+  /** `true`: a typed QUESTION that matches also routes to the calm support line. */
+  readonly ask?: boolean;
+  /** A match inside a sentence this returns `true` for is acceptable (planning, not compensation). */
+  readonly exempt?: (sentence: string) => boolean;
 }
 
-const rule = (source: string, negatable: boolean): Rule => ({
+const rule = (
+  source: string,
+  negatable: boolean,
+  extra: Pick<Rule, 'ask' | 'exempt'> = {},
+): Rule => ({
   re: new RegExp(source),
+  all: new RegExp(source, 'g'),
   negatable,
+  ...extra,
 });
+
+/** Ahead planning ("planning one lighter meal on Saturday") that does not react to having eaten. */
+const PLANNING = /\b(?:plan(?:ning|ned|s)?|schedul\w+|prevoir|prevu\w*|prevoyez|envisag\w+)\b/;
+const REACTIVE =
+  /\b(?:yesterday|last night|today|tonight|this (?:morning|lunch|evening|weekend)|hier|ce (?:midi|soir|matin)|aujourd'hui|too much|trop|ran over|over(?:ate|ran|shot|did)|splurg\w*|binge\w*|excess\w*|exces|went over|depass\w*|(?:ate|eaten) (?:more|too))\b/;
+const isAheadPlanning = (sentence: string): boolean =>
+  PLANNING.test(sentence) && !REACTIVE.test(sentence);
+
+/**
+ * What was LOGGED ("you had just two meals a day on Tuesday", "you logged only water this
+ * morning") is a description of the past, not advice to repeat it, unless the sentence goes on to
+ * approve of it.
+ */
+const LOGGED =
+  /\b(?:you|vous) (?:had|ate|logged|only had|just had|have (?:had|eaten|logged)|avez (?:mange|pris|eu|note|enregistre|bu)|n'avez (?:mange|pris|bu))\b/;
+const ENDORSES =
+  /\b(?:keep (?:that|it|this|going)|keep it up|continue|stick (?:to|with)|stay (?:with|on)|more of (?:that|this)|great|good|well done|bravo|perfect|exactly|plenty|enough|ideal|impressive|best|continuez|gardez ce|parfait|bien|exactement|suffit|largement)\b/;
+const isLoggedDescription = (sentence: string): boolean =>
+  LOGGED.test(sentence) && !ENDORSES.test(sentence);
+
+/** "If you missed lunch today, ...": a past event named as the reason for advice to EAT. */
+const PAST_MISS =
+  /\b(?:if|when|since|because|once|as|si|quand|puisque|comme) (?:you|you've|you have|vous|tu|i|j'ai)\b(?: \w+){0,2} (?:missed|skipped|forgot|forgotten|didn't (?:have|eat)|did not (?:have|eat)|rate|oublie|saute|manque|omis)\b/;
+const isPastMissThenFood = (sentence: string): boolean =>
+  PAST_MISS.test(sentence) &&
+  /\b(?:snack|collation|eat|manger|mangez|prenez|have something|meal|repas)\b/.test(sentence);
+
+/** A real snack or meal offered next to water or bed: water PLUS food is fine. */
+const OFFERS_FOOD =
+  /\b(?:small|light|planned|proper|real|nourishing|filling|simple|nourrissante?|vraie|petite|petit) (?:snack|collation|meal|repas|bite)\b|\b(?:snack|collation) is (?:fine|ok|okay)\b|\bprenez (?:une|un) (?:vraie |petite |bonne )?(?:collation|encas|repas)\b|\bhave (?:a|some) (?:snack|bite|fruit|yoghurt)\b/;
+const DENIES_FOOD = /\b(?:instead of|rather than|skip|without|plutot que|au lieu|sans|ne )\b/;
+const isWaterPlusFood = (sentence: string): boolean =>
+  OFFERS_FOOD.test(sentence) && !DENIES_FOOD.test(sentence);
+
+/** Reassurance that moderation of hunger is fine: "a lighter dinner is fine if you are not hungry". */
+const isPermissionNotReaction = (sentence: string): boolean =>
+  /\b(?:is|are|c'est) (?:fine|ok|okay|alright|bien|possible)\b/.test(sentence) &&
+  /\b(?:not hungry|aren't hungry|pas faim|n'avez pas faim|as long as|tant que)\b/.test(sentence);
+
+/** A real food named as the meal ("an omelette instead of dinner, with bread and a salad"). */
+const REAL_FOOD =
+  /\b(?:omelettes?|eggs?|oeufs?|pasta|pates|rice|riz|bread|pain|cheese|fromage|chicken|poulet|fish|poisson|meat|viande|vegetables|legumes|beans|haricots|lentils|lentilles|tofu|potato(?:es)?|pommes? de terre|salad|salade|sandwich(?:es)?|toast|tartines?)\b/;
+const hasRealFood = (sentence: string): boolean => REAL_FOOD.test(sentence);
 
 const src = (...parts: string[]): string => parts.join('|');
 
@@ -107,7 +162,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
   // ---- Skipping, leaving out, replacing a meal ---------------------------------------------
   rule(
     src(
-      String.raw`\b(?:skip|skips|skipping|skipped)\b[^.?!;]{0,24}?\b${MEAL}\b`,
+      String.raw`\b(?:skip|skips|skipping|skipped)\b[^.?!;]{0,48}?\b${MEAL}\b`,
       String.raw`\b(?:leav(?:e|es|ing) out|go(?:es|ing)? without|do(?:es|ing)? without|omit(?:ting)?|forg(?:o|oing)|drop(?:ping)?|cut(?:ting)? out|miss(?:ing)? out on|stop(?:ping)? (?:eating|having))\b[^.?!;]{0,16}?\b${MEAL}\b`,
       String.raw`\bmiss(?:ing|ed)? (?:a |your |some |one )?${MEAL}\b`,
       String.raw`\b(?:cut|drop|ditch|remove|eliminate|delete)\s+(?:a |your |the |my )?(?:meal|breakfast|lunch|dinner|supper)s?(?: out| altogether| completely)\b`,
@@ -116,7 +171,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\bpas de (?:diner|dejeuner|petit-dejeuner|repas) (?:de temps en temps|parfois|occasionnellement|le soir|une fois)\b|\bsans (?:diner|dejeuner|petit-dejeuner|repas)\b`,
       String.raw`\barret\w+ de manger[^.?!;,]{0,16}\b(?:diner|dejeuner|petit-dejeuner|repas|soir|midi|matin|apres)\b|\bstop(?:ping)? eating (?:after|before|from|at)\b`,
       String.raw`\b(?:not|never) (?:eat|eating|have|having) (?:a |your |any )?(?:breakfast|lunch|dinner|supper)\b`,
-      String.raw`\bsaut(?:er|ez|ons|e|es|ant)\b[^.?!;]{0,24}?\b${MEAL}\b`,
+      String.raw`\bsaut(?:er|ez|ons|e|es|ant)\b[^.?!;]{0,48}?\b${MEAL}\b`,
       String.raw`\bsaut(?:ez|ons)(?:-\w+)?\b`,
       String.raw`\bpassez[- ]vous (?:du|de la|des|de l'|de)\s*${MEAL}\b`,
       String.raw`\b(?:vous|se|me|te) passer (?:du|de la|des|de l'|de)\s*${MEAL}\b`,
@@ -125,6 +180,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\b(?:omettez|supprimez|retirez|enlevez) (?:le|la|un|une|votre)\s*${MEAL}\b`,
     ),
     true,
+    { exempt: isPastMissThenFood },
   ),
   rule(
     src(
@@ -173,6 +229,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\bboire de l'eau\b[^.?!;]{0,24}\b(?:faim|envie)\b`,
     ),
     true,
+    { exempt: isWaterPlusFood },
   ),
   // ---- Detox, cleanses, vinegar, fat burning ------------------------------------------------
   rule(
@@ -190,6 +247,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\bpurif\w+ (?:your |the |votre |le )?(?:body|system|corps|organisme)\b`,
     ),
     true,
+    { exempt: isLoggedDescription },
   ),
   rule(
     src(
@@ -305,10 +363,7 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\b(?:to )?earn (?:it|your|that|the|a)\b`,
       String.raw`\bdeserve (?:it|your|that|a|the)\b`,
       String.raw`\bpunish\w*|\boffset(?:s|ting)? (?:it|that|the|this|calories)\b|\bundo(?:ing)? (?:the|yesterday|today|that|it)\b`,
-      String.raw`\bbalanc\w* (?:it|this|that|things|them|the day|yesterday|today|tomorrow|your (?:day|week|intake))(?: out)?\b|\bbalance[sd]? out\b|\bbalance (?:it )?out\b`,
-      String.raw`\beven(?:ing)? (?:it|this|that|things|the day|today|yesterday)? ?out\b`,
       String.raw`\b(?:make|making) (?:tomorrow|tonight|today|the next day|your next meal|dinner)\b[^.?!;]{0,8}\b(?:lighter|smaller|leaner)\b`,
-      String.raw`\blighter (?:tomorrow|day|meal|dinner|tonight)\b`,
       String.raw`\b(?:eat|have|go|cut back|eating|having) (?:a )?(?:less|lighter|smaller|fewer|easier)\b[^.?!;]{0,16}\b(?:tomorrow|tonight|later|afterwards|the next day|to (?:make up|balance|compensate|offset|even))\b`,
       String.raw`\b(?:tomorrow|tonight|later)\b[^.?!;]{0,10}\b(?:eat|have|aim|go|cut) (?:less|lighter|smaller|fewer|easier)\b`,
       String.raw`\bcut back (?:tomorrow|tonight|later|the next day)\b|\bgo easy (?:tomorrow|tonight|the next day|on the next)\b`,
@@ -320,7 +375,6 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
       String.raw`\b(?:mistake|error|slip[- ]?up|failure|sin)\b[^.?!;]{0,24}\b(?:fix|correct|repair|undo|make up|erase|atone)\b`,
       String.raw`\b(?:fix|correct|repair|undo|erase|atone for)\b[^.?!;]{0,16}\b(?:pizza|dessert|meal|dinner|lunch|binge|slip|indulgence|weekend)\b`,
       String.raw`\bcount (?:it|that|the \w+) as a (?:mistake|slip|failure|sin)\b|\bune erreur a (?:reparer|corriger|effacer|rattraper)\b|\bcomme une erreur\b`,
-      String.raw`\bequilibr(?:er|ez) (?:la journee|le repas|hier|ca|cela|demain|aujourd'hui|votre (?:journee|semaine))\b`,
       String.raw`\b(?:plus leger|moins) (?:demain|ce soir|ensuite|apres|le lendemain)\b|\bmangez (?:plus leger|moins)\b[^.?!;]{0,16}\b(?:demain|ce soir|apres|ensuite|le lendemain|aujourd'hui)\b|\ballegez\b|\bdemain,? (?:mangez|prenez|faites) (?:moins|plus leger|un repas leger)\b`,
     ),
     true,
@@ -351,6 +405,145 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
     ),
     false,
   ),
+  // ---- Second pass of the lexical layer (measured 2026-11-15): the same harms, worded without the
+  //      key verb. Appended so the indexes of `ASK_RULE_INDEXES` stay valid; `ask` rules also route a
+  //      typed question.
+  // Letting a meal go, waiting for the next one, pushing the first one back.
+  rule(
+    src(
+      String.raw`\blet(?:ting)? (?:the |your |a |that )?(?:meals?|breakfasts?|lunch(?:es)?|dinners?|suppers?|brunch|snacks?) go\b`,
+      String.raw`\b(?:wait|waiting|hold off|holding off|hold out|holding out)\b[^.?!;]{0,6}\b(?:until|till|for)\b[^.?!;]{0,4}\b(?:lunch|dinner|supper|noon|midday|the afternoon|the evening|tonight|\d{1,2} ?(?:pm|am|o'clock))\b`,
+      String.raw`\b(?:push|pushing|pushed|delay|delaying|delayed|postpone|postponing|put off|putting off|move|moving|shift|shifting|defer|deferring)\b[^.?!;]{0,12}\b(?:(?:first|next|morning|evening) meal\b|(?:main|big) meal\b(?! (?:to|at|for|until) (?:the )?(?:lunch(?:time)?|midday|noon|earlier|the middle of the day)))`,
+      String.raw`\bfirst meal\b[^.?!;]{0,20}\b(?:mid-?afternoon|late afternoon|later|noon|midday|late)\b`,
+      String.raw`\battendez\b[^.?!;]{0,12}\b(?:midi|le dejeuner|le diner|le soir|l'apres-midi|\d{1,2} ?h)\b`,
+      String.raw`\b(?:retardez|repoussez|reportez|decalez|differez)\b[^.?!;]{0,16}\b(?:premier repas|repas|petit-dejeuner|dejeuner|diner)\b`,
+      String.raw`\bpremier repas\b[^.?!;]{0,20}\b(?:tard|midi|apres-midi|plus tard|\d{1,2} ?h)\b`,
+      String.raw`\b(?:zapp\w+|loup(?:er|ez|e|es|ant)|rat(?:er|ez|ant)|oubli(?:er|ez))\b[^.?!;]{0,48}?\b${MEAL}\b`,
+    ),
+    true,
+    { ask: true, exempt: isPastMissThenFood },
+  ),
+  // Something small standing in for a meal.
+  rule(
+    src(
+      String.raw`\b(?:stand(?:s|ing)? in (?:for|of)|takes? the place of|taking the place of|in lieu of|can do for|will do for|is enough for|suffices? for)\b[^.?!;]{0,12}\b(?:a |an |your |the |any )?(?:meals?|breakfasts?|lunch(?:es)?|dinners?|suppers?|brunch)\b`,
+      String.raw`\b(?:cup|glass|mug|bowl|bottle) of (?:tea|coffee|water|broth|soup|juice|milk)\b(?:(?!\b(?:bread|cheese|pasta|rice|eggs?|chicken|fish|meat|beans|lentils|toast|sandwich|tofu|potatoes?)\b)[^.?!;]){0,30}\b(?:is enough|suffices|will do|does the trick|can do|should do|is all you need|stand in)\b`,
+      String.raw`\bcontenter (?:d'|de |du |des )(?:une? )?(?:simple )?(?:tisane|the|cafe|eau|bouillon|soupe|yaourt|fruit|pomme|salade|jus|collation|rien|peu)\b`,
+      String.raw`\b(?:tient|tiennent|tenir|tenez|tiendra) lieu (?:de|du|des)\b[^.?!;]{0,12}\b${MEAL}\b`,
+      String.raw`\b(?:un|une|le|la|du|de la|des)\s+(?:simple |petit |petite |bon |grand |grande )?(?:cafe|the|tisane|infusion|bouillon|verre d'eau|soupe|jus|yaourt|fruit|pomme)(?: noir| vert)?\b(?:(?!\b(?:pain|fromage|pates|riz|oeufs?|poulet|poisson|viande|legumes?|haricots|lentilles|tartines?|omelette)\b)[^.?!;]){0,20}\b(?:suffit|suffisent|suffira|fait l'affaire|fera l'affaire|est assez|est suffisant|tient lieu)\b`,
+      String.raw`\ben guise d(?:e|u|'un|'une)?\s*(?:diner|dejeuner|petit-dejeuner|repas)\b`,
+    ),
+    true,
+    { ask: true, exempt: hasRealFood },
+  ),
+  // One or two meals a day, said as a count.
+  rule(
+    src(
+      String.raw`\b(?:eat|eating|have|having|take|taking|stick to|sticking to|stay on|aim for|go for|limit yourself to|limit to|just|only|manger|prenez|limitez[- ]vous a|contentez[- ]vous de)\b[^.?!;]{0,16}\b(?:1|2|one|two|un|une|deux)\s+(?:(?:real|proper|big|large|full|main|vrai|vraie|gros|bon)\s+){0,2}(?:meals?|repas)\s+(?:a|per|each|every|par|chaque)\s+(?:day|jour)\b`,
+      String.raw`\b(?:1|2|one|two|un|une|deux)\s+(?:(?:real|proper|big|large|full|main|vrai|vraie|gros|bon)\s+){0,2}(?:meals?|repas)\s+(?:a|per|each|every|par|chaque)\s+(?:day|jour)\b[^.?!;]{0,30}\b(?:plenty|enough|suffi\w*|sufficient|largement|all you need|is best|are best|ideal|do the job|is fine|are fine|c'est assez)\b`,
+      String.raw`\b(?:mang\w+|prenez|prends|prendre|limitez\w*|contentez\w*)\b[^.?!;]{0,10}\bqu'(?:un|une)\s+(?:seul\w*\s+)?(?:(?:vrai|vraie|bon|gros)\s+)?repas\b`,
+      String.raw`\bun seul (?:vrai|vraie|gros|bon) repas\b`,
+    ),
+    true,
+    { ask: true, exempt: isLoggedDescription },
+  ),
+  // Not eating for a stretch of the clock, without the word "fast".
+  rule(
+    src(
+      String.raw`\bgo(?:ing)? without (?:any )?(?:food|eating|anything to eat)\b`,
+      String.raw`\b(?:without (?:any )?(?:food|eating)|no food|nothing to eat|eat nothing|not eat(?:ing)?|don'?t eat|do not eat|abstain\w*|refrain\w* from eating|ne mangez (?:rien|pas|plus)|rien (?:a )?manger|sans (?:manger|nourriture)|pas de nourriture)\b[^.?!;]{0,30}\b(?:from|de|depuis|entre|between|after|apres|des)\b[^.?!;]{0,10}\b\d{1,2} ?(?:h|pm|am|:\d\d|o'clock|heures?)\b[^.?!;]{0,25}\b(?:until|till|to|a|et|jusqu'a|jusqu'au|au|and|-)\b[^.?!;]{0,12}\d{1,2}`,
+      String.raw`\b(?:from|between|de|entre) \d{1,2} ?(?:h|pm|am|:\d\d|o'clock|heures?)\b[^.?!;]{0,12}\b(?:until|till|to|et|a|jusqu'a|and)\b[^.?!;]{0,12}\d{1,2} ?(?:h|pm|am|:\d\d|heures?)\b[^.?!;]{0,16}\b(?:no food|nothing|without eating|sans manger|ne mangez|rien|fast|next day|lendemain)\b`,
+    ),
+    true,
+    { ask: true },
+  ),
+  // Mono-diets, liquid and protein diets, only soups, "reset" cures.
+  rule(
+    src(
+      String.raw`\bmono[- ]?diet(?:e|es|s)?\b|\bmono[- ]?regime\b`,
+      String.raw`\b(?:apple|banana|rice|potato|egg|cabbage|grapefruit|pineapple|watermelon|lemon|maple syrup|liquid|water|juice|smoothie|shake|soup|broth|baby food|raw food|fruit) (?:only )?diet\b`,
+      String.raw`\bregime (?:a la |au |aux |de la |du |de l'|d')?(?:pomme|riz|banane|pamplemousse|oeufs?|chou|ananas|pasteque|pommes? de terre|citron|eau|jus|liquide|proteine\w*)\b`,
+      String.raw`\bdiete\b[^.?!;]{0,16}\b(?:eau|hydrique|liquide|proteinee|fruits?|jus|soupe|citron|pomme)\b`,
+      String.raw`\bproteinee? liquide\b|\bprotein\w* (?:diet|shakes?) (?:only|for \d)\b`,
+      String.raw`\bonly (?:\w+ (?:and|or) )?(?:soups?|broths?|juices?|smoothies?|shakes?|liquids?|fruits?|salads?|water|teas?|coffee|bars?)\b`,
+      String.raw`\b(?:great|good|quick|fast|easy|full|total|hard|real|fresh|clean) reset (?:after (?:the |a |your )?(?:holidays?|christmas|festive|weekend|binge|vacation|indulg\w+)|for (?:your )?(?:body|system|gut|diet|weight)|of (?:your )?(?:body|system|diet)|with (?:a |an )?(?:soup|juice|cleanse|detox|diet|fast))\b|\breset (?:your |the )?(?:body|system|metabolism|gut|digestion)\b|\bbody reset\b|\b(?:reset|reboot) (?:diet|cure|week|plan|cleanse)\b|\b(?:cure|diete) de (?:reset|reboot)\b`,
+      String.raw`\bnothing but (?:shakes?|water|juice|tea|coffee|soup|broth|liquids?|fruit)\b|\bnothing else\b[^.?!;]{0,12}\b(?:for|than)\b[^.?!;]{0,10}\b(?:week|month|days?)\b`,
+      String.raw`\bne (?:boire|manger|prendre) (?:que|qu')\s*(?:des |de l'|du |un |une )?(?:shakes?|liquides?|jus|eau|soupes?|fruits?|cafe|the|tisanes?|bouillons?|smoothies?)\b`,
+      String.raw`\b(?:uniquement|seulement|exclusivement) (?:des |de l'|du )?(?:shakes?|liquides?|soupes?|bouillons?|smoothies?|boissons)\b`,
+    ),
+    true,
+    { ask: true, exempt: isLoggedDescription },
+  ),
+  // Water, a toothbrush or bed offered as the answer to hunger.
+  rule(
+    src(
+      String.raw`\b(?:hunger|hungry|cravings?|appetite|faim|envie de manger|envies?|grignot\w*)\b[^.?!;]{0,60}\b(?:toothbrush|brush(?:ing)? (?:your |the )?teeth|chew(?:ing)? gum|chewing-?gum|go(?:ing)? to bed|go(?:ing)? to sleep|early night|se coucher|vous coucher|allez dormir|brossez|brosser|brossage|distract\w*)\b`,
+      String.raw`\b(?:toothbrush|brush(?:ing)? (?:your |the )?teeth|chew(?:ing)? gum|go(?:ing)? to bed|go(?:ing)? to sleep|brossez|vous coucher)\b[^.?!;]{0,40}\b(?:hunger|hungry|cravings?|appetite|faim|envies?)\b`,
+      String.raw`\b(?:hunger|hungry|cravings?|appetite|faim|envie de manger|envies?)\b[^.?!;]{0,40}\b(?:buvez|boire|drink|have|sip|sparkling|glass of water|verre d'eau|tisane|tea|coffee|cafe)\b[^.?!;]{0,50}\b(?:do the trick|does the trick|usually works|usually do|should do|is enough|will do|suffit|fait l'affaire|suffira|passera|calmera|will pass|will fade)\b`,
+      String.raw`\b(?:faim|envie|hunger|cravings?)\b[^.?!;]{0,40}\bbuvez\b[^.?!;]{0,20}\b(?:eau|tisane|the|cafe)\b`,
+    ),
+    true,
+    { ask: true, exempt: isWaterPlusFood },
+  ),
+  // Halving portions and meals, cutting them across the board.
+  rule(
+    src(
+      String.raw`\bhalv(?:e|ing|ed)\b[^.?!;]{0,12}\b(?:portions?|meals?|servings?|plates?|amounts?|food|intake|what you eat)\b`,
+      String.raw`\bhalf of (?:your|the|each) (?:portions?|meals?|servings?)\b`,
+      String.raw`\b(?:cut|reduce|shrink|slash|trim|lower)\b[^.?!;]{0,12}\b(?:portions?|meals?|servings?|food)\b[^.?!;]{0,16}\b(?:across the board|drastically|sharply|massively|dramatically|by (?:\d+ ?%|half|a third|a quarter|two thirds))\b`,
+      String.raw`\b(?:divisez|reduisez|diminuez|coupez|halvez)\b[^.?!;]{0,20}\b(?:portions?|repas|assiette|quantites?)\b[^.?!;]{0,12}\b(?:par (?:deux|trois)|de moitie|en deux|du tiers)\b`,
+    ),
+    true,
+  ),
+  // Praise for eating very little.
+  rule(
+    src(
+      String.raw`\b(?:barely|hardly|scarcely|almost nothing|next to nothing|so little|very little|(?:just|only) (?:a|an) (?:coffee|tea|salad|apple|yoghurt)|presque rien|a peine mange|tres peu mange|quasiment rien)\b[^.?!;]{0,70}\b(?:exactly|that'?s what|that is what|the kind of|we want|control|discipline|willpower|impressive|proud|keep (?:that|it) up|ce qu'il faut|ce qu'on veut|ce que l'on veut|controle|volonte|fier|fiere|admirable|continuez|c'est bien|c'est parfait|c'est exactement)\b`,
+      String.raw`\b(?:exactly|that'?s what|that is what|the kind of|we want|control|discipline|willpower|impressive|proud|keep (?:that|it) up|ce qu'il faut|ce qu'on veut|ce que l'on veut|controle|volonte|fier|fiere|admirable|continuez|c'est bien|c'est parfait|c'est exactement)\b[^.?!;]{0,70}\b(?:barely|hardly|scarcely|almost nothing|next to nothing|so little|very little|presque rien|a peine mange|tres peu mange|quasiment rien)\b`,
+    ),
+    true,
+  ),
+  // Moralising nouns and adjectives about the person or a food choice.
+  rule(
+    src(
+      String.raw`\b(?:lazy|weak|pathetic|greedy|sloppy|careless|irresponsible|shameful|disgusting|undisciplined|self-indulgent)\b[^.?!;]{0,16}\b(?:choice|decision|habit|eating|move|call|snack|meal|dessert|food|person|you|of you)\b`,
+      String.raw`\byou(?:'re| are| were)? (?:so |very |really |a bit )?(?:lazy|weak|greedy|pathetic|undisciplined)\b`,
+      String.raw`\b(?:know|knows) better\b|\bshould have known\b`,
+      // Moral words count when they are said OF the person or their eating: a verdict ("great
+      // discipline", "lack of control", "your willpower"), not the bare word ("no willpower
+      // needed", "good control of salt", "a reset for the mood").
+      String.raw`\bweakness\b|\black of (?:self-?)?(?:control|discipline|restraint|will-?power)\b|\b(?:poor|weak|bad) (?:self-?)?(?:control|discipline|will-?power)\b|\b(?:kind|sort) of (?:self-?)?control\b`,
+      String.raw`\b(?:good|great|strong|iron|real|total|perfect|impressive|admirable|excellent|amazing|incredible|such|nice|sheer|remarkable|your|more|show(?:ed|ing|s)?|showing) (?:self-?)?(?:control|discipline|will-?power|restraint)\b(?! (?:of|over|on|in|with) (?:the |your |a |some )?(?:salt|sodium|sugar|fat|fats|oil|ingredients?|seasoning|portion sizes?|temperature|quality|flavou?rs?|spices?))`,
+      String.raw`\bself-?control\b(?= (?:is|was|are|were)\b)`,
+      String.raw`\bfaiblesse\b|\bmanque de (?:volonte|controle|discipline|rigueur|caractere)\b|\bforce de volonte\b|\b(?:bonne|belle|grande|forte|votre|quelle) volonte\b|\bde la volonte\b|\bparess\w+|\bmollesse\b|\b(?:bon|beau|vrais?|vraie|bonne|grand|grande|forte?|parfait|total|bien|garde[rz]?|avoir|avez|belle)\s+(?:le |la |du )?(?:controle|maitrise|discipline)\b(?! (?:du|de|des|sur) (?:sel|sucre|gras|ingredients?|assaisonnement|temperature|qualite))|\bbelle (?:maitrise|discipline|volonte)\b|\bc'est du controle\b|\bde la discipline\b`,
+    ),
+    true,
+  ),
+  // Compensation in other forms: passive, "earn", "merit", "erase".
+  rule(
+    src(
+      String.raw`\bburn(?:s|ed|t|ing)? (?:it |them |that |this |those |these )?(?:off|away)\b`,
+      String.raw`\b(?:worked|walked|ran|sweated|jogged|exercised|trained) (?:it |them |that |this |those |these )?(?:off|away)\b`,
+      String.raw`\b(?:can|could|will|would|should|must|to) be (?:burn\w*|worked|walked|run|sweated|exercised|compensated|offset|cancelled|canceled|undone|erased)\b[^.?!;]{0,8}\b(?:off|away|out|by|with)\b`,
+      String.raw`\b(?:effac\w+|annul\w+|gomm\w+|eponge\w*|expi\w+|neutralis\w+|racht\w+|brul\w+)\b[^.?!;]{0,20}\b(?:dessert|gateau|repas|ecart|exces|pizza|burger|glace|biere|chocolat|ce que vous|ce que tu|cela|ca|ces calories|vos calories|les calories (?:de|du|d'|en trop))\b`,
+      String.raw`\bmerit\w+\b[^.?!;]{0,28}\b(?:seance|sport|course|marche|velo|effort|entrainement|dessert|gateau|chocolat|glace|repas|plaisir|friandise|biere|verre|pizza)\b`,
+      String.raw`\b(?:earned|earn)\b[^.?!;]{0,12}\b(?:dessert|treat|cake|chocolate|ice cream|pizza|meal|snack|drink|beer|glass|it)\b`,
+      String.raw`\b(?:deserve|deserved)\b[^.?!;]{0,16}\b(?:dessert|treat|cake|chocolate|ice cream|pizza|reward|beer)\b`,
+      String.raw`\bpour tout (?:eliminer|effacer|bruler|compenser|annuler)\b`,
+    ),
+    true,
+  ),
+  // Evening a day out after eating: acceptable as planning ahead, not as a reaction.
+  rule(
+    src(
+      String.raw`\bbalanc\w* (?:it|this|that|things|them|the day|yesterday|today|tomorrow|your (?:day|week|intake))(?: out)?\b|\bbalance[sd]? out\b|\bbalance (?:it )?out\b`,
+      String.raw`\beven(?:ing)? (?:it|this|that|things|the day|today|yesterday)? ?out\b`,
+      String.raw`\blighter (?:tomorrow|day|meal|dinner|tonight)\b`,
+      String.raw`\bequilibr(?:er|ez) (?:la journee|le repas|hier|ca|cela|demain|aujourd'hui|votre (?:journee|semaine))\b`,
+    ),
+    true,
+    { exempt: (sentence) => isAheadPlanning(sentence) || isPermissionNotReaction(sentence) },
+  ),
 ]);
 
 /**
@@ -362,6 +555,33 @@ export const HARM_RULES: readonly Rule[] = Object.freeze([
 const ASK_RULE_INDEXES: readonly number[] = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18,
 ];
+
+/**
+ * Questions that ask for something harmful rather than say it: undoing a meal with exercise,
+ * switching hunger off, pills that curb it, eating every other day. Matched with no negation
+ * reading: a question is routed on its subject, the lower bar of the ask side.
+ */
+const ASK_EXTRA: readonly RegExp[] = Object.freeze([
+  /\b(?:how (?:many|much|long|far)|combien)\b[^.?!;]{0,50}\b(?:to|pour|pour pouvoir)\b[^.?!;]{0,14}\b(?:undo|burn off|burn|work off|cancel|offset|make up|compensate|eliminate|erase|eliminer|effacer|annuler|compenser|bruler|expier|rattraper)\b/,
+  /\b(?:how (?:many|much|long|far)|combien)\b[^.?!;]{0,50}\bget rid of (?:what i|the calories|everything i|the (?:pizza|binge|cake|dessert|meal) i)\b/,
+  /\bhow (?:do|can|could|should) i (?:undo|burn off|work off|cancel out|offset|make up for|erase|compensate for)\b/,
+  /\bhow (?:do|can|could|should) i get rid of (?:what i (?:just )?(?:ate|had)|everything i (?:ate|had)|the calories|the (?:pizza|binge|cake|dessert|meal) i (?:ate|had)|(?:this|that|my) (?:meal|binge|dessert|pizza|cake)(?! (?:bloating|belly))|the damage)\b/,
+  /\b(?:undo|burn off|work off|make up for|compensate for|get rid of|erase|cancel out)\b[^.?!;]{0,12}\b(?:what i (?:just )?(?:ate|had)|everything i (?:ate|had)|the (?:pizza|binge|damage|meal|cake|dessert|calories)|(?:this|that|my) (?:meal|binge|dessert|pizza|cake))\b/,
+  /\bmake up for (?:today|yesterday|eating|what i|it|the)\b/,
+  /\bpour (?:tout )?(?:eliminer|effacer|annuler|compenser|bruler|expier|rattraper)\b/,
+  /\b(?:eliminer|effacer|annuler|compenser|bruler|expier|rattraper)\b[^.?!;]{0,14}\b(?:ce que j'ai|tout ce que|mon repas|ce repas|mon exces|le gateau|la pizza|les calories|ces calories|mes calories|ce que je viens)\b/,
+  /\b(?:pills?|tablets?|meds?|medications?|medicines?|supplements?|drugs?|injections?|patch(?:es)?)\b[^.?!;]{0,40}\b(?:hunger|hungry|appetite|cravings?|lose weight|slim|weight loss|eat less|stop eating)\b/,
+  /\b(?:suppress|curb|kill|reduce|stop|block|dampen|get rid of|switch off|turn off)\w*\b[^.?!;]{0,12}\b(?:my |your |the )?(?:hunger|appetite|feeling hungry|feeling of hunger)\b/,
+  /\b(?:medicaments?|pilules?|gelules?|cachets?|comprimes?|complements?|produits?)\b[^.?!;]{0,30}\b(?:coup\w+|supprim\w+|calm\w+|reduis\w+|bloqu\w+|stop\w*|eteign\w+)\b[^.?!;]{0,6}\b(?:la |l'|mon |ma |votre )?(?:faim|appetit)\b/,
+  /\b(?:couper|supprimer|eteindre|perdre|calmer|bloquer) (?:la |l'|mon |ma )?(?:faim|appetit)\b/,
+  /\b(?:not|never|no longer|stop\w*)\b[^.?!;]{0,6}\b(?:want\w*|feel\w* like|wish\w*)\b[^.?!;]{0,6}\b(?:to )?eat\w*\b[^.?!;]{0,12}\b(?:at all|anymore|any more|ever|again)\b/,
+  /\b(?:make|get|train) (?:myself|me)\b[^.?!;]{0,12}\b(?:not|never|stop)\b[^.?!;]{0,16}\beat/,
+  /\bne plus (?:avoir|ressentir|sentir)\b[^.?!;]{0,6}\b(?:envie de manger|faim|d'appetit)\b|\bne plus manger du tout\b|\bmanger du tout\b/,
+  /\bun jour sur (?:deux|trois|2|3)\b|\btous les (?:deux|trois|2|3) jours\b[^.?!;]{0,16}\bmanger|\bmanger\b[^.?!;]{0,24}\btous les (?:deux|trois|2|3) jours\b|\bne manger qu'(?:un|une|1)\b|\bne manger que\b[^.?!;]{0,12}\b(?:fois|jour|soir|midi|matin)\b/,
+  /\bonce every (?:two|three|2|3|other) days?\b|\beat\w*\b[^.?!;]{0,20}\bevery (?:other|second|third) day\b|\balternate[- ]days?\b/,
+  /\bwater[- ]?(?:only|diet|fast)\b/,
+  /\b(?:drink|have|live on|only)\b[^.?!;]{0,12}\b(?:shakes?|smoothies?|juices?|soups?|water)\b[^.?!;]{0,16}\b(?:and nothing else|nothing else|only|alone|exclusively)\b/,
+]);
 
 /** Words about the person's body or a verdict on it. Never negatable. */
 export const BODY_RULES: readonly RegExp[] = Object.freeze([
@@ -380,8 +600,8 @@ export const BODY_RULES: readonly RegExp[] = Object.freeze([
 // Negation
 // ---------------------------------------------------------------------------------------------
 
-const NEG_EN = String.raw`(?:no need (?:to|for)|not (?:need|needed|necessary) to|need not|needn't|don't|do not|doesn't|does not|didn't|never|avoid(?:ing)?|shouldn't|should not|can't|cannot|won't|will not|wouldn't|would not|mustn't|must not|not to|rather than|instead of|without|stop|refrain from|resist the urge to|no point in|no reason to|not worth|best not to|better not to|try not to|not advis\w+ to|not (?:as|a|meant|intended|used|designed|for|the|something|anything) (?:\w+ ){0,5}?(?:to|for|of)|nothing (?:to|for) (?:gain|gained) (?:from|by))`;
-const NEG_FR = String.raw`(?:evit\w+(?: de| d')?|inutile (?:de|d')|pas besoin (?:de|d')|plutot que(?: de)?|au lieu (?:de|d')|sans|renonc\w+ (?:a|au)|il ne faut pas|il vaut mieux ne pas|mieux vaut ne pas|n'est pas necessaire de|jamais|pas pour|non pour|pas afin de|(?:n'est|ne sert|ce n'est) pas (?:a|pour)|ni (?:a|pour))`;
+const NEG_EN = String.raw`(?:no need(?: to| for)?|not (?:need|needed|necessary)(?: to)?|need not|needn't|don't|do not|doesn't|does not|didn't|never|avoid(?:ing)?|shouldn't|should not|can't|cannot|won't|will not|wouldn't|would not|mustn't|must not|not to|rather than|instead of|without|stop|refrain from|resist the urge to|no point in|no reason to|not worth|best not to|better not to|try not to|not advis\w+ to|not (?:as|a|meant|intended|used|designed|for|the|something|anything) (?:\w+ ){0,5}?(?:to|for|of)|nothing (?:to|for) (?:gain|gained) (?:from|by))`;
+const NEG_FR = String.raw`(?:evit\w+(?: de| d')?|inutile (?:de|d')|pas besoin (?:de|d')|plutot que(?: de)?|au lieu (?:de|d')|sans|renonc\w+ (?:a|au)|il ne faut pas|il vaut mieux ne pas|mieux vaut ne pas|n'est pas necessaire de|jamais|pas pour|non pour|pas afin de|(?:n'est|ne sert|ce n'est) pas (?:a|pour)|n'(?:a|ont|avez|as|avons) pas (?:a|besoin (?:de|d'))|(?:ce )?n'est pas (?:de la|du|de l'|un|une)|ni (?:a|pour))`;
 const NEG_BEFORE = new RegExp(
   `\\b(?:${NEG_EN}|${NEG_FR})(?:\\s+|(?<=')\\s*)(?:[a-z'-]+\\s+){0,4}$`,
 );
@@ -396,7 +616,7 @@ const PERMISSIVE_AFTER =
   /^[^.?!;,]{0,30}?\b(?:not (?:a )?(?:problem|issue|bad|wrong|harmful|dangerous|unhealthy|risky)|is fine|are fine|is ok|is okay|is alright|is acceptable|can help|will help|helps you|works|speeds?|boosts?|n'est pas (?:un probleme|grave|mal|dangereux)|c'est (?:ok|bien|bon)|aide a|peut aider|fonctionne bien)\b/;
 
 const AFTER_NEG = new RegExp(
-  String.raw`^[^.,;:?!]{0,30}?\b(?:(?:is not|are not|isn't|aren't|was not|not) (?:recommended|advised|advisable|needed|necessary|required|a good idea|wise|helpful|healthy|safe|sustainable|worth|the answer|ideal|effective|useful|something (?:i|we) (?:would |could |can )?(?:suggest|recommend|advise)|what (?:i|we) (?:would )?(?:suggest|recommend|advise)|the best (?:way|idea|approach)|a good (?:plan|approach|way))|leads? to (?:snacking|grazing|more hunger|a (?:rebound|crash))|(?:end|ends) up (?:snacking|overeating)|(?:ne sont|n'est|ne sera|ne seront) pas (?:ce que je|conseille\w*|recommande\w*|necessaires?|utiles?|indispensables?|obligatoires?|une bonne idee|souhaitables?|sain\w*|judicieux\w*|raisonnables?|durables?|la solution|ideal\w*|efficaces?|requis\w*|indique\w*)|pousse (?:souvent |generalement )?a (?:grignoter|manger plus|craquer)|(?:fait|donne) (?:souvent )?(?:grignoter|craquer|faim)|unnecessary|unhelpful|unwise|unsafe|ineffective|discouraged|a bad idea|a mistake|bad for|backfires?|backfired|backfiring|(?:doesn't|does not|don't|do not|won't|will not|can't|cannot|rarely|seldom|never) (?:help|work|last|helps|works|needed|necessary|a good idea|worth)|rarely helps|best avoided|(?:to|should|must|need to) be avoided|leads? to (?:overeating|cravings|binges?)|makes? (?:you )?(?:hungrier|hungry)|can leave you|risky|dangerous|harmful|counter-?productive|can backfire|may backfire|tends? to backfire|n'est pas (?:conseille|recommande|necessaire|utile|une bonne idee|souhaitable|sain|judicieux|raisonnable|durable|la solution|ideal|efficace|requis|indique)|est deconseille|est a eviter|est inutile|est une mauvaise idee|une mauvaise idee|se retourne|ne (?:vous )?(?:aide|sert|fonctionne|marche|dure|mene) pas|n'aide pas|a des effets contraires|donne faim|mene a|conduit a|risque de|contre-productif|dangereux|nocif|deconseill\w+|a eviter)\b`,
+  String.raw`^[^.,;:?!]{0,30}?\b(?:(?:is not|are not|isn't|aren't|was not|not) (?:recommended|advised|advisable|needed|necessary|required|a good idea|wise|helpful|healthy|safe|sustainable|worth|the answer|ideal|effective|useful|something (?:i|we) (?:would |could |can )?(?:suggest|recommend|advise)|what (?:i|we) (?:would )?(?:suggest|recommend|advise)|the best (?:way|idea|approach)|a good (?:plan|approach|way))|leads? to (?:snacking|grazing|more hunger|a (?:rebound|crash))|(?:end|ends) up (?:snacking|overeating)|(?:ne sont|n'est|ne sera|ne seront) pas (?:ce que je|conseille\w*|recommande\w*|necessaires?|utiles?|indispensables?|obligatoires?|une bonne idee|souhaitables?|sain\w*|judicieux\w*|raisonnables?|durables?|la solution|ideal\w*|efficaces?|requis\w*|indique\w*)|pousse (?:souvent |generalement )?a (?:grignoter|manger plus|craquer)|(?:fait|donne|donnent) (?:souvent |generalement |parfois )?(?:plus )?(?:de )?(?:grignoter|craquer|faim)|rend (?:souvent )?plus (?:faim|affame)|unnecessary|unhelpful|unwise|unsafe|ineffective|discouraged|a bad idea|a mistake|bad for|backfires?|backfired|backfiring|(?:doesn't|does not|don't|do not|won't|will not|can't|cannot|rarely|seldom|never) (?:help|work|last|helps|works|needed|necessary|a good idea|worth)|rarely helps|best avoided|(?:to|should|must|need to) be avoided|leads? to (?:overeating|cravings|binges?)|makes? (?:you )?(?:hungrier|hungry)|can leave you|risky|dangerous|harmful|counter-?productive|can backfire|may backfire|tends? to backfire|n'est pas (?:conseille|recommande|necessaire|utile|une bonne idee|souhaitable|sain|judicieux|raisonnable|durable|la solution|ideal|efficace|requis|indique)|est deconseille|est a eviter|est inutile|est une mauvaise idee|une mauvaise idee|se retourne|ne (?:vous )?(?:aide|sert|fonctionne|marche|dure|mene) pas|n'aide pas|a des effets contraires|donne faim|mene a|conduit a|risque de|contre-productif|dangereux|nocif|deconseill\w+|a eviter)\b`,
 );
 
 const CONSEQUENCE_NEG =
@@ -464,13 +684,23 @@ function isNegated(f: string, clauses: Clause[], index: number, matched: string)
   return false;
 }
 
+/** The sentence (up to . ? ! ; or a line end) a position falls in. */
+function sentenceAround(f: string, at: number): string {
+  const before = f.slice(0, at).search(/[.?!;\n][^.?!;\n]*$/);
+  const startAt = before < 0 ? 0 : before + 1;
+  const after = f.slice(at).search(/[.?!;\n]/);
+  return f.slice(startAt, after < 0 ? f.length : at + after);
+}
+
 /** True when the folded text advises a harmful thing (see the module header). */
 export function hasHarmfulPattern(f: string): boolean {
   const clauses = clausesOf(f);
-  for (const { re, negatable } of HARM_RULES) {
-    for (const m of f.matchAll(new RegExp(re.source, 'g'))) {
+  for (const { all, negatable, exempt } of HARM_RULES) {
+    for (const m of f.matchAll(all)) {
+      const at = m.index ?? 0;
+      if (exempt !== undefined && exempt(sentenceAround(f, at))) continue;
       if (!negatable) return true;
-      if (!isNegated(f, clauses, m.index ?? 0, m[0])) return true;
+      if (!isNegated(f, clauses, at, m[0])) return true;
     }
   }
   return false;
@@ -479,14 +709,13 @@ export function hasHarmfulPattern(f: string): boolean {
 /** True when a typed question (folded) asks for something `ASK_RULE_INDEXES` lists. */
 export function askMentionsHarmfulPlan(f: string): boolean {
   const clauses = clausesOf(f);
-  for (const i of ASK_RULE_INDEXES) {
-    const r = HARM_RULES[i];
-    if (r === undefined) continue;
-    for (const m of f.matchAll(new RegExp(r.re.source, 'g'))) {
+  for (const [i, r] of HARM_RULES.entries()) {
+    if (r.ask !== true && !ASK_RULE_INDEXES.includes(i)) continue;
+    for (const m of f.matchAll(r.all)) {
       if (!r.negatable || !isNegated(f, clauses, m.index ?? 0, m[0])) return true;
     }
   }
-  return false;
+  return ASK_EXTRA.some((re) => re.test(f));
 }
 
 /** True when the folded text comments on the body or labels it. */

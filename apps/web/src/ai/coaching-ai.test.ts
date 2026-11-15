@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ByokChat } from './byok-chat';
 import { InMemoryByokKeyStore } from './byok-key-store';
 import { CoachingConsent } from './coaching-consent';
+import { RATE_LIMIT_COOLDOWN_MS } from './coaching-ai';
 import { createAiServices, type AiServices } from './create-ai-services';
 import {
   chatReply,
@@ -50,6 +51,22 @@ describe('ByokChat', () => {
     const provider = new FakeChatProvider({ kind: 'text', text: 'hi' });
     await new ByokChat({ keyStore, provider }).completeChat(messages);
     expect(provider.calls[0]?.apiKey).toBe(TEST_KEY);
+  });
+
+  it('keeps the HTTP status of a failure, so a refused request shape can be told from an outage', async () => {
+    const keyStore = new InMemoryByokKeyStore(TEST_KEY);
+    const run = (status?: number) =>
+      new ByokChat({
+        keyStore,
+        provider: new FakeChatProvider({
+          kind: 'failure',
+          cause: 'httpError',
+          message: 'bad request',
+          ...(status === undefined ? {} : { status }),
+        }),
+      }).completeChat(messages);
+    expect(await run(400)).toEqual({ kind: 'failure', message: 'bad request', status: 400 });
+    expect(await run()).toEqual({ kind: 'failure', message: 'bad request' });
   });
 
   it('a throwing transport is a failure, and the key is never in the result or toString', async () => {
@@ -170,6 +187,25 @@ describe('CoachingAi: the coaching consent gate', () => {
     await ai.coaching.revoke();
     expect(await ai.coaching.complete(messages)).toEqual({ kind: 'consentRequired' });
     expect(fake.requests).toHaveLength(1);
+  });
+
+  it('a rate limit starts a cooldown that background upgrades check, and it ends by itself', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const { ai, fake } = await services({ byok: true });
+      await ai.coaching.grant();
+      expect(ai.coaching.coolingDown()).toBe(false);
+      fake.status = 429;
+      expect((await ai.coaching.complete(messages)).kind).toBe('busy');
+      expect(ai.coaching.coolingDown()).toBe(true);
+      // A call the person asks for is still made during the cooldown.
+      fake.status = 200;
+      expect((await ai.coaching.complete(messages)).kind).toBe('text');
+      vi.setSystemTime(Date.now() + RATE_LIMIT_COOLDOWN_MS + 1);
+      expect(ai.coaching.coolingDown()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('the yes is for one destination: it lapses when the endpoint changes', async () => {

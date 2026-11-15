@@ -9,6 +9,7 @@ import { AiProvider, AiSettings, KvAiSettingsStore } from '../../ai';
 import { useSession } from '../../app/session';
 import { chatReply, FakeFetch } from '../../ai/testing';
 import { renderInSession, renderUnlockedApp, unlockedBundle } from '../../app/testing';
+import { fr } from '../../i18n/fr';
 import { KV_KEYS, type StoreBundle } from '../../storage';
 import { YourAiScreen } from './YourAiScreen';
 
@@ -580,6 +581,47 @@ describe('YourAiScreen: describing a meal with AI', () => {
     await user.click(screen.getByRole('switch', { name: COACHING }));
     await waitFor(() => expect(trendSwitch()).toBeEnabled());
     expect(trendSwitch()).not.toBeChecked();
+  });
+
+  it('says calmly, once three safety checks in a row could not be read, that coach answers are not shown', async () => {
+    const user = userEvent.setup();
+    const fake = new FakeFetch();
+    fake.reviewReplies.ask = chatReply('I think this is fine.');
+    const bundle = await unlockedBundle();
+    await new KvAiSettingsStore(bundle.kv).write(byok());
+    await bundle.kv.write(KV_KEYS.aiByokKey, SECRET);
+    let session: ReturnType<typeof useSession> | undefined;
+    function Hosted() {
+      session = useSession();
+      return (
+        <AiProvider services={session.ai}>
+          <YourAiScreen />
+        </AiProvider>
+      );
+    }
+    await renderInSession(<Hosted />, { bundle, session: { fetch: fake.fetch } });
+    await screen.findByRole('heading', { level: 1, name: 'Your AI' });
+    const COACH_SWITCH = 'Let the AI write coach notes and answer questions';
+    const LINE =
+      'The AI you chose could not complete the safety check, so its coach answers are not shown.';
+    await user.click(screen.getByRole('switch', { name: COACH_SWITCH }));
+    await waitFor(() => expect(screen.getByRole('switch', { name: COACH_SWITCH })).toBeChecked());
+    expect(screen.queryByText(LINE)).toBeNull();
+    for (let i = 0; i < 2; i++) await session?.askCoach.send(`Is rice or pasta better ${i}?`, []);
+    expect(screen.queryByText(LINE)).toBeNull();
+    await session?.askCoach.send('Is rice or pasta better 3?', []);
+    expect(await screen.findByText(LINE)).toBeVisible();
+    // A check the AI can answer clears it.
+    fake.reviewReplies.ask = chatReply('{"route":"none"}');
+    session?.askCoach.reset();
+    await session?.askCoach.send('Is rice or pasta better 4?', []);
+    await waitFor(() => expect(screen.queryByText(LINE)).toBeNull());
+  });
+
+  it('has the safety-check line in French too', () => {
+    expect(fr.ai.yourAi.reviewCannotCheck).toBe(
+      'L’IA que vous avez choisie n’a pas pu terminer la vérification de sécurité, donc ses réponses de coach ne sont pas affichées.',
+    );
   });
 
   it('keeps the voice model with the key settings; empty means the default', async () => {

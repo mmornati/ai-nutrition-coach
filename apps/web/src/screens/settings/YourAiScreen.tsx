@@ -33,9 +33,10 @@ function messageFor(
  */
 function CoachingSection() {
   const c = useStrings().ai.yourAi;
-  const { ai, trendShare } = useSession();
+  const { ai, trendShare, reviewGate } = useSession();
   const coaching = ai.coaching;
   const status = useSessionCoachingStatus();
+  const health = useSyncExternalStore(reviewGate.subscribe, reviewGate.getSnapshot);
   const [failed, setFailed] = useState(false);
   const on = status.kind === 'ready';
   const trendOn = useSyncExternalStore(trendShare.subscribe, trendShare.enabled);
@@ -82,6 +83,9 @@ function CoachingSection() {
       />
       <Prose>{c.coachingSent}</Prose>
       <Prose>{destination}</Prose>
+      <p role="status" className="text-body-small text-ink-soft empty:hidden">
+        {on && health === 'cannotCheck' ? c.reviewCannotCheck : ''}
+      </p>
       <SwitchRow
         title={c.trendSwitch}
         help={trendOn ? c.trendHelpOn : c.trendHelpOff}

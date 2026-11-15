@@ -52,8 +52,11 @@ export interface EnergyLimits {
 
 /** Below this a figure is a snack or a drink, not a day. */
 const STRUCTURAL_MIN_KCAL = 300;
-/** A deficit above this is more than a kilo a week (7,700 kcal per kilo). */
-const MAX_DEFICIT_KCAL = 1100;
+/**
+ * A deficit above this is more than the largest pace of the guide (ADR 0008: faster, -750 kcal a
+ * day, about 0.7 kg a week). A text that states a bigger one is refused.
+ */
+const MAX_DEFICIT_KCAL = 750;
 
 /** The lowest daily figure a text may state as something to eat. */
 export function energyThreshold(limits: EnergyLimits): number {
@@ -84,7 +87,7 @@ const DIFF_AFTER =
   /^\s*(?:a day |per day |each day |par jour |chaque jour |daily )?(?:less|fewer|lower|lighter|more|extra|moins|de moins|en moins|de plus|en plus|plus bas|plus leger)\b/;
 
 const DESC_BEFORE =
-  /\b(?:averag\w*|on average|en moyenne|moyenne|intake (?:today|yesterday|this week|so far)|apport (?:du jour|d'aujourd'hui|d'hier)|ate|eaten|logged|recorded|consumed|took in|came to|comes to|totall?ed|added up|adds up|amounted|summed up|reached|stood at|came in at|so far|jusqu'ici|until now|was|were|has been|have been|had|s'elevait|s'eleve|etait|etaient|faisait|a ete|ont ete|enregistre\w*|vous avez (?:mange|consomme|note)|j'ai (?:mange|note))\b/;
+  /\b(?:tournaient|tournait|oscill\w+|variaient|variait|se situaient|se situait|hovered|ranged|stayed|averag\w*|on average|en moyenne|moyenne|intake (?:today|yesterday|this week|so far)|apport (?:du jour|d'aujourd'hui|d'hier)|ate|eaten|logged|recorded|consumed|took in|came to|comes to|totall?ed|added up|adds up|amounted|summed up|reached|stood at|came in at|so far|jusqu'ici|until now|was|were|has been|have been|had|s'elevait|s'eleve|etait|etaient|faisait|a ete|ont ete|enregistre\w*|vous avez (?:mange|consomme|note)|j'ai (?:mange|note))\b/;
 const MODAL =
   /\b(?:could|should|would|might|may|can|must|need|ought|pourriez|devriez|pouvez|devez|faut)\b/;
 const INSTRUCT =
@@ -259,7 +262,35 @@ function sentenceAt(spans: { start: number; end: number }[], pos: number): numbe
   return i < 0 ? spans.length - 1 : i;
 }
 
-function isDifference(before: string, after: string): { diff: boolean; deficit: boolean } {
+const DEFICIT_WORDS = new Set(['deficit', 'gap', 'shortfall', 'ecart']);
+const CUT_WORDS = new Set([
+  'cut',
+  'cuts',
+  'cutting',
+  'trim',
+  'trims',
+  'trimming',
+  'lower',
+  'lowers',
+  'lowered',
+  'lowering',
+  'reduces',
+  'reduce',
+  'reduced',
+  'reducing',
+  'reduire',
+  'reduisez',
+  'baisse',
+  'retranch',
+]);
+const DAILY_FRAME =
+  /\b(?:a day|per day|each day|every day|daily|par jour|chaque jour|tous les jours)\b/;
+
+function isDifference(
+  before: string,
+  after: string,
+  sentence: string,
+): { diff: boolean; deficit: boolean } {
   if (DIFF_AFTER.test(after)) return { diff: true, deficit: false };
   // The upper end of a range ("250 to 500") is read from before the range.
   const m = DIFF_TRIGGER.exec(
@@ -267,7 +298,10 @@ function isDifference(before: string, after: string): { diff: boolean; deficit: 
   );
   if (m === null) return { diff: false, deficit: false };
   if (DIFF_BLOCKER.test(m[2] ?? '')) return { diff: false, deficit: false };
-  return { diff: true, deficit: m[1] === 'deficit' };
+  const word = m[1] ?? '';
+  const cutDaily =
+    (CUT_WORDS.has(word) || word.startsWith('retranch')) && DAILY_FRAME.test(sentence);
+  return { diff: true, deficit: DEFICIT_WORDS.has(word) || cutDaily };
 }
 
 const DESC_PERIOD =
@@ -284,8 +318,10 @@ function isDescriptive(before: string, sentence: string, next: string): boolean 
   );
 }
 
+const GUIDE_WORD = /\b(?:guide|repere)\b/;
+
 const NON_ITEM_AFTER =
-  /^\s*(?:day|days|week|weeks|diet|diets|plan|plans|regime|regimes|menu|menus|program|programme|cleanse|challenge|jour|jours|semaine|semaines|journee|journees)\b/;
+  /^\s*(?:(?:meal|diet|eating|food|menu|repas|regime)[- ]?(?:plans?|programs?|programmes?|menus?|charts?)|plan repas|day|days|week|weeks|diet|diets|plan|plans|regime|regimes|menu|menus|program|programme|cleanse|challenge|jour|jours|semaine|semaines|journee|journees)\b/;
 
 function isItem(before: string, after: string, sentence: string): boolean {
   if (NON_ITEM_AFTER.test(after)) return false;
@@ -348,16 +384,12 @@ export function hasGuideFraction(f: string): boolean {
   return false;
 }
 
-const ASK_DAY =
-  /\b(?:a day|per day|each day|every day|daily|par jour|chaque jour|tous les jours|per 24|for (?:the|a|one) day|for today|for tomorrow|all day|whole day|toute la journee|pour la journee|dans la journee|en une journee|in a day|today in total|total today|in total|au total|total)\b/;
-const ASK_REQUEST =
-  /\b(?:eat|eating|live on|survive|consume|manger|mange|mangez|vivre|survivre|consommer|diet|regime|plan|menu|programme|program|stick to|stay on|tenir|limit|enough|assez|suffisant|suffit|only|seulement|juste|under|below|sous|moins de|help me|aide|cook|prepare)\b/;
-
 /**
  * A typed QUESTION that asks for a very low daily intake ("is 600 kcal enough for a day", "meal plan
  * 1000 kcal", "est-ce que 1000 kcal c'est assez", "3500 kJ a day"): an energy figure from 150 to
  * 1,199 kcal that is NOT the energy of an item ("a dinner of 600 kcal", "a 500 kcal lunch",
- * "recette à 800 kcal") and sits in a daily or request frame. Uses the validator's number reading
+ * "recette à 800 kcal"). No daily or request frame is needed: the bar for an ask is lower than for
+ * an output, because a question is only routed to calm support copy. Uses the validator's number reading
  * (spelled-out numbers, kilojoules, ranges).
  */
 export function askEatsVeryLittle(f: string): boolean {
@@ -370,7 +402,9 @@ export function askEatsVeryLittle(f: string): boolean {
     const before = f.slice(s.start, fig.start);
     const after = f.slice(fig.ctxEnd, s.end);
     if (isItem(before, after, sentence)) continue;
-    if (ASK_DAY.test(sentence) || ASK_REQUEST.test(sentence)) return true;
+    // The lower bar of an ask: any figure under the floor (1,200 and above is the floor itself, not below it) that is not one food or one plate
+    // routes, with or without "a day" or an eating verb around it.
+    return true;
   }
   return false;
 }
@@ -426,9 +460,14 @@ export function unsafeEnergyIn(f: string, limits: EnergyLimits = {}): boolean {
     const after = f.slice(fig.ctxEnd, s.end);
     const nextSpan = spans[si + 1];
     const next = nextSpan === undefined ? '' : f.slice(nextSpan.start, nextSpan.end);
-    const diff = isDifference(before, after);
+    const diff = isDifference(before, after, sentence);
     if (diff.diff) {
       if (diff.deficit && fig.kcal > MAX_DEFICIT_KCAL) return true;
+      // A deficit anchored to the guide may not take the day below the floor.
+      if (diff.deficit && GUIDE_WORD.test(sentence) && limits.guideKcal !== undefined) {
+        const guide = Math.round(limits.guideKcal / 100) * 100;
+        if (guide - fig.kcal < (limits.floorKcal ?? 1200)) return true;
+      }
       continue;
     }
     const desc = isDescriptive(before, sentence, next);
@@ -459,7 +498,41 @@ export function unsafeEnergyIn(f: string, limits: EnergyLimits = {}): boolean {
       return true;
     }
   }
+  if (mealListUnsafe(f, spans, threshold)) return true;
   return bareDailyUnsafe(f, threshold, figures);
+}
+
+const MEAL_THEN_NUMBER = new RegExp(
+  `\\b(?:${MEALS})\\b\\s*(?:of|de|d'|at|:|=|-)?\\s*(\\d{2,4})(?![\\d.,]*\\s?(?:g|kg|ml|h|%|am|pm|min))`,
+  'g',
+);
+const ANY_ENERGY_UNIT = /\b(?:kcals?|kilocalor\w*|calor\w*|kj|kilojoules?)\b/;
+
+/**
+ * A list of meals where only one figure (often the last) carries the unit: "breakfast 200, lunch
+ * 350, dinner 400 kcal". The figures are summed; under the threshold, as a plan and not as a
+ * description of what was logged, it is refused.
+ */
+function mealListUnsafe(
+  f: string,
+  spans: { start: number; end: number }[],
+  threshold: number,
+): boolean {
+  for (const [si, s] of spans.entries()) {
+    const sentence = f.slice(s.start, s.end);
+    if (!ANY_ENERGY_UNIT.test(sentence)) continue;
+    const hits = [...sentence.matchAll(MEAL_THEN_NUMBER)];
+    if (hits.length < 2) continue;
+    const factor = /\b(?:kj|kilojoules?)\b/.test(sentence) ? 1 / 4.184 : 1;
+    const total = hits.reduce((sum, m) => sum + Number(m[1]) * factor, 0);
+    if (total >= threshold) continue;
+    const nextSpan = spans[si + 1];
+    const next = nextSpan === undefined ? '' : f.slice(nextSpan.start, nextSpan.end);
+    const before = sentence.slice(0, hits[0]?.index ?? 0);
+    if (isDescriptive(before, sentence, next)) continue;
+    return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------------

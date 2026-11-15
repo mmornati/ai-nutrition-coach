@@ -5,3 +5,4 @@ export * from './ai-notes';
 export * from './ask-coach';
 export * from './week-summary';
 export * from './use-coaching';
+export * from './review';

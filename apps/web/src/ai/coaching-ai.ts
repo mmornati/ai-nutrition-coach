@@ -30,6 +30,12 @@ export type CoachingStatus =
   | { readonly kind: 'needsConsent'; readonly destination: CoachingDestination }
   | { readonly kind: 'ready'; readonly destination: CoachingDestination };
 
+/**
+ * After the server asked to slow down (a 429), background coaching calls (note upgrades) stand
+ * down for this long, so a burst of plates does not keep hitting a limit that is already hit.
+ */
+export const RATE_LIMIT_COOLDOWN_MS = 60_000;
+
 /** A text completion, or a refusal because the person has not agreed. */
 export type CoachingResult = ChatResult | { readonly kind: 'consentRequired' };
 
@@ -72,6 +78,7 @@ export class CoachingAi {
   readonly #unsubscribers: Unsubscribe[] = [];
   #cached: CoachingStatus = { kind: 'noAi' };
   #cachedKey = 'noAi';
+  #limitedUntil = 0;
 
   constructor(args: {
     readonly settings: { getSnapshot(): AiSettings; subscribe(l: () => void): Unsubscribe };
@@ -153,11 +160,20 @@ export class CoachingAi {
     if (status.kind === 'noAi') return { kind: 'unavailable' };
     if (status.kind === 'needsConsent') return { kind: 'consentRequired' };
     try {
-      return await this.#chat.completeChat(messages, options);
+      const result = await this.#chat.completeChat(messages, options);
+      if (result.kind === 'busy') this.#limitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+      return result;
     } catch {
       return { kind: 'failure', message: '' };
     }
   }
+
+  /**
+   * True for `RATE_LIMIT_COOLDOWN_MS` after any coaching call was told to slow down. A call the
+   * person asked for (a question, the weekly paragraph) is still made; a note upgrade, which they
+   * did not ask for, waits.
+   */
+  coolingDown = (): boolean => Date.now() < this.#limitedUntil;
 
   dispose(): void {
     for (const u of this.#unsubscribers.splice(0)) u();

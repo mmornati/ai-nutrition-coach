@@ -1,5 +1,5 @@
 // Test support for the AI module: a scriptable fetch, a stub sanitiser (Phase 5's result shape), digest and classifier.
-import type { FoodGroup, RecognizedFood } from '@anc/core';
+import { reviewKindOf, type FoodGroup, type RecognizedFood } from '@anc/core';
 import type { KeyValueStore } from '../storage/key-value-store';
 import type { FetchLike } from '../net/capped-fetch';
 import type { PhotoDigest, PhotoSanitizer, ClassifyFoodGroup } from './types';
@@ -21,6 +21,17 @@ export interface RecordedRequest {
 /** A scriptable `fetch`. Every request is recorded; nothing touches the network. */
 export class FakeFetch {
   requests: RecordedRequest[] = [];
+  /**
+   * The second-pass review requests (the AI's check of a question or of a coach text). They are kept
+   * out of `requests`, which stays the coach calls a test asserts on, and answered with
+   * `reviewReplies` (by default "an ordinary question" and "ok") under the same status, error and
+   * hang settings as every other request.
+   */
+  reviewRequests: RecordedRequest[] = [];
+  reviewReplies: { ask: unknown; output: unknown } = {
+    ask: chatReply('{"route":"none"}'),
+    output: chatReply('{"verdict":"ok","reason":"other"}'),
+  };
   status = 200;
   headers: Record<string, string> = {};
   jsonBody: unknown = {};
@@ -67,7 +78,9 @@ export class FakeFetch {
         headers: { 'content-type': 'application/json' },
       });
     }
-    this.requests.push({ url, init, body: String(init.body ?? ''), headers });
+    const recorded = { url, init, body: String(init.body ?? ''), headers };
+    const review = reviewKindIn(recorded.body);
+    (review === null ? this.requests : this.reviewRequests).push(recorded);
     if (this.error) throw this.error;
     if (this.hang) {
       await new Promise<never>((_, reject) => {
@@ -84,12 +97,26 @@ export class FakeFetch {
     }
     const body =
       this.stream ??
-      (this.status === 204 || this.status === 304 ? null : JSON.stringify(this.jsonBody));
+      (this.status === 204 || this.status === 304
+        ? null
+        : JSON.stringify(review === null ? this.jsonBody : this.reviewReplies[review]));
     return new Response(body, {
       status: this.status,
       headers: { 'content-type': 'application/json', ...this.headers },
     });
   };
+}
+
+/** Which second-pass review a request body is, or `null` for an ordinary request. */
+function reviewKindIn(body: string): 'ask' | 'output' | null {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const messages = (parsed as { messages?: unknown }).messages;
+    return Array.isArray(messages) ? reviewKindOf(messages as { content: unknown }[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** An endless stream of `chunkSize`-byte chunks that records pulls and cancellation. */

@@ -12,6 +12,12 @@
  * guard, a loss-pace guard). It cannot catch every wording a model might produce. The system prompt
  * (`ai-prompts.ts`) is the first layer; the built-in rules-based coach never depends on this
  * validator at all, and is what a person sees when the AI is off or its text is refused.
+ *
+ * THREE LAYERS, and this file is the middle one (ADR 0008, docs/ai-tiers.md "Three layers"): the
+ * system prompt asks the model for the right thing; this lexical backstop refuses known-bad wording
+ * (measured on 2026-11-15, before its second pass: 53 % of plausibly worded harmful outputs
+ * refused, 92 % of safe ones accepted, 33 % of unsafe asks routed); and `ai-review.ts` asks the
+ * same model to classify the text and the question, failing closed. None of them is a guarantee.
  */
 import { splitQuestionKey, withQuestionParams } from '../value-types/composition-pattern';
 import { askEatsVeryLittle, exceedsSafePaceIn, unsafeEnergyIn } from './energy-guard';
@@ -39,8 +45,17 @@ export const COACH_LIMITS = Object.freeze({
   inputChars: 500,
   /** Questions in one conversation. */
   chatTurns: 6,
-  /** A note must arrive within this long, or the template note stays. */
+  /**
+   * A note must arrive within this long, or the template note stays. This is the TOTAL for the coach
+   * call and its output review (about five eighths for the call, the rest for the review).
+   */
   noteTimeoutMs: 8000,
+  /** One review call (an ask review, or an output review of a chat answer or the weekly paragraph). */
+  reviewTimeoutMs: 6000,
+  /** The coach call of one chat turn (the answer, before its review). */
+  chatTimeoutMs: 30_000,
+  /** The coach call of the weekly paragraph (before its review). */
+  weekTimeoutMs: 30_000,
 });
 
 /**
@@ -113,8 +128,12 @@ export const COACH_BANNED_PATTERNS: readonly RegExp[] = Object.freeze([
   /\btricher\b|\btriche\b|\bcoupable\b|\bhonte\b|\bmauvais aliment/,
 ]);
 
-/** Banned words whose accent matters ("raté", but not "rate"). Matched on lower-case text. */
-const COACH_BANNED_ACCENTED = /(?<![\p{L}])(?:raté|manqué)(?![\p{L}])/u;
+/**
+ * Banned words whose accent matters ("raté", but not "rate"). Matched on lower-case text. A missed
+ * MEAL ("si vous avez raté le déjeuner") is a description, not failure framing, and is allowed.
+ */
+const COACH_BANNED_ACCENTED =
+  /(?<![\p{L}])(?:raté|manqué)(?![\p{L}])(?!\s+(?:\p{L}+\s+){0,2}?(?:repas|déjeuner|dejeuner|dîner|diner|petit-déjeuner|petit-dejeuner|goûter|gouter|souper|collation)(?![\p{L}]))/u;
 
 /**
  * Claims a food coach must never make: it does not diagnose, treat or cure. EN and FR. The words
@@ -370,13 +389,42 @@ const EATING_WORRY_PATTERNS: readonly RegExp[] = [
   /\bje jeune\b|\bjeune (?:depuis|pendant)\b|\bje me deteste\b|\bhonte de manger\b|\bpeur de manger\b/,
 ];
 
+/** Disgust, unworthiness, loss of control, one coffee for a day: eating-worry signals in an ask. */
+const EATING_WORRY_ASK_PATTERNS: readonly RegExp[] = [
+  /\b(?:feel|feeling|felt|am|i'?m|makes? me feel)\s+(?:so |really |very |absolutely |totally )?(?:disgust\w*|dirty|gross|revolting|worthless|ashamed|guilty|pathetic|like a pig|like a failure)\b[^.?!;]{0,24}\b(?:eat|ate|eating|food|meals?)\b/,
+  /\b(?:get|getting) rid of (?:it|what i ate|the food|everything|the calories)\b/,
+  /\bi (?:don'?t|do not|shouldn'?t|should not) deserve\b[^.?!;]{0,20}\b(?:eat|food|meals?|dinner|lunch|breakfast)\b|\bunworthy\b/,
+  /\bcan'?t stop eating\b|\bcan'?t (?:stop|control)\b[^.?!;]{0,12}\b(?:eating|myself|my eating)\b|\bout of control\b[^.?!;]{0,16}\b(?:eat|food|eating)\b|\bloss of control\b|\blose control\b[^.?!;]{0,16}\b(?:eat|food|eating)\b/,
+  /\b(?:eat|eating|ate|keep eating)\b[^.?!;]{0,24}\buntil\b[^.?!;]{0,12}\b(?:sick|ill|hurts?|nauseous|stuffed|i throw up)\b/,
+  /\bje me sens (?:degoutant\w*|sale|nul\w*|honteu\w+|coupable|immonde|repugnant\w*)\b|\bdegoutant\w*\b|\bje me degoute\b/,
+  /\bje ne merite pas (?:de |d')?(?:manger|nourriture|repas|diner|dejeuner|petit)|\bje (?:ne )?merite (?:pas|rien)\b/,
+  /\bn'arrive pas a (?:m'arreter|arreter de manger|me controler|me retenir)\b|\bje mange jusqu'a (?:en etre malade|avoir mal|en vomir|la nausee|m'en rendre malade|l'ecoeurement)|\bjusqu'a en etre malade\b|\bperdre le controle\b[^.?!;]{0,16}\b(?:manger|nourriture)\b|\bperte de controle\b/,
+];
+
+/**
+ * "I only had a coffee today": a worry when it is said alone or asked about in terms of weight, but
+ * not when the person is asking what to EAT ("what is a quick breakfast?"): that is a request for
+ * food, and the answer to it is food.
+ */
+const LOW_INTAKE_ASK_PATTERNS: readonly RegExp[] = [
+  /\bi (?:only|just) (?:had|have|ate|drank)\b[^.?!;]{0,12}\b(?:a |an |one |some )?(?:coffee|tea|water|apple|salad|yoghurt|cup of \w+)\b[^.?!;]{0,16}\b(?:today|yesterday|all day|since|this morning)\b|\bnothing (?:but|except) (?:coffee|tea|water)\b|\b(?:haven'?t|have not) eaten (?:anything|a thing|all day|today)\b/,
+  /\bn'ai (?:bu|pris|mange|eu)\s+qu'(?:un|une|\d)|\bn'ai (?:rien|presque rien) (?:mange|pris)\b[^.?!;]{0,12}\b(?:aujourd'hui|hier|depuis)\b|\bseulement (?:un|une) (?:cafe|the|pomme|salade)\b/,
+];
+
+const ASKS_FOR_FOOD =
+  /\b(?:what|which|any|ideas?|suggest\w*|recommend\w*|quel\w*|une idee|idee|que (?:prendre|manger)|quoi (?:manger|prendre))\b[^.?!;]{0,40}\b(?:breakfast|lunch|dinner|snack|meal|eat|eating|petit-dejeuner|dejeuner|diner|collation|repas|manger|prendre)\b/;
+const ABOUT_WEIGHT_OR_DIET =
+  /\b(?:weight|lose|losing|slim|diet|calories? deficit|maigr\w+|perdre|regime|poids|mincir)\b/;
+const asksForAMeal = (f: string): boolean => ASKS_FOR_FOOD.test(f) && !ABOUT_WEIGHT_OR_DIET.test(f);
+
 const EATING_ACCENTED: readonly RegExp[] = [
   /\bje je[uû]ne\b|\bje[uû]n(?:e|er|ons) (?:depuis|pendant)\b/i,
 ];
 
 const MEDICAL_SYMPTOM_PATTERNS: readonly RegExp[] = [
   /\bdizz(?:y|iness)\b|\bblood in\b|\bsevere pain\b|\bnausea\b|\bheart racing\b/,
-  /\bmalaise\b|vertiges?|\bsang dans\b|\bdouleurs? (?:intense|forte)|\bnausees?\b/,
+  /\blight[- ]?headed\b|\bshak(?:y|ing)\b|\bhead (?:is )?spinning\b/,
+  /\bla tete (?:qui )?tourne\b|\btete qui tourne\b|\bjambes en coton\b|\btrembl\w+\b|\bmalaise\b|vertiges?|\bsang dans\b|\bdouleurs? (?:intense|forte)|\bnausees?\b/,
 ];
 
 /** "lose 5 kg in a week", "perdre 10 kilos en un mois": a fast loss, over a kilo a week. */
@@ -401,7 +449,12 @@ export function detectSupportSignal(text: string): SupportSignal | null {
   const { norm, f } = prepareText(text);
   if (SELF_HARM_PATTERNS.some((p) => p.test(f))) return 'selfHarm';
   if (URGENT_PATTERNS.some((p) => p.test(f))) return 'urgent';
-  if (EATING_WORRY_PATTERNS.some((p) => p.test(f)) || EATING_ACCENTED.some((p) => p.test(norm))) {
+  if (
+    EATING_WORRY_PATTERNS.some((p) => p.test(f)) ||
+    EATING_WORRY_ASK_PATTERNS.some((p) => p.test(f)) ||
+    (LOW_INTAKE_ASK_PATTERNS.some((p) => p.test(f)) && !asksForAMeal(f)) ||
+    EATING_ACCENTED.some((p) => p.test(norm))
+  ) {
     return 'eatingWorry';
   }
   if (askEatsVeryLittle(f) || wantsFastLoss(f) || askMentionsHarmfulPlan(f)) return 'extremeDiet';

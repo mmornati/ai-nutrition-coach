@@ -58,6 +58,7 @@ import {
   AskCoachConversation,
   createAiNoteUpgrader,
   requestWeekSummary,
+  ReviewGate,
   withAiNotes,
   type AiCoachContext,
   type WeekSummaryResult,
@@ -144,6 +145,11 @@ export interface Session {
   readonly askCoach: AskCoachConversation;
   /** The optional AI paragraph under the weekly review (never replaces the rule-based one). */
   readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
+  /**
+   * The second pass of the AI coach for this session: whether the chosen AI can complete the safety
+   * check (Settings, Your AI says so when it cannot), and the signal that stops it on a lock.
+   */
+  readonly reviewGate: ReviewGate;
   /** The person's saved meals and home recipes (the recipes also show up in the food search). */
   readonly saved: SavedStore;
   /** Dated weigh-ins and waist measurements (docs/adr/0008). */
@@ -378,8 +384,12 @@ export async function createSession(
       limits: coachTextLimits(prof, guide, goal),
     };
   };
+  // The second pass of the AI coach: stopped by the session's abort, and it counts reviews the
+  // chosen AI could not answer in the expected form.
+  const reviewGate = new ReviewGate({ signal: abort.signal, live: () => live });
   const coachAiDeps = {
     coaching: ai.coaching,
+    reviews: reviewGate,
     numbersOn: numbers.current,
     locale: currentLocale,
     targets: profile.targets,
@@ -482,6 +492,8 @@ export async function createSession(
     if (now === chatDestination) return;
     chatDestination = now;
     askCoach.reset();
+    // A different AI starts with a clean record: its own temperature setting, its own readability.
+    reviewGate.reset();
   });
 
   return {
@@ -511,6 +523,7 @@ export async function createSession(
     coachInteractions,
     askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
+    reviewGate,
     saved,
     measurements: bundle.measurements,
     vault: bundle.vault,
