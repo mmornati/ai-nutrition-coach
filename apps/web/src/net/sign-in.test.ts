@@ -9,6 +9,21 @@ describe('sign-in navigation', () => {
     expect(signInUrl({ pathname: '/app/', search: '?a=b', hash: '' })).toBe('/app/?a=b&signin=1');
   });
 
+  it('never builds an address on another host from a doubled leading slash', () => {
+    expect(signInUrl({ pathname: '//evil.test/x', search: '', hash: '' })).toBe(
+      '/evil.test/x?signin=1',
+    );
+    expect(signInUrl({ pathname: '/\\evil.test/x', search: '', hash: '' })).toBe(
+      '/evil.test/x?signin=1',
+    );
+    const replaceState = vi.fn();
+    stripSignInParam(
+      { pathname: '//evil.test/', search: '?signin=1', hash: '' },
+      { replaceState, state: null },
+    );
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/evil.test/');
+  });
+
   it('assigns the address', () => {
     const assign = vi.fn();
     signInAgain({ pathname: '/', search: '', hash: '#/x', assign });

@@ -13,11 +13,19 @@ interface PageLocation {
   assign(url: string): void;
 }
 
+/**
+ * This page's path, always same-origin: a path that starts with two slashes (or a backslash) would
+ * read as another host once it is handed back to `assign` or `replaceState`, so those collapse to one.
+ */
+function ownPath(pathname: string): string {
+  return `/${pathname.replace(/^[/\\]+/, '')}`;
+}
+
 /** The address to open: this page, plus the parameter; the hash route is kept. */
 export function signInUrl(loc: Pick<PageLocation, 'pathname' | 'search' | 'hash'>): string {
   const params = new URLSearchParams(loc.search);
   params.set(SIGN_IN_PARAM, '1');
-  return `${loc.pathname}?${params.toString()}${loc.hash}`;
+  return `${ownPath(loc.pathname)}?${params.toString()}${loc.hash}`;
 }
 
 /** Navigates to the sign-in address (a real navigation, which the proxy sees). */
@@ -34,5 +42,9 @@ export function stripSignInParam(
   if (!params.has(SIGN_IN_PARAM)) return;
   params.delete(SIGN_IN_PARAM);
   const rest = params.toString();
-  history.replaceState(history.state, '', `${loc.pathname}${rest ? `?${rest}` : ''}${loc.hash}`);
+  history.replaceState(
+    history.state,
+    '',
+    `${ownPath(loc.pathname)}${rest ? `?${rest}` : ''}${loc.hash}`,
+  );
 }
