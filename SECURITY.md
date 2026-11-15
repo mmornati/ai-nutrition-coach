@@ -83,6 +83,34 @@ does not protect:
 - **A privacy trade-off, disclosed in the app:** a photo sent this way passes through the operator's server before it
   reaches the provider. The consent dialog says so, and the server relays it without storing it.
 
+## The backup relay and shared instances (optional)
+
+`apps/relay` stores a person's encrypted copy; it never receives a passphrase, a recovery key or plaintext. What it protects
+and what it does not:
+
+- **Protected:** what is stored is a handle, a salt, keyed hashes of two proofs (passphrase, recovery key), two wraps of the vault
+  key and sealed envelopes. Changing the passphrase, adding or removing the recovery key and deleting a copy need a device token
+  **and** a proof, so a stolen token alone cannot change or delete anything. Wrong proofs are limited in separate buckets
+  (`login`, `proof`, `recovery`), and guessing one secret does not spend the budget of another. Exactly what is limited: the
+  front-door passphrase login has a cap of `SYNC_RATE_HANDLE_DAY` (20) wrong tries per handle per 24 h, so someone who knows a
+  handle can keep a brand-new device from logging in for up to a day (devices already signed in are unaffected). Proofs shown
+  by a device token (`proof`, and the recovery key shown with a token) are counted per device token, not per handle: a thief
+  with one stolen token can use up only that token's own allowance, never the owner's other devices, and cannot mint more
+  tokens without a secret. The recovery key (160 random bits) has no daily per-handle cap, only a per-client lockout and a
+  delay, so strangers cannot lock the owner out of recovery. Revoking devices needs no proof, so the owner can always sign a
+  stolen token out from another device. Tokens are hashed, revocable and
+  expire after `SYNC_TOKEN_MAX_IDLE_DAYS` (180). The previous envelope is kept `SYNC_KEEP_PREVIOUS_HOURS` (24) so a token cannot
+  overwrite both versions at once. Invites made with the admin CLI are single use and stored hashed.
+- **Not protected, by design:** a stolen device token can read the copy's ciphertext (not open it, the vault key is separate),
+  write a new version (the previous one is kept), list and sign out devices. Whoever runs the server can try offline guesses
+  against a stolen copy: the app refuses common and short passphrases, but cannot stop a weak personal one. A modified app served
+  by the operator could exfiltrate keys. A recovery key written down insecurely opens the copy.
+- **Known limits, out of scope for now:** a vault is not bound to the sign-in (SSO) identity; one profile per browser; no admin
+  web page (the CLI only runs inside the container).
+- **Per-person AI limits:** `AI_PROXY_USER_HEADER` is believed only from `AI_NUTRITION_COACH_TRUSTED_PROXIES` and is removed
+  before the request goes upstream; if the app is reachable without the trusted proxy the header is ignored, but your
+  forward-auth must overwrite it (Authentik does). Counters live in memory (a restart resets the day) and never hold the user value in clear.
+
 Out of scope: vulnerabilities in third-party services you connect yourself
 (for example an AI provider), and issues that need a rooted or already
 compromised device.

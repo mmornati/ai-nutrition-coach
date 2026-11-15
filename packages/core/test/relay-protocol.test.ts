@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cleanDeviceLabel,
+  DEVICE_LABEL_MAX,
+  parseAccountResponse,
+  parseChangePassphraseRequest,
+  parseDeleteVaultRequest,
+  parseRevokeRequest,
+  parseSetRecoveryRequest,
   encodeBase64Url,
   ENVELOPE_LIMITS,
   etagOf,
@@ -195,5 +202,62 @@ describe('config', () => {
   });
   it('the vault ceiling is what an envelope can hold', () => {
     expect(ENVELOPE_LIMITS.maxCiphertextBytes / (1024 * 1024)).toBe(24);
+  });
+});
+
+describe('S4 request parsers', () => {
+  const b64 = (n: number, seed = 1) =>
+    encodeBase64Url(Uint8Array.from({ length: n }, (_, i) => (i * 7 + seed) & 255));
+  const proof = { kind: 'passphrase', authKey: b64(32) };
+
+  it('cleans a device label and refuses a hostile one', () => {
+    expect(cleanDeviceLabel('  iPhone ‮·  Safari\n')).toBe('iPhone · Safari');
+    expect(cleanDeviceLabel('x'.repeat(100))).toHaveLength(DEVICE_LABEL_MAX);
+    const ok = parseLoginRequest({ handle: 'alice', authKey: b64(32), label: 'Mac · Chrome' });
+    expect(ok).toMatchObject({ kind: 'ok', value: { label: 'Mac · Chrome' } });
+    expect(
+      parseLoginRequest({ handle: 'alice', authKey: b64(32), label: 'x'.repeat(500) }).kind,
+    ).toBe('invalid');
+    expect(parseLoginRequest({ handle: 'alice', authKey: b64(32), label: 7 }).kind).toBe('invalid');
+    expect(parseLoginRequest({ handle: 'alice', authKey: b64(32), extra: 1 }).kind).toBe('invalid');
+  });
+
+  it('accepts exactly the shapes of change, recovery, delete and revoke', () => {
+    const change = { proof, salt: b64(16), authKey: b64(32, 2), wrappedKey: b64(60) };
+    expect(parseChangePassphraseRequest(change).kind).toBe('ok');
+    expect(parseChangePassphraseRequest({ ...change, extra: 1 }).kind).toBe('invalid');
+    expect(
+      parseChangePassphraseRequest({ ...change, proof: { kind: 'other', authKey: b64(32) } }).kind,
+    ).toBe('invalid');
+    expect(parseSetRecoveryRequest({ proof, recovery: null }).kind).toBe('ok');
+    expect(
+      parseSetRecoveryRequest({ proof, recovery: { authKey: b64(32), wrappedKey: b64(60) } }).kind,
+    ).toBe('ok');
+    expect(parseSetRecoveryRequest({ proof, recovery: { authKey: b64(32) } }).kind).toBe('invalid');
+    expect(parseDeleteVaultRequest({ proof }).kind).toBe('ok');
+    expect(parseDeleteVaultRequest({}).kind).toBe('invalid');
+    expect(parseRevokeRequest({ id: 3 }).kind).toBe('ok');
+    expect(parseRevokeRequest({ others: true }).kind).toBe('ok');
+    expect(parseRevokeRequest({ others: false }).kind).toBe('invalid');
+    expect(parseRevokeRequest({ id: 3, others: true }).kind).toBe('invalid');
+    expect(parseRevokeRequest({ id: -1 }).kind).toBe('invalid');
+  });
+
+  it('reads the account answer strictly', () => {
+    const device = { id: 1, label: 'iPhone', createdAt: 1, lastSeenAt: 2, current: true };
+    expect(
+      parseAccountResponse({ hasRecovery: false, previousVersion: null, devices: [device] }),
+    ).not.toBeNull();
+    expect(
+      parseAccountResponse({ hasRecovery: 'no', previousVersion: null, devices: [] }),
+    ).toBeNull();
+    expect(parseAccountResponse({ hasRecovery: true, previousVersion: 0, devices: [] })).toBeNull();
+    expect(
+      parseAccountResponse({
+        hasRecovery: true,
+        previousVersion: 2,
+        devices: [{ ...device, id: 'x' }],
+      }),
+    ).toBeNull();
   });
 });

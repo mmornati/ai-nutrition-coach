@@ -1,6 +1,8 @@
 # Publish the self-host image to the GitHub Container Registry:
 # ghcr.io/mmornati/ai-nutrition-coach (linux/amd64), for servers that pull instead of building
-# (docs/self-host.md "Run the published image instead of building").
+# (docs/self-host.md "Run the published image instead of building"), and the encrypted-backup relay
+# next to it: ghcr.io/mmornati/ai-nutrition-coach-relay (infra/Dockerfile.relay, the same tags, the
+# same checks: it is built, scanned and published exactly like the app image).
 #
 # The image is host-independent: every setting is read by the container at start (the
 # service-worker build id is computed there too), so one image serves every instance.
@@ -23,11 +25,13 @@
 # Nothing is pushed unless the image passed its checks first:
 #   test-image     (manual runs) builds the image exactly as published, scans it with trivy
 #                  (fixable HIGH/CRITICAL fail) and drives it in WebKit and Chromium
-#                  (scripts/webkit_smoke.sh); called from ci.yml, its `image` job did this;
+#                  (scripts/webkit_smoke.sh); the relay image is built and scanned the same way
+#                  (scripts/smoke_self_host.sh drives it in CI); called from ci.yml, its `image`
+#                  job did this;
 #   release-gates  (release tags only) the release posture, telemetry and project-URL gates;
-#   publish        rebuilds from the cache the tested build filled (scope `image`: same layers) and
-#                  pushes, with OCI labels (revision = the commit built), a provenance attestation
-#                  and an SBOM.
+#   publish        rebuilds from the cache the tested build filled (scope `image`, and `relay` for
+#                  the relay: same layers) and pushes both, with OCI labels (revision = the commit
+#                  built), a provenance attestation and an SBOM.
 #
 # The canonical repository only: a fork has nothing to push under ghcr.io/mmornati.
 
@@ -55,7 +59,9 @@ permissions:
 
 env:
   IMAGE: ghcr.io/mmornati/ai-nutrition-coach
+  RELAY_IMAGE: ghcr.io/mmornati/ai-nutrition-coach-relay
   TEST_IMAGE: ai-nutrition-coach:publish-test
+  TEST_RELAY_IMAGE: ai-nutrition-coach-relay:publish-test
 
 jobs:
   test-image:
@@ -113,6 +119,31 @@ jobs:
         env:
           AI_NUTRITION_COACH_SMOKE_IMAGE: ${{ env.TEST_IMAGE }}
         run: bash scripts/webkit_smoke.sh --no-build
+
+      # The relay image (infra/Dockerfile.relay), built as published and scanned like the app image.
+      - name: Build the relay image (loaded locally, not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/Dockerfile.relay
+          platforms: linux/amd64
+          load: true
+          push: false
+          pull: true
+          tags: ${{ env.TEST_RELAY_IMAGE }}
+          build-args: |
+            APK_UPGRADE_DATE=${{ steps.apkday.outputs.date }}
+          cache-from: type=gha,scope=relay
+          cache-to: type=gha,scope=relay,mode=max
+
+      - name: Relay vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.TEST_RELAY_IMAGE }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
 
   release-gates:
     name: Release gates (tags)
@@ -210,12 +241,19 @@ jobs:
             tags+=("$IMAGE:branch-$slug")
           fi
 
+          # The relay image carries the same tags under its own name.
+          relay_tags=()
+          for t in "${tags[@]}"; do relay_tags+=("$RELAY_IMAGE:${t#"$IMAGE:"}"); done
+
           {
             echo "revision=$sha"
             echo "version=$version"
             echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "tags<<EOF"
             printf '%s\n' "${tags[@]}"
+            echo "EOF"
+            echo "relay_tags<<EOF"
+            printf '%s\n' "${relay_tags[@]}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           printf 'Tags: %s\n' "${tags[*]}"
@@ -262,10 +300,36 @@ jobs:
           sbom: true
           cache-from: type=gha,scope=image
 
+      # The relay image, next to the app image: the same tags, labels, provenance and SBOM, rebuilt
+      # from the layers the tested relay build cached (scope `relay`).
+      - name: Build the relay image (from the tested cache) and push
+        id: build-relay
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/Dockerfile.relay
+          platforms: linux/amd64
+          push: true
+          pull: true
+          tags: ${{ steps.meta.outputs.relay_tags }}
+          build-args: |
+            APK_UPGRADE_DATE=${{ steps.apkday.outputs.date }}
+          labels: |
+            org.opencontainers.image.title=AI Nutrition Coach relay
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.revision }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=relay
+
       - name: Summary
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
+          RELAY_TAGS: ${{ steps.meta.outputs.relay_tags }}
           DIGEST: ${{ steps.build.outputs.digest }}
+          RELAY_DIGEST: ${{ steps.build-relay.outputs.digest }}
           REVISION: ${{ steps.meta.outputs.revision }}
         run: |
           {
@@ -276,4 +340,12 @@ jobs:
             while read -r tag; do
               [ -z "$tag" ] || echo "- \`$tag\`"
             done <<< "$TAGS"
+            echo
+            echo "### Relay image published"
+            echo
+            echo "Revision \`${REVISION:0:7}\`, digest \`$RELAY_DIGEST\`"
+            echo
+            while read -r tag; do
+              [ -z "$tag" ] || echo "- \`$tag\`"
+            done <<< "$RELAY_TAGS"
           } >> "$GITHUB_STEP_SUMMARY"

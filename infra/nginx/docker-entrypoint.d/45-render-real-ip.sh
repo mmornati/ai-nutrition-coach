@@ -27,12 +27,18 @@
 # AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (05-validate-csp.sh). Messages name the variable and never
 # print its value.
 #
-# Overridable for tests: AI_NUTRITION_COACH_REAL_IP_OUT.
+# It also renders /tmp/ai-nutrition-coach-trusted-peer.inc: a `geo` on $realip_remote_addr (the
+# DIRECT peer, whatever real_ip made of the client address) that sets $anc_trusted_peer to 1 for
+# exactly the entries above and 0 for everyone else (always 0 when the list is empty). It lets the
+# AI proxy believe a per-person header (AI_PROXY_USER_HEADER) only from those proxies.
+#
+# Overridable for tests: AI_NUTRITION_COACH_REAL_IP_OUT, AI_NUTRITION_COACH_TRUSTED_PEER_OUT.
 set -eu
 set +x
 umask 077
 
 out="${AI_NUTRITION_COACH_REAL_IP_OUT:-/tmp/ai-nutrition-coach-real-ip.inc}"
+peer_out="${AI_NUTRITION_COACH_TRUSTED_PEER_OUT:-/tmp/ai-nutrition-coach-trusted-peer.inc}"
 proxies="${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}"
 header="${AI_NUTRITION_COACH_REAL_IP_HEADER:-X-Forwarded-For}"
 
@@ -47,6 +53,7 @@ only() { [ "$(printf '%s#' "$2" | LC_ALL=C tr -d "$1")" = '#' ]; }
 
 if [ -z "$proxies" ]; then
   printf '%s\n' '# AI_NUTRITION_COACH_TRUSTED_PROXIES is not set: the client address is the peer address.' > "$out"
+  printf '%s\n' '# No trusted proxy: no peer is trusted.' 'geo $realip_remote_addr $anc_trusted_peer {' '    default 0;' '}' > "$peer_out"
   exit 0
 fi
 
@@ -103,6 +110,7 @@ esac
 
 count=0
 body=''
+peers=''
 set -f # no globbing while splitting
 oldifs="$IFS"
 IFS=','
@@ -118,6 +126,8 @@ for entry in $proxies; do
   [ "$count" -le 32 ] || die "AI_NUTRITION_COACH_TRUSTED_PROXIES lists more than 32 entries."
   body="${body}set_real_ip_from ${entry};
 "
+  peers="${peers}    ${entry} 1;
+"
   IFS=','
 done
 IFS="$oldifs"
@@ -129,5 +139,12 @@ IFS="$oldifs"
   echo "real_ip_header $header;"
   echo "real_ip_recursive on;"
 } > "$out"
+{
+  echo "# The direct peers AI_NUTRITION_COACH_TRUSTED_PROXIES lists (and nobody else) are trusted."
+  echo 'geo $realip_remote_addr $anc_trusted_peer {'
+  echo "    default 0;"
+  printf '%s' "$peers"
+  echo "}"
+} > "$peer_out"
 echo "45-render-real-ip: the client address is read from $header for $count trusted proxy entr$([ "$count" = 1 ] && echo y || echo ies)." >&2
 exit 0

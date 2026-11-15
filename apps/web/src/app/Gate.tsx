@@ -50,12 +50,17 @@ import { browserKdf } from '../sync/vault';
 import {
   browserRelayClient,
   browserSyncOffer,
+  checkServerRestore,
+  deviceLabel,
   openServerCopy,
+  recoverServerCopy,
   restoreServerCopyIntoNewStore,
   summarisePlates,
   useSyncOffer,
   useSyncSignInRequired,
+  useSyncUnreachable,
   type OpenedServerCopy,
+  type RecoveredServerCopy,
   type RestoreFromServerResult,
 } from '../sync';
 
@@ -75,10 +80,14 @@ export interface GateProps extends UnlockedAppProps {
 interface ServerJob {
   readonly copy: OpenedServerCopy;
   readonly passphrase: string;
+  /** Found with the recovery key: its new passphrase is set on the server only when the restore is confirmed. */
+  readonly recovery?: RecoveredServerCopy;
 }
 
+/** Wipes the key and, for a recovery that was never confirmed, signs its session out (the server passphrase is left alone). */
 const wipeJob = (job: ServerJob | null): void => {
   job?.copy.vaultKey.fill(0);
+  void job?.recovery?.abandon();
 };
 
 /**
@@ -97,7 +106,11 @@ function FirstRunCreate({
   readonly controller: StoreBundle['controller'];
   readonly restoreBackup: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
   readonly serverRestore: {
-    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly find: (
+      handle: string,
+      passphrase: string,
+      recoveryKey?: string,
+    ) => Promise<FindOnServerResult>;
     readonly restore: () => Promise<RestoreFromServerResult>;
     readonly cancel: () => void;
   };
@@ -106,6 +119,7 @@ function FirstRunCreate({
 }): ReactNode {
   const offered = useSyncOffer(offer).offered;
   const signInRequired = useSyncSignInRequired(offer);
+  const unreachable = useSyncUnreachable(offer);
   return (
     <CreatePassphraseScreen
       onCreate={async (p) => {
@@ -124,6 +138,7 @@ function FirstRunCreate({
       {...(offered ? { serverRestore } : {})}
       {...(notice === undefined ? {} : { notice })}
       signInRequired={signInRequired}
+      unreachable={unreachable}
     />
   );
 }
@@ -132,7 +147,11 @@ function FirstRun(props: {
   readonly controller: StoreBundle['controller'];
   readonly restoreBackup: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
   readonly serverRestore: {
-    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly find: (
+      handle: string,
+      passphrase: string,
+      recoveryKey?: string,
+    ) => Promise<FindOnServerResult>;
     readonly restore: () => Promise<RestoreFromServerResult>;
     readonly cancel: () => void;
   };
@@ -235,14 +254,34 @@ function GateContent({ sessionOptions, backup, sync, ...app }: GateProps): React
   const [serverNotice, setServerNotice] = useState<string | undefined>(undefined);
   const [freshRestoring, setFreshRestoring] = useState(false);
   const findOnServer = useCallback(
-    async (handle: string, passphrase: string): Promise<FindOnServerResult> => {
+    async (
+      handle: string,
+      passphrase: string,
+      recoveryKey?: string,
+    ): Promise<FindOnServerResult> => {
       wipeJob(serverJob.current);
       serverJob.current = null;
+      if (recoveryKey !== undefined) {
+        // The recovery key opens the copy and sets `passphrase` as its new passphrase (and this device's).
+        const recovered = await recoverServerCopy({
+          client: syncSeams.client ?? browserRelayClient(),
+          kdf: syncSeams.kdf ?? browserKdf(),
+          handle,
+          recoveryKey,
+          newPassphrase: passphrase,
+          label: deviceLabel(),
+        });
+        if (recovered.kind === 'failed')
+          return { kind: 'failedAccount', failure: recovered.failure };
+        serverJob.current = { copy: recovered.value.copy, passphrase, recovery: recovered.value };
+        return { kind: 'found', summary: summarisePlates(recovered.value.copy.snapshot) };
+      }
       const opened = await openServerCopy({
         client: syncSeams.client ?? browserRelayClient(),
         kdf: syncSeams.kdf ?? browserKdf(),
         handle,
         passphrase,
+        label: deviceLabel(),
       });
       if (opened.kind === 'failed') {
         return {
@@ -265,6 +304,15 @@ function GateContent({ sessionOptions, backup, sync, ...app }: GateProps): React
   const runServerRestore = useCallback(
     async (job: ServerJob | null): Promise<RestoreFromServerResult> => {
       if (job === null) return { kind: 'storeProblem' };
+      if (job.recovery !== undefined) {
+        // What can refuse the restore is checked first, then the new passphrase is set on the server.
+        const refused = checkServerRestore(job.copy, job.passphrase, Date.now());
+        if (refused !== null) return refused;
+        const confirmed = await job.recovery.confirm();
+        if (confirmed.kind === 'failed') {
+          return { kind: 'accountFailed', failure: confirmed.failure };
+        }
+      }
       inFlight.current += 1;
       setRestoring(true);
       try {

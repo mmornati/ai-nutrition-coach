@@ -7,6 +7,8 @@
 import {
   ENVELOPE_LIMITS,
   etagOf,
+  parseAccountResponse,
+  parseCountResponse,
   parsePutResponse,
   parseSaltResponse,
   parseSessionResponse,
@@ -14,6 +16,10 @@ import {
   SYNC_API_BASE,
   syncBodyCap,
   versionOfEtag,
+  type AccountInfo,
+  type ChangePassphraseRequest,
+  type ProofOf,
+  type RecoveryMaterial,
   type RelayEnvelope,
   type SaltResponse,
   type SessionResponse,
@@ -46,7 +52,8 @@ export type RelayError =
   | 'tooLarge'
   /** The relay speaks a newer envelope format than this app: update the app. */
   | 'newerFormat'
-  | 'invalidRequest';
+  | 'invalidRequest'
+  | 'notFound';
 
 export type RelayResult<T> =
   | { readonly kind: 'ok'; readonly value: T }
@@ -65,7 +72,31 @@ export type VaultFetch =
 export interface RelayClient {
   salt(handle: string): Promise<RelayResult<SaltResponse>>;
   signup(request: SignupRequest): Promise<RelayResult<SessionResponse>>;
-  login(handle: string, authKey: string): Promise<RelayResult<SessionResponse>>;
+  /** `label`: what this device is called in the owner's device list. */
+  login(handle: string, authKey: string, label?: string): Promise<RelayResult<SessionResponse>>;
+  /** Login with the recovery key's proof; the answer's `wrappedKey` is the one under the recovery key. */
+  recover(handle: string, authKey: string, label?: string): Promise<RelayResult<SessionResponse>>;
+  /** The devices of this vault, whether it has a recovery key, and the version kept before. */
+  account(token: string): Promise<RelayResult<AccountInfo>>;
+  revokeDevices(
+    token: string,
+    target: { readonly id: number } | { readonly others: true },
+  ): Promise<RelayResult<{ readonly revoked: number }>>;
+  /** Needs the token and a proof; every other device is signed out. */
+  changePassphrase(
+    token: string,
+    request: ChangePassphraseRequest,
+  ): Promise<RelayResult<{ readonly revoked: number }>>;
+  /** Sets or replaces the recovery material, or removes it (`null`). Proof: the passphrase. */
+  setRecovery(
+    token: string,
+    proof: ProofOf,
+    recovery: RecoveryMaterial | null,
+  ): Promise<RelayResult<null>>;
+  /** Removes the server copy. Proof: the passphrase. */
+  deleteVault(token: string, proof: ProofOf): Promise<RelayResult<null>>;
+  /** The version kept before the current one (404 `invalidRequest`-free: `unavailable` when there is none). */
+  getPrevious(token: string): Promise<RelayResult<VaultResponse>>;
   /** With `haveVersion`, an unchanged vault is answered `notModified` without its body. */
   getVault(token: string, haveVersion?: number): Promise<RelayResult<VaultFetch>>;
   /** Compare-and-swap: `expectedVersion` is sent as `If-Match`; the envelope is that version + 1. */
@@ -163,6 +194,9 @@ export function createRelayClient(options: RelayClientOptions = {}): RelayClient
     context: 'login' | 'signup' | 'vault' | 'salt',
   ): RelayResult<never> {
     const code = errorCode(body);
+    // A wrong proof of a secret (passphrase or recovery key) on an authenticated call.
+    if (status === 401 && code === 'noMatch') return fail('noMatch');
+    if (status === 404 && context === 'vault') return fail('notFound');
     switch (status) {
       case 429: {
         const retry = Number(headers.get('retry-after'));
@@ -200,6 +234,32 @@ export function createRelayClient(options: RelayClientOptions = {}): RelayClient
     }
   }
 
+  type Called = Awaited<ReturnType<typeof call>>;
+
+  async function session(
+    path: '/login' | '/recover',
+    body: unknown,
+  ): Promise<RelayResult<SessionResponse>> {
+    const r = await call('POST', path, { body });
+    if (!r.ok) return r.result;
+    if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'login');
+    const parsed = parseSessionResponse(parseJsonBody(r.body));
+    return parsed === null ? fail('unavailable') : { kind: 'ok', value: parsed };
+  }
+
+  function counted(r: Called): RelayResult<{ readonly revoked: number }> {
+    if (!r.ok) return r.result;
+    if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'vault');
+    const revoked = parseCountResponse(parseJsonBody(r.body), 'revoked');
+    return revoked === null ? fail('unavailable') : { kind: 'ok', value: { revoked } };
+  }
+
+  function empty(r: Called): RelayResult<null> {
+    if (!r.ok) return r.result;
+    if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'vault');
+    return { kind: 'ok', value: null };
+  }
+
   return {
     async salt(handle) {
       const r = await call('POST', '/salt', { body: { handle } });
@@ -217,12 +277,46 @@ export function createRelayClient(options: RelayClientOptions = {}): RelayClient
       return session === null ? fail('unavailable') : { kind: 'ok', value: session };
     },
 
-    async login(handle, authKey) {
-      const r = await call('POST', '/login', { body: { handle, authKey } });
+    async login(handle, authKey, label) {
+      return session('/login', { handle, authKey, ...(label ? { label } : {}) });
+    },
+
+    async recover(handle, authKey, label) {
+      return session('/recover', { handle, authKey, ...(label ? { label } : {}) });
+    },
+
+    async account(token) {
+      const r = await call('GET', '/account', { token });
       if (!r.ok) return r.result;
-      if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'login');
-      const session = parseSessionResponse(parseJsonBody(r.body));
-      return session === null ? fail('unavailable') : { kind: 'ok', value: session };
+      if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'vault');
+      const info = parseAccountResponse(parseJsonBody(r.body));
+      return info === null ? fail('unavailable') : { kind: 'ok', value: info };
+    },
+
+    async revokeDevices(token, target) {
+      return counted(await call('POST', '/devices/revoke', { token, body: target }));
+    },
+
+    async changePassphrase(token, request) {
+      return counted(await call('POST', '/passphrase', { token, body: request }));
+    },
+
+    async setRecovery(token, proof, recovery) {
+      return empty(await call('POST', '/recovery', { token, body: { proof, recovery } }));
+    },
+
+    async deleteVault(token, proof) {
+      return empty(await call('POST', '/delete', { token, body: { proof } }));
+    },
+
+    async getPrevious(token) {
+      const r = await call('GET', '/vault?previous=1', { token, large: true });
+      if (!r.ok) return r.result;
+      if (r.status !== 200) return mapError(r.status, r.headers, r.body, 'vault');
+      const parsed = parseVaultResponse(parseJsonBody(r.body), ENVELOPE_LIMITS.maxCiphertextBytes);
+      return parsed.kind === 'ok'
+        ? { kind: 'ok', value: parsed.value }
+        : fail(parsed.kind === 'newerFormat' ? 'newerFormat' : 'unavailable');
     },
 
     async getVault(token, haveVersion) {

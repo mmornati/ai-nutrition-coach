@@ -121,10 +121,22 @@ validate_access_log() {
 # container validates the values again at start (40-render-ai-proxy.sh).
 validate_ai_proxy() {
   [ "${AI_PROXY_ENABLED:-0}" = 1 ] || return 0
-  [ -n "${AI_PROXY_KEY:-}" ] || {
-    printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_KEY (the provider key; it is never printed).\n' >&2
+  # AI_PROXY_KEY_FILE (a Docker secret) is for the compose stacks: in plain `docker run` mode the
+  # path would have to exist INSIDE the container, which this script does not arrange.
+  if [ -z "${AI_PROXY_KEY:-}" ] && { [ "$mode" = run ] || [ -z "${AI_PROXY_KEY_FILE:-}" ]; }; then
+    printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_KEY (the provider key; it is never printed), or\n' >&2
+    printf '           with --compose/--tls/--traefik, AI_PROXY_KEY_FILE (a Docker secret, see docs/self-host.md).\n' >&2
     exit 42
-  }
+  fi
+  for name in AI_PROXY_DAILY_PER_USER AI_PROXY_DAILY_TOTAL; do
+    eval "v=\${$name:-0}"
+    case "$v" in
+      ''|*[!0-9]*) printf 'ai-nutrition-coach: %s must be a whole number (0 = no daily budget).\n' "$name" >&2; exit 42 ;;
+    esac
+  done
+  case "${AI_PROXY_USER_HEADER:-}" in
+    *[!A-Za-z0-9-]*) printf 'ai-nutrition-coach: AI_PROXY_USER_HEADER must be a header name (letters, digits, hyphens).\n' >&2; exit 42 ;;
+  esac
   case "${AI_PROXY_UPSTREAM:-}" in
     https://?*) ;;
     *) printf 'ai-nutrition-coach: AI_PROXY_ENABLED=1 needs AI_PROXY_UPSTREAM=https://... (e.g. https://openrouter.ai/api/v1).\n' >&2; exit 42 ;;
@@ -412,6 +424,7 @@ up() {
         -e AI_PROXY_RATE -e AI_PROXY_RATE_ALL -e AI_PROXY_BURST -e AI_PROXY_CONN -e AI_PROXY_MAX_TOKENS \
         -e AI_PROXY_TOKEN_PARAM -e AI_PROXY_TRANSCRIPTION -e AI_PROXY_TRANSCRIPTION_MODEL \
         -e AI_PROXY_TRANSCRIPTION_RATE -e AI_PROXY_TRANSCRIPTION_RATE_ALL -e AI_PROXY_TRANSCRIPTION_BURST \
+        -e AI_PROXY_USER_HEADER -e AI_PROXY_DAILY_PER_USER -e AI_PROXY_DAILY_TOTAL \
         -p "${BIND}:${PORT}:8080" \
         "$IMAGE_TAG" >/dev/null ; then
     printf 'ai-nutrition-coach: docker run failed (is port %s already in use? try AI_NUTRITION_COACH_PORT=...).\n' "$PORT" >&2
@@ -445,6 +458,23 @@ down() {
   printf 'ai-nutrition-coach: stopped.\n'
 }
 
+# The relay's admin CLI (list, invites, delete, prune, stats), run inside the relay container on its
+# data volume: never over HTTP. Finds the running relay in whichever compose stack started it.
+admin() {
+  need_docker
+  local file
+  for file in "$TRAEFIK_COMPOSE_FILE" "$COMPOSE_FILE"; do
+    [ -f "$file" ] || continue
+    if [ -n "$(AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
+        docker compose -f "$file" --profile sync ps -q sync-relay 2>/dev/null)" ]; then
+      AI_NUTRITION_COACH_DOMAIN="${AI_NUTRITION_COACH_DOMAIN:-unused}" \
+        exec docker compose -f "$file" --profile sync exec -T sync-relay node --disable-warning=ExperimentalWarning /app/relay.mjs admin "$@"
+    fi
+  done
+  printf 'ai-nutrition-coach: no running relay found (start it with `up --sync`).\n' >&2
+  exit 50
+}
+
 usage() {
   cat <<USAGE
 ai-nutrition-coach — self-host affordance (Story 4.4 / FR-11)
@@ -452,6 +482,7 @@ ai-nutrition-coach — self-host affordance (Story 4.4 / FR-11)
 Usage:
   bin/ai-nutrition-coach up [--compose | --tls | --traefik] [--sync]
   bin/ai-nutrition-coach down
+  bin/ai-nutrition-coach admin <list|stats|invites|delete|prune> [--json]   (the relay's admin CLI)
 
 Environment:
   AI_NUTRITION_COACH_BIND               host interface (default: 127.0.0.1)
@@ -480,7 +511,11 @@ Environment:
                                AI_PROXY_KEY and AI_PROXY_MODEL; optional AI_PROXY_LABEL,
                                AI_PROXY_RATE, AI_PROXY_RATE_ALL, AI_PROXY_BURST, AI_PROXY_CONN, AI_PROXY_MAX_TOKENS,
                                AI_PROXY_TOKEN_PARAM; AI_PROXY_TRANSCRIPTION=1 also offers voice
-                               to text (AI_PROXY_TRANSCRIPTION_MODEL, _RATE, _RATE_ALL, _BURST). The key
+                               to text (AI_PROXY_TRANSCRIPTION_MODEL, _RATE, _RATE_ALL, _BURST); optional
+                               per-person limits behind a sign-in (AI_PROXY_USER_HEADER,
+                               AI_PROXY_DAILY_PER_USER, AI_PROXY_DAILY_TOTAL; docs/self-host.md);
+                               with --compose/--tls/--traefik the key may be in a Docker
+                               secret (AI_PROXY_KEY_FILE) instead of AI_PROXY_KEY. The key
                                stays on the server and is never printed. Anyone who can
                                reach the instance can spend it: use a sign-in or an
                                allow-list (docs/self-host.md)
@@ -505,6 +540,7 @@ USAGE
 case "${1:-}" in
   up)   shift; up "$@" ;;
   down) shift; down "$@" ;;
+  admin) shift; admin "$@" ;;
   ""|help|-h|--help) usage ;;
   *)    printf 'ai-nutrition-coach: unknown command: %s\n' "$1" >&2; usage; exit 1 ;;
 esac

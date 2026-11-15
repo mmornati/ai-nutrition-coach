@@ -8,6 +8,8 @@ import { fill, plural, type Strings } from '../../i18n';
 import type { PlateSummary } from './join';
 import type { CreateVaultFailure } from './create';
 import type { OpenServerCopyFailure } from './server-copy';
+import type { AccountFailure } from './account';
+import type { ServerPassphraseIssue } from '../../storage/passphrase-strength';
 import type { SyncStatus } from './sync-service';
 
 export function findFailureText(failure: OpenServerCopyFailure, s: Strings['server']): string {
@@ -35,9 +37,7 @@ export function findFailureText(failure: OpenServerCopyFailure, s: Strings['serv
 
 export function createFailureText(failure: CreateVaultFailure, all: Strings): string {
   const s = all.server;
-  if (typeof failure === 'object') {
-    return failure.passphrase === 'tooShort' ? all.session.tooShort : all.session.tooRepetitive;
-  }
+  if (typeof failure === 'object') return strengthText(failure.passphrase, all);
   switch (failure) {
     case 'invalidHandle':
       return s.invalidHandle;
@@ -144,5 +144,53 @@ export function statusText(
       return s.statusTooLarge;
     case 'paused':
       return s.statusPaused;
+  }
+}
+
+/** One calm, specific line about a new passphrase for the server copy. */
+export function strengthText(issue: ServerPassphraseIssue, all: Strings): string {
+  const s = all.server;
+  switch (issue) {
+    case 'tooShort':
+      return s.strengthTooShort;
+    case 'tooRepetitive':
+      return all.session.tooRepetitive;
+    case 'common':
+      return s.strengthCommon;
+    case 'pattern':
+      return s.strengthPattern;
+    case 'repeated':
+      return s.strengthRepeated;
+    case 'containsHandle':
+      return s.strengthHandle;
+    case 'containsApp':
+      return s.strengthApp;
+  }
+}
+
+/** What an account action (change, recovery key, delete, devices, recover) says when it did not go through. */
+export function accountFailureText(failure: AccountFailure, all: Strings): string {
+  const s = all.server;
+  if (typeof failure === 'object') return strengthText(failure.passphrase, all);
+  switch (failure) {
+    case 'invalidHandle':
+      return s.invalidHandle;
+    case 'invalidRecoveryKey':
+      return s.invalidRecoveryKey;
+    case 'noMatch':
+      return s.proofNoMatch;
+    case 'rateLimited':
+      return s.rateLimited;
+    case 'offline':
+      return s.offline;
+    case 'signInRequired':
+      return s.signInRequired;
+    case 'disconnected':
+      return s.disconnected;
+    case 'damaged':
+      return s.damaged;
+    case 'notFound':
+    case 'unavailable':
+      return s.unavailable;
   }
 }

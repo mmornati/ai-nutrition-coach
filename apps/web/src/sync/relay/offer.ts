@@ -12,6 +12,25 @@ import { cappedFetch, isSignInAnswer, type FetchLike } from '../../net/capped-fe
 const MAX_CONFIG_BYTES = 1024;
 const CONFIG_TIMEOUT_MS = 3000;
 
+const OFFERED_KEY = 'anc.sync.offered';
+// Whether this server ever offered a copy: one flag, no content, in the page's own storage. Where
+// storage is unavailable the section simply stays hidden when the server is down.
+function rememberOffered(offered: boolean): void {
+  try {
+    if (offered) localStorage.setItem(OFFERED_KEY, '1');
+    else localStorage.removeItem(OFFERED_KEY);
+  } catch {
+    // Not available (private window, blocked): nothing to remember.
+  }
+}
+function wasOffered(): boolean {
+  try {
+    return localStorage.getItem(OFFERED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export interface SyncOfferSourceOptions {
   readonly fetch?: FetchLike | undefined;
   readonly signal?: AbortSignal | undefined;
@@ -24,6 +43,7 @@ export class SyncOfferSource {
   #offer: SyncOffer = SYNC_NOT_OFFERED;
   #loaded = false;
   #signInRequired = false;
+  #unreachable = false;
   #inflight: Promise<void> | null = null;
 
   constructor(options: SyncOfferSourceOptions = {}) {
@@ -43,6 +63,13 @@ export class SyncOfferSource {
    */
   getSignInRequired = (): boolean => this.#signInRequired;
 
+  /**
+   * This server offered a copy on an earlier visit and cannot be reached now (no network to it, a
+   * timeout, a 5xx): distinct from "not offered" and from "sign in again". Without an earlier
+   * offer, an unreachable server is just "not offered" (a person who never used one is not nagged).
+   */
+  getUnreachable = (): boolean => this.#unreachable;
+
   subscribe = (listener: () => void): Unsubscribe => {
     this.#listeners.add(listener);
     return () => {
@@ -61,6 +88,7 @@ export class SyncOfferSource {
   async #read(): Promise<void> {
     let next: SyncOffer = SYNC_NOT_OFFERED;
     let signIn = false;
+    let down = false;
     try {
       const r = await cappedFetch(SYNC_CONFIG_PATH, {
         method: 'GET',
@@ -75,19 +103,29 @@ export class SyncOfferSource {
       });
       if (r.kind === 'response' && r.status === 200 && r.body.byteLength > 0) {
         next = parseSyncConfig(JSON.parse(new TextDecoder().decode(r.body)));
+        rememberOffered(next.offered);
+      } else if (r.kind === 'response' && r.status === 404) {
+        rememberOffered(false);
       } else if (
         (r.kind === 'failure' && r.reason === 'redirect') ||
         (r.kind === 'response' && isSignInAnswer(r.status))
       ) {
         signIn = true;
+      } else if (
+        (r.kind === 'failure' && r.reason !== 'redirect') ||
+        (r.kind === 'response' && r.status >= 500)
+      ) {
+        down = true;
       }
     } catch {
       next = SYNC_NOT_OFFERED;
     }
+    const unreachable = down && wasOffered();
     this.#loaded = true;
     if (this.#signal?.aborted === true) return;
     const same =
       signIn === this.#signInRequired &&
+      unreachable === this.#unreachable &&
       next.offered === this.#offer.offered &&
       (!next.offered ||
         (this.#offer.offered &&
@@ -95,6 +133,7 @@ export class SyncOfferSource {
           next.maxVaultMb === this.#offer.maxVaultMb));
     this.#offer = next;
     this.#signInRequired = signIn;
+    this.#unreachable = unreachable;
     if (!same) for (const listener of [...this.#listeners]) listener();
   }
 

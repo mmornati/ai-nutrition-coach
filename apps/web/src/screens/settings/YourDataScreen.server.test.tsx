@@ -55,7 +55,7 @@ async function remoteWith(relay: FakeRelay, ...names: string[]) {
     maxVaultBytes: 20 * 1024 * 1024,
   });
   if (made.kind !== 'created') throw new Error('create');
-  return source;
+  return Object.assign(source, { recoveryKey: made.recoveryKey });
 }
 
 async function open(
@@ -208,7 +208,17 @@ describe('Case C: back up to this server', () => {
     });
     await screen.findByRole('heading', { level: 2, name: 'Back up to this server' });
     await fillBackup(user, 'Alice', VAULT_PASSPHRASE);
-    expect(await screen.findByText(/^Done\. Your data is backed up to this server/)).toBeVisible();
+    // The recovery key comes first, once: written down before anything else on the screen.
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Your recovery key' }),
+    ).toBeVisible();
+    expect(document.querySelector('[data-recovery-key]')?.textContent).toMatch(
+      /^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/,
+    );
+    expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'I have saved my recovery key' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(heading2('Your recovery key')).toBeNull();
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Backup on this server' }),
     ).toBeVisible();
@@ -230,7 +240,7 @@ describe('Case C: back up to this server', () => {
     await fillBackup(user, 'no spaces!', VAULT_PASSPHRASE);
     expect(await screen.findByText(/A handle has 3 to 32 characters/)).toBeVisible();
     await fillBackup(user, 'alice', 'short');
-    expect(await screen.findByText('Use at least 10 characters.')).toBeVisible();
+    expect(await screen.findByText(/^Use at least 12 characters, or four words/)).toBeVisible();
     await fillBackup(user, null, VAULT_PASSPHRASE, 'something else entirely');
     expect(await screen.findByText("The two passphrases don't match.")).toBeVisible();
     expect(relay.requests).toEqual([]);
@@ -423,6 +433,100 @@ describe('Case B: connect to the copy that is on this server', () => {
     await find(user, 'alice', VAULT_PASSPHRASE);
     expect(await screen.findByText(/made by a newer version of AI Nutrition Coach/)).toBeVisible();
     expect(await readConnection(bundle.kv)).toBeNull();
+  });
+
+  describe('with the recovery key, the new passphrase is set only when the person confirms', () => {
+    const NEW_PASSPHRASE = 'lamp ocean velvet tractor';
+    const findWithKey = async (user: ReturnType<typeof userEvent.setup>, key: string) => {
+      const s = within(section('Connect to this server’s copy'));
+      await user.click(
+        s.getByRole('button', { name: 'I lost my passphrase: use my recovery key' }),
+      );
+      await user.type(s.getByLabelText('Handle'), 'alice');
+      await user.type(s.getByLabelText('Recovery key'), key);
+      await user.type(s.getByLabelText('New passphrase for this copy'), NEW_PASSPHRASE);
+      await user.click(s.getByRole('button', { name: 'Recover with this key' }));
+    };
+    const passphraseCalls = (relay: FakeRelay) =>
+      relay.requests.filter((r) => r.path === '/passphrase');
+
+    it('Cancel signs the recovery session out and leaves the passphrase and the other device alone', async () => {
+      const user = userEvent.setup();
+      const relay = new FakeRelay();
+      const source = await remoteWith(relay, 'Porridge');
+      const sourceToken = (await readConnection(source.kv))!.token;
+      const authBefore = relay.vaults.get('alice')!.authKey;
+      await open({
+        relay,
+        seed: async (b) => {
+          await seedPlate(b, at(9, 0), [['Toast', 'starch']]);
+        },
+      });
+      await screen.findByRole('heading', { level: 2, name: 'Connect to this server’s copy' });
+      await findWithKey(user, source.recoveryKey);
+      expect(
+        await screen.findByRole('heading', { level: 3, name: 'Found your copy' }),
+      ).toBeVisible();
+      expect(passphraseCalls(relay)).toEqual([]);
+      expect(relay.tokens.size).toBe(2);
+      await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(relay.tokens.size).toBe(1));
+      expect(relay.tokens.has(sourceToken)).toBe(true);
+      expect(passphraseCalls(relay)).toEqual([]);
+      expect(relay.vaults.get('alice')!.authKey).toBe(authBefore);
+    });
+
+    it('a copy dated far ahead (refused after it is opened) leaves the server passphrase untouched and no orphan token', async () => {
+      const user = userEvent.setup();
+      const relay = new FakeRelay();
+      const source = await remoteWith(relay, 'Porridge');
+      const authBefore = relay.vaults.get('alice')!.authKey;
+      const { sealSnapshot, importVaultKey } = await import('../../sync/relay/crypto');
+      const { decodeBase64Url } = await import('@anc/core');
+      const connection = (await readConnection(source.kv))!;
+      const key = await importVaultKey(decodeBase64Url(connection.vaultKey)!);
+      const base = await snapshotOf(source);
+      const ahead: VaultSnapshot = {
+        ...base,
+        kv: base.kv.map((e, i) =>
+          i === 0 ? { ...e, updatedAtHlc: '9999999999999-0000-0000000000000000' } : e,
+        ),
+      };
+      const sealed = await sealSnapshot(key, connection.vaultId, 2, ahead, 20 * 1024 * 1024);
+      if (sealed.kind !== 'sealed') throw new Error('seal');
+      relay.vaults.get('alice')!.version = 2;
+      relay.vaults.get('alice')!.envelope = sealed.envelope;
+      const { bundle } = await open({ relay });
+      await screen.findByRole('heading', { level: 2, name: 'Connect to this server’s copy' });
+      await findWithKey(user, source.recoveryKey);
+      expect(await screen.findByText(/clock/i)).toBeVisible();
+      await waitFor(() => expect(relay.tokens.size).toBe(1));
+      expect(passphraseCalls(relay)).toEqual([]);
+      expect(relay.vaults.get('alice')!.authKey).toBe(authBefore);
+      expect(await readConnection(bundle.kv)).toBeNull();
+    });
+
+    it('Combine is what sets the new passphrase', async () => {
+      const user = userEvent.setup();
+      const relay = new FakeRelay();
+      const source = await remoteWith(relay, 'Porridge');
+      const { bundle } = await open({
+        relay,
+        seed: async (b) => {
+          await seedPlate(b, at(9, 0), [['Toast', 'starch']]);
+        },
+      });
+      await screen.findByRole('heading', { level: 2, name: 'Connect to this server’s copy' });
+      await findWithKey(user, source.recoveryKey);
+      await screen.findByRole('heading', { level: 3, name: 'Found your copy' });
+      expect(passphraseCalls(relay)).toEqual([]);
+      await user.click(screen.getByRole('button', { name: /^Combine/ }));
+      expect(
+        await screen.findByText(/^Done\. This device and the copy are combined/),
+      ).toBeVisible();
+      expect(passphraseCalls(relay)).toHaveLength(1);
+      expect(await readConnection(bundle.kv)).not.toBeNull();
+    });
   });
 
   describe('Start fresh, behind "Other options"', () => {

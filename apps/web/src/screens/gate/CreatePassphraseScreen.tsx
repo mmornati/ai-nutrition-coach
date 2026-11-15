@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { validateNewPassphrase, type PassphraseIssue, type UnlockOutcome } from '../../storage';
+import {
+  hintForLocalPassphrase,
+  validateNewPassphrase,
+  type PassphraseIssue,
+  type UnlockOutcome,
+} from '../../storage';
 import { useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { Button, FileField, TextField } from '../../components/primitives';
 import { ReloadNotice } from '../../components/shell';
@@ -144,13 +149,18 @@ export function CreatePassphraseScreen({
   serverRestore,
   notice,
   signInRequired = false,
+  unreachable = false,
 }: {
   readonly onCreate: (passphrase: string) => Promise<UnlockOutcome>;
   /** Present when restoring from a backup is offered on this screen. */
   readonly onRestore?: (file: File, passphrase: string) => Promise<RestoreNewStoreResult>;
   /** Present when this server offers a relay: restoring from it is offered on this screen. */
   readonly serverRestore?: {
-    readonly find: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+    readonly find: (
+      handle: string,
+      passphrase: string,
+      recoveryKey?: string,
+    ) => Promise<FindOnServerResult>;
     readonly restore: () => Promise<RestoreFromServerResult>;
     readonly cancel: () => void;
   };
@@ -158,6 +168,8 @@ export function CreatePassphraseScreen({
   readonly notice?: string;
   /** This server's sign-in turned the offer read away: say so, with the one action that fixes it. */
   readonly signInRequired?: boolean;
+  /** A server that offered a copy before cannot be reached now (said, not hidden). */
+  readonly unreachable?: boolean;
 }) {
   const all = useStrings();
   const s = all.session;
@@ -235,6 +247,16 @@ export function CreatePassphraseScreen({
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
         />
+        {/* Offered, never forced: the floor above is the only thing that refuses. */}
+        <p
+          className="text-body-small text-ink-soft empty:hidden"
+          data-passphrase-hint=""
+          aria-live="polite"
+        >
+          {validateNewPassphrase(passphrase) === null && hintForLocalPassphrase(passphrase) !== null
+            ? all.server.localWeakHint
+            : null}
+        </p>
         <TextField
           label={s.createConfirmLabel}
           type="password"
@@ -284,6 +306,11 @@ export function CreatePassphraseScreen({
       )}
       {!serverRestore && signInRequired && (
         <ReloadNotice text={all.server.signInRequired} action={all.server.reloadAction} />
+      )}
+      {!serverRestore && !signInRequired && unreachable && (
+        <p role="status" className="text-body text-ink-soft" data-sync-unreachable="">
+          {all.server.unreachable}
+        </p>
       )}
     </GateFrame>
   );

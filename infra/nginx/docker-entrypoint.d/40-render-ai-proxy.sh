@@ -16,6 +16,11 @@
 #   AI_PROXY_UPSTREAM   https://host[:port][/path]   the OpenAI-compatible base (no trailing /chat/completions)
 #   AI_PROXY_KEY        the provider key. It reaches ONLY the locations file (mode 0600), through the
 #                       environment of awk, never a command line, a log line or a message of this script.
+#   or AI_PROXY_KEY_FILE  a file holding the key instead (a Docker secret, /run/secrets/...): read
+#                       once at start, surrounding whitespace trimmed, validated like the variable,
+#                       never printed. If BOTH are set the FILE wins (and a notice says so, naming
+#                       the two variables). A missing, unreadable, empty or oversized (> 1 KiB)
+#                       file refuses to start: the operator asked for it.
 #   AI_PROXY_MODEL      forced into every request by njs (the client cannot choose another)
 #   optional: AI_PROXY_TRANSCRIPTION=1 also offers POST /ai/v1/audio/transcriptions (voice to text;
 #   default off) with AI_PROXY_TRANSCRIPTION_MODEL (default whisper-1, validated by njs: the client
@@ -29,6 +34,12 @@
 #   for reasoning models), AI_PROXY_CACHE_MARKERS (1 keeps one prompt-cache marker per request for a
 #   provider that reads them, e.g. OpenRouter with an Anthropic or Gemini model; default 0 drops it),
 #   AI_PROXY_RESOLVER (default: the first plain nameserver of /etc/resolv.conf).
+#   optional, per person behind a sign-in (docs/self-host.md "Per-person limits behind single sign-on"):
+#   AI_PROXY_USER_HEADER (a request header naming the signed-in person, e.g. X-authentik-username:
+#   used as the rate-limit and budget key instead of the client address, but ONLY when the request
+#   comes from AI_NUTRITION_COACH_TRUSTED_PROXIES, and always dropped before the provider),
+#   AI_PROXY_DAILY_PER_USER and AI_PROXY_DAILY_TOTAL (requests per UTC day for one person / for the
+#   whole instance; 0 or unset = no daily budget).
 # Every value is validated against a strict pattern; an invalid value refuses to start, like a
 # bad AI_NUTRITION_COACH_CONNECT_SRC_EXTRA (05-validate-csp.sh). Error messages name the variable
 # and never print its value.
@@ -64,7 +75,7 @@ render() {
       while ((i = index(s, k)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(k)) }
       return o s
     }
-    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM CACHE_MARKERS RESOLVER URL_TX TX_MODEL TX_RATE TX_RATE_ALL TX_BURST", names, " ") }
+    BEGIN { n = split("URL HOST KEY MODEL CONFIG_JSON RATE RATE_ALL BURST CONN MAX_TOKENS TOKEN_PARAM CACHE_MARKERS RESOLVER URL_TX TX_MODEL TX_RATE TX_RATE_ALL TX_BURST USER_VAR USER_STRIP DAILY_USER DAILY_TOTAL", names, " ") }
     {
       line = $0
       for (j = 1; j <= n; j++) line = rep(line, "@@ANC_AI_" names[j] "@@", ENVIRON["ANC_AI_" names[j]])
@@ -87,6 +98,24 @@ if [ "$enabled" != "1" ]; then
   write_off
   exit 0
 fi
+# The key may come from a file (a Docker secret). When both are set the file wins: it is the more
+# deliberate choice, and a stale variable must not silently override a rotated secret.
+key_file="${AI_PROXY_KEY_FILE:-}"
+if [ -n "$key_file" ]; then
+  [ -f "$key_file" ] && [ -r "$key_file" ] \
+    || die "AI_PROXY_KEY_FILE does not name a readable file (the path is not shown)."
+  [ "$(wc -c < "$key_file" | tr -d ' ')" -le 1024 ] || die "AI_PROXY_KEY_FILE is larger than 1 KiB: it must hold only the key."
+  filekey="$(cat "$key_file")"
+  # Trim leading and trailing whitespace (a trailing newline is the usual one).
+  filekey="${filekey#"${filekey%%[![:space:]]*}"}"
+  filekey="${filekey%"${filekey##*[![:space:]]}"}"
+  [ -n "$filekey" ] || die "AI_PROXY_KEY_FILE is empty."
+  if [ -n "$key" ]; then
+    echo "40-render-ai-proxy: both AI_PROXY_KEY and AI_PROXY_KEY_FILE are set: the key from AI_PROXY_KEY_FILE is used." >&2
+  fi
+  key="$filekey"
+  unset filekey
+fi
 if [ -z "$key" ]; then
   echo "40-render-ai-proxy: AI_PROXY_ENABLED=1 but AI_PROXY_KEY is empty: the instance AI stays OFF." >&2
   write_off
@@ -100,7 +129,7 @@ is_one_line() { [ "$(printf '%s' "$1" | wc -l | tr -d ' ')" = 0 ]; }
 matches() { is_one_line "$2" && printf '%s' "$2" | grep -Eq "$1"; }
 
 matches '^[A-Za-z0-9._~+/=:-]{8,255}$' "$key" \
-  || die "AI_PROXY_KEY has characters outside A-Z a-z 0-9 . _ ~ + / = : - or is not 8-255 characters long (the value is not shown)."
+  || die "the provider key (AI_PROXY_KEY or the content of AI_PROXY_KEY_FILE) has characters outside A-Z a-z 0-9 . _ ~ + / = : - or is not 8-255 characters long (the value is not shown)."
 
 upstream="${AI_PROXY_UPSTREAM:-}"
 upstream="${upstream%/}"
@@ -165,6 +194,33 @@ else
   tx_model="whisper-1"; tx_rate="6r/m"; tx_rate_all="20r/m"; tx_burst="2"
 fi
 
+# Per-person limits behind a sign-in. The header name ends up in a `map` and a `proxy_set_header`:
+# letters, digits and hyphens only (no underscore: nginx drops those headers anyway), and never one
+# the instance relies on for something else.
+user_header="${AI_PROXY_USER_HEADER:-}"
+user_var=""
+if [ -n "$user_header" ]; then
+  matches '^[A-Za-z]([A-Za-z0-9-]{0,62}[A-Za-z0-9])?$' "$user_header" \
+    || die "AI_PROXY_USER_HEADER must be a header name: letters, digits and hyphens, starting with a letter, at most 64 characters (e.g. X-authentik-username)."
+  user_lower="$(printf '%s' "$user_header" | tr 'A-Z' 'a-z')"
+  case "$user_lower" in
+    host|authorization|proxy-authorization|cookie|set-cookie|origin|referer|user-agent|accept*|content-*|connection|upgrade|te|trailer|transfer-encoding|expect|range|forwarded|x-forwarded-for|x-forwarded-host|x-forwarded-proto|x-forwarded-port|x-forwarded-prefix|x-forwarded-uri|x-forwarded-method|x-forwarded-server|x-forwarded-ssl|x-real-ip|cf-connecting-ip|sec-*|x-requested-with)
+      die "AI_PROXY_USER_HEADER names a header this server uses for something else; choose the one your sign-in sets (e.g. X-authentik-username)." ;;
+  esac
+  user_var="$(printf '%s' "$user_lower" | tr '-' '_')"
+  if [ -z "${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}" ]; then
+    echo "40-render-ai-proxy: AI_PROXY_USER_HEADER is set but AI_NUTRITION_COACH_TRUSTED_PROXIES is not: the header is never believed, every caller is keyed by address." >&2
+  fi
+fi
+# Daily request budgets: 0 (the default) is off.
+daily_user="${AI_PROXY_DAILY_PER_USER:-0}"
+matches '^[0-9]{1,6}$' "$daily_user" || die "AI_PROXY_DAILY_PER_USER must be a whole number from 0 (off) to 999999."
+daily_total="${AI_PROXY_DAILY_TOTAL:-0}"
+matches '^[0-9]{1,7}$' "$daily_total" || die "AI_PROXY_DAILY_TOTAL must be a whole number from 0 (off) to 9999999."
+# As a decimal number (010 is ten, not an octal eight).
+daily_user="$(printf '%s' "$daily_user" | awk '{ printf "%d", $0 + 0 }')"
+daily_total="$(printf '%s' "$daily_total" | awk '{ printf "%d", $0 + 0 }')"
+
 # A value must not contain a placeholder of its own (substitution is not re-entrant).
 for v in "$key" "$upstream" "$model" "$label" "$rate" "$rate_all" "$resolver" "$tx_model" "$tx_rate" "$tx_rate_all"; do
   case "$v" in *@@*) die "an AI_PROXY_* value contains '@@' (the value is not shown)." ;; esac
@@ -193,12 +249,29 @@ ANC_AI_TOKEN_PARAM="$token_param"
 ANC_AI_CACHE_MARKERS="$cache_markers"
 ANC_AI_MAX_TOKENS="$max_tokens"
 ANC_AI_RESOLVER="$resolver"
+ANC_AI_USER_VAR="$user_var"
+if [ -n "$user_header" ]; then
+  ANC_AI_USER_STRIP="proxy_set_header $user_header \"\";"
+else
+  ANC_AI_USER_STRIP="# AI_PROXY_USER_HEADER is not set: no per-person header to drop."
+fi
+ANC_AI_DAILY_USER="$daily_user"
+ANC_AI_DAILY_TOTAL="$daily_total"
 export ANC_AI_URL ANC_AI_HOST ANC_AI_KEY ANC_AI_MODEL ANC_AI_CONFIG_JSON ANC_AI_RATE ANC_AI_RATE_ALL \
   ANC_AI_BURST ANC_AI_CONN ANC_AI_MAX_TOKENS ANC_AI_TOKEN_PARAM ANC_AI_CACHE_MARKERS ANC_AI_RESOLVER \
-  ANC_AI_URL_TX ANC_AI_TX_MODEL ANC_AI_TX_RATE ANC_AI_TX_RATE_ALL ANC_AI_TX_BURST
+  ANC_AI_URL_TX ANC_AI_TX_MODEL ANC_AI_TX_RATE ANC_AI_TX_RATE_ALL ANC_AI_TX_BURST \
+  ANC_AI_USER_VAR ANC_AI_USER_STRIP ANC_AI_DAILY_USER ANC_AI_DAILY_TOTAL
 
 printf '%s\n' 'load_module /usr/lib/nginx/modules/ngx_http_js_module.so;' > "$main_inc"
-render "$tpl/ai-proxy.http.inc.template" "$httpctx_inc"
+# The http file: the identity map first ($anc_ai_user, per person or empty), then the zones.
+if [ -n "$user_header" ]; then
+  render "$tpl/ai-proxy.user.inc.template" "$httpctx_inc.u"
+else
+  cp "$tpl/ai-proxy.nouser.inc.template" "$httpctx_inc.u"
+fi
+render "$tpl/ai-proxy.http.inc.template" "$httpctx_inc.h"
+cat "$httpctx_inc.u" "$httpctx_inc.h" > "$httpctx_inc"
+rm -f "$httpctx_inc.u" "$httpctx_inc.h"
 render "$tpl/ai-proxy.locations.inc.template" "$loc_inc"
 if [ "$tx" = "1" ]; then
   # The voice route is appended to the SAME private file (it holds the key too). nginx matches the

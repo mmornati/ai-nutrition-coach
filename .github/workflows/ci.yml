@@ -13,14 +13,16 @@
 #                WebKit): offline reload, update flow, barcode with a fake camera.
 #   image      — the self-host image built ONCE as a release build (exactly the build arguments
 #                publish.yml pushes with), trivy (fixable HIGH/CRITICAL fail, B6), then the
-#                WebKit + Chromium smoke of that image (scripts/webkit_smoke.sh, ADR-0003).
+#                WebKit + Chromium smoke of that image (scripts/webkit_smoke.sh, ADR-0003); the
+#                relay image (infra/Dockerfile.relay) is built and trivy-scanned the same way.
 #   self-host  — scripts/smoke_self_host.sh: `bin/ai-nutrition-coach up` end to end, headers/CSP,
 #                container hardening, no egress, the kill switch, the AI proxy (FR-11), and the
 #                encrypted-backup relay profile (`sync`).
 #   ci-ok      — the single required status check: green when every job above passed or was
 #                skipped by the path filter, red otherwise.
 #   publish    — push to main or a release tag only, once ci-ok is green: pushes the image to
-#                ghcr.io through publish.yml, rebuilt from the layers `image` cached and tested.
+#                ghcr.io through publish.yml (the app image and the relay image), rebuilt from the
+#                layers `image` cached and tested.
 #
 # Together the jobs run everything `pnpm verify` runs (scripts/verify.sh, the local gate), in
 # parallel. Secret scanning of the git history lives in gitleaks.yml.
@@ -59,6 +61,8 @@ permissions:
 env:
   # The image `image` tests and publish.yml pushes: one release build, one cache.
   TEST_IMAGE: ai-nutrition-coach:ci
+  # The relay image (infra/Dockerfile.relay), built and scanned the same way; publish.yml pushes it.
+  TEST_RELAY_IMAGE: ai-nutrition-coach-relay:ci
 
 jobs:
   changes:
@@ -355,6 +359,32 @@ jobs:
         env:
           AI_NUTRITION_COACH_SMOKE_IMAGE: ${{ env.TEST_IMAGE }}
         run: bash scripts/webkit_smoke.sh --no-build
+
+      # The relay image: the same Dockerfile, platform, pull policy and cache scope as publish.yml,
+      # then the same trivy gate. A small build (one bundle on the node image), so this adds little.
+      - name: Build the relay image (loaded locally, not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/Dockerfile.relay
+          platforms: linux/amd64
+          load: true
+          push: false
+          pull: true
+          tags: ${{ env.TEST_RELAY_IMAGE }}
+          build-args: |
+            APK_UPGRADE_DATE=${{ steps.apkday.outputs.date }}
+          cache-from: type=gha,scope=relay
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=relay,mode=max' || '' }}
+
+      - name: Relay vulnerability scan (trivy) - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.TEST_RELAY_IMAGE }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
 
   self-host:
     name: Self-host smoke (bin/ai-nutrition-coach up)

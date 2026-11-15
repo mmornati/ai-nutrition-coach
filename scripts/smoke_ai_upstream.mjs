@@ -77,6 +77,8 @@ https
           origin: 'origin' in req.headers,
           referer: 'referer' in req.headers,
           xff: 'x-forwarded-for' in req.headers,
+          // The per-person header of the sign-in (AI_PROXY_USER_HEADER) must never reach the provider.
+          user: 'x-authentik-username' in req.headers,
           model: body.model,
           maxTokens: body.max_tokens,
           keys: Object.keys(body).sort(),

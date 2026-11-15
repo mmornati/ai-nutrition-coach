@@ -33,13 +33,38 @@ location = /ai/v1/chat/completions {
     client_body_buffer_size 2m;
     client_body_timeout 30s;
 
-    # Per client address AND for the whole instance (both must allow the request).
+    # Per caller (the person behind the sign-in when AI_PROXY_USER_HEADER is set, else the client
+    # address) AND for the whole instance (both must allow the request).
     limit_req zone=ai_nutrition_coach_ai burst=@@ANC_AI_BURST@@ nodelay;
     limit_req zone=ai_nutrition_coach_ai_rall burst=@@ANC_AI_BURST@@ nodelay;
     limit_req_status 429;
     limit_conn ai_nutrition_coach_ai_ip @@ANC_AI_CONN@@;
     limit_conn ai_nutrition_coach_ai_all 16;
     limit_conn_status 429;
+
+    # Upstream failures are logged at `crit` only (an upstream timeout would otherwise write the
+    # client's address and the request line to the container log).
+    error_log /dev/stderr crit;
+
+    # What njs reads (the proxying location below sets its own copy of what it needs).
+    set $anc_ai_model "@@ANC_AI_MODEL@@";
+    set $anc_ai_max_tokens "@@ANC_AI_MAX_TOKENS@@";
+    set $anc_ai_token_param "@@ANC_AI_TOKEN_PARAM@@";
+    set $anc_ai_cache_markers "@@ANC_AI_CACHE_MARKERS@@";
+    set $anc_ai_daily_user "@@ANC_AI_DAILY_USER@@";
+    set $anc_ai_daily_total "@@ANC_AI_DAILY_TOTAL@@";
+
+    # njs validates the request (the same checks that build the body below), then counts it against
+    # the daily budgets, and only then hands it, body untouched, to the proxying location: an
+    # invalid request is a local 400 and a spent budget a 429, neither reaches the provider or is counted.
+    js_content anc_ai.chatGate;
+}
+
+# The request njs let through: relayed to the provider with the operator's key.
+location @ai_nutrition_coach_chat_proxy {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    include /tmp/ai-nutrition-coach-headers.inc;
 
     # Upstream failures are logged at `crit` only (an upstream timeout would otherwise write the
     # client's address and the request line to the container log).
@@ -66,6 +91,8 @@ location = /ai/v1/chat/completions {
     proxy_set_header Accept "application/json";
     proxy_set_header User-Agent "ai-nutrition-coach-proxy";
     proxy_set_header Connection "";
+    # The per-person header (AI_PROXY_USER_HEADER) is stripped even though nothing is forwarded.
+    @@ANC_AI_USER_STRIP@@
     proxy_set_body $anc_ai_body;
 
     # TLS to the provider, verified against the system CA bundle.
@@ -124,6 +151,15 @@ location = /ai/v1/chat/completions {
     error_page 401 402 403 404 405 406 407 408 409 410 411 412 414 415 416 417 418 421 422 423 424 425 426 428 431 451 500 501 502 503 504 505 507 = @ai_nutrition_coach_ai_refused;
 
     proxy_pass $anc_ai_upstream;
+}
+
+location @ai_nutrition_coach_ai_daily {
+    default_type application/json;
+    add_header Cache-Control "no-store" always;
+    # Seconds until the next UTC midnight, set by njs (a budget of 0 never gets here).
+    add_header Retry-After $anc_ai_retry always;
+    include /tmp/ai-nutrition-coach-headers.inc;
+    return 429 '{"error":"ai_daily_limit"}';
 }
 
 location @ai_nutrition_coach_ai_refused {

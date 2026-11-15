@@ -15,14 +15,18 @@ import { forgetAcknowledgedBeforeStore } from '../../app/about-ack';
 import { useServerHandoff } from '../../app/server-handoff';
 import { useSession } from '../../app/session';
 import {
+  accountFailureText,
   checkServerRestore,
+  deviceLabel,
   findFailureText,
   joinServerCopy,
   openServerCopy,
   previewJoin,
+  recoverServerCopy,
   type JoinPreview,
   type OpenedServerCopy,
   type ProfileDifference,
+  type RecoveredServerCopy,
 } from '../../sync';
 import { Prose, Section } from './SettingsPage';
 
@@ -59,6 +63,11 @@ const FIELD_LABEL: Readonly<Record<ProfileDifference['field'], (all: Strings) =>
 interface Found {
   readonly copy: OpenedServerCopy;
   readonly preview: JoinPreview;
+  /**
+   * Found with the recovery key: the new passphrase is set on the server only when the person
+   * confirms (Combine or Start fresh). Cancelling or leaving signs that session out instead.
+   */
+  readonly recovery?: RecoveredServerCopy;
 }
 
 /**
@@ -83,6 +92,9 @@ export function ServerJoinSection({
   const handoff = useServerHandoff();
   const [handle, setHandle] = useState('');
   const [passphrase, setPassphrase] = useState('');
+  // "I lost my passphrase": the recovery key opens the copy and sets a new passphrase for it.
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState<Found | null>(null);
   const [profileChoice, setProfileChoice] = useState<'device' | 'server' | null>(null);
@@ -101,6 +113,7 @@ export function ServerJoinSection({
   useEffect(
     () => () => {
       foundRef.current?.copy.vaultKey.fill(0);
+      void foundRef.current?.recovery?.abandon();
       keptPassphrase.current = null;
     },
     [],
@@ -109,6 +122,7 @@ export function ServerJoinSection({
   const forget = () => {
     keptPassphrase.current = null;
     found?.copy.vaultKey.fill(0);
+    void found?.recovery?.abandon();
     setFound(null);
     setProfileChoice(null);
     setConfirming(false);
@@ -121,26 +135,55 @@ export function ServerJoinSection({
       setMessage((a) => a.server.missingHandle);
       return;
     }
-    if (passphrase === '') {
-      setMessage((a) => a.server.missingPassphrase);
+    if (passphrase === '' || (recovering && recoveryKey.trim() === '')) {
+      setMessage((a) =>
+        recovering && passphrase !== '' ? a.server.invalidRecoveryKey : a.server.missingPassphrase,
+      );
       return;
     }
     setBusy(true);
     let next: Message | null = null;
     try {
-      const opened = await openServerCopy({
-        client: session.syncClient,
-        kdf: session.syncKdf,
-        handle,
-        passphrase,
-      });
+      const label = deviceLabel();
+      const attempt:
+        | { kind: 'opened'; copy: OpenedServerCopy; recovery?: RecoveredServerCopy }
+        | { kind: 'failed'; text: Message } = await (async () => {
+        if (recovering) {
+          const r = await recoverServerCopy({
+            client: session.syncClient,
+            kdf: session.syncKdf,
+            handle,
+            recoveryKey,
+            newPassphrase: passphrase,
+            label,
+          });
+          if (r.kind === 'ok') {
+            return { kind: 'opened' as const, copy: r.value.copy, recovery: r.value };
+          }
+          const failure = r.failure;
+          return { kind: 'failed' as const, text: (a) => accountFailureText(failure, a) };
+        }
+        const r = await openServerCopy({
+          client: session.syncClient,
+          kdf: session.syncKdf,
+          handle,
+          passphrase,
+          label,
+        });
+        if (r.kind === 'opened') return r;
+        const failure = r.failure;
+        return { kind: 'failed' as const, text: (a) => findFailureText(failure, a.server) };
+      })();
+      const opened = attempt;
       if (!session.live()) {
-        if (opened.kind === 'opened') opened.copy.vaultKey.fill(0);
+        if (opened.kind === 'opened') {
+          opened.copy.vaultKey.fill(0);
+          void opened.recovery?.abandon();
+        }
         return;
       }
       if (opened.kind === 'failed') {
-        const failure = opened.failure;
-        next = (a) => findFailureText(failure, a.server);
+        next = opened.text;
       } else {
         const read = await session.vault.readSnapshot();
         const preview =
@@ -149,9 +192,11 @@ export function ServerJoinSection({
             : null;
         if (preview === null) {
           opened.copy.vaultKey.fill(0);
+          void opened.recovery?.abandon();
           next = (a) => a.server.storeProblem;
         } else if (preview.kind === 'refused') {
           opened.copy.vaultKey.fill(0);
+          void opened.recovery?.abandon();
           const reason = preview.reason;
           next = (a) =>
             reason === 'schemaTooNew'
@@ -161,7 +206,11 @@ export function ServerJoinSection({
                 : a.server.damaged;
         } else {
           keptPassphrase.current = passphrase;
-          setFound({ copy: opened.copy, preview: preview.preview });
+          setFound({
+            copy: opened.copy,
+            preview: preview.preview,
+            ...(opened.recovery === undefined ? {} : { recovery: opened.recovery }),
+          });
           setProfileChoice(null);
         }
       }
@@ -169,6 +218,7 @@ export function ServerJoinSection({
       next = (a) => a.server.unavailable;
     } finally {
       setPassphrase('');
+      setRecoveryKey('');
       if (session.live()) setBusy(false);
     }
     if (session.live()) setMessage(next);
@@ -186,6 +236,13 @@ export function ServerJoinSection({
     setMessage(null);
     let next: Message | null;
     try {
+      // Found with the recovery key: the new passphrase is set on the server only now.
+      const confirmed = await found.recovery?.confirm();
+      if (confirmed?.kind === 'failed') {
+        const failure = confirmed.failure;
+        if (session.live()) setMessage((a) => accountFailureText(failure, a));
+        return;
+      }
       const joined = await joinServerCopy({
         vault: session.vault,
         kv: session.kv,
@@ -238,6 +295,17 @@ export function ServerJoinSection({
     }
     setBusy(true);
     setMessage(null);
+    if (found.recovery !== undefined) {
+      // Set the new passphrase on the server before anything is erased: a failure leaves both as they were.
+      const confirmed = await found.recovery.confirm().catch(() => null);
+      if (confirmed === null || confirmed.kind === 'failed') {
+        const failure = confirmed === null ? 'unavailable' : confirmed.failure;
+        setBusy(false);
+        setConfirming(false);
+        setMessage((a) => accountFailureText(failure, a));
+        return;
+      }
+    }
     // The erase tears this session down; the Gate restores the copy into the store that follows.
     handoff.begin(found.copy, kept);
     forgetAcknowledgedBeforeStore();
@@ -278,10 +346,25 @@ export function ServerJoinSection({
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
         />
+        {recovering && (
+          <>
+            <Prose>{s.recExplainConnect}</Prose>
+            <TextField
+              label={s.recKeyLabel}
+              autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              value={recoveryKey}
+              onChange={(e) => setRecoveryKey(e.target.value)}
+            />
+            <Prose>{s.strengthWhy}</Prose>
+          </>
+        )}
         <TextField
-          label={s.joinPassphraseLabel}
+          label={recovering ? s.recNewLabel : s.joinPassphraseLabel}
           type="password"
-          autoComplete="current-password"
+          autoComplete={recovering ? 'new-password' : 'current-password'}
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
@@ -295,8 +378,20 @@ export function ServerJoinSection({
           busy={busy && found === null}
           busyLabel={s.joinWorking}
         >
-          {s.joinAction}
+          {recovering ? s.recAction : s.joinAction}
         </Button>
+        <button
+          type="button"
+          className="font-display text-label text-ink-soft min-h-12 self-start underline"
+          onClick={() => {
+            setRecovering((r) => !r);
+            setPassphrase('');
+            setRecoveryKey('');
+            setMessage(null);
+          }}
+        >
+          {recovering ? s.recUsePassphrase : s.recUseLink}
+        </button>
       </form>
 
       {found !== null && preview !== null && (

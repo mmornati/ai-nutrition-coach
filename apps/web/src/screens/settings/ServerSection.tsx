@@ -1,11 +1,13 @@
-import { useSyncExternalStore, type RefObject } from 'react';
+import { useState, useSyncExternalStore, type RefObject } from 'react';
 import { useMessage, useStrings } from '../../i18n';
 import { useSession } from '../../app/session';
 import { ReloadNotice } from '../../components/shell';
-import { useSyncOffer, useSyncSignInRequired } from '../../sync';
+import { useSyncOffer, useSyncSignInRequired, useSyncUnreachable } from '../../sync';
 import { ServerBackupSection } from './ServerBackupSection';
 import { ServerConnectedSection } from './ServerConnectedSection';
 import { ServerJoinSection } from './ServerJoinSection';
+import { RecoveryKeyPanel } from './ServerAccountSections';
+import { Button } from '../../components/primitives';
 
 /**
  * Settings, Your data: the relay backup, only when this server offers one (`/sync/config.json`,
@@ -27,14 +29,34 @@ export function ServerSection({
     session.sync.getSnapshot,
   );
   const signIn = useSyncSignInRequired(session.syncOffer);
+  const unreachable = useSyncUnreachable(session.syncOffer);
   const all = useStrings();
   const [notice, setNotice] = useMessage();
+  // Made with the copy and shown once, before anything else in this section.
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
 
   // The server's sign-in turned the offer read away: say so instead of hiding the section.
   if (!status.connected && !offer.offered) {
-    return signIn ? (
-      <ReloadNotice text={all.server.signInRequired} action={all.server.reloadAction} />
+    if (signIn) {
+      return <ReloadNotice text={all.server.signInRequired} action={all.server.reloadAction} />;
+    }
+    // A server that offered a copy before and cannot be reached now: say so, do not hide it.
+    return unreachable ? (
+      <div className="flex flex-col gap-3" data-sync-unreachable="">
+        <p role="status" className="text-body text-ink">
+          {all.server.unreachable}
+        </p>
+        <div>
+          <Button variant="secondary" onClick={() => void session.syncOffer.refresh()}>
+            {all.server.unreachableCheck}
+          </Button>
+        </div>
+      </div>
     ) : null;
+  }
+
+  if (recoveryKey !== null) {
+    return <RecoveryKeyPanel recoveryKey={recoveryKey} onDone={() => setRecoveryKey(null)} />;
   }
 
   return (
@@ -44,7 +66,7 @@ export function ServerSection({
       ) : (
         offer.offered && (
           <>
-            <ServerBackupSection offer={offer} onDone={setNotice} />
+            <ServerBackupSection offer={offer} onDone={setNotice} onRecoveryKey={setRecoveryKey} />
             <ServerJoinSection
               onDone={setNotice}
               onSaveBackup={() => backupField.current?.focus()}

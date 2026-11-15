@@ -1,0 +1,12 @@
+# Instance AI proxy -- the per-person identity, rendered by 40-render-ai-proxy.sh into the http
+# file ONLY when AI_PROXY_USER_HEADER is set. Doubled-at-sign placeholders are substituted from
+# validated values.
+#
+# $anc_ai_user is the value of that request header (1-128 characters, one line) when the DIRECT
+# peer is one of AI_NUTRITION_COACH_TRUSTED_PROXIES ($anc_trusted_peer, 45-render-real-ip.sh), and
+# empty for every other request: a header sent by anyone else is never believed. The forward-auth
+# middleware in front must OVERWRITE this header with the signed-in user (docs/self-host.md).
+map "$anc_trusted_peer|$http_@@ANC_AI_USER_VAR@@" $anc_ai_user {
+    default "";
+    "~^1\|(?<anc_ai_uname>.{1,128})$" $anc_ai_uname;
+}

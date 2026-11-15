@@ -13,3 +13,4 @@ export * from './restore';
 export * from './server-copy';
 export * from './sync-service';
 export * from './use-offer';
+export * from './account';

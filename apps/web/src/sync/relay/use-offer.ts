@@ -14,3 +14,8 @@ export function useSyncOffer(source: SyncOfferSource): SyncOffer {
 export function useSyncSignInRequired(source: SyncOfferSource): boolean {
   return useSyncExternalStore(source.subscribe, source.getSignInRequired, source.getSignInRequired);
 }
+
+/** Whether a server that offered a copy before cannot be reached now (say so; do not hide the section). */
+export function useSyncUnreachable(source: SyncOfferSource): boolean {
+  return useSyncExternalStore(source.subscribe, source.getUnreachable, source.getUnreachable);
+}

@@ -69,9 +69,14 @@ describe('Case C: back up to this server', () => {
       'authKey',
       'envelope',
       'handle',
+      'recovery',
       'salt',
       'wrappedKey',
     ]);
+    // The recovery key itself never leaves: only a proof derived from it and a wrap of the vault key.
+    expect(made.kind === 'created' ? relay.wire : '').not.toContain(
+      made.kind === 'created' ? made.recoveryKey.replaceAll('-', '') : 'x',
+    );
     // The connection never enters a snapshot (it would otherwise travel to every device).
     const snapshot = JSON.stringify(await snapshotOf(a));
     const connection = (await readConnection(a.kv))!;
