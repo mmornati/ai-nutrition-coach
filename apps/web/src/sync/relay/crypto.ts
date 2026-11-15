@@ -16,6 +16,10 @@ import {
   encodeBase64Url,
   ENVELOPE_LIMITS,
   parseRelayEnvelope,
+  RECOVERY_AUTH_INFO,
+  RECOVERY_KEK_INFO,
+  RECOVERY_KEY_BYTES,
+  recoveryWrapAadText,
   SYNC_FIELD_BYTES,
   SYNC_KDF,
   VAULT_AUTH_INFO,
@@ -108,6 +112,7 @@ export async function wrapVaultKey(
   vaultId: string,
   vaultKey: Uint8Array,
   random: RandomSource = platformRandom,
+  aad: (vaultId: string) => string = wrapAadText,
 ): Promise<string> {
   const nonce = random(WRAP_NONCE_BYTES);
   const sealed = new Uint8Array(
@@ -115,7 +120,7 @@ export async function wrapVaultKey(
       {
         name: 'AES-GCM',
         iv: nonce as BufferSource,
-        additionalData: new TextEncoder().encode(wrapAadText(vaultId)) as BufferSource,
+        additionalData: new TextEncoder().encode(aad(vaultId)) as BufferSource,
         tagLength: ENVELOPE_LIMITS.tagBytes * 8,
       },
       kek,
@@ -133,6 +138,7 @@ export async function unwrapVaultKey(
   kek: CryptoKey,
   vaultId: string,
   wrapped: string,
+  aad: (vaultId: string) => string = wrapAadText,
 ): Promise<Uint8Array | null> {
   const bytes = decodeBase64Url(wrapped);
   if (bytes === null || bytes.length !== SYNC_FIELD_BYTES.wrappedKey) return null;
@@ -141,7 +147,7 @@ export async function unwrapVaultKey(
       {
         name: 'AES-GCM',
         iv: bytes.subarray(0, WRAP_NONCE_BYTES) as BufferSource,
-        additionalData: new TextEncoder().encode(wrapAadText(vaultId)) as BufferSource,
+        additionalData: new TextEncoder().encode(aad(vaultId)) as BufferSource,
         tagLength: ENVELOPE_LIMITS.tagBytes * 8,
       },
       kek,
@@ -215,3 +221,94 @@ export async function openSnapshot(
   const decoded = await decodeSnapshot(opened.plaintext);
   return decoded.kind === 'decoded' ? { kind: 'opened', snapshot: decoded.snapshot } : decoded;
 }
+
+// ---------------------------------------------------------------------------------------------
+// The recovery key (S4). 20 random bytes (160 bits) from the CSPRNG, shown once as 32 base32
+// characters in groups of four. It is an independent way to open the vault key: HKDF-SHA256 alone
+// derives its auth proof and its KEK, with the handle as the HKDF salt (so the key is bound to one
+// vault name). No Argon2id: that exists to slow down guessing of a HUMAN passphrase; a 160-bit
+// random key cannot be guessed at any speed, so a stretching step would only add delay.
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+export const newRecoveryKeyBytes = (random: RandomSource = platformRandom): Uint8Array =>
+  random(RECOVERY_KEY_BYTES);
+
+/** `ABCD-EFGH-...` (8 groups of 4). */
+export function formatRecoveryKey(bytes: Uint8Array): string {
+  let bits = 0;
+  let value = 0;
+  let out = '';
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+    value &= (1 << bits) - 1;
+  }
+  return (out.match(/.{1,4}/g) ?? []).join('-');
+}
+
+/** The bytes of a typed recovery key (case, spaces and dashes ignored), or null if it is not one. */
+export function parseRecoveryKey(text: string): Uint8Array | null {
+  const clean = text.replace(/[\s-]/g, '').toUpperCase();
+  if (clean.length !== (RECOVERY_KEY_BYTES * 8) / 5) return null;
+  const out = new Uint8Array(RECOVERY_KEY_BYTES);
+  let bits = 0;
+  let value = 0;
+  let at = 0;
+  for (const ch of clean) {
+    const v = BASE32.indexOf(ch);
+    if (v < 0) return null;
+    value = (value << 5) | v;
+    bits += 5;
+    if (bits >= 8) {
+      out[at++] = (value >>> (bits - 8)) & 255;
+      bits -= 8;
+      value &= (1 << bits) - 1;
+    }
+  }
+  return at === RECOVERY_KEY_BYTES ? out : null;
+}
+
+export interface RecoveryKeys {
+  readonly authKey: Uint8Array;
+  readonly kek: CryptoKey;
+}
+
+export async function deriveRecoveryKeys(handle: string, key: Uint8Array): Promise<RecoveryKeys> {
+  const base = await subtle().importKey('raw', key as BufferSource, 'HKDF', false, [
+    'deriveBits',
+    'deriveKey',
+  ]);
+  const hkdf = (info: string) => ({
+    name: 'HKDF' as const,
+    hash: 'SHA-256' as const,
+    salt: new TextEncoder().encode(handle),
+    info: new TextEncoder().encode(info),
+  });
+  const authBits = await subtle().deriveBits(hkdf(RECOVERY_AUTH_INFO), base, 256);
+  const kek = await subtle().deriveKey(
+    hkdf(RECOVERY_KEK_INFO),
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+  return { authKey: new Uint8Array(authBits), kek };
+}
+
+export const wrapWithRecovery = (
+  kek: CryptoKey,
+  vaultId: string,
+  vaultKey: Uint8Array,
+  random: RandomSource = platformRandom,
+): Promise<string> => wrapVaultKey(kek, vaultId, vaultKey, random, recoveryWrapAadText);
+
+export const unwrapWithRecovery = (
+  kek: CryptoKey,
+  vaultId: string,
+  wrapped: string,
+): Promise<Uint8Array | null> => unwrapVaultKey(kek, vaultId, wrapped, recoveryWrapAadText);

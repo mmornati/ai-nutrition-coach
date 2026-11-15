@@ -38,6 +38,9 @@ location = /ai/v1/audio/transcriptions {
     # njs checks the multipart structure and the forced model, then hands the request (body
     # unchanged) to the proxying location below, or answers a generic 400.
     set $anc_ai_tx_model "@@ANC_AI_TX_MODEL@@";
+    # The same daily budgets as the chat route: a voice request counts as one request.
+    set $anc_ai_daily_user "@@ANC_AI_DAILY_USER@@";
+    set $anc_ai_daily_total "@@ANC_AI_DAILY_TOTAL@@";
     js_content anc_ai.txGate;
 }
 
@@ -62,6 +65,7 @@ location @ai_nutrition_coach_tx_proxy {
     proxy_set_header Accept "application/json";
     proxy_set_header User-Agent "ai-nutrition-coach-proxy";
     proxy_set_header Connection "";
+    @@ANC_AI_USER_STRIP@@
 
     proxy_ssl_server_name on;
     proxy_ssl_name "@@ANC_AI_HOST@@";

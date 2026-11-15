@@ -36,6 +36,25 @@ export const SYNC_FIELD_BYTES = Object.freeze({
   token: 32,
 });
 
+/** The longest device label the relay keeps (characters, after cleaning). */
+export const DEVICE_LABEL_MAX = 40;
+/** The longest raw label a request may carry; longer is refused, shorter is cleaned and capped. */
+const DEVICE_LABEL_RAW_MAX = 120;
+
+/**
+ * A device label ("iPhone · Safari") made safe to store and show: control and bidi characters
+ * removed, runs of white space collapsed, trimmed and capped at {@link DEVICE_LABEL_MAX} code
+ * points. The relay shows it back to the owner only, as text.
+ */
+export function cleanDeviceLabel(text: string): string {
+  const cleaned = text
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return [...cleaned].slice(0, DEVICE_LABEL_MAX).join('');
+}
+
 export const SYNC_SIGNUP_MODES = ['open', 'invite', 'closed'] as const;
 export type SyncSignupMode = (typeof SYNC_SIGNUP_MODES)[number];
 
@@ -181,7 +200,36 @@ export interface SaltRequest {
 export interface LoginRequest {
   readonly handle: string;
   readonly authKey: string;
+  /** What this device is called in the owner's device list (cleaned). */
+  readonly label?: string;
 }
+/** A login with the recovery key: `authKey` is derived from it, never from the passphrase. */
+export type RecoverRequest = LoginRequest;
+/** The second way into a vault: the vault key wrapped under the recovery key, and its proof. */
+export interface RecoveryMaterial {
+  readonly authKey: string;
+  readonly wrappedKey: string;
+}
+/** Proof of a secret the caller holds besides the device token. */
+export interface ProofOf {
+  readonly kind: 'passphrase' | 'recovery';
+  readonly authKey: string;
+}
+export interface ChangePassphraseRequest {
+  readonly proof: ProofOf;
+  readonly salt: string;
+  readonly authKey: string;
+  readonly wrappedKey: string;
+}
+/** Set or rotate the recovery key (`recovery`) or remove it (`null`). Proof: the passphrase. */
+export interface SetRecoveryRequest {
+  readonly proof: ProofOf;
+  readonly recovery: RecoveryMaterial | null;
+}
+export interface DeleteVaultRequest {
+  readonly proof: ProofOf;
+}
+export type RevokeRequest = { readonly id: number } | { readonly others: true };
 export interface SignupRequest {
   readonly handle: string;
   readonly salt: string;
@@ -189,6 +237,8 @@ export interface SignupRequest {
   readonly wrappedKey: string;
   readonly envelope: RelayEnvelope;
   readonly invite?: string;
+  readonly label?: string;
+  readonly recovery?: RecoveryMaterial;
 }
 export interface PutVaultRequest {
   readonly envelope: RelayEnvelope;
@@ -214,11 +264,72 @@ export function parseSaltRequest(input: unknown): RequestParse<SaltRequest> {
   return handle === null ? INVALID : ok({ handle });
 }
 
+/** `undefined` when absent; `null` when present but not a string of a sane size; else the cleaned label. */
+function labelOf(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length > DEVICE_LABEL_RAW_MAX) return null;
+  return cleanDeviceLabel(value);
+}
+
 export function parseLoginRequest(input: unknown): RequestParse<LoginRequest> {
-  if (!isRecord(input) || !hasExactKeys(input, ['handle', 'authKey'])) return INVALID;
+  if (!isRecord(input) || !hasOnlyKeys(input, ['handle', 'authKey'], ['label'])) return INVALID;
   const handle = handleOf(input['handle']);
   const authKey = fixedBase64Url(input['authKey'], SYNC_FIELD_BYTES.authKey);
-  return handle === null || authKey === null ? INVALID : ok({ handle, authKey });
+  const label = labelOf(input['label']);
+  if (handle === null || authKey === null || label === null) return INVALID;
+  return ok({ handle, authKey, ...(label === undefined || label === '' ? {} : { label }) });
+}
+
+function recoveryOf(value: unknown): RecoveryMaterial | null {
+  if (!isRecord(value) || !hasExactKeys(value, ['authKey', 'wrappedKey'])) return null;
+  const authKey = fixedBase64Url(value['authKey'], SYNC_FIELD_BYTES.authKey);
+  const wrappedKey = fixedBase64Url(value['wrappedKey'], SYNC_FIELD_BYTES.wrappedKey);
+  return authKey === null || wrappedKey === null ? null : { authKey, wrappedKey };
+}
+
+function proofOf(value: unknown): ProofOf | null {
+  if (!isRecord(value) || !hasExactKeys(value, ['kind', 'authKey'])) return null;
+  const kind = value['kind'];
+  const authKey = fixedBase64Url(value['authKey'], SYNC_FIELD_BYTES.authKey);
+  if ((kind !== 'passphrase' && kind !== 'recovery') || authKey === null) return null;
+  return { kind, authKey };
+}
+
+export function parseChangePassphraseRequest(
+  input: unknown,
+): RequestParse<ChangePassphraseRequest> {
+  if (!isRecord(input) || !hasExactKeys(input, ['proof', 'salt', 'authKey', 'wrappedKey'])) {
+    return INVALID;
+  }
+  const proof = proofOf(input['proof']);
+  const salt = fixedBase64Url(input['salt'], SYNC_FIELD_BYTES.salt);
+  const authKey = fixedBase64Url(input['authKey'], SYNC_FIELD_BYTES.authKey);
+  const wrappedKey = fixedBase64Url(input['wrappedKey'], SYNC_FIELD_BYTES.wrappedKey);
+  if (proof === null || salt === null || authKey === null || wrappedKey === null) return INVALID;
+  return ok({ proof, salt, authKey, wrappedKey });
+}
+
+export function parseSetRecoveryRequest(input: unknown): RequestParse<SetRecoveryRequest> {
+  if (!isRecord(input) || !hasExactKeys(input, ['proof', 'recovery'])) return INVALID;
+  const proof = proofOf(input['proof']);
+  if (proof === null) return INVALID;
+  if (input['recovery'] === null) return ok({ proof, recovery: null });
+  const recovery = recoveryOf(input['recovery']);
+  return recovery === null ? INVALID : ok({ proof, recovery });
+}
+
+export function parseDeleteVaultRequest(input: unknown): RequestParse<DeleteVaultRequest> {
+  if (!isRecord(input) || !hasExactKeys(input, ['proof'])) return INVALID;
+  const proof = proofOf(input['proof']);
+  return proof === null ? INVALID : ok({ proof });
+}
+
+export function parseRevokeRequest(input: unknown): RequestParse<RevokeRequest> {
+  if (!isRecord(input)) return INVALID;
+  if (hasExactKeys(input, ['others']))
+    return input['others'] === true ? ok({ others: true }) : INVALID;
+  if (hasExactKeys(input, ['id']) && isWhole(input['id'])) return ok({ id: input['id'] });
+  return INVALID;
 }
 
 function envelopeOf(value: unknown, maxCiphertextBytes: number): RequestParse<RelayEnvelope> {
@@ -232,7 +343,13 @@ export function parseSignupRequest(
   maxCiphertextBytes: number,
 ): RequestParse<SignupRequest> {
   if (!isRecord(input)) return INVALID;
-  if (!hasOnlyKeys(input, ['handle', 'salt', 'authKey', 'wrappedKey', 'envelope'], ['invite'])) {
+  if (
+    !hasOnlyKeys(
+      input,
+      ['handle', 'salt', 'authKey', 'wrappedKey', 'envelope'],
+      ['invite', 'label', 'recovery'],
+    )
+  ) {
     return INVALID;
   }
   const handle = handleOf(input['handle']);
@@ -244,6 +361,10 @@ export function parseSignupRequest(
   if (invite !== undefined && (typeof invite !== 'string' || !INVITE_PATTERN.test(invite))) {
     return INVALID;
   }
+  const label = labelOf(input['label']);
+  if (label === null) return INVALID;
+  const recovery = input['recovery'] === undefined ? undefined : recoveryOf(input['recovery']);
+  if (recovery === null) return INVALID;
   const envelope = envelopeOf(input['envelope'], maxCiphertextBytes);
   if (envelope.kind !== 'ok') return envelope;
   // A new vault starts at version 1.
@@ -255,6 +376,8 @@ export function parseSignupRequest(
     wrappedKey,
     envelope: envelope.value,
     ...(invite === undefined ? {} : { invite }),
+    ...(label === undefined || label === '' ? {} : { label }),
+    ...(recovery === undefined ? {} : { recovery }),
   });
 }
 
@@ -319,6 +442,59 @@ export function parseSessionResponse(input: unknown): SessionResponse | null {
   return { token, vaultId, wrappedKey, version };
 }
 
+export interface DeviceInfo {
+  /** An id that names the device in this vault's list (not the token). */
+  readonly id: number;
+  readonly label: string;
+  readonly createdAt: number;
+  readonly lastSeenAt: number;
+  /** The device that asked. */
+  readonly current: boolean;
+}
+export interface AccountInfo {
+  readonly hasRecovery: boolean;
+  /** The version kept as "the one before", or null. */
+  readonly previousVersion: number | null;
+  readonly devices: readonly DeviceInfo[];
+}
+
+export function parseAccountResponse(input: unknown): AccountInfo | null {
+  if (!isRecord(input) || !hasExactKeys(input, ['hasRecovery', 'previousVersion', 'devices'])) {
+    return null;
+  }
+  const { hasRecovery, previousVersion, devices } = input;
+  if (typeof hasRecovery !== 'boolean' || !Array.isArray(devices) || devices.length > 1000) {
+    return null;
+  }
+  if (previousVersion !== null && !(isWhole(previousVersion) && previousVersion >= 1)) return null;
+  const list: DeviceInfo[] = [];
+  for (const d of devices as unknown[]) {
+    if (!isRecord(d) || !hasExactKeys(d, ['id', 'label', 'createdAt', 'lastSeenAt', 'current'])) {
+      return null;
+    }
+    const { id, label, createdAt, lastSeenAt, current } = d;
+    if (
+      !isWhole(id) ||
+      typeof label !== 'string' ||
+      label.length > 200 ||
+      !isWhole(createdAt) ||
+      !isWhole(lastSeenAt) ||
+      typeof current !== 'boolean'
+    ) {
+      return null;
+    }
+    list.push({ id, label: cleanDeviceLabel(label), createdAt, lastSeenAt, current });
+  }
+  return { hasRecovery, previousVersion: previousVersion as number | null, devices: list };
+}
+
+/** `{ "revoked": n }`, the answer to a revoke or a passphrase change. */
+export function parseCountResponse(input: unknown, key: 'revoked'): number | null {
+  if (!isRecord(input) || !hasExactKeys(input, [key])) return null;
+  const n = input[key];
+  return isWhole(n) ? n : null;
+}
+
 export type VaultResponseParse =
   | { readonly kind: 'ok'; readonly value: VaultResponse }
   | { readonly kind: 'invalid' }
@@ -363,3 +539,16 @@ export const VAULT_KEK_INFO = 'anc/vault/kek';
  * ciphertext (32) + tag (16).
  */
 export const wrapAadText = (vaultId: string): string => `anc/vault/wrap/v1|${vaultId}`;
+
+/**
+ * Recovery key (docs/adr/0007-encrypted-vault.md, S4). The key is 20 random bytes (160 bits) from
+ * the device's CSPRNG, so unlike a passphrase it needs no password hash: HKDF-SHA256 is enough
+ * (guessing 2^160 values is out of reach at any speed, Argon2id would only add delay). Two
+ * independent outputs, bound to the handle through the HKDF salt so one key cannot serve two vaults.
+ */
+export const RECOVERY_KEY_BYTES = 20;
+export const RECOVERY_AUTH_INFO = 'anc/vault/recovery/auth';
+export const RECOVERY_KEK_INFO = 'anc/vault/recovery/kek';
+/** AAD of the vault-key wrap under the recovery KEK (distinct from the passphrase wrap's). */
+export const recoveryWrapAadText = (vaultId: string): string =>
+  `anc/vault/recovery-wrap/v1|${vaultId}`;

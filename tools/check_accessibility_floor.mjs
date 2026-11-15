@@ -41,6 +41,13 @@ export const COVERED_BY = Object.freeze({
   ServerBackupSection: 'YourDataScreen',
   ServerJoinSection: 'YourDataScreen',
   ServerConnectedSection: 'YourDataScreen',
+  // The credential lifecycle (phase S4): sections of the connected state, tested through Your data.
+  RecoveryKeyPanel: 'YourDataScreen',
+  ServerDevicesSection: 'YourDataScreen',
+  ServerPassphraseSection: 'YourDataScreen',
+  ServerRecoverySection: 'YourDataScreen',
+  ServerPreviousSection: 'YourDataScreen',
+  ServerDeleteSection: 'YourDataScreen',
   SwitchRow: 'YourAiScreen',
   SettingsList: 'SettingsScreen',
   // The log flows: sheets and views rendered by the host, and tested through it.

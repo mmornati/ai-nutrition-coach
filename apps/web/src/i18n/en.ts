@@ -519,6 +519,8 @@ export const en = {
       instanceUnavailable:
         'This server does not offer AI right now. You can choose another option in Settings → Your AI.',
       instanceBusy: 'The AI on this server is busy. Try again in a moment.',
+      instanceDailyLimit:
+        'The AI on this server has been used up for now. It is available again later.',
       instanceSignIn: 'This server asks you to sign in again. Reload the page to continue.',
       instanceError: 'The AI on this server did not answer. Try again in a moment.',
       /** Browsers report a CORS or Content-Security-Policy block exactly like an offline host. */
@@ -2015,7 +2017,7 @@ export const en = {
     statusRolledBack:
       'The server returned an older copy than this device has already seen, so backup is paused and nothing is overwritten. You can try again, or stop backing up from this device.',
     statusSignedOut:
-      'This device is no longer accepted by the server. Stop backing up from this device, then connect it again with your handle and passphrase.',
+      'This device was disconnected from the server copy. Connect again with your handle and passphrase.',
     statusTooLarge: 'Your data is larger than this server accepts, so no copy is sent.',
     statusPaused:
       'Backup is paused because something about the copy or this device needs a look. Nothing was changed. You can try again.',
@@ -2050,6 +2052,87 @@ export const en = {
       'To protect this device, the passphrase needs at least 10 characters, with a few different ones. Create a new passphrase instead, then connect to this server’s copy from Settings, Your data.',
     restoringTitle: 'Restoring from the server',
     restoringBody: 'Your data is being put back on this device. This takes a moment.',
+    reconnectAction: 'Connect again',
+    unreachable:
+      'This server offers an encrypted copy, but it cannot be reached right now. Your data is safe on this device. Try again later.',
+    unreachableCheck: 'Check again',
+    strengthWhy:
+      'The person who runs this server could try guesses on their own computer, as long as they like. Only a passphrase that is hard to guess stops them.',
+    strengthTooShort:
+      'Use at least 12 characters, or four words (for example four unrelated words with spaces between them).',
+    strengthCommon:
+      'That one is on lists of common passwords, even with a number added. Try a few unrelated words instead.',
+    strengthPattern:
+      'That follows a keyboard row or counts up in order, which is easy to guess. Try a few unrelated words instead.',
+    strengthRepeated: 'That repeats the same few characters. Try a few unrelated words instead.',
+    strengthHandle: 'Leave your handle out of the passphrase; it is not secret.',
+    strengthApp:
+      'Leave the name of this app out of the passphrase; it is the first thing someone would try.',
+    localWeakHint:
+      'This passphrase would be easy to guess for someone who got hold of a copy of your data. A few unrelated words are stronger. You can keep it if you prefer.',
+    proofNoMatch: 'That is not the passphrase of this copy.',
+    disconnected:
+      'This device was disconnected from the server copy. Connect again with your handle and passphrase.',
+    invalidRecoveryKey:
+      'That does not look like a recovery key. It is 32 letters and digits, usually written in groups of four.',
+    recoveryNoMatch: 'No copy matches this handle and recovery key.',
+    devicesHeading: 'Devices on this copy',
+    devicesExplain:
+      'These devices are connected to your copy. Signing one out only disconnects it: its own data stays on it, and it can connect again with your passphrase.',
+    deviceThis: 'This device',
+    deviceUnnamed: 'A device',
+    deviceLine: 'Added {created}, last used {seen}',
+    deviceSignOut: 'Sign out',
+    deviceSignOutOthers: 'Sign out all other devices',
+    devicesLoadFailed: 'The list of devices could not be read.',
+    deviceSignedOut: 'Signed out.',
+    devicesSignedOut: 'The other devices are signed out.',
+    changeHeading: 'Passphrase of the server copy',
+    changeWhich:
+      'This is the passphrase of the copy on this server. It is not the one that unlocks the app on this device; that one stays as it is.',
+    changeCurrent: 'Current passphrase of this copy',
+    changeNew: 'New passphrase for this copy',
+    changeAction: 'Change the passphrase of this copy',
+    changeWorking: 'Changing…',
+    changeDone:
+      'The passphrase of the copy is changed. Your other devices were signed out: connect them again with the new passphrase.',
+    recHeading: 'Recovery key',
+    recExplainNone:
+      'If you forget the passphrase of this copy, nobody can open it, not even the person who runs this server. A recovery key is a second way in: write it down and keep it somewhere safe.',
+    recExplainHave:
+      'This copy has a recovery key. If you lose the passphrase, use it from the connect screen to set a new one.',
+    recCreate: 'Create a recovery key',
+    recRotate: 'Make a new recovery key',
+    recRotateNote: 'The old key stops working as soon as the new one is made.',
+    recRemove: 'Remove the recovery key',
+    recWorking: 'Working…',
+    recRemoved: 'The recovery key is removed. Only the passphrase opens this copy now.',
+    recShowHeading: 'Your recovery key',
+    recShowExplain:
+      'Write it down or print it, and keep it away from this device. It is shown only once: this server cannot show it again, and neither can we. Anyone who has this key and your handle can open your copy.',
+    recSaved: 'I have saved my recovery key',
+    recDone: 'Done',
+    recUseLink: 'I lost my passphrase: use my recovery key',
+    recUsePassphrase: 'Use my passphrase instead',
+    recKeyLabel: 'Recovery key',
+    recNewLabel: 'New passphrase for this copy',
+    recAction: 'Recover with this key',
+    recExplainConnect:
+      'Enter your handle and your recovery key, then choose a new passphrase for the copy. Your other devices will be signed out.',
+    deleteHeading: 'Delete the copy on this server',
+    deleteExplain:
+      'This removes your copy, the version before it and every device’s access from the server. What is on this device is not touched; this device simply goes back to “not backed up”. It cannot be undone.',
+    deleteTypeLabel: 'Type your handle ({handle}) to confirm',
+    deleteAction: 'Delete my copy from the server',
+    deleteMismatch: 'That is not your handle.',
+    deleteDone:
+      'Your copy is deleted from the server. This device keeps its data and is not backed up.',
+    previousHeading: 'Previous version',
+    previousExplain:
+      'The server keeps the version of your copy from before the latest changes. You can bring back what it held to this device: anything it had that this device lacks is added, and nothing is removed.',
+    previousAction: 'Bring back the previous version',
+    previousDone: 'The previous version was added to this device and will be backed up.',
+    previousFailed: 'The previous version could not be read.',
   },
   /** Weigh-ins: the quick entry sheet (Today and Trends). */
   weighIn: {

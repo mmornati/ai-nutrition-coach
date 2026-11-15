@@ -275,10 +275,10 @@ HKDF-SHA256: one *proves* the passphrase to the server (it is what the server st
 the other (a key-encryption key) wraps a **random vault key** with AES-256-GCM, bound to the vault's id.
 The vault key encrypts each snapshot (AES-256-GCM over the gzip of the same canonical snapshot a backup
 file holds, with the vault id and the version bound as associated data, so the server cannot swap vaults
-or replay an old copy). Changing a passphrase later only re-wraps the vault key (phase S4). The vault
+or replay an old copy). Changing the passphrase of the copy only re-wraps the vault key, so nothing is re-encrypted. The vault
 key and a revocable device token are kept in the encrypted store on each device that is connected, and
 in no snapshot and no export. A forgotten passphrase cannot be recovered, by us or by the server's
-operator (a recovery key is planned for S4).
+operator, unless you saved the **recovery key** (below).
 
 **Three ways in, always with the handle and the passphrase together.** The server never says whether a
 handle exists, so there is one calm line for "nothing on this server matches this handle and
@@ -465,3 +465,33 @@ browsers expose WebCrypto.
 - [`self-host.md`](./self-host.md) — the one-command self-host install.
 - [`no-dark-patterns-standard.md`](./no-dark-patterns-standard.md) — the
   named-reviewer gate (FR-15) that signs off this copy.
+
+### Looking after your copy (Settings, Your data, once connected)
+
+- **The passphrase of the copy** can be changed. It is the passphrase of the copy on the server, not the one that
+  unlocks the app on this device (which does not change). The app asks for the current one (that is the proof: a
+  stolen device token alone cannot change it), derives new keys and re-wraps the same vault key; the server swaps
+  everything in one step and signs every other device out, which then asks to be connected again with the new
+  passphrase. A new passphrase must have at least 12 characters in one piece (16 with spaces) or four words of three letters or more and must not be a common password, a
+  keyboard walk, a repeated pattern, your handle or the name of the app: whoever runs the server could try guesses
+  offline, so this matters more here than on the device.
+- **The recovery key** is made when you create a copy, shown once as 32 letters and digits in groups of four, with an
+  "I saved it" box. Write it down and keep it away from the device. It is 160 random bits; the app derives from it a proof
+  (so the server can tell it is right without learning it) and a second key that wraps the vault key again. With it, on
+  the connect or restore screen, you give your handle and the key and choose a new passphrase; every other device is
+  signed out. You can make a new one (the old stops working at once) or remove it from Settings. A copy made before
+  this existed has none until you make one. Neither the key nor the passphrase ever reaches the server, and the server
+  does not say which copies have a key.
+- **Devices** lists the devices connected to the copy (a label such as "iPhone · Safari", when added, when last used),
+  signs one out or all the others. Signing out only disconnects: the device keeps its own data. A device not used for
+  180 days (the operator can change that) is disconnected by the server; it says "This device was disconnected from the
+  server copy. Connect again with your handle and passphrase."
+- **Previous version.** The server keeps the version from before the latest changes, and replaces it only once it is
+  more than 24 hours old, so a stolen token cannot wipe both within minutes. *Bring back the previous version* merges
+  what it held into this device (anything it had that this device lacks is added; nothing is removed, and a plate
+  deleted since stays deleted).
+- **Delete the copy on this server** removes the copy, the previous version and every device's access, behind your
+  handle typed and your passphrase. What is on this device is not touched; the device goes back to "not backed up".
+
+If the server offers a copy but cannot be reached right now, *Your data* says so (it does not hide the section), and
+that is different from "this server asks you to sign in again".

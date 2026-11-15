@@ -254,8 +254,12 @@ describe('the store: authentication look-ups never read the vault envelopes', ()
     expect(Object.keys(byHandle ?? {}).sort()).toEqual(
       [
         'authDigest',
+        'createdAt',
         'handle',
         'previousVersion',
+        'recAuthDigest',
+        'recWrappedKey',
+        'updatedAt',
         'rowId',
         'salt',
         'size',
@@ -279,6 +283,59 @@ describe('the store: authentication look-ups never read the vault envelopes', ()
     });
     expect(store.vaultByRowId(rowId)).toMatchObject({ version: 2, previousVersion: 1 });
     expect(store.vaultBody(rowId + 99)).toBeNull();
+    store.close();
+  });
+});
+
+describe('store: deletion and in-flight writes', () => {
+  const base = {
+    vaultId: 'v'.repeat(22),
+    salt: 'salt',
+    authDigest: Buffer.alloc(32, 7),
+    wrappedKey: 'wrapped',
+    envelope: '{"big":"current envelope"}',
+    size: 18,
+  };
+
+  it('deleting a vault leaves no handle in the invite that let it sign up', () => {
+    const store = openMemoryStore();
+    const keys = createServerKeys(new Uint8Array(32));
+    const digest = keys.inviteDigest('ABCDE-FGHJK-MNPQR-STVWX');
+    store.createInvite(digest, 'for mum', 1);
+    expect(store.createVault({ ...base, handle: 'alice', inviteDigest: digest }, 2)).toBe(
+      'created',
+    );
+    expect(store.listInvites()[0]?.usedBy).toBe('alice');
+    store.deleteVault(store.vaultByHandle('alice')?.rowId ?? -1);
+    expect(store.vaultByHandle('alice')).toBeNull();
+    const [invite] = store.listInvites();
+    expect(invite?.usedBy).toBeNull();
+    // The code stays used: deleting a copy does not give its single-use invite back.
+    expect(invite?.usedAt).not.toBeNull();
+    store.close();
+  });
+
+  it('a token revoked while its upload was in flight writes nothing', () => {
+    const store = openMemoryStore();
+    expect(store.createVault({ ...base, handle: 'alice' }, 1_000)).toBe('created');
+    const rowId = store.vaultByHandle('alice')?.rowId ?? -1;
+    const token = Buffer.alloc(32, 1);
+    const other = Buffer.alloc(32, 2);
+    store.addDevice(rowId, token, 1_000, 10);
+    store.addDevice(rowId, other, 1_000, 10);
+    // The body was read; then the device is signed out; then the write is attempted.
+    store.revokeOtherDevices(rowId, other);
+    expect(store.putEnvelope(rowId, 1, '{"late":true}', 13, 2_000, 0, token)).toEqual({
+      kind: 'conflict',
+      version: null,
+    });
+    expect(store.vaultByRowId(rowId)?.version).toBe(1);
+    expect(store.vaultBody(rowId)?.envelope).toBe(base.envelope);
+    // A device still present writes.
+    expect(store.putEnvelope(rowId, 1, '{"ok":true}', 11, 2_000, 0, other)).toEqual({
+      kind: 'stored',
+      version: 2,
+    });
     store.close();
   });
 });

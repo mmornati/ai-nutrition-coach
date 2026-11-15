@@ -65,6 +65,8 @@ export async function openServerCopy(deps: {
   readonly kdf: VaultKdf;
   readonly handle: string;
   readonly passphrase: string;
+  /** What this device is called in the owner's device list. */
+  readonly label?: string | undefined;
 }): Promise<OpenServerCopyResult> {
   const handle = normalizeHandle(deps.handle);
   if (handle === null) return failed('invalidHandle');
@@ -82,7 +84,7 @@ export async function openServerCopy(deps: {
     return failed('unavailable');
   }
 
-  const login = await client.login(handle, encodeBase64Url(keys.authKey));
+  const login = await client.login(handle, encodeBase64Url(keys.authKey), deps.label);
   keys.authKey.fill(0);
   if (login.kind === 'error') return failed(mapAsk(login.error), login.retryAfterSeconds);
   const session = login.value;
@@ -92,6 +94,19 @@ export async function openServerCopy(deps: {
   const raw = await unwrapVaultKey(keys.kek, session.vaultId, session.wrappedKey);
   if (raw === null) return failed('damaged');
 
+  return openWithKey(client, handle, session, raw);
+}
+
+/**
+ * The rest of finding a copy, once the vault key is in hand (by the passphrase or by the recovery
+ * key): download, check it is the vault the login named, open, validate. Wipes `raw` on a failure.
+ */
+export async function openWithKey(
+  client: RelayClient,
+  handle: string,
+  session: { readonly token: string; readonly vaultId: string; readonly version: number },
+  raw: Uint8Array,
+): Promise<OpenServerCopyResult> {
   const got = await client.getVault(session.token);
   if (got.kind === 'error') {
     raw.fill(0);
@@ -135,7 +150,7 @@ export async function openServerCopy(deps: {
   };
 }
 
-function mapAsk(error: string): OpenServerCopyFailure {
+export function mapAsk(error: string): OpenServerCopyFailure {
   switch (error) {
     case 'noMatch':
       return 'noMatch';

@@ -74,12 +74,21 @@ services:
       AI_PROXY_ENABLED: ${AI_PROXY_ENABLED:-0}
       AI_PROXY_UPSTREAM: ${AI_PROXY_UPSTREAM:-}
       AI_PROXY_KEY: ${AI_PROXY_KEY:-}
+      # Or the key in a file (a Docker secret: /run/secrets/ai_proxy_key); it wins over AI_PROXY_KEY.
+      # Needs the `secrets:` entries shown in docs/self-host.md "Provider key from a file".
+      AI_PROXY_KEY_FILE: ${AI_PROXY_KEY_FILE:-}
       AI_PROXY_MODEL: ${AI_PROXY_MODEL:-}
       AI_PROXY_LABEL: ${AI_PROXY_LABEL:-}
       AI_PROXY_RATE: ${AI_PROXY_RATE:-10r/m}
       AI_PROXY_RATE_ALL: ${AI_PROXY_RATE_ALL:-30r/m}
       AI_PROXY_BURST: ${AI_PROXY_BURST:-5}
       AI_PROXY_CONN: ${AI_PROXY_CONN:-2}
+      # Per person behind a sign-in (docs/self-host.md "Per-person limits behind single sign-on"): the
+      # header that names the signed-in person (believed only from AI_NUTRITION_COACH_TRUSTED_PROXIES),
+      # and daily request budgets per person / for the instance (0 = off).
+      AI_PROXY_USER_HEADER: ${AI_PROXY_USER_HEADER:-}
+      AI_PROXY_DAILY_PER_USER: ${AI_PROXY_DAILY_PER_USER:-0}
+      AI_PROXY_DAILY_TOTAL: ${AI_PROXY_DAILY_TOTAL:-0}
       AI_PROXY_TOKEN_PARAM: ${AI_PROXY_TOKEN_PARAM:-max_tokens}
       AI_PROXY_MAX_TOKENS: ${AI_PROXY_MAX_TOKENS:-2000}
       # 1 keeps one prompt-cache marker (cache_control) per request; for providers that read it.
@@ -140,6 +149,9 @@ services:
   sync-relay:
     <<: *hardening
     profiles: ["sync"]
+    # Like the app image: a local build by default; AI_NUTRITION_COACH_RELAY_IMAGE_TAG=
+    # ghcr.io/mmornati/ai-nutrition-coach-relay:edge (or :X.Y.Z, :sha-<7>) runs the published image
+    # (docs/self-host.md "Run the published image instead of building"); then do not pass --build.
     image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}
     # Used by `docker compose --profile sync up --build` only (bin/ai-nutrition-coach up --sync
     # builds the image itself, from the same Dockerfile). The build context is the repository root.

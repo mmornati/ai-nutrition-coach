@@ -2,6 +2,7 @@
 // nothing about any request (no address, no handle, no size, no path).
 
 import { createServer } from 'node:http';
+import { runAdmin } from './admin';
 import { createRelay } from './app';
 import { ConfigError, readConfig, signupNotice } from './config';
 import { createServerKeys, loadServerSecret } from './keys';
@@ -20,6 +21,18 @@ function main(): void {
   }
   const store = openStore(config.dataDir);
   const keys = createServerKeys(loadServerSecret(config.dataDir, config.serverSecret));
+  // `node relay.mjs admin ...`: the operator's tool, on this data directory, then exit.
+  if (process.argv[2] === 'admin') {
+    const code = runAdmin(process.argv.slice(3), {
+      store,
+      keys,
+      now: Date.now,
+      out: (text) => console.log(text),
+      err: (text) => console.error(text),
+    });
+    store.close();
+    process.exit(code);
+  }
   const server = createServer(
     {
       requestTimeout: 60_000,

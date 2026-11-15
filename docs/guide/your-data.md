@@ -82,6 +82,18 @@ cannot be imported back; the encrypted backup is the way back.
   coach notes, saved AI key and any exports still on this device, for good. It cannot reach a file you already
   downloaded or shared, or a backup file you saved elsewhere: delete those yourself.
 
+## A copy on your server
+
+If whoever runs your server offers it, **Back up to this server** keeps an encrypted copy there, to restore on a new
+phone or use on a second device. The server cannot read it. Things to know:
+
+- The passphrase of the copy is its own (it can be the same as the app's, but it is a different thing). It must be long
+  (12 characters, 16 with spaces, or four words of three letters or more) and not a common one, because the person who runs the server could try guesses.
+- You are shown a **recovery key** once. Write it down: with it you can set a new passphrase if you forget the old one;
+  without it, a forgotten passphrase means the copy cannot be opened.
+- In Settings you can change the passphrase of the copy, see and sign out devices, make a new recovery key, bring back the
+  previous version, and delete your copy. Deleting never touches what is on this device.
+
 ## Two things worth knowing
 
 - **On iPhone, install first, then log.** An app added to the Home Screen keeps its data apart from Safari's. If you

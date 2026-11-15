@@ -66,7 +66,19 @@ Full detail: [What leaves the device](./telemetry-posture.md), [AI tiers, in det
   address with its last part zeroed, the time and the file served: never the query string, the User-Agent or the Referer.
 - An optional shared AI key stays on the server: nginx adds it to same-origin requests, so the browser never sees it.
 - The published image is scanned (no fixable high or critical findings) and driven in WebKit and Chromium before it is
-  pushed, and carries a provenance attestation and an SBOM.
+  pushed, and carries a provenance attestation and an SBOM. The optional backup relay image is built, scanned and
+  published the same way.
+- The optional backup relay keeps only ciphertext. A device token can list and sign out devices but cannot change the
+  passphrase, add a recovery key or delete the copy: those also need a proof of the passphrase (or of the recovery key),
+  with their own attempt limits so guessing one never costs the other. Wrong proofs shown by a device token are counted
+  per device, so a thief with one stolen token can use up only that token's allowance and not block your other devices,
+  and signing a device out needs no proof. The recovery key has no daily cap per handle, so strangers cannot lock you out of
+  recovery; the passphrase sign-in does have one, so a stranger who knows your handle can keep a new device from signing
+  in for up to a day. Tokens expire after 180 days unused, a signup
+  invite is single use, and the previous version of a copy is kept for at least 24 hours. A password-strength check
+  (12 characters, 16 if it has spaces, or four words of three letters or more, and no common password) protects the copy against offline guessing by whoever runs the server.
+- With a single sign-in in front, the AI can be limited per person and per day (`AI_PROXY_USER_HEADER`), the header being
+  believed only from a trusted proxy and never forwarded.
 
 Full detail: [Self-host](./self-host.md), [The installable app](./pwa.md).
 
@@ -77,6 +89,13 @@ Full detail: [Self-host](./self-host.md), [The installable app](./pwa.md).
 - Pinned, SHA-256-verified WebAssembly builds (the database, the barcode decoder, Argon2id); every dependency pinned to
   an exact version at least two weeks old.
 - The build output is scanned for secret-shaped strings and third-party hosts.
+
+## What the operator of a shared server can and cannot do
+
+They can see handles, the size and last change of each copy, how many devices and whether a recovery key exists, and delete or
+prune copies. They cannot read a copy, and cannot recover a forgotten passphrase. They could try passphrase guesses against a
+stolen copy offline (each costs a 64 MiB Argon2id run), and could serve a modified app, as with any web app. Not built: a copy
+bound to the sign-in identity, several profiles in one browser, an admin web page.
 
 ## Who it is for
 

@@ -2,19 +2,40 @@
 # into /tmp/ai-nutrition-coach-ai-http.inc, mode 0600). Doubled-at-sign placeholders are
 # substituted from validated values; nothing here holds the key.
 #
-# Two rate limits apply to every request: per client address AS NGINX SEES IT, and for the whole
-# instance. Behind a reverse proxy (Traefik, Caddy) the client address is the PROXY's, so the two
-# are the same bucket unless real_ip is configured: then the per-address limit is effectively
-# instance-wide too, and so is the per-address connection limit (docs/self-host.md). Rejections
-# are logged at `info`, below the error_log level, so no client address reaches the container log.
-limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=@@ANC_AI_RATE@@;
+# Two rate limits apply to every request: per CALLER, and for the whole instance. The caller is
+# the person named by the AI_PROXY_USER_HEADER header when that is set AND the request comes from
+# a trusted proxy ($anc_ai_user, below), otherwise the client address AS NGINX SEES IT. Behind a
+# reverse proxy (Traefik, Caddy) the client address is the PROXY's, so the two are the same
+# bucket unless real_ip is configured (or the user header is): then the per-address limit is
+# effectively instance-wide too, and so is the per-address connection limit (docs/self-host.md).
+# Rejections are logged at `info`, below the error_log level, so no client address reaches the
+# container log.
+#
+# $anc_ai_key is "u:<user>" or "a:<client>": the prefix keeps a user name from ever colliding
+# with an address. The client is the address itself for IPv4 and the /64 for IPv6 ($anc_ai_client,
+# njs `client`, below): one subscriber holds a whole /64, so keying on the full address would hand
+# them as many "callers" as they like. The daily budget uses the same bucket (ai-proxy.js `callerId`). ($anc_ai_user is defined just above this block, by 40-render-ai-proxy.sh.)
+map $anc_ai_user $anc_ai_key {
+    default "u:$anc_ai_user";
+    ""      "a:$anc_ai_client";
+}
+limit_req_zone $anc_ai_key zone=ai_nutrition_coach_ai:1m rate=@@ANC_AI_RATE@@;
 limit_req_zone $server_name zone=ai_nutrition_coach_ai_rall:64k rate=@@ANC_AI_RATE_ALL@@;
 # Voice transcription (POST /ai/v1/audio/transcriptions, off unless AI_PROXY_TRANSCRIPTION=1) has
 # its own, tighter pair: a recording costs more than a chat line.
-limit_req_zone $binary_remote_addr zone=ai_nutrition_coach_tx:1m rate=@@ANC_AI_TX_RATE@@;
+limit_req_zone $anc_ai_key zone=ai_nutrition_coach_tx:1m rate=@@ANC_AI_TX_RATE@@;
 limit_req_zone $server_name zone=ai_nutrition_coach_tx_rall:64k rate=@@ANC_AI_TX_RATE_ALL@@;
-limit_conn_zone $binary_remote_addr zone=ai_nutrition_coach_ai_ip:1m;
+limit_conn_zone $anc_ai_key zone=ai_nutrition_coach_ai_ip:1m;
 limit_conn_zone $server_name zone=ai_nutrition_coach_ai_all:64k;
+# Daily request budgets (AI_PROXY_DAILY_PER_USER / AI_PROXY_DAILY_TOTAL, ai-proxy.js `charge`): a
+# counter per UTC day and caller, in shared memory. 256k holds a few thousand counters. `evict`
+# makes a full zone drop its oldest counters instead of refusing new ones, so it can never fill up
+# and lock everyone out (the worst case is an old counter starting again from 0). Every entry
+# also expires 26 h after its last update, so yesterday's counters clear themselves. Unused
+# (nothing is read or written) when both budgets are 0.
+js_shared_dict_zone zone=anc_ai_budget:256k timeout=26h evict type=number;
+# Seconds until the budget resets, set by njs for the 429 answer's Retry-After.
+js_var $anc_ai_retry "";
 limit_req_log_level info;
 limit_conn_log_level info;
 
@@ -41,3 +62,5 @@ map "$anc_ai_origin_host|$http_host" $anc_ai_origin_bad {
 
 js_path /etc/ai-nutrition-coach/ai-proxy;
 js_import anc_ai from ai-proxy.js;
+# The client address with an IPv6 address reduced to its /64 (njs; also what the daily budget keys on).
+js_set $anc_ai_client anc_ai.client;

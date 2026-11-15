@@ -3,8 +3,13 @@ import { normalizeHandle, type SyncOffer } from '@anc/core';
 import { Button, TextField } from '../../components/primitives';
 import { useMessage, useStrings, type Message } from '../../i18n';
 import { useSession } from '../../app/session';
-import { validateNewPassphrase } from '../../storage';
-import { createFailureText, createServerVault } from '../../sync';
+import {
+  createFailureText,
+  createServerVault,
+  deviceLabel,
+  newPassphraseIssue,
+  strengthText,
+} from '../../sync';
 import { Prose, Section } from './SettingsPage';
 
 /**
@@ -16,10 +21,13 @@ import { Prose, Section } from './SettingsPage';
 export function ServerBackupSection({
   offer,
   onDone,
+  onRecoveryKey,
 }: {
   readonly offer: Extract<SyncOffer, { offered: true }>;
   /** The device is connected: what to say, in the status line that outlives this section. */
   readonly onDone: (message: Message) => void;
+  /** The recovery key made with the copy: to be shown once, before anything else. */
+  readonly onRecoveryKey: (key: string) => void;
 }) {
   const all = useStrings();
   const s = all.server;
@@ -51,9 +59,9 @@ export function ServerBackupSection({
       setMessage((a) => a.server.invalidHandle);
       return;
     }
-    const issue = validateNewPassphrase(passphrase);
+    const issue = newPassphraseIssue(passphrase, normalizeHandle(handle) ?? handle);
     if (issue !== null) {
-      setMessage((a) => (issue === 'tooShort' ? a.session.tooShort : a.session.tooRepetitive));
+      setMessage((a) => strengthText(issue, a));
       return;
     }
     if (passphrase !== confirm) {
@@ -71,10 +79,13 @@ export function ServerBackupSection({
         handle,
         passphrase,
         invite: offer.signup === 'invite' ? invite.trim() : undefined,
+        label: deviceLabel(),
         maxVaultBytes: offer.maxVaultMb * 1024 * 1024,
       });
       if (!session.live()) return;
       if (result.kind === 'created') {
+        // The recovery key is shown before anything else, whether or not the connect that follows works.
+        onRecoveryKey(result.recoveryKey);
         if (await session.sync.connect(result.connection, result.dirty)) {
           // Something logged while the key was made is sent now rather than after the usual wait.
           if (result.dirty) void session.sync.syncNow();
@@ -103,6 +114,7 @@ export function ServerBackupSection({
       <Prose>{s.backupHandleHelp}</Prose>
       <p className="text-body">{s.backupWarning}</p>
       <Prose>{s.backupSame}</Prose>
+      <Prose>{s.strengthWhy}</Prose>
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {

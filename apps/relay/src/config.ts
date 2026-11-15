@@ -45,6 +45,13 @@ export interface RelayConfig {
   readonly rateWritePerMinute: number;
   /** Vault writes read at the same time (signups get half, min 1); more are told to come back shortly. */
   readonly maxConcurrentUploads: number;
+  /** Days a device token may sit unused before it stops working (`SYNC_TOKEN_MAX_IDLE_DAYS`, 0 = never). */
+  readonly tokenMaxIdleMs: number;
+  /**
+   * How long the version kept as "the previous one" is protected from being replaced by a further
+   * write (`SYNC_KEEP_PREVIOUS_HOURS`, 0 = every write moves it, as before S4).
+   */
+  readonly keepPreviousMs: number;
   /** Believe `X-Real-IP` (set by the nginx in front, the only thing that can reach the relay). */
   readonly trustProxy: boolean;
   /** The server secret from the environment; absent: one is created in `dataDir`. */
@@ -134,6 +141,8 @@ export function readConfig(env: Env): RelayConfig {
     rateSignupPerHour: whole(env, 'SYNC_RATE_SIGNUP', 5, 1, 100_000),
     rateWritePerMinute: whole(env, 'SYNC_RATE_WRITE', 60, 1, 100_000),
     maxConcurrentUploads: whole(env, 'SYNC_MAX_UPLOADS', 3, 1, 16),
+    tokenMaxIdleMs: whole(env, 'SYNC_TOKEN_MAX_IDLE_DAYS', 180, 0, 3650) * 86_400_000,
+    keepPreviousMs: whole(env, 'SYNC_KEEP_PREVIOUS_HOURS', 24, 0, 8760) * 3_600_000,
     trustProxy: trust === '1',
     serverSecret: secret === '' ? undefined : secret,
   };
@@ -142,6 +151,6 @@ export function readConfig(env: Env): RelayConfig {
 /** The one start-up line about a relay whose signups are closed only because no invite code is set. */
 export function signupNotice(config: Pick<RelayConfig, 'signupNeedsCodes'>): string | null {
   return config.signupNeedsCodes
-    ? 'relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES), or SYNC_SIGNUP=open; existing handles can still log in'
+    ? 'relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES, or `node /app/relay.mjs admin invites create`), or SYNC_SIGNUP=open; existing handles can still log in'
     : null;
 }

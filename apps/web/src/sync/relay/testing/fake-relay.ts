@@ -8,21 +8,27 @@ import {
   encodeBase64Url,
   etagOf,
   SYNC_KDF,
+  type AccountInfo,
+  type ChangePassphraseRequest,
+  type ProofOf,
+  type RecoveryMaterial,
   type RelayEnvelope,
   type SessionResponse,
   type SignupRequest,
+  type VaultResponse,
 } from '@anc/core';
 import type { RelayClient, RelayResult, VaultFetch } from '../client';
 
 interface FakeVault {
   readonly handle: string;
-  readonly salt: string;
-  readonly authKey: string;
-  readonly wrappedKey: string;
+  salt: string;
+  authKey: string;
+  wrappedKey: string;
   readonly vaultId: string;
   version: number;
   envelope: RelayEnvelope;
   previous: RelayEnvelope | null;
+  recovery: RecoveryMaterial | null;
 }
 
 export interface LoggedRequest {
@@ -147,6 +153,7 @@ export class FakeRelay implements RelayClient {
       version: 1,
       envelope: request.envelope,
       previous: null,
+      recovery: request.recovery ?? null,
     };
     this.vaults.set(request.handle, vault);
     return Promise.resolve(ok(this.session(vault)));
@@ -159,6 +166,128 @@ export class FakeRelay implements RelayClient {
     const vault = this.vaults.get(handle);
     if (vault === undefined || vault.authKey !== authKey) return Promise.resolve(err('noMatch'));
     return Promise.resolve(ok(this.session(vault)));
+  }
+
+  recover(handle: string, authKey: string) {
+    this.log('POST', '/recover', { handle, authKey });
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaults.get(handle);
+    if (vault?.recovery == null || vault.recovery.authKey !== authKey) {
+      return Promise.resolve(err('noMatch'));
+    }
+    return Promise.resolve(ok({ ...this.session(vault), wrappedKey: vault.recovery.wrappedKey }));
+  }
+
+  account(token: string): Promise<RelayResult<AccountInfo>> {
+    this.log('GET', '/account', undefined);
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    const devices = [...this.tokens].filter(([, h]) => h === vault.handle);
+    return Promise.resolve(
+      ok({
+        hasRecovery: vault.recovery !== null,
+        previousVersion: vault.previous === null ? null : vault.previous.version,
+        devices: devices.map(([t], i) => ({
+          id: i + 1,
+          label: '',
+          createdAt: 0,
+          lastSeenAt: 0,
+          current: t === token,
+        })),
+      }),
+    );
+  }
+
+  revokeDevices(token: string, target: { id: number } | { others: true }) {
+    this.log('POST', '/devices/revoke', target);
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    let revoked = 0;
+    if ('id' in target) {
+      // The ids `account` lists: the position among this vault's tokens, from 1.
+      const mine = [...this.tokens].filter(([, h]) => h === vault.handle);
+      const hit = mine[target.id - 1];
+      if (hit !== undefined) {
+        this.tokens.delete(hit[0]);
+        revoked++;
+      }
+    } else if ('others' in target) {
+      for (const [t, h] of [...this.tokens]) {
+        if (h === vault.handle && t !== token) {
+          this.tokens.delete(t);
+          revoked++;
+        }
+      }
+    }
+    return Promise.resolve(ok({ revoked }));
+  }
+
+  private proves(vault: FakeVault, proof: ProofOf): boolean {
+    return proof.kind === 'passphrase'
+      ? proof.authKey === vault.authKey
+      : vault.recovery !== null && proof.authKey === vault.recovery.authKey;
+  }
+
+  changePassphrase(token: string, request: ChangePassphraseRequest) {
+    this.log('POST', '/passphrase', request);
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    if (!this.proves(vault, request.proof)) return Promise.resolve(err('noMatch'));
+    vault.salt = request.salt;
+    vault.authKey = request.authKey;
+    vault.wrappedKey = request.wrappedKey;
+    let revoked = 0;
+    for (const [t, h] of [...this.tokens]) {
+      if (h === vault.handle && t !== token) {
+        this.tokens.delete(t);
+        revoked++;
+      }
+    }
+    return Promise.resolve(ok({ revoked }));
+  }
+
+  setRecovery(token: string, proof: ProofOf, recovery: RecoveryMaterial | null) {
+    this.log('POST', '/recovery', { proof, recovery });
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    if (proof.kind !== 'passphrase' || !this.proves(vault, proof)) {
+      return Promise.resolve(err('noMatch'));
+    }
+    vault.recovery = recovery;
+    return Promise.resolve(ok(null));
+  }
+
+  deleteVault(token: string, proof: ProofOf) {
+    this.log('POST', '/delete', { proof });
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    if (!this.proves(vault, proof)) return Promise.resolve(err('noMatch'));
+    this.vaults.delete(vault.handle);
+    for (const [t, h] of [...this.tokens]) if (h === vault.handle) this.tokens.delete(t);
+    return Promise.resolve(ok(null));
+  }
+
+  getPrevious(token: string): Promise<RelayResult<VaultResponse>> {
+    this.log('GET', '/vault?previous=1', undefined);
+    const blocked = this.gate();
+    if (blocked) return Promise.resolve(blocked);
+    const vault = this.vaultOf(token);
+    if (vault === null) return Promise.resolve(err('unauthorized'));
+    if (vault.previous === null) return Promise.resolve(err('notFound'));
+    return Promise.resolve(
+      ok({ vaultId: vault.vaultId, version: vault.previous.version, envelope: vault.previous }),
+    );
   }
 
   async getVault(token: string, haveVersion?: number): Promise<RelayResult<VaultFetch>> {

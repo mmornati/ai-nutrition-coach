@@ -8,6 +8,11 @@ export {
   type UnlockOutcome,
 } from './store-controller';
 export { KV_KEYS, KeyValueStoreLocked, type KeyValueStore } from './key-value-store';
+export {
+  hintForLocalPassphrase,
+  checkServerPassphrase,
+  type ServerPassphraseIssue,
+} from './passphrase-strength';
 export { validateNewPassphrase, unlockDelayMs, type PassphraseIssue } from './passphrase';
 export { IDLE_MINUTE_CHOICES } from './constants';
 export type { DurableStorage } from './durable-storage';

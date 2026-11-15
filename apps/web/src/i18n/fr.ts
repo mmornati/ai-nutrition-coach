@@ -524,6 +524,8 @@ export const fr: Strings = {
       instanceUnavailable:
         'Ce serveur ne propose pas d’IA pour le moment. Vous pouvez choisir une autre option dans Réglages → Votre IA.',
       instanceBusy: 'L’IA de ce serveur est occupée. Réessayez dans un instant.',
+      instanceDailyLimit:
+        'L’IA de ce serveur a été entièrement utilisée pour le moment. Elle sera de nouveau disponible plus tard.',
       instanceSignIn:
         'Ce serveur vous demande de vous reconnecter. Rechargez la page pour continuer.',
       instanceError: 'L’IA de ce serveur n’a pas répondu. Réessayez dans un instant.',
@@ -2031,7 +2033,7 @@ export const fr: Strings = {
     statusRolledBack:
       'Le serveur a renvoyé une copie plus ancienne que celle que cet appareil a déjà vue, la sauvegarde est donc suspendue et rien n’est écrasé. Vous pouvez réessayer, ou arrêter de sauvegarder depuis cet appareil.',
     statusSignedOut:
-      'Cet appareil n’est plus accepté par le serveur. Arrêtez de sauvegarder depuis cet appareil, puis reconnectez-le avec votre identifiant et votre phrase secrète.',
+      'Cet appareil a été déconnecté de la copie du serveur. Reconnectez-le avec votre identifiant et votre phrase secrète.',
     statusTooLarge:
       'Vos données dépassent ce que ce serveur accepte, aucune copie n’est donc envoyée.',
     statusPaused:
@@ -2066,6 +2068,89 @@ export const fr: Strings = {
       'Pour protéger cet appareil, la phrase secrète doit compter au moins 10 caractères, avec quelques caractères différents. Créez plutôt une nouvelle phrase secrète, puis connectez-vous à la copie de ce serveur depuis Réglages, Vos données.',
     restoringTitle: 'Restauration depuis le serveur',
     restoringBody: 'Vos données sont remises sur cet appareil. Cela prend un instant.',
+    reconnectAction: 'Se reconnecter',
+    unreachable:
+      'Ce serveur propose une copie chiffrée, mais il est injoignable pour le moment. Vos données sont en sécurité sur cet appareil. Réessayez plus tard.',
+    unreachableCheck: 'Vérifier de nouveau',
+    strengthWhy:
+      'La personne qui gère ce serveur pourrait tester des hypothèses sur son propre ordinateur, aussi longtemps qu’elle le souhaite. Seule une phrase secrète difficile à deviner l’en empêche.',
+    strengthTooShort:
+      'Utilisez au moins 12 caractères, ou quatre mots (par exemple quatre mots sans lien entre eux, séparés par des espaces).',
+    strengthCommon:
+      'Celle-ci figure sur les listes de mots de passe courants, même avec un chiffre ajouté. Essayez plutôt quelques mots sans lien entre eux.',
+    strengthPattern:
+      'Celle-ci suit une rangée du clavier ou compte dans l’ordre, ce qui se devine facilement. Essayez plutôt quelques mots sans lien entre eux.',
+    strengthRepeated:
+      'Celle-ci répète les mêmes quelques caractères. Essayez plutôt quelques mots sans lien entre eux.',
+    strengthHandle: 'Retirez votre identifiant de la phrase secrète : il n’est pas secret.',
+    strengthApp:
+      'Retirez le nom de cette application de la phrase secrète : c’est la première chose qu’on essaierait.',
+    localWeakHint:
+      'Cette phrase secrète serait facile à deviner pour quelqu’un qui obtiendrait une copie de vos données. Quelques mots sans lien entre eux sont plus solides. Vous pouvez la garder si vous préférez.',
+    proofNoMatch: 'Ce n’est pas la phrase secrète de cette copie.',
+    disconnected:
+      'Cet appareil a été déconnecté de la copie du serveur. Reconnectez-le avec votre identifiant et votre phrase secrète.',
+    invalidRecoveryKey:
+      'Cela ne ressemble pas à une clé de récupération. Elle compte 32 lettres et chiffres, le plus souvent écrits par groupes de quatre.',
+    recoveryNoMatch: 'Aucune copie ne correspond à cet identifiant et à cette clé de récupération.',
+    devicesHeading: 'Appareils de cette copie',
+    devicesExplain:
+      'Ces appareils sont connectés à votre copie. En déconnecter un ne fait que le couper : ses données restent sur lui, et il peut se reconnecter avec votre phrase secrète.',
+    deviceThis: 'Cet appareil',
+    deviceUnnamed: 'Un appareil',
+    deviceLine: 'Ajouté le {created}, dernière utilisation le {seen}',
+    deviceSignOut: 'Déconnecter',
+    deviceSignOutOthers: 'Déconnecter tous les autres appareils',
+    devicesLoadFailed: 'La liste des appareils n’a pas pu être lue.',
+    deviceSignedOut: 'Appareil déconnecté.',
+    devicesSignedOut: 'Les autres appareils sont déconnectés.',
+    changeHeading: 'Phrase secrète de la copie du serveur',
+    changeWhich:
+      'C’est la phrase secrète de la copie sur ce serveur. Ce n’est pas celle qui déverrouille l’application sur cet appareil : celle-ci reste inchangée.',
+    changeCurrent: 'Phrase secrète actuelle de cette copie',
+    changeNew: 'Nouvelle phrase secrète de cette copie',
+    changeAction: 'Changer la phrase secrète de cette copie',
+    changeWorking: 'Changement…',
+    changeDone:
+      'La phrase secrète de la copie est changée. Vos autres appareils ont été déconnectés : reconnectez-les avec la nouvelle phrase secrète.',
+    recHeading: 'Clé de récupération',
+    recExplainNone:
+      'Si vous oubliez la phrase secrète de cette copie, personne ne peut l’ouvrir, pas même la personne qui gère ce serveur. Une clé de récupération est une seconde porte : notez-la et gardez-la en lieu sûr.',
+    recExplainHave:
+      'Cette copie a une clé de récupération. Si vous perdez la phrase secrète, utilisez-la depuis l’écran de connexion pour en définir une nouvelle.',
+    recCreate: 'Créer une clé de récupération',
+    recRotate: 'Créer une nouvelle clé de récupération',
+    recRotateNote: 'L’ancienne clé cesse de fonctionner dès que la nouvelle est créée.',
+    recRemove: 'Supprimer la clé de récupération',
+    recWorking: 'En cours…',
+    recRemoved:
+      'La clé de récupération est supprimée. Seule la phrase secrète ouvre maintenant cette copie.',
+    recShowHeading: 'Votre clé de récupération',
+    recShowExplain:
+      'Notez-la ou imprimez-la, et gardez-la loin de cet appareil. Elle n’est affichée qu’une seule fois : ce serveur ne peut pas la réafficher, et nous non plus. Quiconque possède cette clé et votre identifiant peut ouvrir votre copie.',
+    recSaved: 'J’ai conservé ma clé de récupération',
+    recDone: 'Terminé',
+    recUseLink: 'J’ai perdu ma phrase secrète : utiliser ma clé de récupération',
+    recUsePassphrase: 'Utiliser plutôt ma phrase secrète',
+    recKeyLabel: 'Clé de récupération',
+    recNewLabel: 'Nouvelle phrase secrète de cette copie',
+    recAction: 'Récupérer avec cette clé',
+    recExplainConnect:
+      'Saisissez votre identifiant et votre clé de récupération, puis choisissez une nouvelle phrase secrète pour la copie. Vos autres appareils seront déconnectés.',
+    deleteHeading: 'Supprimer la copie sur ce serveur',
+    deleteExplain:
+      'Cela retire de ce serveur votre copie, la version précédente et l’accès de chaque appareil. Ce qui se trouve sur cet appareil n’est pas touché : il revient simplement à « non sauvegardé ». Cette action est irréversible.',
+    deleteTypeLabel: 'Saisissez votre identifiant ({handle}) pour confirmer',
+    deleteAction: 'Supprimer ma copie du serveur',
+    deleteMismatch: 'Ce n’est pas votre identifiant.',
+    deleteDone:
+      'Votre copie est supprimée du serveur. Cet appareil garde ses données et n’est plus sauvegardé.',
+    previousHeading: 'Version précédente',
+    previousExplain:
+      'Le serveur garde la version de votre copie d’avant les derniers changements. Vous pouvez remettre sur cet appareil ce qu’elle contenait : tout ce qu’elle avait et que cet appareil n’a pas est ajouté, rien n’est retiré.',
+    previousAction: 'Remettre la version précédente',
+    previousDone: 'La version précédente a été ajoutée à cet appareil et sera sauvegardée.',
+    previousFailed: 'La version précédente n’a pas pu être lue.',
   },
   /** Pesées : la saisie rapide (Aujourd’hui et Évolution). */
   weighIn: {

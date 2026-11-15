@@ -147,18 +147,27 @@ async function sendToBackground(page: Page): Promise<void> {
   });
 }
 
-/** Creates a vault on a device that has two plates; returns its handle. */
-async function createVault(page: Page, handle: string): Promise<void> {
+/** Creates a vault on a device that has two plates; writes the recovery key down and returns it. */
+async function createVault(page: Page, handle: string): Promise<string> {
   await openYourData(page);
   const section = sectionOf(page, 'Back up to this server');
   await section.getByLabel('Handle').fill(handle);
   await section.getByLabel('Passphrase for this copy').fill(VAULT_PASSPHRASE);
   await section.getByLabel('Confirm passphrase').fill(VAULT_PASSPHRASE);
   await section.getByRole('button', { name: 'Back up to this server' }).click();
+  // The recovery key comes first, once; it is written down before the person goes on.
+  await expect(page.getByRole('heading', { level: 2, name: 'Your recovery key' })).toBeVisible({
+    timeout: 60_000,
+  });
+  const recoveryKey = (await page.locator('[data-recovery-key]').innerText()).trim();
+  expect(recoveryKey).toMatch(/^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/);
+  await page.getByText('I have saved my recovery key').click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Backup on this server' })).toBeVisible({
     timeout: 60_000,
   });
   await expect(page.getByText(`This device backs up to this server as ${handle}.`)).toBeVisible();
+  return recoveryKey;
 }
 
 const handleFor = (label: string): string => `e2e-${label}-${randomBytes(4).toString('hex')}`;
@@ -693,4 +702,119 @@ test('two devices at once: plates, a delete, a saved-meal conflict and the langu
   expect(errorsA).toEqual([]);
   expect(errorsB).toEqual([]);
   await deviceB.close();
+});
+
+test('credential lifecycle on the real relay: change the passphrase, recover with the key, disconnect, delete', async ({
+  page,
+  context,
+  playwright,
+  browserName,
+  baseURL,
+}) => {
+  test.setTimeout(420_000);
+  const wire: Wire[] = [];
+  await routeToRelay(context, wire);
+  const handle = handleFor('life');
+  const NEW_PASSPHRASE = 'lamp ocean velvet tractor';
+  const THIRD = 'pale harbour mist 7 again';
+
+  // Device A makes the copy and writes the recovery key down.
+  const errors = await freshStart(page);
+  await createStore(page);
+  await logFood(page, 'appl', /^Apple/);
+  const recoveryKey = await createVault(page, handle);
+  const devicesA = sectionOf(page, 'Devices on this copy');
+  await expect(devicesA.getByText('This device', { exact: false }).first()).toBeVisible();
+
+  // The passphrase of the copy is changed here (and the page says which passphrase it is).
+  const change = sectionOf(page, 'Passphrase of the server copy');
+  await expect(change.getByText(/not the one that unlocks the app on this device/)).toBeVisible();
+  await change.getByLabel('Current passphrase of this copy').fill(VAULT_PASSPHRASE);
+  await change.getByLabel('New passphrase for this copy').fill('password1234');
+  await change.getByLabel('Confirm passphrase').fill('password1234');
+  await change.getByRole('button', { name: 'Change the passphrase of this copy' }).click();
+  await expect(page.getByText(/on lists of common passwords/)).toBeVisible();
+  await change.getByLabel('Current passphrase of this copy').fill(VAULT_PASSPHRASE);
+  await change.getByLabel('New passphrase for this copy').fill(NEW_PASSPHRASE);
+  await change.getByLabel('Confirm passphrase').fill(NEW_PASSPHRASE);
+  await change.getByRole('button', { name: 'Change the passphrase of this copy' }).click();
+  await expect(page.getByText(/The passphrase of the copy is changed/)).toBeVisible({
+    timeout: 60_000,
+  });
+
+  // A new device: the OLD passphrase no longer finds the copy; the recovery key does, and sets a new one.
+  const device = await anotherDevice(
+    playwright,
+    browserName,
+    baseURL ?? 'http://localhost:4173',
+    wire,
+  );
+  const second = device.page;
+  const errors2 = await freshStart(second);
+  await second.getByRole('button', { name: 'Got it' }).click();
+  await second.getByRole('button', { name: 'Restore from this server' }).click();
+  await second.getByLabel('Handle').fill(handle);
+  await second.getByLabel('Passphrase of the copy').fill(VAULT_PASSPHRASE);
+  await second.getByRole('button', { name: 'Find my copy' }).click();
+  await expect(
+    second.getByText('Nothing on this server matches this handle and passphrase.'),
+  ).toBeVisible({ timeout: 60_000 });
+  await second.getByRole('button', { name: 'I lost my passphrase: use my recovery key' }).click();
+  await second.getByLabel('Handle').fill(handle);
+  await second.getByLabel('Recovery key').fill(recoveryKey.toLowerCase());
+  await second.getByLabel('New passphrase for this copy').fill(THIRD);
+  await second.getByRole('button', { name: 'Recover with this key' }).click();
+  await expect(second.getByText(/^Found your data: 1 plate, from .+ to today\.$/)).toBeVisible({
+    timeout: 90_000,
+  });
+  await second.getByRole('button', { name: 'Restore and unlock' }).click();
+  await expect(second.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(plates(second)).toHaveCount(1);
+
+  // The recovery signed device A out: it says so, plainly, and can connect again.
+  await openYourData(page);
+  await page.getByRole('button', { name: 'Back up now' }).click();
+  await expect(
+    page.getByText(
+      'This device was disconnected from the server copy. Connect again with your handle and passphrase.',
+    ),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Connect again' })).toBeVisible();
+
+  // Device B lists itself and deletes the copy: the handle typed, the passphrase proved.
+  await openYourData(second);
+  await expect(
+    second.getByRole('heading', { level: 2, name: 'Devices on this copy' }),
+  ).toBeVisible();
+  const del = sectionOf(second, 'Delete the copy on this server');
+  await del.getByLabel(/^Type your handle/).fill(handle);
+  await del.getByLabel('Current passphrase of this copy').fill('not the passphrase of it');
+  await del.getByRole('button', { name: 'Delete my copy from the server' }).click();
+  await expect(second.getByText('That is not the passphrase of this copy.')).toBeVisible({
+    timeout: 60_000,
+  });
+  await del.getByLabel('Current passphrase of this copy').fill(THIRD);
+  await del.getByRole('button', { name: 'Delete my copy from the server' }).click();
+  await expect(second.getByText(/Your copy is deleted from the server/)).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(
+    second.getByRole('heading', { level: 2, name: 'Back up to this server' }),
+  ).toBeVisible();
+  // Nothing readable, no secret left the device in the clear.
+  const everything = wire.map((w) => w.body).join('\n');
+  for (const secret of [
+    VAULT_PASSPHRASE,
+    NEW_PASSPHRASE,
+    THIRD,
+    recoveryKey,
+    recoveryKey.replaceAll('-', ''),
+  ]) {
+    expect(everything).not.toContain(secret);
+  }
+  expect(errors).toEqual([]);
+  expect(errors2).toEqual([]);
+  await device.close();
 });

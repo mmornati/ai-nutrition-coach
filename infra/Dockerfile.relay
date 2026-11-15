@@ -50,7 +50,16 @@ FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c
 # Pull the distribution's security fixes on top of the digest-pinned base, as infra/Dockerfile does.
 # /data is created owned by the unprivileged user BEFORE it becomes a volume, so a named volume
 # mounted there starts out writable by it (and by nobody else).
-RUN apk upgrade --no-cache \
+# The relay is one bundle that needs only `node` (it uses node:http and node:sqlite): the package
+# managers the base image ships (npm, its corepack, yarn) are removed, so the image holds nothing
+# that can install or fetch code, and a CVE in their bundled dependencies is not in this image.
+# (`docker compose exec sync-relay node /app/relay.mjs admin ...` needs only node.)
+# APK_UPGRADE_DATE (CI passes the UTC day) keeps a layer cache from replaying a stale upgrade for as
+# long as the base digest holds, as in infra/Dockerfile.
+ARG APK_UPGRADE_DATE=unset
+RUN echo "apk upgrade: $APK_UPGRADE_DATE" && apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules /opt/yarn-* \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
  && mkdir -p /app /data \
  && chown node:node /data \
  && chmod 700 /data

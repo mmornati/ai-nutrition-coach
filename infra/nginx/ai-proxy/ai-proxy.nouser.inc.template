@@ -1,0 +1,5 @@
+# Instance AI proxy -- no per-person identity (AI_PROXY_USER_HEADER is not set): every caller is
+# keyed by its client address. Rendered into the http file by 40-render-ai-proxy.sh.
+map $anc_trusted_peer $anc_ai_user {
+    default "";
+}

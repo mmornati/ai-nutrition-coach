@@ -21,6 +21,10 @@
 //     cannot change the status). Nothing is logged, and nothing here reads or writes the key.
 //
 // The values arrive as nginx variables set from the rendered config.
+//
+// `chatGate` (POST /ai/v1/chat/completions) and `txGate` (voice) are the location's js_content: they
+// validate the request, count it against the optional DAILY budgets (`charge`, below) and only then
+// let it through to the proxying location.
 
 var MAX_MESSAGES = 8;
 var MAX_TEXT_BYTES = 24 * 1024;
@@ -223,7 +227,123 @@ function txGate(r) {
   } catch (e) {
     ok = false;
   }
-  r.internalRedirect(ok ? '@ai_nutrition_coach_tx_proxy' : '@ai_nutrition_coach_ai_badrequest');
+  if (!ok) {
+    r.internalRedirect('@ai_nutrition_coach_ai_badrequest');
+    return;
+  }
+  r.internalRedirect(where(r, '@ai_nutrition_coach_tx_proxy'));
 }
 
-export default { body, cleanMessages, txGate, checkTranscription };
+// ── Daily budgets (opt-in: AI_PROXY_DAILY_PER_USER, AI_PROXY_DAILY_TOTAL; 0 or unset = off) ───────
+//
+// A request is counted ONCE, at the point where it is known to be valid and is about to go to the
+// provider. So these do not count: a request nginx refused before njs (wrong method, type, origin,
+// size, the per-minute rate limits), one njs found invalid (a local 400), one that was over a
+// budget. These do: every request that was forwarded, whatever the provider then answered (it may
+// have been billed). A refused request that was already counted for the person is given back when
+// the instance-wide total turns out to be spent.
+//
+// State: the njs shared dictionary `anc_ai_budget` (a number per key, declared in the rendered
+// http config with `evict`, so it can never fill up and refuse everyone; entries expire after 26 h).
+//   key   YYYY-MM-DD|<16 hex of sha-256 of "u:<user>" or "a:<address>">    one caller, one UTC day
+//   key   YYYY-MM-DD|*                                                      the instance, one UTC day
+// The caller is the person behind the sign-in ($anc_ai_user, set only for a trusted proxy) or, with
+// none, the client address. The name is hashed: it is stored and logged nowhere in clear.
+
+var DAY_MS = 86400000;
+var ENTRY_TTL_MS = 26 * 3600 * 1000;
+
+function dayKey(now) {
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+// The client address as a bucket: IPv4 as it is, IPv6 reduced to its /64 (the first four groups,
+// written in full, lower case, without leading zeros), because one subscriber holds a whole /64
+// and could otherwise mint callers at will. An IPv4-mapped address (::ffff:a.b.c.d) is the IPv4.
+// Anything it cannot read is returned unchanged.
+function clientBucket(addr) {
+  addr = String(addr || '');
+  if (addr.indexOf(':') < 0) return addr;
+  var zone = addr.indexOf('%');
+  if (zone >= 0) addr = addr.slice(0, zone);
+  var mapped = /^(?:0{0,4}:){0,5}:?ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(addr);
+  if (mapped) return mapped[1];
+  // A trailing dotted quad stands for the last two groups, which never matter to a /64.
+  addr = addr.replace(/(\d+\.\d+\.\d+\.\d+)$/, '0:0');
+  var halves = addr.split('::');
+  if (halves.length > 2) return addr;
+  var head = halves[0] === '' ? [] : halves[0].split(':');
+  var tail = halves.length === 2 && halves[1] !== '' ? halves[1].split(':') : [];
+  var groups = head;
+  if (halves.length === 2) {
+    groups = head.slice();
+    for (var i = 0; i < 8 - head.length - tail.length; i++) groups.push('0');
+    groups = groups.concat(tail);
+  }
+  if (groups.length !== 8) return addr;
+  var out = [];
+  for (var k = 0; k < 4; k++) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(groups[k])) return addr;
+    out.push(groups[k].toLowerCase().replace(/^0+(?=.)/, ''));
+  }
+  return out.join(':') + '::/64';
+}
+
+// js_set handler: $anc_ai_client, the key of the per-address rate and connection limits.
+function client(r) {
+  return clientBucket(r.variables.remote_addr);
+}
+
+// Short, non-reversible id of one caller (64 bits of sha-256: enough to tell a household apart).
+function callerId(vars) {
+  var who = vars.anc_ai_user ? 'u:' + vars.anc_ai_user : 'a:' + clientBucket(vars.remote_addr);
+  return require('crypto').createHash('sha256').update(who).digest('hex').slice(0, 16);
+}
+
+// Counts one request. Returns 0 when it may go on, else the seconds until the budget that stopped
+// it resets (the next UTC midnight). `dict` is ngx.shared.anc_ai_budget (a stub in the tests).
+function charge(vars, dict, now) {
+  var perUser = parseInt(vars.anc_ai_daily_user, 10) || 0;
+  var total = parseInt(vars.anc_ai_daily_total, 10) || 0;
+  if (perUser <= 0 && total <= 0) return 0;
+  var day = dayKey(now);
+  var resetIn = Math.max(1, Math.ceil((DAY_MS - (now % DAY_MS)) / 1000));
+  var userKey = day + '|' + callerId(vars);
+  if (perUser > 0 && dict.incr(userKey, 1, 0, ENTRY_TTL_MS) > perUser) return resetIn;
+  if (total > 0 && dict.incr(day + '|*', 1, 0, ENTRY_TTL_MS) > total) {
+    if (perUser > 0) dict.incr(userKey, -1, 0, ENTRY_TTL_MS);
+    return resetIn;
+  }
+  return 0;
+}
+
+// The location a validated request goes to: the proxy, or the calm daily 429 (with Retry-After).
+// If the counters cannot be used the request is refused, not let through: a budget the operator
+// asked for must not silently stop applying.
+function where(r, proxy) {
+  var wait;
+  try {
+    var perUser = parseInt(r.variables.anc_ai_daily_user, 10) || 0;
+    var total = parseInt(r.variables.anc_ai_daily_total, 10) || 0;
+    wait = perUser > 0 || total > 0 ? charge(r.variables, ngx.shared.anc_ai_budget, Date.now()) : 0;
+  } catch (e) {
+    return '@ai_nutrition_coach_ai_refused';
+  }
+  if (wait > 0) {
+    r.variables.anc_ai_retry = String(wait);
+    return '@ai_nutrition_coach_ai_daily';
+  }
+  return proxy;
+}
+
+function chatGate(r) {
+  var valid = false;
+  try {
+    valid = body(r) !== '{}';
+  } catch (e) {
+    valid = false;
+  }
+  r.internalRedirect(valid ? where(r, '@ai_nutrition_coach_chat_proxy') : '@ai_nutrition_coach_ai_badrequest');
+}
+
+export default { body, cleanMessages, txGate, checkTranscription, chatGate, charge, callerId, client, clientBucket };

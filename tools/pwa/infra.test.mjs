@@ -626,7 +626,7 @@ describe('instance-wide AI proxy (docs/self-host.md "Offer AI to everyone on you
     expect(loc).toMatch(/limit_conn ai_nutrition_coach_ai_ip \d+;/);
     expect(loc).toMatch(/limit_conn ai_nutrition_coach_ai_all \d+;/);
     expect(r.http).toMatch(
-      /limit_req_zone \$binary_remote_addr zone=ai_nutrition_coach_ai:\d+m rate=10r\/m;/,
+      /limit_req_zone \$anc_ai_key zone=ai_nutrition_coach_ai:\d+m rate=10r\/m;/,
     );
     // Rejections are logged below the error_log level: no client address in the container log.
     expect(r.http).toContain('limit_req_log_level info;');
@@ -930,7 +930,7 @@ describe('instance AI proxy: same origin, input budget, quiet upstream', () => {
 
   it('applies a per-address AND an instance-wide rate limit, both configurable', () => {
     const d = render(ON);
-    expect(d.http).toMatch(/limit_req_zone \$binary_remote_addr zone=ai_nutrition_coach_ai:1m rate=10r\/m;/);
+    expect(d.http).toMatch(/limit_req_zone \$anc_ai_key zone=ai_nutrition_coach_ai:1m rate=10r\/m;/);
     expect(d.http).toMatch(/limit_req_zone \$server_name zone=ai_nutrition_coach_ai_rall:64k rate=30r\/m;/);
     expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_ai burst=5 nodelay;');
     expect(d.loc).toContain('limit_req zone=ai_nutrition_coach_ai_rall burst=5 nodelay;');
@@ -1217,7 +1217,7 @@ describe('instance AI proxy: voice transcription (POST /ai/v1/audio/transcriptio
     const r = render(ON);
     expect(r.code, r.out).toBe(0);
     expect(code(r.loc)).not.toContain('audio/transcriptions');
-    expect(code(r.loc)).not.toContain('js_content');
+    expect(code(r.loc)).not.toContain('anc_ai.txGate');
     expect(configOf(r.loc)).toEqual({
       enabled: true,
       model: 'vendor/model-x',
@@ -1798,14 +1798,16 @@ describe('real client address behind a reverse proxy (45-render-real-ip.sh)', ()
     const dir = mkdtempSync(join(tmpdir(), 'anc_realip_'));
     try {
       const out = join(dir, 'real-ip.inc');
+      const peerOut = join(dir, 'trusted-peer.inc');
       const r = spawnSync('sh', [script], {
-        env: { PATH, AI_NUTRITION_COACH_REAL_IP_OUT: out, ...env },
+        env: { PATH, AI_NUTRITION_COACH_REAL_IP_OUT: out, AI_NUTRITION_COACH_TRUSTED_PEER_OUT: peerOut, ...env },
         encoding: 'utf8',
       });
       return {
         code: r.status,
         log: `${r.stdout}${r.stderr}`,
         conf: existsSync(out) ? readFileSync(out, 'utf8') : '',
+        peers: existsSync(peerOut) ? readFileSync(peerOut, 'utf8') : '',
       };
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -1906,6 +1908,23 @@ describe('real client address behind a reverse proxy (45-render-real-ip.sh)', ()
     }
   });
 
+  it('also renders the trusted-peer geo: only the listed DIRECT peers are 1, nobody when the list is empty', () => {
+    const off = render({});
+    expect(off.code).toBe(0);
+    expect(directives(off.peers).map((l) => l.trim())).toEqual(['geo $realip_remote_addr $anc_trusted_peer {', 'default 0;', '}']);
+    const on = render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: '172.18.0.5/32, 10.0.0.5,fd00::/16' });
+    expect(directives(on.peers).map((l) => l.trim())).toEqual([
+      'geo $realip_remote_addr $anc_trusted_peer {',
+      'default 0;',
+      '172.18.0.5/32 1;',
+      '10.0.0.5 1;',
+      'fd00::/16 1;',
+      '}',
+    ]);
+    // A refused list renders no geo either (the container does not start).
+    expect(render({ AI_NUTRITION_COACH_TRUSTED_PROXIES: '0.0.0.0/0' }).peers).toBe('');
+  });
+
   it('is wired: copied by the Dockerfile, included before the zones and the log, passed by every compose file', () => {
     const dockerfile = read('infra/Dockerfile');
     expect(dockerfile).toContain('45-render-real-ip.sh /docker-entrypoint.d/45-render-real-ip.sh');
@@ -1913,6 +1932,8 @@ describe('real client address behind a reverse proxy (45-render-real-ip.sh)', ()
     expect(conf).toContain('include /tmp/ai-nutrition-coach-real-ip.inc;');
     expect(conf.indexOf('real-ip.inc')).toBeLessThan(conf.indexOf('ai-nutrition-coach-ai-http.inc'));
     expect(conf.indexOf('real-ip.inc')).toBeLessThan(conf.indexOf('access-log.inc;'));
+    expect(conf).toContain('include /tmp/ai-nutrition-coach-trusted-peer.inc;');
+    expect(conf.indexOf('trusted-peer.inc')).toBeLessThan(conf.indexOf('ai-nutrition-coach-ai-http.inc'));
     for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
       const text = readCode(file);
       expect(text, file).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES: ${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}');
@@ -1921,5 +1942,499 @@ describe('real client address behind a reverse proxy (45-render-real-ip.sh)', ()
     expect(read('infra/server.env.example')).toContain('AI_NUTRITION_COACH_TRUSTED_PROXIES');
     // The script logs no value.
     expect(readCode('infra/nginx/docker-entrypoint.d/45-render-real-ip.sh')).not.toMatch(/set -x|\$proxies"? *>&2/);
+  });
+});
+
+describe('instance AI proxy: per-person limits behind single sign-on, daily budgets, key from a file', () => {
+  const script = join(root, 'infra/nginx/docker-entrypoint.d/40-render-ai-proxy.sh');
+  const tplDir = join(root, 'infra/nginx/ai-proxy');
+  const PATH = process.env.PATH ?? '/usr/bin:/bin';
+  const KEY = 'sk-test-abcdef123456';
+  const FILE_KEY = 'sk-test-fromfile98765';
+  const ON = {
+    AI_PROXY_ENABLED: '1',
+    AI_PROXY_UPSTREAM: 'https://openrouter.ai/api/v1',
+    AI_PROXY_KEY: KEY,
+    AI_PROXY_MODEL: 'vendor/model-x',
+  };
+  const render = (env, { keyFile } = {}) => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc_user_'));
+    try {
+      const resolv = join(dir, 'resolv.conf');
+      writeFileSync(resolv, 'nameserver 127.0.0.11\n');
+      const extra = {};
+      if (keyFile !== undefined) {
+        const f = join(dir, 'secret.txt');
+        writeFileSync(f, keyFile);
+        extra.AI_PROXY_KEY_FILE = f;
+      }
+      const r = spawnSync('sh', [script], {
+        env: { PATH, AI_PROXY_OUT_DIR: dir, AI_PROXY_TEMPLATE_DIR: tplDir, AI_PROXY_RESOLV_CONF: resolv, ...env, ...extra },
+        encoding: 'utf8',
+      });
+      const f = (n) => {
+        const q = join(dir, `ai-nutrition-coach-ai-${n}.inc`);
+        return existsSync(q) ? readFileSync(q, 'utf8') : '';
+      };
+      return { code: r.status, out: `${r.stdout}${r.stderr}`, loc: f('locations'), http: f('http') };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const TX = { ...ON, AI_PROXY_TRANSCRIPTION: '1' };
+  const SSO = {
+    ...TX,
+    AI_PROXY_USER_HEADER: 'X-authentik-username',
+    AI_PROXY_DAILY_PER_USER: '300',
+    AI_PROXY_DAILY_TOTAL: '1500',
+    AI_NUTRITION_COACH_TRUSTED_PROXIES: '172.18.0.5/32',
+  };
+
+  it('is OFF by default: keyed by address, no daily budget, no header read or stripped', () => {
+    const r = render(TX);
+    expect(r.code, r.out).toBe(0);
+    expect(r.http).toContain('map $anc_trusted_peer $anc_ai_user {');
+    expect(r.http).not.toMatch(/\$http_x_/);
+    expect(r.http).toContain('"a:$anc_ai_client"');
+    expect(r.http).toContain('js_set $anc_ai_client anc_ai.client;');
+    expect(r.loc).toContain('set $anc_ai_daily_user "0";');
+    expect(r.loc).toContain('set $anc_ai_daily_total "0";');
+    expect(r.loc.match(/set \$anc_ai_daily_user "0";/g)).toHaveLength(2); // chat and voice
+    expect(r.loc).not.toMatch(/proxy_set_header (?!Connection)[A-Za-z-]+ "";/);
+    expect(read('infra/Dockerfile')).not.toMatch(/AI_PROXY_USER_HEADER|AI_PROXY_DAILY/);
+  });
+
+  it('on: the header is believed only from a trusted DIRECT peer, keys every limit, and is dropped upstream', () => {
+    const r = render(SSO);
+    expect(r.code, r.out).toBe(0);
+    // Identity: the trusted-peer flag AND the header, in one map: anything else is empty.
+    expect(r.http).toContain('map "$anc_trusted_peer|$http_x_authentik_username" $anc_ai_user {');
+    expect(r.http).toMatch(/default "";\n\s+"~\^1\\\|\(\?<anc_ai_uname>\.\{1,128\}\)\$" \$anc_ai_uname;/);
+    // The user prefix cannot collide with an address; the three per-caller zones all use it.
+    expect(r.http).toMatch(/default "u:\$anc_ai_user";\n\s+"" +"a:\$anc_ai_client";/);
+    expect(r.http).toMatch(/limit_req_zone \$anc_ai_key zone=ai_nutrition_coach_ai:1m /);
+    expect(r.http).toMatch(/limit_req_zone \$anc_ai_key zone=ai_nutrition_coach_tx:1m /);
+    expect(r.http).toContain('limit_conn_zone $anc_ai_key zone=ai_nutrition_coach_ai_ip:1m;');
+    expect(r.http).not.toContain('$binary_remote_addr');
+    // Shared memory that can never fill up and expires by itself.
+    expect(r.http).toContain('js_shared_dict_zone zone=anc_ai_budget:256k timeout=26h evict type=number;');
+    // Stripped from BOTH proxying locations, besides the whitelist that already forwards nothing.
+    expect(r.loc.match(/proxy_set_header X-authentik-username "";/g)).toHaveLength(2);
+    expect(r.loc).toContain('proxy_pass_request_headers off;');
+    expect(r.loc.match(/set \$anc_ai_daily_user "300";/g)).toHaveLength(2);
+    expect(r.loc.match(/set \$anc_ai_daily_total "1500";/g)).toHaveLength(2);
+    // Chat and voice both go through an njs gate before any proxy_pass; the calm 429 has a Retry-After.
+    expect(r.loc).toContain('js_content anc_ai.chatGate;');
+    expect(r.loc).toContain('js_content anc_ai.txGate;');
+    expect(r.loc).toMatch(/location @ai_nutrition_coach_ai_daily \{[^}]*add_header Retry-After \$anc_ai_retry always;[^}]*return 429 '\{"error":"ai_daily_limit"\}';/s);
+    expect(r.http).toContain('js_var $anc_ai_retry "";');
+    // No limit, header or user name is ever logged.
+    expect(r.loc + r.http).not.toMatch(/\baccess_log\b|log_format/);
+  });
+
+  it('a header without trusted proxies is never believed, and the start says so', () => {
+    const r = render({ ...ON, AI_PROXY_USER_HEADER: 'X-authentik-username' });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain('AI_PROXY_USER_HEADER is set but AI_NUTRITION_COACH_TRUSTED_PROXIES is not');
+    // The geo (45-render-real-ip.sh) is always 0 then: see its own test.
+    expect(r.http).toContain('$anc_trusted_peer|');
+  });
+
+  it('refuses a bad header name or budget, naming the variable and never the value', () => {
+    const badHeaders = [
+      'X_Foo',
+      'X Foo',
+      'X-Foo;',
+      'X-Foo\nX-Bar',
+      '$http_x',
+      '"x"',
+      '-X-Foo',
+      'X-Foo-',
+      `X-${'a'.repeat(70)}`,
+      'Host',
+      'authorization',
+      'Cookie',
+      'X-Forwarded-For',
+      'x-forwarded-host',
+      'X-Real-IP',
+      'CF-Connecting-IP',
+      'Origin',
+      'Content-Type',
+      'Sec-Fetch-Site',
+      'Forwarded',
+    ];
+    for (const value of badHeaders) {
+      const r = render({ ...ON, AI_PROXY_USER_HEADER: value });
+      expect(r.code, JSON.stringify(value)).toBe(1);
+      expect(r.out).toContain('AI_PROXY_USER_HEADER');
+      expect(r.out).toContain('refusing to start');
+      expect(r.out).not.toContain(value.slice(0, 20).trim() === '' ? '\u0000' : `"${value}"`);
+      expect(r.loc).not.toContain('proxy_pass');
+    }
+    for (const value of ['X-authentik-username', 'X-Auth-Request-User', 'Remote-User', 'x-forwarded-user']) {
+      expect(render({ ...ON, AI_PROXY_USER_HEADER: value }).code, value).toBe(0);
+    }
+    for (const name of ['AI_PROXY_DAILY_PER_USER', 'AI_PROXY_DAILY_TOTAL']) {
+      for (const value of ['abc', '-1', '1.5', '1e3', '10000000000', ' 5', '5\n6', '0x10']) {
+        const r = render({ ...ON, [name]: value });
+        expect(r.code, `${name}=${JSON.stringify(value)}`).toBe(1);
+        expect(r.out).toContain(name);
+      }
+      expect(render({ ...ON, [name]: '0' }).code).toBe(0);
+      expect(render({ ...ON, [name]: '250' }).code).toBe(0);
+    }
+    // Leading zeros are a number, not an octal surprise.
+    expect(render({ ...ON, AI_PROXY_DAILY_PER_USER: '010' }).loc).toContain('set $anc_ai_daily_user "10";');
+  });
+
+  it('the key may come from a file: trimmed, validated like the variable, the file wins, nothing is printed', () => {
+    const only = render({ ...ON, AI_PROXY_KEY: '' }, { keyFile: `  ${FILE_KEY}\r\n\n` });
+    expect(only.code, only.out).toBe(0);
+    expect(only.loc).toContain(`proxy_set_header Authorization "Bearer ${FILE_KEY}";`);
+    expect(only.out).not.toContain(FILE_KEY);
+    const both = render(ON, { keyFile: `${FILE_KEY}\n` });
+    expect(both.code, both.out).toBe(0);
+    expect(both.loc).toContain(`Bearer ${FILE_KEY}`);
+    expect(both.loc).not.toContain(KEY);
+    expect(both.out).toMatch(/AI_PROXY_KEY and AI_PROXY_KEY_FILE are set: the key from AI_PROXY_KEY_FILE is used/);
+    expect(both.out + both.loc.replace(FILE_KEY, '')).not.toContain(KEY);
+    // The file is honoured only when the proxy is on.
+    expect(render({ ...ON, AI_PROXY_ENABLED: '0', AI_PROXY_KEY: '' }, { keyFile: FILE_KEY }).loc).toContain('{"enabled":false}');
+  });
+
+  it('a missing, empty, oversized or malformed key file refuses to start and shows neither path nor content', () => {
+    for (const content of ['', '  \n', 'short', 'bad key with spaces', 'sk-line-one\nsk-line-two-xxxx', 'a'.repeat(2000), `${FILE_KEY};x`]) {
+      const r = render({ ...ON, AI_PROXY_KEY: '' }, { keyFile: content });
+      expect(r.code, JSON.stringify(content.slice(0, 30))).toBe(1);
+      expect(r.out).toMatch(/AI_PROXY_KEY_FILE|provider key/);
+      expect(r.out).toContain('refusing to start');
+      for (const piece of content.split('\n')) if (piece.trim().length > 4) expect(r.out).not.toContain(piece.trim());
+      expect(r.loc).not.toContain('proxy_pass');
+    }
+    const missing = render({ ...ON, AI_PROXY_KEY: '', AI_PROXY_KEY_FILE: '/nonexistent/anc-secret' });
+    expect(missing.code).toBe(1);
+    expect(missing.out).toContain('AI_PROXY_KEY_FILE');
+    expect(missing.out).not.toContain('/nonexistent');
+  });
+
+  it('compose, the installer and the example pass the settings through, off by default', () => {
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const text = readCode(file);
+      expect(text, file).toContain('AI_PROXY_USER_HEADER: ${AI_PROXY_USER_HEADER:-}');
+      expect(text, file).toContain('AI_PROXY_DAILY_PER_USER: ${AI_PROXY_DAILY_PER_USER:-0}');
+      expect(text, file).toContain('AI_PROXY_DAILY_TOTAL: ${AI_PROXY_DAILY_TOTAL:-0}');
+      expect(text, file).toContain('AI_PROXY_KEY_FILE: ${AI_PROXY_KEY_FILE:-}');
+    }
+    const example = read('infra/server.env.example');
+    for (const v of ['AI_PROXY_USER_HEADER', 'AI_PROXY_DAILY_PER_USER', 'AI_PROXY_DAILY_TOTAL', 'AI_PROXY_KEY_FILE']) {
+      expect(example).toMatch(new RegExp(`^#${v}=`, 'm'));
+    }
+    const bin = read('bin/ai-nutrition-coach');
+    expect(bin).toContain('-e AI_PROXY_USER_HEADER -e AI_PROXY_DAILY_PER_USER -e AI_PROXY_DAILY_TOTAL');
+    const run = (env, ...args) =>
+      spawnSync('sh', [join(root, 'bin/ai-nutrition-coach'), 'up', ...args], { env: { PATH, ...env }, encoding: 'utf8' });
+    for (const bad of [{ AI_PROXY_DAILY_PER_USER: 'many' }, { AI_PROXY_DAILY_TOTAL: '-1' }, { AI_PROXY_USER_HEADER: 'X_Foo;' }]) {
+      const r = run({ ...ON, ...bad });
+      expect(r.status, JSON.stringify(bad)).toBe(42);
+      expect(r.stderr).toContain(Object.keys(bad)[0]);
+    }
+    // A key file stands in for the key with the compose stacks, not in plain `docker run` mode.
+    const fileOnly = { ...ON, AI_PROXY_KEY: '', AI_PROXY_KEY_FILE: '/run/secrets/ai_proxy_key' };
+    expect(run(fileOnly).status).toBe(42);
+    // (The compose modes accept it: `--compose` is not run here, it would start Docker.)
+    expect(bin).toMatch(/\[ "\$mode" = run \] \|\| \[ -z "\$\{AI_PROXY_KEY_FILE:-\}" \]/);
+  });
+
+  it('the docs describe the header trust, the budgets (what counts, reset, storage) and the key file', () => {
+    const self = read('docs/self-host.md');
+    expect(self).toContain('### Per-person limits behind single sign-on');
+    for (const needle of [
+      'AI_PROXY_USER_HEADER',
+      'AI_PROXY_DAILY_PER_USER',
+      'AI_PROXY_DAILY_TOTAL',
+      'authResponseHeaders',
+      'overwrite',
+      'js_shared_dict_zone',
+      'evict',
+      'UTC',
+      'AI_PROXY_KEY_FILE',
+      '/run/secrets/ai_proxy_key',
+      'the file wins',
+    ]) {
+      expect(self, needle).toContain(needle);
+    }
+  });
+});
+
+describe('njs daily budgets and gates (infra/nginx/ai-proxy/ai-proxy.js charge, chatGate, txGate)', () => {
+  const NOON = Date.UTC(2026, 10, 15, 12, 0, 0);
+  // The shared dictionary of the njs runtime, as a stub: incr(key, delta, init, timeout) is atomic there.
+  const makeDict = () => {
+    const data = new Map();
+    const calls = [];
+    return {
+      data,
+      calls,
+      incr(key, delta, init, timeout) {
+        calls.push({ key, delta, init, timeout });
+        const next = (data.has(key) ? data.get(key) : init) + delta;
+        data.set(key, next);
+        return next;
+      },
+    };
+  };
+  const mod = async () => (await import('../../infra/nginx/ai-proxy/ai-proxy.js')).default;
+  const vars = (over = {}) => ({ anc_ai_daily_user: '2', anc_ai_daily_total: '0', anc_ai_user: 'alice', remote_addr: '203.0.113.9', ...over });
+
+  it('counts per person per UTC day and answers with the seconds left until midnight', async () => {
+    const { charge } = await mod();
+    const d = makeDict();
+    expect(charge(vars(), d, NOON)).toBe(0);
+    expect(charge(vars(), d, NOON)).toBe(0);
+    expect(charge(vars(), d, NOON)).toBe(12 * 3600); // 12:00 UTC: twelve hours to go
+    expect(charge(vars(), d, NOON + 3600_000)).toBe(11 * 3600);
+    // Another person is unaffected; so is the same person the next day.
+    expect(charge(vars({ anc_ai_user: 'bob' }), d, NOON)).toBe(0);
+    expect(charge(vars(), d, Date.UTC(2026, 10, 16, 0, 0, 1))).toBe(0);
+    // The last second of the day still has a positive wait.
+    expect(charge(vars({ anc_ai_user: 'carol', anc_ai_daily_user: '0', anc_ai_daily_total: '1' }), makeDict(), Date.UTC(2026, 10, 15, 23, 59, 59, 999))).toBe(0);
+  });
+
+  it('stores only a short hash of the person, under the UTC day, with an expiry', async () => {
+    const { charge } = await mod();
+    const d = makeDict();
+    charge(vars({ anc_ai_daily_total: '10' }), d, NOON);
+    const keys = [...d.data.keys()];
+    expect(keys).toHaveLength(2);
+    expect(keys.find((k) => k.endsWith('|*'))).toBe('2026-11-15|*');
+    const userKey = keys.find((k) => !k.endsWith('|*'));
+    expect(userKey).toMatch(/^2026-11-15\|[0-9a-f]{16}$/);
+    expect(keys.join(' ')).not.toMatch(/alice|203\.0\.113/);
+    for (const c of d.calls) expect(c.timeout).toBe(26 * 3600 * 1000);
+    // The same person always maps to the same key; a user and an address of the same text do not collide.
+    const d2 = makeDict();
+    charge(vars({ anc_ai_user: '', remote_addr: 'alice', anc_ai_daily_total: '10' }), d2, NOON);
+    expect([...d2.data.keys()].find((k) => !k.endsWith('|*'))).not.toBe(userKey);
+  });
+
+  it('without a person, the client address is the key (the fallback of a trusted request with no header)', async () => {
+    const { charge } = await mod();
+    const d = makeDict();
+    const v = vars({ anc_ai_user: '' });
+    expect(charge(v, d, NOON)).toBe(0);
+    expect(charge(v, d, NOON)).toBe(0);
+    expect(charge(v, d, NOON)).toBeGreaterThan(0);
+    expect(charge({ ...v, remote_addr: '198.51.100.1' }, d, NOON)).toBe(0);
+  });
+
+  it('buckets IPv6 callers by /64, for the budget and for the rate zones alike', async () => {
+    const { charge, clientBucket, client, callerId } = await mod();
+    // One /64, any spelling, any host part: one bucket.
+    const same = ['2001:db8:1:2::1', '2001:DB8:1:2:0:0:0:2', '2001:db8:1:2:ffff:ffff:ffff:ffff', '2001:0db8:0001:0002::', '2001:db8:1:2:3::9'];
+    for (const a of same) expect(clientBucket(a), a).toBe('2001:db8:1:2::/64');
+    // Compression inside the first four groups expands first.
+    expect(clientBucket('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(clientBucket('2001:db8:5::7:1')).toBe('2001:db8:5:0::/64');
+    expect(clientBucket('::1')).toBe('0:0:0:0::/64');
+    // Another /64 is another caller; IPv4 and a mapped IPv4 stay as they are.
+    expect(clientBucket('2001:db8:1:3::1')).not.toBe(clientBucket('2001:db8:1:2::1'));
+    expect(clientBucket('203.0.113.9')).toBe('203.0.113.9');
+    expect(clientBucket('::ffff:203.0.113.9')).toBe('203.0.113.9');
+    expect(clientBucket('')).toBe('');
+    expect(clientBucket('garbage:::')).toBe('garbage:::');
+    expect(client({ variables: { remote_addr: '2001:db8:1:2::77' } })).toBe('2001:db8:1:2::/64');
+    // The daily budget: addresses of one /64 share one counter, so a /64 holder is not unlimited.
+    const d = makeDict();
+    const v = (addr) => vars({ anc_ai_user: '', remote_addr: addr });
+    expect(callerId(v('2001:db8:1:2::1'))).toBe(callerId(v('2001:db8:1:2::abcd')));
+    expect(callerId(v('2001:db8:1:2::1'))).not.toBe(callerId(v('2001:db8:1:3::1')));
+    expect(charge(v('2001:db8:1:2::1'), d, NOON)).toBe(0);
+    expect(charge(v('2001:db8:1:2::2'), d, NOON)).toBe(0);
+    expect(charge(v('2001:db8:1:2::3'), d, NOON)).toBeGreaterThan(0);
+    expect(charge(v('2001:db8:1:3::1'), d, NOON)).toBe(0);
+  });
+
+  it('the instance total stops everyone and does not charge a person for a refused request', async () => {
+    const { charge } = await mod();
+    const d = makeDict();
+    const v = (user) => vars({ anc_ai_user: user, anc_ai_daily_user: '5', anc_ai_daily_total: '3' });
+    expect(charge(v('a'), d, NOON)).toBe(0);
+    expect(charge(v('b'), d, NOON)).toBe(0);
+    expect(charge(v('c'), d, NOON)).toBe(0);
+    expect(charge(v('d'), d, NOON)).toBeGreaterThan(0);
+    expect(charge(v('a'), d, NOON)).toBeGreaterThan(0);
+    // d's counter was given back (0), a's too: 1 (served) and not 2.
+    const counts = Object.fromEntries([...d.data].filter(([k]) => !k.endsWith('|*')).map(([k, n]) => [k, n]));
+    expect(Object.values(counts).sort()).toEqual([0, 1, 1, 1]);
+    // Only a total, no per-person limit.
+    const d2 = makeDict();
+    const t = (user) => vars({ anc_ai_user: user, anc_ai_daily_user: '0', anc_ai_daily_total: '2' });
+    expect(charge(t('a'), d2, NOON)).toBe(0);
+    expect(charge(t('b'), d2, NOON)).toBe(0);
+    expect(charge(t('c'), d2, NOON)).toBeGreaterThan(0);
+    expect([...d2.data.keys()].every((k) => k.endsWith('|*'))).toBe(true);
+  });
+
+  it('is a no-op when both budgets are 0 or unset: the dictionary is never touched', async () => {
+    const { charge } = await mod();
+    const d = makeDict();
+    for (const over of [{ anc_ai_daily_user: '0' }, { anc_ai_daily_user: '', anc_ai_daily_total: '' }, { anc_ai_daily_user: undefined }]) {
+      for (let i = 0; i < 5; i++) expect(charge(vars(over), d, NOON)).toBe(0);
+    }
+    expect(d.calls).toEqual([]);
+  });
+
+  describe('the gates', () => {
+    const HELLO = JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] });
+    const run = async (gate, body, v, extra = {}) => {
+      const m = await mod();
+      const sent = [];
+      const r = {
+        variables: { anc_ai_model: 'm', anc_ai_max_tokens: '2000', anc_ai_token_param: 'max_tokens', anc_ai_cache_markers: '0', ...v },
+        requestText: body,
+        requestBuffer: Buffer.from(body, 'latin1'),
+        headersIn: { 'Content-Type': 'application/json' },
+        internalRedirect: (where) => sent.push(where),
+        ...extra,
+      };
+      m[gate](r);
+      return { sent, r };
+    };
+    const withNgx = async (dict, fn) => {
+      const { createRequire } = await import('node:module');
+      const before = { ngx: globalThis.ngx, require: globalThis.require };
+      globalThis.ngx = { shared: { anc_ai_budget: dict } };
+      globalThis.require = createRequire(import.meta.url);
+      try {
+        return await fn();
+      } finally {
+        globalThis.ngx = before.ngx;
+        globalThis.require = before.require;
+      }
+    };
+
+    it('chat: a valid request goes to the proxy until the budget is spent, then to the calm 429 with a Retry-After', async () => {
+      const d = makeDict();
+      await withNgx(d, async () => {
+        const v = { anc_ai_daily_user: '2', anc_ai_daily_total: '0', anc_ai_user: 'alice' };
+        expect((await run('chatGate', HELLO, v)).sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+        expect((await run('chatGate', HELLO, v)).sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+        const third = await run('chatGate', HELLO, v);
+        expect(third.sent).toEqual(['@ai_nutrition_coach_ai_daily']);
+        expect(Number(third.r.variables.anc_ai_retry)).toBeGreaterThan(0);
+        expect(Number(third.r.variables.anc_ai_retry)).toBeLessThanOrEqual(86400);
+        expect((await run('chatGate', HELLO, { ...v, anc_ai_user: 'bob' })).sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+      });
+    });
+
+    it('chat: an invalid request is a local 400 and is NOT counted', async () => {
+      const d = makeDict();
+      await withNgx(d, async () => {
+        const v = { anc_ai_daily_user: '1', anc_ai_daily_total: '1', anc_ai_user: 'alice' };
+        for (const bad of ['not json', '{}', '{"messages":[]}', JSON.stringify({ messages: [{ role: 'tool', content: 'x' }] }), '[]', 'null']) {
+          expect((await run('chatGate', bad, v)).sent, bad).toEqual(['@ai_nutrition_coach_ai_badrequest']);
+        }
+        expect(d.calls).toEqual([]);
+        expect((await run('chatGate', HELLO, v)).sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+      });
+    });
+
+    it('chat: with no budget it never needs the dictionary (the default), and a broken dictionary fails closed when one is set', async () => {
+      const saved = globalThis.ngx;
+      globalThis.ngx = undefined;
+      try {
+        const off = await run('chatGate', HELLO, { anc_ai_daily_user: '0', anc_ai_daily_total: '0' });
+        expect(off.sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+        const unset = await run('chatGate', HELLO, {});
+        expect(unset.sent).toEqual(['@ai_nutrition_coach_chat_proxy']);
+      } finally {
+        globalThis.ngx = saved;
+      }
+      const broken = { incr: () => { throw new Error('no zone'); } };
+      await withNgx(broken, async () => {
+        const r = await run('chatGate', HELLO, { anc_ai_daily_user: '5', anc_ai_user: 'alice' });
+        expect(r.sent).toEqual(['@ai_nutrition_coach_ai_refused']);
+      });
+    });
+
+    it('voice: the same budgets count a valid recording, never an invalid one', async () => {
+      const B = '----b';
+      const body =
+        `--${B}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n` +
+        `--${B}\r\nContent-Disposition: form-data; name="file"; filename="v.webm"\r\nContent-Type: audio/webm\r\n\r\nAUDIO\r\n--${B}--\r\n`;
+      const ct = `multipart/form-data; boundary=${B}`;
+      const d = makeDict();
+      await withNgx(d, async () => {
+        const v = { anc_ai_tx_model: 'whisper-1', anc_ai_daily_user: '1', anc_ai_user: 'alice' };
+        const opts = { headersIn: { 'Content-Type': ct } };
+        expect((await run('txGate', body, v, opts)).sent).toEqual(['@ai_nutrition_coach_tx_proxy']);
+        expect((await run('txGate', body, v, opts)).sent).toEqual(['@ai_nutrition_coach_ai_daily']);
+        expect((await run('txGate', body.replace('whisper-1', 'x'), { ...v, anc_ai_user: 'bob' }, opts)).sent).toEqual(['@ai_nutrition_coach_ai_badrequest']);
+        expect(d.calls.map((c) => c.key).filter((k) => !k.endsWith('|*'))).toHaveLength(2); // alice twice, nobody else
+      });
+    });
+  });
+});
+
+describe('relay image supply chain (infra/Dockerfile.relay, publish.yml, ci.yml)', () => {
+  const relayfile = read('infra/Dockerfile.relay');
+  const publish = read('.github/workflows/publish.yml');
+  const ci = read('.github/workflows/ci.yml');
+  const runStage = relayfile.slice(relayfile.indexOf('AS run'));
+
+  it('the run stage ships only node and the bundle: no npm, yarn or corepack, still non-root', () => {
+    for (const gone of ['/usr/local/lib/node_modules', '/opt/yarn-*', '/usr/local/bin/npm', '/usr/local/bin/npx', '/usr/local/bin/corepack', '/usr/local/bin/yarn']) {
+      expect(runStage, gone).toContain(gone);
+    }
+    // They are removed in the same layer as the patch step, and the entry point and bundle path are unchanged.
+    expect(runStage).toMatch(/apk upgrade --no-cache \\\n && rm -rf/);
+    expect(runStage).toContain('COPY --from=build /work/apps/relay/dist/relay.mjs /app/relay.mjs');
+    expect(runStage).toContain('CMD ["node", "--disable-warning=ExperimentalWarning", "/app/relay.mjs"]');
+    expect(runStage).toMatch(/^USER node$/m);
+    // The build stage still has corepack (it installs with pnpm).
+    expect(relayfile.slice(0, relayfile.indexOf('AS run'))).toContain('corepack prepare');
+    // The same day-bust of the cached `apk upgrade` layer as the app image.
+    expect(relayfile).toContain('ARG APK_UPGRADE_DATE=unset');
+  });
+
+  it('publish.yml builds, scans and pushes the relay like the app image, with pinned actions', () => {
+    expect(publish).toContain('RELAY_IMAGE: ghcr.io/mmornati/ai-nutrition-coach-relay');
+    expect(publish).toContain('file: infra/Dockerfile.relay');
+    // Scanned (fixable HIGH/CRITICAL fail) before anything is pushed: both the test-image job and the push use the same name.
+    expect(publish).toContain('image-ref: ${{ env.TEST_RELAY_IMAGE }}');
+    const pushStep = publish.slice(publish.indexOf('Build the relay image (from the tested cache) and push'));
+    expect(pushStep).toContain('push: true');
+    expect(pushStep).toContain('provenance: true');
+    expect(pushStep).toContain('sbom: true');
+    expect(pushStep).toContain('tags: ${{ steps.meta.outputs.relay_tags }}');
+    expect(pushStep).toContain('org.opencontainers.image.revision=${{ steps.meta.outputs.revision }}');
+    expect(pushStep).toContain('cache-from: type=gha,scope=relay');
+    // The relay tags are the app tags under the relay's name.
+    expect(publish).toContain('relay_tags+=("$RELAY_IMAGE:${t#"$IMAGE:"}")');
+    // Every action is pinned by a full commit SHA (as in the rest of the file), none invented here.
+    for (const m of publish.matchAll(/^\s+uses: (\S+)/gm)) expect(m[1], m[1]).toMatch(/@[0-9a-f]{40}$/);
+  });
+
+  it('ci.yml builds and scans the relay image in the `image` job, with the cache scope publish.yml reads', () => {
+    expect(ci).toContain('TEST_RELAY_IMAGE: ai-nutrition-coach-relay:ci');
+    const imageJob = ci.slice(ci.indexOf('\n  image:'), ci.indexOf('\n  self-host:'));
+    expect(imageJob).toContain('file: infra/Dockerfile.relay');
+    expect(imageJob).toContain('image-ref: ${{ env.TEST_RELAY_IMAGE }}');
+    expect(imageJob).toContain('scope=relay');
+    // Pull requests read the cache and write none, like the app image.
+    expect(imageJob).toContain("cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=relay,mode=max' || '' }}");
+  });
+
+  it('compose runs the relay from a tag you can point at the published image, and builds locally otherwise', () => {
+    for (const file of ['infra/docker-compose.yml', 'infra/docker-compose.traefik.yml']) {
+      const text = read(file);
+      expect(text, file).toContain('image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}');
+      expect(text, file).toContain('ghcr.io/mmornati/ai-nutrition-coach-relay:edge');
+      expect(text, file).toContain('dockerfile: infra/Dockerfile.relay');
+    }
+    const self = read('docs/self-host.md');
+    expect(self).toContain('ghcr.io/mmornati/ai-nutrition-coach-relay');
+    expect(self).toContain('### The relay image');
+    expect(self).toContain('imagetools inspect ghcr.io/mmornati/ai-nutrition-coach-relay');
   });
 });

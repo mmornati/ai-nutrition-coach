@@ -68,3 +68,35 @@ describe('SyncOfferSource behind a sign-in', () => {
     expect(offline.getSignInRequired()).toBe(false);
   });
 });
+
+describe('SyncOfferSource when the server is down', () => {
+  it('is "unreachable" only for a server that offered before; never for one that never did', async () => {
+    localStorage.removeItem('anc.sync.offered');
+    let up = false;
+    const s = source(() =>
+      up ? new Response(JSON.stringify(config)) : new Response('', { status: 502 }),
+    );
+    await s.refresh();
+    expect(s.getUnreachable()).toBe(false); // never offered: nothing is said
+    up = true;
+    await s.refresh();
+    expect(s.getSnapshot().offered).toBe(true);
+    up = false;
+    await s.refresh();
+    expect(s.getSnapshot().offered).toBe(false);
+    expect(s.getUnreachable()).toBe(true);
+    expect(s.getSignInRequired()).toBe(false);
+    up = true;
+    await s.refresh();
+    expect(s.getUnreachable()).toBe(false);
+    localStorage.removeItem('anc.sync.offered');
+  });
+
+  it('a 404 forgets the offer: the server stopped offering', async () => {
+    localStorage.setItem('anc.sync.offered', '1');
+    const s = source(() => new Response('', { status: 404 }));
+    await s.refresh();
+    expect(s.getUnreachable()).toBe(false);
+    expect(localStorage.getItem('anc.sync.offered')).toBeNull();
+  });
+});

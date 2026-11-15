@@ -109,7 +109,9 @@ In an encrypted database inside your browser, on your device. The server holds n
 ### What if I forget my passphrase?
 
 It cannot be recovered, by anyone. The unlock screen offers *Erase and start over*. If you saved an encrypted backup,
-you can restore it into a new store with the backup's passphrase.
+you can restore it into a new store with the backup's passphrase. For a copy on a server, the **recovery key** you were
+shown when you created it lets you set a new passphrase for that copy; without it, a forgotten passphrase for the copy
+means it cannot be opened.
 
 ### Can I use it on my phone and my laptop?
 
@@ -138,7 +140,10 @@ calls happen only when you use them, and nothing goes to an AI before you say ye
 
 ### Can several people share one install?
 
-Yes, each on their own device or browser profile, with their own passphrase and history. People who share one browser
+Yes, each on their own device or browser profile, with their own passphrase and history. On a server shared by a family,
+each person can keep an encrypted copy with an invite from whoever runs it, and the AI can have a per-person daily limit
+([Sharing the instance](./self-host.md#sharing-the-instance-with-other-people)). A copy is not tied to a sign-in identity, and a
+browser holds one profile. People who share one browser
 profile share one history. See [Back up, export, erase](./guide/your-data.md#two-things-worth-knowing).
 
 ## Running it

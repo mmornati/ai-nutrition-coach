@@ -11,8 +11,13 @@ import {
   decodeBase64Url,
   etagOf,
   HANDLE_PATTERN,
+  parseChangePassphraseRequest,
+  parseDeleteVaultRequest,
   parseLoginRequest,
   parsePutVaultRequest,
+  parseRevokeRequest,
+  parseSetRecoveryRequest,
+  type ProofOf,
   parseSaltRequest,
   parseSignupRequest,
   serializeRelayEnvelope,
@@ -256,7 +261,7 @@ export function createRelay(deps: RelayDeps): RequestListener {
   const ipLimiter = new RateLimiter();
   const signups = new RateLimiter({ whenFull: 'refuse' });
   const writeLimiter = new RateLimiter();
-  // Failed logins, in three layers; every one counts a known and an unknown handle identically.
+  // Failed proofs, in three layers; every one counts a known and an unknown handle identically.
   // - per (client, handle), the client being its address bucketed by /48 for IPv6: the hard
   //   lockout. Only the client that failed is locked, so nobody can lock a person out of their own
   //   handle from somewhere else. This table forgets its oldest entries when full; flushing it
@@ -266,13 +271,37 @@ export function createRelay(deps: RelayDeps): RequestListener {
   //   "guess budget"): the cap that makes distributed guessing infeasible. It is a fixed array of
   //   counters indexed by a secret-keyed hash of the handle (see `GuessBudget`), so nothing can
   //   flush it, it never refuses an unrelated handle, and known and unknown handles share the
-  //   same machinery. A valid device token of the same vault is exempt from this layer only.
-  const failedByClient = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
-  const failedByHandle = new RateLimiter({ maxKeys: tuning.limiterMaxKeys });
-  const guessBudget = new GuessBudget(tuning.guessSlots);
-  // Logins being decided right now, by (client, handle): one at a time, so a parallel burst cannot
-  // all pass the lockout check before the first failure is recorded.
-  const loginsInFlight = new Set<string>();
+  //   same machinery. A valid device token of the same vault is exempt from this layer only (login realm).
+  // Four realms keep the secrets and the doors apart, each with its own tables: `login` (the
+  // passphrase, at the front door), `proof` (the passphrase again, shown by a device token that
+  // wants to change or delete something), `recovery` (the recovery key at the front door) and
+  // `recoveryProof` (the recovery key shown by a device token). The proof realms count per device
+  // token, not per handle: a thief with a stolen token burns only that token's own allowance and
+  // lockout, never another device's, never the owner's logins. The recovery realms have NO daily
+  // per-handle budget at all (the recovery key is 160 bits random, so a global cap would add no
+  // safety and would only let strangers lock the owner out of /recover): they keep the per-client
+  // lockout and the delay. Guessing one secret never costs another's allowance.
+  interface Realm {
+    readonly name: string;
+    readonly failedByClient: RateLimiter;
+    readonly failedByHandle: RateLimiter;
+    readonly budget: GuessBudget;
+    /** Proofs being decided right now, by (client, handle). */
+    readonly inFlight: Set<string>;
+  }
+  const makeRealm = (name: string): Realm => ({
+    name,
+    failedByClient: new RateLimiter({ maxKeys: tuning.limiterMaxKeys }),
+    failedByHandle: new RateLimiter({ maxKeys: tuning.limiterMaxKeys }),
+    budget: new GuessBudget(tuning.guessSlots),
+    inFlight: new Set<string>(),
+  });
+  const realms = {
+    login: makeRealm(''),
+    proof: makeRealm('proof'),
+    recovery: makeRealm('recovery'),
+    recoveryProof: makeRealm('recovery-proof'),
+  };
   // Uploads being read right now: each can hold tens of MB in memory. Signups (anyone) and vault
   // writes (a device token) have separate pools so one cannot starve the other, and one client
   // address holds at most `UPLOADS_PER_CLIENT` slots of a pool.
@@ -286,14 +315,21 @@ export function createRelay(deps: RelayDeps): RequestListener {
   const bodyCap = syncBodyCap(config.maxVaultBytes);
   // What an unknown handle's login is compared against, so it costs the same as a known one.
   const dummyDigest = keys.authDigest('', new Uint8Array(SYNC_FIELD_BYTES.authKey));
+  const dummyRecovery = keys.recoveryDigest('', new Uint8Array(SYNC_FIELD_BYTES.authKey));
 
-  const offer: SyncConfigBody = {
+  /**
+   * What a signup is told. `invite` with no static code is open to whoever holds a stored invite:
+   * it is `closed` for as long as there is none left to use (the offer says so honestly).
+   */
+  const signupMode = (): SyncConfigBody['signup'] =>
+    config.signupNeedsCodes ? (store.usableInviteCount() > 0 ? 'invite' : 'closed') : config.signup;
+  const offer = (): SyncConfigBody => ({
     enabled: true,
     v: 1,
     identity: 'handle',
-    signup: config.signup,
+    signup: signupMode(),
     maxVaultMb: Math.round(config.maxVaultBytes / (1024 * 1024)),
-  };
+  });
 
   const ipLimit = (req: IncomingMessage): Reply | null => {
     const decision = ipLimiter.hit(
@@ -304,27 +340,61 @@ export function createRelay(deps: RelayDeps): RequestListener {
     );
     return decision.allowed ? null : limited(decision.retryAfterSeconds);
   };
-  const failureKey = (req: IncomingMessage, handle: string): string =>
-    `${clientKey(req, config.trustProxy, 48)}|${handle}`;
-  /** Is this client locked out of this handle by its own failed logins? Looking is free. */
-  const handleLocked = (req: IncomingMessage, handle: string): Reply | null => {
-    const decision = failedByClient.peek(
-      failureKey(req, handle),
-      config.rateHandlePerMinute,
-      clock(),
-    );
-    return decision.allowed ? null : limited(decision.retryAfterSeconds);
-  };
-  /** The delay table only: the guesses themselves are counted up front (see `login`). */
-  const noteFailedLogin = (handle: string): void => {
-    failedByHandle.hit(handle, Number.MAX_SAFE_INTEGER, DELAY_WINDOW_MS, clock());
-  };
-  /** Slows every login on a handle that is being guessed at, its owner's too, but never refuses. */
-  const loginDelay = (handle: string): number => {
-    const excess = failedByHandle.count(handle, clock()) - FREE_FAILURES;
+  const failureKey = (req: IncomingMessage, scope: string): string =>
+    `${clientKey(req, config.trustProxy, 48)}|${scope}`;
+  /** Slows every proof on a handle that is being guessed at, its owner's too, but never refuses. */
+  const loginDelay = (realm: Realm, handle: string): number => {
+    const excess = realm.failedByHandle.count(handle, clock()) - FREE_FAILURES;
     if (excess <= 0) return 0;
     return Math.min(MAX_LOGIN_DELAY_MS, BASE_LOGIN_DELAY_MS * 2 ** Math.min(excess, 10));
   };
+
+  /**
+   * Decides one proof of a secret (`matches` compares it in constant time with the stored one, or
+   * with a dummy when there is nothing stored) under the limits of its realm. Everything up to the
+   * first `await` is synchronous: the attempt is checked AND counted as a failure before anything
+   * else can run, then given back if the proof turns out correct. (Counting after the verdict, past
+   * a delay, let a parallel burst all pass the check first.) `null` means the proof was right.
+   */
+  async function guarded(
+    req: IncomingMessage,
+    realm: Realm,
+    handle: string,
+    exempt: boolean,
+    matches: () => boolean,
+    scope: string = handle,
+  ): Promise<Reply | null> {
+    // `scope` is what the lockout and the daily budget count against: the handle by default, or
+    // (proof realms) one device of it, so one device's wrong proofs never block another's.
+    const key = failureKey(req, scope);
+    // One proof at a time per (client, handle); the others are told what a lockout says.
+    if (realm.inFlight.has(key)) return limited(1);
+    const lock = realm.failedByClient.peek(key, config.rateHandlePerMinute, clock());
+    if (!lock.allowed) return limited(lock.retryAfterSeconds);
+    const slot = keys.guessSlot(scope, tuning.guessSlots, realm.name);
+    if (!exempt) {
+      const budget = realm.budget.reserve(slot, config.rateHandlePerDay, GUESS_WINDOW_MS, clock());
+      if (!budget.allowed) return limited(budget.retryAfterSeconds);
+    }
+    realm.failedByClient.hit(key, config.rateHandlePerMinute, MINUTE, clock());
+    realm.inFlight.add(key);
+    try {
+      // Before the verdict, for every proof on the handle, so a guesser is slowed and known and
+      // unknown handles cannot be told apart by it.
+      const delay = loginDelay(realm, handle);
+      if (delay > 0) await tuning.sleep(delay);
+      if (!matches()) {
+        realm.failedByHandle.hit(handle, Number.MAX_SAFE_INTEGER, DELAY_WINDOW_MS, clock());
+        return fail('noMatch');
+      }
+      // A correct proof is not a failure: give the reservations back.
+      realm.failedByClient.refund(key, clock());
+      if (!exempt) realm.budget.refund(slot, GUESS_WINDOW_MS, clock());
+      return null;
+    } finally {
+      realm.inFlight.delete(key);
+    }
+  }
 
   /**
    * Runs `work` holding one of a few upload slots, or answers 503 when they are all taken. The
@@ -385,67 +455,53 @@ export function createRelay(deps: RelayDeps): RequestListener {
     return json(200, { salt: row?.salt ?? keys.fakeSalt(body.value.handle), kdf: SYNC_KDF });
   }
 
-  function session(row: VaultRow, status: number): Reply {
+  function session(
+    row: VaultRow,
+    status: number,
+    label: string | undefined,
+    wrappedKey: string = row.wrappedKey,
+  ): Reply {
     const token = newToken();
-    store.addDevice(row.rowId, keys.tokenDigest(token), clock(), config.maxDevicesPerVault);
-    return json(status, {
-      token,
-      vaultId: row.vaultId,
-      wrappedKey: row.wrappedKey,
-      version: row.version,
-    });
+    store.addDevice(row.rowId, keys.tokenDigest(token), clock(), config.maxDevicesPerVault, label);
+    return json(status, { token, vaultId: row.vaultId, wrappedKey, version: row.version });
   }
 
-  async function login(req: IncomingMessage): Promise<Reply> {
+  /** The front door: `realm` login (passphrase) or recovery (recovery key); one body, one answer. */
+  async function enter(req: IncomingMessage, kind: 'login' | 'recovery'): Promise<Reply> {
     const blocked = ipLimit(req);
     if (blocked) return blocked;
     const body = await parseBody(req, SYNC_SMALL_BODY_BYTES, parseLoginRequest);
     if ('reply' in body) return body.reply;
-    const { handle, authKey } = body.value;
-
-    // Everything up to the first `await` below is synchronous: the attempt is checked AND counted
-    // as a failure before anything else can run, then given back if the login turns out correct.
-    // (Counting after the verdict, past a delay, let a parallel burst all pass the check first.)
-    const key = failureKey(req, handle);
-    // One login at a time per (client, handle); the others are told what a lockout says.
-    if (loginsInFlight.has(key)) return limited(1);
-    const locked = handleLocked(req, handle);
-    if (locked) return locked;
+    const { handle, authKey, label } = body.value;
     const row = store.vaultByHandle(handle);
-    // A valid device token of THIS vault is exempt from the global per-handle cap (never from the
-    // per-client lockout): the owner's own devices are not denied while a stranger guesses. Any
-    // other token, or none, changes nothing, for a known handle and an unknown one alike.
+    // A valid device token of THIS vault is exempt from the global per-handle cap of the passphrase
+    // login (never from the per-client lockout): the owner's own devices are not denied while a
+    // stranger guesses. Any other token, or none, changes nothing, for a known handle and an
+    // unknown one alike. The recovery key has no daily budget at all (see the realms above).
     const token = bearer(req);
     const tokenVault =
-      token === null ? null : store.vaultForDevice(keys.tokenDigest(token), clock());
-    const exempt = row !== null && tokenVault === row.rowId;
-    const slot = keys.guessSlot(handle, tuning.guessSlots);
-    if (!exempt) {
-      const budget = guessBudget.reserve(slot, config.rateHandlePerDay, GUESS_WINDOW_MS, clock());
-      if (!budget.allowed) return limited(budget.retryAfterSeconds);
-    }
-    failedByClient.hit(key, config.rateHandlePerMinute, MINUTE, clock());
-    loginsInFlight.add(key);
-    try {
-      // Before the verdict, for every login on the handle, so a guesser is slowed and known and
-      // unknown handles cannot be told apart by it.
-      const delay = loginDelay(handle);
-      if (delay > 0) await tuning.sleep(delay);
-      const proof = keys.authDigest(handle, decodeBase64Url(authKey) ?? new Uint8Array(0));
-      const matches = sameDigest(proof, row?.authDigest ?? dummyDigest);
-      // One answer for "no such handle" and "wrong passphrase".
-      if (row === null || !matches) {
-        noteFailedLogin(handle);
-        return fail('noMatch');
-      }
-      // A correct login is not a failure: give the reservations back.
-      failedByClient.refund(key, clock());
-      if (!exempt) guessBudget.refund(slot, GUESS_WINDOW_MS, clock());
-      return session(row, 200);
-    } finally {
-      loginsInFlight.delete(key);
-    }
+      token === null
+        ? null
+        : store.vaultForDevice(keys.tokenDigest(token), clock(), config.tokenMaxIdleMs);
+    const exempt = kind === 'login' && row !== null && tokenVault === row.rowId;
+    const proof = decodeBase64Url(authKey) ?? new Uint8Array(0);
+    // The recovery key has no daily per-handle budget (see the realms above): always exempt from it.
+    const verdict = await guarded(req, realms[kind], handle, exempt || kind === 'recovery', () =>
+      kind === 'login'
+        ? sameDigest(keys.authDigest(handle, proof), row?.authDigest ?? dummyDigest)
+        : // Without a recovery key (or without the handle) a dummy is compared: the same work, "no match".
+          sameDigest(keys.recoveryDigest(handle, proof), row?.recAuthDigest ?? dummyRecovery) &&
+          row?.recAuthDigest != null,
+    );
+    if (verdict !== null) return verdict;
+    if (row === null) return fail('noMatch');
+    return kind === 'login'
+      ? session(row, 200, label)
+      : session(row, 200, label, row.recWrappedKey ?? row.wrappedKey);
   }
+
+  const login = (req: IncomingMessage): Promise<Reply> => enter(req, 'login');
+  const recover = (req: IncomingMessage): Promise<Reply> => enter(req, 'recovery');
 
   async function signup(req: IncomingMessage): Promise<Reply> {
     const blocked = ipLimit(req);
@@ -457,7 +513,8 @@ export function createRelay(deps: RelayDeps): RequestListener {
       clock(),
     );
     if (!perHour.allowed) return limited(perHour.retryAfterSeconds);
-    if (config.signup === 'closed') return fail('signupClosed');
+    const mode = signupMode();
+    if (mode === 'closed') return fail('signupClosed');
     // Before a single byte of the body is read: a full server must not buffer megabytes to say so.
     if (store.vaultCount() >= config.maxVaults) return fail('serverFull');
     return withUploadSlot('signup', clientKey(req, config.trustProxy), async () => {
@@ -466,11 +523,16 @@ export function createRelay(deps: RelayDeps): RequestListener {
       );
       if ('reply' in body) return body.reply;
       const request = body.value;
-      if (config.signup === 'invite') {
+      let inviteDigest: Buffer | undefined;
+      if (mode === 'invite') {
         const given = request.invite ?? '';
-        // Every code is compared, so the time does not say which one was close.
-        const valid = config.inviteCodes.map((code) => equalText(code, given)).includes(true);
-        if (!valid) return fail('inviteInvalid');
+        // Every static code is compared, so the time does not say which one was close. A stored
+        // invite is found by its keyed hash and is spent together with the vault (single use).
+        const fixed = config.inviteCodes.map((code) => equalText(code, given)).includes(true);
+        const digest = keys.inviteDigest(given);
+        const stored = given !== '' && store.usableInvite(digest);
+        if (!fixed && !stored) return fail('inviteInvalid');
+        if (!fixed) inviteDigest = digest;
       }
       // Asked again: the vaults could have filled up while the body was arriving.
       if (store.vaultCount() >= config.maxVaults) return fail('serverFull');
@@ -486,12 +548,23 @@ export function createRelay(deps: RelayDeps): RequestListener {
           wrappedKey: request.wrappedKey,
           envelope: serializeRelayEnvelope(request.envelope),
           size: Math.floor((request.envelope.ct.length * 3) / 4),
+          ...(request.recovery === undefined
+            ? {}
+            : {
+                recAuthDigest: keys.recoveryDigest(
+                  request.handle,
+                  decodeBase64Url(request.recovery.authKey) ?? new Uint8Array(0),
+                ),
+                recWrappedKey: request.recovery.wrappedKey,
+              }),
+          ...(inviteDigest === undefined ? {} : { inviteDigest }),
         },
         clock(),
       );
       if (created === 'handleTaken') return fail('handleTaken');
+      if (created === 'inviteInvalid') return fail('inviteInvalid');
       const row = store.vaultByHandle(request.handle);
-      return row === null ? fail('unavailable') : session(row, 201);
+      return row === null ? fail('unavailable') : session(row, 201, request.label);
     });
   }
 
@@ -499,9 +572,141 @@ export function createRelay(deps: RelayDeps): RequestListener {
   function authenticate(req: IncomingMessage): VaultRow | Reply {
     const token = bearer(req);
     if (token === null) return fail('unauthorized');
-    const rowId = store.vaultForDevice(keys.tokenDigest(token), clock());
+    const rowId = store.vaultForDevice(keys.tokenDigest(token), clock(), config.tokenMaxIdleMs);
     const row = rowId === null ? null : store.vaultByRowId(rowId);
     return row === null ? fail('unauthorized') : row;
+  }
+
+  /** What a token-authenticated proof is counted against: this vault's device that made the call. */
+  const deviceScope = (req: IncomingMessage, row: VaultRow): string =>
+    `${row.handle}|${keys.tokenDigest(bearer(req) ?? '').toString('hex')}`;
+
+  /** The proof a request carries, checked in the realm of its kind. `null`: it is right. */
+  async function prove(req: IncomingMessage, row: VaultRow, proof: ProofOf): Promise<Reply | null> {
+    const given = decodeBase64Url(proof.authKey) ?? new Uint8Array(0);
+    if (proof.kind === 'passphrase') {
+      return guarded(
+        req,
+        realms.proof,
+        row.handle,
+        false,
+        () => sameDigest(keys.authDigest(row.handle, given), row.authDigest),
+        deviceScope(req, row),
+      );
+    }
+    return guarded(
+      req,
+      realms.recoveryProof,
+      row.handle,
+      true,
+      () =>
+        sameDigest(keys.recoveryDigest(row.handle, given), row.recAuthDigest ?? dummyRecovery) &&
+        row.recAuthDigest !== null,
+      deviceScope(req, row),
+    );
+  }
+
+  /** A token-authenticated, small, rate-limited request: the vault, the parsed body, and the digest of the token. */
+  async function accountCall<T>(
+    req: IncomingMessage,
+    parse: (input: unknown) => RequestParse<T>,
+  ): Promise<{ row: VaultRow; value: T; current: Buffer } | { reply: Reply }> {
+    const row = authenticate(req);
+    if (isReply(row)) return { reply: row };
+    const writes = writeLimiter.hit(`a${row.rowId}`, config.rateWritePerMinute, MINUTE, clock());
+    if (!writes.allowed) return { reply: limited(writes.retryAfterSeconds) };
+    const body = await parseBody(req, SYNC_SMALL_BODY_BYTES, parse);
+    if ('reply' in body) return body;
+    return { row, value: body.value, current: keys.tokenDigest(bearer(req) ?? '') };
+  }
+
+  /** What the owner sees about the vault's account: the devices, the recovery key, the version before. */
+  function account(req: IncomingMessage): Reply {
+    const row = authenticate(req);
+    if (isReply(row)) return row;
+    const token = keys.tokenDigest(bearer(req) ?? '');
+    return json(200, {
+      hasRecovery: row.recAuthDigest !== null,
+      previousVersion: row.previousVersion,
+      devices: store.listDevices(row.rowId).map((d) => ({
+        id: d.id,
+        label: d.label,
+        createdAt: d.createdAt,
+        lastSeenAt: d.lastSeenAt,
+        current: sameDigest(d.tokenDigest, token),
+      })),
+    });
+  }
+
+  async function revokeDevices(req: IncomingMessage): Promise<Reply> {
+    const call = await accountCall(req, parseRevokeRequest);
+    if ('reply' in call) return call.reply;
+    const revoked =
+      'others' in call.value
+        ? store.revokeOtherDevices(call.row.rowId, call.current)
+        : store.revokeDevice(call.row.rowId, call.value.id);
+    return json(200, { revoked });
+  }
+
+  /**
+   * Swaps salt, proof and wrapped key in one step. Needs the device token AND a proof of the
+   * current passphrase (or of the recovery key): a stolen token alone cannot change it. Every other
+   * device token is revoked; the caller's stays.
+   */
+  async function changePassphrase(req: IncomingMessage): Promise<Reply> {
+    const call = await accountCall(req, parseChangePassphraseRequest);
+    if ('reply' in call) return call.reply;
+    const { row, value, current } = call;
+    const verdict = await prove(req, row, value.proof);
+    if (verdict !== null) return verdict;
+    const revoked = store.changeCredentials(
+      row.rowId,
+      current,
+      {
+        salt: value.salt,
+        authDigest: keys.authDigest(
+          row.handle,
+          decodeBase64Url(value.authKey) ?? new Uint8Array(0),
+        ),
+        wrappedKey: value.wrappedKey,
+      },
+      clock(),
+    );
+    return json(200, { revoked });
+  }
+
+  /** Sets, rotates or removes the recovery key; only with a proof of the passphrase. */
+  async function setRecovery(req: IncomingMessage): Promise<Reply> {
+    const call = await accountCall(req, parseSetRecoveryRequest);
+    if ('reply' in call) return call.reply;
+    const { row, value } = call;
+    if (value.proof.kind !== 'passphrase') return fail('invalidRequest');
+    const verdict = await prove(req, row, value.proof);
+    if (verdict !== null) return verdict;
+    store.setRecovery(
+      row.rowId,
+      value.recovery === null
+        ? null
+        : {
+            authDigest: keys.recoveryDigest(
+              row.handle,
+              decodeBase64Url(value.recovery.authKey) ?? new Uint8Array(0),
+            ),
+            wrappedKey: value.recovery.wrappedKey,
+          },
+    );
+    return json(200, { ok: true });
+  }
+
+  /** Removes the vault, both envelopes and every device. Needs the token and the passphrase. */
+  async function deleteVault(req: IncomingMessage): Promise<Reply> {
+    const call = await accountCall(req, parseDeleteVaultRequest);
+    if ('reply' in call) return call.reply;
+    if (call.value.proof.kind !== 'passphrase') return fail('invalidRequest');
+    const verdict = await prove(req, call.row, call.value.proof);
+    if (verdict !== null) return verdict;
+    store.deleteVault(call.row.rowId);
+    return json(200, { ok: true });
   }
 
   const isReply = (value: VaultRow | Reply): value is Reply => 'status' in value;
@@ -559,6 +764,9 @@ export function createRelay(deps: RelayDeps): RequestListener {
         serializeRelayEnvelope(envelope),
         Math.floor((envelope.ct.length * 3) / 4),
         clock(),
+        config.keepPreviousMs,
+        // Checked inside the write: a token revoked while this body was uploading stores nothing.
+        keys.tokenDigest(bearer(req) ?? ''),
       );
       if (result.kind === 'conflict') {
         return result.version === null ? fail('unauthorized') : conflict(result.version);
@@ -589,11 +797,23 @@ export function createRelay(deps: RelayDeps): RequestListener {
       case '/sync/health':
         return allow('GET', 'HEAD') ?? json(200, { ok: true });
       case SYNC_CONFIG_PATH:
-        return allow('GET', 'HEAD') ?? json(200, offer);
+        return allow('GET', 'HEAD') ?? json(200, offer());
       case `${SYNC_API_BASE}/salt`:
         return allow('POST') ?? (await salt(req));
       case `${SYNC_API_BASE}/login`:
         return allow('POST') ?? (await login(req));
+      case `${SYNC_API_BASE}/recover`:
+        return allow('POST') ?? (await recover(req));
+      case `${SYNC_API_BASE}/account`:
+        return allow('GET') ?? account(req);
+      case `${SYNC_API_BASE}/passphrase`:
+        return allow('POST') ?? (await changePassphrase(req));
+      case `${SYNC_API_BASE}/recovery`:
+        return allow('POST') ?? (await setRecovery(req));
+      case `${SYNC_API_BASE}/devices/revoke`:
+        return allow('POST') ?? (await revokeDevices(req));
+      case `${SYNC_API_BASE}/delete`:
+        return allow('POST') ?? (await deleteVault(req));
       case `${SYNC_API_BASE}/signup`:
         return allow('POST') ?? (await signup(req));
       case `${SYNC_API_BASE}/vault`:

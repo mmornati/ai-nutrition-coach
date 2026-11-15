@@ -13,13 +13,21 @@ import {
   type VaultSnapshot,
   type VaultStore,
 } from '@anc/core';
-import { validateNewPassphrase, type PassphraseIssue } from '../../storage/passphrase';
+import { validateNewPassphrase } from '../../storage/passphrase';
+import {
+  checkServerPassphrase,
+  type ServerPassphraseIssue,
+} from '../../storage/passphrase-strength';
 import type { KeyValueStore } from '../../storage/key-value-store';
 import type { VaultKdf } from '../vault/kdf';
 import type { RelayClient, RelayError } from './client';
 import { writeConnection, type RelayConnection } from './connection';
 import { writeHeld } from './ledger';
 import {
+  deriveRecoveryKeys,
+  formatRecoveryKey,
+  newRecoveryKeyBytes,
+  wrapWithRecovery,
   derivePassphraseKeys,
   importVaultKey,
   newVaultKeyBytes,
@@ -31,7 +39,7 @@ import {
 
 export type CreateVaultFailure =
   | 'invalidHandle'
-  | { readonly passphrase: PassphraseIssue }
+  | { readonly passphrase: ServerPassphraseIssue }
   | 'handleTaken'
   | 'signupClosed'
   | 'inviteInvalid'
@@ -45,7 +53,13 @@ export type CreateVaultFailure =
   | 'storeProblem';
 
 export type CreateVaultResult =
-  | { readonly kind: 'created'; readonly connection: RelayConnection; readonly dirty: boolean }
+  | {
+      readonly kind: 'created';
+      readonly connection: RelayConnection;
+      readonly dirty: boolean;
+      /** The recovery key, grouped for reading: shown once, kept nowhere. */
+      readonly recoveryKey: string;
+    }
   | {
       readonly kind: 'failed';
       readonly failure: CreateVaultFailure;
@@ -82,13 +96,16 @@ export async function createServerVault(deps: {
   readonly handle: string;
   readonly passphrase: string;
   readonly invite?: string | undefined;
+  /** What this device is called in the owner's device list. */
+  readonly label?: string | undefined;
   readonly maxVaultBytes: number;
   readonly random?: RandomSource;
 }): Promise<CreateVaultResult> {
   const random = deps.random ?? platformRandom;
   const handle = normalizeHandle(deps.handle);
   if (handle === null) return failed('invalidHandle');
-  const issue = validateNewPassphrase(deps.passphrase);
+  const issue =
+    validateNewPassphrase(deps.passphrase) ?? checkServerPassphrase(deps.passphrase, { handle });
   if (issue !== null) return failed({ passphrase: issue });
 
   const read = await deps.vault.readSnapshot();
@@ -104,8 +121,12 @@ export async function createServerVault(deps: {
   }
   const vaultKeyBytes = newVaultKeyBytes(random);
   const vaultId = encodeBase64Url(random(ENVELOPE_LIMITS.vaultIdBytes));
+  const recoveryBytes = newRecoveryKeyBytes(random);
   try {
     const wrappedKey = await wrapVaultKey(keys.kek, vaultId, vaultKeyBytes, random);
+    // The second way in: the same vault key, wrapped under a key derived from the recovery key.
+    const recovery = await deriveRecoveryKeys(handle, recoveryBytes);
+    const recoveryWrapped = await wrapWithRecovery(recovery.kek, vaultId, vaultKeyBytes, random);
     const sealed = await sealSnapshot(
       await importVaultKey(vaultKeyBytes),
       vaultId,
@@ -123,7 +144,10 @@ export async function createServerVault(deps: {
       wrappedKey,
       envelope: sealed.envelope,
       ...(deps.invite === undefined || deps.invite === '' ? {} : { invite: deps.invite }),
+      ...(deps.label ? { label: deps.label } : {}),
+      recovery: { authKey: encodeBase64Url(recovery.authKey), wrappedKey: recoveryWrapped },
     };
+    recovery.authKey.fill(0);
     const response = await deps.client.signup(request);
     if (response.kind === 'error')
       return failed(asFailure(response.error), response.retryAfterSeconds);
@@ -147,11 +171,12 @@ export async function createServerVault(deps: {
     }
     // The relay was just given `uploaded`: those plates are on the server.
     await writeHeld(deps.kv, uploaded);
-    return { kind: 'created', connection, dirty };
+    return { kind: 'created', connection, dirty, recoveryKey: formatRecoveryKey(recoveryBytes) };
   } catch {
     return failed('unavailable');
   } finally {
     keys.authKey.fill(0);
     vaultKeyBytes.fill(0);
+    recoveryBytes.fill(0);
   }
 }

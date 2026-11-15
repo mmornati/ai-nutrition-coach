@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import type { PlateSummary, OpenServerCopyFailure, RestoreFromServerResult } from '../../sync';
-import { findFailureText, foundText } from '../../sync';
+import type {
+  AccountFailure,
+  PlateSummary,
+  OpenServerCopyFailure,
+  RestoreFromServerResult,
+} from '../../sync';
+import { accountFailureText, findFailureText, foundText } from '../../sync';
 import { Button, TextField } from '../../components/primitives';
 import { useLocale, useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import type { UnlockOutcome } from '../../storage';
@@ -13,7 +18,9 @@ export type FindOnServerResult =
       readonly kind: 'failed';
       readonly failure: OpenServerCopyFailure;
       readonly retryAfterSeconds?: number;
-    };
+    }
+  /** With the recovery key: what went wrong. */
+  | { readonly kind: 'failedAccount'; readonly failure: AccountFailure };
 
 function outcomeText(outcome: UnlockOutcome, all: Strings): string {
   switch (outcome.kind) {
@@ -45,6 +52,8 @@ function restoreText(result: RestoreFromServerResult, all: Strings): string | nu
       return all.server.storeProblem;
     case 'storeProblemNotRemoved':
       return all.server.storeProblemNotRemoved;
+    case 'accountFailed':
+      return accountFailureText(result.failure, all);
   }
 }
 
@@ -61,7 +70,11 @@ export function RestoreFromServerScreen({
   onCancel,
   onBack,
 }: {
-  readonly onFind: (handle: string, passphrase: string) => Promise<FindOnServerResult>;
+  readonly onFind: (
+    handle: string,
+    passphrase: string,
+    recoveryKey?: string,
+  ) => Promise<FindOnServerResult>;
   readonly onRestore: () => Promise<RestoreFromServerResult>;
   /** Drops the copy that was found (the person changed their mind). */
   readonly onCancel: () => void;
@@ -72,6 +85,9 @@ export function RestoreFromServerScreen({
   const { locale } = useLocale();
   const [handle, setHandle] = useState('');
   const [passphrase, setPassphrase] = useState('');
+  // "I lost my passphrase": the recovery key opens the copy and sets a new passphrase.
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState('');
   const [found, setFound] = useState<{
     readonly summary: PlateSummary;
     readonly at: number;
@@ -93,10 +109,15 @@ export function RestoreFromServerScreen({
     setBusy(true);
     let next: Message | null;
     try {
-      const result = await onFind(handle, passphrase);
+      const result = await (recovering
+        ? onFind(handle, passphrase, recoveryKey)
+        : onFind(handle, passphrase));
       if (result.kind === 'found') {
         setFound({ summary: result.summary, at: Date.now() });
         next = null;
+      } else if (result.kind === 'failedAccount') {
+        const failure = result.failure;
+        next = (a) => accountFailureText(failure, a);
       } else {
         const failure = result.failure;
         next = (a) => findFailureText(failure, a.server);
@@ -105,6 +126,7 @@ export function RestoreFromServerScreen({
       next = (a) => a.server.unavailable;
     } finally {
       setPassphrase('');
+      setRecoveryKey('');
     }
     setBusy(false);
     setMessage(next);
@@ -147,10 +169,24 @@ export function RestoreFromServerScreen({
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
           />
+          {recovering && (
+            <>
+              <p className="text-body text-ink-soft">{s.recExplainConnect}</p>
+              <TextField
+                label={s.recKeyLabel}
+                autoComplete="off"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                value={recoveryKey}
+                onChange={(e) => setRecoveryKey(e.target.value)}
+              />
+            </>
+          )}
           <TextField
-            label={s.joinPassphraseLabel}
+            label={recovering ? s.recNewLabel : s.joinPassphraseLabel}
             type="password"
-            autoComplete="current-password"
+            autoComplete={recovering ? 'new-password' : 'current-password'}
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
@@ -158,8 +194,20 @@ export function RestoreFromServerScreen({
             onChange={(e) => setPassphrase(e.target.value)}
           />
           <Button type="submit" fullWidth busy={busy} busyLabel={s.joinWorking}>
-            {s.restoreFind}
+            {recovering ? s.recAction : s.restoreFind}
           </Button>
+          <button
+            type="button"
+            className="font-display text-label text-ink-soft min-h-12 self-start underline"
+            onClick={() => {
+              setRecovering((r) => !r);
+              setPassphrase('');
+              setRecoveryKey('');
+              setMessage(null);
+            }}
+          >
+            {recovering ? s.recUsePassphrase : s.recUseLink}
+          </button>
         </form>
       ) : (
         <div className="flex flex-col gap-4">

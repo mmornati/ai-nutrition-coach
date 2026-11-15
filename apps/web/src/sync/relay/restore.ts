@@ -14,6 +14,7 @@ import {
 import type { KeyValueStore } from '../../storage/key-value-store';
 import { validateNewPassphrase, type PassphraseIssue } from '../../storage/passphrase';
 import type { UnlockOutcome } from '../../storage/store-controller';
+import type { AccountFailure } from './account';
 import { writeConnection, type RelayConnection } from './connection';
 import { writeHeld } from './ledger';
 import type { OpenedServerCopy } from './server-copy';
@@ -25,7 +26,9 @@ export type RestoreFromServerResult =
   | { readonly kind: 'clockAhead' }
   | { readonly kind: 'createFailed'; readonly outcome: UnlockOutcome }
   | { readonly kind: 'storeProblem' }
-  | { readonly kind: 'storeProblemNotRemoved' };
+  | { readonly kind: 'storeProblemNotRemoved' }
+  /** Found with the recovery key, but setting the new passphrase on the server failed; nothing was created. */
+  | { readonly kind: 'accountFailed'; readonly failure: AccountFailure };
 
 /**
  * The checks that can be made before anything is erased or created: the passphrase must pass the

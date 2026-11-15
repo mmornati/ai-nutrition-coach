@@ -39,6 +39,10 @@ export interface InstanceProvider {
  * operator's side. Do not hand it to the UI directly: the registry wraps `recognize` in the
  * consent gate (`ConsentGatedAiRung`).
  */
+/** The server said when it resets, and that is hours away, not "a moment" (its daily allowance is used up). */
+const spentForToday = (resetAt: number | undefined): boolean =>
+  resetAt !== undefined && resetAt - Date.now() > 2 * 3_600_000;
+
 export class InstanceAiRung implements AiRung, TextCompletionPort {
   readonly #provider: InstanceProvider;
 
@@ -61,7 +65,12 @@ export class InstanceAiRung implements AiRung, TextCompletionPort {
       case 'keyRejected':
         return recognitionFailure('httpError', strings().ai.failure.instanceError);
       case 'quotaExhausted':
-        return recognitionFailure('httpError', strings().ai.failure.instanceBusy);
+        return recognitionFailure(
+          'httpError',
+          spentForToday(outcome.resetAt)
+            ? strings().ai.failure.instanceDailyLimit
+            : strings().ai.failure.instanceBusy,
+        );
       case 'failure':
         return recognitionFailure(outcome.cause, instanceFailureMessage(outcome));
     }
@@ -87,7 +96,10 @@ export class InstanceAiRung implements AiRung, TextCompletionPort {
       case 'text':
         return { kind: 'text', text: outcome.text };
       case 'quotaExhausted':
-        return { kind: 'busy' };
+        // A daily allowance that is spent says so (no countdown); a moment of load is "busy".
+        return spentForToday(outcome.resetAt)
+          ? { kind: 'failure', message: t.instanceDailyLimit }
+          : { kind: 'busy' };
       case 'keyRejected':
         return { kind: 'failure', message: t.instanceError };
       case 'failure':

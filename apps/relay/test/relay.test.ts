@@ -322,7 +322,7 @@ describe('the vault: compare-and-swap', () => {
   });
 
   it('keeps the previous envelope for a client that needs to roll back', async () => {
-    const h = await start();
+    const h = await start({ SYNC_KEEP_PREVIOUS_HOURS: '0' });
     const alice = await signup(h);
     expect((await getVault(h, alice, {}, '?previous=1')).status).toBe(404);
     await put(h, alice, envelopeOf(2, alice.vaultId), '"1"');

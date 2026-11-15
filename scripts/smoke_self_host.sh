@@ -77,7 +77,7 @@ cleanup() {
   docker rmi "$RELAY_IMAGE" >/dev/null 2>&1 || true
   docker network rm "$NET_SYNC" >/dev/null 2>&1 || true
   docker rm -f "$NAME" "$NAME_ISO" "$NAME_ISO-bad" "$NAME_ISO-kill" "$NAME_ISO-log" \
-    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-ai5" "$NAME-ai6" "$NAME-aibad" >/dev/null 2>&1 || true
+    "$NAME-aiup" "$NAME-ai" "$NAME-ai2" "$NAME-ai3" "$NAME-ai4" "$NAME-ai5" "$NAME-ai6" "$NAME-ai7" "$NAME-ai7c" "$NAME-ai8" "$NAME-aibad" >/dev/null 2>&1 || true
   docker rmi "$IMAGE-aitest" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$TMP"
@@ -631,18 +631,18 @@ if command -v openssl >/dev/null 2>&1; then
   fi
   ok "AI proxy: text/plain and form posts 415, cross-site / same-site Sec-Fetch-Site and foreign / null / other-port Origin 403, same-origin JSON 200; no CORS, account, request-id or rate-limit header from the provider"
 
-  # The input budget (njs): a remote image URL, two images, or too much text is not forwarded.
+  # The input budget (njs): a remote image URL, two images, or too much text is a local 400 and is not forwarded.
   img='data:image/jpeg;base64,/9j/AAAA'
   seen_keys() { grep -o '"keys":\[[^]]*\]' <<<"$1" | head -1; }
   [[ "$(seen_keys "$(req "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}}]}]}" --header "$JSONH")")" == '"keys":["max_tokens","messages","model"]' ]] \
     || fail 50 "a valid one-photo request was not forwarded"
-  [[ "$(seen_keys "$(req '{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"http://evil.test/x.png"}}]}]}' --header "$JSONH")")" == '"keys":[]' ]] \
+  [[ "$(seen_keys "$(req '{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"http://evil.test/x.png"}}]}]}' --header "$JSONH")")" == '' ]] \
     || fail 50 "a remote image URL was forwarded"
-  [[ "$(seen_keys "$(req "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}}]}]}" --header "$JSONH")")" == '"keys":[]' ]] \
+  [[ "$(seen_keys "$(req "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"$img\"}}]}]}" --header "$JSONH")")" == '' ]] \
     || fail 50 "two images were forwarded"
   docker exec "$NAME-ai4" sh -c "head -c 30000 /dev/zero | tr '\\0' a > /tmp/long.txt"
   bigtext="$(docker exec "$NAME-ai4" sh -c "printf '{\"messages\":[{\"role\":\"user\",\"content\":\"'; cat /tmp/long.txt; printf '\"}]}'" )"
-  [[ "$(seen_keys "$(req "$bigtext" --header "$JSONH")")" == '"keys":[]' ]] || fail 50 "30 KB of text was forwarded"
+  [[ "$(seen_keys "$(req "$bigtext" --header "$JSONH")")" == '' ]] || fail 50 "30 KB of text was forwarded"
   ok "AI proxy: the input budget holds (one data: image, 24 KB of text, 8 messages); a remote image URL, two images or too much text are not forwarded"
 
   # A provider's error text (an empty balance, an account) never reaches the browser.
@@ -661,7 +661,7 @@ if command -v openssl >/dev/null 2>&1; then
   grep -q 'HTTP/1.1 413' <<<"$bout" || fail 50 "a 3 MB body to the proxy is not a 413: $(tail -2 <<<"$bout")"
   codes=""
   for _ in $(seq 1 12); do
-    c="$(docker exec "$NAME-ai" wget -S -O /dev/null --header 'Content-Type: application/json' --post-data '{"messages":[]}' \
+    c="$(docker exec "$NAME-ai" wget -S -O /dev/null --header 'Content-Type: application/json' --post-data '{"messages":[{"role":"user","content":"hi"}]}' \
       http://127.0.0.1:8080/ai/v1/chat/completions 2>&1 | sed -n 's/^ *HTTP\/1.1 \([0-9]*\).*/\1/p' | head -1 || true)"
     codes="$codes $c"
   done
@@ -780,6 +780,77 @@ JS
   [[ "$holders" == "/tmp/ai-nutrition-coach-ai-locations.inc" ]] || fail 50 "the key is in more than one file (voice on): $holders"
   docker rm -f "$NAME-ai5" "$NAME-ai6" >/dev/null 2>&1 || true
   ok "AI proxy voice: its own rate limit answers 429 on a burst (codes:$txcodes); the key still lives in ONE 0600 file"
+
+  # Per-person limits behind a sign-in (docs/self-host.md "Per-person limits behind single sign-on"):
+  # AI_PROXY_USER_HEADER is believed only from a trusted DIRECT peer (here 127.0.0.1, the shared
+  # network namespace of a throw-away client) and never reaches the provider; a daily budget per
+  # person (2) counts valid requests only; the instance total stops everyone.
+  export AI_PROXY_KEY="$AIKEY"
+  docker run -d --name "$NAME-ai7" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -e AI_PROXY_KEY \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x \
+    -e AI_PROXY_USER_HEADER=X-authentik-username -e AI_PROXY_DAILY_PER_USER=2 \
+    -e AI_PROXY_RATE=100r/s -e AI_PROXY_RATE_ALL=100r/s -e AI_PROXY_BURST=50 -e AI_PROXY_CONN=20 \
+    -e AI_NUTRITION_COACH_TRUSTED_PROXIES=127.0.0.1/32 "$IMAGE-aitest" >/dev/null \
+    || fail 30 "cannot start the container with per-person AI limits"
+  unset AI_PROXY_KEY
+  for _ in $(seq 1 60); do docker exec "$NAME-ai7" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  docker run -d --name "$NAME-ai7c" --network "$NET" "$NODE_IMAGE" sleep 300 >/dev/null \
+    || fail 30 "cannot start the untrusted client"
+  # POST to the proxy with an optional user header and body; prints "status|retry-after|body".
+  PERSON_JS='const h={"content-type":"application/json"};if(process.env.USERH)h["x-authentik-username"]=process.env.USERH;
+    fetch(process.env.URL,{method:"POST",headers:h,body:process.env.BODY}).then(async r=>{console.log(r.status+"|"+(r.headers.get("retry-after")||"")+"|"+(await r.text()))})'
+  GOODBODY='{"messages":[{"role":"user","content":"hi"}]}'
+  as_proxy() { # as_proxy <user> [body]: from the proxy's own address (a trusted peer)
+    docker run --rm --network "container:$NAME-ai7" -e URL=http://127.0.0.1:8080/ai/v1/chat/completions -e USERH="$1" \
+      -e BODY="${2:-$GOODBODY}" "$NODE_IMAGE" node -e "$PERSON_JS"
+  }
+  as_other() { # as_other <user> [body]: from another container (NOT a trusted peer)
+    docker exec -e URL="http://$NAME-ai7:8080/ai/v1/chat/completions" -e USERH="$1" -e BODY="${2:-$GOODBODY}" \
+      "$NAME-ai7c" node -e "$PERSON_JS"
+  }
+  p1="$(as_proxy alice)"; p2="$(as_proxy alice)"; p3="$(as_proxy alice)"; pb="$(as_proxy bob)"
+  [[ "$p1" == 200\|* && "$p2" == 200\|* ]] || fail 50 "a person's first two requests were not served: ${p1:0:40} / ${p2:0:40}"
+  [[ "$p3" == 429\|* && "$p3" == *'{"error":"ai_daily_limit"}' ]] || fail 50 "a third request of a person on a budget of 2 was not the daily 429: $p3"
+  retry="$(cut -d'|' -f2 <<<"$p3")"
+  [[ "$retry" =~ ^[0-9]+$ && "$retry" -ge 1 && "$retry" -le 86400 ]] || fail 50 "the daily 429 has no sane Retry-After ($retry)"
+  [[ "$pb" == 200\|* ]] || fail 50 "another person was refused because of the first one's budget: ${pb:0:60}"
+  grep -qF '"user":false' <<<"$p1" || fail 50 "the per-person header reached the provider: ${p1:0:200}"
+  # An invalid body is a local 400 and does not spend the budget.
+  inv=""
+  for _ in 1 2 3; do inv="$inv $(as_proxy gina '{"messages":[]}' | cut -d'|' -f1)"; done
+  [[ "$inv" == " 400 400 400" ]] || fail 50 "an invalid body is not a local 400 (got:$inv)"
+  g1="$(as_proxy gina | cut -d'|' -f1)"; g2="$(as_proxy gina | cut -d'|' -f1)"; g3="$(as_proxy gina | cut -d'|' -f1)"
+  [[ "$g1 $g2 $g3" == "200 200 429" ]] || fail 50 "invalid requests were counted against the budget (got: $g1 $g2 $g3)"
+  # From an address that is not a trusted proxy the header is ignored: three different names are one caller.
+  o1="$(as_other dave | cut -d'|' -f1)"; o2="$(as_other erin | cut -d'|' -f1)"; o3="$(as_other frank | cut -d'|' -f1)"
+  [[ "$o1 $o2 $o3" == "200 200 429" ]] || fail 50 "a header from an untrusted peer was believed (got: $o1 $o2 $o3)"
+  docker logs "$NAME-ai7" 2>&1 | grep -Eqi 'alice|bob|gina|dave|erin|frank' && fail 50 "a user name is in the container log"
+  docker rm -f "$NAME-ai7" "$NAME-ai7c" >/dev/null 2>&1 || true
+  ok "AI proxy per person: the sign-in header counts only from a trusted peer and never reaches the provider; a budget of 2 a day gives the third request a 429 (Retry-After $retry s), others are unaffected, invalid requests are not counted"
+
+  # The instance total, and the provider key from a file (a Docker secret).
+  printf '  %s  \n' "$AIKEY" >"$TMP/ai/key.txt"; chmod 644 "$TMP/ai/key.txt"
+  docker run -d --name "$NAME-ai8" --network "$NET" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL \
+    --security-opt no-new-privileges:true -e AI_PROXY_ENABLED=1 -v "$TMP/ai/key.txt:/run/secrets/ai_proxy_key:ro" \
+    -e AI_PROXY_KEY_FILE=/run/secrets/ai_proxy_key \
+    -e AI_PROXY_UPSTREAM=https://fake-ai.test/v1 -e AI_PROXY_MODEL=vendor/model-x \
+    -e AI_PROXY_USER_HEADER=X-authentik-username -e AI_PROXY_DAILY_TOTAL=2 \
+    -e AI_PROXY_RATE=100r/s -e AI_PROXY_RATE_ALL=100r/s -e AI_PROXY_BURST=50 -e AI_PROXY_CONN=20 \
+    -e AI_NUTRITION_COACH_TRUSTED_PROXIES=127.0.0.1/32 "$IMAGE-aitest" >/dev/null \
+    || fail 30 "cannot start the container with the key from a file"
+  for _ in $(seq 1 60); do docker exec "$NAME-ai8" wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null && break; sleep 0.5; done
+  as_total() {
+    docker run --rm --network "container:$NAME-ai8" -e URL=http://127.0.0.1:8080/ai/v1/chat/completions -e USERH="$1" \
+      -e BODY="$GOODBODY" "$NODE_IMAGE" node -e "$PERSON_JS"
+  }
+  t1="$(as_total alice)"; t2="$(as_total bob)"; t3="$(as_total carol)"
+  grep -qF '"authOk":true' <<<"$t1" || fail 50 "the key read from AI_PROXY_KEY_FILE did not reach the provider: ${t1:0:120}"
+  [[ "$t1" == 200\|* && "$t2" == 200\|* ]] || fail 50 "the first two requests under a total of 2 were not served"
+  [[ "$t3" == 429\|* && "$t3" == *'{"error":"ai_daily_limit"}' ]] || fail 50 "the third request under a total of 2 was not the daily 429: $t3"
+  docker logs "$NAME-ai8" 2>&1 | grep -qF "$AIKEY" && fail 50 "the key read from a file is in the container log"
+  docker rm -f "$NAME-ai8" >/dev/null 2>&1 || true
+  ok "AI proxy: the instance-wide daily total stops everyone (third request 429); the key read from AI_PROXY_KEY_FILE (trimmed) reaches the provider and is not logged"
 
   # Misconfiguration refuses to start (and says nothing about the value); a missing key stays off.
   for bad in "AI_PROXY_UPSTREAM=http://fake-ai.test/v1" "AI_PROXY_MODEL=" "AI_PROXY_RATE=fast" "AI_PROXY_LABEL=x\"y"; do

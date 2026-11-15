@@ -29,7 +29,10 @@ async function dismissAbout(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /** A device with these plates and a vault on the relay under `alice`. */
-async function vaultWith(relay: FakeRelay, ...names: string[]): Promise<StoreBundle> {
+async function vaultWith(
+  relay: FakeRelay,
+  ...names: string[]
+): Promise<StoreBundle & { readonly recoveryKey: string }> {
   const source = await unlockedBundle();
   await new PrivacyPrefs(source.kv).acknowledgeAbout();
   for (const [i, name] of names.entries())
@@ -44,7 +47,7 @@ async function vaultWith(relay: FakeRelay, ...names: string[]): Promise<StoreBun
     maxVaultBytes: 20 * 1024 * 1024,
   });
   if (made.kind !== 'created') throw new Error('create');
-  return source;
+  return Object.assign(source, { recoveryKey: made.recoveryKey });
 }
 
 const seams = (relay: FakeRelay, config: unknown | null = OPEN_CONFIG) => ({
@@ -171,6 +174,52 @@ describe('first run: Restore from this server', () => {
     await user.click(screen.getByRole('button', { name: 'Back to creating a passphrase' }));
     expect(await screen.findByRole('heading', { name: 'Protect your history' })).toBeVisible();
     expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+  });
+
+  describe('with the recovery key', () => {
+    const NEW = 'lamp ocean velvet tractor';
+    const findWithKey = async (user: ReturnType<typeof userEvent.setup>, key: string) => {
+      await user.click(
+        screen.getByRole('button', { name: 'I lost my passphrase: use my recovery key' }),
+      );
+      await user.type(screen.getByLabelText('Handle'), 'alice');
+      await user.type(screen.getByLabelText('Recovery key'), key);
+      await user.type(screen.getByLabelText('New passphrase for this copy'), NEW);
+      await user.click(screen.getByRole('button', { name: 'Recover with this key' }));
+      await screen.findByText(/^Found your data/);
+    };
+    const passphraseCalls = (relay: FakeRelay) =>
+      relay.requests.filter((r) => r.path === '/passphrase');
+
+    it('going back signs the recovery session out and leaves the server passphrase alone', async () => {
+      const relay = new FakeRelay();
+      const source = await vaultWith(relay, 'Porridge');
+      const authBefore = relay.vaults.get('alice')!.authKey;
+      const { user, bundle } = await firstRun(relay);
+      await user.click(await screen.findByRole('button', { name: 'Restore from this server' }));
+      await findWithKey(user, source.recoveryKey);
+      expect(relay.tokens.size).toBe(2);
+      expect(passphraseCalls(relay)).toEqual([]);
+      await user.click(screen.getByRole('button', { name: 'Back to creating a passphrase' }));
+      await waitFor(() => expect(relay.tokens.size).toBe(1));
+      expect(passphraseCalls(relay)).toEqual([]);
+      expect(relay.vaults.get('alice')!.authKey).toBe(authBefore);
+      expect(bundle.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+    });
+
+    it('restoring is what sets the new passphrase, and it becomes this device’s', async () => {
+      const relay = new FakeRelay();
+      const source = await vaultWith(relay, 'Porridge');
+      const { user, bundle } = await firstRun(relay);
+      await user.click(await screen.findByRole('button', { name: 'Restore from this server' }));
+      await findWithKey(user, source.recoveryKey);
+      expect(passphraseCalls(relay)).toEqual([]);
+      await user.click(screen.getByRole('button', { name: 'Restore and unlock' }));
+      expect(await today()).toBeVisible();
+      expect(passphraseCalls(relay)).toHaveLength(1);
+      await bundle.controller.lock();
+      expect((await bundle.controller.unlock(NEW)).kind).toBe('unlocked');
+    });
   });
 
   it('if the store cannot take the data, no store is left and the copy on the server is untouched', async () => {

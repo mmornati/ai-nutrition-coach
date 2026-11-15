@@ -186,6 +186,38 @@ checkout and tag the result with the registry's name. **Updating** is the same `
 such as Coolify's or a nightly cron can run it). Each image carries `org.opencontainers.image.revision` (the
 commit it was built from), a provenance attestation and an SBOM.
 
+### The relay image
+
+The [encrypted-backup relay](#encrypted-backup-on-your-own-server) is published the same way, from the same
+workflow, next to the app image: `ghcr.io/mmornati/ai-nutrition-coach-relay`, with the **same tags**
+(`:edge`, `:X.Y.Z`, `:X.Y`, `:latest` for the highest release, `:sha-<7>`). It is built from `infra/Dockerfile.relay`,
+scanned with trivy (fixable HIGH/CRITICAL fail the build, before anything is pushed) and carries the same
+`org.opencontainers.image.*` labels, provenance attestation and SBOM as the app image. Its run stage holds only `node`
+and the bundle (no npm, yarn or corepack), runs as the unprivileged `node` user, and works with a read-only root
+filesystem.
+
+```sh
+AI_NUTRITION_COACH_RELAY_IMAGE_TAG=ghcr.io/mmornati/ai-nutrition-coach-relay:edge   # in infra/.env, next to the app's tag
+docker compose --profile sync pull && docker compose --profile sync up -d            # no --build
+```
+
+To **build it locally** instead (a change of your own, or no registry access), leave the variable unset and use
+`bin/ai-nutrition-coach up --sync`, or `docker compose --profile sync up -d --build`: the default tag is
+`ai-nutrition-coach-relay:dev`, built from your checkout. `up --sync` always builds, like it does for the app image,
+so it is not the command for a pulled image.
+
+Check what you pulled (the images are **not** signed with a key: the proof is the provenance, which names the workflow
+and the commit, and the SBOM):
+
+```sh
+docker buildx imagetools inspect ghcr.io/mmornati/ai-nutrition-coach-relay:edge --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/mmornati/ai-nutrition-coach-relay:edge --format '{{ json .SBOM }}'
+docker inspect ghcr.io/mmornati/ai-nutrition-coach-relay:edge --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}'
+```
+
+Prefer a `:X.Y.Z` or `:sha-<7>` tag over `:edge` on a server you do not update by hand, and keep the relay and the app
+on the same release.
+
 ## Where your data lives
 
 **In your browser, not on the server.** Your history is stored encrypted
@@ -230,7 +262,7 @@ storage (OPFS) for the site's origin, keyed from your passphrase (see
 | `AI_PROXY_KEY`                                         | –                        | The provider key. A **secret**: never in the image or the bundle; rendered at start into a private file.                                                                                                                |
 | `AI_PROXY_MODEL`                                       | –                        | The model every request uses (forced server-side).                                                                                                                                                                      |
 | `AI_PROXY_LABEL`                                       | the upstream host        | What people are told their photos go to after this server.                                                                                                                                                              |
-| `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL`                  | `10r/m` / `30r/m`        | Request rate per client address, and for the whole instance. Both apply.                                                                                                                                                |
+| `AI_PROXY_RATE` / `AI_PROXY_RATE_ALL`                  | `10r/m` / `30r/m`        | Request rate per client address (an IPv6 address counts as its /64), and for the whole instance. Both apply.                                                                                                                                                |
 | `AI_PROXY_BURST` / `AI_PROXY_CONN`                     | `5` / `2`                | Burst allowance, and concurrent requests per client address.                                                                                                                                                            |
 | `AI_PROXY_MAX_TOKENS` / `AI_PROXY_TOKEN_PARAM`         | `2000` / `max_tokens`    | Cap on a reply, and the parameter that carries it (`max_completion_tokens` for reasoning models).                                                                                                                       |
 | `AI_PROXY_CACHE_MARKERS`                               | `0`                      | `1` keeps one prompt-cache marker per request on Ask the coach (see [AI tiers](./ai-tiers.md)), for providers that cache only on request (Anthropic or Gemini through OpenRouter).                                      |
@@ -412,6 +444,90 @@ Turn it off by unsetting `AI_PROXY_ENABLED` (or the key) and restarting. A missi
 the AI off and says so in the container log. Rotating the key is a restart with the new value; nothing in a browser
 needs to change.
 
+### Per-person limits behind single sign-on
+
+The AI proxy's rate and connection limits are per client address. Behind a reverse proxy that is the proxy (or, with
+`AI_NUTRITION_COACH_TRUSTED_PROXIES`, the visitor's internet address, which can be shared by a whole household or
+change on a phone), so one noisy person can spend everyone's allowance. If a forward-auth sign-in such as Authentik
+sits in front, you can key the limits on **the signed-in person** instead, and give each person and the instance a
+**daily** request budget. Both are opt-in and off by default.
+
+| Variable | Default | |
+|---|---|---|
+| `AI_PROXY_USER_HEADER` | _unset_ | The request header your sign-in sets to the user, e.g. `X-authentik-username`. Letters, digits and hyphens, at most 64; a name this server uses for something else (`Host`, `Authorization`, `Cookie`, `X-Forwarded-For` / `-Host` / `-Proto`, `X-Real-IP`, `CF-Connecting-IP`, `Origin`, `Content-*`, `Sec-*` ...) is refused at start. Set, it is the key of the per-caller rate limit and connection cap (instead of the address) and of the daily budget. Unset: everything stays per address. |
+| `AI_PROXY_DAILY_PER_USER` | `0` (off) | Requests one person (or, with no header, one client address) may send per **UTC day**, 0 to 999999. |
+| `AI_PROXY_DAILY_TOTAL` | `0` (off) | Requests the whole instance may send per UTC day, 0 to 9999999. |
+
+**Trust.** The header is believed **only** when the connection comes from one of `AI_NUTRITION_COACH_TRUSTED_PROXIES`
+(the direct peer, checked with a `geo` on the peer address that `45-render-real-ip.sh` renders from the same list as
+`real_ip`), so set that variable too ([Behind a reverse proxy](#behind-a-reverse-proxy-the-real-client-address)); with
+it unset the container says so at start and every caller stays keyed by address. A request from any other peer has the
+header ignored, so reaching the app container without going through the proxy cannot make you someone else. Your
+forward-auth middleware must **overwrite** the header on every request, never append to it: Authentik's Traefik
+middleware does so through `authResponseHeaders`, which replaces whatever the visitor sent:
+
+```yaml
+http:
+  middlewares:
+    authentik:
+      forwardAuth:
+        address: http://authentik:9000/outpost.goauthentik.io/auth/traefik
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-authentik-username    # ... then AI_PROXY_USER_HEADER=X-authentik-username
+```
+
+The value (1 to 128 characters) is a rate-limit key and is hashed (SHA-256, 64 bits kept) before the daily counter is
+stored; it is never logged and **always removed** before the request goes to the provider (which, as above, never
+receives any header the browser sent). A trusted request without the header, or with an empty one, falls back to the
+address key.
+
+**Daily budgets.** Counters live in nginx's shared memory (njs `js_shared_dict_zone`, njs 1.0.x as shipped with the
+pinned nginx image; 256 KB with `evict`, so a full zone drops its oldest counters instead of refusing everyone, and
+every counter expires 26 hours after its last update). Keys are the UTC day plus the hash of the person, and the day
+plus `*` for the instance. They are **not** persisted: restarting the container resets today's counts, and with
+several app replicas each counts alone. Over a budget, the request gets `429` with `{"error":"ai_daily_limit"}` and a
+`Retry-After` of the seconds left until 00:00 UTC. What counts: a request that passed every local check (method, type,
+origin, size, the per-minute limits, the njs validation of its shape) and so **goes to the provider**, whatever the
+provider then answers, because the provider may have billed it, and a voice request counts as one request like a chat
+one. Requests refused locally (415, 403, 413, the rate limits, an invalid body) and requests refused for a budget do
+**not** count. A person who is under their own budget but meets a spent instance total gets the same `429` and is not
+charged for it.
+
+**Choosing values.** A coach interaction is 2 to 3 requests (the text and its second-pass check; Ask the coach 3; a
+photo or a voice note is one more), and one very active person might make 40 to 100 of them a day. `AI_PROXY_DAILY_PER_USER=300`
+is generous for a person yet a hard stop for a runaway client; `AI_PROXY_DAILY_TOTAL=1500` suits about five people.
+Set the total from what you are willing to pay on the worst day, and keep your provider spend cap as the final stop.
+
+In the app: a `429` whose `Retry-After` is more than two hours away (a daily budget; the proxy sets it to the seconds until
+midnight UTC) is shown as "The AI on this server has been used up for now. It is available again later." with no
+countdown; a shorter one (the rate limit) stays "busy, try again in a moment". In the last two hours before midnight UTC a spent
+budget therefore still reads "busy".
+
+### Provider key from a file
+
+`AI_PROXY_KEY_FILE` names a file that holds the provider key, so it need not sit in the container's environment (and
+`docker inspect`). It is meant for Docker secrets with the compose files:
+
+```yaml
+# infra/docker-compose.override.yml, next to docker-compose.yml
+services:
+  ai-nutrition-coach:
+    environment:
+      AI_PROXY_KEY_FILE: /run/secrets/ai_proxy_key
+    secrets:
+      - ai_proxy_key
+secrets:
+  ai_proxy_key:
+    file: ./ai_proxy_key.txt    # chmod 644 (or readable by uid 101); the key and nothing else
+```
+
+The file is read once at start; surrounding whitespace (the final newline) is trimmed, and the content is validated like
+`AI_PROXY_KEY` (a bad one refuses to start; the message never shows it). A missing, unreadable, empty or larger-than-1 KiB
+file refuses to start too. If **both** `AI_PROXY_KEY_FILE` and `AI_PROXY_KEY` are set, **the file wins** and the start-up
+log says so (naming the two variables). It is then rendered exactly like the variable: one `0600` file under `/tmp`. The
+plain `docker run` mode of `bin/ai-nutrition-coach up` does not mount files: use `AI_PROXY_KEY` there, or `--compose`.
+
 ### Voice to text (Describe a meal, by voice)
 
 _Describe a meal_ lets a person say what they ate. With **their own key** the recording goes to their endpoint's
@@ -471,18 +587,23 @@ bin/ai-nutrition-coach up --traefik --sync
 ```
 
 That builds a second image from your checkout (`infra/Dockerfile.relay`: Node 24, pinned by digest, one
-bundle, no runtime dependencies, non-root; it is not published to a registry yet) and starts the compose
-profile `sync`. With the compose files directly (`docker compose up -d --build` in `infra/`, as in
+bundle, no runtime dependencies, non-root, without npm, yarn or corepack) and starts the compose
+profile `sync`. The same image is also **published** next to the app image
+(`ghcr.io/mmornati/ai-nutrition-coach-relay`, see [below](#the-relay-image)); `up --sync` always builds from
+your checkout, which is what you want when you changed something, and the published image is for a server
+that pulls. With the compose files directly (`docker compose up -d --build` in `infra/`, as in
 [Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel)), set `COMPOSE_PROFILES=sync` and
 `AI_NUTRITION_COACH_SYNC=1`: the relay service has its own `build:` section, so `--build` builds both images. By hand: set `AI_NUTRITION_COACH_SYNC=1`
 for the app container (it then proxies `/sync/` to the relay) and run
 `docker compose -f infra/docker-compose.yml --profile sync up -d`. The proxy is the same origin, so the
-Content-Security-Policy does not change; nothing but `/sync/config.json` and `/sync/v1/{salt,signup,login,vault}`
-is proxied, everything else under `/sync/` is a 404.
+Content-Security-Policy does not change; nothing but `/sync/config.json` and `/sync/v1/...` (salt, signup, login, recover, vault, account, passphrase,
+recovery, devices, delete) is proxied, everything else under `/sync/` is a 404.
 
 | Variable | Default | |
 |---|---|---|
-| `SYNC_SIGNUP` | `invite` | `invite` (a new copy needs one of `SYNC_INVITE_CODES`, comma-separated; the codes are credentials), `open` (anyone who can reach the server can create a copy) or `closed`. Existing handles can always log in. With `invite` and **no** code set the relay still starts, refuses new signups (`/sync/config.json` then says `closed`) and logs one line: `relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES), or SYNC_SIGNUP=open; existing handles can still log in`. **Before this default changed (it used to be `open`), a relay started without `SYNC_SIGNUP` accepted any signup; set `SYNC_SIGNUP=open` to keep that.** |
+| `SYNC_SIGNUP` | `invite` | `invite` (a new copy needs an invite: a single-use one made with the [admin CLI](#sharing-the-instance-with-other-people), or one of `SYNC_INVITE_CODES`, comma-separated, which are **reusable** and so discouraged), `open` (anyone who can reach the server can create a copy) or `closed`. Existing handles can always log in. With `invite`, no static code **and no unused invite** the relay still starts, refuses new signups (`/sync/config.json` then says `closed`; it says `invite` again as soon as you create one) and logs one line at start: `relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES, or `node /app/relay.mjs admin invites create`), or SYNC_SIGNUP=open; existing handles can still log in`. **Before this default changed (it used to be `open`), a relay started without `SYNC_SIGNUP` accepted any signup; set `SYNC_SIGNUP=open` to keep that.** |
+| `SYNC_TOKEN_MAX_IDLE_DAYS` | `180` | A device token that has not been used for this many days stops working (checked when it is used, and the row is dropped). `0`: never. The device is told plainly that it was disconnected and offers to connect again with the handle and passphrase. |
+| `SYNC_KEEP_PREVIOUS_HOURS` | `24` | The version kept as "the one before" is only replaced by a later write once it is this old. A stolen token cannot wipe both versions within minutes. `0`: every write moves it (the behaviour before S4). |
 | `SYNC_MAX_VAULT_MB` | `20` | The largest encrypted copy, 1 to 24. nginx's body limit follows it. |
 | `SYNC_MAX_VAULTS` | `50` | Handles this relay will hold. |
 | `SYNC_MAX_DEVICES` | `20` | Device tokens kept per handle (the one used least recently is dropped). |
@@ -506,9 +627,71 @@ behind Caddy or Traefik that is the proxy unless you set `AI_NUTRITION_COACH_TRU
 ([below](#behind-a-reverse-proxy-the-real-client-address)); without it everyone shares
 a bucket, as with the AI proxy, and so does the cap nginx puts on requests in flight per address). Signup tells a person that a handle is taken (the usual trade-off; use
 `SYNC_SIGNUP=invite|closed` to bound it); login never says whether a handle exists. A handle that is being guessed at from many addresses stops accepting logins from devices that have no token (`SYNC_RATE_HANDLE_DAY`), so a stranger cannot grind through passphrases; the price is that someone restoring onto a new device waits for the attack to stop (at most a day). Identity is the handle:
-single sign-on for the relay (a vault bound to your Authentik user) is planned, not built. Changing the
-passphrase, listing/revoking devices and deleting a copy from the server arrive in phase S4; until then
-removing a person means deleting their row or restoring the volume.
+a vault is not bound to your Authentik user (a known limit, see below). People change the passphrase of their copy,
+list and sign out their devices, make or rotate a recovery key and delete their copy from **Settings, Your data**; you
+list, delete and prune copies with the [admin CLI](#sharing-the-instance-with-other-people).
+
+### Sharing the instance with other people
+
+A family or a few friends on one server, with Authentik in front. Nothing here adds accounts: the relay never
+learns who anyone is, and each person's data stays locked with their own passphrase.
+
+**1. The sign-in in front.** Put the whole app behind your forward-auth, as in
+[Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel). The app sends the sign-in cookie to its own
+paths (`/ai/`, `/sync/`), so the AI and the backup work behind it.
+
+**2. Trusted proxies.** Set `AI_NUTRITION_COACH_TRUSTED_PROXIES` and `AI_NUTRITION_COACH_REAL_IP_HEADER`
+([above](#behind-a-reverse-proxy-the-real-client-address)) or every limit is one bucket for the whole family.
+
+**3. AI per person.** `AI_PROXY_USER_HEADER=X-authentik-username` makes the AI rate limit and the daily budget per
+person ([Per-person limits behind single sign-on](#per-person-limits-behind-single-sign-on)). The header is believed only from
+a trusted proxy, and your forward-auth middleware must **overwrite** it (Authentik's `authResponseHeaders` does).
+Example values: `AI_PROXY_DAILY_PER_USER=300`, `AI_PROXY_DAILY_TOTAL=1500`.
+
+**4. Invites, one per person.** Signups are `invite` by default. Make a single-use, labelled code for each person
+and give it to them:
+
+```sh
+docker compose exec sync-relay node /app/relay.mjs admin invites create --label "Anna" --count 1
+docker compose exec sync-relay node /app/relay.mjs admin invites list
+docker compose exec sync-relay node /app/relay.mjs admin invites revoke 3
+```
+
+The code is printed once; only a keyed hash is stored, with the label, when it was made and used and by which handle. It
+is spent by the signup that succeeds (a handle that is taken does not burn it). `SYNC_INVITE_CODES` from the
+environment still works, but those codes are reusable credentials: prefer the CLI.
+
+**5. The admin CLI.** It runs inside the relay container on the data volume and never over HTTP (there is no admin
+web page). Add `--json` for machine-readable output.
+
+```sh
+docker compose exec sync-relay node /app/relay.mjs admin list            # handle, size, version, created, updated, last device use, devices, recovery key (yes/no)
+docker compose exec sync-relay node /app/relay.mjs admin stats
+docker compose exec sync-relay node /app/relay.mjs admin delete anna --yes
+docker compose exec sync-relay node /app/relay.mjs admin prune --idle-days 365          # dry run: lists
+docker compose exec sync-relay node /app/relay.mjs admin prune --idle-days 365 --yes    # deletes
+```
+
+Nothing expires by itself: a copy is never deleted unless you run `delete` or `prune --yes`. `prune` counts a vault as
+idle when it has had no write and no device use for that many days. `bin/ai-nutrition-coach admin <command>` does the same through whichever compose stack is running the relay (for example `bin/ai-nutrition-coach admin invites create --label Anna`).
+
+**6. What each person sets up.** Open the app on the server's address (signing in through Authentik), choose a
+passphrase for the device, then **Settings, Your data, Back up to this server**: a handle, a passphrase for the copy
+(at least 12 characters in one piece, 16 with spaces, or four words of three letters or more, not a common one: you could try guesses offline, so a weak one defeats the
+point), and the invite code. The app then shows a **recovery key** once; they write it down. On another device they
+choose "Restore from this server" (or "Connect to this server's copy" in Settings) with the handle and passphrase,
+or the recovery key if they lost the passphrase.
+
+**7. What you can and cannot see.** You can see: handles, how big each copy is, when it last changed, how many devices it
+has and whether it has a recovery key, the labels they gave their devices ("iPhone · Safari"), the invite labels you chose,
+and with the access log on, their address. You cannot see: what they ate, their notes, their profile, their passphrase,
+their recovery key or their AI key; a copy is ciphertext. Whoever runs the server could try passphrase guesses offline against a
+stolen copy (each costs a 64 MiB Argon2id run), which is why the app refuses weak ones. A server you operate
+can also serve a modified app: people who do not trust you should not use your server (true of every web app).
+
+**Known limits (not built).** A vault is **not bound to the Authentik identity**: anyone signed in on the instance can
+try to create or log into any handle (rate limited), and a person who forgets which handle is theirs cannot be looked up by
+username. **One profile per browser** (a shared browser has one store). **No admin web page**: the CLI is the tool.
 
 ### Behind a reverse proxy: the real client address
 

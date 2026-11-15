@@ -295,12 +295,21 @@ This alone fixes "local storage lost" for anyone who keeps the file, on every in
   acknowledgement (Chromium; WebKit shares one site-data store between contexts, so the live pair is
   Chromium-only and the other sync specs run in the WebKit chain as before).
 
-### Phase S4: account hygiene
-- Recovery key flow (show once, confirm a few words, restore with it).
-- Change passphrase (re-wrap only), list/revoke devices, "Delete my copy on this server",
-  "Erase all local data" stays local and says so.
-- Docs: `your-data.md`, `self-host.md` (backup the relay volume, threat model), privacy screen copy
-  (EN + FR), NDP sign-off; telemetry gate updated for the one new user-enabled path.
+### Phase S4: account hygiene (built 2026-11-15; what is and is not done)
+- [x] Recovery key flow: shown once with an "I saved it" box, restore with it from the connect and first-run screens, rotate and
+  remove from Settings. (Not built: "confirm a few words", the key is 32 base32 characters rather than 24 words or a QR.)
+- [x] Change passphrase (re-wrap only, proof of the current passphrase, other devices signed out).
+- [x] List/revoke devices (one or all others), token idle expiry, a "disconnected" state.
+- [x] "Delete my copy on this server" (typed handle plus passphrase). "Erase all local data" stays local.
+- [x] Single-use labelled invites and an admin CLI (list, stats, invites, delete, prune); relay image build, scan and publish workflow
+  (written, not yet run on GitHub).
+- [x] Previous version kept at least 24 h; "bring back the previous version" (merge).
+- [x] Server-copy passphrase strength check (offered, not forced, for the local one).
+- [x] Docs: `your-data.md`, `self-host.md` (sharing the instance), `security.md`, `SECURITY.md`, ADR 0007.
+- [ ] Forward-auth identity (a vault bound to the SSO subject): not built.
+- [ ] Tombstone pruning: not built (tombstones are small; a pruning rule needs a vault epoch every device obeys).
+- [ ] Privacy screen copy review and NDP sign-off for the new strings (the French is unreviewed); telemetry gate allow-list
+  needed no change (all calls are same-origin `/sync/v1/*`).
 
 ### Later (only if needed)
 - Chunked/segmented vaults if a vault passes ~5 MB (monthly segments, each its own envelope).
