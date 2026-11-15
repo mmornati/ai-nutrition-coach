@@ -92,7 +92,14 @@ describe('Ask the coach: off', () => {
     expect(
       screen.getByText(/AI coaching is off, so the coach writes its built-in notes/),
     ).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Open Your AI' })).toHaveAttribute(
+    // This link belongs to the week review further down the page, which appears once it has read
+    // the week: wait for it instead of expecting it in the first paint.
+    expect(await screen.findByRole('link', { name: 'Open Your AI' })).toHaveAttribute(
+      'href',
+      '#/settings/ai',
+    );
+    // The page's own line about AI coaching has its link too.
+    expect(screen.getByRole('link', { name: 'Turn it on in Your AI' })).toHaveAttribute(
       'href',
       '#/settings/ai',
     );
