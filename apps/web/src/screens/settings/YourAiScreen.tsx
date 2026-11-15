@@ -33,11 +33,22 @@ function messageFor(
  */
 function CoachingSection() {
   const c = useStrings().ai.yourAi;
-  const { ai } = useSession();
+  const { ai, trendShare } = useSession();
   const coaching = ai.coaching;
   const status = useSessionCoachingStatus();
   const [failed, setFailed] = useState(false);
   const on = status.kind === 'ready';
+  const trendOn = useSyncExternalStore(trendShare.subscribe, trendShare.enabled);
+
+  // The weight trend has its own switch, off by default and only meaningful while coaching is on.
+  const changeTrend = async (next: boolean) => {
+    try {
+      await trendShare.set(next);
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  };
 
   const change = async (next: boolean) => {
     try {
@@ -71,6 +82,14 @@ function CoachingSection() {
       />
       <Prose>{c.coachingSent}</Prose>
       <Prose>{destination}</Prose>
+      <SwitchRow
+        title={c.trendSwitch}
+        help={trendOn ? c.trendHelpOn : c.trendHelpOff}
+        checked={trendOn && on}
+        disabled={!on}
+        onChange={(next) => void changeTrend(next)}
+      />
+      <Prose>{on ? c.trendSent : `${c.trendSent} ${c.trendNeedsCoaching}`}</Prose>
       <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {failed ? c.coachingSaveFailed : ''}
       </p>

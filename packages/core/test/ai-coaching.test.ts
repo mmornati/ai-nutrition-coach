@@ -63,7 +63,7 @@ describe('validateCoachText', () => {
   it('refuses an amount while numbers are off, and only then', () => {
     for (const text of [
       'About 18 g of sugars.',
-      'Around 400 kcal.',
+      'That plate is around 400 kcal.',
       '20% of the guide',
       '1,5 g of salt',
     ]) {
@@ -118,6 +118,31 @@ describe('parseAiCoachNote', () => {
   });
 });
 
+describe('detectSupportSignal: very low intake and very fast loss', () => {
+  it.each([
+    'how can I eat 600 calories a day',
+    'Comment manger 800 calories par jour ?',
+    'can I live on 800 kcal',
+    'I want to lose 5 kg in a week',
+    'perdre 10 kilos en un mois',
+    'how to lose weight fast',
+    'comment perdre du poids vite',
+  ])('routes to the calm line: %s', (text) => {
+    expect(detectSupportSignal(text)).toBe('extremeDiet');
+  });
+
+  it.each([
+    'This pizza is 800 kcal, is that a lot?',
+    'I want to lose 3 kg in two months',
+    'perdre 2 kilos en un mois',
+    'how can I lose weight with what I eat?',
+    'Comment perdre du poids avec ce que je mange ?',
+    'my lunch was 650 kcal',
+  ])('does not route an ordinary question: %s', (text) => {
+    expect(detectSupportSignal(text)).toBeNull();
+  });
+});
+
 describe('detectSupportSignal', () => {
   it.each([
     'I binge at night and then purge',
@@ -129,7 +154,6 @@ describe('detectSupportSignal', () => {
     'I take laxatives after meals',
     'I hate my body when I eat',
     'I skip meals to lose weight',
-    'how can I eat 600 calories a day',
     "I haven't eaten in 3 days",
     'I have been fasting for 3 days',
     'je me fais vomir après les repas',
@@ -142,7 +166,6 @@ describe('detectSupportSignal', () => {
     'Je jeûne depuis 2 jours',
     'Je jeune depuis 2 jours',
     'J’ai de l’hyperphagie',
-    'Comment manger 800 calories par jour ?',
   ])('routes an eating worry: %s', (text) => {
     expect(detectSupportSignal(text)).toBe('eatingWorry');
   });
@@ -226,17 +249,27 @@ describe('validateCoachText: harmful advice', () => {
     'Try intermittent fasting.',
     'Eat 800 kcal a day for a while.',
     'Aim for 1000 calories per day.',
-    'This helps you lose weight.',
-    'A calorie deficit is the way.',
-    'Cut calories at dinner.',
     'Sautez le dîner ce soir.',
     'Vous pouvez sauter un repas.',
     'Un jeûne de quelques heures aide.',
-    'Pour perdre du poids, mangez moins.',
-    'Un déficit calorique est utile.',
     'Un laxatif peut aider.',
   ])('refuses %s', (text) => {
     expect(validateCoachText(text, on)).toEqual({ ok: false, problem: 'harmfulAdvice' });
+  });
+
+  it.each([
+    'This helps you lose weight.',
+    'A calorie deficit is the way.',
+    'Cut calories at dinner.',
+    'Pour perdre du poids, mangez moins.',
+    'Un déficit calorique est utile.',
+  ])('refuses talk of losing weight for someone with no weight goal: %s', (text) => {
+    expect(validateCoachText(text, on)).toEqual({ ok: false, problem: 'weightTalk' });
+    // The same sentence is not refused as such once the person chose that goal.
+    expect(validateCoachText(text, { ...on, weightTalk: 'allowed' })).not.toEqual({
+      ok: false,
+      problem: 'weightTalk',
+    });
   });
 
   it('allows an ordinary energy figure and words that only look similar', () => {

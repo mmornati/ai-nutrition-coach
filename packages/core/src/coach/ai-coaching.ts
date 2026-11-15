@@ -6,8 +6,24 @@
  * Nothing here knows about a network, a model or a screen. An AI text is untrusted input: it is
  * shown only if it passes `validateCoachText`, otherwise the caller falls back to the template
  * coach (a note) or says so calmly (a chat).
+ *
+ * WHAT THE VALIDATOR IS, PLAINLY. It is a BACKSTOP of pattern and number checks (normalisation,
+ * look-alike refusal, a harmful-phrase list with clause-level negation, a structural energy-figure
+ * guard, a loss-pace guard). It cannot catch every wording a model might produce. The system prompt
+ * (`ai-prompts.ts`) is the first layer; the built-in rules-based coach never depends on this
+ * validator at all, and is what a person sees when the AI is off or its text is refused.
  */
 import { splitQuestionKey, withQuestionParams } from '../value-types/composition-pattern';
+import { askEatsVeryLittle, exceedsSafePaceIn, unsafeEnergyIn } from './energy-guard';
+import { askMentionsHarmfulPlan, hasBodyComment, hasHarmfulPattern } from './harm-rules';
+import { foldText, hasMixedScriptWord, normaliseText, prepareText, scanNumbers } from './text-prep';
+
+export {
+  exceedsSafePace,
+  hasUnsafeEnergyFigure,
+  MAX_SAFE_LOSS_KG_PER_WEEK,
+  statedLossPerWeek,
+} from './energy-guard';
 
 /** The ceilings of each AI text. */
 export const COACH_LIMITS = Object.freeze({
@@ -58,6 +74,9 @@ export type CoachTextProblem =
   | 'url'
   | 'exclamation'
   | 'harmfulAdvice'
+  | 'bodyComment'
+  /** Talk about losing weight, for a person who has not chosen that goal (the restrained mode). */
+  | 'weightTalk'
   | 'bannedWord'
   | 'medicalClaim'
   | 'tooManyQuestions'
@@ -69,7 +88,7 @@ export type CoachTextCheck =
 
 /** NFKC, no invisible format characters (zero-width, bidi marks): what every check reads. */
 function normalise(raw: string): string {
-  return raw.normalize('NFKC').replace(/\p{Cf}/gu, '');
+  return normaliseText(raw);
 }
 
 /** Lower-case, accents removed and curly apostrophes straightened: for accent-free patterns. */
@@ -88,7 +107,7 @@ export const COACH_BANNED_PATTERNS: readonly RegExp[] = Object.freeze([
   /\bgreat (?:job|work)\b|\bwell done\b|\bgood job\b|\bnailed it\b|\bcrushed it\b|\bperfect\b|\bamazing\b|\bawesome\b|\bcongrat/,
   /\bremaining\b|\bleft today\b|\bcalories? left\b|\bkcal left\b|\bover[- ]?budget\b|\bexceed(?:ed|s)?\b/,
   /\bcheat(?:ing)?\b|\bguilt(?:y)?\b|\bshame\b|\bbad food\b|\bfail(?:ed|ure)?\b|\bnaughty\b/,
-  /\bjunk\b|\bclean eating\b|\bdetox\b/,
+  /\bjunk\b|\bclean eating\b/,
   /\bseries (?:de jours|continue)|\bserie\b|compte a rebours|\bbravo\b|felicitations|culpabilit|\bscores?\b|\bpoints\b/,
   /\bparfait\b|\bbien joue\b|\bvous reste\b|\brestantes?\b|\brestants?\b|depasse|hors budget|\bsuper\b|\bgenial|\breussi|\bechec\b/,
   /\btricher\b|\btriche\b|\bcoupable\b|\bhonte\b|\bmauvais aliment/,
@@ -97,48 +116,57 @@ export const COACH_BANNED_PATTERNS: readonly RegExp[] = Object.freeze([
 /** Banned words whose accent matters ("raté", but not "rate"). Matched on lower-case text. */
 const COACH_BANNED_ACCENTED = /(?<![\p{L}])(?:raté|manqué)(?![\p{L}])/u;
 
-/** Claims a food coach must never make: it does not diagnose, treat or cure. EN and FR. */
-export const COACH_MEDICAL_PATTERNS: readonly RegExp[] = Object.freeze([
-  /\bdiagnos(?:e|es|ed|is|ing)\b|\bcures?\b|\bcured\b|\bcuring\b|\btreat(?:s|ed|ing|ment)? (?:your|the|this)\b|\bprescri/,
-  /\bdisease\b|\bmedication\b|\bsyndrome\b|\bclinical/,
-  /\bdiagnostic\b|\bdiagnostiqu|\bguerir\b|\bguerit\b|\bguerison\b|\btraitement\b|\bprescri|\bmaladie\b|\bmedicament/,
-]);
-
 /**
- * Advice a food coach must never give, whatever the data says: skipping meals, fasting, losing
- * weight, calorie deficits, purging, a very low energy figure. Matched on folded text (and, for
- * "jeûne", on the accented text, because "jeune" alone means "young").
+ * Claims a food coach must never make: it does not diagnose, treat or cure. EN and FR. The words
+ * about medication, disease and clinical care are only a problem when the text does NOT also send
+ * the person to a doctor, a dietitian or a pharmacist (see `REFERRAL`): "if you take medication,
+ * talk to your doctor first" is exactly what the coach should say.
  */
-export const COACH_HARMFUL_PATTERNS: readonly RegExp[] = Object.freeze([
-  /\bskip(?:s|ping|ped)?\b.{0,24}\b(?:meals?|breakfast|lunch|dinner|supper)\b/,
-  /\bfast(?:ing|ed)?\b(?! food)/,
-  /\blos(?:e|ing) (?:some |more )?weight\b|\bweight loss\b|\bcalorie deficit\b|\bcut(?:ting)? (?:down |back )?(?:on )?(?:your )?calories\b|\bcrash diet\b/,
-  /\bsaut(?:er|ez|e|es|ons)\b.{0,24}\b(?:repas|petit[- ]?dejeuner|dejeuner|diner|souper)\b/,
-  /\bperdre du poids\b|\bperte de poids\b|\bdeficit calorique\b|\breduire (?:vos|tes|les) calories\b|\bregime drastique\b/,
-  /purg|laxati|vomi|vomit/,
+export const COACH_MEDICAL_PATTERNS: readonly RegExp[] = Object.freeze([
+  /\bdiagnos(?:e|es|ed|is|ing)\b|\bcures\b|\bcure (?:for|your|this|it|the|that|diabetes|cancer)\b|\b(?:will|can|could|may|to|that|which|and) cure\b|\bcured(?! (?:meats?|ham|hams|sausages?|bacon|fish|salmon|cheese|products?)\b)|\bcuring\b|\btreat(?:s|ed|ing|ment)? (?:your|the|this)\b|\bprescri/,
+  /\bdiagnostic\b|\bdiagnostiqu|\bguerir\b|\bguerit\b|\bguerison\b|\bprescri/,
 ]);
 
-const FAST_FR = /jeûn(?:e|er|ez|ons|ant|es)?\b/;
+/** Medical words that are acceptable next to a pointer to a professional. */
+const COACH_MEDICAL_REFERRAL_ONLY: readonly RegExp[] = Object.freeze([
+  /\bdisease\b|\bmedication\b|\bmedicine\b|\bsyndrome\b|\bclinical/,
+  /\bmaladie\b|\bmedicament|\btraitement\b/,
+]);
 
-const DAILY_ENERGY =
-  /(\d{3,4})\s*(?:kcal|kilocalories?|calories?)\s*(?:a|per|each|every|par|chaque)\s*(?:day|jour)/g;
+/** A pointer to a professional, EN and FR (folded). */
+const REFERRAL =
+  /\b(?:doctor|physician|gp|dietitian|dietician|pharmacist|health(?:care)? (?:professional|provider)|medical professional|midwife)\b|\bmedecin\b|\bdieteticien|\bnutritionniste\b|\bpharmacien|\bprofessionnel de sante\b|\bsage[- ]femme\b|\bmedecin traitant\b/;
 
-function hasLowDailyEnergy(folded: string): boolean {
-  for (const m of folded.matchAll(DAILY_ENERGY)) {
-    if (Number(m[1]) < 1200) return true;
-  }
-  return false;
+/** The blanket phrases of the restrained mode: a person who has not chosen a weight goal. */
+export const COACH_WEIGHT_TALK_PATTERNS: readonly RegExp[] = Object.freeze([
+  /\blos(?:e|ing) (?:some |more )?weight\b|\bweight loss\b|\bcalorie deficit\b|\bcut(?:ting)? (?:down |back )?(?:on )?(?:your )?calories\b/,
+  /\bperdre du poids\b|\bperte de poids\b|\bdeficit calorique\b|\breduire (?:vos|tes|les) calories\b/,
+]);
+
+export interface HarmfulAdviceOptions {
+  readonly floorKcal?: number;
+  readonly guideKcal?: number;
 }
 
-/** True when the text gives advice a food coach must never give. */
-export function containsHarmfulAdvice(text: string): boolean {
-  const norm = normalise(text);
-  const f = fold(norm);
-  return (
-    COACH_HARMFUL_PATTERNS.some((p) => p.test(f)) ||
-    FAST_FR.test(norm.toLowerCase()) ||
-    hasLowDailyEnergy(f)
-  );
+/**
+ * True when the text gives advice a food coach must never give: fasting, skipping or replacing a
+ * meal, detox, drugs and supplements, fad diets, compensation, moral words (`harm-rules.ts`), a
+ * daily energy figure under the person's guide (`energy-guard.ts`), a loss faster than a kilo a
+ * week, or a word that mixes Latin letters with Cyrillic or Greek look-alikes. A mention that
+ * advises AGAINST the thing ("do not skip meals") is not advice to do it.
+ *
+ * HONESTY: this is a backstop of pattern and number checks. It cannot catch every wording. The
+ * system prompt is the first layer; the built-in rules-based coach never depends on this check.
+ */
+export function containsHarmfulAdvice(text: string, options: HarmfulAdviceOptions = {}): boolean {
+  const { norm, f } = prepareText(text);
+  if (hasMixedScriptWord(norm)) return true;
+  return hasHarmfulPattern(f) || unsafeEnergyIn(f, options) || exceedsSafePaceIn(f);
+}
+
+/** True when the text comments on the person's body or labels it. */
+export function containsBodyComment(text: string): boolean {
+  return hasBodyComment(prepareText(text).f);
 }
 
 const URL_PATTERN = /:\/\/|\bwww\.|\b[a-z0-9-]+\.[a-z]{2,24}\b/;
@@ -149,8 +177,15 @@ const NUMBER_WITH_UNIT =
 
 /** True when the text quotes an amount (digits followed by g, kcal, calories, % ...). */
 export function containsNumberWithUnit(text: string): boolean {
-  return NUMBER_WITH_UNIT.test(normalise(text));
+  const norm = normalise(text);
+  if (NUMBER_WITH_UNIT.test(norm)) return true;
+  // Spelled-out amounts count too: "four hundred calories", "quatre cents kcal", "a thousand kcal".
+  const f = foldText(norm);
+  return scanNumbers(f).some((n) => SPELLED_UNIT_AFTER.test(f.slice(n.end, n.end + 16)));
 }
+
+const SPELLED_UNIT_AFTER =
+  /^\s{0,2}(?:%|percent|pour ?cent|pourcent|kcals?|kilocalor\w*|calor\w*|cals?|kj|kilojoules?|kgs?|kilos?|kilograms?|kilogrammes?|mg|g|grams?|grammes?)(?![a-z])/;
 
 function countQuestions(text: string): number {
   return (text.match(/\?/g) ?? []).length;
@@ -158,6 +193,16 @@ function countQuestions(text: string): number {
 
 export interface CoachTextRules {
   readonly maxChars: number;
+  /**
+   * `allowed`: the person chose to lose or gain weight, so a helpful answer about it passes (the
+   * harmful-advice checks still apply). `restrained` (the default): the person chose no weight
+   * goal, so any talk of losing weight, a calorie deficit or cutting calories is refused.
+   */
+  readonly weightTalk?: 'allowed' | 'restrained';
+  /** The lowest daily figure that may appear (the person's floor, kcal). Default 1200. */
+  readonly floorKcal?: number;
+  /** The person's daily guide, kcal: a daily figure below it is refused when it is a target. */
+  readonly guideKcal?: number;
   /** When `false` a text that quotes an amount is refused. */
   readonly numbersOn: boolean;
   /** Question marks allowed (default 1). */
@@ -192,10 +237,12 @@ export function validateCoachText(raw: unknown, rules: CoachTextRules): CoachTex
   if (rules.locale === 'fr') text = frenchTypography(text);
   if (text === '') return { ok: false, problem: 'empty' };
   if (text.length > rules.maxChars) return { ok: false, problem: 'tooLong' };
-  const folded = fold(text);
-  if (URL_PATTERN.test(folded)) return { ok: false, problem: 'url' };
+  if (URL_PATTERN.test(fold(text))) return { ok: false, problem: 'url' };
   if (/[!！‼❗¡]/u.test(text)) return { ok: false, problem: 'exclamation' };
-  if (containsHarmfulAdvice(text)) return { ok: false, problem: 'harmfulAdvice' };
+  const folded = prepareText(text).f;
+  if (!rules.numbersOn && containsNumberWithUnit(text)) {
+    return { ok: false, problem: 'numbersOff' };
+  }
   if (
     COACH_BANNED_PATTERNS.some((p) => p.test(folded)) ||
     COACH_BANNED_ACCENTED.test(text.toLowerCase())
@@ -205,11 +252,26 @@ export function validateCoachText(raw: unknown, rules: CoachTextRules): CoachTex
   if (COACH_MEDICAL_PATTERNS.some((p) => p.test(folded))) {
     return { ok: false, problem: 'medicalClaim' };
   }
+  if (COACH_MEDICAL_REFERRAL_ONLY.some((p) => p.test(folded)) && !REFERRAL.test(folded)) {
+    return { ok: false, problem: 'medicalClaim' };
+  }
+  if (
+    containsHarmfulAdvice(text, {
+      ...(rules.floorKcal !== undefined ? { floorKcal: rules.floorKcal } : {}),
+      ...(rules.guideKcal !== undefined ? { guideKcal: rules.guideKcal } : {}),
+    })
+  ) {
+    return { ok: false, problem: 'harmfulAdvice' };
+  }
+  if (containsBodyComment(text)) return { ok: false, problem: 'bodyComment' };
+  if (
+    (rules.weightTalk ?? 'restrained') === 'restrained' &&
+    COACH_WEIGHT_TALK_PATTERNS.some((p) => p.test(folded))
+  ) {
+    return { ok: false, problem: 'weightTalk' };
+  }
   if (countQuestions(text) > (rules.maxQuestions ?? 1)) {
     return { ok: false, problem: 'tooManyQuestions' };
-  }
-  if (!rules.numbersOn && containsNumberWithUnit(text)) {
-    return { ok: false, problem: 'numbersOff' };
   }
   return { ok: true, text };
 }
@@ -245,6 +307,7 @@ export function parseAiCoachNote(
   raw: string,
   numbersOn: boolean,
   locale?: 'en' | 'fr',
+  limits: Pick<CoachTextRules, 'weightTalk' | 'floorKcal' | 'guideKcal'> = {},
 ): AiCoachNote | null {
   const json = jsonObjectOf(raw);
   if (typeof json !== 'object' || json === null || Array.isArray(json)) return null;
@@ -252,12 +315,14 @@ export function parseAiCoachNote(
   const checked = validateCoachText(note, {
     maxChars: COACH_LIMITS.noteChars,
     numbersOn,
+    ...limits,
     ...(locale ? { locale } : {}),
   });
   if (!checked.ok) return null;
   const follow = validateCoachText(followUp, {
     maxChars: COACH_LIMITS.followUpChars,
     numbersOn,
+    ...limits,
     ...(locale ? { locale } : {}),
   });
   return { note: checked.text, followUp: follow.ok ? follow.text : '' };
@@ -269,9 +334,17 @@ export function parseAiCoachNote(
  *  - `urgent`: a possibly urgent symptom (chest pain, breathing, a swelling throat, an allergic
  *    reaction, fainting), answered with "call the emergency number now";
  *  - `eatingWorry`: an eating-disorder signal, answered with the calm support line;
- *  - `medicalSymptom`: any other symptom, answered with "check with a doctor or a pharmacist".
+ *  - `medicalSymptom`: any other symptom, answered with "check with a doctor or a pharmacist";
+ *  - `extremeDiet`: a request for a very low daily intake ("800 kcal") or a very fast loss
+ *    ("lose 5 kg in a week"), answered with the fixed calm line about a gentler pace.
  */
-export type SupportSignal = 'selfHarm' | 'urgent' | 'eatingWorry' | 'medicalSymptom';
+export type SupportSignal =
+  | 'selfHarm'
+  | 'urgent'
+  | 'eatingWorry'
+  | 'medicalSymptom'
+  /** A request for a very low daily intake or for a very fast loss: answered with the fixed calm line. */
+  | 'extremeDiet';
 
 const SELF_HARM_PATTERNS: readonly RegExp[] = [
   /\bkill(?:ing)? myself\b|\bsuicid|\bwant(?:ed)? to die\b|\bwanna die\b|\bend(?:ing)? my (?:own )?life\b|\bself[- ]?harm|\bhurt(?:ing)? myself\b|\bbetter off dead\b/,
@@ -306,33 +379,32 @@ const MEDICAL_SYMPTOM_PATTERNS: readonly RegExp[] = [
   /\bmalaise\b|vertiges?|\bsang dans\b|\bdouleurs? (?:intense|forte)|\bnausees?\b/,
 ];
 
-/** "how can I eat 600 calories a day": a daily energy figure under 1200. */
-function eatsVeryLittle(folded: string): boolean {
-  for (const m of folded.matchAll(
-    /(\d{3,4})\s*(?:kcal|kilocalories?|calories?)\s*(?:a|per|each|every|par|chaque|\/)?\s*(?:day|daily|jour)/g,
-  )) {
-    if (Number(m[1]) < 1200) return true;
-  }
-  return false;
+/** "lose 5 kg in a week", "perdre 10 kilos en un mois": a fast loss, over a kilo a week. */
+function wantsFastLoss(folded: string): boolean {
+  return (
+    exceedsSafePaceIn(folded) ||
+    /\b(?:lose|loss|perdre|maigrir)\b.{0,30}\b(?:fast|quickly|asap|overnight|vite|rapidement|en urgence|en quelques jours|in a few days|in days)\b/.test(
+      folded,
+    ) ||
+    /\b(?:rapid|fast|quick) (?:weight )?loss\b|\bperte de poids rapide\b|\bminceur express\b|\bcrash diet\b|\bregime express\b/.test(
+      folded,
+    )
+  );
 }
 
 /**
  * Whether a typed question is about a worry, a symptom or an emergency. Checked locally, before
  * anything is sent: such a question is answered with support, never with advice, and never leaves
- * the device. Order: selfHarm, urgent, eatingWorry, medicalSymptom.
+ * the device. Order: selfHarm, urgent, eatingWorry, extremeDiet, medicalSymptom.
  */
 export function detectSupportSignal(text: string): SupportSignal | null {
-  const norm = normalise(text);
-  const f = fold(norm);
+  const { norm, f } = prepareText(text);
   if (SELF_HARM_PATTERNS.some((p) => p.test(f))) return 'selfHarm';
   if (URGENT_PATTERNS.some((p) => p.test(f))) return 'urgent';
-  if (
-    EATING_WORRY_PATTERNS.some((p) => p.test(f)) ||
-    EATING_ACCENTED.some((p) => p.test(norm)) ||
-    eatsVeryLittle(f)
-  ) {
+  if (EATING_WORRY_PATTERNS.some((p) => p.test(f)) || EATING_ACCENTED.some((p) => p.test(norm))) {
     return 'eatingWorry';
   }
+  if (askEatsVeryLittle(f) || wantsFastLoss(f) || askMentionsHarmfulPlan(f)) return 'extremeDiet';
   if (MEDICAL_SYMPTOM_PATTERNS.some((p) => p.test(f))) return 'medicalSymptom';
   return null;
 }

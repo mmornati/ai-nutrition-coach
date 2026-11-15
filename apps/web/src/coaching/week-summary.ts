@@ -8,6 +8,7 @@ import {
   type WeeklyReview,
 } from '@anc/core';
 import type { CoachingAi } from '../ai';
+import { NO_AI_CONTEXT, type AiContextProvider } from './context';
 
 export type WeekSummaryResult =
   | { readonly kind: 'text'; readonly text: string }
@@ -24,6 +25,8 @@ export interface WeekSummaryDeps {
   readonly locale: () => CoachLocale;
   readonly targets: () => Required<Nutrients>;
   readonly profile: () => Profile | undefined;
+  /** The goal, the step and the switches, read at each request (default: no weight talk). */
+  readonly context?: AiContextProvider;
 }
 
 /**
@@ -36,6 +39,7 @@ export async function requestWeekSummary(
   review: WeeklyReview,
 ): Promise<WeekSummaryResult> {
   const numbersOn = deps.numbersOn();
+  const context = deps.context?.() ?? NO_AI_CONTEXT;
   try {
     const result = await deps.coaching.complete(
       buildWeekMessages({
@@ -44,6 +48,9 @@ export async function requestWeekSummary(
         review,
         targets: deps.targets(),
         profile: deps.profile(),
+        weightHelp: context.weightHelp,
+        step: context.step,
+        weightTrend: context.weightTrend,
       }),
       { maxTokens: 360, temperature: 0.5 },
     );
@@ -61,6 +68,7 @@ export async function requestWeekSummary(
           maxChars: COACH_LIMITS.weekChars,
           numbersOn,
           locale: deps.locale(),
+          ...context.limits,
         });
         return checked.ok ? { kind: 'text', text: checked.text } : { kind: 'unsure' };
       }

@@ -542,6 +542,46 @@ describe('YourAiScreen: describing a meal with AI', () => {
     expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBeNull();
   });
 
+  it('"Share my weight trend with the coach" is its own switch: off by default, needs coaching, never survives a lapse', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    const COACHING = 'Let the AI write coach notes and answer questions';
+    const TREND = 'Share my weight trend with the coach';
+    const trendSwitch = () => screen.getByRole('switch', { name: TREND });
+    const trend = trendSwitch();
+    expect(trendSwitch()).not.toBeChecked();
+    // Needs AI coaching first.
+    expect(trend).toBeDisabled();
+    expect(screen.getByText(/Turn on AI coaching above first/)).toBeVisible();
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull();
+    // What it sends is said plainly, and what it never does.
+    expect(
+      screen.getByText(/Never a single weigh-in, never a date of one, never your height/),
+    ).toBeVisible();
+
+    const coachSwitch = screen.getByRole('switch', { name: COACHING });
+    expect(coachSwitch).toBeEnabled();
+    await user.click(coachSwitch);
+    await waitFor(async () =>
+      expect(await bundle.kv.read(KV_KEYS.aiCoachingConsent)).toBe('{"host":"api.example.com"}'),
+    );
+    await waitFor(() => expect(trendSwitch()).toBeEnabled());
+    expect(trendSwitch()).not.toBeChecked();
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull();
+    await user.click(trendSwitch());
+    await waitFor(() => expect(trendSwitch()).toBeChecked());
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBe('on');
+    expect(screen.getByText(/a direction and the change over about four weeks/)).toBeVisible();
+
+    // Turning coaching off turns the trend off, and turning it back on does not turn it back on.
+    await user.click(screen.getByRole('switch', { name: COACHING }));
+    await waitFor(() => expect(trendSwitch()).not.toBeChecked());
+    await waitFor(async () => expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull());
+    await user.click(screen.getByRole('switch', { name: COACHING }));
+    await waitFor(() => expect(trendSwitch()).toBeEnabled());
+    expect(trendSwitch()).not.toBeChecked();
+  });
+
   it('keeps the voice model with the key settings; empty means the default', async () => {
     const user = userEvent.setup();
     const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });

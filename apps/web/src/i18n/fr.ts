@@ -481,19 +481,27 @@ export const fr: Strings = {
         'Ce qui est envoyé : uniquement ce texte (500 caractères au plus, ou 8 000 pour une recette collée) ou cet enregistrement (30 secondes au plus, transformé en texte et non conservé par cette application), et une instruction fixe. Jamais votre nom, votre historique, vos autres assiettes ni vos photos.',
       coachingHeading: 'Coaching par IA',
       coachingIntro:
-        'Le coach peut écrire ses notes et répondre à vos questions avec l’aide d’une IA. Cela envoie une partie de vos repas à cette IA, ce qui n’a rien à voir avec l’envoi d’une photo : c’est pourquoi il a son propre réglage.',
+        'Le coach peut écrire ses notes et répondre à vos questions avec l’aide d’une IA. Cela envoie une partie de vos repas à cette IA, ce qui n’a rien à voir avec l’envoi d’une photo : c’est pourquoi il a son propre réglage. Si votre objectif dans le profil est de perdre ou de prendre du poids, le coach peut vous y aider, simplement et avec prudence ; avec tout autre objectif, il n’aborde pas la perte de poids.',
       coachingSwitch: 'Laisser l’IA écrire les notes du coach et répondre aux questions',
       coachingSwitchHelpOff:
         'Désactivé : le coach écrit ses notes intégrées et rien de vos repas n’est envoyé.',
       coachingSwitchHelpOn:
         'Activé : après l’enregistrement d’une assiette, et quand vous interrogez le coach, vos données de repas partent vers la destination indiquée plus bas. Vous pouvez le désactiver à tout moment.',
       coachingSent:
-        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis, et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais le poids, la taille ni le tour de taille eux-mêmes, jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids, les nutriments et le repère du jour ne sont pas envoyés.',
+        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas (celui sous lequel vous avez rangé une assiette, ou celui que son heure laisse entendre), le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis, l’énergie moyenne de la semaine à côté de ce repère arrondi, les aliments qui ont apporté le plus d’énergie, le pas que vous avez choisi pour la semaine, et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais le poids, la taille ni le tour de taille eux-mêmes, jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids, les nutriments, l’énergie moyenne et le repère du jour ne sont pas envoyés. Votre tendance de poids n’est envoyée que si vous activez le réglage distinct ci-dessous.',
       coachingDestinationInstance: 'Destination : {host}, ce serveur, qui la transmet à {label}.',
       coachingDestinationByok: 'Destination : {host}, le service que vous avez choisi.',
       coachingNeedsAi:
         'Choisissez d’abord une IA ci-dessus : celle que ce serveur propose, ou votre propre clé. D’ici là, rien n’est envoyé.',
       coachingSaveFailed: 'Impossible de l’enregistrer. Déverrouillez l’application et réessayez.',
+      trendSwitch: 'Partager ma tendance de poids avec le coach',
+      trendHelpOff:
+        'Désactivé : le coach ne reçoit ni pesée ni tendance de poids. Il voit tout de même votre repère quotidien, arrondi aux 100 kcal, qui est calculé à partir de votre poids et de votre taille.',
+      trendHelpOn:
+        'Activé : le coach reçoit aussi une description grossière de votre tendance de poids : une direction et la variation sur environ quatre semaines, au demi-kilo près. Elle n’est envoyée que si vous avez choisi de perdre ou de prendre du poids et que votre repère n’est pas maintenu par sécurité (grossesse ou allaitement, indice de masse corporelle bas, 65 ans et plus, pas de marge au-dessus du minimum, pas de données corporelles) ; dans ces cas, aucune tendance de poids n’est envoyée, même activée.',
+      trendSent:
+        'Jamais une pesée isolée, jamais sa date, jamais votre taille, un indice de masse corporelle ni votre tour de taille. Cela suppose que le coaching par IA soit activé, et vous pouvez le désactiver à tout moment.',
+      trendNeedsCoaching: 'Activez d’abord le coaching par IA ci-dessus.',
     },
     failure: {
       keyMissing: 'il manque votre propre clé — ouvrez Réglages → Votre IA pour la saisir',
@@ -689,13 +697,170 @@ export const fr: Strings = {
         moreVeg:
           'Des légumes ou des fruits sont apparus {days} jours sur {of} notés. Une poignée pourrait-elle rejoindre un repas de plus la semaine prochaine ?',
         moreProtein:
-          'Les protéines ont fait {approx}{g} g par jour en moyenne. Des œufs, des légumineuses, du tofu ou du poisson au déjeuner pourraient en ajouter la semaine prochaine.',
+          'Les protéines ont fait {approx}{g} g par jour en moyenne. Ajouter {protein} au déjeuner pourrait en apporter plus la semaine prochaine.',
         moreFibre:
-          'Les fibres ont fait {approx}{g} g par jour en moyenne. Les légumineuses, l’avoine ou le pain complet sont des débuts faciles.',
+          'Les fibres ont fait {approx}{g} g par jour en moyenne. Des débuts faciles : {fibre}.',
         easeSalt:
           'Le sel a fait {approx}{g} g par jour en moyenne. Goûter avant de saler est un début tout doux.',
         easeSugars:
-          'Les sucres ont fait {approx}{g} g par jour en moyenne. Un fruit ou un yaourt nature à la place d’une douceur est un petit changement.',
+          'Les sucres ont fait {approx}{g} g par jour en moyenne. Remplacer une douceur par {sweet} est un petit changement.',
+        easeEnergy:
+          'L’énergie a fait environ {approx}{kcal} kcal par jour en moyenne, et « {foodLc} » est revenu souvent. Une portion plus petite ou un échange la semaine prochaine vous conviendrait-il ?',
+        eatEnough:
+          'L’énergie notée était bien en dessous de votre repère. Manger assez compte aussi : quelque chose échappe-t-il au journal, ou certains repas sont-ils difficiles à placer ?',
+        lessSugaryDrinks: {
+          one: 'Des boissons sucrées sont apparues {days} fois sur {of} jour noté. De l’eau à la place de l’une d’elles la semaine prochaine vous conviendrait-elle ?',
+          other:
+            'Des boissons sucrées sont apparues {days} fois sur {of} jours notés. De l’eau à la place de l’une d’elles la semaine prochaine vous conviendrait-elle ?',
+        },
+      },
+      energy: {
+        line: {
+          one: 'Sur le {days} jour compté, l’énergie a fait environ {avg} kcal par jour en moyenne, {relation} votre repère de {guide} kcal.',
+          other:
+            'Sur les {days} jours comptés, l’énergie a fait environ {avg} kcal par jour en moyenne, {relation} votre repère de {guide} kcal.',
+        },
+        lineNoNumbers: {
+          one: 'Sur le {days} jour compté, l’énergie a été en moyenne {relation} votre repère.',
+          other:
+            'Sur les {days} jours comptés, l’énergie a été en moyenne {relation} votre repère.',
+        },
+        relation: {
+          near: 'proche de',
+          above: 'un peu au-dessus de',
+          farAbove: 'bien au-dessus de',
+          below: 'un peu en dessous de',
+          farBelow: 'bien en dessous de',
+        },
+        foods: 'Aliments riches en énergie revenus plus d’un jour : {foods}.',
+      },
+      weightLine: {
+        lower: {
+          one: 'Votre tendance de poids est d’environ {kg} kg plus basse qu’il y a {weeks} semaine',
+          other:
+            'Votre tendance de poids est d’environ {kg} kg plus basse qu’il y a {weeks} semaines',
+        },
+        higher: {
+          one: 'Votre tendance de poids est d’environ {kg} kg plus haute qu’il y a {weeks} semaine',
+          other:
+            'Votre tendance de poids est d’environ {kg} kg plus haute qu’il y a {weeks} semaines',
+        },
+        steady: {
+          one: 'Votre tendance de poids est à peu près la même qu’il y a {weeks} semaine',
+          other: 'Votre tendance de poids est à peu près la même qu’il y a {weeks} semaines',
+        },
+        lowerNoNumbers: {
+          one: 'Votre tendance de poids est un peu plus basse qu’il y a {weeks} semaine',
+          other: 'Votre tendance de poids est un peu plus basse qu’il y a {weeks} semaines',
+        },
+        higherNoNumbers: {
+          one: 'Votre tendance de poids est un peu plus haute qu’il y a {weeks} semaine',
+          other: 'Votre tendance de poids est un peu plus haute qu’il y a {weeks} semaines',
+        },
+        intakeNear: ', alors que l’énergie notée était en moyenne proche de votre repère.',
+        intakeAbove: ', alors que l’énergie notée était en moyenne au-dessus de votre repère.',
+        intakeBelow: ', alors que l’énergie notée était en moyenne en dessous de votre repère.',
+        end: '.',
+        mismatch:
+          'Les quantités notées sont des estimations, et les aliments ou portions non comptés sont la raison habituelle d’un écart entre une tendance et un journal. Chaque jour indique ce qui n’a pas été compté.',
+      },
+      qualityTitle: 'Un regard sur les aliments eux-mêmes',
+      quality: {
+        processedMeatOften: {
+          one: 'De la charcuterie (jambon, saucisse, lardons) est apparue {days} fois sur {of} jour noté. Le repère habituel est d’en garder pour de temps en temps.',
+          other:
+            'De la charcuterie (jambon, saucisse, lardons) est apparue {days} fois sur {of} jours notés. Le repère habituel est d’en garder pour de temps en temps.',
+        },
+        redMeatOften: {
+          one: 'De la viande rouge (bœuf, porc, agneau) est apparue {days} fois sur {of} jour noté. Le repère habituel est quelques fois par semaine au plus.',
+          other:
+            'De la viande rouge (bœuf, porc, agneau) est apparue {days} fois sur {of} jours notés. Le repère habituel est quelques fois par semaine au plus.',
+        },
+        sugaryDrinksOften: {
+          one: 'Des boissons sucrées sont apparues {days} fois sur {of} jour noté. Le repère habituel pour boire au quotidien est l’eau.',
+          other:
+            'Des boissons sucrées sont apparues {days} fois sur {of} jours notés. Le repère habituel pour boire au quotidien est l’eau.',
+        },
+        pulsesLow: {
+          one: 'Des légumineuses sont apparues {days} fois sur {of} jour noté. Le repère habituel est au moins deux fois par semaine.',
+          other:
+            'Des légumineuses sont apparues {days} fois sur {of} jours notés. Le repère habituel est au moins deux fois par semaine.',
+        },
+        fishLow: {
+          one: 'Du poisson est apparu {days} fois sur {of} jour noté. Le repère habituel est environ deux fois par semaine, dont un poisson gras.',
+          other:
+            'Du poisson est apparu {days} fois sur {of} jours notés. Le repère habituel est environ deux fois par semaine, dont un poisson gras.',
+        },
+        wholegrainLow: {
+          one: 'Les versions complètes représentent {n} sur {of} féculent à base de céréales noté. Le repère habituel est de choisir plus souvent le complet.',
+          other:
+            'Les versions complètes représentent {n} sur {of} féculents à base de céréales notés. Le repère habituel est de choisir plus souvent le complet.',
+        },
+        nutsNone: {
+          one: 'Aucune noix n’est apparue sur {of} jour noté. Le repère habituel est une petite poignée de noix nature par jour.',
+          other:
+            'Aucune noix n’est apparue sur les {of} jours notés. Le repère habituel est une petite poignée de noix nature par jour.',
+        },
+      },
+      stepTitle: 'Votre pas de la semaine',
+      stepReview: {
+        vegAtLunch: {
+          one: 'Vous aviez choisi des légumes au déjeuner. Il y en avait à {matched} sur {of} déjeuner noté.',
+          other:
+            'Vous aviez choisi des légumes au déjeuner. Il y en avait à {matched} des {of} déjeuners notés.',
+        },
+        vegAtDinner: {
+          one: 'Vous aviez choisi des légumes au dîner. Il y en avait à {matched} sur {of} dîner noté.',
+          other:
+            'Vous aviez choisi des légumes au dîner. Il y en avait à {matched} des {of} dîners notés.',
+        },
+        proteinAtBreakfast: {
+          one: 'Vous aviez choisi des protéines au petit-déjeuner. Il y en avait à {matched} sur {of} petit-déjeuner noté.',
+          other:
+            'Vous aviez choisi des protéines au petit-déjeuner. Il y en avait à {matched} des {of} petits-déjeuners notés.',
+        },
+        proteinAtLunch: {
+          one: 'Vous aviez choisi des protéines au déjeuner. Il y en avait à {matched} sur {of} déjeuner noté.',
+          other:
+            'Vous aviez choisi des protéines au déjeuner. Il y en avait à {matched} des {of} déjeuners notés.',
+        },
+        proteinAtDinner: {
+          one: 'Vous aviez choisi des protéines au dîner. Il y en avait à {matched} sur {of} dîner noté.',
+          other:
+            'Vous aviez choisi des protéines au dîner. Il y en avait à {matched} des {of} dîners notés.',
+        },
+        waterForDrinks: {
+          one: 'Vous aviez choisi de l’eau à la place des boissons sucrées. Des boissons sucrées sont apparues {matched} fois sur {of} jour noté.',
+          other:
+            'Vous aviez choisi de l’eau à la place des boissons sucrées. Des boissons sucrées sont apparues {matched} fois sur {of} jours notés.',
+        },
+        pulsesWeek: {
+          one: 'Vous aviez choisi des légumineuses. Elles sont apparues {matched} fois sur {of} jour noté.',
+          other:
+            'Vous aviez choisi des légumineuses. Elles sont apparues {matched} fois sur {of} jours notés.',
+        },
+        fishWeek: {
+          one: 'Vous aviez choisi du poisson. Il est apparu {matched} fois sur {of} jour noté.',
+          other: 'Vous aviez choisi du poisson. Il est apparu {matched} fois sur {of} jours notés.',
+        },
+        nutsWeek: {
+          one: 'Vous aviez choisi une poignée de noix. Elles sont apparues {matched} fois sur {of} jour noté.',
+          other:
+            'Vous aviez choisi une poignée de noix. Elles sont apparues {matched} fois sur {of} jours notés.',
+        },
+        wholegrainWeek: {
+          one: 'Vous aviez choisi des versions complètes. Le complet représentait {matched} sur {of} féculent à base de céréales noté.',
+          other:
+            'Vous aviez choisi des versions complètes. Le complet représentait {matched} sur {of} féculents à base de céréales notés.',
+        },
+        noData:
+          'Vous aviez choisi {step}. Le journal ne peut pas le montrer : vous seul pouvez dire comment cela s’est passé.',
+        notYet:
+          'Vous aviez choisi {step}. Il n’y a pas encore assez de repas notés pour dire comment cela s’est passé.',
+      },
+      suggestionsNoNumbers: {
+        easeEnergy:
+          'L’énergie a été au-dessus de votre repère, et « {foodLc} » est revenu souvent. Une portion plus petite ou un échange la semaine prochaine vous conviendrait-il ?',
       },
       ai: {
         button: 'Interroger le coach sur cette semaine',
@@ -1248,6 +1413,87 @@ export const fr: Strings = {
   },
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'environ {pct} %', underOne: 'moins de 1 %' },
+  /** The foods a coach note names, by slot option id (the core owns the ids and the diet and allergy limits). */
+  coachFoods: {
+    eggs: 'des œufs',
+    beans: 'des haricots',
+    lentils: 'des lentilles',
+    chickpeas: 'des pois chiches',
+    tofu: 'du tofu',
+    fish: 'du poisson',
+    tinnedFish: 'du poisson en boîte',
+    yogurt: 'du yaourt',
+    cheese: 'du fromage',
+    milk: 'du lait',
+    nuts: 'des noix',
+    fruit: 'un fruit',
+    oats: 'des flocons d’avoine',
+    wholegrainBread: 'du pain complet',
+    brownRice: 'du riz complet',
+  },
+  /** What a slot says when the diet and allergies leave it no option. */
+  coachSlotFallback: {
+    protein: 'une source de protéines qui vous convient',
+    dairy: 'un produit laitier qui vous convient',
+    fibre: 'un aliment riche en fibres',
+    snack: 'quelque chose de léger',
+    breakfast: 'une source de protéines',
+    sweet: 'quelque chose de moins sucré',
+    pulses: 'des légumineuses',
+    wholegrain: 'des versions complètes',
+  },
+  /** The one next step the person may accept from the coach. */
+  coachStep: {
+    thisWeek: 'Cette semaine : {step}',
+    offer: 'Essayer cette semaine',
+    offered: 'Choisi pour cette semaine : {step}',
+    done: 'C’est fait',
+    drop: 'Laisser tomber',
+    keep: 'Garder une semaine de plus',
+    change: 'En changer',
+    saveFailed: 'Impossible de garder cela. Déverrouillez l’application et réessayez.',
+    names: {
+      vegAtLunch: 'une portion de légumes au déjeuner',
+      vegAtDinner: 'une portion de légumes au dîner',
+      proteinAtBreakfast: 'des protéines au petit-déjeuner',
+      proteinAtLunch: 'des protéines au déjeuner',
+      proteinAtDinner: 'des protéines au dîner',
+      waterForDrinks: 'de l’eau à la place des boissons sucrées',
+      fruitSnack: 'un fruit à la place d’une collation riche en énergie',
+      smallerPortion: 'une portion plus petite de « {food} »',
+      pulsesWeek: 'des légumineuses à deux repas',
+      fishWeek: 'du poisson à deux repas',
+      wholegrainWeek: 'des versions complètes de vos féculents habituels',
+      nutsWeek: 'une petite poignée de noix nature',
+    },
+  },
+  /** The coach page: step, latest notes, the week, the guide, and the conversation when an AI is on. */
+  coachPage: {
+    title: 'Le coach',
+    intro:
+      'Un endroit calme pour ce que le coach a remarqué. Rien ici ne vous demande quoi que ce soit.',
+    stepTitle: 'Votre pas',
+    stepNone:
+      'Aucun pas choisi. Quand le coach propose un petit changement sous une assiette, vous pouvez l’essayer pour la semaine.',
+    notesTitle: 'Dernières notes',
+    notesNone: 'Aucune note ces derniers jours.',
+    notesFor: '{day}, {meal}',
+    weekTitle: 'La semaine',
+    weekNone: 'Rien de noté cette semaine pour l’instant.',
+    guideTitle: 'Votre repère du jour',
+    guidePersonal:
+      'Environ {kcal} kcal et {protein} g de protéines par jour, calculés d’après votre profil.',
+    guideReference: 'Les apports de référence de l’UE, faute d’un profil pour un repère à vous.',
+    guideNoNumbers:
+      'Les chiffres nutritionnels sont masqués, le repère aussi. Vous pouvez les afficher dans Réglages, Nutrition.',
+    profileLink: 'Ouvrir le profil',
+    aiNone: 'Aucune IA n’est configurée, le coach écrit donc ses notes intégrées.',
+    aiNeedsConsent:
+      'Une IA est choisie, mais le coaching par IA est désactivé : le coach écrit donc ses notes intégrées.',
+    aiLink: 'En choisir une dans Votre IA',
+    aiLinkConsent: 'L’activer dans Votre IA',
+    chatTitle: 'Interroger le coach',
+  },
   /** Ask the coach (optional AI chat) and the AI coaching copy. */
   askCoach: {
     title: 'Interroger le coach',
@@ -1290,6 +1536,11 @@ export const fr: Strings = {
       'Cela peut être urgent. Appelez les secours maintenant : le 15 ou le 112 en France, le 112 dans l’Union européenne. Je ne peux pas donner de conseil sur des symptômes.',
     supportSelfHarm:
       'Ce que vous ressentez compte, et merci d’en parler. Vous n’avez pas à porter cela sans aide. En France, vous pouvez appeler le 3114, le numéro national de prévention du suicide, gratuit et ouvert jour et nuit. Ailleurs, appelez le numéro d’urgence local (le 112 dans l’Union européenne) ou une ligne d’écoute près de chez vous.',
+    supportExtreme:
+      'Manger si peu, ou perdre du poids si vite, est dur pour le corps, et je ne peux pas vous y aider. Un médecin ou un diététicien peut en parler avec vous. Je peux vous aider avec un rythme plus doux et avec ce que vous mangez déjà.',
+    unsureWeight:
+      'Cela ressemble à une question sur la perte de poids. Si c’est votre objectif, vous pouvez le choisir dans le profil, et je pourrai alors vous aider sur ce que vous mangez.',
+    openProfile: 'Ouvrir le profil',
     hiddenByNumbers:
       'Cette réponse cite des quantités, masquées tant que les chiffres nutritionnels sont masqués.',
   },
@@ -1300,14 +1551,14 @@ export const fr: Strings = {
       'Pas mal de protéines ici. Un peu plus de légumes à côté vous conviendrait-il ?',
     'post.resolve.starchHeavy':
       'Beaucoup de féculents ici. Auriez-vous quelques légumes de plus à glisser à côté ?',
-    'post.resolve.dairyLight': 'Une cuillère de yaourt ou un peu de fromage irait-il avec ça ?',
+    'post.resolve.dairyLight': 'Auriez-vous envie d’ajouter {dairy} avec ça ?',
     'post.resolve.vegRich':
-      'Beaucoup de légumes ici. Auriez-vous des protéines sous la main, comme des œufs, des légumineuses ou du poisson ?',
+      'Beaucoup de légumes ici. Auriez-vous des protéines sous la main, comme {protein} ?',
     'post.resolve.balanced': 'Jolie assiette — changeriez-vous quelque chose la prochaine fois ?',
     'post.resolve.breakfastSimple':
       'Un début simple. Qu’est-ce qui vous fait tenir jusqu’au déjeuner d’habitude ?',
     'post.resolve.proteinMissingDay':
-      'Pas encore de protéines aujourd’hui. Des œufs, des légumineuses, du tofu ou du poisson iraient-ils dans ce repas ?',
+      'Pas encore de protéines aujourd’hui. Ce repas pourrait-il avoir {protein} ?',
     'openPlate.vegLight':
       'Pas de légumes ni de fruits pour l’instant aujourd’hui. Ce repas pourrait-il en avoir une poignée ?',
     'openPlate.proteinHeavy': 'Plutôt protéiné jusqu’ici. Des légumes à côté iraient bien.',
@@ -1319,23 +1570,21 @@ export const fr: Strings = {
     'openPlate.breakfastSimple':
       'Un petit-déjeuner simple peut suffire. Vous prenez quoi d’habitude ?',
     'openPlate.proteinMissingDay':
-      'Pas encore de protéines aujourd’hui. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+      'Pas encore de protéines aujourd’hui. Ce repas pourrait-il avoir {protein} ?',
     'depth.followUp.vegLight':
       'Des petits pois surgelés ou une salade en sachet, c’est prêt en deux minutes et ça se garde des jours.',
     'depth.followUp.proteinHeavy':
       'Des épinards surgelés ou une plaque de légumes rôtis vont avec presque tout.',
     'depth.followUp.starchHeavy':
-      'Une poignée de légumes surgelés jetée dans la casserole de pâtes ou de riz pour les dernières minutes, sans autre poêle à laver.',
-    'depth.followUp.dairyLight':
-      'Un yaourt nature ou un peu de fromage râpé, c’est facile à ajouter à table.',
+      'Une poignée de légumes surgelés jetée dans la casserole pour les dernières minutes, sans autre poêle à laver.',
+    'depth.followUp.dairyLight': 'Ajouter {dairy} à table, c’est facile.',
     'depth.followUp.vegRich':
-      'Un œuf dur, une boîte de haricots ou un peu de tofu font d’une assiette de légumes un vrai repas en quelques minutes.',
+      'Ajouter {protein} fait d’une assiette de légumes un vrai repas en quelques minutes.',
     'depth.followUp.balanced':
       'Si celui-ci a bien marché, en cuisiner un peu plus règle déjà le déjeuner de demain.',
     'depth.followUp.breakfastSimple':
-      'Des œufs, un yaourt ou une poignée de noix tiennent plus longtemps que le pain ou les céréales seuls, si l’envie de changer vous prend.',
-    'depth.followUp.proteinMissingDay':
-      'Le poisson en boîte, les œufs et les haricots en conserve se gardent bien et ne demandent aucune cuisson.',
+      'Un petit-déjeuner avec des protéines, comme {breakfast}, tient souvent plus longtemps, si l’envie de changer vous prend.',
+    'depth.followUp.proteinMissingDay': 'Avoir {protein} sous la main rend l’ajout rapide.',
     'post.resolve.sugarsHighItem':
       'Cet aliment ({food}) contient {approx}{g} g de sucres, soit {share} de la référence d’une journée. Un petit plaisir aujourd’hui, ou une habitude à regarder ?',
     'post.resolve.saltHighPlate':
@@ -1343,35 +1592,68 @@ export const fr: Strings = {
     'post.resolve.satFatHighPlate':
       'Cette assiette contient {approx}{g} g d’acides gras saturés, soit {share} de la référence d’une journée. Quelque chose de plus léger en graisses saturées irait-il pour le prochain repas ?',
     'post.resolve.energyDenseSnack':
-      'Cette collation fait {approx}{kcal} kcal, sans protéines ni légumes à côté. Un fruit ou un verre de lait irait-il avec ?',
+      'Cette collation fait {approx}{kcal} kcal, sans protéines ni légumes à côté. Pourriez-vous y ajouter {snack} ?',
     'post.resolve.proteinLowDay':
-      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Des œufs, des légumineuses, du tofu ou du poisson pourraient-ils trouver leur place au prochain repas ?',
+      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Pourriez-vous ajouter {protein} au prochain repas ?',
     'post.resolve.fibreLowDay':
-      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Un fruit ou une poignée de noix irait-il ce soir, ou au petit-déjeuner demain ?',
+      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Pourriez-vous ajouter {fibre} ce soir, ou au petit-déjeuner demain ?',
     'openPlate.proteinLowDay':
-      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+      'Les protéines d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir {protein} ?',
     'openPlate.fibreLowDay':
-      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir des légumineuses, du pain complet ou un fruit ?',
+      'Les fibres d’aujourd’hui font {approx}{g} g pour l’instant, soit {share} de la référence d’une journée. Ce repas pourrait-il avoir {fibre} ?',
     'depth.followUp.sugarsHighItem':
-      'Un yaourt nature avec quelques morceaux de fruit, sucré par vous-même d’une cuillère de confiture, vous laisse choisir le degré de douceur.',
+      'Choisir soi-même la douceur, avec quelques morceaux de fruit ou une cuillère de confiture sur du nature, vous laisse décider du degré de sucre.',
     'depth.followUp.saltHighPlate':
       'Goûter avant de saler, et rincer les légumes ou les légumineuses en conserve, fait baisser le sel sans changer le repas.',
     'depth.followUp.satFatHighPlate':
-      'De l’huile d’olive ou un peu moins de fromage ou de beurre dans la prochaine assiette change l’équilibre, et une poignée de noix remplace bien une collation.',
+      'Cuisiner avec un peu d’huile d’olive, ou alléger la garniture de la prochaine assiette, change l’équilibre.',
     'depth.followUp.energyDenseSnack':
-      'Un fruit avec quelques noix, ou un yaourt, se prépare aussi vite qu’un biscuit et cale plus longtemps.',
+      'Prendre {snack}, c’est aussi rapide qu’une collation toute prête, et ça cale plus longtemps.',
     'depth.followUp.proteinLowDay':
-      'Le poisson en boîte, les œufs, les légumineuses en conserve ou un yaourt nature apportent des protéines en deux minutes, sans cuisson.',
-    'depth.followUp.fibreLowDay':
-      'Les flocons d’avoine, une boîte de lentilles ou de pois chiches, ou une pomme avec sa peau sont des sources de fibres faciles.',
+      'Faciles à ajouter en deux minutes, sans grande cuisine : {protein}.',
+    'depth.followUp.fibreLowDay': 'Des sources de fibres faciles : {fibre}.',
     'post.resolve.proteinLowDay.none':
-      'Pas encore de protéines notées aujourd’hui. Des œufs, des légumineuses, du tofu ou du poisson pourraient-ils trouver leur place au prochain repas ?',
+      'Pas encore de protéines notées aujourd’hui. Pourriez-vous ajouter {protein} au prochain repas ?',
     'post.resolve.fibreLowDay.none':
-      'Pas encore de fibres notées aujourd’hui. Un fruit ou une poignée de noix irait-il ce soir, ou au petit-déjeuner demain ?',
+      'Pas encore de fibres notées aujourd’hui. Pourriez-vous ajouter {fibre} ce soir, ou au petit-déjeuner demain ?',
     'openPlate.proteinLowDay.none':
-      'Pas encore de protéines notées aujourd’hui. Ce repas pourrait-il avoir des œufs, des légumineuses, du tofu ou du poisson ?',
+      'Pas encore de protéines notées aujourd’hui. Ce repas pourrait-il avoir {protein} ?',
     'openPlate.fibreLowDay.none':
-      'Pas encore de fibres notées aujourd’hui. Ce repas pourrait-il avoir des légumineuses, du pain complet ou un fruit ?',
+      'Pas encore de fibres notées aujourd’hui. Ce repas pourrait-il avoir {fibre} ?',
+    'post.resolve.energyHighDay':
+      'Une bonne part de l’énergie d’aujourd’hui vient de « {foodLc} », environ {approx}{kcal} kcal. Une portion plus petite, ou un échange, vous conviendrait-il la prochaine fois ?',
+    'post.resolve.energyHighDay.two':
+      'Une bonne part de l’énergie d’aujourd’hui vient de « {foodLc} » et de « {food2Lc} », environ {approx}{kcal} kcal ensemble. Une portion plus petite de l’un des deux vous conviendrait-elle la prochaine fois ?',
+    'post.resolve.energyHighDay.nonum':
+      'Une bonne part de l’énergie d’aujourd’hui vient de « {foodLc} ». Une portion plus petite, ou un échange, vous conviendrait-il la prochaine fois ?',
+    'post.resolve.energyHighDay.twoNonum':
+      'Une bonne part de l’énergie d’aujourd’hui vient de « {foodLc} » et de « {food2Lc} ». Une portion plus petite de l’un des deux vous conviendrait-elle la prochaine fois ?',
+    'depth.followUp.energyHighDay':
+      'Décider de la quantité avant de commencer, ou partager le plat, garde le repas que vous aimez et allège le total.',
+    'post.resolve.energyLowDay':
+      'Les repas notés aujourd’hui font {share} de la référence d’une journée. Manger assez compte aussi : y a-t-il quelque chose qui n’a pas été noté, ou un repas difficile à placer ?',
+    'post.resolve.energyLowDay.nonum':
+      'Manger assez compte aussi. Y a-t-il quelque chose d’aujourd’hui qui n’a pas été noté, ou un repas difficile à placer ?',
+    'depth.followUp.energyLowDay':
+      'Un petit repas ou une collation à heure régulière est une façon simple d’équilibrer la journée.',
+    'post.resolve.sugaryDrink':
+      'Cette boisson ({food}) contient {approx}{g} g de sucres, et une boisson cale moins qu’un aliment. De l’eau ou de l’eau gazeuse à la place vous conviendrait-elle la prochaine fois ?',
+    'post.resolve.sugaryDrink.nonum':
+      'Une boisson cale moins qu’un aliment. De l’eau ou de l’eau gazeuse à la place de « {foodLc} » vous conviendrait-elle la prochaine fois ?',
+    'depth.followUp.sugaryDrink':
+      'Une rondelle de citron ou quelques feuilles de menthe dans de l’eau fraîche rendent le changement plus facile.',
+    'post.resolve.alcoholDrink':
+      'Cette boisson ({food}) apporte de l’énergie sans caler. Un verre plus petit, ou un verre d’eau à côté, vous conviendrait-il ?',
+    'depth.followUp.alcoholDrink':
+      'Décider à l’avance du nombre de verres que vous voulez rend la soirée plus simple.',
+    'post.resolve.proteinPlateLose':
+      'Les protéines calent plus longtemps. Pourriez-vous ajouter « {foodLc} », que vous mangez souvent, à cette assiette ?',
+    'depth.followUp.proteinPlateLose':
+      'L’ajouter à ce qui est déjà cuit, plutôt qu’en plat supplémentaire, le rend facile.',
+    'post.resolve.vegVolumeLose':
+      'Les légumes ajoutent du volume pour peu d’énergie. Pourriez-vous ajouter « {foodLc} », que vous mangez souvent, à cette assiette ?',
+    'depth.followUp.vegVolumeLose':
+      'Des légumes surgelés ou déjà coupés, ajoutés à la dernière minute, sont le moyen le plus rapide d’ajouter du volume.',
   },
   settings: {
     aiTier: 'Niveau d’IA',
@@ -1524,7 +1806,7 @@ export const fr: Strings = {
     leavesInstance:
       'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
     leavesCoaching:
-      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil, ainsi que votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis (jamais le poids, la taille ni le tour de taille eux-mêmes). Les poids, les nutriments et le repère du jour sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
+      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, les comptes et les moyennes de la semaine et, si vous l’avez rempli, votre profil, votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis (jamais le poids, la taille ni le tour de taille eux-mêmes), l’énergie moyenne de la semaine à côté de ce repère arrondi, les aliments qui ont apporté le plus d’énergie et le pas que vous avez choisi. Les poids, les nutriments, l’énergie moyenne et le repère du jour ne sont pas envoyés tant que les chiffres nutritionnels sont masqués. Une description grossière de votre tendance de poids (une direction et la variation sur environ quatre semaines, au demi-kilo près) n’est envoyée que si vous avez aussi activé le réglage distinct dans Réglages, Votre IA ; il est désactivé par défaut. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec elles, ainsi que les réponses précédentes de cette conversation, conservée en mémoire seulement jusqu’au verrouillage de l’application. Une question sur un apport très bas ou une perte de poids très rapide reçoit sa réponse sur cet appareil et n’est jamais envoyée. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
     leavesServerCopy:
       'Sauvegarde sur ce serveur : seulement si la personne qui gère ce serveur l’a activée et que vous choisissez Sauvegarder sur ce serveur dans Réglages, Vos données. Une copie chiffrée de vos données est alors envoyée à ce serveur, verrouillée sur cet appareil avant de partir, et mise à jour peu après vos modifications tant que l’application est déverrouillée. Ce serveur voit l’identifiant que vous avez choisi, le moment où la copie change et sa taille, ainsi que votre adresse internet et le type de votre navigateur, comme tout site web. Il ne peut pas lire vos aliments, vos heures, vos notes, votre profil ni vos mesures du corps, et il ne reçoit jamais votre phrase secrète. Vous pouvez arrêter à tout moment dans Réglages, Vos données.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',

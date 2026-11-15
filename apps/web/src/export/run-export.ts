@@ -9,6 +9,7 @@ import {
   type ExportScope,
   type Exporter,
   type BodyMeasurement,
+  type CoachStep,
   type Profile,
 } from '@anc/core';
 import { serializeMeasurementsToCsv, serializePlatesToCsv } from './csv-exporter';
@@ -59,6 +60,8 @@ export function createRunExport(deps: {
    * there are some in the scope. A failed read fails the export, like the saved meals.
    */
   readonly readMeasurements?: () => Promise<readonly BodyMeasurement[] | undefined>;
+  /** The one step the person accepted from the coach, in the JSON export only. Failure reads as none. */
+  readonly readCoachStep?: () => Promise<CoachStep | null>;
 }): (input: {
   readonly format: ExportFormat;
   readonly scope: ExportScope;
@@ -98,10 +101,18 @@ export function createRunExport(deps: {
         return { kind: 'failed', failure: { kind: 'savedUnavailable' } };
       }
     }
+    let coachStep: CoachStep | null = null;
+    if (format === 'json' && deps.readCoachStep) {
+      try {
+        coachStep = await deps.readCoachStep();
+      } catch {
+        coachStep = null;
+      }
+    }
     const text =
       format === 'csv'
         ? serializePlatesToCsv(result.plates)
-        : serializePlatesToJson(result.plates, profile, saved, measurements);
+        : serializePlatesToJson(result.plates, profile, saved, measurements, coachStep);
     const now = clock();
     const filename = exportFilename(format, now);
     let outcome;

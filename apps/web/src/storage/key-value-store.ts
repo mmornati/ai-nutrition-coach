@@ -27,6 +27,12 @@ export const KV_KEYS = Object.freeze({
    * means no (the default). Neither the photo consent nor the coaching consent.
    */
   aiDescribeConsent: 'ai.describeConsent',
+  /**
+   * `on` when the person turned on "Share my weight trend with the coach" (Settings, Your AI): a
+   * coarse trend (direction and the change over about four weeks) joins what the coach receives.
+   * Absent means off (the default). Device-only, like the coaching consent it sits behind.
+   */
+  aiShareWeightTrend: 'ai.shareWeightTrend',
   /** The BYOK API key. A secret: protected by the database key, never logged, never exported. */
   aiByokKey: 'ai.byokKey',
   /** UTC ISO-8601 time of the last successful export. */
@@ -59,6 +65,11 @@ export const KV_KEYS = Object.freeze({
   uiPaceNoticeDismissedAtUtc: 'ui.paceNoticeDismissedAtUtc',
   /** The optional `Profile` as JSON; absent means no profile. Included in the JSON export. */
   profile: 'profile',
+  /**
+   * The one next step the person accepted from the coach: `{"id": "vegAtLunch", "at": "<UTC ISO>"}`
+   * (plus `food` for a portion step). Absent means none. Synced, exported, erased with the rest.
+   */
+  coachStep: 'coach.step',
   // The connection of THIS device to a relay vault (phase S2). All device-only: they never enter a
   // snapshot, and none is ever exported. A device that is not connected has none of them.
   /** The handle this device backs up under. */

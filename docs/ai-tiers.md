@@ -373,32 +373,57 @@ photos. With **No AI** nothing is sent.
 
 | Feature | When it runs | Exactly what is sent |
 | --- | --- | --- |
-| Coach note | After a plate is logged, only if the template coach had a note | Per food on the plate: name, food group, weight, nutrients; the plate's and the day so far's nutrient totals against the daily guide; the names (deduplicated, at most 12) of what you ate earlier that day; the number of plates; the meal slot (breakfast / lunch / dinner / late); the optional profile; the template coach's pattern name as a hint |
-| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days as one JSON document sent as a labelled data message (per day: its date without a time, number of plates, food groups, food names, nutrient totals; the top foods), the daily guide, the optional profile, your typed questions and the earlier answers of the conversation (the last two answered questions at most) |
-| Weekly paragraph | Only when you tap "Ask the coach about this week" | The number of days logged, the daily averages, the days each food group appeared, the daily guide, the keys of the rule-based remarks, the optional profile |
+| Coach note | After a plate is logged, only if the template coach had a note | Per food on the plate: name, food group, weight, nutrients; the plate's and the day so far's nutrient totals against the daily guide; the names (deduplicated, at most 12) of what you ate earlier that day; the number of plates; the meal slot (breakfast / lunch / dinner / snack / late: the one you filed the plate under, else the one its time implies); the optional profile; the template coach's pattern name as a hint; the one step you accepted, when there is one |
+| Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days as one JSON document sent as a labelled data message (per day: its date without a time, number of plates, food groups, food names, nutrient totals; the top foods; the foods that carried the most energy, by name), the daily guide (rounded), the week's average energy next to that rounded guide (only for a guide of your own), the optional profile, the one step you accepted, your typed questions and the earlier answers of the conversation (the last two answered questions at most) |
+| Weekly paragraph | Only when you tap "Ask the coach about this week" | The number of days logged, the daily averages, the days each food group appeared, the daily guide (rounded), the week's average energy next to that rounded guide, the foods that carried the most energy, the keys of the rule-based remarks, the optional profile, the one step you accepted |
 
-The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. The daily guide is sent **rounded** (energy to the nearest 100 kcal, protein and the other gram figures to the nearest 10 g): it is worked out from your weight and height if you entered them, and the rounding is there so that it does not give them away. **The weight, height, waist, weigh-ins and BMI themselves are not sent**, even when you entered them: they stay on the device (and in your encrypted backup). **Never sent**:
+The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. The daily guide is sent **rounded** (energy to the nearest 100 kcal, protein and the other gram figures to the nearest 10 g): it is worked out from your weight and height if you entered them, and the rounding is there so that it does not give them away. The week's **average energy is sent to the nearest 50 kcal**, only for days whose totals are complete (the same coverage rule as the rest of the app) and only while nutrition numbers are shown. **The weight, height, waist, weigh-ins and BMI themselves are not sent**, even when you entered them: they stay on the device (and in your encrypted backup).
+
+**The weight trend has its own switch** (*Settings, Your AI, "Share my weight trend with the coach"*): **off by default**, device-only, it only means something while AI coaching is on (it is switched off whenever the coaching yes lapses and is not switched back on by a new yes), and it adds exactly one field to the three requests above: `weightTrend`, a direction (`lower`, `higher` or `steady`) and the change over about four weeks **rounded to the nearest half kilo** (`{"direction":"lower","changeKg":1,"overWeeks":4}`). It needs weigh-ins that span about four weeks; otherwise nothing is added. Never a single weigh-in, never the date of one, never the height, a body mass index or the waist. The fields of each mode are pinned by `packages/core/test/ai-prompts-goal.test.ts` and `apps/web/src/app/session.goal-coach.test.tsx`.
+
+**Never sent**:
 photos, your passphrase, your key (it goes only in the request header to your own endpoint, never to this server's
 proxy), database ids, birth dates, or any time of day. Ask the coach sends the dates of the days (year-month-day) and the
-meal slot of a note is a name, not a time. With *nutrition numbers turned off*, weights, nutrients and the guide are left out
+meal slot of a note is a name, not a time. With *nutrition numbers turned off*, weights, nutrients, the energy average and the guide are left out
 altogether and the system prompt forbids amounts. Food names are cleaned (one line, 60 characters) and the system
 prompt tells the model that everything in the document is data, not instructions.
 
 **Prompts** live in one module, `packages/core/src/coach/ai-prompts.ts` (English and French, matching the interface
 language), with tests that pin the safety rules and the output contract. They say: a calm friend who asks rather than
 scolds; no exclamation marks, streaks, scores, points, "remaining" or "over budget"; no good or bad foods; not medical
-advice (never diagnose, treat or cure, no medication or doses; for a symptom or a worry about eating or the body, say
-that talking to a doctor or a support service can help); respect diet and allergies; no links.
+advice (never diagnose, treat or cure, no medication, supplements or doses; for a symptom or a worry about eating or the body, say
+that talking to a doctor or a support service can help); respect diet and allergies; no links. **The prompt follows the goal you chose in Profile**
+(ADR 0008, decision 3). With the goal **lose weight** (and the guide not held by a safeguard: pregnancy or breastfeeding, a low BMI, 65 and over) the
+coach *may* help with it: explain energy balance plainly, use your daily guide and the foods you actually log, suggest specific swaps and
+portions from what you eat, talk about feeling full (protein, fibre, vegetables, volume), drinks and regular meals, describe a realistic pace (about
+0.25 to 0.75 kg a week at first, 5 to 10 % of body weight in six months) and say that plateaus and day-to-day changes on the scale are normal.
+It must never set or suggest an intake below your daily guide or below the floor, never recommend fasting, skipping meals, meal replacements,
+a "detox" or exercise to make up for eating, never name a medicine, a drug or a supplement (not even to advise against it), never comment on your body, never diagnose, and it points to a doctor or a
+dietitian for a medical condition, pregnancy, medication, being under 18, or a wish to lose more or faster. The goal **gain** mirrors this. With **any
+other goal, or none**, the prompt keeps today's restraint: it does not bring weight loss up, and an answer that talks about losing weight is refused (see below).
 
-**Every AI text is validated** (and normalised first: NFKC, invisible characters removed, so a fullwidth "！" or a zero-width
-character cannot slip through; French output gets the narrow no-break space before `? ; :` and inside « ») (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
+**What the validator is, plainly.** It is a **backstop of pattern and number checks**, and it **cannot catch every wording**. The first layer
+is the system prompt, which tells the model what the validator checks (the guide it sees is rounded to 100 kcal and is the only daily figure it may
+state; no figure below it as something to eat; logged amounts are described, never prescribed; no medicine or supplement named). The **built-in
+rules-based coach never depends on this validator**: it writes its own notes and is what you see whenever the AI is off or its text is refused.
+Treat a passed text as "no known-bad pattern found", never as "reviewed and safe". No real model output has been evaluated.
+
+**Every AI text is validated** (and normalised first: NFKC, invisible and bidi characters removed, letters spaced out like "s k i p" joined, so a fullwidth "！" or a zero-width
+character cannot slip through; **a word that mixes Latin letters with Cyrillic or Greek look-alikes is refused outright**; French output gets the narrow no-break space before `? ; :` and inside « ») (`validateCoachText`) before it is shown: not empty; at most 280 characters for a note
 (160 for its follow-up), 800 for a chat answer, 600 for the weekly paragraph; no link or web address; no exclamation
 mark; none of the pressure vocabulary of the No-Dark-Patterns Standard (EN and FR); no medical-claim words (diagnose,
-cure, treatment, prescribe, and the French equivalents); no harmful advice (skipping meals or breakfast, fasting,
-losing weight, a calorie deficit or cutting calories, purging, laxatives, a daily energy figure under 1200 kcal, and
-the French equivalents, for example "sauter le dîner", "jeûne", "perdre du poids"); no link or bare domain; at most one question (two in a chat answer); and, while
-numbers are off, no amount (digits followed by g, kcal or %). A note must be the JSON object
-`{ "note": string, "followUp": string }`. Anything else is dropped.
+cure, treat, prescribe, and the French equivalents; "medication", "disease" and the like only next to a pointer to a doctor, a dietitian or a pharmacist);
+**no harmful advice, by targeted patterns (EN and FR) and not by topic**: fasting in every form ("jeûne", 16:8, 5:2, OMAD, an eating window, "fenêtre alimentaire"), skipping, leaving out, doing without or replacing a meal ("sauter un repas", "passez-vous du dîner", "instead of lunch"), going to bed hungry, "just drink water when hungry", one meal a day, meal
+replacements, "detox" and cleanses, purging, laxatives and diuretics, appetite suppressants, weight-loss drugs by class (GLP-1 agonists, orlistat,
+phentermine, diet pills, fat burners), supplements, very low calorie and crash diets, cutting out a whole food group, "burn it off" and other exercise
+as compensation, eating below your guide; a **daily energy figure below your floor** (1500 or 1200 kcal) or a figure below your guide presented as a
+target (the **numeric energy guard** is structural: every energy figure after normalisation, with spelled-out numbers, thousands forms, ranges and kilojoules converted, from 300 kcal up to the guide is refused unless it is clearly the energy of a food or meal, a deficit or "less than" amount, or a description of what was logged with no instruction to repeat it; a context that cannot be classified is refused, and a fraction of the guide is refused); a **loss faster than a kilo a week** in the text ("5 kg in a week", "perdre 10 kilos en un mois", "a kilo a day", "4 kilos before Saturday"; a quantity with a deadline that cannot be sized is refused); drug names (any mention), detox, vinegar and fat-burning claims, fad diets, compensation, moral words ("cheat", "sage", "craquage") and body words ("belly", "ventre", "bikini"); a negated mention is
+not advice to do it only when the negation **governs its own clause** ("no need to skip meals", "fasting is not recommended", "le jeûne n'est pas conseillé"; "if you are not hungry, skip breakfast" is still advice, and permissive forms such as "it's fine to" are advice); **no comment on the body** ("you are overweight", "votre ventre est trop gros") and no shaming words; no link or bare domain; at most one question (two in a chat
+answer); and, while numbers are off, no amount (digits **or spelled-out numbers** followed by g, kcal or %). **Without a weight goal** the old blanket check stays: any talk of losing
+weight, a calorie deficit or cutting calories is refused, and Ask the coach then says that the goal can be chosen in Profile. A note must be the JSON object
+`{ "note": string, "followUp": string }`. Anything else is dropped. The tables behind this are in `packages/core/test/`: the first two (about forty acceptable and forty harmful sentences, in each language) in
+`ai-coaching-weight.test.ts`, the adversarial review's 70 harmful, 60 safe and 60 routing sentences in `ai-validator-review.test.ts`, and a **held-out** table of 160 further sentences in
+`ai-validator-heldout.test.ts` (scored before tuning: 57 of 80 harmful caught and 67 of 80 safe accepted; tuned afterwards, so it is a regression table, not an unbiased measure). They are fixed sentences: **no real model output has been evaluated**.
 
 **Fallbacks.** The log never waits for the AI: the template note is stored first and returned, then the AI call runs in
 the background with an 8 second limit. On busy, offline, timeout, invalid JSON or any validator failure, the template
@@ -408,11 +433,12 @@ schema change; the card (which watches the plate's notes) shows it in place of t
 AI", and falls back to the template note if numbers were turned off since. It is not swapped in if the template note
 was already dismissed or its follow-up opened. A late answer after a lock writes nothing.
 
-**Safety routing is local.** In Ask the coach, a question about an eating worry or a health symptom (EN/FR keywords:
+**Safety routing is local.** In Ask the coach, a question about an eating worry, a health symptom or an extreme diet (EN/FR keywords:
 binge, purge, starving, vomiting, "je me fais vomir", "crise de boulimie", chest pain, "malaise", ...) is answered on
-the device and is never sent. Four routes, in this order: thoughts of self-harm (calm words and the crisis lines below),
+the device and is never sent. Five routes, in this order: thoughts of self-harm (calm words and the crisis lines below),
 a possibly urgent symptom (chest pain, trouble breathing, a swelling throat, an allergic reaction, fainting: "call your
-local emergency number now"), an eating worry (the existing support line), any other symptom (see a doctor or a
+local emergency number now"), an eating worry (the existing support line), **a request for a very low intake or a very fast loss** ("800 kcal", "a thousand calories", "3500 kJ",
+"lose 5 kg in a week", "4 kilos before Saturday", "perdre 10 kilos en un mois", OMAD, a cleanse, stopping a meal, a weight-loss drug by name: a fixed calm line about a gentler pace, with a pointer to a doctor or a dietitian, and the support line), any other symptom (see a doctor or a
 pharmacist). Keywords are matched on accent-folded text in English and French; such a question is also never part of the context of later
 questions. The conversation is kept in memory for the unlocked session only: not stored, not exported, gone on a lock.
 

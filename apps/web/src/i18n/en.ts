@@ -477,20 +477,28 @@ export const en = {
         'What is sent: only that text (500 characters at most, or 8,000 for a pasted recipe) or recording (30 seconds at most, turned into text and not stored by this app), and a fixed instruction. Never your name, your history, your other plates or your photos.',
       coachingHeading: 'AI coaching',
       coachingIntro:
-        'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch.',
+        'The coach can write its notes and answer your questions with the help of an AI. That sends some of your meals to that AI, which is a different thing from sending a photo, so it has its own switch. If your goal in Profile is to lose or gain weight, the coach may help with it, plainly and with care; with any other goal it does not bring weight loss up.',
       coachingSwitch: 'Let the AI write coach notes and answer questions',
       coachingSwitchHelpOff:
         'Off: the coach writes its built-in notes and nothing about your meals is sent.',
       coachingSwitchHelpOn:
         'On: after you log a plate, and when you ask the coach, your meal data goes to the destination below. You can turn this off at any time.',
       coachingSent:
-        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), your daily guide, rounded, which is worked out from your weight and height if you entered them, and what you type in Ask the coach along with the earlier answers of that conversation. Never the weight, height or waist themselves, never your photos, never your passphrase. With nutrition numbers turned off, weights, nutrients and the daily guide are left out.',
+        'What is sent: the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot (the one you filed a plate under, or the one its time implies), how many plates, your profile if you filled it in (goal, diet, allergies, age band, sex, activity), your daily guide, rounded, which is worked out from your weight and height if you entered them, the week’s average energy next to that rounded guide, the foods that carried the most energy, the one step you chose for the week, and what you type in Ask the coach along with the earlier answers of that conversation. Never the weight, height or waist themselves, never your photos, never your passphrase. With nutrition numbers turned off, weights, nutrients, the energy average and the daily guide are left out. Your weight trend is sent only if you turn on the separate switch below.',
       coachingDestinationInstance:
         'Destination: {host}, this server, which passes it on to {label}.',
       coachingDestinationByok: 'Destination: {host}, the service you chose.',
       coachingNeedsAi:
         'Choose an AI above first: the one this server offers, or your own key. Until then nothing is sent.',
       coachingSaveFailed: 'Could not keep that. Unlock the app and try again.',
+      trendSwitch: 'Share my weight trend with the coach',
+      trendHelpOff:
+        'Off: the coach receives no weigh-in and no weight trend. It still sees your daily guide, rounded to the nearest 100 kcal, which is worked out from your weight and height.',
+      trendHelpOn:
+        'On: the coach also receives a coarse description of your weight trend: a direction and the change over about four weeks, to the nearest half kilo. It is sent only while you have chosen to lose or gain weight and your guide is not held for safety (pregnancy or breastfeeding, a low body mass index, 65 and over, no room above the minimum, no body data); in those cases nothing about your weight trend is sent, even with this on.',
+      trendSent:
+        'Never a single weigh-in, never a date of one, never your height, a body mass index or your waist. This needs AI coaching to be on, and it can be turned off at any time.',
+      trendNeedsCoaching: 'Turn on AI coaching above first.',
     },
     /** Messages carried by a failed recognition (ported from the earlier rung and provider). */
     failure: {
@@ -681,13 +689,160 @@ export const en = {
         moreVeg:
           'Veg or fruit came up on {days} of {of} logged days. Could a handful join one more meal next week?',
         moreProtein:
-          'Protein averaged {approx}{g} g a day. Eggs, beans, tofu or fish at lunch could add some next week.',
-        moreFibre:
-          'Fibre averaged {approx}{g} g a day. Beans, oats or wholegrain bread are easy places to start.',
+          'Protein averaged {approx}{g} g a day. Some {protein} at lunch could add more next week.',
+        moreFibre: 'Fibre averaged {approx}{g} g a day. Easy places to start: {fibre}.',
         easeSalt:
           'Salt averaged {approx}{g} g a day. Tasting before salting is a gentle place to start.',
         easeSugars:
-          'Sugars averaged {approx}{g} g a day. Fruit or plain yogurt in place of one sweet item is a small change.',
+          'Sugars averaged {approx}{g} g a day. Swapping one sweet item for {sweet} is a small change.',
+        easeEnergy:
+          'Energy averaged about {approx}{kcal} kcal a day, and {foodLc} came up often. Would a smaller portion or a swap next week suit you?',
+        eatEnough:
+          'Your logged energy was well below your guide. Eating enough matters too: is something going unlogged, or are some meals hard to fit in?',
+        lessSugaryDrinks: {
+          one: 'Sugary drinks came up on {days} of {of} logged day. Would water in place of one of them next week suit you?',
+          other:
+            'Sugary drinks came up on {days} of {of} logged days. Would water in place of one of them next week suit you?',
+        },
+      },
+      energy: {
+        line: {
+          one: 'On the {days} day counted, energy averaged about {avg} kcal, {relation} your guide of {guide} kcal.',
+          other:
+            'On the {days} days counted, energy averaged about {avg} kcal, {relation} your guide of {guide} kcal.',
+        },
+        lineNoNumbers: {
+          one: 'On the {days} day counted, energy averaged {relation} your guide.',
+          other: 'On the {days} days counted, energy averaged {relation} your guide.',
+        },
+        relation: {
+          near: 'close to',
+          above: 'a little above',
+          farAbove: 'well above',
+          below: 'a little below',
+          farBelow: 'well below',
+        },
+        foods: 'Energy-dense foods that came up on more than one day: {foods}.',
+      },
+      weightLine: {
+        lower: {
+          one: 'Your weight trend is about {kg} kg lower than {weeks} week ago',
+          other: 'Your weight trend is about {kg} kg lower than {weeks} weeks ago',
+        },
+        higher: {
+          one: 'Your weight trend is about {kg} kg higher than {weeks} week ago',
+          other: 'Your weight trend is about {kg} kg higher than {weeks} weeks ago',
+        },
+        steady: {
+          one: 'Your weight trend is about the same as {weeks} week ago',
+          other: 'Your weight trend is about the same as {weeks} weeks ago',
+        },
+        lowerNoNumbers: {
+          one: 'Your weight trend is a little lower than {weeks} week ago',
+          other: 'Your weight trend is a little lower than {weeks} weeks ago',
+        },
+        higherNoNumbers: {
+          one: 'Your weight trend is a little higher than {weeks} week ago',
+          other: 'Your weight trend is a little higher than {weeks} weeks ago',
+        },
+        intakeNear: ', while your logged energy averaged close to your guide.',
+        intakeAbove: ', while your logged energy averaged above your guide.',
+        intakeBelow: ', while your logged energy averaged below your guide.',
+        end: '.',
+        mismatch:
+          'Logged amounts are estimates, and foods or portions that were not counted are the usual reason a trend and a log disagree. Each day lists what was not counted.',
+      },
+      qualityTitle: 'A look at the food itself',
+      quality: {
+        processedMeatOften: {
+          one: 'Cured meats (ham, sausage, bacon) came up on {days} of {of} logged day. The usual guidance is to keep them to now and then.',
+          other:
+            'Cured meats (ham, sausage, bacon) came up on {days} of {of} logged days. The usual guidance is to keep them to now and then.',
+        },
+        redMeatOften: {
+          one: 'Red meat (beef, pork, lamb) came up on {days} of {of} logged day. The usual guidance is a few times a week at most.',
+          other:
+            'Red meat (beef, pork, lamb) came up on {days} of {of} logged days. The usual guidance is a few times a week at most.',
+        },
+        sugaryDrinksOften: {
+          one: 'Sugary drinks came up on {days} of {of} logged day. Water is the usual guidance for everyday drinking.',
+          other:
+            'Sugary drinks came up on {days} of {of} logged days. Water is the usual guidance for everyday drinking.',
+        },
+        pulsesLow: {
+          one: 'Pulses came up on {days} of {of} logged day. The usual guidance is at least twice a week.',
+          other:
+            'Pulses came up on {days} of {of} logged days. The usual guidance is at least twice a week.',
+        },
+        fishLow: {
+          one: 'Fish came up on {days} of {of} logged day. The usual guidance is about twice a week, one of them oily.',
+          other:
+            'Fish came up on {days} of {of} logged days. The usual guidance is about twice a week, one of them oily.',
+        },
+        wholegrainLow: {
+          one: 'Wholegrain versions made up {n} of the {of} grain-based starchy food logged. The usual guidance is to choose wholegrain more often.',
+          other:
+            'Wholegrain versions made up {n} of the {of} grain-based starchy foods logged. The usual guidance is to choose wholegrain more often.',
+        },
+        nutsNone: {
+          one: 'No nuts came up in the {of} logged day. The usual guidance is a small handful of unsalted nuts a day.',
+          other:
+            'No nuts came up in the {of} logged days. The usual guidance is a small handful of unsalted nuts a day.',
+        },
+      },
+      stepTitle: 'Your step for the week',
+      stepReview: {
+        vegAtLunch: {
+          one: 'You chose vegetables at lunch. They were on {matched} of the {of} lunch logged.',
+          other:
+            'You chose vegetables at lunch. They were on {matched} of the {of} lunches logged.',
+        },
+        vegAtDinner: {
+          one: 'You chose vegetables at dinner. They were on {matched} of the {of} dinner logged.',
+          other:
+            'You chose vegetables at dinner. They were on {matched} of the {of} dinners logged.',
+        },
+        proteinAtBreakfast: {
+          one: 'You chose protein at breakfast. It was on {matched} of the {of} breakfast logged.',
+          other:
+            'You chose protein at breakfast. It was on {matched} of the {of} breakfasts logged.',
+        },
+        proteinAtLunch: {
+          one: 'You chose protein at lunch. It was on {matched} of the {of} lunch logged.',
+          other: 'You chose protein at lunch. It was on {matched} of the {of} lunches logged.',
+        },
+        proteinAtDinner: {
+          one: 'You chose protein at dinner. It was on {matched} of the {of} dinner logged.',
+          other: 'You chose protein at dinner. It was on {matched} of the {of} dinners logged.',
+        },
+        waterForDrinks: {
+          one: 'You chose water instead of sugary drinks. Sugary drinks showed up on {matched} of the {of} day logged.',
+          other:
+            'You chose water instead of sugary drinks. Sugary drinks showed up on {matched} of the {of} days logged.',
+        },
+        pulsesWeek: {
+          one: 'You chose pulses. They came up on {matched} of the {of} day logged.',
+          other: 'You chose pulses. They came up on {matched} of the {of} days logged.',
+        },
+        fishWeek: {
+          one: 'You chose fish. It came up on {matched} of the {of} day logged.',
+          other: 'You chose fish. It came up on {matched} of the {of} days logged.',
+        },
+        nutsWeek: {
+          one: 'You chose a handful of nuts. They came up on {matched} of the {of} day logged.',
+          other: 'You chose a handful of nuts. They came up on {matched} of the {of} days logged.',
+        },
+        wholegrainWeek: {
+          one: 'You chose wholegrain versions. Wholegrain was {matched} of the {of} grain-based starchy food logged.',
+          other:
+            'You chose wholegrain versions. Wholegrain was {matched} of the {of} grain-based starchy foods logged.',
+        },
+        noData: 'You chose {step}. The log cannot show that one, so only you can tell how it went.',
+        notYet: 'You chose {step}. There is not enough logged yet to say how it went.',
+      },
+      suggestionsNoNumbers: {
+        easeEnergy:
+          'Energy ran above your guide, and {foodLc} came up often. Would a smaller portion or a swap next week suit you?',
       },
       ai: {
         button: 'Ask the coach about this week',
@@ -1246,6 +1401,87 @@ export const en = {
   /** The coach question key store (the earlier client): 3 anchors x 6 patterns, verbatim. */
   /** How a share of the day's reference reads inside a coach note. */
   coachShare: { around: 'around {pct}%', underOne: 'less than 1%' },
+  /** The foods a coach note names, by slot option id (the core owns the ids and the diet and allergy limits). */
+  coachFoods: {
+    eggs: 'eggs',
+    beans: 'beans',
+    lentils: 'lentils',
+    chickpeas: 'chickpeas',
+    tofu: 'tofu',
+    fish: 'fish',
+    tinnedFish: 'tinned fish',
+    yogurt: 'yogurt',
+    cheese: 'cheese',
+    milk: 'milk',
+    nuts: 'nuts',
+    fruit: 'fruit',
+    oats: 'oats',
+    wholegrainBread: 'wholegrain bread',
+    brownRice: 'brown rice',
+  },
+  /** What a slot says when the diet and allergies leave it no option. */
+  coachSlotFallback: {
+    protein: 'a protein you enjoy',
+    dairy: 'a dairy food you enjoy',
+    fibre: 'something rich in fibre',
+    snack: 'something small',
+    breakfast: 'a protein you enjoy',
+    sweet: 'something less sweet',
+    pulses: 'pulses',
+    wholegrain: 'wholegrain versions',
+  },
+  /** The one next step the person may accept from the coach. */
+  coachStep: {
+    thisWeek: 'This week: {step}',
+    offer: 'Try it this week',
+    offered: 'Chosen for this week: {step}',
+    done: 'Done with this',
+    drop: 'Drop it',
+    keep: 'Keep it another week',
+    change: 'Change it',
+    saveFailed: 'Could not keep that. Unlock the app and try again.',
+    names: {
+      vegAtLunch: 'a portion of vegetables at lunch',
+      vegAtDinner: 'a portion of vegetables at dinner',
+      proteinAtBreakfast: 'some protein at breakfast',
+      proteinAtLunch: 'some protein at lunch',
+      proteinAtDinner: 'some protein at dinner',
+      waterForDrinks: 'water instead of sugary drinks',
+      fruitSnack: 'a piece of fruit in place of an energy-dense snack',
+      smallerPortion: 'a smaller portion of {food}',
+      pulsesWeek: 'pulses at two meals',
+      fishWeek: 'fish at two meals',
+      wholegrainWeek: 'wholegrain versions of your usual starchy foods',
+      nutsWeek: 'a small handful of unsalted nuts',
+    },
+  },
+  /** The coach page: step, latest notes, the week, the guide, and the conversation when an AI is on. */
+  coachPage: {
+    title: 'The coach',
+    intro: 'A quiet place for what the coach has noticed. Nothing here asks for anything.',
+    stepTitle: 'Your step',
+    stepNone:
+      'No step chosen. When the coach offers a small change under a plate, you can try it for the week.',
+    notesTitle: 'Latest notes',
+    notesNone: 'No notes in the last days.',
+    notesFor: '{day}, {meal}',
+    weekTitle: 'The week',
+    weekNone: 'Nothing logged this week yet.',
+    guideTitle: 'Your daily guide',
+    guidePersonal:
+      'About {kcal} kcal and {protein} g of protein a day, worked out from your profile.',
+    guideReference:
+      'The EU reference intakes, since there is no profile for a guide of your own yet.',
+    guideNoNumbers:
+      'Nutrition numbers are hidden, so the guide is too. You can show them in Settings, Nutrition.',
+    profileLink: 'Open Profile',
+    aiNone: 'No AI is set up, so the coach writes its built-in notes.',
+    aiNeedsConsent:
+      'An AI is chosen, but AI coaching is off, so the coach writes its built-in notes.',
+    aiLink: 'Choose one in Your AI',
+    aiLinkConsent: 'Turn it on in Your AI',
+    chatTitle: 'Ask the coach',
+  },
   /** Ask the coach (optional AI chat) and the AI coaching copy. */
   askCoach: {
     title: 'Ask the coach',
@@ -1284,6 +1520,11 @@ export const en = {
       'This could be urgent. Please call your local emergency number now: 112 in the EU, 999 in the UK, 911 in the US, 15 or 112 in France. I cannot give advice on symptoms.',
     supportSelfHarm:
       'I am sorry you are feeling this way, and I am glad you said it. You do not have to carry it alone. In France you can call 3114, the national suicide prevention line, free and open day and night. In the UK, Samaritans are on 116 123, free, any time. In the US, call or text 988. Elsewhere, please call your local emergency number or a crisis line near you.',
+    supportExtreme:
+      'Eating that little, or losing weight that fast, is hard on the body, and I cannot help with it. A doctor or a dietitian can look at it with you. I can help with a gentler pace and with what you already eat.',
+    unsureWeight:
+      'That sounds like a question about losing weight. If that is your goal, you can choose it in Profile, and I can then help with what you eat.',
+    openProfile: 'Open Profile',
     hiddenByNumbers:
       'This answer quotes amounts, which are hidden while nutrition numbers are turned off.',
   },
@@ -1294,13 +1535,12 @@ export const en = {
       'Quite a bit of protein here. Would a little more veg alongside suit you?',
     'post.resolve.starchHeavy':
       'Plenty of starch here. Is there a bit more veg you could tuck in beside it?',
-    'post.resolve.dairyLight': 'Would a spoonful of yogurt or a little cheese fit with this?',
-    'post.resolve.vegRich':
-      'Lots of veg here. Is there some protein nearby, like eggs, beans or fish?',
+    'post.resolve.dairyLight': 'Would some {dairy} fit with this?',
+    'post.resolve.vegRich': 'Lots of veg here. Is there some protein nearby, like {protein}?',
     'post.resolve.balanced': 'Nice plate — anything you would change next time?',
     'post.resolve.breakfastSimple': 'A simple start. What usually keeps you going until lunch?',
     'post.resolve.proteinMissingDay':
-      'No protein logged yet today. Could eggs, beans, tofu or fish fit into this meal?',
+      'No protein logged yet today. Could {protein} fit into this meal?',
     'openPlate.vegLight': 'No veg or fruit logged yet today. Could this meal have a handful?',
     'openPlate.proteinHeavy': 'Protein-forward so far. A side of veg would sit well.',
     'openPlate.starchHeavy': 'Starch-forward so far. A side of veg would sit well.',
@@ -1308,23 +1548,19 @@ export const en = {
     'openPlate.vegRich': 'Plenty of veg so far. Some protein would go well with it.',
     'openPlate.balanced': 'A calm, varied day so far. Anything you want to add?',
     'openPlate.breakfastSimple': 'A simple breakfast can be enough. What do you usually reach for?',
-    'openPlate.proteinMissingDay':
-      'No protein logged yet today. Could this meal have eggs, beans, tofu or fish?',
+    'openPlate.proteinMissingDay': 'No protein logged yet today. Could this meal have {protein}?',
     'depth.followUp.vegLight': 'Frozen peas or a bagged salad take two minutes and keep for days.',
     'depth.followUp.proteinHeavy':
       'Frozen spinach or a tray of roasted veg goes alongside almost anything.',
     'depth.followUp.starchHeavy':
-      'A handful of frozen veg stirred into the pasta or rice pot for the last few minutes needs no extra pan.',
-    'depth.followUp.dairyLight':
-      'Plain yogurt or a little grated cheese is easy to add at the table.',
-    'depth.followUp.vegRich':
-      'A boiled egg, a tin of beans or some tofu turns a veg plate into a meal in a few minutes.',
+      'A handful of frozen veg stirred into the pot for the last few minutes needs no extra pan.',
+    'depth.followUp.dairyLight': 'Some {dairy} is easy to add at the table.',
+    'depth.followUp.vegRich': 'Some {protein} turns a veg plate into a meal in a few minutes.',
     'depth.followUp.balanced':
       'If this one worked, cooking a bit extra means tomorrow’s lunch is already sorted.',
     'depth.followUp.breakfastSimple':
-      'Eggs, yogurt or a handful of nuts tend to last longer than bread or cereal alone, if you ever want a change.',
-    'depth.followUp.proteinMissingDay':
-      'Tinned fish, eggs and canned beans keep well and need no cooking.',
+      'A breakfast with some protein, like {breakfast}, tends to last longer, if you ever want a change.',
+    'depth.followUp.proteinMissingDay': 'Keeping some {protein} at hand makes it quick to add.',
     'post.resolve.sugarsHighItem':
       'This {food} has {approx}{g} g of sugars, {share} of a day’s guide. Is it a treat today, or a habit worth a look?',
     'post.resolve.saltHighPlate':
@@ -1332,35 +1568,66 @@ export const en = {
     'post.resolve.satFatHighPlate':
       'This plate has {approx}{g} g of saturated fat, {share} of a day’s guide. Would something lighter on it suit your next meal?',
     'post.resolve.energyDenseSnack':
-      'That snack comes to {approx}{kcal} kcal, with no protein or veg alongside. Would some fruit or a glass of milk sit well with it?',
+      'That snack comes to {approx}{kcal} kcal, with no protein or veg alongside. Would {snack} sit well with it?',
     'post.resolve.proteinLowDay':
-      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could eggs, beans, tofu or fish find a place in your next meal?',
+      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could {protein} find a place in your next meal?',
     'post.resolve.fibreLowDay':
-      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Would a piece of fruit or a handful of nuts fit in tonight, or at breakfast tomorrow?',
+      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Would {fibre} fit in tonight, or at breakfast tomorrow?',
     'openPlate.proteinLowDay':
-      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have eggs, beans, tofu or fish?',
+      'Protein so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have {protein}?',
     'openPlate.fibreLowDay':
-      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have beans, wholegrain bread or fruit?',
+      'Fibre so far today is {approx}{g} g, {share} of a day’s guide. Could this meal have {fibre}?',
     'depth.followUp.sugarsHighItem':
-      'Plain yogurt with a few pieces of fruit, or sweetening it yourself with a spoon of jam, lets you choose how sweet it is.',
+      'Choosing the sweetness yourself, with a few pieces of fruit or a spoon of jam on something plain, lets you decide how sweet it is.',
     'depth.followUp.saltHighPlate':
       'Tasting before adding salt, and rinsing tinned beans or vegetables, quietly lowers it without changing the meal.',
     'depth.followUp.satFatHighPlate':
-      'Olive oil or a little less cheese or butter on the next plate shifts the balance, and a handful of nuts is a good swap for a snack.',
+      'Cooking with a little olive oil, or going lighter on the topping on the next plate, shifts the balance.',
     'depth.followUp.energyDenseSnack':
-      'A piece of fruit with a few nuts, or yogurt, is as quick as a biscuit and lasts longer.',
-    'depth.followUp.proteinLowDay':
-      'Tinned fish, eggs, canned beans or a pot of plain yogurt add protein in two minutes and need no cooking.',
-    'depth.followUp.fibreLowDay':
-      'Porridge oats, a tin of lentils or chickpeas, or an apple with its skin are easy sources of fibre.',
+      'Some {snack} is as quick as a packaged snack and lasts longer.',
+    'depth.followUp.proteinLowDay': 'Easy to add in two minutes with little cooking: {protein}.',
+    'depth.followUp.fibreLowDay': 'Easy sources of fibre: {fibre}.',
     'post.resolve.proteinLowDay.none':
-      'No protein logged so far today. Could eggs, beans, tofu or fish find a place in your next meal?',
+      'No protein logged so far today. Could {protein} find a place in your next meal?',
     'post.resolve.fibreLowDay.none':
-      'No fibre logged so far today. Would a piece of fruit or a handful of nuts fit in tonight, or at breakfast tomorrow?',
+      'No fibre logged so far today. Would {fibre} fit in tonight, or at breakfast tomorrow?',
     'openPlate.proteinLowDay.none':
-      'No protein logged so far today. Could this meal have eggs, beans, tofu or fish?',
-    'openPlate.fibreLowDay.none':
-      'No fibre logged so far today. Could this meal have beans, wholegrain bread or fruit?',
+      'No protein logged so far today. Could this meal have {protein}?',
+    'openPlate.fibreLowDay.none': 'No fibre logged so far today. Could this meal have {fibre}?',
+    'post.resolve.energyHighDay':
+      'Much of today’s energy came from {foodLc}, about {approx}{kcal} kcal. Would a smaller portion, or a swap, suit you next time?',
+    'post.resolve.energyHighDay.two':
+      'Much of today’s energy came from {foodLc} and {food2Lc}, about {approx}{kcal} kcal together. Would a smaller portion of one of them suit you next time?',
+    'post.resolve.energyHighDay.nonum':
+      'Much of today’s energy came from {foodLc}. Would a smaller portion, or a swap, suit you next time?',
+    'post.resolve.energyHighDay.twoNonum':
+      'Much of today’s energy came from {foodLc} and {food2Lc}. Would a smaller portion of one of them suit you next time?',
+    'depth.followUp.energyHighDay':
+      'Deciding the amount before you start, or sharing the dish, keeps the meal you like and eases the total.',
+    'post.resolve.energyLowDay':
+      'Your logged meals today come to {share} of a day’s guide. Eating enough matters too: is there something that did not get logged, or a meal that was hard to fit in?',
+    'post.resolve.energyLowDay.nonum':
+      'Eating enough matters too. Is there something from today that did not get logged, or a meal that was hard to fit in?',
+    'depth.followUp.energyLowDay':
+      'A small, regular meal or snack is an easy way to even the day out.',
+    'post.resolve.sugaryDrink':
+      'This drink ({food}) has {approx}{g} g of sugars, and drinks do not fill you up the way food does. Would water or sparkling water instead suit you next time?',
+    'post.resolve.sugaryDrink.nonum':
+      'Drinks do not fill you up the way food does. Would water or sparkling water in place of the {foodLc} suit you next time?',
+    'depth.followUp.sugaryDrink':
+      'A slice of lemon or a few mint leaves in cold water makes the switch easier.',
+    'post.resolve.alcoholDrink':
+      'This drink ({food}) adds energy without filling you up. Would a smaller glass, or a glass of water alongside, suit you?',
+    'depth.followUp.alcoholDrink':
+      'Deciding in advance how many glasses you want makes the evening easier.',
+    'post.resolve.proteinPlateLose':
+      'Protein tends to keep you full for longer. Would some {foodLc}, which you often have, fit on this plate?',
+    'depth.followUp.proteinPlateLose':
+      'Adding it to what is already cooked, rather than as an extra dish, keeps it easy.',
+    'post.resolve.vegVolumeLose':
+      'Vegetables add volume for little energy. Would some {foodLc}, which you often have, fit on this plate?',
+    'depth.followUp.vegVolumeLose':
+      'Frozen or pre-cut vegetables added at the last minute are the quickest way to add volume.',
   },
   /** SettingsStrings (the earlier client) and the Settings rows of app_en.arb. */
   settings: {
@@ -1520,7 +1787,7 @@ export const en = {
     leavesInstance:
       'If the person who runs this server turned on its AI, a photo you agree to send goes to this server first, which adds its own AI key and passes it on to the provider named in Settings, Your AI. This server sees your internet address and your browser type; the provider sees the photo and the instruction, coming from this server. The key never reaches your browser.',
     leavesCoaching:
-      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile, and your daily guide, rounded, which is worked out from your weight and height if you entered them (never the weight, height or waist themselves). Weights, nutrients and the daily guide are left out while nutrition numbers are turned off. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. Notes the AI writes are stored on this device like any other coach note.',
+      'AI coaching: only if you turned it on in Settings, Your AI. The coach then sends the AI you chose (this server’s, which passes it on to its provider, or your own key’s service) the names and food groups of your foods, their weights and nutrient totals, the dates of the days involved (no times), the meal slot, the number of plates, the week’s counts and averages and, if you filled it in, your profile, your daily guide, rounded, which is worked out from your weight and height if you entered them (never the weight, height or waist themselves), the week’s average energy next to that rounded guide, the foods that carried the most energy and the one step you chose. Weights, nutrients, the energy average and the daily guide are left out while nutrition numbers are turned off. A coarse description of your weight trend (a direction and the change over about four weeks, to the nearest half kilo) is sent only if you also turned on the separate switch for it in Settings, Your AI; it is off by default. Never photos, never your passphrase. A question you type in Ask the coach goes with it, along with the earlier answers of that conversation, which is kept in memory only until you lock the app. A question about a very low intake or a very fast weight loss is answered on this device and never sent. Notes the AI writes are stored on this device like any other coach note.',
     // Awaiting named-reviewer sign-off (ADR 0007, "Copy sign-off").
     leavesServerCopy:
       'Backing up to this server: only if the person who runs this server turned it on and you choose Back up to this server in Settings, Your data. An encrypted copy of your data is then sent to this server, locked on this device before it leaves, and updated shortly after you make changes while the app is unlocked. This server sees the handle you chose, when the copy changes and how big it is, plus your internet address and browser type, like any website. It cannot read your foods, times, notes, profile or body measurements, and it never receives your passphrase. You can stop at any time in Settings, Your data.',

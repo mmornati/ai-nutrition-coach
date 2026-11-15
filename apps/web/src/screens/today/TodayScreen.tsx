@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   addCalendarDays,
   classifyForDate,
@@ -41,6 +41,7 @@ import { PlateCoach, useDismissals } from './coach';
 import { plateSummary } from '../plate/summary';
 import { CopyDayDialog } from './CopyDayDialog';
 import { GuideHint } from './GuideHint';
+import { StepLine } from './StepLine';
 import { PaceNotice } from '../progress/PaceNotice';
 import { WeighInSheet } from '../progress/WeighInSheet';
 
@@ -102,7 +103,16 @@ export function TodayScreen() {
   const all = useStrings();
   const { locale } = useLocale();
   const s = all.today;
-  const { deletePlate, coach, coachInteractions, notes, recordPlates, clock } = useSession();
+  const {
+    deletePlate,
+    coach,
+    coachInteractions,
+    notes,
+    recordPlates,
+    clock,
+    profile: profilePref,
+  } = useSession();
+  const profile = useSyncExternalStore(profilePref.subscribe, profilePref.current);
   const targets = useTargets();
   const showNumbers = useShowNumbers();
   const day = useDay();
@@ -184,6 +194,7 @@ export function TodayScreen() {
       slot: hintSlot,
       groupsOf: foodGroupsOfFood,
       targets: showNumbers ? targets : undefined,
+      profile,
     });
     if (suggestion === null) return null;
     const r = coach.questionFor({
@@ -193,7 +204,7 @@ export function TodayScreen() {
     });
     return r.kind === 'coachFound' ? r.question.text : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `locale` is read through `strings()`.
-  }, [coach, locale, hintSlot, day.plates, showNumbers, targets]);
+  }, [coach, locale, hintSlot, day.plates, showNumbers, targets, profile]);
 
   const remove = async () => {
     const plate = removing;
@@ -296,6 +307,7 @@ export function TodayScreen() {
         </button>
       )}
       <GuideHint />
+      <StepLine />
       {copyPlan.length > 0 && (
         <button
           type="button"

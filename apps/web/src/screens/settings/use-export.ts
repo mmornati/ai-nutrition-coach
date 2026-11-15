@@ -24,7 +24,7 @@ export function useExportServices(
   destination?: ExportDestination,
   backup?: BackupService,
 ) {
-  const { store, kv, clock, profile, saved, vault, measurements } = session;
+  const { store, kv, clock, profile, saved, vault, measurements, step } = session;
   return useMemo(() => {
     const history = createExportHistory(kv);
     const where = destination ?? createWebExportDestination();
@@ -44,6 +44,7 @@ export function useExportServices(
         history,
         clock,
         readProfile: () => profile.read(),
+        readCoachStep: () => step.read(),
         readMeasurements: async () => {
           const listed = await measurements.list();
           // A list that cannot be read is an error, never an empty list.
@@ -58,7 +59,7 @@ export function useExportServices(
         },
       }),
     };
-  }, [store, kv, clock, profile, saved, vault, measurements, destination, backup]);
+  }, [store, kv, clock, profile, saved, vault, measurements, step, destination, backup]);
 }
 
 export interface ExportInfo {

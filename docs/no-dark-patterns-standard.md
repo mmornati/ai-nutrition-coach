@@ -73,7 +73,7 @@ ADR 0008 (`docs/adr/0008-goals-body-data-daily-guide.md`) adds the following. Th
   plain numbers next to the WHO and NICE reference ranges written as text, behind a disclosure, with the caveats
   (muscular build, 65 and over, pregnancy, the lower ranges for some backgrounds). Never a label on the person
   ("you are overweight"), never colour-coded.
-- A coach that may help with weight loss when the person chose that goal, within the safeguards of ADR 0008.
+- A coach that may help with weight loss when the person chose that goal, within the safeguards of ADR 0008. The list of what it may and may not say is in ADR 0008, "What the coach may and may not say"; the validator and the prompts enforce it (`packages/core/src/coach/ai-coaching.ts`, `ai-prompts.ts`). An energy remark compares a day with a personal guide, only at the end of the day and from complete totals, as information and a question; a coach step ("Try it this week") has no count, no streak and no ticking off.
 
 - **Trends** (the weight trend, the weigh-in history and the intake history; the neutral name, never "Progress"
   or "Progrès": a weight is not progress or its opposite): the trend is drawn in one neutral ink with the weigh-ins

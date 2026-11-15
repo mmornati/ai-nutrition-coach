@@ -14,6 +14,7 @@ import {
   type Unsubscribe,
 } from '@anc/core';
 import type { CoachingAi } from '../ai';
+import { NO_AI_CONTEXT, type AiContextProvider } from './context';
 
 /** One line of the conversation as the screen shows it. */
 export type ChatEntry =
@@ -31,8 +32,16 @@ export type ChatEntry =
       readonly kind: 'support';
       readonly signal: SupportSignal;
     }
-  /** The AI answered with something that did not pass the checks: nothing of it is kept. */
-  | { readonly id: number; readonly role: 'assistant'; readonly kind: 'unsure' };
+  /**
+   * The AI answered with something that did not pass the checks: nothing of it is kept. `weight`:
+   * the answer talked of losing weight for someone who has not chosen that goal.
+   */
+  | {
+      readonly id: number;
+      readonly role: 'assistant';
+      readonly kind: 'unsure';
+      readonly weight?: true;
+    };
 
 /** Why the last send did not produce an answer (the question stays in the box). */
 export type AskCoachNotice =
@@ -69,6 +78,8 @@ export interface AskCoachDeps {
   readonly locale: () => CoachLocale;
   readonly targets: () => Required<Nutrients>;
   readonly profile: () => Profile | undefined;
+  /** The goal, the step and the switches, read at each question (default: no weight talk). */
+  readonly context?: AiContextProvider;
   readonly naming: PromptNaming;
   readonly live: () => boolean;
 }
@@ -184,6 +195,7 @@ export class AskCoachConversation {
     this.#inflight = true;
     this.#set({ pending: text, notice: null });
     const numbersOn = this.#deps.numbersOn();
+    const context = this.#deps.context?.() ?? NO_AI_CONTEXT;
     try {
       const messages = buildChatMessages({
         locale: this.#deps.locale(),
@@ -193,6 +205,10 @@ export class AskCoachConversation {
           plates,
           targets: this.#deps.targets(),
           profile: this.#deps.profile(),
+          personalGuide: context.personalGuide,
+          weightHelp: context.weightHelp,
+          step: context.step,
+          weightTrend: context.weightTrend,
         },
         turns: [...this.#turns(), { role: 'user', text }],
       });
@@ -220,11 +236,17 @@ export class AskCoachConversation {
             numbersOn,
             maxQuestions: 2,
             locale: this.#deps.locale(),
+            ...context.limits,
           });
           const userEntry = { id: this.#nextId++, role: 'user', text } as const;
           const answer: ChatEntry = checked.ok
             ? { id: this.#nextId++, role: 'assistant', kind: 'answer', text: checked.text }
-            : { id: this.#nextId++, role: 'assistant', kind: 'unsure' };
+            : {
+                id: this.#nextId++,
+                role: 'assistant',
+                kind: 'unsure',
+                ...(checked.problem === 'weightTalk' ? { weight: true as const } : {}),
+              };
           const asked = this.#state.asked + 1;
           this.#set({
             entries: [...this.#state.entries, userEntry, answer],

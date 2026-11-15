@@ -55,9 +55,13 @@ export function groupsPresent(
   return { veg, protein, dairy };
 }
 
-/** The local meal slot a plate was logged in. */
+/**
+ * The meal a plate belongs to: the one the person filed it under (`slot`, schema v5) when there is
+ * one, else the one its local hour implies. A plate logged at noon but filed under "dinner" is
+ * coached as dinner.
+ */
 export function slotOfPlate(plate: PlateLog): MealSlot {
-  return mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
+  return plate.slot ?? mealSlotForHour(new Date(plate.loggedAtUtc).getHours());
 }
 
 /** The other plates of the plate's own local day (the plate itself is excluded). */
@@ -84,7 +88,7 @@ export interface CoachPatternContext {
  *
  * Decision table (slot, then what the day holds):
  *
- *   late (23-04)                       -> nothing
+ *   late (23-04) or snack              -> nothing
  *   breakfast (05-10)                  -> balanced if veg/fruit sits with another group,
  *                                         else breakfastSimple. Never a veg or protein nudge.
  *   lunch / dinner (11-22), in order:
@@ -111,7 +115,8 @@ export function applicablePatterns(
   const groupCount =
     (t.veg > 0 ? 1 : 0) + (t.protein > 0 ? 1 : 0) + (t.starch > 0 ? 1 : 0) + (t.dairy > 0 ? 1 : 0);
 
-  if (slot === 'late') return [];
+  // A snack (filed by choice) is not a meal to compose, and a late plate invites nothing.
+  if (slot === 'late' || slot === 'snack') return [];
   if (slot === 'breakfast') {
     return t.veg > 0 && groupCount >= 2 ? ['balanced'] : ['breakfastSimple'];
   }

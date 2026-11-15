@@ -15,6 +15,10 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
+  addCalendarDays,
+  coachGoalContext,
+  coachTextLimits,
+  coarseWeightTrend,
   createCoachNoteGenerator,
   createDeletePlate,
   createRecordCoachInteraction,
@@ -23,7 +27,9 @@ import {
   createRecordSyncOp,
   createTemplateCoach,
   localDayRange,
+  startOfNextLocalDay,
   systemClock,
+  weightProgress,
   type Clock,
   type CoachParams,
   type Coach,
@@ -47,11 +53,13 @@ import {
   type VaultStore,
 } from '@anc/core';
 import { createAiServices, type AiServices } from '../ai';
+import { TrendSharePref } from '../ai/trend-share';
 import {
   AskCoachConversation,
   createAiNoteUpgrader,
   requestWeekSummary,
   withAiNotes,
+  type AiCoachContext,
   type WeekSummaryResult,
 } from '../coaching';
 import { photoDigest, sanitizePhotoForUpload } from '../capture';
@@ -75,6 +83,7 @@ import { DistancePref } from './distance-pref';
 import { NoticePrefs } from './notice-prefs';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
+import { StepPref } from './step-pref';
 import { appUpdate } from '../pwa/app-update';
 import {
   browserRelayClient,
@@ -107,6 +116,10 @@ export interface Session {
   readonly profile: ProfilePref;
   /** The welcome's answer and the quiet lines the person closed (guide hint, pace line). */
   readonly notices: NoticePrefs;
+  /** The one next step the person accepted from the coach (synced, exported). */
+  readonly step: StepPref;
+  /** "Share my weight trend with the coach" (off by default; behind the coaching consent). */
+  readonly trendShare: TrendSharePref;
   /** The persisted "not yet backed up" flag behind the `SyncQueue` port (it counts only while connected). */
   readonly syncQueue: DirtyFlagSyncQueue;
   /** The automatic backup to this server's relay, when this device is connected to one. */
@@ -305,6 +318,14 @@ export async function createSession(
   await distance.load();
   const notices = new NoticePrefs(kv);
   await notices.load();
+  const step = new StepPref(kv);
+  await step.load();
+  const trendShare = new TrendSharePref(kv);
+  await trendShare.load();
+  // The trend switch only means something while coaching is in force.
+  if (trendShare.enabled() && ai.coaching.getSnapshot().kind !== 'ready') {
+    await trendShare.turnOff().catch(() => undefined);
+  }
 
   const coach = createTemplateCoach(coachLookup);
   const templateGenerator = createCoachNoteGenerator({
@@ -314,11 +335,48 @@ export async function createSession(
     groupsOf: foodGroupsOfFood,
     // No numbers in a note while the person has numbers turned off.
     targets: () => (numbers.current() ? profile.targets() : undefined),
+    // The goal and, with numbers on and a guide of the person's own, its energy (lot 6).
+    goal: () => coachGoalContext(profile.current(), profile.guide(), numbers.current()),
+    // Every food a note names respects the diet and the allergies.
+    profile: profile.current,
+    // The foods the person has logged often (the last 14 days), for the satiety helpers.
+    history: async (plate) => {
+      const read = await store.readRange({
+        from: addCalendarDays(plate.loggedAtUtc, -13),
+        to: startOfNextLocalDay(plate.loggedAtUtc),
+      });
+      return read.kind === 'platesRead' ? read.plates : [];
+    },
   });
   // What an AI sees is named the way the person reads it, in the interface language.
   const naming = {
     nameOf: (food: DatabaseFood) => foodName(food, currentLocale()),
     groupsOf: foodGroupsOfFood,
+  };
+  // What the goal, the guide, the accepted step and the trend switch add to every AI call, read
+  // at call time. The trend is the person's own separate switch; the coaching consent still gates
+  // every call in `CoachingAi.complete`.
+  const aiContext = (): AiCoachContext => {
+    const prof = profile.current();
+    const guide = profile.guide();
+    const goal = coachGoalContext(prof, guide, true);
+    const weights = profile
+      .measurementList()
+      .filter((m) => m.kind === 'weight')
+      .map((m) => ({ day: m.day, value: m.value }));
+    const weightHelp = goal.goal === 'lose' || goal.goal === 'gain' ? goal.goal : null;
+    return {
+      weightHelp,
+      personalGuide: guide.personal && guide.explanation.notice === null,
+      step: step.current(),
+      // The trend is sent only while weight help is allowed: a lose or gain goal that no safeguard
+      // (pregnancy, underweight, 65 and over, below the floor, no body data, no surplus) holds.
+      weightTrend:
+        weightHelp !== null && trendShare.enabled()
+          ? coarseWeightTrend(weightProgress(weights).changeFourWeeks)
+          : null,
+      limits: coachTextLimits(prof, guide, goal),
+    };
   };
   const coachAiDeps = {
     coaching: ai.coaching,
@@ -326,6 +384,7 @@ export async function createSession(
     locale: currentLocale,
     targets: profile.targets,
     profile: profile.current,
+    context: aiContext,
   };
   let live = true;
   // Notes the person already answered this session: an AI note must not land on top of them.
@@ -395,6 +454,7 @@ export async function createSession(
           numbers.refresh(),
           distance.refresh(),
           notices.refresh(),
+          step.refresh(),
         ]);
         const stored = await localePrefs.readStored();
         if (live) applyLocalePreference(localePrefs, stored);
@@ -414,6 +474,10 @@ export async function createSession(
   };
   let chatDestination = destinationOf();
   const stopWatching = ai.coaching.subscribe(() => {
+    // The trend switch only means something with coaching on: it never survives a lapse.
+    if (ai.coaching.getSnapshot().kind !== 'ready' && trendShare.enabled()) {
+      void trendShare.turnOff().catch(() => undefined);
+    }
     const now = destinationOf();
     if (now === chatDestination) return;
     chatDestination = now;
@@ -434,6 +498,8 @@ export async function createSession(
     distance,
     profile,
     notices,
+    step,
+    trendShare,
     syncQueue,
     sync,
     syncOffer,

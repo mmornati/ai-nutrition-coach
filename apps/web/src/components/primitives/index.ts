@@ -19,3 +19,4 @@ export {
   passedGroups,
 } from './lines';
 export type { LineDef, LineGroup } from './lines';
+export * from './QuietButton';

@@ -11,6 +11,9 @@ export interface CoachCardProps {
   readonly onSure: () => void;
   /** The parent removes the card after this; the card never re-asks. */
   readonly onAskLater: () => void;
+  /** "Try it this week": accepts the one small step this note suggests (absent: none offered). */
+  readonly tryLabel?: string | undefined;
+  readonly onTry?: (() => void) | undefined;
   readonly className?: string;
 }
 
@@ -21,6 +24,8 @@ export function CoachCard({
   aiMark,
   onSure,
   onAskLater,
+  tryLabel,
+  onTry,
   className = '',
 }: CoachCardProps) {
   const s = useStrings().coach;
@@ -37,6 +42,11 @@ export function CoachCard({
         <Button variant="primary" onClick={onSure}>
           {s.sure}
         </Button>
+        {onTry !== undefined && tryLabel !== undefined ? (
+          <Button variant="secondary" onClick={onTry}>
+            {tryLabel}
+          </Button>
+        ) : null}
         <Button variant="secondary" onClick={onAskLater}>
           {s.askLater}
         </Button>

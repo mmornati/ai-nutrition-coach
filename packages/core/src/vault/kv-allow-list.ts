@@ -7,8 +7,11 @@
 // in the About notice); a fact about a DEVICE, a network destination or a secret does not. A
 // consent to contact a destination (an AI endpoint, Open Food Facts) is given per device.
 
+import { isValidStepText } from '../coach/step';
+
 /** Keys whose value is a preference or an answer of the person, merged last-writer-wins per key. */
 export const SYNCED_KV_KEYS: readonly string[] = Object.freeze([
+  'coach.step',
   'export.lastAtUtc',
   'export.reminderDismissedAtUtc',
   'privacy.aboutAckAtUtc',
@@ -32,6 +35,7 @@ export const SYNCED_KV_KEYS: readonly string[] = Object.freeze([
 export const DEVICE_ONLY_KV_KEYS: readonly string[] = Object.freeze([
   'ai.settings',
   'ai.coachingConsent',
+  'ai.shareWeightTrend',
   'ai.describeConsent',
   'ai.byokKey',
   'privacy.offLookup',
@@ -98,6 +102,8 @@ export function isValidKvValue(key: string, value: string): boolean {
       return value === 'done' || value === 'skipped';
     case 'profile':
       return isJsonObjectText(value);
+    case 'coach.step':
+      return isValidStepText(value);
     case 'export.lastAtUtc':
     case 'export.reminderDismissedAtUtc':
     case 'privacy.aboutAckAtUtc':

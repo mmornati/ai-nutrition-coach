@@ -12,6 +12,7 @@ import { setCurrentLocale } from '../../i18n';
 import { DEFAULT_LOCALE } from '../../i18n/locale';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { KV_KEYS } from '../../storage';
+import { coachNoteDismissalKey } from '@anc/core';
 import { useSession, type Session } from '../../app/session';
 import { SUPPORT_URL } from '../../components/nutrition';
 import { AskCoachScreen } from './AskCoachScreen';
@@ -36,6 +37,7 @@ async function open(
     wrapper?: (props: { children: ReactNode }) => ReactNode;
     heading?: string;
     french?: boolean;
+    prepare?: (bundle: Awaited<ReturnType<typeof unlockedBundle>>) => Promise<void>;
   } = {},
 ) {
   const fake = new FakeFetch();
@@ -50,6 +52,7 @@ async function open(
     },
   ]);
   if (options.french) await bundle.kv.write(KV_KEYS.uiLocale, 'fr');
+  await options.prepare?.(bundle);
   if (options.configure === 'noConsent') await configureByokCoaching(bundle, { consent: false });
   if (options.configure === 'ready' || options.configure === undefined) {
     await configureByokCoaching(bundle);
@@ -59,16 +62,25 @@ async function open(
     session: { fetch: fake.fetch },
     ...(options.wrapper ? { wrapper: options.wrapper } : {}),
   });
-  await screen.findByRole('heading', { level: 1, name: options.heading ?? 'Ask the coach' });
+  await screen.findByRole('heading', { level: 1, name: options.heading ?? 'The coach' });
   return { fake, bundle, ...view };
 }
 
 describe('Ask the coach: off', () => {
   it('without an AI it says how to turn it on and links to Your AI (no dead end, no request)', async () => {
     const { fake, container } = await open({ configure: 'none' });
-    expect(screen.getByRole('heading', { level: 2, name: 'The AI coach is off' })).toBeVisible();
-    expect(screen.getByText(/needs an AI/)).toBeVisible();
-    const link = screen.getByRole('link', { name: 'Open Your AI' });
+    // One calm line, not a dead end: the page is the same, the conversation is simply absent.
+    expect(
+      screen.getByText(/No AI is set up, so the coach writes its built-in notes/),
+    ).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Your step' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest notes' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Your daily guide' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open Profile' })).toHaveAttribute(
+      'href',
+      '#/settings/profile',
+    );
+    const link = screen.getByRole('link', { name: 'Choose one in Your AI' });
     expect(link).toHaveAttribute('href', '#/settings/ai');
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(fake.requests).toHaveLength(0);
@@ -77,13 +89,51 @@ describe('Ask the coach: off', () => {
 
   it('with an AI but no yes to coaching it names where meals would go and links to Your AI', async () => {
     const { fake } = await open({ configure: 'noConsent' });
-    expect(screen.getByText(/sends your meals to api\.example\.com/)).toBeVisible();
+    expect(
+      screen.getByText(/AI coaching is off, so the coach writes its built-in notes/),
+    ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Open Your AI' })).toHaveAttribute(
       'href',
       '#/settings/ai',
     );
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(fake.requests).toHaveLength(0);
+  });
+});
+
+describe('Ask the coach: the latest notes', () => {
+  const TEMPLATE_NOTE = 'Lots of veg here. Is there some protein nearby, like eggs or beans?';
+  const seedNote = async (bundle: Awaited<ReturnType<typeof unlockedBundle>>) => {
+    const added = await bundle.notes.append({
+      id: 0,
+      plateLogId: 1,
+      anchor: 'postResolve',
+      questionKey: 'post.resolve.vegRich?protein=eggs.beans',
+      text: TEMPLATE_NOTE,
+      generatedAt: at(12, 1, -1),
+    });
+    if (added.kind !== 'coachNoteAppended') throw new Error('seed');
+    return added.note.id;
+  };
+
+  it('shows the note under a plate', async () => {
+    await open({ configure: 'none', prepare: async (b) => void (await seedNote(b)) });
+    expect(await screen.findByText(TEMPLATE_NOTE)).toBeVisible();
+  });
+
+  it('does not show a note the person dismissed under the plate', async () => {
+    let id = 0;
+    await open({
+      configure: 'none',
+      prepare: async (b) => {
+        id = await seedNote(b);
+        await b.notes.recordDismissal(coachNoteDismissalKey(id));
+      },
+    });
+    expect(id).toBeGreaterThan(0);
+    await screen.findByRole('heading', { level: 2, name: 'Latest notes' });
+    await waitFor(() => expect(screen.getByText('No notes in the last days.')).toBeVisible());
+    expect(screen.queryByText(TEMPLATE_NOTE)).toBeNull();
   });
 });
 
@@ -162,7 +212,7 @@ describe('Ask the coach: the chat', () => {
     const user = userEvent.setup();
     const { fake } = await open({
       french: true,
-      heading: 'Interroger le coach',
+      heading: 'Le coach',
       wrapper: ({ children }) => <LocaleProvider initial="fr">{children}</LocaleProvider>,
     });
     await user.type(
@@ -228,7 +278,7 @@ describe('AskCoachScreen: accessibility', () => {
   it('has no axe violations (the enable-AI path, and the open chat)', async () => {
     const bundle = await unlockedBundle();
     const { container, unmount } = await renderInSession(<AskCoachScreen />, { bundle });
-    await screen.findByRole('heading', { level: 2, name: 'The AI coach is off' });
+    await screen.findByText(/No AI is set up/);
     expect(await axe(container)).toHaveNoViolations();
     unmount();
 
@@ -267,7 +317,7 @@ describe('Ask the coach: safety copy, numbers off, the log', () => {
     const user = userEvent.setup();
     const { fake } = await open({
       french: true,
-      heading: 'Interroger le coach',
+      heading: 'Le coach',
       wrapper: ({ children }) => <LocaleProvider initial="fr">{children}</LocaleProvider>,
     });
     await ask(user, 'Je me suis évanoui', 'Demander');
@@ -288,7 +338,7 @@ describe('Ask the coach: safety copy, numbers off, the log', () => {
 
     const fr = await open({
       french: true,
-      heading: 'Interroger le coach',
+      heading: 'Le coach',
       wrapper: ({ children }) => <LocaleProvider initial="fr">{children}</LocaleProvider>,
     });
     await ask(user, 'je veux mourir', 'Demander');

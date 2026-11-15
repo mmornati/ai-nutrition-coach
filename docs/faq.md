@@ -36,6 +36,14 @@ pregnancy or breastfeeding, 65 and over). Without a height and a weight, the gui
 steady and asks for them.
 It never labels you and never colours a weight. The floors are conventions, not clinical thresholds.
 
+With that goal the coach helps too, calmly and without AI: at dinner, with a guide of your own, a day well above the guide gets a
+note naming the foods that carried the energy; it suggests protein, vegetables or water in place of a sugary drink from the foods
+you already log; the week review describes your logged energy and, if you weigh in, your weight trend, as information and never
+as a verdict. With an AI and your yes, "how do I lose weight with what I eat?" gets a real answer, within limits: never below
+your guide, never fasting or skipped meals, never a comment on your body, and a pointer to a doctor or a dietitian when it matters.
+A request for a very low intake or a very fast loss is answered on the device, never sent. With any other goal the coach does
+not bring weight loss up.
+
 ### Can I change a plate I already logged?
 
 Yes. Open the plate and choose *Edit this plate*: change an amount, remove or add a food, or move it to another meal

@@ -21,6 +21,7 @@ import {
   type PromptNaming,
 } from '@anc/core';
 import type { CoachingAi } from '../ai';
+import { NO_AI_CONTEXT, type AiContextProvider } from './context';
 
 /** Why an AI upgrade did or did not happen. Nothing here is ever shown to the person. */
 export type AiNoteOutcome =
@@ -46,6 +47,8 @@ export interface AiNoteDeps {
   readonly locale: () => CoachLocale;
   readonly targets: () => Required<Nutrients>;
   readonly profile: () => Profile | undefined;
+  /** The goal, the step and the switches, read at each note (default: no weight talk). */
+  readonly context?: AiContextProvider;
   readonly naming: PromptNaming;
   /** Whether the person already answered the template note (Sure, Ask later, Close) this session. */
   readonly hasInteracted?: (noteId: number) => boolean;
@@ -115,6 +118,7 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
 
         const numbersOn = deps.numbersOn();
         const locale = deps.locale();
+        const context = deps.context?.() ?? NO_AI_CONTEXT;
         const messages = buildNoteMessages({
           ...deps.naming,
           locale,
@@ -125,6 +129,9 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
           targets: deps.targets(),
           profile: deps.profile(),
           hint: parseCompositionPattern(template.questionKey.replace(/^post\.resolve\./, '')),
+          weightHelp: context.weightHelp,
+          step: context.step,
+          weightTrend: context.weightTrend,
         });
 
         const abort = new AbortController();
@@ -152,7 +159,7 @@ export function createAiNoteUpgrader(deps: AiNoteDeps): {
         if (!deps.live()) return 'sessionEnded';
         if (result.kind !== 'text') return 'aiFailed';
 
-        const parsed = parseAiCoachNote(result.text, numbersOn, locale);
+        const parsed = parseAiCoachNote(result.text, numbersOn, locale, context.limits);
         if (parsed === null) return 'invalid';
 
         // Look again: a dismissal, a tap on Sure, a follow-up or the plate's removal may have

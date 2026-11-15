@@ -10,6 +10,8 @@ import type {
 import { isAiCoachNote } from '../coach/ai-coaching';
 import { otherPlatesOfSameDay, type GroupsOf } from '../coach/day-coaching';
 import { coachSuggestionFor } from '../coach/nutrient-coaching';
+import type { GoalContext } from '../coach/energy-coaching';
+import type { Profile } from '../entities/profile';
 import type { Nutrients } from '../value-types/nutrients';
 import type { CoachNote } from '../entities/coach-note';
 import {
@@ -66,6 +68,18 @@ export function createCoachNoteGenerator(deps: {
    * nutrient layer is off and notes come from the food-group patterns alone.
    */
   readonly targets?: () => Required<Nutrients> | undefined;
+  /**
+   * The person's goal and the energy of their personal guide, read at each note (absent: no goal-
+   * or energy-aware rule). The energy is left out while numbers are off.
+   */
+  readonly goal?: () => GoalContext | undefined;
+  /** The diet and allergies every food a note names must respect, read at each note. */
+  readonly profile?: () => Profile | undefined;
+  /**
+   * The person's recent plates, to name "a food you often have" (the satiety helpers of a lose
+   * goal). A rejection is the same as no history.
+   */
+  readonly history?: (plate: PlateLog) => Promise<readonly PlateLog[]>;
 }): CoachNoteGenerator {
   const clock = deps.clock ?? systemClock;
   return {
@@ -80,11 +94,23 @@ export function createCoachNoteGenerator(deps: {
       } catch {
         // No history is the same as a first note of the day.
       }
+      const goal = deps.goal?.();
+      let history: readonly PlateLog[] | undefined;
+      if (goal?.goal === 'lose' && deps.history !== undefined) {
+        try {
+          history = await deps.history(plate);
+        } catch {
+          history = undefined;
+        }
+      }
       const suggestion = coachSuggestionFor(plate, {
         dayPlates: others,
         previousPattern,
         groupsOf: deps.groupsOf,
         targets: deps.targets?.(),
+        goal,
+        history,
+        profile: deps.profile?.(),
       });
       if (suggestion === null) return { kind: 'noCoachNoteGenerated', reason: 'unknownPattern' };
 

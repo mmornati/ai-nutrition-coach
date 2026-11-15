@@ -1,4 +1,5 @@
 import type { PlateLog } from '../entities/plate-log';
+import type { Profile } from '../entities/profile';
 import type { MealSlot } from '../day/meal-slot';
 import type { CoachParams, CompositionPattern } from '../value-types/composition-pattern';
 import { dayNutrients, entryNutrients, plateNutrients } from '../value-types/nutrient-totals';
@@ -13,6 +14,13 @@ import {
   type CoachPatternContext,
   type GroupsOf,
 } from './day-coaching';
+import {
+  dayEnergySuggestion,
+  isEndOfDay,
+  satietySuggestions,
+  type GoalContext,
+} from './energy-coaching';
+import { PATTERN_SLOTS, slotOptions, slotParams } from './food-options';
 
 /** A pattern and the raw numbers its copy interpolates. */
 export interface CoachSuggestion {
@@ -105,11 +113,11 @@ function daySoFarSuggestions(
  *   sugarsHighItem    breakfast, lunch, dinner   one entry has >= 15 g sugars
  *   saltHighPlate     breakfast, lunch, dinner   plate salt >= 40% of the day's guide
  *   satFatHighPlate   breakfast, lunch, dinner   plate saturated fat >= 50% of the guide
- *   energyDenseSnack  late                       plate >= 400 kcal with no protein or veg entry
+ *   energyDenseSnack  late, snack                plate >= 400 kcal with no protein or veg entry
  *   proteinLowDay     lunch, dinner              day protein (with this plate) < 35% of the guide
  *   fibreLowDay       dinner                     day fibre (with this plate) < 40% of the guide
  *
- * A late plate says nothing except `energyDenseSnack`.
+ * A late plate or a snack says nothing except `energyDenseSnack`.
  */
 export function applicableNutrientSuggestions(
   input: NutrientRuleInput,
@@ -120,7 +128,7 @@ export function applicableNutrientSuggestions(
   const out: CoachSuggestion[] = [];
   const t = plateTotals.totals;
 
-  if (slot !== 'late') {
+  if (slot !== 'late' && slot !== 'snack') {
     let top: { food: string; sugars: number; estimated: boolean } | null = null;
     for (const entry of plate.entries) {
       const sugars = entryNutrients(entry)?.sugars;
@@ -169,6 +177,7 @@ export function applicableNutrientSuggestions(
       });
     }
   } else if (
+    // A late plate or a snack: only the energy-dense snack remark.
     t.energyKcal !== undefined &&
     t.energyKcal >= NUTRIENT_RULE_THRESHOLDS.energyDenseKcal
   ) {
@@ -186,33 +195,85 @@ export function applicableNutrientSuggestions(
 }
 
 export interface CoachSuggestionContext extends CoachPatternContext {
-  /** The day's reference amounts; without them the nutrient layer is off. */
+  /** The day's reference amounts; without them the nutrient layer is off (numbers turned off). */
   readonly targets?: Required<Nutrients> | undefined;
+  /** The goal and the personal guide's energy (lot 6). Absent: no goal- or energy-aware rule. */
+  readonly goal?: GoalContext | undefined;
+  /** The person's recent plates (about 14 days), for "a food you often have". */
+  readonly history?: readonly PlateLog[] | undefined;
+  /** The diet and allergies every food named in a note respects. */
+  readonly profile?: Profile | undefined;
 }
 
 /**
- * The one suggestion for a freshly logged plate: a nutrient rule when one fires, else the
- * food-group pattern (no params). Skips the day's previous pattern; `null` is silence.
+ * Adds the food-slot options (`protein=eggs.beans`) a pattern's copy names, chosen under the
+ * person's diet and allergies, so the note reads the same later and never names a food they avoid.
+ */
+export function withFoodSlots(
+  suggestion: CoachSuggestion,
+  profile: Profile | undefined,
+): CoachSuggestion {
+  const slots = PATTERN_SLOTS[suggestion.pattern];
+  if (slots === undefined) return suggestion;
+  return { ...suggestion, params: { ...suggestion.params, ...slotParams(slots, profile) } };
+}
+
+/** Whether the person's diet or allergies leave nothing to name: the pattern is then not said. */
+const unusable = (pattern: CompositionPattern, profile: Profile | undefined): boolean =>
+  pattern === 'dairyLight' && slotOptions('dairy', profile).length === 0;
+
+/**
+ * The one suggestion for a freshly logged plate, in this order: the goal and energy layer (the
+ * day's energy against the personal guide at the end of the day, the satiety helpers of a lose
+ * goal), then a nutrient rule, then the food-group pattern. Skips the day's previous pattern;
+ * `null` is silence. Every food a note names respects `profile.diet` and `profile.allergies`.
  */
 export function coachSuggestionFor(
   plate: PlateLog,
   context: CoachSuggestionContext = {},
 ): CoachSuggestion | null {
   const previous = context.previousPattern ?? null;
-  const nutrient =
-    context.targets === undefined
-      ? []
-      : applicableNutrientSuggestions({
-          plate,
-          slot: slotOfPlate(plate),
-          earlierPlates: otherPlatesOfSameDay(plate, context.dayPlates ?? []),
-          targets: context.targets,
-          groupsOf: context.groupsOf,
-        });
-  const picked = nutrient.find((s) => s.pattern !== previous);
-  if (picked) return picked;
-  const pattern = applicablePatterns(plate, context).find((p) => p !== previous);
-  return pattern === undefined ? null : { pattern, params: {} };
+  const slot = slotOfPlate(plate);
+  const others = otherPlatesOfSameDay(plate, context.dayPlates ?? []);
+  const candidates: CoachSuggestion[] = [];
+
+  const goal = context.goal;
+  if (goal !== undefined) {
+    if (goal.guideKcal !== undefined && isEndOfDay(plate, slot, others, slotOfPlate)) {
+      const day = dayEnergySuggestion({ dayPlates: [...others, plate], goal });
+      if (day !== null) candidates.push(day);
+    }
+    candidates.push(
+      ...satietySuggestions({
+        plate,
+        slot,
+        goal,
+        figures: context.targets !== undefined,
+        history: context.history,
+        groupsOf: context.groupsOf,
+        profile: context.profile,
+      }),
+    );
+  }
+  if (context.targets !== undefined) {
+    candidates.push(
+      ...applicableNutrientSuggestions({
+        plate,
+        slot,
+        earlierPlates: others,
+        targets: context.targets,
+        groupsOf: context.groupsOf,
+      }),
+    );
+  }
+  const picked = candidates.find(
+    (s) => s.pattern !== previous && !unusable(s.pattern, context.profile),
+  );
+  if (picked) return withFoodSlots(picked, context.profile);
+  const pattern = applicablePatterns(plate, context).find(
+    (p) => p !== previous && !unusable(p, context.profile),
+  );
+  return pattern === undefined ? null : withFoodSlots({ pattern, params: {} }, context.profile);
 }
 
 /**
@@ -224,6 +285,7 @@ export function openPlateSuggestionFor(input: {
   readonly slot: MealSlot;
   readonly groupsOf?: GroupsOf | undefined;
   readonly targets?: Required<Nutrients> | undefined;
+  readonly profile?: Profile | undefined;
 }): CoachSuggestion | null {
   if (input.slot !== 'lunch' && input.slot !== 'dinner') return null;
   if (input.dayPlates.length === 0) return null;
@@ -232,7 +294,9 @@ export function openPlateSuggestionFor(input: {
   if (group === 'vegLight') return { pattern: group, params: {} };
   if (input.targets !== undefined) {
     const low = daySoFarSuggestions(input.slot, input.dayPlates, input.targets)[0];
-    if (low !== undefined) return low;
+    if (low !== undefined) return withFoodSlots(low, input.profile);
   }
-  return group === null ? null : { pattern: group, params: {} };
+  return group === null || unusable(group, input.profile)
+    ? null
+    : withFoodSlots({ pattern: group, params: {} }, input.profile);
 }
