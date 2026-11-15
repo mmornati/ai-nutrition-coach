@@ -30,6 +30,7 @@ export function headerChipOf(status: SyncStatus): HeaderChip {
     case 'signedOut':
     case 'tooLarge':
     case 'paused':
+    case 'signInRequired':
       return chip('failed');
     case 'failed':
       return chip(status.dirty ? 'failed' : status.known ? 'synced' : 'pending');

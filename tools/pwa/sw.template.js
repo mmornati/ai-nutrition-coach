@@ -56,6 +56,8 @@ const MATCH_OPTIONS = { ignoreVary: true };
 // never set its session cookie and the sign-in would loop. Root-relative: the outpost is mounted at
 // the host root whatever the app's scope.
 const PROXY_AUTH_PREFIXES = ['/outpost.goauthentik.io/'];
+/** The search parameter of the "sign in again" navigation: always a network request. */
+const SIGN_IN_PARAM = 'signin';
 
 const scopeUrl = (path) => new URL(path, self.registration.scope).href;
 
@@ -143,6 +145,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+async function cachedShell() {
+  const cache = await caches.open(CACHE_NAME);
+  return cache.match(scopeUrl('index.html'), MATCH_OPTIONS);
+}
+
 const looksLikeAFile = (pathname) => /\.[A-Za-z0-9]+$/.test(pathname);
 
 self.addEventListener('fetch', (event) => {
@@ -152,11 +159,29 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (PROXY_AUTH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return;
 
+  // "Sign in again" (apps/web/src/net/sign-in.ts) navigates to /?signin=1. A single-sign-on proxy
+  // in front of this server only sees a request that reaches the network, so this one must: it
+  // is never answered from the cache and its response is never stored. Offline, the browser would
+  // otherwise land on its error page with no way back, so a rejected fetch falls back to the shell.
+  if (request.mode === 'navigate' && url.searchParams.has(SIGN_IN_PARAM)) {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch {
+          const shell = await cachedShell();
+          if (shell) return shell;
+          throw new Error('offline and no cached shell');
+        }
+      })(),
+    );
+    return;
+  }
+
   if (request.mode === 'navigate' && !looksLikeAFile(url.pathname)) {
     event.respondWith(
       (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const shell = await cache.match(scopeUrl('index.html'), MATCH_OPTIONS);
+        const shell = await cachedShell();
         return shell || fetch(request);
       })(),
     );

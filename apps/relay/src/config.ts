@@ -17,7 +17,14 @@ export interface RelayConfig {
   readonly dataDir: string;
   /** `SYNC_IDENTITY`. Only `handle` exists in this phase. */
   readonly identity: 'handle';
+  /**
+   * What the relay does with a signup. `SYNC_SIGNUP` defaults to `invite`; `invite` with no codes
+   * in `SYNC_INVITE_CODES` is `closed` here (nobody could ever present a valid code, so the offer
+   * says closed instead of asking for a code that cannot exist). Logins always work.
+   */
   readonly signup: SyncSignupMode;
+  /** `SYNC_SIGNUP` is `invite` (the default) but no code is set: signups are closed until one is. */
+  readonly signupNeedsCodes: boolean;
   readonly inviteCodes: readonly string[];
   readonly maxVaultBytes: number;
   readonly maxVaults: number;
@@ -71,7 +78,9 @@ export function readConfig(env: Env): RelayConfig {
       'SYNC_IDENTITY must be "handle". Single sign-on (forward-auth) is not available yet.',
     );
   }
-  const signup = env['SYNC_SIGNUP'] ?? 'open';
+  // New copies are opt-in: an operator who wants the old open signup says `SYNC_SIGNUP=open`.
+  const signup =
+    env['SYNC_SIGNUP'] === undefined || env['SYNC_SIGNUP'] === '' ? 'invite' : env['SYNC_SIGNUP'];
   if (!SYNC_SIGNUP_MODES.includes(signup as SyncSignupMode)) {
     throw new ConfigError('SYNC_SIGNUP must be open, invite or closed.');
   }
@@ -86,9 +95,9 @@ export function readConfig(env: Env): RelayConfig {
       );
     }
   }
-  if (signup === 'invite' && inviteCodes.length === 0) {
-    throw new ConfigError('SYNC_SIGNUP=invite needs at least one code in SYNC_INVITE_CODES.');
-  }
+  // `invite` without a code starts anyway: existing handles can log in, new signups are refused
+  // (`closed`), and the start-up line says why (`signupNotice`).
+  const signupNeedsCodes = signup === 'invite' && inviteCodes.length === 0;
   const port = whole(env, 'SYNC_PORT', 4100, 1, 65_535);
   const host = env['SYNC_HOST'] ?? '127.0.0.1';
   if (!/^[0-9A-Fa-f:.]{2,45}$/.test(host)) {
@@ -110,7 +119,8 @@ export function readConfig(env: Env): RelayConfig {
     port,
     dataDir,
     identity,
-    signup: signup as SyncSignupMode,
+    signup: signupNeedsCodes ? 'closed' : (signup as SyncSignupMode),
+    signupNeedsCodes,
     inviteCodes,
     maxVaultBytes:
       whole(env, 'SYNC_MAX_VAULT_MB', SYNC_DEFAULT_MAX_VAULT_MB, 1, SYNC_MAX_VAULT_MB_CEILING) *
@@ -127,4 +137,11 @@ export function readConfig(env: Env): RelayConfig {
     trustProxy: trust === '1',
     serverSecret: secret === '' ? undefined : secret,
   };
+}
+
+/** The one start-up line about a relay whose signups are closed only because no invite code is set. */
+export function signupNotice(config: Pick<RelayConfig, 'signupNeedsCodes'>): string | null {
+  return config.signupNeedsCodes
+    ? 'relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES), or SYNC_SIGNUP=open; existing handles can still log in'
+    : null;
 }

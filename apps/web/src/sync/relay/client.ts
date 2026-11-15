@@ -20,11 +20,16 @@ import {
   type SignupRequest,
   type VaultResponse,
 } from '@anc/core';
-import { cappedFetch, parseJsonBody, type FetchLike } from '../../net/capped-fetch';
+import { cappedFetch, isSignInAnswer, parseJsonBody, type FetchLike } from '../../net/capped-fetch';
 
 export type RelayError =
   /** The request did not get an answer: no network, a timeout, a redirect. */
   | 'offline'
+  /**
+   * The sign-in in front of this server turned the call away (a redirect to the identity provider,
+   * or a 401 / 403 that is not the relay's own JSON error). A page reload asks the person to sign in.
+   */
+  | 'signInRequired'
   /** The relay answered something that is not part of the protocol, or failed (5xx, unreadable). */
   | 'unavailable'
   | 'rateLimited'
@@ -122,6 +127,8 @@ export function createRelayClient(options: RelayClientOptions = {}): RelayClient
       method,
       headers,
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+      // The relay is this server's own path: behind a sign-in proxy it needs the session cookie.
+      sameOriginCredentials: true,
       maxBytes: init.large ? VAULT_BYTES : SMALL_BYTES,
       headersTimeoutMs: init.large ? VAULT_TIMEOUT_MS : SMALL_TIMEOUT_MS,
       bodyTimeoutMs: init.large ? VAULT_TIMEOUT_MS : SMALL_TIMEOUT_MS,
@@ -131,8 +138,19 @@ export function createRelayClient(options: RelayClientOptions = {}): RelayClient
     if (response.kind === 'failure') {
       return {
         ok: false,
-        result: fail(response.reason === 'tooLarge' ? 'unavailable' : 'offline'),
+        result: fail(
+          response.reason === 'tooLarge'
+            ? 'unavailable'
+            : response.reason === 'redirect'
+              ? 'signInRequired'
+              : 'offline',
+        ),
       };
+    }
+    // The relay always answers 401 / 403 with its own `{ "error": code }`; one without it came
+    // from the sign-in proxy in front.
+    if (isSignInAnswer(response.status) && errorCode(response.body) === undefined) {
+      return { ok: false, result: fail('signInRequired') };
     }
     return { ok: true, status: response.status, headers: response.headers, body: response.body };
   }

@@ -9,3 +9,8 @@ export function useSyncOffer(source: SyncOfferSource): SyncOffer {
   }, [source]);
   return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
 }
+
+/** Whether the server's sign-in turned the offer read away (reload the page to sign in again). */
+export function useSyncSignInRequired(source: SyncOfferSource): boolean {
+  return useSyncExternalStore(source.subscribe, source.getSignInRequired, source.getSignInRequired);
+}

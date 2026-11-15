@@ -1,7 +1,8 @@
 import { useSyncExternalStore, type RefObject } from 'react';
-import { useMessage } from '../../i18n';
+import { useMessage, useStrings } from '../../i18n';
 import { useSession } from '../../app/session';
-import { useSyncOffer } from '../../sync';
+import { ReloadNotice } from '../../components/shell';
+import { useSyncOffer, useSyncSignInRequired } from '../../sync';
 import { ServerBackupSection } from './ServerBackupSection';
 import { ServerConnectedSection } from './ServerConnectedSection';
 import { ServerJoinSection } from './ServerJoinSection';
@@ -25,9 +26,16 @@ export function ServerSection({
     session.sync.getSnapshot,
     session.sync.getSnapshot,
   );
+  const signIn = useSyncSignInRequired(session.syncOffer);
+  const all = useStrings();
   const [notice, setNotice] = useMessage();
 
-  if (!status.connected && !offer.offered) return null;
+  // The server's sign-in turned the offer read away: say so instead of hiding the section.
+  if (!status.connected && !offer.offered) {
+    return signIn ? (
+      <ReloadNotice text={all.server.signInRequired} action={all.server.reloadAction} />
+    ) : null;
+  }
 
   return (
     <>

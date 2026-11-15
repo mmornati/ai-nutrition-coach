@@ -125,7 +125,8 @@ Two modes, chosen by the operator (`SYNC_IDENTITY`):
 - **`handle`** (default): the person picks a handle (no email). Login = handle + `authKey`. The
   salt lookup for an unknown handle returns a deterministic fake salt (`HMAC(serverSecret, handle)`)
   so handles cannot be enumerated. Signup can be closed or invite-code gated
-  (`SYNC_SIGNUP=open|invite|closed`).
+  (`SYNC_SIGNUP=invite|open|closed`; the default is `invite`, and `invite` with no codes set means signups
+  stay closed while existing handles can still log in).
 - **`forward-auth`**: behind Authentik/Traefik the vault is bound to the SSO user header; the
   passphrase is then only for decryption.
 
@@ -184,7 +185,7 @@ the handle alone. Every screen that looks a vault up asks for both, and a failur
 calm line: *"Nothing on this server matches this handle and passphrase."* Rate limiting gets its
 own line ("Too many tries, wait a few minutes"); it is not a wrong passphrase. Signup does reveal
 that a handle is taken; that is the usual trade-off, bounded by rate limits and
-`SYNC_SIGNUP=invite|closed`, and documented.
+`SYNC_SIGNUP=invite|closed` (`invite` is the default), and documented.
 
 **Case A: a new device (no local store).** First-run screen → *Restore from this server* →
 handle + passphrase → *"Found your data: 412 plates, from March 2026 to today."* → *Restore*.

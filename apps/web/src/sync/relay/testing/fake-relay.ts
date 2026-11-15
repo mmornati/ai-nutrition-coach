@@ -47,6 +47,8 @@ export class FakeRelay implements RelayClient {
   readonly requests: LoggedRequest[] = [];
   /** Every call fails as if there were no network. */
   offline = false;
+  /** Every call is turned away by the sign-in in front of the server. */
+  signInRequired = false;
   /** Every call answers rate limited. */
   rateLimited = false;
   /** Every call answers an unusable reply. */
@@ -81,6 +83,7 @@ export class FakeRelay implements RelayClient {
 
   private gate(): RelayResult<never> | null {
     if (this.offline) return err('offline');
+    if (this.signInRequired) return err('signInRequired');
     if (this.rateLimited) return err('rateLimited', { retryAfterSeconds: 42 });
     if (this.broken) return err('unavailable');
     return null;

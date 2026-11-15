@@ -1,11 +1,13 @@
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { ConfigError, readConfig } from '../src/config';
+import { DatabaseSync } from 'node:sqlite';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ConfigError, readConfig, signupNotice } from '../src/config';
 import { createServerKeys, loadServerSecret, sameDigest } from '../src/keys';
 import { addressKey } from '../src/address';
 import { RateLimiter } from '../src/limiter';
+import { openMemoryStore } from '../src/store';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -13,22 +15,40 @@ afterEach(() => {
 });
 
 describe('readConfig', () => {
-  it('has safe defaults: handle identity, open signup, 20 MB, loopback', () => {
+  it('has safe defaults: handle identity, invite signup (closed until a code is set), 20 MB, loopback', () => {
     const config = readConfig({});
     expect(config).toMatchObject({
       identity: 'handle',
-      signup: 'open',
+      signup: 'closed',
+      signupNeedsCodes: true,
       maxVaultBytes: 20 * 1024 * 1024,
       host: '127.0.0.1',
       trustProxy: false,
     });
   });
 
-  it('refuses forward-auth, a bad mode, a missing invite list and out-of-range numbers', () => {
+  it('signup: the default is invite; invite without codes still starts, closed, with one clear notice; open stays open', () => {
+    const none = readConfig({});
+    expect(none).toMatchObject({ signup: 'closed', signupNeedsCodes: true, inviteCodes: [] });
+    expect(readConfig({ SYNC_SIGNUP: 'invite' })).toMatchObject({ signup: 'closed' });
+    expect(signupNotice(none)).toMatch(/new signups are closed until invite codes are set/);
+    expect(signupNotice(none)).toContain('SYNC_INVITE_CODES');
+    const invite = readConfig({ SYNC_INVITE_CODES: 'blue-door, red-door' });
+    expect(invite).toMatchObject({ signup: 'invite', signupNeedsCodes: false });
+    expect(invite.inviteCodes).toEqual(['blue-door', 'red-door']);
+    expect(signupNotice(invite)).toBeNull();
+    expect(readConfig({ SYNC_SIGNUP: 'open' })).toMatchObject({
+      signup: 'open',
+      signupNeedsCodes: false,
+    });
+    expect(readConfig({ SYNC_SIGNUP: 'closed' })).toMatchObject({ signup: 'closed' });
+    expect(signupNotice(readConfig({ SYNC_SIGNUP: 'closed' }))).toBeNull();
+  });
+
+  it('refuses forward-auth, a bad mode, a malformed invite list and out-of-range numbers', () => {
     const bad: Record<string, string>[] = [
       { SYNC_IDENTITY: 'forward-auth' },
       { SYNC_SIGNUP: 'maybe' },
-      { SYNC_SIGNUP: 'invite' },
       { SYNC_SIGNUP: 'invite', SYNC_INVITE_CODES: 'a b' },
       { SYNC_MAX_VAULT_MB: '0' },
       { SYNC_MAX_VAULT_MB: '25' },
@@ -182,5 +202,83 @@ describe('addressKey', () => {
   it('leaves what is not an address alone', () => {
     expect(addressKey('unknown')).toBe('unknown');
     expect(addressKey('1:2:3')).toBe('1:2:3');
+  });
+});
+
+describe('the store: authentication look-ups never read the vault envelopes', () => {
+  const vault = {
+    handle: 'alice',
+    vaultId: 'v'.repeat(22),
+    salt: 'salt',
+    authDigest: Buffer.alloc(32, 7),
+    wrappedKey: 'wrapped',
+    envelope: '{"big":"current envelope"}',
+    size: 18,
+  };
+
+  it('prepares the handle and row look-ups with an explicit column list, without the envelope columns', () => {
+    const prepared: string[] = [];
+    const real = DatabaseSync.prototype.prepare;
+    const spy = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      prepared.push(sql);
+      return real.call(this, sql);
+    });
+    try {
+      openMemoryStore().close();
+    } finally {
+      spy.mockRestore();
+    }
+    const lookups = prepared.filter((sql) => /FROM vault WHERE (handle|id) = \?/.test(sql));
+    expect(lookups.filter((sql) => /SELECT .* FROM vault WHERE handle/.test(sql))).toHaveLength(1);
+    // byHandle, byRow and the two small reads; never `*`, never an envelope column.
+    const auth = lookups.filter((sql) => /id, handle, vault_id/.test(sql));
+    expect(auth).toHaveLength(2);
+    for (const sql of auth) {
+      expect(sql).not.toContain('*');
+      expect(sql).not.toMatch(/envelope/);
+    }
+    // The envelopes are read by exactly one statement, which selects nothing else.
+    const bodies = prepared.filter((sql) => /SELECT .*envelope.* FROM vault/.test(sql));
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatch(/^SELECT envelope, prev_envelope FROM vault WHERE id = \?$/);
+  });
+
+  it('a looked-up row carries what authentication needs and no envelope; the body is read apart', () => {
+    const store = openMemoryStore();
+    expect(store.createVault(vault, 1_000)).toBe('created');
+    const byHandle = store.vaultByHandle('alice');
+    expect(byHandle).not.toBeNull();
+    expect(Object.keys(byHandle ?? {}).sort()).toEqual(
+      [
+        'authDigest',
+        'handle',
+        'previousVersion',
+        'rowId',
+        'salt',
+        'size',
+        'vaultId',
+        'version',
+        'wrappedKey',
+      ].sort(),
+    );
+    const byRow = store.vaultByRowId(byHandle?.rowId ?? -1);
+    expect(byRow).toEqual(byHandle);
+    expect(store.vaultByHandle('nobody')).toBeNull();
+    const rowId = byHandle?.rowId ?? -1;
+    expect(store.vaultBody(rowId)).toEqual({ envelope: vault.envelope, previousEnvelope: null });
+    expect(store.putEnvelope(rowId, 1, '{"big":"next"}', 14, 2_000)).toEqual({
+      kind: 'stored',
+      version: 2,
+    });
+    expect(store.vaultBody(rowId)).toEqual({
+      envelope: '{"big":"next"}',
+      previousEnvelope: vault.envelope,
+    });
+    expect(store.vaultByRowId(rowId)).toMatchObject({ version: 2, previousVersion: 1 });
+    expect(store.vaultBody(rowId + 99)).toBeNull();
+    store.close();
   });
 });

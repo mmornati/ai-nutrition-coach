@@ -19,6 +19,8 @@ import {
   PING_RECEIVE_TIMEOUT_MS,
   RECEIVE_TIMEOUT_MS,
   cappedFetch,
+  isSameOriginUrl,
+  isSignInAnswer,
   parseJsonBody,
   type FetchLike,
 } from '../net/capped-fetch';
@@ -46,6 +48,11 @@ interface PostResult {
   readonly headers: Headers;
   /** The parsed body of a 2xx reply; `undefined` for other statuses or an unparsable body. */
   readonly json: unknown;
+  /**
+   * This server's own proxy (`sendKey: false`) was answered by the sign-in in front of it: a
+   * redirect to the identity provider, or a 401 / 403 that is not a provider's JSON error.
+   */
+  readonly signIn: boolean;
 }
 
 export { MAX_FOOD_TEXT_LENGTH, MAX_RECOGNIZED_FOODS } from './recognition-parse';
@@ -201,6 +208,11 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           ? { 'Content-Type': 'application/json' }
           : { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      // The instance proxy is this server's own path: behind a sign-in proxy it needs the session
+      // cookie. Your own key's endpoint is another host and never gets one.
+      sameOriginCredentials: this.#opts.sendKey === false && isSameOriginUrl(url),
+      // A 401 / 403 body is read too: a provider's JSON error is told from a sign-in page.
+      readBodyWhen: (status) => (status >= 200 && status < 300) || isSignInAnswer(status),
       headersTimeoutMs: receiveMs,
       idleTimeoutMs: receiveMs,
       ...(this.#opts.bodyReadTimeoutMs === undefined
@@ -212,7 +224,12 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
     if (r.kind === 'failure') {
       switch (r.reason) {
         case 'redirect':
-          return { status: REDIRECT_STATUS, headers: new Headers(), json: undefined };
+          return {
+            status: REDIRECT_STATUS,
+            headers: new Headers(),
+            json: undefined,
+            signIn: this.#opts.sendKey === false,
+          };
         case 'tooLarge':
           throw new ResponseTooLargeError();
         case 'timeout':
@@ -221,10 +238,12 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
           throw new RequestFailedError();
       }
     }
+    const json = r.body.byteLength === 0 ? undefined : parseJsonBody(r.body);
     return {
       status: r.status,
       headers: r.headers,
-      json: r.body.byteLength === 0 ? undefined : parseJsonBody(r.body),
+      json,
+      signIn: this.#opts.sendKey === false && isSignInAnswer(r.status) && !isRecord(json),
     };
   }
 
@@ -273,6 +292,7 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         this.#opts.receiveTimeoutMs,
       );
       const { status } = reply;
+      if (reply.signIn) return failure('httpError', t.instanceSignIn, REDIRECT_STATUS);
       if (status === 401 || status === 403) return { kind: 'keyRejected' };
       if (status === 429) {
         const resetAt = resetAtOf(reply.headers);
@@ -378,6 +398,14 @@ export class OpenAiCompatibleByokProvider implements ByokProvider, ByokConnectio
         args.signal,
       );
       const { status } = reply;
+      if (reply.signIn) {
+        return {
+          kind: 'failure',
+          cause: 'httpError',
+          message: t.instanceSignIn,
+          status: REDIRECT_STATUS,
+        };
+      }
       if (status === 401 || status === 403) return { kind: 'keyRejected' };
       if (status === 429) {
         const resetAt = resetAtOf(reply.headers);

@@ -14,6 +14,9 @@
 //     AI_PROXY_CACHE_MARKERS=1; otherwise it is dropped like any unknown key;
 //   - only `messages`, `temperature`, `top_p` and `response_format` are carried over: no `stream`,
 //     `n`, `tools`, `logprobs`, ...;
+//   - `response_format`, when present, is exactly `{type: "json_object"}` or `{type: "text"}`. A
+//     `json_schema` (an arbitrary client-sized object that would sit outside the 24 KB text
+//     budget) is refused, and so is any other shape or extra key; the app never sends one;
 //   - anything outside that becomes `{}`, which the provider refuses with a 400 (a js_set handler
 //     cannot change the status). Nothing is logged, and nothing here reads or writes the key.
 //
@@ -36,6 +39,13 @@ function utf8Length(s) {
     } else n += 3;
   }
   return n;
+}
+
+// `response_format` is checked, not copied: only the two argument-free kinds pass, with no extra key.
+function validResponseFormat(f) {
+  if (f === null || typeof f !== 'object' || Array.isArray(f)) return false;
+  if (Object.keys(f).length !== 1) return false;
+  return f.type === 'json_object' || f.type === 'text';
 }
 
 function isEphemeralMarker(c) {
@@ -107,8 +117,9 @@ function body(r) {
   out[param] = asked > 0 ? Math.max(1, Math.min(Math.floor(asked), cap)) : cap;
   if (typeof req.temperature === 'number') out.temperature = req.temperature;
   if (typeof req.top_p === 'number') out.top_p = req.top_p;
-  if (req.response_format !== null && typeof req.response_format === 'object') {
-    out.response_format = req.response_format;
+  if (req.response_format !== undefined && req.response_format !== null) {
+    if (!validResponseFormat(req.response_format)) return '{}';
+    out.response_format = { type: req.response_format.type };
   }
   return JSON.stringify(out);
 }

@@ -31,7 +31,13 @@ import {
   type RelayConnection,
 } from './connection';
 import { importVaultKey, type RandomSource } from './crypto';
-import { runSyncCycle, type CycleConnection, type CycleResult, type StopReason } from './cycle';
+import {
+  runSyncCycle,
+  type CycleConnection,
+  type CycleResult,
+  type RetryReason,
+  type StopReason,
+} from './cycle';
 import { VAULT_OP_ID, type DirtyFlagSyncQueue } from './dirty-queue';
 import { SyncLedger } from './ledger';
 import { createRelaySyncAdapter } from './relay-adapter';
@@ -47,6 +53,8 @@ export type SyncPhase =
   | 'offline'
   /** The server did not take it; will retry. */
   | 'failed'
+  /** The server's sign-in turned the call away: reload the page to sign in again. */
+  | 'signInRequired'
   | 'needsUpdate'
   | 'rolledBack'
   | 'signedOut'
@@ -175,7 +183,7 @@ export type SyncNowOutcome =
   | { readonly kind: 'notConnected' }
   | {
       readonly kind: 'retryLater';
-      readonly reason: 'offline' | 'unavailable' | 'rateLimited' | 'conflict';
+      readonly reason: RetryReason;
     }
   | { readonly kind: 'stopped'; readonly reason: StopReason }
   | { readonly kind: 'locked' };
@@ -431,7 +439,8 @@ export class SyncService {
   }
 
   #retryPending(): boolean {
-    const waiting = this.#phase === 'failed' || this.#phase === 'offline';
+    const waiting =
+      this.#phase === 'failed' || this.#phase === 'offline' || this.#phase === 'signInRequired';
     return waiting && this.#now() < this.#retryAt;
   }
 
@@ -525,7 +534,13 @@ export class SyncService {
         return;
       case 'retry': {
         this.#failures++;
-        this.#set(result.reason === 'offline' ? 'offline' : 'failed');
+        this.#set(
+          result.reason === 'offline'
+            ? 'offline'
+            : result.reason === 'signInRequired'
+              ? 'signInRequired'
+              : 'failed',
+        );
         const backoff = Math.min(BACKOFF_MAX_MS, BACKOFF_FIRST_MS * 2 ** (this.#failures - 1));
         const wait = Math.max(backoff, (result.retryAfterSeconds ?? 0) * 1000);
         this.#retryAt = this.#now() + wait;

@@ -124,6 +124,19 @@ services:
       # Encrypted-backup relay (profile `sync`, see the service below): 1 proxies /sync/ to it.
       AI_NUTRITION_COACH_SYNC: ${AI_NUTRITION_COACH_SYNC:-0}
       SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
+      # Behind Traefik every request reaches nginx from Traefik's address, so every per-address
+      # limit (AI, sync) is ONE bucket for the whole household. Opt in to reading the real client
+      # address: the addresses/CIDRs of the proxies to believe (here: Traefik, on the shared
+      # network, e.g. `docker network inspect traefik` -> Subnet) and the header they set:
+      # X-Forwarded-For (default), or CF-Connecting-IP behind Cloudflare / cloudflared. Empty =
+      # off. Strictly validated at start; too-broad ranges are refused (docs/self-host.md).
+      # Prefer Traefik's own address (/32) or a network only Traefik and this app share over a
+      # whole shared subnet, and trust CF-Connecting-IP / X-Forwarded-For only if the app is
+      # reachable ONLY through Traefik / the tunnel.
+      #   AI_NUTRITION_COACH_TRUSTED_PROXIES=172.18.0.5/32
+      #   AI_NUTRITION_COACH_REAL_IP_HEADER=CF-Connecting-IP
+      AI_NUTRITION_COACH_TRUSTED_PROXIES: ${AI_NUTRITION_COACH_TRUSTED_PROXIES:-}
+      AI_NUTRITION_COACH_REAL_IP_HEADER: ${AI_NUTRITION_COACH_REAL_IP_HEADER:-X-Forwarded-For}
     # nginx writes only to /tmp (pid, temp dirs, the config rendered at start).
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
@@ -150,9 +163,16 @@ services:
     <<: *hardening
     profiles: ["sync"]
     image: ${AI_NUTRITION_COACH_RELAY_IMAGE_TAG:-ai-nutrition-coach-relay:dev}
+    # Used by `docker compose up --build` only (bin/ai-nutrition-coach up --sync builds the image
+    # itself, from the same Dockerfile). The build context is the repository root.
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.relay
     environment:
       SYNC_IDENTITY: handle
-      SYNC_SIGNUP: ${SYNC_SIGNUP:-open}
+      # invite (default): a new copy needs a code from SYNC_INVITE_CODES; none set = signups closed
+      # (existing handles still log in). open lets anyone who can reach the server sign up.
+      SYNC_SIGNUP: ${SYNC_SIGNUP:-invite}
       SYNC_INVITE_CODES: ${SYNC_INVITE_CODES:-}
       SYNC_MAX_VAULT_MB: ${SYNC_MAX_VAULT_MB:-20}
       SYNC_MAX_VAULTS: ${SYNC_MAX_VAULTS:-50}

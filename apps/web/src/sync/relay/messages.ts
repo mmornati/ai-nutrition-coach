@@ -20,6 +20,8 @@ export function findFailureText(failure: OpenServerCopyFailure, s: Strings['serv
       return s.rateLimited;
     case 'offline':
       return s.offline;
+    case 'signInRequired':
+      return s.signInRequired;
     case 'unavailable':
       return s.unavailable;
     case 'schemaTooNew':
@@ -51,6 +53,8 @@ export function createFailureText(failure: CreateVaultFailure, all: Strings): st
       return s.rateLimited;
     case 'offline':
       return s.offline;
+    case 'signInRequired':
+      return s.signInRequired;
     case 'tooLarge':
       return s.createTooLarge;
     case 'storeProblem':
@@ -128,6 +132,8 @@ export function statusText(
       return s.statusOffline;
     case 'failed':
       return s.statusFailed;
+    case 'signInRequired':
+      return s.statusSignInRequired;
     case 'needsUpdate':
       return s.statusNeedsUpdate;
     case 'rolledBack':

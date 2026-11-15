@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { Button } from '../../components/primitives';
 import { fill, useLocale, useMessage, useStrings, type Message } from '../../i18n';
 import { useSession } from '../../app/session';
+import { signInAgain } from '../../net/sign-in';
 import { statusText } from '../../sync';
 import { Prose, Section } from './SettingsPage';
 
@@ -72,6 +73,13 @@ export function ServerConnectedSection({
           {s.stopAction}
         </Button>
       </div>
+      {status.phase === 'signInRequired' && (
+        <div>
+          <Button variant="secondary" onClick={() => signInAgain()}>
+            {s.reloadAction}
+          </Button>
+        </div>
+      )}
       <Prose>{s.stopExplain}</Prose>
       <p role="status" className="text-body text-ink empty:hidden">
         {message}

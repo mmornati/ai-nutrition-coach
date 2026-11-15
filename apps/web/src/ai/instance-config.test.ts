@@ -58,7 +58,7 @@ describe('parseInstanceAiConfig', () => {
 describe('InstanceAiSource', () => {
   const origin = () => 'https://plate.example.test';
 
-  it('reads /ai/config.json once (GET, same origin, no credentials) and publishes the offer', async () => {
+  it('reads /ai/config.json once (GET, same origin, the sign-in cookie, no key) and publishes the offer', async () => {
     const fake = new FakeFetch();
     fake.instanceConfig = ON;
     const source = new InstanceAiSource({ fetch: fake.fetch, origin });
@@ -73,7 +73,8 @@ describe('InstanceAiSource', () => {
     const request = fake.configRequests[0];
     expect(request?.url).toBe('/ai/config.json');
     expect(request?.init.method).toBe('GET');
-    expect(request?.init.credentials).toBe('omit');
+    expect(request?.init.credentials).toBe('same-origin');
+    expect(request?.init.redirect).toBe('manual');
     expect(request?.headers).not.toHaveProperty('authorization');
     expect(source.loaded).toBe(true);
     expect(notified).toBe(1);
@@ -81,6 +82,7 @@ describe('InstanceAiSource', () => {
       config: ON,
       host: 'plate.example.test',
       endpointUrl: 'https://plate.example.test/ai/v1',
+      signInRequired: false,
     });
   });
 
@@ -123,6 +125,39 @@ describe('InstanceAiSource', () => {
     });
     await throwing.refresh();
     expect(throwing.getSnapshot().config).toEqual(INSTANCE_AI_OFF);
+  });
+
+  it('a sign-in redirect, a 401 or a 403 is "sign in again", not a silent "not offered"; the next good read clears it', async () => {
+    for (const make of [
+      (f: FakeFetch) => (f.configOpaqueRedirect = true),
+      (f: FakeFetch) => (f.configStatus = 401),
+      (f: FakeFetch) => (f.configStatus = 403),
+    ]) {
+      const fake = new FakeFetch();
+      fake.instanceConfig = ON;
+      make(fake);
+      const source = new InstanceAiSource({ fetch: fake.fetch, origin });
+      let notified = 0;
+      source.subscribe(() => (notified += 1));
+      await source.refresh();
+      expect(source.getSnapshot().config).toEqual(INSTANCE_AI_OFF);
+      expect(source.getSnapshot().signInRequired).toBe(true);
+      expect(notified).toBe(1);
+      // Reloaded and signed in (or the session renewed elsewhere): the offer is back.
+      fake.configOpaqueRedirect = false;
+      fake.configStatus = 200;
+      await source.refresh();
+      expect(source.getSnapshot().config).toEqual(ON);
+      expect(source.getSnapshot().signInRequired).toBe(false);
+    }
+    // A plain 404 or 500 or an offline host is NOT a sign-in problem.
+    for (const status of [404, 500, 503]) {
+      const fake = new FakeFetch();
+      fake.configStatus = status;
+      const source = new InstanceAiSource({ fetch: fake.fetch, origin });
+      await source.refresh();
+      expect(source.getSnapshot().signInRequired).toBe(false);
+    }
   });
 
   it('a failed read is retried by the next refresh and a lock cancels the request', async () => {

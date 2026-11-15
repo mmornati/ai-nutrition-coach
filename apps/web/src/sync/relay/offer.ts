@@ -1,6 +1,6 @@
 import type { Unsubscribe } from '@anc/core';
 import { parseSyncConfig, SYNC_CONFIG_PATH, SYNC_NOT_OFFERED, type SyncOffer } from '@anc/core';
-import { cappedFetch, type FetchLike } from '../../net/capped-fetch';
+import { cappedFetch, isSignInAnswer, type FetchLike } from '../../net/capped-fetch';
 
 /**
  * Whether this server offers to keep an encrypted copy (`GET /sync/config.json`). The file is
@@ -23,6 +23,7 @@ export class SyncOfferSource {
   readonly #listeners = new Set<() => void>();
   #offer: SyncOffer = SYNC_NOT_OFFERED;
   #loaded = false;
+  #signInRequired = false;
   #inflight: Promise<void> | null = null;
 
   constructor(options: SyncOfferSourceOptions = {}) {
@@ -35,6 +36,12 @@ export class SyncOfferSource {
   get loaded(): boolean {
     return this.#loaded;
   }
+
+  /**
+   * The last read was turned away by the sign-in in front of this server (a redirect, a 401 or a
+   * 403): backup is not "not offered", it is out of reach until the page is reloaded.
+   */
+  getSignInRequired = (): boolean => this.#signInRequired;
 
   subscribe = (listener: () => void): Unsubscribe => {
     this.#listeners.add(listener);
@@ -53,9 +60,12 @@ export class SyncOfferSource {
 
   async #read(): Promise<void> {
     let next: SyncOffer = SYNC_NOT_OFFERED;
+    let signIn = false;
     try {
       const r = await cappedFetch(SYNC_CONFIG_PATH, {
         method: 'GET',
+        // This server's own path: the sign-in cookie goes with it (and with nothing cross-origin).
+        sameOriginCredentials: true,
         headers: { Accept: 'application/json' },
         maxBytes: MAX_CONFIG_BYTES,
         headersTimeoutMs: CONFIG_TIMEOUT_MS,
@@ -65,6 +75,11 @@ export class SyncOfferSource {
       });
       if (r.kind === 'response' && r.status === 200 && r.body.byteLength > 0) {
         next = parseSyncConfig(JSON.parse(new TextDecoder().decode(r.body)));
+      } else if (
+        (r.kind === 'failure' && r.reason === 'redirect') ||
+        (r.kind === 'response' && isSignInAnswer(r.status))
+      ) {
+        signIn = true;
       }
     } catch {
       next = SYNC_NOT_OFFERED;
@@ -72,12 +87,14 @@ export class SyncOfferSource {
     this.#loaded = true;
     if (this.#signal?.aborted === true) return;
     const same =
+      signIn === this.#signInRequired &&
       next.offered === this.#offer.offered &&
       (!next.offered ||
         (this.#offer.offered &&
           next.signup === this.#offer.signup &&
           next.maxVaultMb === this.#offer.maxVaultMb));
     this.#offer = next;
+    this.#signInRequired = signIn;
     if (!same) for (const listener of [...this.#listeners]) listener();
   }
 

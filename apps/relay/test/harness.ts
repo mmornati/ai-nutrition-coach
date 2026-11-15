@@ -29,6 +29,8 @@ export async function startRelay(
   tuning: Partial<RelayTuning> = {},
 ): Promise<Harness> {
   const config = readConfig({
+    // The shipped default is `invite`; most tests sign people up, so they start open.
+    SYNC_SIGNUP: 'open',
     SYNC_RATE_IP: '1000',
     SYNC_RATE_HANDLE: '1000',
     SYNC_RATE_HANDLE_DAY: '1000',

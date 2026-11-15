@@ -269,6 +269,40 @@ describe('failing', () => {
     expect(await a.bundle.kv.read(KV_KEYS.syncDirty)).toBeNull();
   });
 
+  it('turned away by the sign-in in front of the server: its own phase (not "offline"), it retries, and a renewed session recovers', async () => {
+    const { relay, a } = await connected();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    relay.signInRequired = true;
+    await a.clock.fire();
+    expect(phase(a)).toBe('signInRequired');
+    expect(a.clock.waits()).toEqual([60_000]);
+    relay.signInRequired = false;
+    await a.clock.fire();
+    expect(phase(a)).toBe('backedUp');
+    expect(await a.bundle.kv.read(KV_KEYS.syncDirty)).toBeNull();
+  });
+
+  it('signInRequired backs off (growing) and, once a later cycle succeeds, starts over from normal', async () => {
+    const { relay, a } = await connected();
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+    relay.signInRequired = true;
+    await a.clock.fire();
+    expect(a.clock.waits()).toEqual([60_000]);
+    await a.clock.fire();
+    expect(phase(a)).toBe('signInRequired');
+    expect(a.clock.waits()).toEqual([120_000]);
+    relay.signInRequired = false;
+    await a.clock.fire();
+    expect(phase(a)).toBe('backedUp');
+    expect(a.clock.waits()).toEqual([]);
+    // A later failure begins at the first step again, not where the last one ended.
+    await seedPlate(a.bundle, at(13, 0), [['Rice', 'starch']]);
+    relay.signInRequired = true;
+    await a.clock.fire();
+    expect(phase(a)).toBe('signInRequired');
+    expect(a.clock.waits()).toEqual([60_000]);
+  });
+
   it('rate limited: waits at least as long as the server asks', async () => {
     const { relay, a } = await connected();
     await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);

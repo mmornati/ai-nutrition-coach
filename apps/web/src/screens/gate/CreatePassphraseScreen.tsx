@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { validateNewPassphrase, type PassphraseIssue, type UnlockOutcome } from '../../storage';
 import { useMessage, useStrings, type Message, type Strings } from '../../i18n';
 import { Button, FileField, TextField } from '../../components/primitives';
+import { ReloadNotice } from '../../components/shell';
 import { openFailureText, type RestoreNewStoreResult } from '../../sync/vault';
 import { RestoreFromServerScreen, type FindOnServerResult } from './RestoreFromServerScreen';
 import type { RestoreFromServerResult } from '../../sync';
@@ -142,6 +143,7 @@ export function CreatePassphraseScreen({
   onRestore,
   serverRestore,
   notice,
+  signInRequired = false,
 }: {
   readonly onCreate: (passphrase: string) => Promise<UnlockOutcome>;
   /** Present when restoring from a backup is offered on this screen. */
@@ -154,6 +156,8 @@ export function CreatePassphraseScreen({
   };
   /** A calm line from something that happened before this screen (a restore that did not land). */
   readonly notice?: string;
+  /** This server's sign-in turned the offer read away: say so, with the one action that fixes it. */
+  readonly signInRequired?: boolean;
 }) {
   const all = useStrings();
   const s = all.session;
@@ -277,6 +281,9 @@ export function CreatePassphraseScreen({
         >
           {all.server.restoreLink}
         </Button>
+      )}
+      {!serverRestore && signInRequired && (
+        <ReloadNotice text={all.server.signInRequired} action={all.server.reloadAction} />
       )}
     </GateFrame>
   );

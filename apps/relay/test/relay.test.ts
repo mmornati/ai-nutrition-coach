@@ -3,10 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { request as httpRequest } from 'node:http';
 import { connect } from 'node:net';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseSyncConfig, SYNC_KDF } from '@anc/core';
 import type { RelayTuning } from '../src/app';
-import { openStore } from '../src/store';
+import { openMemoryStore, openStore } from '../src/store';
 import {
   authed,
   b64,
@@ -133,6 +134,35 @@ describe('signup, login, token', () => {
     ).toMatchObject({
       signup: 'invite',
     });
+  });
+
+  it('the shipped default (invite, no codes set) starts, keeps existing handles logging in, and refuses new signups', async () => {
+    // An empty SYNC_SIGNUP is "not set": the default, which the harness otherwise overrides to open.
+    const store = openMemoryStore();
+    const before = await startRelay({}, store);
+    const body = signupBody('alice');
+    expect((await post(before, '/sync/v1/signup', body)).status).toBe(201);
+    await before.close();
+
+    const h = await startRelay({ SYNC_SIGNUP: '' }, store);
+    relay = h;
+    expect(parseSyncConfig(await (await fetch(`${h.url}/sync/config.json`)).json())).toMatchObject({
+      offered: true,
+      signup: 'closed',
+    });
+    const login = await post(h, '/sync/v1/login', { handle: 'alice', authKey: body.authKey });
+    expect(login.status).toBe(200);
+    const refused = await post(h, '/sync/v1/signup', signupBody('bob', {}, 2));
+    expect(refused.status).toBe(403);
+    expect(await refused.json()).toEqual({ error: 'signupClosed' });
+  });
+
+  it('an explicit SYNC_SIGNUP=open still opens signups', async () => {
+    const h = await start({ SYNC_SIGNUP: 'open' });
+    expect(parseSyncConfig(await (await fetch(`${h.url}/sync/config.json`)).json())).toMatchObject({
+      signup: 'open',
+    });
+    expect((await post(h, '/sync/v1/signup', signupBody('carol'))).status).toBe(201);
   });
 
   it('stops at the maximum number of vaults', async () => {
@@ -305,6 +335,22 @@ describe('the vault: compare-and-swap', () => {
     expect(previous.envelope.version).toBe(2);
     expect(previous.envelope.ct).toBe(envelopeOf(2, alice.vaultId).ct);
     expect((await getVault(h, alice, {}, '?previous=2')).status).toBe(400);
+  });
+
+  it('?previous=1 is not found when a previous version number exists but its envelope is NULL', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'anc-relay-'));
+    dirs.push(dir);
+    const h = await startRelay({}, openStore(dir));
+    relay = h;
+    const alice = await signup(h);
+    await put(h, alice, envelopeOf(2, alice.vaultId), '"1"');
+    await put(h, alice, envelopeOf(3, alice.vaultId), '"2"');
+    expect((await getVault(h, alice, {}, '?previous=1')).status).toBe(200);
+    const side = new DatabaseSync(join(dir, 'relay.sqlite'));
+    side.exec('UPDATE vault SET prev_envelope = NULL');
+    side.close();
+    expect((await getVault(h, alice, {}, '?previous=1')).status).toBe(404);
+    expect((await getVault(h, alice)).status).toBe(200); // the current copy is untouched
   });
 
   it('needs a device token to read or write', async () => {

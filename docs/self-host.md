@@ -111,6 +111,11 @@ _single application_ mode, create a _Proxy_ provider (forward auth, single appli
 `https://ai-nutrition-coach.example.org`), an _Application_ using it, and add it to the embedded outpost.
 Bind the application to the people who should use the app (a group of the household's adults).
 
+_Something to check, not verified against a real outpost:_ the backup relay sends its own
+`Authorization: Bearer <relay token>` header on `/sync/v1/*`. If the Authentik proxy provider's
+**Intercept header authentication** option is on and the outpost rejects that header, backup will keep
+asking to sign in again, however often the person does. Turn that option off for this application.
+
 **Cloudflare:** Zero Trust → Networks → Tunnels → your tunnel → _Public Hostname_: the new name, type
 `HTTP`, URL the same Traefik target as your other names.
 
@@ -118,10 +123,30 @@ What the sign-in does and does not do, for this app specifically:
 
 - It controls who may **download** the app and its updates. There is nothing else on the server: the data is
   encrypted in each browser and the passphrase protects it, signed in or not.
+- **The server's AI and backup work behind the sign-in.** The app reads `/ai/config.json` and `/sync/config.json`, and
+  calls `/ai/v1/...` and `/sync/v1/...`, with the session cookie (`credentials: 'same-origin'`, only for this server's own
+  paths: Open Food Facts and a person's own AI endpoint are other origins and never get a cookie). Redirects are
+  still never followed. nginx does not pass that cookie on: the AI proxy forwards no browser header at all, and the
+  relay is sent an empty `Cookie`.
+- **When the session has expired**, the proxy answers those calls with a redirect to the identity provider (or a 401 / 403).
+  The app does not mistake that for "this server has no AI / no backup": Settings → Your AI and Settings → Your data
+  say _"This server asks you to sign in again. Reload the page to continue."_ with a **Reload** button (a failed photo,
+  voice or coach call says the same line, and a connected device's backup status reads the same and retries). **Reload** does not
+  reload in place: once the app is installed, the service worker answers an ordinary reload from its offline cache
+  without asking the network, so the proxy would never see it. The button instead opens the app's own address with a
+  `?signin=1` marker (the `#/...` screen is kept); the service worker lets exactly that navigation through to the
+  network, never caches the answer, and the proxy asks the person to sign in, as for any page. Once the app has
+  started it removes the marker from the address bar. If the device is offline the network request fails and the
+  app simply opens from its cache again (the notice returns once it can reach the server). The app has no login
+  form of its own.
 - Once installed, the app opens from its offline cache without asking the proxy, so an expired SSO session is
-  not noticed until an update is fetched: that fetch fails quietly and is retried after the next sign-in
-  (open the address in the browser). The service worker never answers `/outpost.goauthentik.io/` from its
-  cache, so the sign-in callback always reaches Authentik.
+  not noticed until the app first calls the server (an update check, `/ai/config.json`, a backup): the update fetch fails
+  quietly and is retried after the next sign-in (open the address in the browser). The service worker never
+  intercepts `/ai/`, `/sync/` or `/outpost.goauthentik.io/`, and never caches a response at run time, so a sign-in
+  redirect always reaches the page as it came and the sign-in callback always reaches Authentik.
+- Nothing about the Content-Security-Policy changes: `connect-src 'self'` already covers these calls.
+- Behind Cloudflare Tunnel + Traefik, set `AI_NUTRITION_COACH_TRUSTED_PROXIES` (below) so the AI and backup rate limits
+  are per person and not one bucket for the whole household.
 - The web manifest is requested _with_ the session cookie (`crossorigin="use-credentials"`), so
   installation works behind the sign-in. (Plain basic auth is still discouraged — see
   [`docs/pwa.md`](./pwa.md#family-only-access).)
@@ -325,7 +350,7 @@ CSP needs no change: `connect-src 'self'`). It forwards the request to `${AI_PRO
 - rewrites the body with njs (the one nginx module the image's base ships with): the model is **forced** to
   `AI_PROXY_MODEL`, the reply cap is clamped to 1..`AI_PROXY_MAX_TOKENS` (sent as `max_tokens`, or as
   `max_completion_tokens` with `AI_PROXY_TOKEN_PARAM` for reasoning models, which reject the former), and only `messages`,
-  `temperature`, `top_p` and `response_format` are kept (no `stream`, `n`, `tools`, ...). The **input** is bounded to what
+  `temperature`, `top_p` and `response_format` are kept (no `stream`, `n`, `tools`, ...); `response_format` only as exactly `{"type":"json_object"}` or `{"type":"text"}` (a `json_schema` or any other shape is refused with the generic 400: it is client-sized and outside the 24 KB text budget, and the app never sends one). The **input** is bounded to what
   the app sends: at most 8 messages, roles system/user/assistant, content as text or parts of type `text` /
   `image_url`, at most 24 KB of text in all, at most **one** image and only as an inline `data:image/jpeg|png|webp;base64,`
   URI (a remote URL is never forwarded). A `cache_control` marker is dropped unless `AI_PROXY_CACHE_MARKERS=1`, and
@@ -360,13 +385,17 @@ it: that is the same trust as reading `.env`.
 
 **Cost and abuse: read this.** Anyone who can reach the instance can use this key, within the rate limit. The limit is
 per client address _as nginx sees it_: behind Traefik or Caddy that address is the proxy's, so in effect it caps the
-whole instance (10 requests a minute by default, which is a ceiling on spend, not a fairness rule between people).
+whole instance (10 requests a minute by default, which is a ceiling on spend, not a fairness rule between people),
+unless you set `AI_NUTRITION_COACH_TRUSTED_PROXIES` ([Behind a reverse proxy](#behind-a-reverse-proxy-the-real-client-address)).
 Therefore:
 
 1. **Put the instance behind a sign-in or an allow-list** if it is reachable from the internet: the Traefik overlays
    `docker-compose.traefik-auth.yml` / `-authentik.yml` (forward auth) or `-allowlist.yml` (CIDRs) already in this
    repository ([Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel), [Behind your own
-   Traefik](#behind-your-own-traefik)). Forward auth covers `/ai/` too, because it is the same host.
+   Traefik](#behind-your-own-traefik)). Forward auth covers `/ai/` and `/sync/` too, because they are the same host: the app sends the
+   sign-in session cookie with its calls to its own `/ai/*` and `/sync/*` paths (and to nothing on another origin), so
+   the proxy lets them through for a signed-in person. Do **not** exempt `/ai/` or `/sync/` from the sign-in to
+   "make them work": that would open the key-bearing AI relay and the backup relay to the Internet.
 2. **Set a spend limit at the provider** (a monthly cap or a prepaid balance), and use a key created for this instance.
 3. Know the limits of the model lock: njs forces the model, caps the reply and bounds the input (messages, text, one
    inline image), but it cannot tell a photo question from any other question, so a visitor can still ask the model
@@ -441,7 +470,9 @@ bin/ai-nutrition-coach up --traefik --sync
 
 That builds a second image from your checkout (`infra/Dockerfile.relay`: Node 24, pinned by digest, one
 bundle, no runtime dependencies, non-root; it is not published to a registry yet) and starts the compose
-profile `sync`. By hand: set `AI_NUTRITION_COACH_SYNC=1`
+profile `sync`. With the compose files directly (`docker compose up -d --build` in `infra/`, as in
+[Behind Authentik](#behind-authentik-traefik-forward-auth-cloudflare-tunnel)), set `COMPOSE_PROFILES=sync` and
+`AI_NUTRITION_COACH_SYNC=1`: the relay service has its own `build:` section, so `--build` builds both images. By hand: set `AI_NUTRITION_COACH_SYNC=1`
 for the app container (it then proxies `/sync/` to the relay) and run
 `docker compose -f infra/docker-compose.yml --profile sync up -d`. The proxy is the same origin, so the
 Content-Security-Policy does not change; nothing but `/sync/config.json` and `/sync/v1/{salt,signup,login,vault}`
@@ -449,7 +480,7 @@ is proxied, everything else under `/sync/` is a 404.
 
 | Variable | Default | |
 |---|---|---|
-| `SYNC_SIGNUP` | `open` | `open`, `invite` (needs `SYNC_INVITE_CODES`, comma-separated; the codes are credentials) or `closed` (existing handles can still log in). |
+| `SYNC_SIGNUP` | `invite` | `invite` (a new copy needs one of `SYNC_INVITE_CODES`, comma-separated; the codes are credentials), `open` (anyone who can reach the server can create a copy) or `closed`. Existing handles can always log in. With `invite` and **no** code set the relay still starts, refuses new signups (`/sync/config.json` then says `closed`) and logs one line: `relay: new signups are closed until invite codes are set (SYNC_INVITE_CODES), or SYNC_SIGNUP=open; existing handles can still log in`. **Before this default changed (it used to be `open`), a relay started without `SYNC_SIGNUP` accepted any signup; set `SYNC_SIGNUP=open` to keep that.** |
 | `SYNC_MAX_VAULT_MB` | `20` | The largest encrypted copy, 1 to 24. nginx's body limit follows it. |
 | `SYNC_MAX_VAULTS` | `50` | Handles this relay will hold. |
 | `SYNC_MAX_DEVICES` | `20` | Device tokens kept per handle (the one used least recently is dropped). |
@@ -469,12 +500,33 @@ stops the relay but keeps the volume.
 nginx's own access log follows `AI_NUTRITION_COACH_ACCESS_LOG` as for the rest of the app.
 
 **Limits worth knowing.** Rate limits are per address as the relay sees it (nginx sets `X-Real-IP`, so
-behind Caddy or Traefik that is the proxy unless you forward the client address, and then everyone shares
-a bucket, as with the AI proxy; the same goes for the cap nginx puts on requests in flight per address). Signup tells a person that a handle is taken (the usual trade-off; use
+behind Caddy or Traefik that is the proxy unless you set `AI_NUTRITION_COACH_TRUSTED_PROXIES`
+([below](#behind-a-reverse-proxy-the-real-client-address)); without it everyone shares
+a bucket, as with the AI proxy, and so does the cap nginx puts on requests in flight per address). Signup tells a person that a handle is taken (the usual trade-off; use
 `SYNC_SIGNUP=invite|closed` to bound it); login never says whether a handle exists. A handle that is being guessed at from many addresses stops accepting logins from devices that have no token (`SYNC_RATE_HANDLE_DAY`), so a stranger cannot grind through passphrases; the price is that someone restoring onto a new device waits for the attack to stop (at most a day). Identity is the handle:
 single sign-on for the relay (a vault bound to your Authentik user) is planned, not built. Changing the
 passphrase, listing/revoking devices and deleting a copy from the server arrive in phase S4; until then
 removing a person means deleting their row or restoring the volume.
+
+### Behind a reverse proxy: the real client address
+
+Behind Traefik, Caddy or `cloudflared`, every request reaches the app container from the proxy's address, so every
+per-address limit (the AI proxy's rate and connection limits, the backup relay's connection cap and the address it
+limits signups and logins on) is **one bucket for everyone**: five signups an hour for the whole household, and an
+"AI limit per person" that is really the instance limit. Opt in to reading the real address:
+
+| Variable | Default | |
+|---|---|---|
+| `AI_NUTRITION_COACH_TRUSTED_PROXIES` | _unset_ | Comma-separated addresses or CIDRs of the proxies whose header may be believed, e.g. the proxy container's own address (`docker inspect`) or a network used only by the proxy and the app. Avoid trusting a whole shared subnet such as `172.18.0.0/16`: any other container on it could then choose the address every limit is keyed on. Unset or empty: off, nginx behaves exactly as before. Ranges that broad are refused (IPv4 prefixes shorter than `/8`, IPv6 shorter than `/16`, so `0.0.0.0/0`, `::/0` and `0.0.0.0/1` are all out). At most 32 entries. |
+| `AI_NUTRITION_COACH_REAL_IP_HEADER` | `X-Forwarded-For` | `X-Forwarded-For`, `CF-Connecting-IP` or `X-Real-IP`. Behind a Cloudflare Tunnel use `CF-Connecting-IP`: Cloudflare sets it and Traefik passes it through. Used only when the connection comes from a trusted proxy. `CF-Connecting-IP` (like `X-Forwarded-For`) can be trusted **only when the app is reachable exclusively through that proxy or tunnel**: if the port or a second route is open to anyone else, a visitor can send the header themselves. |
+
+`45-render-real-ip.sh` renders these into `set_real_ip_from` (one per entry), `real_ip_header` and `real_ip_recursive on`
+at container start, into `/tmp` like the other rendered files. Every value is validated against a strict pattern and a
+bad one refuses to start (the message names the variable, never the value), like `AI_NUTRITION_COACH_CONNECT_SRC_EXTRA`.
+List only peers that really are your proxy, and make sure nothing else can reach the app container's port: whatever a
+trusted peer puts in the header is believed. With `X-Forwarded-For`, the list is read from the right, past every trusted
+proxy, so a visitor cannot prepend an address of their own. The address is used for rate limits and connection caps
+only; with `AI_NUTRITION_COACH_ACCESS_LOG=on` it also appears (truncated) in the access log, which is then the client's, not the proxy's.
 
 ### Caddy
 

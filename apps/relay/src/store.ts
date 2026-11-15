@@ -3,6 +3,12 @@
 // and the sealed envelope (the current one and the one before). The relay never decrypts anything,
 // and the only way in for vault content is `putEnvelope`, which takes an envelope that already
 // passed the strict parser.
+//
+// The envelope columns hold up to ~54 MB between them (two sealed vaults), so the look-ups every
+// salt / login / token check runs (`vaultByHandle`, `vaultByRowId`) select only the small columns:
+// reading a whole vault for an unknown-or-known handle would be a memory amplifier and a timing
+// difference between the two. The bodies are read only where a vault is actually returned
+// (`vaultBody`).
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,10 +24,14 @@ export interface VaultRow {
   readonly authDigest: Buffer;
   readonly wrappedKey: string;
   readonly version: number;
-  /** The envelope JSON, exactly as stored. */
-  readonly envelope: string;
   readonly size: number;
   readonly previousVersion: number | null;
+}
+
+/** The sealed envelopes of a vault: large, read only to answer a vault read. */
+export interface VaultBody {
+  /** The envelope JSON, exactly as stored. */
+  readonly envelope: string;
   readonly previousEnvelope: string | null;
 }
 
@@ -45,6 +55,8 @@ export interface RelayStore {
   createVault(vault: NewVault, now: number): 'created' | 'handleTaken';
   vaultByHandle(handle: string): VaultRow | null;
   vaultByRowId(rowId: number): VaultRow | null;
+  /** The stored envelopes of one vault (the only read that touches them). */
+  vaultBody(rowId: number): VaultBody | null;
   /**
    * Records a device token for a vault, dropping the ones used least recently past `maxDevices`
    * (so a phone that syncs every day is not signed out by a pile of look-ups made since).
@@ -76,10 +88,8 @@ function asVault(row: Row): VaultRow {
     authDigest: Buffer.from(row['auth_digest'] as Uint8Array),
     wrappedKey: String(row['wrapped_key']),
     version: Number(row['version']),
-    envelope: String(row['envelope']),
     size: Number(row['size']),
     previousVersion: row['prev_version'] === null ? null : Number(row['prev_version']),
-    previousEnvelope: row['prev_envelope'] === null ? null : String(row['prev_envelope']),
   };
 }
 
@@ -132,8 +142,12 @@ function createStore(db: DatabaseSync): RelayStore {
     `INSERT INTO vault (handle, vault_id, salt, auth_digest, wrapped_key, version, envelope, size, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
   );
-  const byHandle = db.prepare('SELECT * FROM vault WHERE handle = ?');
-  const byRow = db.prepare('SELECT * FROM vault WHERE id = ?');
+  // Never `SELECT *`: the envelope columns are not part of authentication (see the header).
+  const VAULT_COLUMNS =
+    'id, handle, vault_id, salt, auth_digest, wrapped_key, version, size, prev_version';
+  const byHandle = db.prepare(`SELECT ${VAULT_COLUMNS} FROM vault WHERE handle = ?`);
+  const byRow = db.prepare(`SELECT ${VAULT_COLUMNS} FROM vault WHERE id = ?`);
+  const bodyOf = db.prepare('SELECT envelope, prev_envelope FROM vault WHERE id = ?');
   const addDevice = db.prepare(
     'INSERT OR REPLACE INTO device (token_digest, vault_row, created_at, last_seen_at) VALUES (?, ?, ?, ?)',
   );
@@ -194,6 +208,15 @@ function createStore(db: DatabaseSync): RelayStore {
     vaultByRowId(rowId) {
       const row = byRow.get(rowId) as Row | undefined;
       return row === undefined ? null : asVault(row);
+    },
+
+    vaultBody(rowId) {
+      const row = bodyOf.get(rowId) as Row | undefined;
+      if (row === undefined) return null;
+      return {
+        envelope: String(row['envelope']),
+        previousEnvelope: row['prev_envelope'] === null ? null : String(row['prev_envelope']),
+      };
     },
 
     addDevice(rowId, tokenDigest, now, maxDevices) {

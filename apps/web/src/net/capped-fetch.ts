@@ -10,7 +10,11 @@
  *    is the overall body read (60 s: a server dribbling one byte at a time cannot hold it open);
  *  - redirects are never followed (`redirect: 'manual'`); a 3xx is a failure;
  *  - requests carry no cookies and no referrer (`credentials: 'omit'`, `referrerPolicy:
- *    'no-referrer'`), and the caller decides every header: nothing is added here.
+ *    'no-referrer'`), and the caller decides every header: nothing is added here. The one
+ *    exception is a call to THIS server's own paths (`/ai/*`, `/sync/*`) that asks for it with
+ *    `sameOriginCredentials`: behind a single-sign-on proxy those need the session cookie, and
+ *    the cookie goes nowhere else, because the option is refused for any URL that is not this
+ *    page's own origin (`isSameOriginUrl`). Every cross-origin call keeps `credentials: 'omit'`.
  *
  * Nothing here throws across its boundary: every outcome is a typed result.
  */
@@ -39,6 +43,35 @@ export type CappedFetchResult =
     }
   | { readonly kind: 'failure'; readonly reason: CappedFailureReason };
 
+/**
+ * Whether `url` is this page's own origin: a path on this server (`/ai/config.json`) or an
+ * absolute URL with exactly `location.origin`. It is decided the way the browser will resolve the
+ * string (`//host/x`, `/\\host/x` and `/<tab>/host/x` are another host). Without a `location` (a
+ * worker-less test host) only a plain path counts, and tab, CR, LF and backslash refuse it.
+ */
+export function isSameOriginUrl(url: string): boolean {
+  const here = (globalThis as { location?: { origin?: string; href?: string } }).location;
+  if (typeof here?.origin !== 'string' || here.origin === '' || here.origin === 'null') {
+    // No page to resolve against: only a plain path counts. URL parsing drops tab / CR / LF and
+    // reads a backslash as a slash, so none of them may appear.
+    return url.startsWith('/') && !url.startsWith('//') && !/[\t\r\n\\]/.test(url);
+  }
+  try {
+    return new URL(url, here.href ?? here.origin).origin === here.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A single-sign-on proxy in front of this server answers an expired or missing session with a
+ * redirect (a `redirect` failure here), a 401 or a 403. Only meaningful for a same-origin call to
+ * a path the server itself serves (a config file); a relay answers its own 401 / 403.
+ */
+export function isSignInAnswer(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface CappedFetchOptions {
@@ -60,6 +93,12 @@ export interface CappedFetchOptions {
   readonly readBodyWhen?: (status: number) => boolean;
   /** An outer cancel (e.g. the screen went away). */
   readonly signal?: AbortSignal;
+  /**
+   * Send this server's session cookie (`credentials: 'same-origin'`) so a single-sign-on proxy in
+   * front of the instance lets the call through. Only for this page's own origin: for any other
+   * URL nothing is sent and the call fails as `network`. Default: no cookies.
+   */
+  readonly sameOriginCredentials?: boolean;
   /** Injectable for tests; defaults to the global `fetch`. */
   readonly fetchImpl?: FetchLike;
 }
@@ -77,6 +116,8 @@ export async function cappedFetch(
   const bodyTimeoutMs = options.bodyTimeoutMs ?? BODY_READ_TIMEOUT_MS;
   const readBodyWhen = options.readBodyWhen ?? is2xx;
   const doFetch: FetchLike = options.fetchImpl ?? ((input, init) => fetch(input, init));
+  // The cookie option is a promise about the destination: break it and nothing is sent.
+  if (options.sameOriginCredentials === true && !isSameOriginUrl(url)) return fail('network');
 
   const controller = new AbortController();
   let timedOut = false;
@@ -102,7 +143,7 @@ export async function cappedFetch(
         ...(options.headers ? { headers: { ...options.headers } } : {}),
         ...(options.body !== undefined ? { body: options.body as BodyInit } : {}),
         redirect: 'manual',
-        credentials: 'omit',
+        credentials: options.sameOriginCredentials === true ? 'same-origin' : 'omit',
         referrerPolicy: 'no-referrer',
         cache: 'no-store',
         signal: controller.signal,

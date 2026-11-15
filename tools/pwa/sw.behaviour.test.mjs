@@ -241,6 +241,33 @@ describe('fetch', () => {
     expect(w.network).toHaveLength(0);
   });
 
+  it('a "sign in again" navigation (/?signin=1) reaches the network and is never cached', async () => {
+    const w = await installed();
+    const before = puts(w);
+    const nav = new Request(`${ORIGIN}/?signin=1`);
+    Object.defineProperty(nav, 'mode', { value: 'navigate' });
+    const res = await w.dispatchFetch(nav);
+    expect(w.network.map((n) => n.url)).toEqual([`${ORIGIN}/?signin=1`]);
+    expect(res).toBeDefined();
+    expect(puts(w)).toBe(before);
+  });
+
+  it('a "sign in again" navigation falls back to the cached shell when the network fails', async () => {
+    const w = await installed();
+    w.fetchImpl.mockRejectedValueOnce(new TypeError('offline'));
+    const nav = new Request(`${ORIGIN}/?signin=1#/settings`);
+    Object.defineProperty(nav, 'mode', { value: 'navigate' });
+    const res = await w.dispatchFetch(nav);
+    expect(await res.text()).toBe('<html>v2</html>');
+  });
+
+  it('only a navigation counts: a plain GET with ?signin=1 is not the sign-in path', async () => {
+    const w = await installed();
+    const res = await w.dispatchFetch(new Request(`${ORIGIN}/assets/index-1.js?signin=1`));
+    expect(await res.text()).toBe('console.log(1)');
+    expect(w.network).toHaveLength(0);
+  });
+
   it('precached assets are cache-first and ignore the query string', async () => {
     const w = await installed();
     const res = await w.dispatchFetch(new Request(`${ORIGIN}/assets/index-1.js?v=123`));
@@ -274,6 +301,24 @@ describe('the instance AI proxy (docs/self-host.md)', () => {
       w.dispatchFetch(
         new Request(`${ORIGIN}/ai/v1/chat/completions`, { method: 'POST', body: '{}' }),
       ),
+    ).toBeUndefined();
+  });
+
+  it('/sync/* is never precached or cached either: a sign-in redirect on it reaches the page as it came', async () => {
+    const w = makeWorker({ files: FILES });
+    await w.install();
+    expect([...w.caches.stores.values()].flatMap((c) => [...c.entries.keys()]).join('\n')).not.toContain(
+      '/sync/',
+    );
+    w.network.length = 0;
+    const puts = () => [...w.caches.stores.values()].reduce((n, c) => n + c.puts, 0);
+    const before = puts();
+    const res = await w.dispatchFetch(new Request(`${ORIGIN}/sync/config.json`));
+    expect(res.status).toBe(404); // nothing invented, nothing swallowed
+    expect(w.network.map((n) => n.url)).toEqual([`${ORIGIN}/sync/config.json`]);
+    expect(puts()).toBe(before);
+    expect(
+      w.dispatchFetch(new Request(`${ORIGIN}/sync/v1/login`, { method: 'POST', body: '{}' })),
     ).toBeUndefined();
   });
 });

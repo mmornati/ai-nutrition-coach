@@ -39,6 +39,8 @@ export class FakeFetch {
    */
   instanceConfig: unknown = { enabled: false };
   configStatus = 200;
+  /** Answer the config read like a browser that met a sign-in redirect (opaque, status 0). */
+  configOpaqueRedirect = false;
   configRequests: RecordedRequest[] = [];
 
   get last(): RecordedRequest {
@@ -54,6 +56,12 @@ export class FakeFetch {
     });
     if (url.endsWith('/ai/config.json')) {
       this.configRequests.push({ url, init, body: '', headers });
+      if (this.configOpaqueRedirect) {
+        const r = new Response(null, { status: 200 });
+        Object.defineProperty(r, 'type', { value: 'opaqueredirect' });
+        Object.defineProperty(r, 'status', { value: 0 });
+        return r;
+      }
       return new Response(JSON.stringify(this.instanceConfig), {
         status: this.configStatus,
         headers: { 'content-type': 'application/json' },
