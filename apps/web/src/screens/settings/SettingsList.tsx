@@ -7,8 +7,9 @@ import { SettingsPage } from './SettingsPage';
 import { SECTIONS } from './sections';
 
 /**
- * Settings, as a departures board: one row per place, a line segment, a title, a calm subtitle
- * (the Your AI row shows the live rung) and a chevron. No tip jar, no toggles here (the one switch lives in Nutrition).
+ * Settings, in four groups under their own headings (You, Coach and AI, Data and privacy, App),
+ * Profile first: one row per place, a title, a calm subtitle (the Your AI row shows the live rung)
+ * and a chevron. No tip jar, no toggles here (the one switch lives in Nutrition).
  */
 export function SettingsList() {
   const all = useStrings();
@@ -16,79 +17,60 @@ export function SettingsList() {
   const { settings, keyStatus, instance } = useYourAi();
   const aiLine = rungStatusLine(settings, keyStatus.hasKey, instance.config);
 
-  const rows = useMemo<readonly DepartureRow[]>(() => {
+  const groups = useMemo(() => {
     const go = (section: string) => () => navigate(hrefs.section(section));
+    const row = (id: string, title: string, subtitle: string): DepartureRow => ({
+      id,
+      title,
+      subtitle,
+      status: '',
+      onSelect: go(id),
+    });
     return [
       {
-        id: SECTIONS.ai,
-        title: s.rowAi,
-        subtitle: aiLine,
-        status: '',
-        onSelect: go(SECTIONS.ai),
+        id: 'you',
+        title: s.groupYou,
+        rows: [
+          row(SECTIONS.profile, s.rowProfile, s.rowProfileSubtitle),
+          row(SECTIONS.nutrition, s.rowNutrition, s.rowNutritionSubtitle),
+          row(SECTIONS.language, s.rowLanguage, s.rowLanguageSubtitle),
+        ],
       },
       {
-        id: SECTIONS.data,
-        title: s.rowData,
-        subtitle: s.rowDataSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.data),
+        id: 'coach',
+        title: s.groupCoach,
+        rows: [row(SECTIONS.ai, s.rowAi, aiLine)],
       },
       {
-        id: SECTIONS.privacy,
-        title: s.rowPrivacy,
-        subtitle: s.rowPrivacySubtitle,
-        status: '',
-        onSelect: go(SECTIONS.privacy),
+        id: 'data',
+        title: s.groupData,
+        rows: [
+          row(SECTIONS.data, s.rowData, s.rowDataSubtitle),
+          row(SECTIONS.privacy, s.rowPrivacy, s.rowPrivacySubtitle),
+          row(SECTIONS.saved, s.rowSaved, s.rowSavedSubtitle),
+        ],
       },
       {
-        id: SECTIONS.language,
-        title: s.rowLanguage,
-        subtitle: s.rowLanguageSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.language),
-      },
-      {
-        id: SECTIONS.nutrition,
-        title: s.rowNutrition,
-        subtitle: s.rowNutritionSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.nutrition),
-      },
-      {
-        id: SECTIONS.profile,
-        title: s.rowProfile,
-        subtitle: s.rowProfileSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.profile),
-      },
-      {
-        id: SECTIONS.saved,
-        line: 'starch',
-        title: s.rowSaved,
-        subtitle: s.rowSavedSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.saved),
-      },
-      {
-        id: SECTIONS.install,
-        title: s.rowInstall,
-        subtitle: s.rowInstallSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.install),
-      },
-      {
-        id: SECTIONS.about,
-        title: s.rowAbout,
-        subtitle: s.rowAboutSubtitle,
-        status: '',
-        onSelect: go(SECTIONS.about),
+        id: 'app',
+        title: s.groupApp,
+        rows: [
+          row(SECTIONS.install, s.rowInstall, s.rowInstallSubtitle),
+          row(SECTIONS.about, s.rowAbout, s.rowAboutSubtitle),
+        ],
       },
     ];
   }, [s, aiLine]);
 
   return (
     <SettingsPage title={s.title} backTo="today">
-      <DepartureBoard rows={rows} className="mt-0" />
+      {groups.map((group) => (
+        <section key={group.id} aria-labelledby={`settings-group-${group.id}`}>
+          <h2 id={`settings-group-${group.id}`} className="font-display text-section text-thread">
+            {group.title}
+          </h2>
+          <DepartureBoard rows={group.rows} className="border-ink mt-2 border-t-2" />
+        </section>
+      ))}
       <p className="font-display text-ink-soft text-aside">{all.shell.footmark}</p>
     </SettingsPage>
   );

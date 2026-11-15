@@ -7,6 +7,20 @@
     "caption": "The first screen: choose a passphrase that encrypts everything the app keeps in this browser."
   },
   {
+    "file": "phone-welcome.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Welcome, step 1",
+    "caption": "The first-run welcome: four short steps, each skippable, starting with what the app is and where your data lives."
+  },
+  {
+    "file": "phone-welcome-goal.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Welcome, step 2",
+    "caption": "Step 2 asks what you are here for. Every answer is optional; a calm support line sits beside the goal choice."
+  },
+  {
     "file": "phone-today-coach-question.webp",
     "w": 780,
     "h": 1688,
@@ -23,7 +37,7 @@
   {
     "file": "phone-today-full.webp",
     "w": 780,
-    "h": 3972,
+    "h": 4494,
     "screen": "Today (whole day)",
     "caption": "The whole of Thursday: breakfast, lunch and an afternoon apple logged, dinner still open, then the day's nutrients."
   },
@@ -93,9 +107,16 @@
   {
     "file": "phone-plate-detail-full.webp",
     "w": 780,
-    "h": 3584,
+    "h": 3508,
     "screen": "Plate (whole page)",
     "caption": "The whole plate page, down to the nutrients and the actions to log it again or save it as a meal."
+  },
+  {
+    "file": "phone-plate-edit.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Edit a plate",
+    "caption": "The edit sheet: change an amount, remove or add a food, or move the plate to another meal or day. Save changes stays at the bottom."
   },
   {
     "file": "phone-week.webp",
@@ -107,7 +128,7 @@
   {
     "file": "phone-week-full.webp",
     "w": 780,
-    "h": 5344,
+    "h": 5738,
     "screen": "This week (whole page)",
     "caption": "The whole week page."
   },
@@ -115,15 +136,50 @@
     "file": "phone-ask-coach.webp",
     "w": 780,
     "h": 1688,
-    "screen": "Ask the coach",
-    "caption": "Ask the coach is an optional AI chat about the last seven days; it stays off until an AI is set up."
+    "screen": "The coach",
+    "caption": "The coach page: your step, the latest notes, the week in short and your daily guide; an optional AI chat joins them once an AI is set up."
+  },
+  {
+    "file": "phone-profile.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Profile",
+    "caption": "Profile: about you, body, goal and food, each optional, with the daily guide worked out from what you chose."
+  },
+  {
+    "file": "phone-profile-full.webp",
+    "w": 780,
+    "h": 7216,
+    "screen": "Profile (whole page)",
+    "caption": "The whole Profile page: every answer is optional and applies at once."
+  },
+  {
+    "file": "phone-weigh-in.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Weigh-in",
+    "caption": "The weigh-in sheet: a day, a weight and an optional waist; one entry a day, and Save is always in view."
+  },
+  {
+    "file": "phone-trends.webp",
+    "w": 780,
+    "h": 1688,
+    "screen": "Trends",
+    "caption": "Trends: a smoothed line through your weigh-ins and, below, what you logged each day. It describes; it does not grade."
+  },
+  {
+    "file": "phone-trends-full.webp",
+    "w": 780,
+    "h": 5180,
+    "screen": "Trends (whole page)",
+    "caption": "The whole Trends page: weigh-ins you can edit or remove, and the days you logged against your guide."
   },
   {
     "file": "phone-settings.webp",
     "w": 780,
     "h": 1688,
     "screen": "Settings",
-    "caption": "Settings: your AI, your data, privacy, nutrition numbers, language and installing the app."
+    "caption": "Settings in four groups: You (Profile, Nutrition, Language), Coach and AI, Data and privacy, and App."
   },
   {
     "file": "phone-your-ai.webp",
@@ -170,7 +226,7 @@
   {
     "file": "phone-your-data-full.webp",
     "w": 780,
-    "h": 5362,
+    "h": 5342,
     "screen": "Your data (whole page)",
     "caption": "The whole Your data page, with the encrypted backup file and the restore."
   },
@@ -215,6 +271,20 @@
     "h": 900,
     "screen": "Plate (desktop)",
     "caption": "A plate on a wide screen: its foods and grams, and the nutrients against a daily reference intake."
+  },
+  {
+    "file": "desktop-trends.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "Trends (desktop)",
+    "caption": "Trends on a wide screen: the weigh-in line with its sentence, and the weigh-ins you can edit."
+  },
+  {
+    "file": "desktop-profile.webp",
+    "w": 1440,
+    "h": 900,
+    "screen": "Profile (desktop)",
+    "caption": "Profile on a wide screen: the form on the left and your daily guide beside it, in view while you change a field."
   },
   {
     "file": "desktop-log-sheet.webp",

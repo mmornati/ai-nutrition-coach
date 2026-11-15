@@ -163,13 +163,15 @@ describe('TodayScreen: the day as a map', () => {
     expect(screen.queryByText(/synced|pending/i)).not.toBeInTheDocument();
   });
 
-  it('links to the week network below the line map (the rail is desktop-only)', async () => {
+  it('a phone tab row reaches Week, Trends and the coach from Today (the rail is desktop-only)', async () => {
     const bundle = await unlockedBundle();
     await renderInSession(<TodayScreen />, { bundle });
     await screen.findByText('Breakfast');
-    const link = screen.getByRole('link', { name: s.today.seeWeekNetwork });
-    expect(link).toHaveAttribute('href', '#/week');
-    expect(link.className).toMatch(/lg:hidden/);
+    const row = within(screen.getByRole('navigation', { name: 'Sections' }));
+    expect(row.getByRole('link', { name: 'Week' })).toHaveAttribute('href', '#/week');
+    expect(row.getByRole('link', { name: 'Trends' })).toHaveAttribute('href', '#/progress');
+    expect(row.getByRole('link', { name: 'Coach' })).toHaveAttribute('href', '#/coach');
+    expect(row.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('a store that fails shows one calm line: no retry button, no spinner', async () => {
@@ -561,10 +563,9 @@ describe('TodayScreen: nutrient-aware coach', () => {
     ).toBeVisible();
   });
 
-  it('a weigh-in is one quiet tap away and a link leads to Trends', async () => {
+  it('a weigh-in is one quiet tap away', async () => {
     const bundle = await unlockedBundle();
     await renderInSession(<TodayScreen />, { bundle });
-    expect(screen.getByRole('link', { name: 'Your trends' })).toHaveAttribute('href', '#/progress');
     await userEvent.click(screen.getByRole('button', { name: 'Add a weigh-in' }));
     const sheet = screen.getByRole('dialog', { name: 'Weigh-in' });
     await userEvent.type(within(sheet).getByLabelText('Weight in kg'), '81.4');

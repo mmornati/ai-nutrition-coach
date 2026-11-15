@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { DEFAULT_ROUTE_HREFS, Rail, type ShellRoute } from './Rail';
 import { Dock } from './Dock';
+import { PhoneTabs } from './PhoneTabs';
 import { SyncAnnouncer, type SyncAnnouncerProps } from './SyncAnnouncer';
 
 export interface AppShellProps {
@@ -44,6 +45,7 @@ export function AppShell({
       <Rail current={current} hrefs={hrefs} onLog={onLog} storageNote={storageNote} />
       <div className="flex min-w-0 flex-1 flex-col">
         {header}
+        <PhoneTabs current={current} hrefs={hrefs} />
         <main className="flex-1 pb-[calc(var(--spacing-fab-clearance)+env(safe-area-inset-bottom))] lg:pb-16">
           {children}
         </main>

@@ -2,12 +2,16 @@
 
 **Trends** keeps the longer view: your weigh-ins, a smoothed line through them, and what you logged each day. It
 describes; it does not grade. There is no target weight, no streak, no reminder and no colour for better or worse.
-Everything on it is optional, and it works the same way on a phone and on a computer (in the rail, or from *Your
-trends* under Today on a phone).
+Everything on it is optional, and it works the same way on a phone and on a computer (in the rail, or the *Trends* tab under the header on a phone).
+
+<figure markdown>
+![Trends: a smoothed weight line, the weigh-ins you can edit and what you logged each day](../assets/shots/phone-trends.webp){ .anc-phone loading=lazy }
+<figcaption>Trends on a phone. Runs of days with nothing logged fold into one line.</figcaption>
+</figure>
 
 ## Weigh-ins
 
-*Add a weigh-in* is on Today (a quiet link under the day's nutrition) and on Trends. The sheet asks for:
+*Add a weigh-in* is on Today (a quiet link under the day's nutrition) and on Trends. The sheet (*Save* stays in view while the form scrolls) asks for:
 
 - **The day.** Today by default, any earlier day, never a later one.
 - **Your weight**, in the units you chose in [Profile](settings.md#profile) (kg or lb). A decimal comma is fine.
@@ -16,6 +20,11 @@ trends* under Today on a phone).
 One line says how to weigh yourself so the numbers compare: the same scale, in the morning, before eating; a change
 of a kilo or so from one day to the next is mostly water. There is **one weigh-in per day**: a second one for the
 same day replaces the first, and the sheet says so before you save. The calm support line sits in the sheet too.
+
+<figure markdown>
+![The weigh-in sheet: a day, a weight, an optional waist, and Save and Cancel pinned at the bottom](../assets/shots/phone-weigh-in.webp){ .anc-phone loading=lazy }
+<figcaption>The weigh-in sheet.</figcaption>
+</figure>
 
 Two small protections against a slip of the finger. If a weight you type differs from your last weigh-in by more
 than 10 % or 5 kg (whichever is larger), the sheet (and Profile, and the welcome) asks once, without repeating

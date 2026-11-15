@@ -98,6 +98,11 @@ Already have an encrypted backup from another device? Choose *Restore from a bac
 
 ## 5. A short welcome
 
+<figure markdown>
+![The welcome: What this app is, with four steps and Not now at any time](assets/shots/phone-welcome.webp){ .anc-phone loading=lazy }
+<figcaption>The first step of the welcome. A thin towel hem stays above every step.</figcaption>
+</figure>
+
 After you choose your passphrase, a short welcome (four steps at most, skippable with *Not now* at any time) says
 what the app is, asks what you are here for (eat better, stay as I am, lose weight or gain weight), asks only what a
 daily guide needs (age range, sex, activity, and, if you want, height and weight), and shows the four ways to log a

@@ -8,9 +8,9 @@ export interface HeaderProps {
   readonly sub?: ReactNode;
   /** A back link above the title (detail screens). */
   readonly back?: ReactNode;
-  /** The status chip slot (the "On this device" chip), right of the title. */
+  /** The storage status ("On this device"), set as a quiet word beside the sub line. */
   readonly chip?: ReactNode;
-  /** Extra actions beside the chip (e.g. the lock button). */
+  /** Icon actions at the right of the title row (e.g. the lock button). */
   readonly actions?: ReactNode;
   /** Phone only: shows the gear IconButton linking here. Hidden from 1024px, where the rail has it. */
   readonly settingsHref?: string;
@@ -19,25 +19,39 @@ export interface HeaderProps {
 /** Screen header: the screen name in heavy display type, the storage tag beside it. */
 export function Header({ title, sub, back, chip, actions, settingsHref }: HeaderProps) {
   const s = useStrings();
+  const icons = (
+    <div className="flex shrink-0 items-center justify-end gap-2">
+      {actions}
+      {settingsHref && (
+        <span className="lg:hidden">
+          <IconButton label={s.shell.settings} href={settingsHref}>
+            <GearIcon />
+          </IconButton>
+        </span>
+      )}
+    </div>
+  );
+  // The icon buttons sit on the line below the title, at the right of the date and the storage
+  // word, so a long title (French at 336px) never pushes them onto a line of their own. A screen
+  // with a back link puts them on that link's line instead: no line is spent on them alone.
   return (
-    <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-5 pt-[max(env(safe-area-inset-top),2.5rem)] pb-4 lg:px-7 lg:pt-9">
-      <div className="min-w-0">
-        {back}
-        <h1 className="font-display text-display lg:text-display-desktop [overflow-wrap:anywhere]">
-          {title}
-        </h1>
-        {sub && <div className="text-thread mt-2 text-lead font-medium">{sub}</div>}
-      </div>
-      <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-        {chip}
-        {actions}
-        {settingsHref && (
-          <span className="lg:hidden">
-            <IconButton label={s.shell.settings} href={settingsHref}>
-              <GearIcon />
-            </IconButton>
-          </span>
-        )}
+    <header className="px-5 pt-[max(env(safe-area-inset-top),1.5rem)] pb-2 lg:px-7 lg:pt-9 lg:pb-4">
+      {back && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">{back}</div>
+          {icons}
+        </div>
+      )}
+      <h1 className="font-display text-display lg:text-display-desktop [overflow-wrap:anywhere]">
+        {title}
+      </h1>
+      {/* One quiet line under the title: the date (or a screen's sub line) and where the data lives. */}
+      <div className="mt-1.5 flex items-center justify-between gap-3">
+        <div className="text-thread flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-lead font-medium">
+          {sub}
+          {chip}
+        </div>
+        {!back && icons}
       </div>
     </header>
   );

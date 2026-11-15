@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { cleanSavedName, copyDrafts, type PlateLog } from '@anc/core';
 import { Button, TextField } from '../../components/primitives';
-import { Sheet } from '../../components/sheets';
+import { Sheet, SheetFooter } from '../../components/sheets';
 import { fill, useMessage, useStrings } from '../../i18n';
 import { useDay } from '../../app/day-context';
 import { useSession } from '../../app/session';
@@ -65,9 +65,11 @@ export function SaveMealSheet({
       <p role="status" className="text-body-small text-ink-soft empty:hidden">
         {note}
       </p>
-      <Button fullWidth busy={busy} onClick={() => void submit()}>
-        {t.saveMealConfirm}
-      </Button>
+      <SheetFooter>
+        <Button fullWidth busy={busy} onClick={() => void submit()}>
+          {t.saveMealConfirm}
+        </Button>
+      </SheetFooter>
     </Sheet>
   );
 }

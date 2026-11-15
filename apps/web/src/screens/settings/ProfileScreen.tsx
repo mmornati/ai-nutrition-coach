@@ -44,8 +44,9 @@ export function ProfileScreen() {
   const goal = profile?.goal;
 
   return (
-    <SettingsPage title={s.title}>
-      <div className="flex flex-col gap-8">
+    <SettingsPage title={s.title} wide>
+      {/* Phone: one column, the guide after the goal that shapes it. Desktop: the form on the left and the guide beside it, in view while a field changes. */}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-x-12 lg:*:col-start-1">
         <Prose>{s.intro}</Prose>
 
         <Section title={s.aboutTitle}>
@@ -79,7 +80,9 @@ export function ProfileScreen() {
           )}
         </Section>
 
-        <ProfileGuideSection profile={profile} onProfile={withField} />
+        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:row-span-6 lg:row-start-1 lg:self-start lg:col-start-2!">
+          <ProfileGuideSection profile={profile} onProfile={withField} />
+        </div>
 
         <Section title={s.foodTitle}>
           <Prose>{s.foodHelp}</Prose>

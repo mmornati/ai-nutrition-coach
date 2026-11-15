@@ -297,7 +297,7 @@ Every size is in rem, so the whole interface follows the browser's text size.
 
 Phone first at 390px with a 20px gutter (28px from 1024px). The day is a stack of full-width bands separated by Seam rules; each band is a two-column grid: the stripe field on the left (104px, 136px from 1024px), bleeding to the screen edge, and the meal text on the right (headline name with the time at the far end, summary, one plain nutrient line). A band is at least 132px tall (144px on desktop).
 
-On the phone a white dock fixed to the bottom under a 2px ink edge holds only the week of folded towels; the ink Log pill floats bottom right above it. The page's bottom padding is the dock offset plus the pill size plus 32px of air, and the same sum sets scroll padding so a focused control is never hidden behind the pill.
+On the phone the header is one row (the screen name in Display type, the date and the quiet storage word under it, the Lock and Settings icon buttons at the right) and a row of four text tabs follows it on every screen: Today, Week, Trends, Coach (see Navigation). A white dock fixed to the bottom under a 2px ink edge holds only the week of folded towels; the ink Log pill floats bottom right above it. The page's bottom padding is the dock offset plus the pill size plus 32px of air, and the same sum sets scroll padding so a focused control is never hidden behind the pill.
 
 From 1024px a 240px white rail sits on the left (app name, navigation pills, a full-width Log pill, the storage note at its foot); the dock disappears. The week screen hangs seven towels side by side under weekday names, with group names down the left, followed by a day list ruled in 2px ink. Gate screens (unlock, create passphrase) are a single centred 440px column under a drawn towel.
 
@@ -342,12 +342,12 @@ Bold, plain pills.
 ### Cards / Containers
 
 - **Coach label:** Label White, 2px ink edge, 8px corners, the stitch, 16–18px padding. One question in body type, an optional heavy title, an optional "Written by AI" line in Thread Grey, then a primary and a secondary pill. It rises in once (0.35s, 8px).
-- **Sheets:** Label White with a 2px ink edge; a bottom sheet with 16px top corners that slides up over 350ms on phones, a centred 560px dialog with 8px corners from 1024px. A headline title and a 48px close circle head every sheet.
+- **Sheets:** Label White with a 2px ink edge; a bottom sheet with 16px top corners that slides up over 350ms on phones, a centred 560px dialog with 8px corners from 1024px. A headline title and a 48px close circle head every sheet. The sheet's primary action sits in a sticky footer (a Seam rule above it, Label White ground, the home-indicator clearance inside it), so it is never below the fold on a small phone or at 200% text; the content scrolls above it.
 - **Dialogs:** Label White, 2px ink edge, 8px corners, 480px wide at most.
 
 ### Inputs / Fields
 
-- **Style:** Label White, 2px Control Edge, 8px corners, 56px tall, Label-type label above in Soft Ink.
+- **Style:** Label White, 2px Control Edge, 8px corners, 56px tall, Label-type label above in Soft Ink. A numeric field (height, weight, grams) stops at 14rem; its label and message use the whole row.
 - **Focus:** the frame turns ink and takes the ink focus ring.
 - **Messages:** a calm Body-small line in Soft Ink, never red.
 - **Tick boxes:** 24px, 4px corners, Control Edge Raised outline; checked fills ink with a drawn tick.
@@ -355,11 +355,17 @@ Bold, plain pills.
 ### Navigation
 
 - **Desktop rail:** Label White with a 2px Seam edge. Items are 48px rows of icon plus 1.125rem semibold name in Soft Ink; the current page becomes a white pill with a 2px ink edge and ink text.
+- **Phone tabs:** one row of four text links under the header, the same on every screen: Today, Week, Trends, Coach. 48px tall, Label type in bold Soft Ink; the current one is ink with a 2px ink underline on a 2px Seam rule. They wrap onto a second line at large text sizes and never truncate. Settings is the gear in the header (the rail lists it too), and Log stays the floating ink pill, so the dock does not grow beyond the week. The desktop rail lists the same four plus Settings.
+- **Settings groups:** the Settings list is four groups, each under a Section-type heading in Thread Grey and a 2px ink rule: You (Profile first, Nutrition, Language), Coach and AI, Data and privacy, App. Rows are 68px, title and one calm line, a chevron.
 - **Phone dock:** seven folded towels, each a small white towel with a 1.5px edge carrying 3px stripes for the groups logged that day. A dashed edge means nothing logged; a small ink knot means logged with no group. The day showing is outlined in ink; today's name is bold and underlined.
+
+### Day Summary
+
+The first thing under the header on Today when numbers are on and the day has data: a 2px ink rule, "Energy" with its value in Title type at the right (carrying "at least" and "~" as the bars do), a thin neutral thread with the guide tick, the sentence naming the reference, one Body-small line for protein, fibre and the foods not counted, and an "All nutrients" text button that moves focus to the full Nutrition section below. One neutral colour, text always present, never a "remaining" figure; the opt-in distance line stays under the full energy bar and does not appear here. With numbers off it is not drawn. On Today the quiet rows follow a fixed order: the summary, then notes that need a look (the guide hint, the pace notice, this week's step), then the bands, the full nutrition, and last one ruled list (Add a weigh-in, Copy this day, Ask the coach) with chevrons.
 
 ### Day Towel (signature)
 
-The day's meals as woven bands. A logged band shows four stripe rows (10px tall, 6px apart) in fixed group order: dyed where the group is on the plate, a dashed Seam row where it is not. An open meal is an empty band with a dashed Control Edge outline, open at the screen edge and rounded at its right end. A legend of the four dyes with their names sits above the bands. The weave is `aria-hidden`; each band's text carries its meaning.
+The day's meals as woven bands. A logged band shows four stripe rows (10px tall, 6px apart) in fixed group order: dyed where the group is on the plate, a dashed Seam row where it is not. An open meal is an empty band with a dashed Control Edge outline, open at the screen edge and rounded at its right end. A one-line legend of the four dyes with their names sits above the bands once a plate is logged (before that there are no stripes to explain). The weave is `aria-hidden`; each band's text carries its meaning.
 
 **The Weave-In Rule.** When a plate resolves, its dyed stripes grow from the left edge one after another (0.5s each, 60ms stagger, the weave easing `cubic-bezier(0.16, 1, 0.3, 1)`). While it is being read, the empty band breathes between full and 45% opacity every 1.2s. Reduced motion shows the end state at once.
 

@@ -30,9 +30,9 @@ export interface DialogProps {
 
 const VARIANT = {
   dialog:
-    'm-auto w-[calc(100%-2rem)] max-w-120 max-h-[calc(100dvh-2rem)] rounded-cloth border-2 border-ink',
+    'm-auto w-[calc(100%-2rem)] max-w-120 max-h-[calc(100dvh-2rem)] overflow-hidden rounded-cloth border-2 border-ink',
   sheet: [
-    'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] rounded-t-2xl border-2 border-b-0 border-ink',
+    'mx-0 mt-auto mb-0 w-full max-w-full max-h-[92dvh] overflow-hidden rounded-t-2xl border-2 border-b-0 border-ink',
     'translate-y-0 transition-transform duration-[350ms] ease-weave starting:open:translate-y-full',
     'lg:m-auto lg:w-140 lg:max-h-[calc(100dvh-4rem)] lg:rounded-cloth lg:border-2 lg:starting:open:translate-y-0',
   ].join(' '),
@@ -113,7 +113,7 @@ export function Dialog({
       className={cn('bg-raised text-ink p-0 backdrop:bg-scrim', VARIANT[variant])}
     >
       {open && (
-        <div className="flex flex-col gap-4 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:p-7">
+        <div className="flex max-h-[inherit] flex-col gap-4 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:p-7">
           <div className="flex items-start justify-between gap-3">
             <h2
               id={titleId}

@@ -124,10 +124,13 @@ export function LineLegend({ className = '' }: { readonly className?: string }) 
   return (
     <ul
       aria-hidden="true"
-      className={`m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 px-5 pt-1 pb-4 ${className}`}
+      className={`m-0 flex list-none flex-wrap gap-x-4 gap-y-1 px-5 pt-3 pb-3 ${className}`}
     >
       {LINES.map((l) => (
-        <li key={l.group} className="font-display text-label text-ink-soft flex items-center gap-2">
+        <li
+          key={l.group}
+          className="font-display text-small text-ink-soft flex items-center gap-1.5"
+        >
           <span className={`inline-block h-2 w-5 rounded-[1px] ${l.bg}`} />
           {groups[l.group]}
         </li>

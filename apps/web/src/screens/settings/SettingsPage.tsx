@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Header } from '../../components/shell';
-import { BackIcon } from '../../components/primitives';
+import { BackIcon, cn } from '../../components/primitives';
 import { useStrings } from '../../i18n';
 import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { hrefs } from '../../app/router';
@@ -27,18 +27,21 @@ export function SettingsPage({
   title,
   sub,
   backTo = 'settings',
+  wide = false,
   children,
 }: {
   readonly title: string;
   readonly sub?: ReactNode;
   /** `settings` goes up one level; `today` leaves Settings (the list itself, and a locked app). */
   readonly backTo?: 'settings' | 'today';
+  /** Profile sets a guide column beside its form on a desktop. */
+  readonly wide?: boolean;
   readonly children: ReactNode;
 }) {
   const all = useStrings();
   const session = useSessionOptional();
   const back =
-    backTo === 'today' || session === null ? (
+    session !== null && backTo === 'today' ? undefined : backTo === 'today' || session === null ? (
       // The board's way out is the rail on a desktop (as in the prototype): phone only.
       <span className={session === null ? undefined : 'lg:hidden'}>
         <BackLink href={hrefs.today} label={all.shell.today} />
@@ -47,7 +50,11 @@ export function SettingsPage({
       <BackLink href={hrefs.settings} label={all.settings.backToSettings} />
     );
   const content = (
-    <div className="flex max-w-3xl flex-col gap-7 px-5 pt-6 pb-8 lg:px-7">{children}</div>
+    <div
+      className={cn('flex flex-col gap-7 px-5 pt-6 pb-8 lg:px-7', wide ? 'max-w-5xl' : 'max-w-3xl')}
+    >
+      {children}
+    </div>
   );
   if (session === null) {
     return (

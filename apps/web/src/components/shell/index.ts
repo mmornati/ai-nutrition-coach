@@ -1,6 +1,7 @@
 export { AppShell, type AppShellProps } from './AppShell';
 export { Header, type HeaderProps } from './Header';
 export { Rail, DEFAULT_ROUTE_HREFS, type RailProps, type ShellRoute } from './Rail';
+export { PhoneTabs } from './PhoneTabs';
 export { Dock } from './Dock';
 export { BrandMark } from './BrandMark';
 export { DepartureBoard, type DepartureRow } from './DepartureBoard';

@@ -39,6 +39,8 @@ export interface StatusChipProps {
    * update (calmly, in the same place), whatever `status` is.
    */
   readonly needsUpdate?: boolean;
+  /** The header's quiet form: a word with its dot, no label. */
+  readonly quiet?: boolean;
   readonly className?: string | undefined;
 }
 
@@ -50,6 +52,7 @@ export function StatusChip({
   hasTransport,
   status = null,
   needsUpdate = false,
+  quiet = false,
   className,
 }: StatusChipProps) {
   const state: ChipState = !hasTransport
@@ -62,8 +65,9 @@ export function StatusChip({
     <Chip
       data-chip-state={state}
       dot
+      quiet={quiet}
       dotClassName={DOT[state]}
-      className={cn('text-ink', className)}
+      className={cn(!quiet && 'text-ink', className)}
     >
       {label}
     </Chip>

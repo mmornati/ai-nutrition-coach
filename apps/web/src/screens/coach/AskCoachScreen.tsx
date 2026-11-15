@@ -12,7 +12,7 @@ import {
 
 import { useDay } from '../../app/day-context';
 import { hrefs } from '../../app/router';
-import { BackToToday, ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
+import { ScreenFrame, ScreenHeader } from '../../app/ScreenFrame';
 import { useSession } from '../../app/session';
 import { stepLabel } from '../../app/step-copy';
 import { useSessionCoachingStatus, type AskCoachNotice, type ChatEntry } from '../../coaching';
@@ -369,7 +369,7 @@ export function AskCoachScreen() {
   const ready = status.kind === 'ready';
 
   return (
-    <ScreenFrame current="today" header={<ScreenHeader back={<BackToToday />} title={p.title} />}>
+    <ScreenFrame current="coach" header={<ScreenHeader title={p.title} />}>
       <div className="flex max-w-3xl flex-col gap-6 px-5 pt-6 pb-8 lg:px-7">
         <p className="text-lead">{p.intro}</p>
         <StepSection />

@@ -1,6 +1,7 @@
 import { isPartial, type FoodEntry, type NutrientKey, type NutrientTotals } from '@anc/core';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { formatNutrient } from './format';
+import { DAY_NUTRITION_ID } from './DaySummary';
 import { hasNutrition, NutrientBars } from './NutrientBars';
 import { useShowNumbers } from './use-show-numbers';
 import { useTargets } from './use-targets';
@@ -18,6 +19,7 @@ export function NutritionSection({
   className,
   fixHref,
   distance = false,
+  jumpTarget = false,
 }: {
   readonly title: string;
   readonly nutrition: NutrientTotals;
@@ -26,6 +28,8 @@ export function NutritionSection({
   readonly fixHref?: ((entry: FoodEntry) => string) | undefined;
   /** A whole day's totals: the opt-in distance line may show under the energy bar. */
   readonly distance?: boolean;
+  /** Today's full section takes focus from the summary's "All nutrients" button. */
+  readonly jumpTarget?: boolean;
 }) {
   const show = useShowNumbers();
   const targets = useTargets();
@@ -34,7 +38,10 @@ export function NutritionSection({
   if (!show || !hasNutrition(nutrition)) return null;
   const headline = SUMMARY.filter((key) => nutrition.totals[key] !== undefined);
   return (
-    <section className={className}>
+    <section
+      {...(jumpTarget ? { id: DAY_NUTRITION_ID, tabIndex: -1 } : {})}
+      className={`${className ?? ''}${jumpTarget ? ' outline-none' : ''}`}
+    >
       <h2 className="font-display text-section text-thread mb-2">{title}</h2>
       {/* The headline row repeats three values from the bars below for the eye; assistive tech
           reads them once, in the bars. */}

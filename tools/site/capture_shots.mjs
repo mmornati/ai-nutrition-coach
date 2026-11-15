@@ -10,7 +10,8 @@
 // Run (after `pnpm build`):
 //   pnpm --filter @anc/web exec node ../../tools/site/capture_shots.mjs
 // Options (env): SHOTS_OUT (default docs/assets/shots), SHOTS_PORT (default 4181),
-//   SHOTS_KEEP_PNG=1 keeps the intermediate PNGs next to the WebP files, SHOTS_QUALITY (85).
+//   SHOTS_KEEP_PNG=1 keeps the intermediate PNGs next to the WebP files, SHOTS_QUALITY (85),
+//   SHOTS_CHANNEL=chrome drives the installed Google Chrome instead of the Playwright chromium.
 //
 // Needs: the Playwright chromium (`pnpm --filter @anc/web exec playwright install chromium`) and
 // cwebp (or ImageMagick's `magick`) on PATH.
@@ -161,6 +162,7 @@ async function openContext(device) {
     timezoneId: TZ,
     colorScheme: 'light',
     reducedMotion: 'reduce',
+    ...(process.env.SHOTS_CHANNEL ? { channel: process.env.SHOTS_CHANNEL } : {}),
     permissions: ['camera'],
     args: [
       '--use-fake-ui-for-media-stream',
@@ -412,6 +414,19 @@ async function phone() {
   await shot(page, 'phone-create-passphrase', 'Create a passphrase',
     'The first screen: choose a passphrase that encrypts everything the app keeps in this browser.');
   await page.getByRole('button', { name: 'Create and unlock' }).click();
+
+  // A new store opens the first-run welcome before Today: two of its steps are shot (what the app
+  // is, and what the person is here for), then it is set aside with "Not now" so the demo week
+  // below is shown against the general reference, as before.
+  await heading(page, 'Welcome').waitFor({ timeout: 60_000 });
+  await shot(page, 'phone-welcome', 'Welcome, step 1',
+    'The first-run welcome: four short steps, each skippable, starting with what the app is and where your data lives.');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await heading(page, 'What you are here for').waitFor();
+  await page.getByRole('group', { name: 'Goal', exact: true }).getByText('Stay as I am', { exact: true }).click();
+  await shot(page, 'phone-welcome-goal', 'Welcome, step 2',
+    'Step 2 asks what you are here for. Every answer is optional; a calm support line sits beside the goal choice.');
+  await page.getByRole('button', { name: 'Not now' }).click();
   await heading(page, 'Today').waitFor({ timeout: 60_000 });
 
   await seedPastDays(page);
@@ -516,6 +531,13 @@ async function phone() {
     'The whole plate page, down to the nutrients and the actions to log it again or save it as a meal.',
     { fullPage: true });
 
+  // The edit sheet: change amounts, remove or add a food, move the plate; Save changes stays in view.
+  await page.getByRole('button', { name: 'Edit this plate' }).first().click();
+  await page.getByRole('dialog', { name: 'Edit plate' }).waitFor();
+  await shot(page, 'phone-plate-edit', 'Edit a plate',
+    'The edit sheet: change an amount, remove or add a food, or move the plate to another meal or day. Save changes stays at the bottom.');
+  await closeDialogs(page);
+
   // The week.
   await goHash(page, '#/week');
   await heading(page, 'This week').waitFor();
@@ -527,9 +549,48 @@ async function phone() {
 
   // Ask the coach, with no AI set up.
   await goHash(page, '#/coach');
-  await heading(page, 'Ask the coach').waitFor();
-  await shot(page, 'phone-ask-coach', 'Ask the coach',
-    'Ask the coach is an optional AI chat about the last seven days; it stays off until an AI is set up.');
+  await heading(page, 'The coach').waitFor();
+  await shot(page, 'phone-ask-coach', 'The coach',
+    'The coach page: your step, the latest notes, the week in short and your daily guide; an optional AI chat joins them once an AI is set up.');
+
+  // Profile (a guide of one's own), then weigh-ins and Trends.
+  await goHash(page, '#/settings/profile');
+  await heading(page, 'Profile').waitFor();
+  const choose = (group, label) =>
+    page.getByRole('group', { name: group, exact: true }).getByText(label, { exact: true }).click();
+  await choose('Age range', '30-49');
+  await choose('Sex', 'Female');
+  await choose('Activity', 'Some movement');
+  await page.getByLabel('Height in cm').fill('165');
+  await page.getByRole('button', { name: 'Save height' }).click();
+  await choose('Goal', 'Stay as I am');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, 'phone-profile', 'Profile',
+    'Profile: about you, body, goal and food, each optional, with the daily guide worked out from what you chose.');
+  await shot(page, 'phone-profile-full', 'Profile (whole page)',
+    'The whole Profile page: every answer is optional and applies at once.', { fullPage: true });
+
+  await goHash(page, '#/progress');
+  await heading(page, 'Trends').waitFor();
+  for (const [day, kg] of [['2026-10-08', '81.2'], ['2026-10-15', '80.6'], ['2026-10-22', '80.1']]) {
+    await page.getByRole('button', { name: 'Add a weigh-in' }).click();
+    const weigh = page.getByRole('dialog', { name: 'Weigh-in' });
+    await weigh.waitFor();
+    await weigh.getByLabel('Day').fill(day);
+    await weigh.getByLabel('Weight in kg').fill(kg);
+    if (day === '2026-10-22') {
+      await shot(page, 'phone-weigh-in', 'Weigh-in',
+        'The weigh-in sheet: a day, a weight and an optional waist; one entry a day, and Save is always in view.');
+    }
+    await weigh.getByRole('button', { name: 'Save' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('dialog[open]').length === 0);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, 'phone-trends', 'Trends',
+    'Trends: a smoothed line through your weigh-ins and, below, what you logged each day. It describes; it does not grade.');
+  await shot(page, 'phone-trends-full', 'Trends (whole page)',
+    'The whole Trends page: weigh-ins you can edit or remove, and the days you logged against your guide.', { fullPage: true });
 
   // Settings.
   for (const [hash, file, screen, caption] of SETTINGS) {
@@ -636,7 +697,7 @@ const PLATE_PHOTO = join(scratch, 'plate.jpg');
 
 const SETTINGS = [
   ['#/settings', 'phone-settings', 'Settings',
-    'Settings: your AI, your data, privacy, nutrition numbers, language and installing the app.'],
+    'Settings in four groups: You (Profile, Nutrition, Language), Coach and AI, Data and privacy, and App.'],
   ['#/settings/ai', 'phone-your-ai', 'Your AI',
     'Your AI: no AI at all, a server that offers one, or your own key. The app works fully without any.'],
   ['#/settings/privacy', 'phone-privacy', 'What this app stores and sends',
@@ -672,6 +733,18 @@ async function desktop() {
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, 'desktop-plate', 'Plate (desktop)',
     'A plate on a wide screen: its foods and grams, and the nutrients against a daily reference intake.');
+
+  await goHash(page, '#/progress');
+  await heading(page, 'Trends').waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, 'desktop-trends', 'Trends (desktop)',
+    'Trends on a wide screen: the weigh-in line with its sentence, and the weigh-ins you can edit.');
+
+  await goHash(page, '#/settings/profile');
+  await heading(page, 'Profile').waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, 'desktop-profile', 'Profile (desktop)',
+    'Profile on a wide screen: the form on the left and your daily guide beside it, in view while you change a field.');
 
   await goHash(page, '#/');
   await heading(page, 'Today').waitFor();

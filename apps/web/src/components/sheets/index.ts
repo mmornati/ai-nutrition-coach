@@ -1,3 +1,4 @@
+export { SheetFooter } from './SheetFooter';
 export { Sheet, type SheetProps } from './Sheet';
 export { CaptureSheet, type CaptureSheetProps } from './CaptureSheet';
 export { BarcodeMatchSheet, type BarcodeMatchSheetProps } from './BarcodeMatchSheet';

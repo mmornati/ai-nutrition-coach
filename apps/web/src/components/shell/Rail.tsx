@@ -1,14 +1,24 @@
 import type { ReactNode } from 'react';
 import { useStrings } from '../../i18n';
-import { Button, PlusIcon, ProgressIcon, TodayIcon, WeekIcon, GearIcon, cn } from '../primitives';
+import {
+  Button,
+  CoachIcon,
+  PlusIcon,
+  ProgressIcon,
+  TodayIcon,
+  WeekIcon,
+  GearIcon,
+  cn,
+} from '../primitives';
 import { BrandMark } from './BrandMark';
 
-export type ShellRoute = 'today' | 'week' | 'progress' | 'settings';
+export type ShellRoute = 'today' | 'week' | 'progress' | 'coach' | 'settings';
 
 export const DEFAULT_ROUTE_HREFS: Readonly<Record<ShellRoute, string>> = {
   today: '#/',
   week: '#/week',
   progress: '#/progress',
+  coach: '#/coach',
   settings: '#/settings',
 };
 
@@ -16,8 +26,12 @@ const ITEMS: readonly { route: ShellRoute; icon: ReactNode }[] = [
   { route: 'today', icon: <TodayIcon /> },
   { route: 'week', icon: <WeekIcon /> },
   { route: 'progress', icon: <ProgressIcon /> },
+  { route: 'coach', icon: <CoachIcon /> },
   { route: 'settings', icon: <GearIcon /> },
 ];
+
+/** The routes the phone's tab row lists, in order (Settings is the gear in the header). */
+export const TAB_ROUTES: readonly ShellRoute[] = ['today', 'week', 'progress', 'coach'];
 
 export interface RailProps {
   readonly current: ShellRoute;

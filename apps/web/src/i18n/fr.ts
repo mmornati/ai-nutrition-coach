@@ -566,9 +566,11 @@ export const fr: Strings = {
   },
   shell: {
     mainNav: 'Principale',
+    tabNav: 'Rubriques',
     today: 'Aujourd’hui',
     week: 'Semaine',
     progress: 'Évolution',
+    coach: 'Coach',
     settings: 'Réglages',
     logAPlate: 'Noter une assiette',
     logShort: 'Noter',
@@ -950,6 +952,7 @@ export const fr: Strings = {
     },
   },
   durable: {
+    hide: 'Masquer',
     persisted: 'Stockage : protégé du nettoyage automatique.',
     notPersisted:
       'Stockage : le navigateur peut effacer ces données si l’espace vient à manquer — exportez régulièrement.',
@@ -963,8 +966,6 @@ export const fr: Strings = {
     plateRemoved: 'Assiette retirée.',
     plateRemoveFailed: 'Impossible de la retirer. Réessayez.',
     networkHeading: 'La semaine d’un coup d’œil',
-    seeWeekNetwork: 'Voir toute la semaine',
-    seeProgress: 'Votre évolution',
     backToToday: 'Revenir à aujourd’hui',
     weighInLink: 'Ajouter une pesée',
     guideHint:
@@ -972,6 +973,9 @@ export const fr: Strings = {
     guideHintLink: 'Ajouter des détails dans le Profil',
     guideHintDismiss: 'Fermer',
     askCoachLink: 'Interroger le coach',
+    summaryLabel: 'La journée jusqu’ici',
+    summaryMore: 'Tous les nutriments',
+    moreLabel: 'Autour de cette journée',
   },
   nutrition: {
     sectionTitle: 'Nutrition',
@@ -1663,6 +1667,10 @@ export const fr: Strings = {
     v2Spoken: 'pas dans la version 1',
     title: 'Réglages',
     backToSettings: 'Réglages',
+    groupYou: 'Vous',
+    groupCoach: 'Coach et IA',
+    groupData: 'Données et confidentialité',
+    groupApp: 'Application',
     rowAi: 'Votre IA',
     rowData: 'Vos données',
     rowDataSubtitle: 'export · verrouillage · effacement',

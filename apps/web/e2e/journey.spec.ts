@@ -359,23 +359,23 @@ test('every interactive element is at least 48 x 48 on Today, Week, Plate, the c
   }
 });
 
-test('Week is reachable on a phone: Today links to the week below the day towel', async ({
+test('Week is reachable on a phone: the tab row under the header lists Today, Week, Trends and Coach', async ({
   page,
 }) => {
   test.setTimeout(120_000);
   await freshStart(page);
   await createStore(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  const link = page.getByRole('link', { name: 'See the whole week' });
-  await expect(link).toBeVisible();
-  await link.click();
+  // The rail is the desktop's navigation; a phone gets the tab row under the header instead.
+  const tabs = page.getByRole('navigation', { name: 'Sections' });
+  await expect(tabs.getByRole('link')).toHaveText(['Today', 'Week', 'Trends', 'Coach']);
+  await tabs.getByRole('link', { name: 'Week' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'This week' })).toBeVisible();
-  // The floating Log button never covers the last content: scrolled to the end, the link's
+  await tabs.getByRole('link', { name: 'Today' }).click();
+  // The floating Log button never covers the last content: scrolled to the end, the last link's
   // bottom edge clears the button's top edge.
-  await page.goto('/#/');
+  const link = page.getByRole('link', { name: 'Ask the coach' });
   await expect(link).toBeVisible();
-  await link.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const fab = await page.getByRole('button', { name: 'Log a plate' }).last().boundingBox();
   const main = await page.getByRole('main').boundingBox();
@@ -383,9 +383,9 @@ test('Week is reachable on a phone: Today links to the week below the day towel'
   expect(fab && fab.width >= 56 && fab.height >= 56).toBe(true);
   expect(last && fab && last.y + last.height <= fab.y).toBe(true);
   expect(main).not.toBeNull();
-  // And on a wide screen the link is not shown (the rail and the week column are).
+  // And on a wide screen the phone tab row is not shown (the rail is).
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(link).toBeHidden();
+  await expect(page.locator('nav[aria-label="Sections"]')).toBeHidden();
 });
 
 test('a focused control is never hidden behind the floating Log button on a phone', async ({

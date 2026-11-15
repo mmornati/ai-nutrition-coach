@@ -31,6 +31,27 @@ export function TowelDiagram() {
   );
 }
 
+/** The same hem, folded thin: the picture the later welcome steps keep so the steps read as one. */
+export function TowelHem() {
+  return (
+    <svg viewBox="0 0 360 40" aria-hidden="true" focusable="false" className="mb-6 h-auto w-full">
+      <rect
+        x={1}
+        y={1}
+        width={358}
+        height={38}
+        rx={6}
+        className="fill-raised stroke-ink"
+        strokeWidth={2}
+      />
+      <rect x={2} y={9} width={356} height={4} className="fill-veg" />
+      <rect x={2} y={15} width={356} height={4} className="fill-protein" />
+      <rect x={2} y={21} width={356} height={4} className="fill-starch" />
+      <rect x={2} y={27} width={356} height={4} className="fill-dairy" />
+    </svg>
+  );
+}
+
 /** A single-column page for the screens that come before Today: About, create, unlock, lost. */
 export function GateFrame({
   title,
@@ -38,7 +59,8 @@ export function GateFrame({
   children,
 }: {
   readonly title: string;
-  readonly diagram?: boolean;
+  /** `true` the full towel, `'hem'` the thin one, `false` none. */
+  readonly diagram?: boolean | 'hem';
   readonly children: ReactNode;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -46,7 +68,7 @@ export function GateFrame({
   useEffect(() => heading.current?.focus(), []);
   return (
     <main className="mx-auto flex min-h-dvh max-w-110 flex-col justify-center px-6 pt-8 pb-16">
-      {diagram && <TowelDiagram />}
+      {diagram === 'hem' ? <TowelHem /> : diagram && <TowelDiagram />}
       <h1
         ref={heading}
         tabIndex={-1}
