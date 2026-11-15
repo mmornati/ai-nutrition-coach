@@ -62,6 +62,55 @@ describe('logging a plate with AI coaching on', () => {
     expect(fake.last.url).toBe('https://api.example.com/v1/chat/completions');
     expect(fake.last.body).toContain('Chicken');
     expect(fake.last.body).not.toMatch(/image|passphrase/i);
+    // The note was then checked a second time by the same AI, at the same endpoint, with the text
+    // only (the note, no plate, no food list) and the four context values.
+    expect(fake.reviewRequests).toHaveLength(1);
+    expect(fake.reviewRequests[0]?.url).toBe('https://api.example.com/v1/chat/completions');
+    expect(fake.reviewRequests[0]?.body).toContain('review_text');
+    const sent = JSON.parse(fake.reviewRequests[0]?.body ?? '{}') as {
+      messages: { role: string; content: string }[];
+    };
+    expect(sent.messages).toHaveLength(2);
+    expect(sent.messages[1]?.content).toContain(NOTE);
+    expect(sent.messages[1]?.content).not.toMatch(/image|passphrase|grams|slot|plate|protein/i);
+    expect(JSON.parse(fake.reviewRequests[0]?.body ?? '{}')).toMatchObject({
+      max_tokens: 200,
+      temperature: 0,
+    });
+    session.dispose();
+  });
+
+  it('a review that says unsafe keeps the template note: the AI note is never stored', async () => {
+    const { fake, session } = await setup();
+    fake.reviewReplies.output = chatReply('{"verdict":"unsafe","reason":"praise_for_restriction"}');
+    const result = await log(session);
+    if (result.kind !== 'recordPlateSuccess') throw new Error('not logged');
+    await vi.waitFor(() => expect(fake.reviewRequests).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 30));
+    const keys = await notesOf(session, result.plateLog.id);
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^post\.resolve\.(?!ai)/);
+    session.dispose();
+  });
+
+  it('a rate-limited review keeps the template note and sends nothing more', async () => {
+    const { fake, session } = await setup();
+    fake.reviewReplies.output = { error: 'slow down' };
+    const original = fake.fetch;
+    fake.fetch = async (url, init) => {
+      const response = await original(url, init);
+      if (String(init?.body ?? '').includes('ROLE: OUTPUT REVIEW')) {
+        return new Response('{}', { status: 429 });
+      }
+      return response;
+    };
+    const result = await log(session);
+    if (result.kind !== 'recordPlateSuccess') throw new Error('not logged');
+    await vi.waitFor(() => expect(fake.reviewRequests).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(await notesOf(session, result.plateLog.id)).toHaveLength(1);
+    expect(fake.requests).toHaveLength(1);
+    expect(fake.reviewRequests).toHaveLength(1);
     session.dispose();
   });
 

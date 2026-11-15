@@ -8,6 +8,7 @@ import type {
   Profile,
   Recipe,
   SavedMeal,
+  CoachStep,
 } from '@anc/core';
 import { createFormatExporter } from './csv-exporter';
 
@@ -95,7 +96,8 @@ function plateToJson(plate: PlateLog): Record<string, unknown> {
  * The top-level `{"plates": [...]}` envelope, so fields can be added without breaking consumers.
  * Plates, plus the optional `profile` key when the person set one (the only preference exported),
  * the `savedMeals` and `recipes` keys when the person keeps any, and `bodyMeasurements` (dated
- * weigh-ins and waist, SI units) when they entered any. No coach notes, settings or notices. The
+ * weigh-ins and waist, SI units) when they entered any, and the `coachStep` the person accepted
+ * when there is one. No coach notes, settings or notices. The
  * CSV carries none of these (body measurements have their own CSV file).
  */
 export function serializePlatesToJson(
@@ -103,6 +105,7 @@ export function serializePlatesToJson(
   profile?: Profile,
   saved?: SavedExport,
   measurements?: readonly BodyMeasurement[],
+  coachStep?: CoachStep | null,
 ): string {
   return JSON.stringify({
     plates: plates.map(plateToJson),
@@ -115,6 +118,16 @@ export function serializePlatesToJson(
       : {}),
     ...(measurements !== undefined && measurements.length > 0
       ? { bodyMeasurements: measurements.map(measurementToJson) }
+      : {}),
+    // The one next step the person accepted from the coach, when there is one.
+    ...(coachStep !== undefined && coachStep !== null
+      ? {
+          coachStep: {
+            id: coachStep.id,
+            acceptedAtUtc: new Date(coachStep.at).toISOString(),
+            ...(coachStep.food !== undefined ? { food: coachStep.food } : {}),
+          },
+        }
       : {}),
   });
 }

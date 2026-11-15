@@ -242,7 +242,7 @@ describe('CoachNoteGenerator with a day', () => {
     const gen = createCoachNoteGenerator({ coach, store });
     const result = await gen.generateFor(breakfastOats(1), { dayPlates: [] });
     expect(result.kind === 'coachNoteGenerated' && result.note.questionKey).toBe(
-      'post.resolve.breakfastSimple',
+      'post.resolve.breakfastSimple?breakfast=eggs.yogurt.nuts',
     );
   });
 

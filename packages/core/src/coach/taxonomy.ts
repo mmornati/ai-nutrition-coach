@@ -13,9 +13,12 @@ export interface CoachTaxonomyEntry {
 }
 
 /**
- * The bounded, curated v1 taxonomy: 3 anchors x 8 patterns = 24 keys. Copy lives outside the
- * core (l10n); this is only the reviewable set of identities. If a reviewer rejects an entry the
- * task is to remove its copy, not to invent a new key.
+ * The bounded, curated taxonomy: 3 anchors x 20 patterns = 60 keys (`COMPOSITION_PATTERNS` holds
+ * the patterns: the eight food-group ones, the six nutrient ones and the six goal- and
+ * energy-aware ones). Copy lives outside the core (l10n); this is only the reviewable set of
+ * identities. Not every pair has copy: a key without copy is silence (`noCoachQuestion`), which
+ * is a valid outcome. If a reviewer rejects an entry the task is to remove its copy, not to
+ * invent a new key.
  */
 export const COACH_TAXONOMY: readonly CoachTaxonomyEntry[] = Object.freeze(
   COACH_ANCHORS.flatMap((anchor) =>

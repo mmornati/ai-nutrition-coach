@@ -93,7 +93,11 @@ export class InstanceAiRung implements AiRung, TextCompletionPort {
       case 'failure':
         return outcome.status === 404
           ? { kind: 'unavailable' }
-          : { kind: 'failure', message: instanceFailureMessage(outcome) };
+          : {
+              kind: 'failure',
+              message: instanceFailureMessage(outcome),
+              ...(outcome.status === undefined ? {} : { status: outcome.status }),
+            };
     }
   }
 

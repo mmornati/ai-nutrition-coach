@@ -83,7 +83,8 @@ export type ChatResult =
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'busy' }
   | { readonly kind: 'unavailable' }
-  | { readonly kind: 'failure'; readonly message: string };
+  /** `status`: the HTTP status when the failure was an unexpected one (a 400 says "not this request"). */
+  | { readonly kind: 'failure'; readonly message: string; readonly status?: number };
 
 /**
  * The text-completion seam over the instance rung. A later LLM coach calls this and nothing

@@ -338,7 +338,7 @@ describe('the proxy budget (8 messages, 24 KB of text)', () => {
   });
 
   it('a near-full week keeps the same data message from the first question to the sixth', () => {
-    // About 18 KB of data: it fits with a short question, not with five long three-byte turns.
+    // About 17 KB of data: it fits with a short question, not with five long three-byte turns.
     const near = (id: number): PlateLog =>
       plateLog({
         id,
@@ -348,7 +348,7 @@ describe('the proxy budget (8 messages, 24 KB of text)', () => {
           plateLogId: id,
           databaseFood: databaseFood({
             sourceRef: `n:${id}:${i}`,
-            displayName: `Plat ${id} ${i} `.padEnd(60, '日'),
+            displayName: `Plat ${id} ${i} `.padEnd(52, '日'),
             source: 'manual',
             foodGroup: 'protein',
             nutrientsPer100g: { energyKcal: 100, protein: 5 },

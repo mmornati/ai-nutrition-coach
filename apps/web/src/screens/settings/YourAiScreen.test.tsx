@@ -9,6 +9,7 @@ import { AiProvider, AiSettings, KvAiSettingsStore } from '../../ai';
 import { useSession } from '../../app/session';
 import { chatReply, FakeFetch } from '../../ai/testing';
 import { renderInSession, renderUnlockedApp, unlockedBundle } from '../../app/testing';
+import { fr } from '../../i18n/fr';
 import { KV_KEYS, type StoreBundle } from '../../storage';
 import { YourAiScreen } from './YourAiScreen';
 
@@ -540,6 +541,87 @@ describe('YourAiScreen: describing a meal with AI', () => {
     await user.click(toggle);
     await waitFor(() => expect(toggle).not.toBeChecked());
     expect(await bundle.kv.read(KV_KEYS.aiDescribeConsent)).toBeNull();
+  });
+
+  it('"Share my weight trend with the coach" is its own switch: off by default, needs coaching, never survives a lapse', async () => {
+    const user = userEvent.setup();
+    const { bundle } = await openAi({ seed: byok(), seedKey: SECRET });
+    const COACHING = 'Let the AI write coach notes and answer questions';
+    const TREND = 'Share my weight trend with the coach';
+    const trendSwitch = () => screen.getByRole('switch', { name: TREND });
+    const trend = trendSwitch();
+    expect(trendSwitch()).not.toBeChecked();
+    // Needs AI coaching first.
+    expect(trend).toBeDisabled();
+    expect(screen.getByText(/Turn on AI coaching above first/)).toBeVisible();
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull();
+    // What it sends is said plainly, and what it never does.
+    expect(
+      screen.getByText(/Never a single weigh-in, never a date of one, never your height/),
+    ).toBeVisible();
+
+    const coachSwitch = screen.getByRole('switch', { name: COACHING });
+    expect(coachSwitch).toBeEnabled();
+    await user.click(coachSwitch);
+    await waitFor(async () =>
+      expect(await bundle.kv.read(KV_KEYS.aiCoachingConsent)).toBe('{"host":"api.example.com"}'),
+    );
+    await waitFor(() => expect(trendSwitch()).toBeEnabled());
+    expect(trendSwitch()).not.toBeChecked();
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull();
+    await user.click(trendSwitch());
+    await waitFor(() => expect(trendSwitch()).toBeChecked());
+    expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBe('on');
+    expect(screen.getByText(/a direction and the change over about four weeks/)).toBeVisible();
+
+    // Turning coaching off turns the trend off, and turning it back on does not turn it back on.
+    await user.click(screen.getByRole('switch', { name: COACHING }));
+    await waitFor(() => expect(trendSwitch()).not.toBeChecked());
+    await waitFor(async () => expect(await bundle.kv.read(KV_KEYS.aiShareWeightTrend)).toBeNull());
+    await user.click(screen.getByRole('switch', { name: COACHING }));
+    await waitFor(() => expect(trendSwitch()).toBeEnabled());
+    expect(trendSwitch()).not.toBeChecked();
+  });
+
+  it('says calmly, once three safety checks in a row could not be read, that coach answers are not shown', async () => {
+    const user = userEvent.setup();
+    const fake = new FakeFetch();
+    fake.reviewReplies.ask = chatReply('I think this is fine.');
+    const bundle = await unlockedBundle();
+    await new KvAiSettingsStore(bundle.kv).write(byok());
+    await bundle.kv.write(KV_KEYS.aiByokKey, SECRET);
+    let session: ReturnType<typeof useSession> | undefined;
+    function Hosted() {
+      session = useSession();
+      return (
+        <AiProvider services={session.ai}>
+          <YourAiScreen />
+        </AiProvider>
+      );
+    }
+    await renderInSession(<Hosted />, { bundle, session: { fetch: fake.fetch } });
+    await screen.findByRole('heading', { level: 1, name: 'Your AI' });
+    const COACH_SWITCH = 'Let the AI write coach notes and answer questions';
+    const LINE =
+      'The AI you chose could not complete the safety check, so its coach answers are not shown.';
+    await user.click(screen.getByRole('switch', { name: COACH_SWITCH }));
+    await waitFor(() => expect(screen.getByRole('switch', { name: COACH_SWITCH })).toBeChecked());
+    expect(screen.queryByText(LINE)).toBeNull();
+    for (let i = 0; i < 2; i++) await session?.askCoach.send(`Is rice or pasta better ${i}?`, []);
+    expect(screen.queryByText(LINE)).toBeNull();
+    await session?.askCoach.send('Is rice or pasta better 3?', []);
+    expect(await screen.findByText(LINE)).toBeVisible();
+    // A check the AI can answer clears it.
+    fake.reviewReplies.ask = chatReply('{"route":"none"}');
+    session?.askCoach.reset();
+    await session?.askCoach.send('Is rice or pasta better 4?', []);
+    await waitFor(() => expect(screen.queryByText(LINE)).toBeNull());
+  });
+
+  it('has the safety-check line in French too', () => {
+    expect(fr.ai.yourAi.reviewCannotCheck).toBe(
+      'L’IA que vous avez choisie n’a pas pu terminer la vérification de sécurité, donc ses réponses de coach ne sont pas affichées.',
+    );
   });
 
   it('keeps the voice model with the key settings; empty means the default', async () => {

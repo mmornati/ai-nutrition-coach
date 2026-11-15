@@ -97,9 +97,14 @@ you can move back through earlier weeks on the week screen. See [Trends](guide/p
 
 The coach asks rather than tells. After a plate it may offer one question, with *Sure* and *Ask later*; dismissing it
 costs nothing, and it never asks the same question twice. The built-in questions and the week's remarks are rules on
-the device and need no AI. With an AI and a separate yes, it can also write its notes, answer questions about your
-last seven days, and write a paragraph about the week. Every AI text is checked before it is shown, and a question
-about an eating worry or a symptom is answered on the device and never sent.
+the device and need no AI. They follow your **diet and allergies** (a vegan never hears about eggs or cheese) and your
+**goal**: with a daily guide of your own, at dinner, a day well above it gets one note naming the foods that carried the
+energy; with the goal to lose weight, a few satiety suggestions drawn from the foods you actually log. *Try it this week*
+keeps **one small step**, shown quietly on Today and looked back on in the week review. The coach page is useful without
+an AI: your step, the latest notes, the week, your guide. With an AI and a separate yes, it can also write its notes,
+answer questions about your last seven days (with the goal to lose weight, including how to lose it, within safe limits),
+and write a paragraph about the week. Every AI text is checked before it is shown, and a question about an eating worry,
+a symptom, a very low intake or a very fast loss is answered on the device and never sent.
 
 More: [The coach](guide/coach.md).
 

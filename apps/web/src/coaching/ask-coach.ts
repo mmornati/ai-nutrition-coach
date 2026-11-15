@@ -14,6 +14,14 @@ import {
   type Unsubscribe,
 } from '@anc/core';
 import type { CoachingAi } from '../ai';
+import { NO_AI_CONTEXT, type AiContextProvider } from './context';
+import {
+  completeBounded,
+  reviewAskText,
+  reviewContext,
+  reviewOutputText,
+  ReviewGate,
+} from './review';
 
 /** One line of the conversation as the screen shows it. */
 export type ChatEntry =
@@ -31,8 +39,16 @@ export type ChatEntry =
       readonly kind: 'support';
       readonly signal: SupportSignal;
     }
-  /** The AI answered with something that did not pass the checks: nothing of it is kept. */
-  | { readonly id: number; readonly role: 'assistant'; readonly kind: 'unsure' };
+  /**
+   * The AI answered with something that did not pass the checks: nothing of it is kept. `weight`:
+   * the answer talked of losing weight for someone who has not chosen that goal.
+   */
+  | {
+      readonly id: number;
+      readonly role: 'assistant';
+      readonly kind: 'unsure';
+      readonly weight?: true;
+    };
 
 /** Why the last send did not produce an answer (the question stays in the box). */
 export type AskCoachNotice =
@@ -69,8 +85,16 @@ export interface AskCoachDeps {
   readonly locale: () => CoachLocale;
   readonly targets: () => Required<Nutrients>;
   readonly profile: () => Profile | undefined;
+  /** The goal, the step and the switches, read at each question (default: no weight talk). */
+  readonly context?: AiContextProvider;
   readonly naming: PromptNaming;
   readonly live: () => boolean;
+  /** The session's second-pass state (abort on lock, temperature, unreadable count). */
+  readonly reviews?: ReviewGate;
+  /** Test seam. Default `COACH_LIMITS.reviewTimeoutMs`: one review call. */
+  readonly reviewTimeoutMs?: number;
+  /** Test seam. Default `COACH_LIMITS.chatTimeoutMs`: the coach call of one turn. */
+  readonly chatTimeoutMs?: number;
 }
 
 const EMPTY: AskCoachState = Object.freeze({
@@ -87,14 +111,29 @@ const EMPTY: AskCoachState = Object.freeze({
  * is thrown away) or when the person starts a new conversation.
  *
  * Every question is checked on the device first: a worry about eating or a health symptom is
- * answered with the calm support line and nothing is sent. Otherwise the last seven days (as a JSON
- * document), the targets and the profile go with the conversation, and the answer passes the same
- * validator as a coach note before it is shown. Limits: 6 questions, 500 characters each, answers of
- * at most 800 characters.
+ * answered with the calm support line and nothing is sent. The order of one turn is then fixed:
+ *
+ *   1. `detectSupportSignal` on the question (no network);
+ *   2. ASK REVIEW: the same AI classifies the question, with the previous question and answer (a
+ *      short follow-up inherits its topic), and may route it to the support copy; nothing else is
+ *      sent before it answers;
+ *   3. the coach call: the last seven days (as a JSON document), the targets and the profile go
+ *      with the conversation;
+ *   4. the lexical validator, as for a coach note;
+ *   5. OUTPUT REVIEW: the same AI classifies the answer, with the question it answers and the
+ *      previous exchange;
+ *   6. the answer is shown.
+ *
+ * Three calls at most, in sequence, no retries. An error, a timeout or a rate limit at step 2 is
+ * the usual notice (the question stays in the box, nothing is answered); an unreadable reply there,
+ * or any failure or unsafe verdict at step 5, is the calm "not sure" line and nothing of the answer
+ * is kept. The support copy is shown only for an actual route verdict. Limits: 6 questions, 500
+ * characters each, answers of at most 800 characters.
  */
 export class AskCoachConversation {
   readonly #deps: AskCoachDeps;
   readonly #listeners = new Set<() => void>();
+  readonly #gate: ReviewGate;
   #state: AskCoachState = EMPTY;
   #nextId = 1;
   #inflight = false;
@@ -103,6 +142,7 @@ export class AskCoachConversation {
 
   constructor(deps: AskCoachDeps) {
     this.#deps = deps;
+    this.#gate = deps.reviews ?? new ReviewGate({ live: deps.live });
   }
 
   getSnapshot = (): AskCoachState => this.#state;
@@ -155,6 +195,35 @@ export class AskCoachConversation {
     return turns;
   }
 
+  /** The last question and the answer it got, for the reviews (a follow-up inherits its topic). */
+  #previousExchange(): { readonly question: string; readonly answer: string } | undefined {
+    const turns = this.#turns();
+    const q = turns[turns.length - 2];
+    const a = turns[turns.length - 1];
+    return q === undefined || a === undefined ? undefined : { question: q.text, answer: a.text };
+  }
+
+  /** Adds a question and its (support or unsure) reply, and counts the turn. */
+  #record(
+    text: string,
+    reply:
+      { readonly kind: 'support'; readonly signal: SupportSignal } | { readonly kind: 'unsure' },
+  ): void {
+    const id = this.#nextId++;
+    const asked = this.#state.asked + 1;
+    this.#set({
+      entries: [
+        ...this.#state.entries,
+        { id, role: 'user', text },
+        { id: this.#nextId++, role: 'assistant', ...reply },
+      ],
+      pending: null,
+      asked,
+      limitReached: asked >= COACH_LIMITS.chatTurns,
+      notice: null,
+    });
+  }
+
   /** Asks one question. `plates` are the last seven local days. Never throws. */
   async send(raw: string, plates: readonly PlateLog[]): Promise<SendOutcome> {
     const text = raw.replace(/\s+/g, ' ').trim();
@@ -166,17 +235,7 @@ export class AskCoachConversation {
     // Safety first, on the device, before anything is sent.
     const signal = detectSupportSignal(text);
     if (signal !== null) {
-      const id = this.#nextId++;
-      this.#set({
-        entries: [
-          ...this.#state.entries,
-          { id, role: 'user', text },
-          { id: this.#nextId++, role: 'assistant', kind: 'support', signal },
-        ],
-        asked: this.#state.asked + 1,
-        limitReached: this.#state.asked + 1 >= COACH_LIMITS.chatTurns,
-        notice: null,
-      });
+      this.#record(text, { kind: 'support', signal });
       return 'support';
     }
 
@@ -184,7 +243,45 @@ export class AskCoachConversation {
     this.#inflight = true;
     this.#set({ pending: text, notice: null });
     const numbersOn = this.#deps.numbersOn();
+    const context = this.#deps.context?.() ?? NO_AI_CONTEXT;
+    const reviewTimeoutMs = this.#deps.reviewTimeoutMs ?? COACH_LIMITS.reviewTimeoutMs;
+    const gate = this.#gate;
+    const previous = this.#previousExchange();
     try {
+      // Step 2: nothing else is sent until this answers.
+      const asked = await reviewAskText(this.#deps.coaching, text, {
+        timeoutMs: reviewTimeoutMs,
+        gate,
+        previous,
+      });
+      if (epoch !== this.#epoch || !this.#deps.live() || gate.ended()) return 'failure';
+      switch (asked.kind) {
+        case 'ended':
+          return 'failure';
+        case 'none':
+          break;
+        case 'route':
+          this.#record(text, { kind: 'support', signal: asked.signal });
+          return 'support';
+        case 'unknown':
+          this.#record(text, { kind: 'unsure' });
+          return 'unsure';
+        case 'busy':
+          this.#set({ pending: null, notice: { kind: 'busy' } });
+          return 'busy';
+        case 'consent':
+          this.#set({ pending: null, notice: { kind: 'consent' } });
+          return 'consent';
+        case 'unavailable':
+          this.#set({ pending: null, notice: { kind: 'unavailable' } });
+          return 'unavailable';
+        case 'timeout':
+          this.#set({ pending: null, notice: { kind: 'failure', message: '' } });
+          return 'failure';
+        case 'failure':
+          this.#set({ pending: null, notice: { kind: 'failure', message: asked.message } });
+          return 'failure';
+      }
       const messages = buildChatMessages({
         locale: this.#deps.locale(),
         context: {
@@ -193,15 +290,26 @@ export class AskCoachConversation {
           plates,
           targets: this.#deps.targets(),
           profile: this.#deps.profile(),
+          personalGuide: context.personalGuide,
+          weightHelp: context.weightHelp,
+          step: context.step,
+          weightTrend: context.weightTrend,
         },
         turns: [...this.#turns(), { role: 'user', text }],
       });
-      const result = await this.#deps.coaching.complete(messages, {
-        maxTokens: 500,
-        temperature: 0.5,
-      });
-      if (epoch !== this.#epoch || !this.#deps.live()) return 'failure';
+      const result = await completeBounded(
+        this.#deps.coaching,
+        messages,
+        { maxTokens: 500, temperature: 0.5 },
+        { timeoutMs: this.#deps.chatTimeoutMs ?? COACH_LIMITS.chatTimeoutMs, signal: gate.signal },
+      );
+      if (epoch !== this.#epoch || !this.#deps.live() || gate.ended()) return 'failure';
       switch (result.kind) {
+        case 'ended':
+          return 'failure';
+        case 'timeout':
+          this.#set({ pending: null, notice: { kind: 'failure', message: '' } });
+          return 'failure';
         case 'busy':
           this.#set({ pending: null, notice: { kind: 'busy' } });
           return 'busy';
@@ -220,11 +328,32 @@ export class AskCoachConversation {
             numbersOn,
             maxQuestions: 2,
             locale: this.#deps.locale(),
+            ...context.limits,
           });
+          // Step 5: the answer is shown only if the same AI also finds it safe. Any other outcome
+          // (unsafe, an error, a timeout, a rate limit) is the "not sure" line.
+          const reviewed = checked.ok
+            ? await reviewOutputText(
+                this.#deps.coaching,
+                checked.text,
+                reviewContext(this.#deps.locale(), context.limits),
+                { timeoutMs: reviewTimeoutMs, gate, chat: { question: text, previous } },
+              )
+            : null;
+          if (epoch !== this.#epoch || !this.#deps.live() || gate.ended()) return 'failure';
+          const shown = checked.ok && reviewed?.kind === 'ok';
           const userEntry = { id: this.#nextId++, role: 'user', text } as const;
-          const answer: ChatEntry = checked.ok
-            ? { id: this.#nextId++, role: 'assistant', kind: 'answer', text: checked.text }
-            : { id: this.#nextId++, role: 'assistant', kind: 'unsure' };
+          const answer: ChatEntry =
+            checked.ok && shown
+              ? { id: this.#nextId++, role: 'assistant', kind: 'answer', text: checked.text }
+              : {
+                  id: this.#nextId++,
+                  role: 'assistant',
+                  kind: 'unsure',
+                  ...(!checked.ok && checked.problem === 'weightTalk'
+                    ? { weight: true as const }
+                    : {}),
+                };
           const asked = this.#state.asked + 1;
           this.#set({
             entries: [...this.#state.entries, userEntry, answer],
@@ -232,7 +361,7 @@ export class AskCoachConversation {
             asked,
             limitReached: asked >= COACH_LIMITS.chatTurns,
           });
-          return checked.ok ? 'answered' : 'unsure';
+          return shown ? 'answered' : 'unsure';
         }
         default: {
           const _exhaustive: never = result;

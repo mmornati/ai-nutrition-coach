@@ -22,7 +22,7 @@ const vegLight: CoachQuestion = {
 };
 
 describe('CompositionPattern + CoachAnchor (NFR3)', () => {
-  it('CompositionPattern ships the exact fourteen-entry taxonomy', () => {
+  it('CompositionPattern ships the exact twenty-entry taxonomy', () => {
     expect(COMPOSITION_PATTERNS).toEqual([
       'vegLight',
       'proteinHeavy',
@@ -38,6 +38,12 @@ describe('CompositionPattern + CoachAnchor (NFR3)', () => {
       'energyDenseSnack',
       'proteinLowDay',
       'fibreLowDay',
+      'energyHighDay',
+      'energyLowDay',
+      'sugaryDrink',
+      'alcoholDrink',
+      'proteinPlateLose',
+      'vegVolumeLose',
     ]);
   });
 
@@ -61,6 +67,12 @@ describe('CompositionPattern + CoachAnchor (NFR3)', () => {
       'energyDenseSnack',
       'proteinLowDay',
       'fibreLowDay',
+      'energyHighDay',
+      'energyLowDay',
+      'sugaryDrink',
+      'alcoholDrink',
+      'proteinPlateLose',
+      'vegVolumeLose',
     ]);
   });
 

@@ -12,8 +12,11 @@ import { coachNoteDismissalKey } from '../value-types/coach-dismissal-key';
 import type { CoachInteraction, CoachInteractionLog } from '../value-types/coach-interaction';
 import {
   parseCompositionPattern,
+  splitQuestionKey,
+  type CoachParams,
   type CompositionPattern,
 } from '../value-types/composition-pattern';
+import { SLOT_PARAM_KEYS } from '../coach/food-options';
 
 export interface RecordCoachInteractionResult {
   readonly kind: CoachInteraction;
@@ -84,7 +87,15 @@ export function createRecordCoachInteraction(deps: {
 
     let result: CoachQuestionResult;
     try {
-      result = coach.questionFor({ anchor: 'depthFollowUp', pattern });
+      // The follow-up names the same foods as its note (chosen under the diet and allergies).
+      const parent = splitQuestionKey(note.questionKey).params;
+      const params: Record<string, string | number> = {};
+      for (const key of SLOT_PARAM_KEYS) {
+        const value = parent[key];
+        if (value !== undefined) params[key] = value;
+      }
+      const carried: CoachParams = params;
+      result = coach.questionFor({ anchor: 'depthFollowUp', pattern, params: carried });
     } catch {
       return null;
     }

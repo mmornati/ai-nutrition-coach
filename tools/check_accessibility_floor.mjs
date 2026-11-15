@@ -69,6 +69,7 @@ export const COVERED_BY = Object.freeze({
   // Part of the Today and Plate screens.
   PlateCoach: 'TodayScreen',
   GuideHint: 'TodayScreen',
+  StepLine: 'TodayScreen',
   // Progress: the chart, the intake list, the weigh-in sheet and the pace line, tested through it.
   TrendChart: 'ProgressScreen',
   IntakeHistory: 'ProgressScreen',

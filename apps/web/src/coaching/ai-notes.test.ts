@@ -5,18 +5,23 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   coachNoteDismissalKey,
   type CoachNote,
+  type CoachNoteStore,
   type CoachNoteGenerationResult,
   type CoachNoteGenerator,
   type PlateLog,
 } from '@anc/core';
 import { at, seedMeasuredPlate, unlockedBundle } from '../app/testing';
 import type { StoreBundle } from '../storage';
+import { ReviewGate } from './review';
 import { createAiNoteUpgrader, withAiNotes, type AiNoteDeps, type AiNoteOutcome } from './ai-notes';
 import {
   aiNote,
   aiText,
+  OUTPUT_OK,
   READY_DESTINATION,
   scriptedCoaching,
+  TEST_NONCE,
+  testReviewGate,
   type ScriptedCoaching,
 } from './testing';
 
@@ -68,6 +73,7 @@ async function setup(
     profile: () => ({ diet: 'vegetarian', allergies: ['peanut'] }),
     naming: { nameOf: (f) => f.displayName },
     live: () => true,
+    reviews: testReviewGate(),
     timeoutMs: 40,
     ...extra,
   });
@@ -418,5 +424,227 @@ describe('AI coach note: races after the call', () => {
       expect(await t.run()).toBe('invalid');
       expect(await t.notes()).toEqual([t.template]);
     }
+  });
+});
+
+describe('AI coach note: the second pass (the AI checks the note before it is shown)', () => {
+  const unsafe = (reason = 'praise_for_restriction') =>
+    aiText(JSON.stringify({ verdict: 'unsafe', reason }));
+
+  it('a clean upgrade is two calls, in order: the note, then its review', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD, 'Do you like roasted vegetables?'));
+    const t = await setup(coaching);
+    expect(await t.run()).toBe('upgraded');
+    expect(coaching.order).toEqual(['main', 'output']);
+    expect(coaching.reviewCalls[0]?.options).toMatchObject({ maxTokens: 200, temperature: 0 });
+  });
+
+  it('the review sees the note and its follow-up as one text, plus four context values, nothing more', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD, 'Do you like roasted vegetables?'));
+    const t = await setup(coaching, {
+      // French typography adds a space before the question mark; the review reads it normalised,
+      // note and follow-up as one text.
+      locale: () => 'fr',
+      context: () => ({
+        weightHelp: null,
+        personalGuide: true,
+        step: null,
+        weightTrend: null,
+        limits: { weightTalk: 'restrained', floorKcal: 1200, guideKcal: 1730 },
+      }),
+    });
+    await t.run();
+    const messages = coaching.reviewCalls[0]?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[1]?.content).toBe(
+      [
+        'Context:',
+        'language: fr',
+        'weight_talk_allowed: no',
+        'daily_guide_kcal: 1700',
+        'floor_kcal: 1200',
+        '',
+        `<review_text_${TEST_NONCE}>\n${JSON.stringify(`${GOOD.replace('?', ' ?')} Do you like roasted vegetables ?`)}\n</review_text_${TEST_NONCE}>`,
+        '',
+        'Reply with exactly one JSON object and nothing else: {"verdict":"ok"} or {"verdict":"unsafe","reason":"<category>"}',
+      ].join('\n'),
+    );
+    // Not the plate, the day, the profile or the template note.
+    const sent = JSON.stringify(messages);
+    expect(sent).not.toMatch(/vegetarian|peanut|grams|slot|round this plate|Pasta",/);
+  });
+
+  it('numbers off and no personal guide: the review carries no guide figure either', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD));
+    const t = await setup(coaching, { numbersOn: () => false });
+    expect(await t.run()).toBe('upgraded');
+    expect(coaching.reviewCalls[0]?.messages[1]?.content).toContain(
+      'weight_talk_allowed: no\ndaily_guide_kcal: none\nfloor_kcal: 1200',
+    );
+  });
+
+  it('weight talk allowed with a guide: the review is told so', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD));
+    const t = await setup(coaching, {
+      context: () => ({
+        weightHelp: 'lose',
+        personalGuide: true,
+        step: null,
+        weightTrend: null,
+        limits: { weightTalk: 'allowed', floorKcal: 1500, guideKcal: 2040 },
+      }),
+    });
+    await t.run();
+    expect(coaching.reviewCalls[0]?.messages[1]?.content).toContain(
+      'weight_talk_allowed: yes\ndaily_guide_kcal: 2000\nfloor_kcal: 1500',
+    );
+  });
+
+  it('an unsafe verdict: not shown, the template note stands, nothing is written', async () => {
+    const t = await setup(
+      scriptedCoaching(() => aiNote(GOOD, 'Do you like veg?'), undefined, {
+        output: () => unsafe(),
+      }),
+    );
+    expect(await t.run()).toBe('reviewUnsafe');
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it.each([
+    ['an unreadable reply', aiText('Looks fine to me.')],
+    ['a reply with an extra key', aiText('{"verdict":"ok","reason":"other","x":1}')],
+    ['ok with a harm reason', aiText('{"verdict":"ok","reason":"low_intake"}')],
+  ])('%s fails closed: the template note stands', async (_n, reply) => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD), undefined, { output: () => reply });
+    const t = await setup(coaching);
+    expect(await t.run()).toBe('reviewUnsafe');
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it.each([
+    ['a rate limit', { kind: 'busy' }],
+    ['a failure', { kind: 'failure', message: 'offline' }],
+    ['no consent', { kind: 'consentRequired' }],
+    ['unavailable', { kind: 'unavailable' }],
+  ] as const)('%s at the review: not shown and no further call', async (_n, reply) => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD), undefined, { output: () => reply });
+    const t = await setup(coaching);
+    expect(await t.run()).toBe('reviewFailed');
+    expect(coaching.order).toEqual(['main', 'output']);
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it('a review that never answers times out inside the same total, and the note is not shown', async () => {
+    const coaching = scriptedCoaching(() => aiNote(GOOD), undefined, {
+      output: () => new Promise(() => undefined),
+    });
+    const t = await setup(coaching, { timeoutMs: 80 });
+    const started = Date.now();
+    expect(await t.run()).toBe('reviewFailed');
+    // Five eighths for the note (50 ms here), the rest for the review: the total stays inside the budget.
+    expect(Date.now() - started).toBeLessThan(400);
+    expect(coaching.reviewCalls[0]?.options?.signal?.aborted).toBe(true);
+    expect(await t.notes()).toEqual([t.template]);
+  });
+
+  it('a note the validator refuses is not reviewed', async () => {
+    const coaching = scriptedCoaching(() => aiNote('Skip dinner tonight.'));
+    const t = await setup(coaching);
+    expect(await t.run()).toBe('invalid');
+    expect(coaching.order).toEqual(['main']);
+  });
+
+  it('stands down while a recent call was rate-limited: no call at all', async () => {
+    const coaching = Object.assign(
+      scriptedCoaching(() => aiNote(GOOD)),
+      { coolingDown: () => true },
+    );
+    const t = await setup(coaching);
+    expect(await t.run()).toBe('rateLimited');
+    expect(coaching.order).toEqual([]);
+  });
+
+  it('upgrades run one at a time, and a long queue keeps the built-in notes', async () => {
+    let release: (() => void) | undefined;
+    const coaching = scriptedCoaching((n) =>
+      n === 1
+        ? new Promise((resolve) => {
+            release = () => resolve(aiNote(GOOD));
+          })
+        : aiNote(GOOD),
+    );
+    const t = await setup(coaching, { timeoutMs: 5000 });
+    const first = t.run();
+    const second = t.run();
+    const third = t.run();
+    const fourth = t.run();
+    expect(await fourth).toBe('rateLimited');
+    await vi.waitFor(() => expect(release).toBeDefined());
+    // Only the first note's call is out; the others wait for it and its review.
+    expect(coaching.order).toEqual(['main']);
+    release?.();
+    await Promise.all([first, second, third]);
+    expect(coaching.order).toEqual(['main', 'output', 'main', 'output', 'main', 'output']);
+  });
+
+  it('a plate that waited in the queue across a lock sends nothing', async () => {
+    let live = true;
+    let release: (() => void) | undefined;
+    const coaching = scriptedCoaching((n) =>
+      n === 1
+        ? new Promise((resolve) => {
+            release = () => resolve(aiNote(GOOD));
+          })
+        : aiNote(GOOD),
+    );
+    const t = await setup(coaching, { timeoutMs: 5000, live: () => live });
+    const first = t.run();
+    const second = t.run();
+    await vi.waitFor(() => expect(release).toBeDefined());
+    live = false;
+    release?.();
+    expect(await first).toBe('sessionEnded');
+    expect(await second).toBe('sessionEnded');
+    // Only the first note's call went out: neither its review nor the second plate's call.
+    expect(coaching.order).toEqual(['main']);
+  });
+
+  it('the review call carries the session abort signal, and a lock during it writes nothing', async () => {
+    const lock = new AbortController();
+    const gate = new ReviewGate({ nonce: () => TEST_NONCE, signal: lock.signal });
+    const coaching = scriptedCoaching(() => aiNote(GOOD), undefined, {
+      output: () => {
+        lock.abort();
+        return OUTPUT_OK;
+      },
+    });
+    const t = await setup(coaching, { reviews: gate });
+    expect(await t.run()).toBe('sessionEnded');
+    expect(await t.notes()).toEqual([t.template]);
+    // A signal reached the review call itself, so a hung request would be cut on a lock.
+    expect(coaching.reviewCalls[0]?.options?.signal).toBeInstanceOf(AbortSignal);
+    // Aborted before the call: nothing is sent at all.
+    const t2 = await setup(coaching, { reviews: gate });
+    expect(await t2.run()).toBe('sessionEnded');
+    expect(coaching.order).toEqual(['main', 'output']);
+  });
+
+  it('a store read that never answers ends the upgrade and frees its slot for the session', async () => {
+    const held: { real?: CoachNoteStore } = {};
+    const stuck = new Proxy({} as CoachNoteStore, {
+      get: (_t, prop: keyof CoachNoteStore) =>
+        prop === 'watchDismissals'
+          ? () => () => undefined
+          : (held.real?.[prop] as (...a: unknown[]) => unknown).bind(held.real),
+    });
+    const coaching = scriptedCoaching(() => aiNote(GOOD));
+    const t = await setup(coaching, { notes: stuck, timeoutMs: 20, storeGraceMs: 20 });
+    held.real = t.bundle.notes;
+    const running = [t.run(), t.run(), t.run()];
+    expect(await t.run()).toBe('rateLimited');
+    expect(await Promise.all(running)).toEqual(['timedOut', 'timedOut', 'timedOut']);
+    // The queue is empty again: a fourth plate waits its turn instead of being turned away.
+    expect(await t.run()).toBe('timedOut');
+    expect(coaching.order).toEqual([]);
   });
 });

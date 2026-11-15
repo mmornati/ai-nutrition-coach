@@ -98,7 +98,9 @@ exported (the export carries the raw weigh-ins only). Three small answers are ke
 `ui.welcome` (`done` or `skipped`: the first-run welcome was finished or set aside; synced, so a second device does
 not replay it), `ui.guideHintDismissed` (`on`: the quiet "add a few details" line on Today was closed; synced) and
 `ui.paceNoticeDismissedAtUtc` (when the pace line was hidden; synced). The welcome's current step, `ui.welcomeStep`,
-stays on the device. All of them are erased with *Erase all local data*.
+stays on the device. The one **next step** you accepted from the coach is kept in the same table as `coach.step` (its id, the time
+you accepted it and, for a portion step, the food's name; synced, and in the JSON export as `coachStep`), and the opt-in
+switch *Share my weight trend with the coach* as `ai.shareWeightTrend` (`on`; this device only, never synced). All of them are erased with *Erase all local data*.
 
 ## Your saved meals and recipes
 
