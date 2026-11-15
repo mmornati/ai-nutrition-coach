@@ -55,6 +55,8 @@ export default defineConfig({
         SYNC_PORT: String(RELAY_PORT),
         SYNC_DATA_DIR: relayData,
         // Generous: one test makes many calls from one address.
+        // The shipped default is `invite`, which without codes closes signups; the specs create vaults.
+        SYNC_SIGNUP: 'open',
         SYNC_RATE_IP: '10000',
         SYNC_RATE_HANDLE: '10000',
         SYNC_RATE_SIGNUP: '10000',
