@@ -36,8 +36,8 @@ limit_conn_zone $server_name zone=ai_nutrition_coach_ai_all:64k;
 js_shared_dict_zone zone=anc_ai_budget:256k timeout=26h evict type=number;
 # Seconds until the budget resets, set by njs for the 429 answer's Retry-After.
 js_var $anc_ai_retry "";
-limit_req_log_level info;
-limit_conn_log_level info;
+# (limit_req_log_level / limit_conn_log_level are set once, in nginx.conf: the relay include uses
+# them too, and nginx refuses a directive declared twice at the same level.)
 
 # Same-origin only. Browsers send Sec-Fetch-Site on every request they make: anything but
 # same-origin (cross-site, same-site, none) is refused; a client that sends none (curl, wget, an
