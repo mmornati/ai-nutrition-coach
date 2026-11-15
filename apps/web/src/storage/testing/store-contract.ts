@@ -412,6 +412,107 @@ export const storeContractCases: readonly ContractCase[] = [
     },
   },
   {
+    name: 'replacePlate swaps the plate for the edited one: new id, new entries, new time, notes gone',
+    async run({ store, notes }) {
+      const old = await record(store, [draft('Apple'), draft('Pear')], T0);
+      const other = await record(store, [draft('Plum')], T0 + HOUR);
+      const stale = await appended(notes, note(old.id, 'old'));
+      await notes.recordDismissal(coachNoteDismissalKey(stale.id));
+      const result = await store.replacePlate({
+        plateLogId: old.id,
+        entries: [draft('Apple', { low: 2, high: 2 })],
+        loggedAtUtc: T0 + 2 * HOUR,
+      });
+      assert(result.kind === 'recordPlateSuccess', 'replaced');
+      if (result.kind !== 'recordPlateSuccess') return;
+      assert(result.plateLog.id !== old.id, 'the edited plate is a new row');
+      same(result.plateLog.loggedAtUtc, T0 + 2 * HOUR, 'with the new time');
+      const left = await read(store);
+      same(
+        left.map((p) => p.id).sort(),
+        [other.id, result.plateLog.id].sort(),
+        'the old plate is gone, the other one untouched',
+      );
+      const edited = left.find((p) => p.id === result.plateLog.id);
+      same(
+        edited?.entries.map((e) => e.databaseFood.displayName),
+        ['Apple'],
+        'its entries',
+      );
+      same(edited?.entries[0]?.quantity.low, 2, 'and the edited amount');
+      same(await notes.forPlate(old.id), [], 'the old plate keeps no coach note');
+      assert(
+        (await store.replacePlate({ plateLogId: old.id, entries: [], loggedAtUtc: T0 })).kind ===
+          'storeFailure',
+        'an empty plate is refused',
+      );
+    },
+  },
+  {
+    name: 'replacePlate refuses an unknown or already deleted plate with notFound and writes nothing',
+    async run({ store }) {
+      const kept = await record(store, [draft('Apple')], T0);
+      const gone = await record(store, [draft('Pear')], T0 + HOUR);
+      assert((await store.deletePlate(gone.id)).kind === 'plateDeleted', 'deleted');
+      for (const id of [gone.id, 987654]) {
+        const result = await store.replacePlate({
+          plateLogId: id,
+          entries: [draft('Plum')],
+          loggedAtUtc: T0 + 2 * HOUR,
+        });
+        assert(
+          result.kind === 'storeFailure' && result.reason === 'notFound',
+          `notFound for plate ${id}`,
+        );
+      }
+      same(
+        (await read(store)).map((p) => p.id),
+        [kept.id],
+        'nothing was resurrected or added',
+      );
+    },
+  },
+  {
+    name: 'vault: replacePlate leaves a tombstone, so an older copy of the plate cannot come back',
+    needsFresh: true,
+    async run({ store, vault, fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      const old = await record(store, [draft('Apple')], T0);
+      const before = await snapshotOf(vault);
+      assert(before.plates.length === 1, 'one plate before the edit');
+      const done = await store.replacePlate({
+        plateLogId: old.id,
+        entries: [draft('Apple', { low: 3, high: 3 })],
+        loggedAtUtc: T0,
+      });
+      assert(done.kind === 'recordPlateSuccess', 'edited');
+      const after = await snapshotOf(vault);
+      assert(after.plates.length === 1, 'still one plate');
+      assert(after.plates[0]?.uid !== before.plates[0]?.uid, 'under a new uid');
+      assert(
+        after.tombstones.some((t) => t.table === 'plate_log' && t.uid === before.plates[0]?.uid),
+        'the old plate is tombstoned',
+      );
+      assert(
+        after.tombstones.some((t) => t.table === 'food_entry'),
+        'and so are its entries',
+      );
+      // A device that still holds the OLD plate converges on the edited one, whatever the order.
+      const other = await fresh();
+      try {
+        await other.vault.applySnapshot(before);
+        assert((await other.vault.applySnapshot(after)).kind === 'vault', 'applied the edit');
+        const theirs = await read(other.store);
+        same(theirs.length, 1, 'one plate there too');
+        same(theirs[0]?.entries[0]?.quantity.low, 3, 'with the edited amount');
+        assert((await other.vault.applySnapshot(before)).kind === 'vault', 'old state again');
+        same((await read(other.store)).length, 1, 'the old plate does not come back');
+      } finally {
+        await other.dispose();
+      }
+    },
+  },
+  {
     name: 'deletePlate re-emits a snapshot without the plate',
     async run({ store }) {
       const a = await record(store, [draft('Apple')], T0);

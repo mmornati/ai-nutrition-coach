@@ -4,7 +4,7 @@ import { foodName } from '../../catalog';
 import { Button } from '../../components/primitives';
 import { Sheet } from '../../components/sheets';
 import { fill, plural, useLocale, useMessage, useStrings } from '../../i18n';
-import { useSession } from '../../app/session';
+import { useRecordHere } from '../../app/log-context';
 import { MealEditor } from './MealEditor';
 import { useSavedLists } from './use-saved';
 
@@ -46,7 +46,7 @@ function SavedBody({
 }) {
   const t = useStrings().relog;
   const { locale } = useLocale();
-  const { recordPlate } = useSession();
+  const recordPlate = useRecordHere();
   const { status, meals, recipes } = useSavedLists();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useMessage();

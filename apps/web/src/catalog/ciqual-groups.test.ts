@@ -67,6 +67,8 @@ describe('CIQUAL group mapping', () => {
     expect(group('04', '9999')).toBe('protein');
     expect(group('', undefined, 'Dessert (aliment moyen)')).toBe('other');
     expect(group('', undefined, 'Poulet rôti')).toBe('protein');
+    // a coconut-milk sauce does not make the chicken a dairy product (CIQUAL 25174)
+    expect(group('01', '0103', 'Poulet au curry et au lait de coco, préemballé')).toBe('protein');
   });
 
   it('gives every food of the table one of the five groups', () => {

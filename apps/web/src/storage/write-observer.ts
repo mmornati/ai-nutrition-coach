@@ -13,6 +13,7 @@ import type { StoreDb, StoreOpName } from './ops';
 
 const WRITES: ReadonlySet<StoreOpName> = new Set<StoreOpName>([
   'insertPlate',
+  'replacePlate',
   'deletePlate',
   'insertNote',
   'insertDismissal',

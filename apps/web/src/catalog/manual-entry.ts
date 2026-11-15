@@ -169,12 +169,33 @@ export class ManualEntrySession {
     this.set({});
   }
 
-  /** Log the selected match with the chosen preset through `commit` (`RecordPlate`). */
-  async logSelected(commit: CommitPlate): Promise<LogOutcome> {
-    const { selected, chosenPreset, submitting } = this.current;
-    if (submitting) return { kind: 'busy' };
-    if (selected === null || chosenPreset === null) return { kind: 'needsQuantity' };
-    return this.submit(commit, [{ databaseFood: selected.food, quantity: chosenPreset }]);
+  /** The selected food with its chosen preset as a draft, or `null` while none is selected. */
+  draft(): FoodEntryDraft | null {
+    const { selected, chosenPreset } = this.current;
+    if (selected === null || chosenPreset === null) return null;
+    return { databaseFood: selected.food, quantity: chosenPreset };
+  }
+
+  /** Forget the selection and the search (after a food was added to the plate being built). */
+  resetSearch(): void {
+    this.generation++;
+    this.current = { ...INITIAL_MANUAL_ENTRY, customName: '' };
+    this.set({});
+  }
+
+  /**
+   * Log the selected match with the chosen preset through `commit` (`RecordPlate`). `before` are
+   * the foods already put on this plate: they are logged first, in ONE plate with this one. With
+   * nothing selected and `before` not empty, the plate is just `before`.
+   */
+  async logSelected(
+    commit: CommitPlate,
+    before: readonly FoodEntryDraft[] = [],
+  ): Promise<LogOutcome> {
+    if (this.current.submitting) return { kind: 'busy' };
+    const draft = this.draft();
+    if (draft === null && before.length === 0) return { kind: 'needsQuantity' };
+    return this.submit(commit, draft === null ? before : [...before, draft]);
   }
 
   /** Log the custom food form: `source: manual`, group from the name classifier (`other` when unknown), `~1 serving`. */

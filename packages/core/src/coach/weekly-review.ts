@@ -1,6 +1,7 @@
+import type { EpochMs } from '../common';
 import type { PlateLog } from '../entities/plate-log';
 import { startOfLocalDay } from '../value-types/calendar-day';
-import { dayNutrients } from '../value-types/nutrient-totals';
+import { MAX_UNCOVERED_SHARE, dayNutrients, entryNutrients } from '../value-types/nutrient-totals';
 import { NUTRIENT_KEYS, type NutrientKey, type Nutrients } from '../value-types/nutrients';
 import { storedGroupOnly, tallyPlate, type GroupsOf } from './day-coaching';
 
@@ -41,12 +42,26 @@ export interface WeeklyGroupDays {
 export interface WeeklyReview {
   /** Local days with at least one plate. A count of the week, never a run of days. */
   readonly daysLogged: number;
-  /** Local days that have nutrient data (weights and nutrients known for some entry). */
-  readonly daysWithData: number;
-  /** Per-day average of each nutrient, over the days that know it. A key is absent if none do. */
+  /**
+   * Finished local days that pass `isDayCountedForAverages`: the days the averages are drawn from.
+   * Today is never one of them.
+   */
+  readonly countedDays: number;
+  /**
+   * Finished local days with something logged that were left out of the averages because they do
+   * not pass the rule (too little logged to stand for the day). Today is not counted here either.
+   */
+  readonly excludedDays: number;
+  /** Per-day average of each nutrient, over the counted days that know it. A key is absent if none do. */
   readonly averages: Nutrients;
   /** True when any contributing day was estimated. */
   readonly estimated: boolean;
+  /** Per nutrient: foods on the counted days that do not contribute to it (absent: none). */
+  readonly gaps: Readonly<Partial<Record<NutrientKey, number>>>;
+  /** Per nutrient: share of the counted days' weighed foods that do not know it (see `MAX_UNCOVERED_SHARE`). */
+  readonly uncoveredShare: Readonly<Partial<Record<NutrientKey, number>>>;
+  /** Foods on the counted days with no weight: left out of every average. */
+  readonly unweighed: number;
   readonly groupDays: WeeklyGroupDays;
   readonly wentWell: readonly WeeklyHighlight<WeeklyPositive>[];
   readonly tryNext: WeeklyHighlight<WeeklySuggestion> | null;
@@ -54,6 +69,34 @@ export interface WeeklyReview {
 
 /** A week needs at least this many logged days before the review says anything about it. */
 export const MIN_DAYS_FOR_HIGHLIGHTS = 3;
+
+/** A day needs at least this many plates with usable nutrient data to count toward averages. */
+export const MIN_PLATES_FOR_AVERAGES = 2;
+
+/** A plate is "usable" when at least one entry has grams and per-100 g nutrients known. */
+const plateHasUsableData = (plate: PlateLog): boolean =>
+  plate.entries.some((entry) => entryNutrients(entry) !== undefined);
+
+/**
+ * Whether a local day is complete enough to stand in the weekly averages. The rule:
+ *   the day is strictly before the local day of `today`, AND
+ *   it has at least `MIN_PLATES_FOR_AVERAGES` (2) plates that each have at least one entry with
+ *   usable nutrient data (grams and per-100 g nutrients both known).
+ * Why: today is still being logged, so counting it as a whole day drags every average down; and a
+ * day with one logged snack or a single plate is not a day's eating, so averaging it would read
+ * as "low protein" or "low fibre" when the log is simply thin. Two plates is a deliberately
+ * modest bar (a person logging only lunch and dinner passes) that still filters the one-off entry.
+ * `plates` are the plates of that one day; `day` is any instant of it. Pure: `today` is injected,
+ * and day boundaries use calendar-day arithmetic, so DST days are safe.
+ */
+export function isDayCountedForAverages(input: {
+  readonly day: EpochMs;
+  readonly today: EpochMs;
+  readonly plates: readonly PlateLog[];
+}): boolean {
+  if (startOfLocalDay(input.day) >= startOfLocalDay(input.today)) return false;
+  return input.plates.filter(plateHasUsableData).length >= MIN_PLATES_FOR_AVERAGES;
+}
 
 const share = (value: number | undefined, target: number): number | undefined =>
   value === undefined ? undefined : value / target;
@@ -64,15 +107,21 @@ const whole = (n: number): number => Math.round(n);
  * `MIN_DAYS_FOR_HIGHLIGHTS` logged days (silence otherwise), at most two go in `wentWell` and at
  * most one in `tryNext`, all from bounded key sets.
  *
+ * Nutrient averages (and every rule built on them) use only the days that pass
+ * `isDayCountedForAverages`: today is never in them, nor a day with fewer than two plates with
+ * usable data. Each nutrient rule also needs `MIN_DAYS_FOR_HIGHLIGHTS` counted days that know that
+ * nutrient, so a thin log cannot produce "more protein" or "more fibre". The veg rules use the
+ * counted days too; the variety rule counts every logged day.
+ *
  * Positives (first two that hold, in this order):
- *   vegMostDays     veg/fruit on >= 60% of logged days
+ *   vegMostDays     veg/fruit on >= 60% of the counted days (needs >= 3 of them)
  *   proteinSteady   average protein >= 70% of the guide        (needs >= 3 days with data)
  *   fibreSteady     average fibre >= 70% of the guide          (needs >= 3 days with data)
  *   saltModerate    average salt <= 80% of the guide           (needs >= 3 days with data)
  *   sugarsModerate  average sugars <= 60% of the guide         (needs >= 3 days with data)
  *   variedWeek      every food group on >= 2 days
  * Suggestion (first that holds):
- *   moreVeg      veg/fruit on < 50% of logged days
+ *   moreVeg      veg/fruit on < 50% of the counted days (needs >= 3 of them)
  *   moreProtein  average protein < 60% of the guide
  *   moreFibre    average fibre < 60% of the guide
  *   easeSalt     average salt >= 100% of the guide
@@ -82,6 +131,8 @@ const whole = (n: number): number => Math.round(n);
 export function weeklyReview(input: {
   /** The plates of the last seven local days (older ones are ignored by the caller). */
   readonly plates: readonly PlateLog[];
+  /** The injected "now": the local day it falls on is in progress and left out of the averages. */
+  readonly today: EpochMs;
   readonly targets: Required<Nutrients>;
   readonly groupsOf?: GroupsOf | undefined;
 }): WeeklyReview {
@@ -96,10 +147,14 @@ export function weeklyReview(input: {
   }
 
   const sums: Partial<Record<NutrientKey, { total: number; days: number }>> = {};
-  let daysWithData = 0;
+  let countedDays = 0;
+  let excludedDays = 0;
   let estimated = false;
+  const countedPlates: PlateLog[] = [];
+  let vegCounted = 0;
   const groupDays = { veg: 0, protein: 0, starch: 0, dairy: 0 };
-  for (const plates of byDay.values()) {
+  const todayStart = startOfLocalDay(input.today);
+  for (const [dayStart, plates] of byDay) {
     let veg = false;
     let protein = false;
     let starch = false;
@@ -116,9 +171,14 @@ export function weeklyReview(input: {
     if (starch) groupDays.starch++;
     if (dairy) groupDays.dairy++;
 
+    if (!isDayCountedForAverages({ day: dayStart, today: input.today, plates })) {
+      if (dayStart < todayStart) excludedDays++;
+      continue;
+    }
     const day = dayNutrients(plates);
-    if (day.entriesCounted === 0) continue;
-    daysWithData++;
+    countedDays++;
+    if (veg) vegCounted++;
+    countedPlates.push(...plates);
     estimated ||= day.estimated;
     for (const key of NUTRIENT_KEYS) {
       const value = day.totals[key];
@@ -135,6 +195,7 @@ export function weeklyReview(input: {
     const acc = sums[key];
     if (acc !== undefined) averages[key] = acc.total / acc.days;
   }
+  const counted = dayNutrients(countedPlates);
   const dayCount = (key: NutrientKey): number => sums[key]?.days ?? 0;
 
   const daysLogged = byDay.size;
@@ -143,17 +204,27 @@ export function weeklyReview(input: {
 
   if (daysLogged >= MIN_DAYS_FOR_HIGHLIGHTS) {
     const { targets } = input;
-    const trusted = (key: NutrientKey): number | undefined =>
+    // An average that leaves out more than `MAX_UNCOVERED_SHARE` of the weighed food can be too
+    // low: it is never used to praise "moderate" salt or sugars, nor to say "more protein /
+    // fibre"; it can still say "ease" when it is already at or above the guide, since the full
+    // figure would only be higher. A small hole (a herb without fibre data) does not silence it.
+    const known = (key: NutrientKey): number | undefined =>
       dayCount(key) >= MIN_DAYS_FOR_HIGHLIGHTS ? share(averages[key], targets[key]) : undefined;
+    const trusted = (key: NutrientKey): number | undefined =>
+      (counted.uncoveredShare[key] ?? 0) <= MAX_UNCOVERED_SHARE ? known(key) : undefined;
     const protein = trusted('protein');
     const fibre = trusted('fibre');
     const salt = trusted('salt');
     const sugars = trusted('sugars');
-    const vegShare = groupDays.veg / daysLogged;
+    const saltAtLeast = known('salt');
+    const sugarsAtLeast = known('sugars');
+    // The same counted days as the averages: today and thin days are in no share. With fewer
+    // than `MIN_DAYS_FOR_HIGHLIGHTS` of them the veg rules stay silent.
+    const vegShare = countedDays >= MIN_DAYS_FOR_HIGHLIGHTS ? vegCounted / countedDays : undefined;
 
     const positives: (WeeklyHighlight<WeeklyPositive> | null)[] = [
-      vegShare >= 0.6
-        ? { key: 'vegMostDays', params: { days: groupDays.veg, of: daysLogged } }
+      vegShare !== undefined && vegShare >= 0.6
+        ? { key: 'vegMostDays', params: { days: vegCounted, of: countedDays } }
         : null,
       protein !== undefined && protein >= 0.7
         ? { key: 'proteinSteady', params: { g: whole(averages.protein ?? 0) } }
@@ -175,27 +246,31 @@ export function weeklyReview(input: {
       if (p !== null && wentWell.length < 2) wentWell.push(p);
     }
 
-    if (vegShare < 0.5) {
-      tryNext = { key: 'moreVeg', params: { days: groupDays.veg, of: daysLogged } };
+    if (vegShare !== undefined && vegShare < 0.5) {
+      tryNext = { key: 'moreVeg', params: { days: vegCounted, of: countedDays } };
     } else if (protein !== undefined && protein < 0.6) {
       tryNext = { key: 'moreProtein', params: { g: whole(averages.protein ?? 0) } };
     } else if (fibre !== undefined && fibre < 0.6) {
       tryNext = { key: 'moreFibre', params: { g: whole(averages.fibre ?? 0) } };
-    } else if (salt !== undefined && salt >= 1) {
+    } else if (saltAtLeast !== undefined && saltAtLeast >= 1) {
       tryNext = {
         key: 'easeSalt',
         params: { g: Math.round((averages.salt ?? 0) * 10) / 10 },
       };
-    } else if (sugars !== undefined && sugars >= 1) {
+    } else if (sugarsAtLeast !== undefined && sugarsAtLeast >= 1) {
       tryNext = { key: 'easeSugars', params: { g: whole(averages.sugars ?? 0) } };
     }
   }
 
   return {
     daysLogged,
-    daysWithData,
+    countedDays,
+    excludedDays,
     averages: Object.freeze(averages),
     estimated,
+    gaps: Object.freeze({ ...counted.gaps }),
+    uncoveredShare: counted.uncoveredShare,
+    unweighed: counted.unweighed,
     groupDays,
     wentWell,
     tryNext,

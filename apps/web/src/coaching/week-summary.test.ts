@@ -31,7 +31,11 @@ const plates: PlateLog[] = [1, 2, 3].map((id) =>
     ],
   }),
 );
-const review = weeklyReview({ plates, targets: EU_REFERENCE_INTAKES });
+const review = weeklyReview({
+  plates,
+  today: new Date(2026, 9, 14, 20).getTime(),
+  targets: EU_REFERENCE_INTAKES,
+});
 
 const deps = (
   coaching: ReturnType<typeof scriptedCoaching>,

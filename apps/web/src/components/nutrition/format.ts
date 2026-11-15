@@ -46,19 +46,30 @@ export function formatWhole(value: number, locale: Locale = currentLocale()): st
   return whole(locale).format(value);
 }
 
-/** A nutrient value with its unit: "210 kcal", "9 g"; "~" in front when estimated. */
+/**
+ * A nutrient value with its unit: "210 kcal", "9 g"; "~" in front when estimated, and "at least"
+ * in front when the total leaves some foods out (`partial`): "at least ~210 kcal".
+ */
 export function formatNutrient(
   key: NutrientKey,
   value: number,
   estimated: boolean,
   locale: Locale = currentLocale(),
+  partial = false,
 ): string {
   const t = catalogueFor(locale).nutrition;
   const text =
     key === 'energyKcal'
       ? fill(t.valueKcal, { value: whole(locale).format(value) })
       : fill(t.valueGrams, { value: formatAmount(value, locale) });
-  return estimated ? fill(t.estimatedValue, { value: text }) : text;
+  const approx = estimated ? fill(t.estimatedValue, { value: text }) : text;
+  return partial ? fill(t.atLeast, { value: approx }) : approx;
+}
+
+/** Energy of a food at a weight, in kcal; `undefined` when the weight or the energy is unknown. */
+export function energyOf(food: DatabaseFood, grams: number | undefined): number | undefined {
+  const per100 = food.nutrientsPer100g?.energyKcal;
+  return per100 === undefined || grams === undefined ? undefined : (per100 * grams) / 100;
 }
 
 /** The reference intake with its unit: "2000 kcal", "50 g". */

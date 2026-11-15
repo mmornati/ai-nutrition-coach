@@ -5,6 +5,7 @@ import type { OffLookupChoice } from '../../catalog';
 import { OffLookupNotice } from '../../components/dialogs';
 import { BarcodeMatchSheet, Sheet } from '../../components/sheets';
 import { useStrings } from '../../i18n';
+import { useRecordHere } from '../../app/log-context';
 import { useSession } from '../../app/session';
 import { hrefs } from '../../app/router';
 
@@ -22,13 +23,17 @@ export function BarcodeScan({
   scannerOptions,
   onTypeInstead,
   onLogged,
+  onAddAnother,
 }: {
   /** Injectable for tests (a fake decoder and camera). */
   readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
   readonly onTypeInstead: (code?: string) => void;
   readonly onLogged: () => void;
+  /** The scanned food goes on a plate that Type it keeps building. Absent: the button is not shown. */
+  readonly onAddAnother?: ((draft: FoodEntryDraft) => void) | undefined;
 }) {
-  const { catalog, privacy, recordPlate } = useSession();
+  const { catalog, privacy } = useSession();
+  const recordPlate = useRecordHere();
   const [noticeOpen, setNoticeOpen] = useState(false);
   const pending = useRef<((answer: Answer) => void) | null>(null);
 
@@ -98,6 +103,7 @@ export function BarcodeScan({
           match={match.match}
           onClose={dismissResult}
           onLog={log}
+          onAddAnother={onAddAnother}
           errorMessage={failed ? s.logFailed : undefined}
         />
       )}
@@ -112,12 +118,14 @@ export function BarcodeSheet({
   onClose,
   onTypeInstead,
   onLogged,
+  onAddAnother,
 }: {
   readonly open: boolean;
   readonly scannerOptions?: Partial<UseBarcodeScannerOptions>;
   readonly onClose: () => void;
   readonly onTypeInstead: (code?: string) => void;
   readonly onLogged: () => void;
+  readonly onAddAnother?: ((draft: FoodEntryDraft) => void) | undefined;
 }) {
   const s = useStrings().barcode;
   return (
@@ -126,6 +134,7 @@ export function BarcodeSheet({
         {...(scannerOptions ? { scannerOptions } : {})}
         onTypeInstead={onTypeInstead}
         onLogged={onLogged}
+        onAddAnother={onAddAnother}
       />
     </Sheet>
   );

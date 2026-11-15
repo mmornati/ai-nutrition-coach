@@ -42,6 +42,15 @@ async function seedWeek(options: { readonly numbersOff?: boolean } = {}) {
         per100g: { energyKcal: 90, protein: 8, fibre: 6, salt: 0.1 },
       },
     ]);
+    // A second plate with data, so the day is complete enough to count toward the averages.
+    await seedMeasuredPlate(bundle, at(19, 0, offset), [
+      {
+        name: 'Water',
+        group: 'other',
+        grams: 100,
+        per100g: { energyKcal: 0, protein: 0, fibre: 0, salt: 0 },
+      },
+    ]);
   }
   return bundle;
 }
@@ -70,7 +79,47 @@ describe('WeekReview', () => {
     ).toBeVisible();
     expect(within(section).getByText('One thing to try')).toBeVisible();
     expect(within(section).getByText(/^Protein averaged 10 g a day\./)).toBeVisible();
+    expect(
+      within(section).getByText(
+        'Average over the 3 finished days with enough logged. Today joins once it is over.',
+      ),
+    ).toBeVisible();
     expect(section.textContent).not.toMatch(/in a row|streak|score|goal|remaining/i);
+  });
+
+  it('leaves today out of the averages and says how many thin days were left out', async () => {
+    const bundle = await seedWeek();
+    // Today: three plates of heavy salty food, which would change every average if it counted.
+    for (const hour of [8, 12, 19]) {
+      await seedMeasuredPlate(bundle, at(hour, 0, 0), [
+        {
+          name: 'Ham',
+          group: 'protein',
+          grams: 500,
+          per100g: { energyKcal: 150, protein: 1, fibre: 0, salt: 3 },
+        },
+      ]);
+    }
+    // A finished day with a single plate: too little to count.
+    await seedMeasuredPlate(bundle, at(12, 0, -4), [
+      {
+        name: 'Toast',
+        group: 'starch',
+        grams: 50,
+        per100g: { energyKcal: 250, protein: 8, fibre: 3, salt: 1 },
+      },
+    ]);
+    await renderWeek(bundle);
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'The week, in short' })
+      .closest('section') as HTMLElement;
+    expect(within(section).getByText(/Average over the 3 finished days/)).toHaveTextContent(
+      '1 other finished day had too little logged to count.',
+    );
+    expect(within(section).getByText('5 days with meals logged')).toBeVisible();
+    expect(
+      within(section).getByText('Salt averaged 0.5 g a day, on the lighter side.'),
+    ).toBeVisible();
   });
 
   it('hides the bars and every line quoting grams while numbers are off, keeping the day count', async () => {

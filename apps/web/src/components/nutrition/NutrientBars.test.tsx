@@ -22,6 +22,10 @@ const totals = (
   totals: t,
   entriesCounted: 2,
   entriesTotal: 2,
+  gaps: {},
+  uncoveredShare: {},
+  unweighed: 0,
+  uncounted: [],
   estimated: false,
   ...extra,
 });
@@ -297,5 +301,79 @@ describe('SupportLine', () => {
       'https://www.ffab.fr/trouver-de-l-aide/permanence-telephonique',
     );
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+});
+
+describe('partial totals', () => {
+  const unweighed = {
+    id: 9,
+    plateLogId: 4,
+    databaseFood: {
+      sourceRef: 'manual:x',
+      displayName: 'Soup',
+      source: 'manual',
+      foodGroup: 'other',
+    },
+    quantity: { low: 1, high: 1, unit: 'serving', displayLabel: '~1 serving' },
+  } as const;
+
+  it('marks a bar "at least" when a food lacks that nutrient, and says why once', () => {
+    render(
+      <NutrientBars
+        nutrition={totals(
+          { energyKcal: 600, fibre: 4 },
+          { gaps: { fibre: 1 }, uncoveredShare: { fibre: 0.4 } },
+        )}
+      />,
+    );
+    const rows = within(screen.getByRole('list', { name: /Nutrient amounts/ })).getAllByRole(
+      'listitem',
+    );
+    expect(rows[0]).toHaveTextContent('600 kcal');
+    expect(rows[0]).not.toHaveTextContent('at least');
+    expect(rows[1]).toHaveTextContent('at least 4 g');
+    expect(screen.getByText(/Marked “at least”/)).toBeInTheDocument();
+  });
+
+  it('does not mark a bar "at least" for a small uncovered share (one herb without fibre data)', () => {
+    render(
+      <NutrientBars
+        nutrition={totals(
+          { energyKcal: 600, fibre: 4 },
+          { gaps: { fibre: 1 }, uncoveredShare: { fibre: 0.02 } },
+        )}
+      />,
+    );
+    const rows = within(screen.getByRole('list', { name: /Nutrient amounts/ })).getAllByRole(
+      'listitem',
+    );
+    expect(rows[1]).toHaveTextContent('4 g');
+    expect(rows[1]).not.toHaveTextContent('at least');
+    expect(screen.queryByText(/Marked “at least”/)).not.toBeInTheDocument();
+  });
+
+  it('lists the uncounted foods with a link to complete each, and has no axe violation', async () => {
+    const { container } = render(
+      <NutrientBars
+        nutrition={totals(
+          { energyKcal: 600 },
+          {
+            entriesCounted: 1,
+            entriesTotal: 2,
+            gaps: { energyKcal: 1 },
+            unweighed: 1,
+            uncounted: [unweighed],
+          },
+        )}
+        fixHref={(e) => `#/plate/${e.plateLogId}/edit`}
+      />,
+    );
+    const list = screen.getByRole('list', { name: 'Foods without data' });
+    expect(within(list).getByText('Soup')).toBeInTheDocument();
+    expect(within(list).getByText('No weight')).toBeInTheDocument();
+    expect(
+      within(list).getByRole('link', { name: 'Add weight or nutrition for Soup' }),
+    ).toHaveAttribute('href', '#/plate/4/edit');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

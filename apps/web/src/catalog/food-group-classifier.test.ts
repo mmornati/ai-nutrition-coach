@@ -558,3 +558,30 @@ describe('foodGroupsOfFood: recipes carry their own groups', () => {
     expect(foodGroupsOfFood(plain)).toEqual(['starch']);
   });
 });
+
+describe('"X au Y": the main food is X (coconut milk is not dairy in a dish)', () => {
+  it.each([
+    'Poulet au curry et au lait de coco, préemballé',
+    'Poulet au lait',
+    'Dinde aux amandes',
+    'Saumon au lait de coco',
+    'Chicken with coconut milk',
+    'Chicken with cream',
+  ])('%s is protein', (name) => {
+    expect(classifyFoodByName(name)).toBe('protein');
+  });
+
+  it('the coconut-milk sauce does not add dairy to the coach groups', () => {
+    expect(classifyFoodGroupsByName('Poulet au curry et au lait de coco')).toEqual(['protein']);
+  });
+
+  it('plant milks, nut butters and dairy heads are unchanged', () => {
+    expect(classifyFoodByName('Lait de coco')).toBe('dairy');
+    expect(classifyFoodByName("Lait d'amande")).toBe('dairy');
+    expect(classifyFoodByName('Noix de coco, pulpe')).not.toBe('dairy');
+    expect(classifyFoodByName('Beurre de cacahuète')).toBe('protein');
+    expect(classifyFoodByName('Fromage blanc nature')).toBe('dairy');
+    expect(classifyFoodByName('Riz au lait')).toBe('dairy');
+    expect(classifyFoodByName('Yaourt au soja')).toBe('dairy');
+  });
+});

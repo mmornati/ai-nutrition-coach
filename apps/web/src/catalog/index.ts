@@ -59,3 +59,14 @@ export {
 } from './manual-entry';
 export { useManualEntry } from './useManualEntry';
 export { RecipeFoodCatalog, recipePresets } from './recipe-catalog';
+export {
+  CUSTOM_NUTRIENT_FIELDS,
+  EMPTY_CUSTOM_FOOD,
+  parseAmount,
+  parseCustomFood,
+  type CustomBasis,
+  type CustomFoodInput,
+  type CustomFoodIssue,
+  type CustomFoodResult,
+  type CustomNutrientField,
+} from './custom-food';

@@ -1,10 +1,13 @@
 import {
+  isPartial,
   NUTRIENT_KEYS,
   EU_REFERENCE_INTAKES,
   type DailyTargets,
+  type FoodEntry,
   type NutrientKey,
   type NutrientTotals,
 } from '@anc/core';
+import { foodName } from '../../catalog';
 import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { formatNutrient, formatReference, formatWhole } from './format';
@@ -42,8 +45,14 @@ export const hasNutrition = (nutrition: NutrientTotals): boolean =>
 export function NutrientBars({
   nutrition,
   targets = EU_REFERENCE_INTAKES,
+  fixHref,
 }: {
   readonly nutrition: NutrientTotals;
+  /**
+   * Where to complete a food that has no weight or no nutrition (the plate's edit view). Without
+   * it the foods are listed but not linked (the week average, which has no single plate).
+   */
+  readonly fixHref?: ((entry: FoodEntry) => string) | undefined;
   /** The daily guide the bars are drawn against; the EU reference intakes by default. */
   readonly targets?: DailyTargets;
 }) {
@@ -54,6 +63,7 @@ export function NutrientBars({
   const present = NUTRIENT_ORDER.filter((key) => nutrition.totals[key] !== undefined);
   if (present.length === 0) return null;
   const missing = nutrition.entriesTotal - nutrition.entriesCounted;
+  const anyPartial = present.some((key) => isPartial(nutrition, key));
   return (
     <div className="flex flex-col gap-3">
       <ul aria-label={t.barsLabel} className="flex flex-col">
@@ -69,7 +79,13 @@ export function NutrientBars({
               <div className="flex items-baseline justify-between gap-3">
                 <span className={cn('text-lead', sub && 'text-ink-soft pl-4')}>{t.names[key]}</span>
                 <span className="font-display quantity text-quantity font-semibold whitespace-nowrap">
-                  {formatNutrient(key, value, nutrition.estimated, locale)}
+                  {formatNutrient(
+                    key,
+                    value,
+                    nutrition.estimated,
+                    locale,
+                    isPartial(nutrition, key),
+                  )}
                 </span>
               </div>
               {/* A thread pulled across a seam: one neutral colour for every nutrient and amount. */}
@@ -99,11 +115,8 @@ export function NutrientBars({
           );
         })}
       </ul>
-      {missing > 0 && (
-        <p className="text-body-small text-ink-soft">
-          {fill(plural(t.coverage, nutrition.entriesCounted, locale), { missing })}
-        </p>
-      )}
+      {anyPartial && <p className="text-body-small text-ink-soft">{t.partialNote}</p>}
+      {missing > 0 && <UncountedFoods nutrition={nutrition} missing={missing} fixHref={fixHref} />}
       <details className="group text-body-small text-ink-soft">
         <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 py-3 underline underline-offset-4 [&::-webkit-details-marker]:hidden">
           {/* A drawn chevron in place of the browser's triangle; it turns down when open. */}
@@ -117,5 +130,65 @@ export function NutrientBars({
         <SupportLine className="pb-2" />
       </details>
     </div>
+  );
+}
+
+/**
+ * "Based on 2 foods with a weight and nutrition data; 1 without": a disclosure listing the foods
+ * left out, why, and (when there is a plate to open) a link to complete each one.
+ */
+function UncountedFoods({
+  nutrition,
+  missing,
+  fixHref,
+}: {
+  readonly nutrition: NutrientTotals;
+  readonly missing: number;
+  readonly fixHref: ((entry: FoodEntry) => string) | undefined;
+}) {
+  const t = useStrings().nutrition;
+  const { locale } = useLocale();
+  const summary = fill(plural(t.coverage, nutrition.entriesCounted, locale), { missing });
+  if (nutrition.uncounted.length === 0) {
+    return <p className="text-body-small text-ink-soft">{summary}</p>;
+  }
+  return (
+    <details className="group text-body-small text-ink-soft">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 py-3 underline underline-offset-4 [&::-webkit-details-marker]:hidden">
+        <span
+          aria-hidden="true"
+          className="border-ink-soft size-2 shrink-0 -rotate-45 border-r-2 border-b-2 transition-transform group-open:rotate-45"
+        />
+        <span>{summary}</span>
+      </summary>
+      <ul aria-label={t.uncountedLabel} className="border-ink border-t-2">
+        {nutrition.uncounted.map((entry) => {
+          const name = foodName(entry.databaseFood, locale);
+          const href = fixHref?.(entry);
+          return (
+            <li
+              key={entry.id}
+              className="border-seam flex min-h-12 items-center justify-between gap-3 border-b py-2"
+            >
+              <span className="min-w-0">
+                <span className="text-ink block text-lead">{name}</span>
+                <span className="block">
+                  {entry.quantity.grams === undefined ? t.uncountedNoWeight : t.uncountedNoData}
+                </span>
+              </span>
+              {href !== undefined && (
+                <a
+                  href={href}
+                  aria-label={fill(t.uncountedFixOf, { name })}
+                  className="text-ink inline-flex min-h-12 items-center text-lead underline underline-offset-4"
+                >
+                  {t.uncountedFix}
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }

@@ -57,7 +57,8 @@ const plates = async (bundle: Awaited<ReturnType<typeof unlockedBundle>>) => {
 describe('Copy this day to today', () => {
   it('is offered for a past day that has plates, not for today and not for an empty day', async () => {
     const { unmount } = await setup(0);
-    expect(await screen.findByText('Coffee')).toBeVisible();
+    // Foods without nutrition data are also listed under the totals, so the name can appear twice.
+    expect((await screen.findAllByText('Coffee'))[0]).toBeVisible();
     expect(
       screen.queryByRole('button', { name: 'Copy this day to today' }),
     ).not.toBeInTheDocument();
@@ -124,7 +125,7 @@ describe('Copy this day to today', () => {
     );
     expect(counts).toEqual([0, 0, 1]);
     // The plate that was already there stays as it is.
-    await waitFor(() => expect(screen.getByText('Coffee')).toBeVisible());
+    await waitFor(() => expect(screen.getAllByText('Coffee')[0]).toBeVisible());
   });
 });
 
@@ -159,7 +160,7 @@ describe('Copy this day: never a plate in the future', () => {
   it('offers no copy at all when every plate of the day is still ahead of the clock', async () => {
     vi.setSystemTime(new Date(2026, 9, 14, 6, 0));
     await setup();
-    await screen.findByText('Oatmeal');
+    await screen.findAllByText('Oatmeal');
     expect(
       screen.queryByRole('button', { name: 'Copy this day to today' }),
     ).not.toBeInTheDocument();

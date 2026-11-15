@@ -27,8 +27,14 @@ quantity to adjust.
 </figure>
 </div>
 
-The sheet says which meal comes next (*Next meal: Lunch*). Meals are breakfast, lunch, dinner and late; a plate
-lands in the meal you choose.
+The sheet says **where the plate will land**: *Logging for today*, or *Logging for yesterday* (or another day) when
+you have selected that day in the week strip on Today. Under it, **Meal** lets you choose breakfast, lunch, dinner or
+late. It starts on the meal that is on now, or, on another day, on the first meal that has nothing in it yet. A plate
+logged for the meal that is on now is stamped with the time now; for another meal or day it gets that meal's usual
+hour (breakfast 8:00, lunch 12:00, dinner 19:00, late 23:00). So a lunch logged at 16:10 stays a lunch, and
+yesterday's dinner goes on yesterday. A plate is never put in the future, so on today only the meals that have started
+are offered. The week strip shows the last seven days, so that is how far back you can log. There is no separate snack
+meal: a snack goes in the nearest meal, or in late.
 
 ## Type it
 
@@ -36,10 +42,30 @@ Start typing a food name and the matches are ranked as you go, from the food lis
 of everyday foods and the CIQUAL table, about 3,500 generic foods with their nutrition per 100 g (ANSES, Etalab
 Open Licence 2.0). It all runs on the device, so it works without a connection.
 
-Pick a match, then a portion: a preset (small portion, one portion, large portion, 100 g, one serving, a whole
-pack, depending on the food) or a weight in grams, from 0.1 to 5,000 g. A one-line preview under the grams field
-shows the approximate energy, protein and sugars of that amount. A food that is not in the list can be logged as a
-custom food under its own name.
+The search field has the cursor when the sheet opens. A small slip is forgiven: a word of five letters or more that
+matches almost nothing is also tried with one letter added, missing, wrong or swapped ("brocolli" finds broccoli,
+"yogourt" finds yogurt). With numbers on, each result shows its energy per 100 g. Plain names list cooked and
+ready-to-eat foods before the raw ones ("chicken" starts with roast or grilled chicken); raw ones are still in the
+list.
+
+Pick a match and the list folds down to that food, with *Show other results* to go back, so the portion and the
+weight are right there. Choose a preset (small portion, one portion, large portion, 100 g, one serving, a whole
+pack, depending on the food) or type a weight in grams, from 0.1 to 5,000 g. A one-line preview under the grams
+field shows the approximate energy, protein and sugars of that amount.
+
+**One plate, several foods.** *Log* saves that one food as a plate. *Add another food* puts it on the plate and
+empties the search for the next one. **On this plate** lists each food with its amount and, with numbers on, its
+energy, then the plate total ("at least ..." while a food has no energy). *Remove* takes a food off before you log;
+*Log plate* saves them all as one plate, with one coach note. After a barcode scan, *Add another food* does the same:
+the scanned food goes on the plate and Type it opens to add more.
+
+**A custom food.** A name that matches nothing can be logged under its own name. Open *Weight and nutrition
+(optional)* to give its weight and any of calories, protein, carbohydrate (of which sugars), fat (of which
+saturates), fibre and salt, **per 100 g** (with the weight you ate) or **per serving** (with the weight of one
+serving). Then it counts in the totals. Values are checked: no more than 900 kcal or 100 g of anything per 100 g,
+sugars no more than carbohydrate, saturates no more than fat. With only a name it logs about one serving and is left
+out of the totals (see *Nutrients* in [Day and week](day-and-week.md)); you can complete it later by editing the
+plate.
 
 ## Barcode
 
@@ -66,7 +92,10 @@ sheet says so calmly and *Type it* is one tap away.
 Write what you ate in your own words: "two eggs, toast with butter, a coffee with milk" (up to 500 characters).
 Your keyboard's own microphone can dictate it too.
 
-- **Without an AI**, your words are matched with the food list on the device, and nothing is sent anywhere.
+- **Without an AI**, your words are matched with the food list on the device, and nothing is sent anywhere. A count
+  at the start of a food multiplies its usual portion: "3 eggs", "3 œufs", "2 slices of bread", "a banana",
+  "½ avocado", "1,5 portions". Digits, decimals, fractions and the small number words in English and French count;
+  a weight you write ("150 g of rice") always wins over a count.
 - **With an AI** and your yes to *Describe*, the words go to the AI you chose to be understood, and come back as the
   same reviewable list a photo gives: every food ticked, amounts to check, and any words that did not match listed
   so you can add them by hand.

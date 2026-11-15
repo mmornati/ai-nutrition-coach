@@ -2,7 +2,7 @@
 // piece up in the on-device catalogue. Offline, nothing sent.
 import { type DatabaseFood, type FoodCatalog, type FoodMatch, type QuantityRange } from '@anc/core';
 import { describe, expect, it } from 'vitest';
-import { describeLocally, searchTermOf, splitDescription } from './describe-local';
+import { describeLocally, leadingCount, searchTermOf, splitDescription } from './describe-local';
 
 const foodMatch = (m: FoodMatch): FoodMatch => m;
 
@@ -80,6 +80,15 @@ describe('searchTermOf', () => {
     expect(searchTermOf('200ml milk')).toBe('milk');
   });
 
+  it('drops "2x", a dozen and a range too', () => {
+    expect(searchTermOf('2x eggs')).toBe('eggs');
+    expect(searchTermOf('2 x eggs')).toBe('eggs');
+    expect(searchTermOf('a dozen eggs')).toBe('eggs');
+    expect(searchTermOf('une douzaine d’œufs')).toBe('œufs');
+    expect(searchTermOf('3-4 eggs')).toBe('eggs');
+    expect(searchTermOf('3 to 4 eggs')).toBe('eggs');
+  });
+
   it('keeps the piece when nothing is left', () => {
     expect(searchTermOf('two')).toBe('two');
     expect(searchTermOf('apple')).toBe('apple');
@@ -152,7 +161,7 @@ describe('describeLocally', () => {
       'Toast',
       'Coffee',
     ]);
-    expect(out.result.foods[0]?.quantity.displayLabel).toBe('1 egg');
+    expect(out.result.foods[0]?.quantity.displayLabel).toBe('2 × 1 egg');
     expect(out.unmatched).toEqual([]);
     expect(out.closestMatches.map((m) => m.food.displayName)).toEqual([
       'Egg',
@@ -207,5 +216,179 @@ describe('describeLocally', () => {
     if (out.result.kind !== 'recognizedPlate') throw new Error('not a plate');
     expect(out.result.foods).toEqual([]);
     expect(out.unmatched).toEqual(['eggs', 'toast']);
+  });
+});
+
+describe('leadingCount', () => {
+  it.each([
+    ['3 eggs', 3],
+    ['3 œufs', 3],
+    ['2 tranches de pain', 2],
+    ['2 slices of bread', 2],
+    ['2tbsp sugar', 2],
+    ['a banana', 1],
+    ['une pomme', 1],
+    ['deux yaourts', 2],
+    ['twelve grapes', 12],
+    ['douze huîtres', 12],
+    ['1,5 portions rice', 1.5],
+    ['1.5 servings rice', 1.5],
+    ['½ avocado', 0.5],
+    ['1/2 avocado', 0.5],
+    ['half an avocado', 0.5],
+    ['demi avocat', 0.5],
+    ['2x eggs', 2],
+    ['2 x eggs', 2],
+    ['2 × œufs', 2],
+    ['a dozen eggs', 12],
+    ['une douzaine d’œufs', 12],
+    ['dozen eggs', 12],
+    ['3-4 eggs', 3],
+    ['3 – 4 œufs', 3],
+    ['3 to 4 eggs', 3],
+    ['2-3 slices of bread', 2],
+  ])('%s is %d', (piece, n) => {
+    expect(leadingCount(piece)).toBe(n);
+  });
+
+  it('does not scale when the number belongs to the name of the food', () => {
+    for (const piece of [
+      '4 seasons pizza',
+      '4 saisons',
+      '5 cereal bread',
+      '7 grain bread',
+      '4 épices',
+      '4 fromages',
+      '3 cheeses',
+      '5 céréales',
+      'quatre-quarts',
+      'quatre épices',
+      'pizza 4 fromages',
+      'pain 5 céréales',
+      '200-300 g rice',
+      '4-3 eggs',
+    ]) {
+      expect(leadingCount(piece)).toBe(1);
+    }
+  });
+
+  it('is conservative: no count, not a count, metric units and out-of-range stay 1', () => {
+    for (const piece of [
+      'eggs',
+      '7up',
+      '3d printed',
+      'ag',
+      'some rice',
+      'quelques noix',
+      '200 ml milk',
+      '0 eggs',
+      '500 eggs',
+      '1/0 pie',
+    ]) {
+      expect(leadingCount(piece)).toBe(1);
+    }
+  });
+});
+
+describe('describeLocally counts', () => {
+  const eggMatch = foodMatch({
+    food: food('egg', 'Egg', 'protein'),
+    confidence: 0.9,
+    presets: [portion('1 egg', 50)],
+  });
+  const catalog = catalogOf({
+    eggs: [eggMatch],
+    'eggs 120 g': [eggMatch],
+    œufs: [eggMatch],
+    pain: [
+      foodMatch({
+        food: food('bread', 'Bread'),
+        confidence: 0.9,
+        presets: [portion('1 tranche', 30)],
+      }),
+    ],
+    bread: [
+      foodMatch({
+        food: food('bread', 'Bread'),
+        confidence: 0.9,
+        presets: [portion('1 slice', 30)],
+      }),
+    ],
+    avocado: [
+      foodMatch({
+        food: food('avo', 'Avocado'),
+        confidence: 0.9,
+        presets: [portion('1 avocado', 150)],
+      }),
+    ],
+    banana: [
+      foodMatch({
+        food: food('ban', 'Banana'),
+        confidence: 0.9,
+        presets: [portion('1 banana', 120)],
+      }),
+    ],
+  });
+  const quantityOf = async (text: string, c: FoodCatalog = catalog) => {
+    const out = await describeLocally(text, c);
+    if (out.result.kind !== 'recognizedPlate') throw new Error('not a plate');
+    return out.result.foods[0]?.quantity;
+  };
+
+  it('multiplies the default portion by a leading count, in English and French', async () => {
+    expect(await quantityOf('3 eggs')).toMatchObject({
+      low: 3,
+      high: 3,
+      grams: 150,
+      gramsEstimated: true,
+      displayLabel: '3 × 1 egg',
+    });
+    expect(await quantityOf('3 œufs')).toMatchObject({ low: 3, high: 3, grams: 150 });
+    expect(await quantityOf('2 slices of bread')).toMatchObject({ low: 2, grams: 60 });
+    expect(await quantityOf('2 tranches de pain')).toMatchObject({ low: 2, grams: 60 });
+    expect(await quantityOf('½ avocado')).toMatchObject({ low: 0.5, grams: 75 });
+    expect(await quantityOf('1/2 avocado')).toMatchObject({ low: 0.5, grams: 75 });
+    expect(await quantityOf('1,5 avocado')).toMatchObject({ low: 1.5, grams: 225 });
+  });
+
+  it("does not scale when the matched food's own name contains the number", async () => {
+    const pizza = foodMatch({
+      food: food('p4', 'Pizza 4 fromages'),
+      confidence: 0.9,
+      presets: [portion('1 pizza', 400)],
+    });
+    const c = catalogOf({ 'fromages pizza': [pizza], '4 pizza': [pizza], pizza: [pizza] });
+    // The number is a count by shape ("4 pizza"), but the match is "Pizza 4 fromages".
+    expect(await quantityOf('4 pizza', c)).toMatchObject({ low: 1, high: 1 });
+    // And a real count of a food whose name has no number still scales.
+    expect(await quantityOf('3 eggs')).toMatchObject({ low: 3 });
+  });
+
+  it('counts "a dozen" and the lower bound of a range', async () => {
+    expect(await quantityOf('a dozen eggs')).toMatchObject({ low: 12, high: 12 });
+    expect(await quantityOf('3-4 eggs')).toMatchObject({ low: 3, high: 3 });
+    expect(await quantityOf('2x eggs')).toMatchObject({ low: 2, high: 2 });
+  });
+
+  it('leaves "a banana" / "une pomme" at one portion, and no count unchanged', async () => {
+    expect(await quantityOf('a banana')).toEqual(portion('1 banana', 120));
+    expect(await quantityOf('eggs')).toEqual(portion('1 egg', 50));
+  });
+
+  it('counts each item of a list separately', async () => {
+    const out = await describeLocally('2 eggs and 3 slices of bread', catalog);
+    if (out.result.kind !== 'recognizedPlate') throw new Error('not a plate');
+    expect(out.result.foods.map((f) => f.quantity.low)).toEqual([2, 3]);
+  });
+
+  it('lets grams typed in the text win over the count', async () => {
+    const q = await quantityOf('2 eggs 120 g');
+    expect(q).toMatchObject({ grams: 120, unit: 'g', low: 1, high: 1 });
+  });
+
+  it('never produces an invalid quantity ("500 eggs", "99 avocados")', async () => {
+    expect(await quantityOf('500 eggs')).toEqual(portion('1 egg', 50));
+    expect(await quantityOf('99 avocado')).toEqual(portion('1 avocado', 150)); // 14850 g > 5000
+    expect(await quantityOf('99 eggs')).toMatchObject({ low: 99, grams: 4950 });
   });
 });

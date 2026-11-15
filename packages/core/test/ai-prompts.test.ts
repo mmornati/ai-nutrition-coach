@@ -43,6 +43,15 @@ function plate(id: number, name: string): PlateLog {
   });
 }
 
+// The week review averages only finished days with two usable plates, never today: each plate gets
+// a twin an hour earlier, and `when` (the 14th) is today.
+const TODAY = when;
+const withTwins = (list: readonly PlateLog[]): PlateLog[] =>
+  list.flatMap((p) => [
+    p,
+    plateLog({ ...p, id: p.id + 100, loggedAtUtc: p.loggedAtUtc - 3_600_000 }),
+  ]);
+
 const naming = { nameOf: (f: { displayName: string }) => f.displayName };
 
 describe('system prompts', () => {
@@ -240,7 +249,11 @@ describe('buildChatMessages and buildWeekMessages', () => {
   });
 
   it('the week message carries the review counts, averages and the guide', () => {
-    const review = weeklyReview({ plates, targets: EU_REFERENCE_INTAKES });
+    const review = weeklyReview({
+      plates: withTwins(plates),
+      today: TODAY,
+      targets: EU_REFERENCE_INTAKES,
+    });
     const [system, user] = buildWeekMessages({
       locale: 'fr',
       numbersOn: true,
@@ -250,7 +263,8 @@ describe('buildChatMessages and buildWeekMessages', () => {
     expect(system?.content).toContain('Répondez en français');
     const data = JSON.parse(user?.content ?? '{}') as Doc;
     expect(data.daysLogged).toBe(3);
-    expect(data.dailyAverages.kcal).toBe(300);
+    // Two finished days (the 12th and 13th), two plates of 300 kcal each.
+    expect(data.dailyAverages.kcal).toBe(600);
     expect(data.dailyGuide.salt_g).toBe(6);
     expect(Object.keys(data).sort()).toEqual([
       'dailyAverages',
@@ -374,7 +388,11 @@ describe('the proxy budget (8 messages, 24 KB of text)', () => {
       targets: EU_REFERENCE_INTAKES,
     });
     expect(fitsProxyBudget(note)).toBe(true);
-    const review = weeklyReview({ plates, targets: EU_REFERENCE_INTAKES });
+    const review = weeklyReview({
+      plates: withTwins(plates),
+      today: TODAY,
+      targets: EU_REFERENCE_INTAKES,
+    });
     expect(
       fitsProxyBudget(
         buildWeekMessages({ locale: 'en', numbersOn: true, review, targets: EU_REFERENCE_INTAKES }),

@@ -420,8 +420,11 @@ describe('TodayScreen: the day in nutrients', () => {
       await screen.findByRole('heading', { level: 2, name: 'Today’s nutrition' }),
     ).toBeVisible();
     const bars = screen.getByRole('list', { name: /Nutrient amounts/ });
-    expect(within(bars).getByText('180 kcal')).toBeVisible();
+    // A food without weight or data is left out, so the totals say "at least" and the headline
+    // says how many foods were not counted.
+    expect(within(bars).getByText('at least 180 kcal')).toBeVisible();
     expect(within(bars).getByText('12 g')).toBeVisible();
+    expect(screen.getByText('1 food not counted')).toBeVisible();
     expect(
       screen.getByText('Based on 2 foods with a weight and nutrition data; 1 without.'),
     ).toBeVisible();

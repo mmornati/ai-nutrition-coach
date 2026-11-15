@@ -3,6 +3,7 @@ export { NutritionSection } from './NutritionSection';
 export { useShowNumbers } from './use-show-numbers';
 export {
   entryQuantityText,
+  energyOf,
   formatAmount,
   formatNutrient,
   formatWhole,

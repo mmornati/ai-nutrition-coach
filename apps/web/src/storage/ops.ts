@@ -96,6 +96,17 @@ export interface PlateUidRow {
 
 export interface StoreDbOps {
   insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate;
+  /**
+   * Edits a plate: deletes `plateLogId` with everything attached (tombstones included) and
+   * creates the replacement, in ONE transaction. The replacement has a new id and new uids.
+   * An unknown (or already deleted) id writes nothing and answers `null`: a delete that landed
+   * meanwhile, here or from another device, is not resurrected by an edit.
+   */
+  replacePlate(
+    plateLogId: number,
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+  ): InsertedPlate | null;
   /** `[from, to)` on the UTC text, either bound optional. Newest first. */
   readPlateRows(fromUtc: string | null, toUtc: string | null): PlateRowSet;
   /** The plate and EVERYTHING attached to it, in ONE transaction. An unknown id is a no-op. */
@@ -160,6 +171,7 @@ export type StoreOpName = keyof StoreDbOps;
 /** Every operation name, for the worker dispatcher and the RPC proxy. */
 export const STORE_OP_NAMES: readonly StoreOpName[] = [
   'insertPlate',
+  'replacePlate',
   'readPlateRows',
   'deletePlate',
   'insertNote',

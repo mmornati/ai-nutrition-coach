@@ -249,3 +249,16 @@ describe('seeds, ranking and a slow or failing table', () => {
     });
   });
 });
+
+describe('typos and cooked-first through the public search', () => {
+  it('finds broccoli from "brocolli" (typo fallback reaches CIQUAL)', async () => {
+    const m = matches(await make().search('brocolli', { limit: 10 }));
+    expect(m.some((x) => /brocoli/i.test(x.food.displayName))).toBe(true);
+  });
+
+  it('keeps raw chicken listed, but not first, for "poulet"', async () => {
+    const m = matches(await make().search('poulet', { limit: 60 }));
+    expect(m[0]!.food.displayName).not.toMatch(/\bcrue?s?\b/i);
+    expect(m.some((x) => /\bcrue?s?\b/i.test(x.food.displayName))).toBe(true);
+  });
+});

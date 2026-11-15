@@ -164,6 +164,16 @@ export class MemoryStoreDb implements StoreDbOps {
     return { plateId, entryIds };
   }
 
+  replacePlate(
+    plateLogId: number,
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+  ): InsertedPlate | null {
+    if (!this.plates.some((p) => p.id === plateLogId)) return null;
+    this.deletePlate(plateLogId);
+    return this.insertPlate(loggedAtUtc, entries);
+  }
+
   readPlateRows(fromUtc: string | null, toUtc: string | null): PlateRowSet {
     const plates = this.plates
       .filter(

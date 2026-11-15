@@ -157,8 +157,14 @@ describe('PlateScreen: weights and nutrition', () => {
     ]);
     expect(await screen.findByRole('heading', { level: 2, name: 'Nutrition' })).toBeVisible();
     const bars = screen.getByRole('list', { name: /Nutrient amounts/ });
-    expect(within(bars).getByText('75 kcal')).toBeVisible();
+    expect(within(bars).getByText('at least 75 kcal')).toBeVisible();
+    // Bread has no weight, so only the energy is "at least": the other nutrients are not.
     expect(within(bars).getByText('5 g')).toBeVisible();
+    // The food without data is listed, with a way to complete it.
+    expect(screen.getByRole('link', { name: 'Add weight or nutrition for Bread' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^#\/plate\/\d+\/edit$/),
+    );
     // A nutrient the food does not know is not drawn, never drawn as zero.
     expect(within(bars).queryByText('of which saturates')).toBeNull();
     expect(

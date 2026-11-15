@@ -2,13 +2,16 @@ import type { PlateLog } from '../entities/plate-log';
 
 /**
  * Why a store operation failed. Exactly one reason is always present, by construction.
- * Categories: platform (`unsupportedPlatform`), validation (`emptyPlate`, `invalidQuantity`),
+ * Categories: platform (`unsupportedPlatform`), validation (`emptyPlate`, `invalidQuantity`, `futureTime`: a plate cannot be
+ * logged after now, `notFound`: the plate to edit no longer exists),
  * encrypted store (`secureKey`, `webSessionKey`, `keyLost`, `storeOperation`).
  */
 export type StoreFailureReason =
   | 'unsupportedPlatform'
   | 'emptyPlate'
   | 'invalidQuantity'
+  | 'futureTime'
+  | 'notFound'
   | 'secureKey'
   | 'webSessionKey'
   | 'keyLost'
@@ -31,6 +34,8 @@ export function storeFailureCategory(failure: StoreFailure): StoreFailureCategor
       return 'platform';
     case 'emptyPlate':
     case 'invalidQuantity':
+    case 'futureTime':
+    case 'notFound':
       return 'validation';
     case 'secureKey':
     case 'webSessionKey':

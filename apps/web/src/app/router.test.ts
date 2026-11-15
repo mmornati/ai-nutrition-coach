@@ -9,6 +9,7 @@ describe('parseRoute', () => {
     ['#/week', { name: 'week' }],
     ['#/week/', { name: 'week' }],
     ['#/plate/12', { name: 'plate', id: 12 }],
+    ['#/plate/12/edit', { name: 'plate', id: 12, edit: true }],
     ['#/settings', { name: 'settings', section: null }],
     ['#/settings/ai', { name: 'settings', section: 'ai' }],
     ['#/privacy', { name: 'settings', section: 'privacy' }],
