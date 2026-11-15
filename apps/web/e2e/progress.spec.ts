@@ -123,7 +123,7 @@ test('weigh-ins: three days give a trend sentence and a table; last week and bac
     await saveWeighIn(offset, kg);
   }
 
-  await page.goto('/#/progress');
+  // Still on Trends: no second goto to the same address (WebKit reloads on it, which locks the store).
   await expect(page.getByRole('heading', { level: 1, name: 'Trends' })).toBeVisible();
   await expect(
     page.getByText(/^Trend: 81\.5\skg, about 0\.5\skg lower than a week ago\.$/),
