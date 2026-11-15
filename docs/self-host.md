@@ -642,6 +642,15 @@ tools/check_no_external_hosts.sh  built-bundle third-party host scan
 - **Server-side accounts or readable storage** — by design. The relay holds a person's handle and
   ciphertext, nothing it can read.
 
+## A note on health data (not legal advice)
+
+The profile can hold a weight, a height and a waist, and the app holds what a person eats. A weight together with
+what someone eats is health data under GDPR Article 9. If you host the app for yourself or your own household, that
+is personal use. If you host it for other people, you are likely a controller for what they entrust to it and you
+need their explicit consent, among other duties. The server only ever sees ciphertext (the optional relay stores an
+encrypted vault it cannot read), but the note applies all the same. This is not legal advice; ask someone qualified
+where you are.
+
 ## Telemetry
 
 The self-host image ships with no telemetry (FR-12): the served bundle makes no

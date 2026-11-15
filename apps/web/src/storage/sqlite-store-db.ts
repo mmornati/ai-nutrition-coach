@@ -2,11 +2,19 @@
 // store is here; the row-level writes it shares with the vault snapshot are in sqlite-rows.ts, and
 // reading / applying a whole snapshot is sqlite-vault.ts.
 
-import { isSyncedKvKey, kvTombstoneUid, ZERO_HLC, type VaultSnapshot } from '@anc/core';
+import {
+  isSyncedKvKey,
+  kvTombstoneUid,
+  measurementUid,
+  ZERO_HLC,
+  type MeasurementKind,
+  type VaultSnapshot,
+} from '@anc/core';
 import type {
   EntryInsert,
   EntryRow,
   InsertedPlate,
+  MeasurementRow,
   NoteInsert,
   NoteRow,
   PlateRow,
@@ -78,6 +86,7 @@ export class SqliteStoreDb implements StoreDbOps {
                SELECT max(updated_at_hlc) AS h FROM saved_meal
                UNION ALL SELECT max(updated_at_hlc) FROM recipe
                UNION ALL SELECT max(updated_at_hlc) FROM kv
+               UNION ALL SELECT max(updated_at_hlc) FROM body_measurement
                UNION ALL SELECT max(deleted_at_hlc) FROM tombstone)`,
           )[0]?.['newest'],
         ),
@@ -92,14 +101,23 @@ export class SqliteStoreDb implements StoreDbOps {
     this.clock.ensureDevice();
   }
 
-  insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
-    return this.db.transaction(() => this.insertPlateRows(loggedAtUtc, entries));
+  insertPlate(
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+    slot: string | null = null,
+  ): InsertedPlate {
+    return this.db.transaction(() => this.insertPlateRows(loggedAtUtc, entries, slot));
   }
 
-  private insertPlateRows(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate {
-    this.db.run('INSERT INTO plate_log (uid, logged_at_utc) VALUES (?, ?)', [
+  private insertPlateRows(
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+    slot: string | null,
+  ): InsertedPlate {
+    this.db.run('INSERT INTO plate_log (uid, logged_at_utc, slot) VALUES (?, ?, ?)', [
       this.clock.newUid(),
       loggedAtUtc,
+      slot,
     ]);
     const plateId = this.db.lastInsertRowid();
     const entryIds: number[] = [];
@@ -112,6 +130,7 @@ export class SqliteStoreDb implements StoreDbOps {
     plateLogId: number,
     loggedAtUtc: string,
     entries: readonly EntryInsert[],
+    slot: string | null = null,
   ): InsertedPlate | null {
     // An edit is a delete plus a create under NEW uids, in ONE transaction: the old plate, its
     // entries and notes are tombstoned (a tombstone always wins a merge, so no device resurrects
@@ -120,7 +139,7 @@ export class SqliteStoreDb implements StoreDbOps {
       const exists = this.db.all('SELECT 1 AS present FROM plate_log WHERE id = ?', [plateLogId]);
       if (exists.length === 0) return null;
       this.deletePlateRows(plateLogId);
-      return this.insertPlateRows(loggedAtUtc, entries);
+      return this.insertPlateRows(loggedAtUtc, entries, slot);
     });
   }
 
@@ -140,7 +159,7 @@ export class SqliteStoreDb implements StoreDbOps {
     }
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const rows = this.db.all(
-      `SELECT p.id AS plate_id, p.logged_at_utc AS logged_at_utc,
+      `SELECT p.id AS plate_id, p.logged_at_utc AS logged_at_utc, p.slot AS slot,
               e.id AS entry_id, e.plate_log_id AS plate_log_id, e.source_ref AS source_ref,
               e.display_name AS display_name, e.source AS source, e.food_group AS food_group,
               e.quantity_low AS quantity_low, e.quantity_high AS quantity_high,
@@ -159,7 +178,11 @@ export class SqliteStoreDb implements StoreDbOps {
     for (const r of rows) {
       const plateId = int(r['plate_id']);
       if (plateId !== lastPlate) {
-        plates.push({ id: plateId, loggedAtUtc: text(r['logged_at_utc']) });
+        plates.push({
+          id: plateId,
+          loggedAtUtc: text(r['logged_at_utc']),
+          slot: nullableText(r['slot']),
+        });
         lastPlate = plateId;
       }
       if (r['entry_id'] !== null && r['entry_id'] !== undefined) entries.push(toEntry(r));
@@ -399,6 +422,58 @@ export class SqliteStoreDb implements StoreDbOps {
         nutrientsPer100g: nullableText(r['nutrients_per_100g']),
         foodExtra: nullableText(r['food_extra']),
       }));
+  }
+
+  upsertMeasurement(kind: string, day: string, measuredAtUtc: string, value: string): void {
+    this.db.run(
+      `INSERT INTO body_measurement (uid, kind, day, measured_at_utc, value, updated_at_hlc)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(kind, day) DO UPDATE SET measured_at_utc = excluded.measured_at_utc,
+         value = excluded.value, updated_at_hlc = excluded.updated_at_hlc`,
+      [
+        measurementUid(kind as MeasurementKind, day),
+        kind,
+        day,
+        measuredAtUtc,
+        value,
+        this.clock.stamp(),
+      ],
+    );
+  }
+
+  readMeasurements(): MeasurementRow[] {
+    return this.db
+      .all(
+        `SELECT id, kind, day, measured_at_utc, value FROM body_measurement
+          ORDER BY day DESC, kind ASC`,
+      )
+      .map((r) => ({
+        id: int(r['id']),
+        kind: text(r['kind']),
+        day: text(r['day']),
+        measuredAtUtc: text(r['measured_at_utc']),
+        value: text(r['value']),
+      }));
+  }
+
+  deleteMeasurement(kind: string, day: string): void {
+    this.db.transaction(() => {
+      if (
+        this.db.all('SELECT 1 AS present FROM body_measurement WHERE kind = ? AND day = ?', [
+          kind,
+          day,
+        ]).length === 0
+      ) {
+        return;
+      }
+      upsertTombstone(
+        this.db,
+        measurementUid(kind as MeasurementKind, day),
+        'body_measurement',
+        this.clock.stamp(),
+      );
+      this.db.run('DELETE FROM body_measurement WHERE kind = ? AND day = ?', [kind, day]);
+    });
   }
 
   kvGet(key: string): string | null {

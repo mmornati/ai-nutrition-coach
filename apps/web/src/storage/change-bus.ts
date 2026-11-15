@@ -3,7 +3,7 @@
  * recipes) and `kv` (settings) are only fired by applying a snapshot, so that whatever reads them
  * can refresh after a restore; their ordinary writers read on demand and need no watcher.
  */
-export type ChangeTopic = 'plates' | 'notes' | 'dismissals' | 'saved' | 'kv';
+export type ChangeTopic = 'plates' | 'notes' | 'dismissals' | 'saved' | 'kv' | 'measurements';
 
 /** A tiny in-process pub/sub that lets `watch*` re-emit after a local write. */
 export class ChangeBus {

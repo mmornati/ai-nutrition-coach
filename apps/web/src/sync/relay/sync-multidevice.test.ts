@@ -9,6 +9,9 @@ import { at, seedPlate } from '../../app/testing';
 import { KV_KEYS } from '../../storage/key-value-store';
 import { clearConnection, readConnection, writeConnection } from './connection';
 import { runSyncCycle } from './cycle';
+import { gzip } from '../vault/gzip';
+import { sealRelayEnvelope } from '../vault/envelope';
+import { SNAPSHOT_V4 } from '../vault/fixtures/snapshot-v4';
 import { importVaultKey, sealSnapshot } from './crypto';
 import { DirtyFlagSyncQueue } from './dirty-queue';
 import { headerChipOf } from './chip';
@@ -600,6 +603,39 @@ async function putOnRelay(
   remote.version = version;
   remote.envelope = sealed.envelope;
 }
+
+describe('schema skew: a copy written by an older app (schema v4)', () => {
+  it('is pulled and merged: the old plate arrives, local data stays, sync is not stopped', async () => {
+    const clock = time();
+    const { relay, a } = await connectedAt(clock);
+    await a.clock.fire();
+    // The relay now holds a copy a v4 device wrote: no body measurements, no plate meal.
+    const connection = (await readConnection(a.bundle.kv))!;
+    const key = await importVaultKey(decodeBase64Url(connection.vaultKey)!);
+    const plaintext = await gzip(new TextEncoder().encode(JSON.stringify(SNAPSHOT_V4)));
+    const envelope = await sealRelayEnvelope({
+      key,
+      vaultId: decodeBase64Url(connection.vaultId)!,
+      version: 2,
+      nonce: crypto.getRandomValues(new Uint8Array(12)),
+      plaintext,
+    });
+    const remote = relay.vaults.get('alice')!;
+    remote.version = 2;
+    remote.envelope = envelope;
+    await seedPlate(a.bundle, at(12, 0), [['Salmon', 'protein']]);
+
+    clock.advance(61_000);
+    a.clock.return();
+    await idle(a);
+    expect(phase(a)).not.toBe('stopped');
+    expect(['needsUpdate', 'signedOut', 'damaged']).not.toContain(phase(a));
+    expect(await foods(a.bundle)).toEqual(['Porridge', 'Rice', 'Salmon']);
+    const merged = await snapshotOf(a.bundle);
+    expect(merged.schemaVersion).toBe(5);
+    expect(merged.plates.every((p) => p.slot === null || typeof p.slot === 'string')).toBe(true);
+  });
+});
 
 describe('schema skew: a copy from a newer app', () => {
   for (const [name, change] of [

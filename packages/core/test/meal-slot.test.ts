@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { isMealSlotAlwaysShown, MEAL_SLOTS, mealSlotForHour, type MealSlot } from '../src/index';
 
 describe('meal slots', () => {
-  it('declares breakfast, lunch, dinner, late in order', () => {
-    expect(MEAL_SLOTS).toEqual(['breakfast', 'lunch', 'dinner', 'late']);
+  it('declares breakfast, lunch, dinner, snack, late in order', () => {
+    expect(MEAL_SLOTS).toEqual(['breakfast', 'lunch', 'dinner', 'snack', 'late']);
   });
 
   it('breakfast 05-10, lunch 11-15, dinner 16-22, late 23-04', () => {

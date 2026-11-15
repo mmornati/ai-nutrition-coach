@@ -6,6 +6,7 @@ import type {
   CoachNoteStore,
   EncryptedStore,
   LocalDataEraser,
+  MeasurementStore,
   SavedStore,
   VaultStore,
 } from '@anc/core';
@@ -22,6 +23,7 @@ import { browserMetaStorage, type MetaStorage } from './meta-storage';
 import { StoreController, type StoreControllerDeps } from './store-controller';
 import { WebCoachNoteStore } from './web-coach-note-store';
 import { WebEncryptedStore } from './web-encrypted-store';
+import { WebMeasurementStore } from './web-measurement-store';
 import { WebSavedStore } from './web-saved-store';
 import { WebVaultStore } from './web-vault-store';
 import { OpfsPoolDirectory, WorkerStoreBackend, type WorkerPort } from './worker/client';
@@ -32,6 +34,8 @@ export interface StoreBundle {
   readonly notes: CoachNoteStore;
   /** Saved meals and home recipes (schema v3). */
   readonly saved: SavedStore;
+  /** Dated weigh-ins and waist measurements (schema v5, docs/adr/0008). */
+  readonly measurements: MeasurementStore;
   /** The whole store as a vault snapshot, and applying one (schema v4; no UI uses it yet). */
   readonly vault: VaultStore;
   readonly kv: KeyValueStore;
@@ -59,6 +63,7 @@ export function assembleStoreBundle(options: AssembleOptions): StoreBundle {
     store: new WebEncryptedStore(controller, bus, rest.clock ? { now: rest.clock } : {}),
     notes: new WebCoachNoteStore(controller, bus, rest.clock ? { now: rest.clock } : {}),
     saved: new WebSavedStore(controller, rest.clock ? { now: rest.clock } : {}),
+    measurements: new WebMeasurementStore(controller, bus, rest.clock ? { now: rest.clock } : {}),
     vault: new WebVaultStore(controller, bus),
     kv: new DatabaseKeyValueStore(controller),
     eraser: new WebLocalDataEraser(controller, storage),

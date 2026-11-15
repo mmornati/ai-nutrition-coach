@@ -19,6 +19,7 @@ import {
   type EpochMs,
   type FoodEntry,
   type FoodEntryDraft,
+  type MealSlot,
   type PlateLog,
   type ReadPlatesResult,
   type RecordPlateResult,
@@ -83,6 +84,7 @@ export class WebEncryptedStore implements EncryptedStore {
     readonly plateLogId: number;
     readonly entries: readonly FoodEntryDraft[];
     readonly loggedAtUtc: EpochMs;
+    readonly slot?: MealSlot | null | undefined;
   }): Promise<RecordPlateResult> {
     if (input.entries.length === 0) return storeFailure('emptyPlate');
     if (!input.entries.every((e) => isValidQuantity(e.quantity))) {
@@ -97,6 +99,7 @@ export class WebEncryptedStore implements EncryptedStore {
         input.plateLogId,
         toStoredInstant(at),
         input.entries.map(toInsert),
+        input.slot ?? null,
       );
       if (inserted === null) return storeFailure('notFound');
       const entries: FoodEntry[] = input.entries.map((draft, i) => ({
@@ -106,7 +109,9 @@ export class WebEncryptedStore implements EncryptedStore {
         quantity: { ...draft.quantity },
       }));
       this.bus.emit('plates', 'notes', 'dismissals');
-      return recordPlateSuccess(plateLog({ id: inserted.plateId, loggedAtUtc: at, entries }));
+      return recordPlateSuccess(
+        plateLog({ id: inserted.plateId, loggedAtUtc: at, entries, slot: input.slot }),
+      );
     } catch (error) {
       if (isProgrammingError(error)) throw error;
       return mapStoreError(error);
@@ -116,6 +121,7 @@ export class WebEncryptedStore implements EncryptedStore {
   async recordPlate(input: {
     readonly entries: readonly FoodEntryDraft[];
     readonly loggedAtUtc?: EpochMs | undefined;
+    readonly slot?: MealSlot | null | undefined;
   }): Promise<RecordPlateResult> {
     // Validity is checked at runtime at every store boundary, not only in the use-case.
     if (input.entries.length === 0) return storeFailure('emptyPlate');
@@ -127,7 +133,11 @@ export class WebEncryptedStore implements EncryptedStore {
     const at = Math.floor(input.loggedAtUtc ?? (this.options.now ?? Date.now)());
     if (!Number.isFinite(at)) return storeFailure('storeOperation');
     try {
-      const inserted = await db.insertPlate(toStoredInstant(at), input.entries.map(toInsert));
+      const inserted = await db.insertPlate(
+        toStoredInstant(at),
+        input.entries.map(toInsert),
+        input.slot ?? null,
+      );
       // What comes back is what was stored: nutrients and extra went through the same sanitisers.
       const entries: FoodEntry[] = input.entries.map((draft, i) => ({
         id: inserted.entryIds[i] ?? 0,
@@ -136,7 +146,9 @@ export class WebEncryptedStore implements EncryptedStore {
         quantity: { ...draft.quantity },
       }));
       this.bus.emit('plates');
-      return recordPlateSuccess(plateLog({ id: inserted.plateId, loggedAtUtc: at, entries }));
+      return recordPlateSuccess(
+        plateLog({ id: inserted.plateId, loggedAtUtc: at, entries, slot: input.slot }),
+      );
     } catch (error) {
       if (isProgrammingError(error)) throw error;
       return mapStoreError(error);

@@ -15,11 +15,22 @@
 //     its local `note:<id>`);
 //   - a uid belongs to ONE table, and appears once (tombstones included);
 //   - no plate-family record is also tombstoned (a tombstone removes it);
-//   - no template or kv entry is shadowed by a tombstone at or after its `updatedAtHlc`;
+//   - a body measurement's uid is derived from its kind and local day (`measurementUid`), so there
+//     is at most one per day per kind;
+//   - no template, body measurement or kv entry is shadowed by a tombstone at or after its `updatedAtHlc`;
 //   - every string is in exactly the form the store writes it (instants, numbers, JSON), and every
 //     size is within SNAPSHOT_LIMITS.
 // Photos are never stored, and the BYOK key is never in a snapshot (see kv-allow-list.ts).
 
+import {
+  isCalendarDayText,
+  isMeasurementKind,
+  isValidMeasurementValue,
+  measurementUid,
+  measurementValueText,
+  type MeasurementKind,
+} from '../entities/body-measurement';
+import { MEAL_SLOTS, type MealSlot } from '../day/meal-slot';
 import { isUuid } from '../util/uuid-v7';
 import { isValidGrams, isValidRange } from '../value-types/quantity-range';
 import { compareText } from './decide';
@@ -73,9 +84,23 @@ export interface VaultCoachNote {
   readonly interactions: readonly VaultInteraction[];
 }
 
+/**
+ * The first store schema version whose snapshots carry `bodyMeasurements` and a plate `slot`.
+ * Older snapshots (backups and relay copies written before it) are still read.
+ */
+export const BODY_DATA_SCHEMA_VERSION = 5;
+
+/** The meals a plate can be filed under by choice; `null` derives the meal from the time. */
+export const PLATE_SLOTS = MEAL_SLOTS;
+export type PlateSlot = MealSlot;
+export const isPlateSlot = (value: unknown): value is PlateSlot =>
+  typeof value === 'string' && (PLATE_SLOTS as readonly string[]).includes(value);
+
 export interface VaultPlate {
   readonly uid: string;
   readonly loggedAtUtc: string;
+  /** The meal the person chose, or `null` (derived from the time, as before schema v5). */
+  readonly slot: PlateSlot | null;
   readonly entries: readonly VaultEntry[];
   readonly notes: readonly VaultCoachNote[];
 }
@@ -103,6 +128,17 @@ export interface VaultRecipe {
   readonly items: readonly VaultEntry[];
 }
 
+/** A dated body measurement (schema v5). `value` is text (two decimals at most for a weight, one for a waist), verbatim. */
+export interface VaultMeasurement {
+  readonly uid: string;
+  readonly kind: MeasurementKind;
+  /** The local calendar day, `yyyy-MM-dd`. */
+  readonly day: string;
+  readonly measuredAtUtc: string;
+  readonly value: string;
+  readonly updatedAtHlc: string;
+}
+
 export interface VaultKvEntry {
   readonly key: string;
   readonly value: string;
@@ -118,6 +154,7 @@ export const TOMBSTONE_TABLES = [
   'saved_meal_item',
   'recipe',
   'recipe_item',
+  'body_measurement',
   'kv',
 ] as const;
 export type TombstoneTable = (typeof TOMBSTONE_TABLES)[number];
@@ -148,6 +185,7 @@ export interface VaultSnapshot {
   readonly dismissals: readonly VaultDismissal[];
   readonly savedMeals: readonly VaultSavedMeal[];
   readonly recipes: readonly VaultRecipe[];
+  readonly bodyMeasurements: readonly VaultMeasurement[];
   readonly kv: readonly VaultKvEntry[];
   readonly tombstones: readonly VaultTombstone[];
 }
@@ -180,6 +218,7 @@ export function canonicalizeSnapshot(snapshot: VaultSnapshot): VaultSnapshot {
     dismissals: sorted(snapshot.dismissals, (a, b) => compareText(a.key, b.key)),
     savedMeals: sorted(snapshot.savedMeals, byUid),
     recipes: sorted(snapshot.recipes, byUid),
+    bodyMeasurements: sorted(snapshot.bodyMeasurements, byUid),
     kv: sorted(snapshot.kv, (a, b) => compareText(a.key, b.key)),
     tombstones: sorted(snapshot.tombstones, byUid),
   };
@@ -193,6 +232,7 @@ export function newestHlc(snapshot: VaultSnapshot): string | null {
   };
   for (const meal of snapshot.savedMeals) see(meal.updatedAtHlc);
   for (const recipe of snapshot.recipes) see(recipe.updatedAtHlc);
+  for (const m of snapshot.bodyMeasurements) see(m.updatedAtHlc);
   for (const entry of snapshot.kv) see(entry.updatedAtHlc);
   for (const tombstone of snapshot.tombstones) see(tombstone.deletedAtHlc);
   return newest;
@@ -203,6 +243,7 @@ export function snapshotBeyond(snapshot: VaultSnapshot, limitMs: number): boolea
   const stamps = [
     ...snapshot.savedMeals.map((m) => m.updatedAtHlc),
     ...snapshot.recipes.map((r) => r.updatedAtHlc),
+    ...snapshot.bodyMeasurements.map((m) => m.updatedAtHlc),
     ...snapshot.kv.map((e) => e.updatedAtHlc),
     ...snapshot.tombstones.map((t) => t.deletedAtHlc),
   ];
@@ -240,6 +281,7 @@ function identities(snapshot: VaultSnapshot): Map<string, Identity> {
     put(r.uid, 'recipe', null);
     for (const i of r.items) put(i.uid, 'recipe_item', r.uid);
   }
+  for (const m of snapshot.bodyMeasurements) put(m.uid, 'body_measurement', null);
   // A tombstone only claims its table; where it already has a live row the live row's parent stays.
   for (const t of snapshot.tombstones) if (!out.has(t.uid)) put(t.uid, t.table, null);
   return out;
@@ -297,6 +339,8 @@ export const SNAPSHOT_LIMITS = Object.freeze({
   interactionsPerNote: 50,
   dismissals: 200_000,
   templates: 20_000,
+  /** One per day per kind: fifty years of daily weigh-ins and waists is under this. */
+  bodyMeasurements: 40_000,
   itemsPerTemplate: 200,
   kv: 32,
   tombstones: 2_000_000,
@@ -433,6 +477,14 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
     if (input['snapshotVersion'] !== SNAPSHOT_VERSION) {
       throw new Invalid('unsupportedSnapshotVersion', '$.snapshotVersion');
     }
+    // The schema version decides the key set: a snapshot written before schema v5 has no
+    // `bodyMeasurements` and no plate `slot`; one tagged v5 or later has both, exactly. A v4-tagged
+    // snapshot that carries a v5 key is as malformed as a v5 one that lacks it.
+    const claimedSchema = input['schemaVersion'];
+    if (!Number.isInteger(claimedSchema) || (claimedSchema as number) < 1) {
+      throw new Invalid('malformed', '$.schemaVersion');
+    }
+    const legacy = (claimedSchema as number) < BODY_DATA_SCHEMA_VERSION;
     const root = object(input, '$', [
       'snapshotVersion',
       'schemaVersion',
@@ -440,13 +492,13 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
       'dismissals',
       'savedMeals',
       'recipes',
+      ...(legacy ? [] : ['bodyMeasurements']),
       'kv',
       'tombstones',
     ]);
-    const schemaVersion = root['schemaVersion'];
-    if (!Number.isInteger(schemaVersion) || (schemaVersion as number) < 1) {
-      throw new Invalid('malformed', '$.schemaVersion');
-    }
+    // In memory a legacy snapshot is a v5 one (no measurements, every plate's slot null), so it is
+    // tagged v5: re-serialised, it parses again.
+    const schemaVersion = legacy ? BODY_DATA_SCHEMA_VERSION : claimedSchema;
 
     // Every live uid with its table: one uid, one row, one table.
     const live = new Map<string, TombstoneTable>();
@@ -466,12 +518,21 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
     const plates = list(root['plates'], '$.plates', SNAPSHOT_LIMITS.plates).map(
       (p, i): VaultPlate => {
         const path = `$.plates[${i}]`;
-        const o = object(p, path, ['uid', 'loggedAtUtc', 'entries', 'notes']);
+        const o = object(p, path, [
+          'uid',
+          'loggedAtUtc',
+          ...(legacy ? [] : ['slot']),
+          'entries',
+          'notes',
+        ]);
         const id = uid(o, 'uid', path);
         claim(id, 'plate_log', `${path}.uid`);
+        const slot = legacy ? null : o['slot'];
+        if (slot !== null && !isPlateSlot(slot)) throw new Invalid('malformed', `${path}.slot`);
         return {
           uid: id,
           loggedAtUtc: instant(o, 'loggedAtUtc', path),
+          slot,
           entries: list(o['entries'], `${path}.entries`, SNAPSHOT_LIMITS.entriesPerPlate).map(
             (e, j) => entry(e, `${path}.entries[${j}]`, 'food_entry'),
           ),
@@ -597,6 +658,39 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
       },
     );
 
+    const bodyMeasurements = list(
+      legacy ? [] : root['bodyMeasurements'],
+      '$.bodyMeasurements',
+      SNAPSHOT_LIMITS.bodyMeasurements,
+    ).map((m, i): VaultMeasurement => {
+      const path = `$.bodyMeasurements[${i}]`;
+      const o = object(m, path, ['uid', 'kind', 'day', 'measuredAtUtc', 'value', 'updatedAtHlc']);
+      const kind = o['kind'];
+      if (!isMeasurementKind(kind)) throw new Invalid('malformed', `${path}.kind`);
+      const day = formatted(o, 'day', path, isCalendarDayText);
+      const id = uid(o, 'uid', path);
+      // The identity is derived from what the record is about: one per day per kind, on every device.
+      if (id !== measurementUid(kind, day)) throw new Invalid('malformed', `${path}.uid`);
+      claim(id, 'body_measurement', `${path}.uid`);
+      const value = formatted(
+        o,
+        'value',
+        path,
+        (v) =>
+          isNumberText(v) &&
+          isValidMeasurementValue(kind, Number(v)) &&
+          measurementValueText(kind, Number(v)) === v,
+      );
+      return {
+        uid: id,
+        kind,
+        day,
+        measuredAtUtc: instant(o, 'measuredAtUtc', path),
+        value,
+        updatedAtHlc: hlc(o, 'updatedAtHlc', path),
+      };
+    });
+
     const kvKeys = new Set<string>();
     const kv = list(root['kv'], '$.kv', SNAPSHOT_LIMITS.kv).map((e, i) => {
       const path = `$.kv[${i}]`;
@@ -664,6 +758,11 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
     recipes.forEach((r, i) => {
       if (shadowed(r.uid, r.updatedAtHlc)) throw new Invalid('conflict', `$.recipes[${i}].uid`);
     });
+    bodyMeasurements.forEach((m, i) => {
+      if (shadowed(m.uid, m.updatedAtHlc)) {
+        throw new Invalid('conflict', `$.bodyMeasurements[${i}].uid`);
+      }
+    });
     kv.forEach((e, i) => {
       if (shadowed(kvTombstoneUid(e.key), e.updatedAtHlc)) {
         throw new Invalid('conflict', `$.kv[${i}].key`);
@@ -679,6 +778,7 @@ export function parseVaultSnapshot(input: unknown): VaultSnapshotParseResult {
         dismissals,
         savedMeals,
         recipes,
+        bodyMeasurements,
         kv,
         tombstones,
       }),

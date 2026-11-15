@@ -129,7 +129,7 @@ async function runContract(passphrase: string): Promise<ContractResult[]> {
       results.push({ name: contractCase.name, ok: true, skipped: true });
       continue;
     }
-    const { controller, store, notes, saved, vault, kv, eraser } = bundle;
+    const { controller, store, notes, saved, measurements, vault, kv, eraser } = bundle;
     let outcome: ContractResult;
     try {
       await eraser.eraseAll();
@@ -140,6 +140,7 @@ async function runContract(passphrase: string): Promise<ContractResult[]> {
         store,
         notes,
         saved,
+        measurements,
         vault,
         kv,
         lock: () => controller.lock(),

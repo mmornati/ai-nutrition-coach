@@ -9,6 +9,9 @@
 //   saved meals and recipes                      last writer wins on `updatedAtHlc`, the whole
 //                                                record with its items; a tombstone wins unless the
 //                                                record was written after it;
+//   body measurements                            last writer wins on `updatedAtHlc` per uid (the uid is
+//                                                derived from kind and day: one per day per kind); a
+//                                                tombstone wins unless the record was written after it;
 //   kv                                           last writer wins per key, same tombstone rule;
 //   coach dismissals                             union, the latest time per key;
 //   tombstones                                   union, the latest stamp per (table, uid). They are
@@ -113,7 +116,9 @@ function mergePlates(
   for (const plate of a) byUid.set(plate.uid, { ...byUid.get(plate.uid), a: plate });
   for (const plate of b) byUid.set(plate.uid, { ...byUid.get(plate.uid), b: plate });
   const head = (plate: VaultPlate | undefined) =>
-    plate === undefined ? undefined : { uid: plate.uid, loggedAtUtc: plate.loggedAtUtc };
+    plate === undefined
+      ? undefined
+      : { uid: plate.uid, loggedAtUtc: plate.loggedAtUtc, slot: plate.slot };
   const out: VaultPlate[] = [];
   for (const [id, { a: x, b: y }] of byUid) {
     if (dead.has(id)) continue;
@@ -123,6 +128,7 @@ function mergePlates(
     out.push({
       uid: base.uid,
       loggedAtUtc: base.loggedAtUtc,
+      slot: base.slot,
       entries: union(x?.entries ?? [], y?.entries ?? [], uidOf, pickLarger).filter(
         (e) => !dead.has(e.uid),
       ),
@@ -191,6 +197,12 @@ export function mergeVaultSnapshots(local: VaultSnapshot, remote: VaultSnapshot)
       dismissals: mergeDismissals(local.dismissals, remote.dismissals, deadNotes),
       savedMeals: mergeStamped(local.savedMeals, remote.savedMeals, uidOf, stampOf('saved_meal')),
       recipes: mergeStamped(local.recipes, remote.recipes, uidOf, stampOf('recipe')),
+      bodyMeasurements: mergeStamped(
+        local.bodyMeasurements,
+        remote.bodyMeasurements,
+        uidOf,
+        stampOf('body_measurement'),
+      ),
       kv: mergeStamped(local.kv, remote.kv, (e) => e.key, kvDeletedAt),
       tombstones,
     }),

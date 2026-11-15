@@ -15,6 +15,7 @@ import {
   coachNoteDismissalKey,
   formatHlc,
   isUuid,
+  measurementUid,
   MAX_DRIFT_MS,
   parseVaultSnapshot,
   openPlateDismissalKey,
@@ -24,6 +25,7 @@ import {
   type EncryptedStore,
   type FoodEntryDraft,
   type FoodGroup,
+  type MeasurementStore,
   type PlateLog,
   type SavedStore,
   type SourceCatalog,
@@ -31,12 +33,13 @@ import {
   type VaultStore,
 } from '@anc/core';
 import { KeyValueStoreLocked, type KeyValueStore } from '../key-value-store';
-import { mergeSnapshots, randomVaultSnapshot, seeded, uuid } from './vault-random';
+import { emptySnapshot, mergeSnapshots, randomVaultSnapshot, seeded, uuid } from './vault-random';
 
 export interface ContractSubject {
   readonly store: EncryptedStore;
   readonly notes: CoachNoteStore;
   readonly saved: SavedStore;
+  readonly measurements: MeasurementStore;
   readonly vault: VaultStore;
   readonly kv: KeyValueStore;
   /**
@@ -1433,6 +1436,68 @@ export const storeContractCases: readonly ContractCase[] = [
     },
   },
   {
+    name: 'vault: a measurement deleted at h1, re-entered at h2 and edited elsewhere at h1.5 settles on h2, applied in any order',
+    needsFresh: true,
+    async run({ fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      const day = '2026-01-02';
+      const id = measurementUid('weight', day);
+      const at = (wallMs: number) =>
+        formatHlc({ wallMs, counter: 0, deviceId: 'aaaaaaaaaaaaaaaa' });
+      const t0 = Date.now() - 100_000;
+      const record = (value: string, wallMs: number) => ({
+        uid: id,
+        kind: 'weight' as const,
+        day,
+        measuredAtUtc: `${day}T07:00:00.000Z`,
+        value,
+        updatedAtHlc: at(wallMs),
+      });
+      const deleted: VaultSnapshot = {
+        ...emptySnapshot(),
+        tombstones: [{ uid: id, table: 'body_measurement', deletedAtHlc: at(t0 + 10) }],
+      };
+      const edited: VaultSnapshot = {
+        ...emptySnapshot(),
+        bodyMeasurements: [record('71', t0 + 15)],
+      };
+      const reentered: VaultSnapshot = {
+        ...emptySnapshot(),
+        bodyMeasurements: [record('72', t0 + 20)],
+      };
+      const replicas = [deleted, edited, reentered];
+      const expected = canonicalText(mergeSnapshots(mergeSnapshots(deleted, edited), reentered));
+      for (const order of [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+      ]) {
+        const target = await fresh();
+        try {
+          for (const i of order) {
+            const applied = await target.vault.applySnapshot(replicas[i] as VaultSnapshot);
+            assert(applied.kind === 'vault', `applied ${JSON.stringify(applied)}`);
+          }
+          const actual = await snapshotOf(target.vault);
+          assert(
+            canonicalText(actual) === expected,
+            `order ${order.join('')}: apply differs from merge`,
+          );
+          same(
+            actual.bodyMeasurements.map((m) => m.value),
+            ['72'],
+            'the re-entered value',
+          );
+        } finally {
+          await target.dispose();
+        }
+      }
+    },
+  },
+  {
     name: 'vault: a snapshot with a stamp beyond the drift bound is refused and writes nothing',
     async run({ saved, vault }) {
       await saved.saveMeal({ name: 'Usual', entries: [draft('Oats')] });
@@ -1483,6 +1548,7 @@ export const storeContractCases: readonly ContractCase[] = [
           {
             uid: uuid(424242),
             loggedAtUtc: plate.loggedAtUtc,
+            slot: null,
             entries: [plate.entries[0] as (typeof plate.entries)[number]],
             notes: [],
           },
@@ -1562,6 +1628,217 @@ export const storeContractCases: readonly ContractCase[] = [
     async run({ kv }) {
       await kv.write('ai.byokKey', 'sk-secret-value-123');
       assert(!String(kv).includes('sk-secret'), 'no value in toString');
+    },
+  },
+  {
+    name: 'measurements: a weight keeps two decimals and a waist one, newest day first; a second entry the same day replaces the first',
+    async run({ measurements }) {
+      const at = (day: string, hour = 7) => Date.parse(`${day}T0${hour}:00:00.000Z`);
+      const a = await measurements.record({
+        kind: 'weight',
+        value: 70.444,
+        measuredAtUtc: at('2026-08-14'),
+        day: '2026-08-14',
+      });
+      same(a.kind === 'measurement' && a.value.value, 70.44, 'a weight is rounded to two decimals');
+      const w = await measurements.record({
+        kind: 'waist',
+        value: 82.46,
+        measuredAtUtc: at('2026-08-13'),
+        day: '2026-08-13',
+      });
+      same(w.kind === 'measurement' && w.value.value, 82.5, 'a waist is rounded to one decimal');
+      await measurements.remove('waist', '2026-08-13');
+      await measurements.record({
+        kind: 'weight',
+        value: 71,
+        measuredAtUtc: at('2026-08-16'),
+        day: '2026-08-16',
+      });
+      await measurements.record({
+        kind: 'waist',
+        value: 82.5,
+        measuredAtUtc: at('2026-08-16'),
+        day: '2026-08-16',
+      });
+      // The same day again: replaces, never adds.
+      await measurements.record({
+        kind: 'weight',
+        value: 70.8,
+        measuredAtUtc: at('2026-08-16', 9),
+        day: '2026-08-16',
+      });
+      const all = await measurements.list();
+      assert(all.kind === 'measurement', 'listed');
+      if (all.kind !== 'measurement') return;
+      same(
+        all.value.map((m) => [m.day, m.kind, m.value]),
+        [
+          ['2026-08-16', 'waist', 82.5],
+          ['2026-08-16', 'weight', 70.8],
+          ['2026-08-14', 'weight', 70.44],
+        ],
+        'one per day per kind, newest day first',
+      );
+      const weights = await measurements.list('weight');
+      same(weights.kind === 'measurement' && weights.value.length, 2, 'filtered by kind');
+      same(
+        all.value[1]?.measuredAtUtc,
+        at('2026-08-16', 9),
+        'the replacement carries its own time',
+      );
+    },
+  },
+  {
+    name: 'measurements: values outside the accepted ranges, unknown kinds and impossible days are refused, writing nothing',
+    async run({ measurements }) {
+      const now = Date.now();
+      const bad: Parameters<MeasurementStore['record']>[0][] = [
+        { kind: 'weight', value: 19.9, measuredAtUtc: now, day: '2026-08-16' },
+        { kind: 'weight', value: 400.1, measuredAtUtc: now, day: '2026-08-16' },
+        { kind: 'waist', value: 29.9, measuredAtUtc: now, day: '2026-08-16' },
+        { kind: 'waist', value: 250.1, measuredAtUtc: now, day: '2026-08-16' },
+        { kind: 'weight', value: Number.NaN, measuredAtUtc: now, day: '2026-08-16' },
+        { kind: 'weight', value: 70, measuredAtUtc: now, day: '2026-02-30' },
+        { kind: 'height' as 'weight', value: 170, measuredAtUtc: now, day: '2026-08-16' },
+      ];
+      for (const input of bad) {
+        const result = await measurements.record(input);
+        assert(
+          result.kind === 'measurementFailed' && result.reason === 'invalid',
+          `refused: ${JSON.stringify(input)}`,
+        );
+      }
+      const all = await measurements.list();
+      same(all.kind === 'measurement' && all.value.length, 0, 'nothing written');
+    },
+  },
+  {
+    name: 'measurements: removing leaves a tombstone; a missing day is a no-op; entering the day again outlives it',
+    async run({ measurements, vault }) {
+      const t = Date.parse('2026-08-16T07:00:00.000Z');
+      await measurements.record({ kind: 'weight', value: 70, measuredAtUtc: t, day: '2026-08-16' });
+      same((await snapshotOf(vault)).tombstones.length, 0, 'no tombstone yet');
+      assert((await measurements.remove('weight', '2026-08-16')).kind === 'measurement', 'removed');
+      assert(
+        (await measurements.remove('weight', '2026-08-16')).kind === 'measurement',
+        'idempotent',
+      );
+      assert((await measurements.remove('weight', '2026-01-01')).kind === 'measurement', 'absent');
+      const gone = await snapshotOf(vault);
+      same(gone.bodyMeasurements, [], 'gone');
+      same(
+        gone.tombstones.map((x) => x.table),
+        ['body_measurement'],
+        'exactly one tombstone',
+      );
+      await measurements.record({ kind: 'weight', value: 72, measuredAtUtc: t, day: '2026-08-16' });
+      const again = await snapshotOf(vault);
+      same(
+        again.bodyMeasurements.map((m) => m.value),
+        ['72'],
+        'back',
+      );
+      assert(
+        parseVaultSnapshot(again).kind === 'vaultSnapshotParsed',
+        'a record later than its tombstone is a valid snapshot',
+      );
+    },
+  },
+  {
+    name: 'measurements: a locked store answers typed failures',
+    async run({ measurements, lock }) {
+      await lock();
+      const t = Date.now();
+      const listed = await measurements.list();
+      const recorded = await measurements.record({ kind: 'weight', value: 70, measuredAtUtc: t });
+      const removed = await measurements.remove('weight', '2026-08-16');
+      for (const r of [listed, recorded, removed]) {
+        assert(r.kind === 'measurementFailed' && r.reason === 'locked', 'locked');
+      }
+    },
+  },
+  {
+    name: 'plate meal: a chosen meal is stored and read back, survives an edit, and no choice stays derived',
+    async run({ store, vault }) {
+      const chosen = await store.recordPlate({
+        entries: [draft('Biscuit')],
+        loggedAtUtc: T0,
+        slot: 'snack',
+      });
+      assert(chosen.kind === 'recordPlateSuccess', 'recorded');
+      if (chosen.kind !== 'recordPlateSuccess') return;
+      same(chosen.plateLog.slot, 'snack', 'returned with its meal');
+      const plain = await record(store, [draft('Soup')], T0 + MINUTE);
+      same(plain.slot, undefined, 'no choice: no meal stored');
+      const read1 = await read(store);
+      same(
+        read1.map((p) => [p.entries[0]?.databaseFood.displayName, p.slot ?? null]),
+        [
+          ['Soup', null],
+          ['Biscuit', 'snack'],
+        ],
+        'read back',
+      );
+      const edited = await store.replacePlate({
+        plateLogId: chosen.plateLog.id,
+        entries: [draft('Biscuit'), draft('Tea')],
+        loggedAtUtc: T0,
+        slot: 'snack',
+      });
+      assert(edited.kind === 'recordPlateSuccess', 'edited');
+      const snap = await snapshotOf(vault);
+      same(snap.plates.map((p) => p.slot).sort(), [null, 'snack'], 'the snapshot carries it');
+      const moved = await store.replacePlate({
+        plateLogId: plain.id,
+        entries: [draft('Soup')],
+        loggedAtUtc: T0 + MINUTE,
+        slot: null,
+      });
+      assert(moved.kind === 'recordPlateSuccess', 'edited without a choice');
+    },
+  },
+  {
+    name: 'vault: body measurements and the plate meal travel in a snapshot, restore byte for byte, and tombstones win',
+    needsFresh: true,
+    async run({ store, measurements, vault, fresh }) {
+      if (!fresh) throw new ContractFailure('this case needs a second store');
+      await store.recordPlate({ entries: [draft('Biscuit')], loggedAtUtc: T0, slot: 'snack' });
+      const t = Date.parse('2026-08-16T07:00:00.000Z');
+      await measurements.record({
+        kind: 'weight',
+        value: 70.4,
+        measuredAtUtc: t,
+        day: '2026-08-16',
+      });
+      await measurements.record({ kind: 'waist', value: 81, measuredAtUtc: t, day: '2026-08-16' });
+      const snap = await snapshotOf(vault);
+      same(snap.bodyMeasurements.length, 2, 'both in the snapshot');
+      const other = await fresh();
+      try {
+        assert((await other.vault.applySnapshot(snap)).kind === 'vault', 'applied');
+        same(
+          canonicalText(await snapshotOf(other.vault)),
+          canonicalText(snap),
+          'identical after the restore',
+        );
+        const back = await other.measurements.list('weight');
+        same(back.kind === 'measurement' && back.value[0]?.value, 70.4, 'readable there');
+        // A deletion on one device removes it on the other, once the tombstone is applied.
+        await measurements.remove('waist', '2026-08-16');
+        assert(
+          (await other.vault.applySnapshot(await snapshotOf(vault))).kind === 'vault',
+          'applied',
+        );
+        const after = await snapshotOf(other.vault);
+        same(
+          after.bodyMeasurements.map((m) => m.kind),
+          ['weight'],
+          'the waist is gone there too',
+        );
+      } finally {
+        await other.dispose();
+      }
     },
   },
 ];

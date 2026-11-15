@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { mergeVaultSnapshots, parseVaultSnapshot, type VaultSnapshot } from '../src/index';
+import {
+  measurementUid,
+  mergeVaultSnapshots,
+  parseVaultSnapshot,
+  type VaultMeasurement,
+  type VaultSnapshot,
+} from '../src/index';
 import {
   entry,
   mergeOk as merge,
@@ -17,6 +23,7 @@ const plate = (
 ) => ({
   uid: uuid(id),
   loggedAtUtc: `2026-01-0${id}T12:00:00.000Z`,
+  slot: null,
   entries,
   notes,
 });
@@ -353,5 +360,120 @@ describe('merge properties (seeded random snapshots)', () => {
       const parsed = parseVaultSnapshot(JSON.parse(JSON.stringify(merged)));
       expect(parsed.kind).toBe('vaultSnapshotParsed');
     }
+  });
+});
+
+describe('body measurements and the plate meal', () => {
+  const weight = (day: string, value: string, at: string): VaultMeasurement => ({
+    uid: measurementUid('weight', day),
+    kind: 'weight',
+    day,
+    measuredAtUtc: `${day}T07:00:00.000Z`,
+    value,
+    updatedAtHlc: at,
+  });
+
+  it('two devices recording the same day settle on the later write, in either order', () => {
+    const a = snapshot({ bodyMeasurements: [weight('2026-01-02', '70', stamp(10))] });
+    const b = snapshot({ bodyMeasurements: [weight('2026-01-02', '71', stamp(11))] });
+    expect(merge(a, b).bodyMeasurements.map((m) => m.value)).toEqual(['71']);
+    expect(merge(b, a)).toEqual(merge(a, b));
+  });
+
+  it('different days are all kept; a tombstone wins unless the record was written after it', () => {
+    const uid = measurementUid('weight', '2026-01-02');
+    const a = snapshot({
+      bodyMeasurements: [
+        weight('2026-01-01', '70', stamp(1)),
+        weight('2026-01-02', '71', stamp(5)),
+      ],
+    });
+    const gone = snapshot({
+      tombstones: [{ uid, table: 'body_measurement', deletedAtHlc: stamp(9) }],
+    });
+    const merged = merge(a, gone);
+    expect(merged.bodyMeasurements.map((m) => m.day)).toEqual(['2026-01-01']);
+    expect(merge(gone, a)).toEqual(merged);
+    // Re-entered after the delete: the later stamp outlives the tombstone.
+    const again = snapshot({ bodyMeasurements: [weight('2026-01-02', '72', stamp(12))] });
+    expect(
+      merge(merged, again)
+        .bodyMeasurements.map((m) => m.value)
+        .sort(),
+    ).toEqual(['70', '72']);
+  });
+
+  it('resurrection: deleted at h1, re-entered at h2, edited on another replica at h1.5, settles on h2 in every order and grouping', () => {
+    const day = '2026-01-02';
+    const uid = measurementUid('weight', day);
+    const deleted = snapshot({
+      tombstones: [{ uid, table: 'body_measurement', deletedAtHlc: stamp(10) }],
+    });
+    const edited = snapshot({ bodyMeasurements: [weight(day, '71', stamp(15))] });
+    const reentered = snapshot({ bodyMeasurements: [weight(day, '72', stamp(20))] });
+    const replicas = [deleted, edited, reentered];
+    const expected = merge(merge(deleted, edited), reentered);
+    expect(expected.bodyMeasurements.map((m) => m.value)).toEqual(['72']);
+    // The delete (h1) is older than the edit (h1.5): the edit already outlives it; h2 outlives both.
+    expect(merge(deleted, edited).bodyMeasurements.map((m) => m.value)).toEqual(['71']);
+    for (const [x, y, z] of [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ] as const) {
+      const [a, b, c] = [replicas[x], replicas[y], replicas[z]] as [
+        VaultSnapshot,
+        VaultSnapshot,
+        VaultSnapshot,
+      ];
+      expect(merge(merge(a, b), c)).toEqual(expected);
+      expect(merge(a, merge(b, c))).toEqual(expected);
+    }
+  });
+
+  it('a tombstone with no live row hides a late arrival of an older record, and keeps a newer one', () => {
+    const day = '2026-01-03';
+    const uid = measurementUid('waist', day);
+    const only = snapshot({
+      tombstones: [{ uid, table: 'body_measurement', deletedAtHlc: stamp(10) }],
+    });
+    const waist = (value: string, at: string): VaultMeasurement => ({
+      uid,
+      kind: 'waist',
+      day,
+      measuredAtUtc: `${day}T07:00:00.000Z`,
+      value,
+      updatedAtHlc: at,
+    });
+    const old = snapshot({ bodyMeasurements: [waist('80', stamp(5))] });
+    const late = snapshot({ bodyMeasurements: [waist('81', stamp(30))] });
+    expect(merge(only, old).bodyMeasurements).toEqual([]);
+    expect(merge(old, only)).toEqual(merge(only, old));
+    expect(merge(only, late).bodyMeasurements.map((m) => m.value)).toEqual(['81']);
+    expect(merge(only, snapshot()).tombstones).toHaveLength(1);
+  });
+
+  it('a body measurement uid is its own table: reusing it as a plate is a conflict', () => {
+    const uid = measurementUid('weight', '2026-01-02');
+    const a = snapshot({ bodyMeasurements: [weight('2026-01-02', '70', stamp(1))] });
+    const b = snapshot({ plates: [{ ...plate(1), uid }] });
+    expect(mergeVaultSnapshots(a, b)).toEqual({ kind: 'vaultMergeRefused', reason: 'uidConflict' });
+  });
+
+  it('a plate keeps the meal it was filed under through a merge', () => {
+    const a = snapshot({ plates: [{ ...plate(1), slot: 'snack' as const }] });
+    expect(merge(a, snapshot()).plates[0]?.slot).toBe('snack');
+    expect(merge(snapshot(), a).plates[0]?.slot).toBe('snack');
+  });
+
+  it('a snapshot of a newer schema is refused, so an older client never half-reads it', () => {
+    const newer = { ...snapshot(), schemaVersion: 6 };
+    expect(mergeVaultSnapshots(snapshot(), newer)).toEqual({
+      kind: 'vaultMergeRefused',
+      reason: 'remoteSchemaNewer',
+    });
   });
 });

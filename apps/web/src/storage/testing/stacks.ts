@@ -99,6 +99,7 @@ async function subjectFrom(
     store: bundle.store,
     notes: bundle.notes,
     saved: bundle.saved,
+    measurements: bundle.measurements,
     vault: bundle.vault,
     kv: bundle.kv,
     fresh,

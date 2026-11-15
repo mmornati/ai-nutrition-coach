@@ -180,3 +180,46 @@ describe('the log target: meals offered and chosen', () => {
     expect([at.getDate(), at.getHours()]).toEqual([13, 19]);
   });
 });
+
+describe('the snack meal', () => {
+  const now = localTime(2026, 8, 15, 10, 20);
+  const day = localTime(2026, 8, 15);
+
+  it('lands right now on today (never in the future, whatever the hour), at 16:00 on another day', () => {
+    expect(instantForSlot({ day, slot: 'snack', now })).toBe(now);
+    expect(instantForSlot({ day: localTime(2026, 8, 14), slot: 'snack', now })).toBe(
+      localTime(2026, 8, 14, 16),
+    );
+  });
+
+  it('is always offered, on today and on any other day', () => {
+    expect(slotsAvailable({ day, now, candidates: ['breakfast', 'dinner', 'snack'] })).toEqual([
+      'breakfast',
+      'snack',
+    ]);
+    expect(
+      slotsAvailable({ day: localTime(2026, 8, 14), now, candidates: ['snack', 'late'] }),
+    ).toEqual(['snack', 'late']);
+  });
+
+  it('a copied day keeps the meal a plate was filed under, and derives the others', () => {
+    const snack = {
+      ...plateLog({
+        id: 1,
+        loggedAtUtc: localTime(2026, 8, 14, 10, 30),
+        entries: [entry(1, 1, 'Biscuit')],
+      }),
+      slot: 'snack' as const,
+    };
+    const lunch = plateLog({
+      id: 2,
+      loggedAtUtc: localTime(2026, 8, 14, 12, 30),
+      entries: [entry(2, 2, 'Soup')],
+    });
+    const plan = planDayCopy([snack, lunch], day);
+    expect(plan.map((p) => [p.slot, p.chosenSlot])).toEqual([
+      ['snack', 'snack'],
+      ['lunch', undefined],
+    ]);
+  });
+});

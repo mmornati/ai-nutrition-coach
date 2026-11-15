@@ -377,7 +377,7 @@ photos. With **No AI** nothing is sent.
 | Ask the coach | Each question you type (max 500 characters, 6 per conversation) | The last seven days as one JSON document sent as a labelled data message (per day: its date without a time, number of plates, food groups, food names, nutrient totals; the top foods), the daily guide, the optional profile, your typed questions and the earlier answers of the conversation (the last two answered questions at most) |
 | Weekly paragraph | Only when you tap "Ask the coach about this week" | The number of days logged, the daily averages, the days each food group appeared, the daily guide, the keys of the rule-based remarks, the optional profile |
 
-The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. **Never sent**:
+The optional profile is the goal, diet, allergies, age band, sex and activity, whichever you filled in. The daily guide is sent **rounded** (energy to the nearest 100 kcal, protein and the other gram figures to the nearest 10 g): it is worked out from your weight and height if you entered them, and the rounding is there so that it does not give them away. **The weight, height, waist, weigh-ins and BMI themselves are not sent**, even when you entered them: they stay on the device (and in your encrypted backup). **Never sent**:
 photos, your passphrase, your key (it goes only in the request header to your own endpoint, never to this server's
 proxy), database ids, birth dates, or any time of day. Ask the coach sends the dates of the days (year-month-day) and the
 meal slot of a note is a name, not a time. With *nutrition numbers turned off*, weights, nutrients and the guide are left out

@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import {
   CSV_HEADER,
   MAX_CSV_FIELD_LENGTH,
+  MEASUREMENTS_CSV_HEADER,
   createCsvExporter,
+  serializeMeasurementsToCsv,
   serializePlatesToCsv,
 } from './csv-exporter';
 import { FakeStore, entry, plate, splitCsvRow } from './testing';
@@ -57,7 +59,7 @@ describe('serializePlatesToCsv', () => {
     expect(cells[10]).toBe('protein');
     expect(cells[3]).toBe('seed');
     // No grams, no nutrients: the appended cells are empty, never zero.
-    expect(cells.slice(11)).toEqual(Array(10).fill(''));
+    expect(cells.slice(11)).toEqual(Array(11).fill(''));
   });
 
   it('appends grams, the estimate flag and scaled nutrients (dot decimal, max 1 decimal)', () => {
@@ -72,6 +74,7 @@ describe('serializePlatesToCsv', () => {
       'saturated_fat_g',
       'fibre_g',
       'salt_g',
+      'meal',
     ]);
     const base = entry(1, 1, 'Yogurt');
     const e = {
@@ -84,7 +87,19 @@ describe('serializePlatesToCsv', () => {
     };
     const row = (x: typeof e) =>
       splitCsvRow(serializePlatesToCsv([plate(1, at(16), [x])]).split('\n')[1] as string);
-    expect(row(e).slice(11)).toEqual(['125', 'true', '76.3', '4.4', '', '5.9', '', '', '', '0.1']);
+    expect(row(e).slice(11)).toEqual([
+      '125',
+      'true',
+      '76.3',
+      '4.4',
+      '',
+      '5.9',
+      '',
+      '',
+      '',
+      '0.1',
+      '',
+    ]);
     expect(row({ ...e, quantity: { ...e.quantity, gramsEstimated: false } })[12]).toBe('false');
   });
 
@@ -250,5 +265,49 @@ describe('CsvExporter', () => {
     for await (const r of ex.streamPlates({ format: 'json', scope: ALL_HISTORY_SCOPE }))
       out.push(r.kind);
     expect(out).toEqual(['exportFormatFailure']);
+  });
+});
+
+describe('the meal the person chose (schema v5)', () => {
+  it('is the last CSV column, empty when the meal is derived from the time', () => {
+    const chosen = { ...plate(1, at(16), [entry(1, 1, 'Biscuit')]), slot: 'snack' as const };
+    const rows = serializePlatesToCsv([chosen, plate(2, at(12), [entry(2, 2, 'Soup')])]).split(
+      '\n',
+    );
+    expect(splitCsvRow(rows[1] as string).at(-1)).toBe('snack');
+    expect(splitCsvRow(rows[2] as string).at(-1)).toBe('');
+  });
+});
+
+describe('body measurements', () => {
+  const list = [
+    {
+      kind: 'weight' as const,
+      day: '2026-08-16',
+      measuredAtUtc: Date.UTC(2026, 7, 16, 7),
+      value: 70.4,
+    },
+    {
+      kind: 'waist' as const,
+      day: '2026-08-16',
+      measuredAtUtc: Date.UTC(2026, 7, 16, 7),
+      value: 81,
+    },
+  ];
+
+  it('have their own CSV: day, instant, kind, value and SI unit, one row each', () => {
+    expect(serializeMeasurementsToCsv(list)).toBe(
+      `${MEASUREMENTS_CSV_HEADER}\n2026-08-16,2026-08-16T07:00:00.000Z,weight,70.4,kg\n2026-08-16,2026-08-16T07:00:00.000Z,waist,81,cm\n`,
+    );
+    expect(serializeMeasurementsToCsv([])).toBe(`${MEASUREMENTS_CSV_HEADER}\n`);
+  });
+
+  it('write a weight to two decimals (a weight typed in pounds is not rounded away) and a waist to one', () => {
+    const rows = serializeMeasurementsToCsv([
+      { kind: 'weight', day: '2026-08-16', measuredAtUtc: Date.UTC(2026, 7, 16, 7), value: 68.04 },
+      { kind: 'waist', day: '2026-08-16', measuredAtUtc: Date.UTC(2026, 7, 16, 7), value: 81.5 },
+    ]);
+    expect(rows).toContain(',weight,68.04,kg');
+    expect(rows).toContain(',waist,81.5,cm');
   });
 });

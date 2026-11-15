@@ -328,6 +328,7 @@ describe('schema (current version)', () => {
         'saved_meal_item',
         'recipe',
         'recipe_item',
+        'body_measurement',
         'tombstone',
       ]);
       const indexes = raw
@@ -336,6 +337,8 @@ describe('schema (current version)', () => {
         )
         .map((r) => r['name']);
       expect(indexes).toEqual([
+        'idx_body_measurement_day',
+        'idx_body_measurement_uid',
         'idx_coach_interaction_uid',
         'idx_coach_note_uid',
         'idx_entry_plate',
@@ -763,7 +766,7 @@ describe('schema v4: uid, stamps and tombstones (docs/encrypted-sync-plan.md S0)
     'recipe',
     'recipe_item',
   ] as const;
-  const NEW_COLUMNS = new Set(['uid', 'updated_at_hlc']);
+  const NEW_COLUMNS = new Set(['uid', 'updated_at_hlc', 'slot']);
 
   /** Every table as it is stored, without the columns v4 adds. */
   const dump = (raw: Awaited<ReturnType<typeof openRawKeyed>>) =>
@@ -846,7 +849,7 @@ describe('schema v4: uid, stamps and tombstones (docs/encrypted-sync-plan.md S0)
     try {
       const before = dump(raw);
       ensureSchema(raw, false, seededEnv());
-      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(4);
+      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(SCHEMA_VERSION);
       expect(dump(raw)).toEqual(before);
 
       const allUids: string[] = [];
@@ -912,7 +915,7 @@ describe('schema v4: uid, stamps and tombstones (docs/encrypted-sync-plan.md S0)
       raw.run('PRAGMA user_version = 3'); // as if the v4 step had been rolled back
       ensureSchema(raw, false); // a different random source: it must not matter
       expect(dumpAll()).toEqual(once);
-      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(4);
+      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(SCHEMA_VERSION);
       const columns = raw.all('PRAGMA table_info(plate_log)').map((r) => r['name']);
       expect(columns.filter((c) => c === 'uid')).toHaveLength(1);
     } finally {
@@ -1201,5 +1204,91 @@ describe('schema v4: uid, stamps and tombstones (docs/encrypted-sync-plan.md S0)
       expect(first?.uid.replace(/-/g, '').startsWith(prefix)).toBe(true);
       expect((first?.uid ?? '') < (second?.uid ?? '')).toBe(true);
     }, seededEnv());
+  });
+});
+
+describe('schema v5: body measurements and the plate meal (docs/adr/0008)', () => {
+  /** A database exactly as v4 left it, with the rows a person already has. */
+  async function v4Database() {
+    const file = newFile();
+    const key = await testKey(GOOD, SALT);
+    const raw = await openRawKeyed(file, key, true);
+    migrateTo(raw, 4);
+    expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(4);
+    raw.run(
+      `INSERT INTO plate_log (uid, logged_at_utc) VALUES
+         ('00000000-0000-7000-8000-000000000001', '2026-08-16T12:00:00.000Z'),
+         ('00000000-0000-7000-8000-000000000002', '2026-08-17T08:00:00.000Z')`,
+    );
+    raw.run(
+      `INSERT INTO food_entry (uid, plate_log_id, source_ref, display_name, source, food_group,
+         quantity_low, quantity_high, quantity_unit, quantity_display_label)
+       VALUES ('00000000-0000-7000-8000-000000000101', 1, 'manual:A', 'A', 'manual', 'starch', '1', '2', 'piece', '~1')`,
+    );
+    raw.run(
+      "INSERT INTO kv (key, value, updated_at_hlc) VALUES ('profile', '{\"sex\":\"female\"}', '0000000000000-0000-aaaaaaaaaaaaaaaa')",
+    );
+    return { file, key, raw };
+  }
+
+  it('upgrades a v4 database losslessly: plates keep their rows and a NULL meal, no measurement exists yet', async () => {
+    const { raw } = await v4Database();
+    try {
+      const plates = raw.all('SELECT id, uid, logged_at_utc FROM plate_log ORDER BY id');
+      const entries = raw.all('SELECT * FROM food_entry ORDER BY id');
+      const kv = raw.all('SELECT * FROM kv ORDER BY key');
+      ensureSchema(raw, false);
+      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(5);
+      expect(raw.all('SELECT id, uid, logged_at_utc FROM plate_log ORDER BY id')).toEqual(plates);
+      expect(raw.all('SELECT slot FROM plate_log').map((r) => r['slot'])).toEqual([null, null]);
+      expect(raw.all('SELECT * FROM food_entry ORDER BY id')).toEqual(entries);
+      expect(raw.all('SELECT * FROM kv ORDER BY key')).toEqual(kv);
+      expect(raw.all('SELECT count(*) AS n FROM body_measurement')[0]?.['n']).toBe(0);
+      // One measurement per (kind, day), and per uid.
+      const add = (uid: string) =>
+        raw.run(
+          `INSERT INTO body_measurement (uid, kind, day, measured_at_utc, value, updated_at_hlc)
+           VALUES ('${uid}', 'weight', '2026-08-17', '2026-08-17T07:00:00.000Z', '70', 'h')`,
+        );
+      add('00000000-0000-8000-8000-000000000001');
+      expect(() => add('00000000-0000-8000-8000-000000000002')).toThrow();
+      expect(() => add('00000000-0000-8000-8000-000000000001')).toThrow();
+    } finally {
+      raw.close();
+    }
+  });
+
+  it('re-running the v5 step is a no-op (a rolled-back user_version loses nothing)', async () => {
+    const { raw } = await v4Database();
+    try {
+      ensureSchema(raw, false);
+      raw.run("UPDATE plate_log SET slot = 'snack' WHERE id = 2");
+      raw.run('PRAGMA user_version = 4');
+      ensureSchema(raw, false);
+      expect(raw.all('SELECT slot FROM plate_log ORDER BY id').map((r) => r['slot'])).toEqual([
+        null,
+        'snack',
+      ]);
+      expect(raw.all('PRAGMA user_version')[0]?.['user_version']).toBe(5);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it('a migrated store reads and writes measurements and the plate meal through the engine', async () => {
+    const { file, raw } = await v4Database();
+    raw.close();
+    const engine = engineFor(file);
+    await open(engine, { expectExisting: true });
+    engine.call('upsertMeasurement', ['weight', '2026-08-17', '2026-08-17T07:00:00.000Z', '70.4']);
+    engine.call('upsertMeasurement', ['weight', '2026-08-17', '2026-08-17T19:00:00.000Z', '70.9']);
+    engine.call('insertPlate', ['2026-08-18T10:00:00.000Z', [], 'snack']);
+    const snapshot = engine.call('readVault', []) as VaultSnapshot;
+    expect(parseVaultSnapshot(snapshot).kind).toBe('vaultSnapshotParsed');
+    expect(snapshot.schemaVersion).toBe(5);
+    expect(snapshot.bodyMeasurements.map((m) => [m.day, m.value])).toEqual([
+      ['2026-08-17', '70.9'],
+    ]);
+    expect(snapshot.plates.map((p) => p.slot).sort()).toEqual([null, null, 'snack']);
   });
 });

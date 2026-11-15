@@ -9,6 +9,7 @@ import {
   type RecordPlateResult,
 } from '../results/store';
 import { localDayRange } from '../value-types/calendar-day';
+import type { MealSlot } from '../day/meal-slot';
 import type { PlateLog } from '../entities/plate-log';
 import { generateUuidV4, type IdGenerator } from '../util/uuid-v4';
 import type { FoodEntryDraft } from '../value-types/food-entry-draft';
@@ -20,6 +21,7 @@ export interface RecordPlateInput {
   readonly entries: readonly FoodEntryDraft[];
   readonly store: EncryptedStore;
   readonly loggedAtUtc?: EpochMs | undefined;
+  readonly slot?: MealSlot | null | undefined;
 }
 
 export type RecordPlate = (input: RecordPlateInput) => Promise<RecordPlateResult>;
@@ -97,6 +99,7 @@ export interface ReplacePlateInput {
   readonly plateLogId: number;
   readonly entries: readonly FoodEntryDraft[];
   readonly loggedAtUtc: EpochMs;
+  readonly slot?: MealSlot | null | undefined;
   readonly store: EncryptedStore;
 }
 
@@ -112,12 +115,12 @@ export type ReplacePlate = (input: ReplacePlateInput) => Promise<RecordPlateResu
 export function createReplacePlate(deps: RecordPlateDeps): ReplacePlate {
   const newOpId = deps.opIdGenerator ?? (() => generateUuidV4());
   const clock = deps.clock ?? systemClock;
-  return async ({ plateLogId, entries, loggedAtUtc, store }) => {
+  return async ({ plateLogId, entries, loggedAtUtc, slot, store }) => {
     if (entries.length === 0) return storeFailure('emptyPlate');
     if (entries.some((e) => !isValidQuantity(e.quantity))) return storeFailure('invalidQuantity');
     // An edit may move a plate to another day or meal, never into the future.
     if (loggedAtUtc > clock()) return storeFailure('futureTime');
-    const result = await store.replacePlate({ plateLogId, entries, loggedAtUtc });
+    const result = await store.replacePlate({ plateLogId, entries, loggedAtUtc, slot });
     if (result.kind !== 'recordPlateSuccess') return result;
     return afterCommit(result, store, deps, newOpId);
   };
@@ -126,11 +129,11 @@ export function createReplacePlate(deps: RecordPlateDeps): ReplacePlate {
 export function createRecordPlate(deps: RecordPlateDeps): RecordPlate {
   const newOpId = deps.opIdGenerator ?? (() => generateUuidV4());
   const clock = deps.clock ?? systemClock;
-  return async ({ entries, store, loggedAtUtc }) => {
+  return async ({ entries, store, loggedAtUtc, slot }) => {
     if (entries.length === 0) return storeFailure('emptyPlate');
     if (entries.some((e) => !isValidQuantity(e.quantity))) return storeFailure('invalidQuantity');
     if (loggedAtUtc !== undefined && loggedAtUtc > clock()) return storeFailure('futureTime');
-    const result = await store.recordPlate({ entries, loggedAtUtc });
+    const result = await store.recordPlate({ entries, loggedAtUtc, slot });
     if (result.kind !== 'recordPlateSuccess') return result;
     return afterCommit(result, store, deps, newOpId);
   };

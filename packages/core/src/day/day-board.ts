@@ -42,7 +42,7 @@ export function classifyForDate(plates: Iterable<PlateLog>, date: EpochMs): DayB
   const perSlot = new Map<MealSlot, PlateLog[]>(MEAL_SLOTS.map((s) => [s, []]));
   for (const plate of plates) {
     if (plate.loggedAtUtc < start || plate.loggedAtUtc >= end) continue;
-    perSlot.get(mealSlotForHour(new Date(plate.loggedAtUtc).getHours()))?.push(plate);
+    perSlot.get(plate.slot ?? mealSlotForHour(new Date(plate.loggedAtUtc).getHours()))?.push(plate);
   }
   return {
     date: start,

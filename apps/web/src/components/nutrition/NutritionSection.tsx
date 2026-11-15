@@ -17,12 +17,15 @@ export function NutritionSection({
   nutrition,
   className,
   fixHref,
+  distance = false,
 }: {
   readonly title: string;
   readonly nutrition: NutrientTotals;
   readonly className?: string;
   /** Where to complete a food without a weight or nutrition (see NutrientBars). */
   readonly fixHref?: ((entry: FoodEntry) => string) | undefined;
+  /** A whole day's totals: the opt-in distance line may show under the energy bar. */
+  readonly distance?: boolean;
 }) {
   const show = useShowNumbers();
   const targets = useTargets();
@@ -63,7 +66,7 @@ export function NutritionSection({
           ))}
         </div>
       )}
-      <NutrientBars nutrition={nutrition} targets={targets} fixHref={fixHref} />
+      <NutrientBars nutrition={nutrition} targets={targets} fixHref={fixHref} distance={distance} />
     </section>
   );
 }

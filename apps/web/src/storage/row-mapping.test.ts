@@ -21,7 +21,7 @@ const reports: string[] = [];
 const report = (id: number, reason: string) => reports.push(`${id}:${reason}`);
 const map = (plates: { id: number; loggedAtUtc: string }[], entries: EntryRow[]) => {
   reports.length = 0;
-  return mapPlateRows({ plates, entries }, report);
+  return mapPlateRows({ plates: plates.map((p) => ({ ...p, slot: null })), entries }, report);
 };
 
 describe('schema v2 columns', () => {

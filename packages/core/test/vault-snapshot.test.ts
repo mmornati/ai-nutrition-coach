@@ -3,6 +3,8 @@ import {
   canonicalizeSnapshot,
   DEVICE_ONLY_KV_KEYS,
   isSyncedKvKey,
+  measurementUid,
+  mergeVaultSnapshots,
   newestHlc,
   parseVaultSnapshot,
   snapshotBeyond,
@@ -11,6 +13,7 @@ import {
   vaultConflict,
   type VaultSnapshot,
 } from '../src/index';
+import { SNAPSHOT_V4 } from './fixtures/snapshot-v4';
 import { entry, seeded, randomSnapshot, snapshot, stamp, uuid } from './vault-fixtures';
 
 const full = (): VaultSnapshot =>
@@ -19,6 +22,7 @@ const full = (): VaultSnapshot =>
       {
         uid: uuid(2),
         loggedAtUtc: '2026-01-02T12:00:00.000Z',
+        slot: 'snack',
         entries: [entry(202), entry(201)],
         notes: [
           {
@@ -31,7 +35,13 @@ const full = (): VaultSnapshot =>
           },
         ],
       },
-      { uid: uuid(1), loggedAtUtc: '2026-01-01T12:00:00.000Z', entries: [entry(101)], notes: [] },
+      {
+        uid: uuid(1),
+        loggedAtUtc: '2026-01-01T12:00:00.000Z',
+        slot: null,
+        entries: [entry(101)],
+        notes: [],
+      },
     ],
     dismissals: [{ key: `note:${uuid(250)}`, dismissedAtUtc: '2026-01-02T12:00:03.000Z' }],
     savedMeals: [
@@ -52,6 +62,16 @@ const full = (): VaultSnapshot =>
         createdAtUtc: '2026-01-01T07:00:00.000Z',
         updatedAtHlc: stamp(6),
         items: [entry(9601)],
+      },
+    ],
+    bodyMeasurements: [
+      {
+        uid: measurementUid('weight', '2026-01-02'),
+        kind: 'weight',
+        day: '2026-01-02',
+        measuredAtUtc: '2026-01-02T07:30:00.000Z',
+        value: '71.4',
+        updatedAtHlc: stamp(9),
       },
     ],
     kv: [{ key: 'ui.locale', value: 'fr', updatedAtHlc: stamp(7) }],
@@ -381,6 +401,7 @@ describe('vaultConflict', () => {
     const plate = (id: number, entries = [entry(id * 100 + 1)]) => ({
       uid: uuid(id),
       loggedAtUtc: '2026-01-01T12:00:00.000Z',
+      slot: null,
       entries,
       notes: [],
     });
@@ -427,6 +448,156 @@ describe('snapshotBeyond', () => {
 describe('newestHlc', () => {
   it('is the newest stamp anywhere, or null', () => {
     expect(newestHlc(snapshot())).toBeNull();
-    expect(newestHlc(full())).toBe(stamp(8));
+    expect(newestHlc(full())).toBe(stamp(9)); // the body measurement's stamp is the newest
+  });
+});
+
+describe('schema v5: plate meal and body measurements', () => {
+  const problem = (value: unknown): string => {
+    const result = parseVaultSnapshot(JSON.parse(JSON.stringify(value)));
+    return result.kind === 'vaultSnapshotInvalid' ? `${result.problem} ${result.path}` : 'ok';
+  };
+  const withMeasurement = (over: Record<string, unknown>) => ({
+    ...full(),
+    bodyMeasurements: [{ ...(full().bodyMeasurements[0] as object), ...over }],
+  });
+
+  it('keeps a plate meal and null verbatim, and refuses an unknown meal', () => {
+    const parsed = parseVaultSnapshot(JSON.parse(JSON.stringify(full())));
+    expect(
+      parsed.kind === 'vaultSnapshotParsed' && parsed.snapshot.plates.map((p) => p.slot),
+    ).toEqual([null, 'snack']);
+    const bad = full();
+    expect(problem({ ...bad, plates: [{ ...(bad.plates[0] as object), slot: 'brunch' }] })).toBe(
+      'malformed $.plates[0].slot',
+    );
+  });
+
+  it('refuses a body measurement whose uid is not the one derived from its kind and day', () => {
+    expect(problem(withMeasurement({ uid: uuid(5) }))).toBe('malformed $.bodyMeasurements[0].uid');
+    expect(problem(withMeasurement({ day: '2026-01-03' }))).toBe(
+      'malformed $.bodyMeasurements[0].uid',
+    );
+  });
+
+  it('refuses out-of-range, badly formatted or unknown values', () => {
+    expect(problem(withMeasurement({ value: '19.9' }))).toBe(
+      'malformed $.bodyMeasurements[0].value',
+    );
+    expect(problem(withMeasurement({ value: '401' }))).toBe(
+      'malformed $.bodyMeasurements[0].value',
+    );
+    // A weight keeps two decimals (68.04 kg is 150 lb), no more; a v5 weight with one decimal is fine.
+    expect(problem(withMeasurement({ value: '71.45' }))).toBe('ok');
+    expect(problem(withMeasurement({ value: '68.04' }))).toBe('ok');
+    expect(problem(withMeasurement({ value: '71.456' }))).toBe(
+      'malformed $.bodyMeasurements[0].value',
+    );
+    // A waist keeps one decimal.
+    const waistDay = '2026-01-02';
+    const waist = (value: string) =>
+      withMeasurement({ uid: measurementUid('waist', waistDay), kind: 'waist', value });
+    expect(problem(waist('81.5'))).toBe('ok');
+    expect(problem(waist('81.55'))).toBe('malformed $.bodyMeasurements[0].value');
+    expect(problem(withMeasurement({ value: 71.4 }))).toBe('malformed $.bodyMeasurements[0].value');
+    expect(problem(withMeasurement({ kind: 'height' }))).toBe(
+      'malformed $.bodyMeasurements[0].kind',
+    );
+    expect(problem(withMeasurement({ day: '2026-02-30' }))).toBe(
+      'malformed $.bodyMeasurements[0].day',
+    );
+    expect(problem(withMeasurement({ extra: 1 }))).toBe('malformed $.bodyMeasurements[0]');
+  });
+
+  it('refuses a measurement shadowed by a tombstone at or after its stamp, accepts a later write', () => {
+    const uid = measurementUid('weight', '2026-01-02');
+    const base = full();
+    expect(
+      problem({
+        ...base,
+        tombstones: [{ uid, table: 'body_measurement', deletedAtHlc: stamp(9) }],
+      }),
+    ).toBe('conflict $.bodyMeasurements[0].uid');
+    expect(
+      problem({
+        ...base,
+        tombstones: [{ uid, table: 'body_measurement', deletedAtHlc: stamp(8) }],
+      }),
+    ).toBe('ok');
+  });
+
+  it('has a deterministic uid per (kind, day) that is a valid uuid and differs by kind and day', () => {
+    const a = measurementUid('weight', '2026-01-02');
+    expect(a).toBe(measurementUid('weight', '2026-01-02'));
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(
+      new Set([a, measurementUid('waist', '2026-01-02'), measurementUid('weight', '2026-01-03')])
+        .size,
+    ).toBe(3);
+  });
+
+  it('the kv allow-list carries the distance switch, only as "on"', () => {
+    expect(isSyncedKvKey('ui.showDistanceToGuide')).toBe(true);
+    const snap = {
+      ...full(),
+      kv: [{ key: 'ui.showDistanceToGuide', value: 'off', updatedAtHlc: stamp(1) }],
+    };
+    expect(problem(snap)).toBe('malformed $.kv[0].value');
+  });
+});
+
+describe('a snapshot written before schema v5 (frozen v4 fixture)', () => {
+  const v4 = (): Record<string, unknown> => JSON.parse(JSON.stringify(SNAPSHOT_V4));
+  const problem = (value: unknown): string => problemOf(value);
+
+  it('parses: no measurements, every plate meal null, tagged as the current shape', () => {
+    const parsed = parseVaultSnapshot(v4());
+    expect(parsed.kind).toBe('vaultSnapshotParsed');
+    if (parsed.kind !== 'vaultSnapshotParsed') return;
+    expect(parsed.snapshot.bodyMeasurements).toEqual([]);
+    expect(parsed.snapshot.plates.map((p) => p.slot)).toEqual([null]);
+    expect(parsed.snapshot.schemaVersion).toBe(5);
+    // What was parsed parses again (it is a v5 snapshot in memory).
+    expect(parseVaultSnapshot(JSON.parse(JSON.stringify(parsed.snapshot))).kind).toBe(
+      'vaultSnapshotParsed',
+    );
+  });
+
+  it('is malformed when it carries a v5 key it cannot have, or lacks a v5 key as v5', () => {
+    expect(problem({ ...v4(), bodyMeasurements: [] })).toBe('malformed $');
+    const plates = v4()['plates'] as Record<string, unknown>[];
+    expect(problem({ ...v4(), plates: [{ ...plates[0], slot: null }] })).toBe(
+      'malformed $.plates[0]',
+    );
+    expect(problem({ ...v4(), schemaVersion: 5 })).toBe('malformed $');
+    expect(problem({ ...v4(), schemaVersion: 3 })).toBe('parsed');
+    expect(problem({ ...v4(), schemaVersion: 0 })).toBe('malformed $.schemaVersion');
+  });
+
+  it('still refuses what a newer store wrote with keys it does not know', () => {
+    expect(problem({ ...v4(), schemaVersion: 6 })).toBe('malformed $');
+    expect(problem({ ...full(), schemaVersion: 6, extra: 1 })).toBe('malformed $');
+  });
+
+  it('merges into a v5 snapshot, keeps both sides, and the result re-serialises as v5', () => {
+    const remote = parseVaultSnapshot(v4());
+    if (remote.kind !== 'vaultSnapshotParsed') throw new Error('did not parse');
+    const local = full();
+    for (const [a, b] of [
+      [local, remote.snapshot],
+      [remote.snapshot, local],
+    ] as const) {
+      const merged = mergeVaultSnapshots(a, b);
+      expect(merged.kind).toBe('vaultMerged');
+      if (merged.kind !== 'vaultMerged') return;
+      expect(merged.snapshot.schemaVersion).toBe(5);
+      expect(merged.snapshot.bodyMeasurements).toHaveLength(1);
+      expect(merged.snapshot.plates.map((p) => p.uid)).toContain(
+        '00000000-0000-7000-8000-000000000001',
+      );
+      expect(parseVaultSnapshot(JSON.parse(JSON.stringify(merged.snapshot))).kind).toBe(
+        'vaultSnapshotParsed',
+      );
+    }
   });
 });

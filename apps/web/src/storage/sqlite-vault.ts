@@ -6,6 +6,7 @@
 import {
   canonicalizeSnapshot,
   canonicalText,
+  isPlateSlot,
   isSyncedKvKey,
   kvTombstoneUid,
   KV_UID_PREFIX,
@@ -16,9 +17,12 @@ import {
   survivesTombstone,
   vaultConflict,
   ZERO_HLC,
+  type MeasurementKind,
+  type PlateSlot,
   type TombstoneTable,
   type VaultCoachNote,
   type VaultEntry,
+  type VaultMeasurement,
   type VaultPlate,
   type VaultRecipe,
   type VaultSavedMeal,
@@ -69,6 +73,11 @@ function foodOf(r: SqlRow): EntryInsert {
   };
 }
 
+const plateSlotOrNull = (value: SqlValue | undefined): PlateSlot | null => {
+  const slot = nullableText(value);
+  return isPlateSlot(slot) ? slot : null;
+};
+
 function group<T>(rows: readonly T[], keyOf: (row: T) => number): Map<number, T[]> {
   const out = new Map<number, T[]>();
   for (const row of rows) {
@@ -100,10 +109,11 @@ export function readVaultSnapshot(db: SqlHandle): VaultSnapshot {
   );
 
   const plates: VaultPlate[] = db
-    .all('SELECT id, uid, logged_at_utc FROM plate_log ORDER BY id ASC')
+    .all('SELECT id, uid, logged_at_utc, slot FROM plate_log ORDER BY id ASC')
     .map((p) => ({
       uid: text(p['uid']),
       loggedAtUtc: text(p['logged_at_utc']),
+      slot: plateSlotOrNull(p['slot']),
       entries: (entriesByPlate.get(int(p['id'])) ?? []).map((e) => ({
         uid: text(e['uid']),
         ...toVaultFood(foodOf(e)),
@@ -169,6 +179,19 @@ export function readVaultSnapshot(db: SqlHandle): VaultSnapshot {
       items: itemsOf(recipeItems.get(int(r['id']))),
     }));
 
+  const bodyMeasurements = db
+    .all(
+      'SELECT uid, kind, day, measured_at_utc, value, updated_at_hlc FROM body_measurement ORDER BY id ASC',
+    )
+    .map((m): VaultMeasurement => ({
+      uid: text(m['uid']),
+      kind: text(m['kind']) as MeasurementKind,
+      day: text(m['day']),
+      measuredAtUtc: text(m['measured_at_utc']),
+      value: text(m['value']),
+      updatedAtHlc: nullableText(m['updated_at_hlc']) ?? ZERO_HLC,
+    }));
+
   // Only keys on the allow-list; everything else (device id, AI settings, the BYOK key, a key a
   // future version adds) stays in the table and out of the snapshot.
   const kv = db
@@ -201,6 +224,7 @@ export function readVaultSnapshot(db: SqlHandle): VaultSnapshot {
     dismissals,
     savedMeals,
     recipes,
+    bodyMeasurements,
     kv,
     tombstones,
   });
@@ -268,6 +292,16 @@ function applyTombstone(db: SqlHandle, t: VaultTombstone): void {
       }
       return;
     }
+    case 'body_measurement': {
+      const row = db.all('SELECT updated_at_hlc FROM body_measurement WHERE uid = ?', [t.uid])[0];
+      if (
+        row &&
+        !survivesTombstone(nullableText(row['updated_at_hlc']) ?? ZERO_HLC, t.deletedAtHlc)
+      ) {
+        db.run('DELETE FROM body_measurement WHERE uid = ?', [t.uid]);
+      }
+      return;
+    }
     case 'saved_meal_item':
     case 'recipe_item':
       return; // an item follows its record, which carries its own tombstone
@@ -294,9 +328,10 @@ function applyPlate(db: SqlHandle, plate: VaultPlate): void {
   if (tombstoneStamp(db, 'plate_log', plate.uid) !== null) return;
   let plateId = idByUid(db, 'plate_log', plate.uid);
   if (plateId === null) {
-    db.run('INSERT INTO plate_log (uid, logged_at_utc) VALUES (?, ?)', [
+    db.run('INSERT INTO plate_log (uid, logged_at_utc, slot) VALUES (?, ?, ?)', [
       plate.uid,
       plate.loggedAtUtc,
+      plate.slot,
     ]);
     plateId = db.lastInsertRowid();
   }
@@ -391,6 +426,7 @@ export function applyVaultSnapshot(
   const meals = new Map(before.savedMeals.map((m) => [m.uid, m] as const));
   const recipes = new Map(before.recipes.map((r) => [r.uid, r] as const));
   const entries = new Map(before.kv.map((e) => [e.key, e] as const));
+  const measurements = new Map(before.bodyMeasurements.map((m) => [m.uid, m] as const));
 
   db.transaction(() => {
     for (const t of snapshot.tombstones) {
@@ -465,6 +501,21 @@ export function applyVaultSnapshot(
           );
           return db.lastInsertRowid();
         },
+      );
+    }
+    for (const m of snapshot.bodyMeasurements) {
+      if (
+        !incomingWins(m, measurements.get(m.uid), tombstoneStamp(db, 'body_measurement', m.uid))
+      ) {
+        continue;
+      }
+      db.run(
+        `INSERT INTO body_measurement (uid, kind, day, measured_at_utc, value, updated_at_hlc)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(uid) DO UPDATE SET kind = excluded.kind, day = excluded.day,
+           measured_at_utc = excluded.measured_at_utc, value = excluded.value,
+           updated_at_hlc = excluded.updated_at_hlc`,
+        [m.uid, m.kind, m.day, m.measuredAtUtc, m.value, m.updatedAtHlc],
       );
     }
     for (const entry of snapshot.kv) {

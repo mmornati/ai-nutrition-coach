@@ -4,6 +4,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
+import { en } from './i18n/en';
+import { fr } from './i18n/fr';
+import { catalogueLeaves } from './i18n/testing';
 import { describe, expect, it } from 'vitest';
 
 const REPO = `${resolve(__dirname, '../../..')}/`;
@@ -169,5 +172,55 @@ describe('No-Dark-Patterns Standard, code half', () => {
     );
     expect(cleaned).toContain('https://x.y/streak');
     expect(cleaned).not.toMatch(/comment|badge/);
+  });
+});
+
+// docs/adr/0008 (decision D1): going past the daily guide is visible but neutral. The pressure
+// vocabulary stays banned EVERYWHERE; the one opt-in distance line is the only place the "to your
+// daily guide" / "past your daily guide" wording may appear.
+describe('the daily guide vocabulary (docs/adr/0008)', () => {
+  const DISTANCE_KEYS = ['nutrition.distanceTo', 'nutrition.distancePast'];
+  const EN_PRESSURE =
+    /\b(maximum|limits?|budget|exceed(?:s|ed|ing)?|remaining|allowance|over (?:your|the) (?:daily )?(?:guide|reference|target))\b/i;
+  const FR_PRESSURE =
+    /\b(maximum|limites?|budget|dépass(?:e|ée|és|ées|ement|er)|restantes?|allocation)\b/i;
+  const EN_DISTANCE = /\b(?:to|past) your daily guide\b/i;
+  const FR_DISTANCE = /\b(?:avant|au-delà de) votre repère du jour\b/i;
+  const en$ = catalogueLeaves(en);
+  const fr$ = catalogueLeaves(fr);
+
+  it('no pressure vocabulary in either catalogue (maximum, limit, budget, exceeded, remaining, allowance)', () => {
+    expect([...en$].filter(([, t]) => EN_PRESSURE.test(t)).map(([k]) => k)).toEqual([]);
+    // Input validation messages ("the sugars cannot exceed the carbohydrate", "at most N characters")
+    // are about numbers a person typed, not about what they ate.
+    const VALIDATION = new Set([
+      'catalog.customIssues.sugars',
+      'catalog.customIssues.saturates',
+      'catalog.customIssues.macros',
+      'describe.limit',
+    ]);
+    expect(
+      [...fr$].filter(([k, t]) => !VALIDATION.has(k) && FR_PRESSURE.test(t)).map(([k]) => k),
+    ).toEqual([]);
+  });
+
+  it('the distance wording appears only in the opt-in distance line', () => {
+    expect([...en$].filter(([, t]) => EN_DISTANCE.test(t)).map(([k]) => k)).toEqual(DISTANCE_KEYS);
+    expect([...fr$].filter(([, t]) => FR_DISTANCE.test(t)).map(([k]) => k)).toEqual(DISTANCE_KEYS);
+  });
+
+  it('the distance lines are plain: a number of kcal and the daily guide, no exclamation, no verdict', () => {
+    expect(en.nutrition.distanceTo).toBe('about {amount} kcal to your daily guide');
+    expect(en.nutrition.distancePast).toBe('about {amount} kcal past your daily guide');
+    for (const text of [fr.nutrition.distanceTo, fr.nutrition.distancePast]) {
+      expect(text).toMatch(/^environ \{amount\} kcal /);
+      expect(text).not.toMatch(/!/);
+    }
+  });
+
+  it('no code outside the catalogue and the one component builds that wording', () => {
+    expect(hits(/(?:to|past) your daily guide|distanceTo|distancePast/)).toEqual([
+      './components/nutrition/NutrientBars.tsx',
+    ]);
   });
 });

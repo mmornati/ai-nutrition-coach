@@ -28,6 +28,9 @@ import { fileURLToPath } from 'node:url';
 export const COVERED_BY = Object.freeze({
   // Settings: building blocks rendered only inside the settings screens.
   SettingsPage: 'SettingsScreen',
+  // The Profile screen's body and daily-guide sections, tested through it.
+  ProfileBodySection: 'ProfileScreen',
+  ProfileGuideSection: 'ProfileScreen',
   Section: 'SettingsScreen',
   Prose: 'SettingsScreen',
   ChoiceGroup: 'YourDataScreen',

@@ -3,9 +3,12 @@
 // envelope code (fast KDF).
 import { describe, expect, it, vi } from 'vitest';
 import {
+  BACKUP_KDF,
+  ENVELOPE_LIMITS,
   eraseLocalDataFailure,
   formatHlc,
   MAX_DRIFT_MS,
+  serializeEnvelope,
   vaultFailed,
   type VaultSnapshot,
 } from '@anc/core';
@@ -13,7 +16,11 @@ import { memoryBundle, seedPlate, unlockedBundle } from '../../app/testing';
 import type { StoreBundle } from '../../storage';
 import type { BackupService } from './backup';
 import { restoreIntoNewStore, restoreIntoStore } from './restore';
-import { fastBackupService } from './testing';
+import { sealEnvelope } from './envelope';
+import { gzip } from './gzip';
+import { deriveBackupKey } from './kdf';
+import { fastBackupService, fastKdf } from './testing';
+import { SNAPSHOT_V4 } from './fixtures/snapshot-v4';
 
 const BACKUP_PASSPHRASE = 'the backup passphrase';
 const service = fastBackupService();
@@ -284,5 +291,40 @@ describe('restoreIntoNewStore (the create-passphrase screen)', () => {
     vi.spyOn(device.vault, 'applySnapshot').mockResolvedValue(vaultFailed('storeOperation'));
     expect(await restore(device, file, BACKUP_PASSPHRASE)).toEqual({ kind: 'storeProblem' });
     expect(device.controller.getSnapshot().status).toBe('needsPassphraseCreation');
+  });
+});
+
+describe('a backup made before schema v5 (a frozen v4 snapshot)', () => {
+  const v4Backup = async (): Promise<File> => {
+    // Sealed through the real envelope code, exactly as the v4 app wrote it.
+    const salt = crypto.getRandomValues(new Uint8Array(ENVELOPE_LIMITS.saltBytes));
+    const key = await deriveBackupKey(fastKdf, BACKUP_PASSPHRASE, salt, BACKUP_KDF);
+    const envelope = await sealEnvelope({
+      key,
+      vaultId: crypto.getRandomValues(new Uint8Array(ENVELOPE_LIMITS.vaultIdBytes)),
+      version: 1,
+      kdf: BACKUP_KDF,
+      salt,
+      nonce: crypto.getRandomValues(new Uint8Array(ENVELOPE_LIMITS.nonceBytes)),
+      plaintext: await gzip(new TextEncoder().encode(JSON.stringify(SNAPSHOT_V4))),
+    });
+    const bytes = new TextEncoder().encode(serializeEnvelope(envelope));
+    return new File([bytes as BlobPart], 'old.ancvault');
+  };
+
+  it('restores into an empty v5 store through the real codec', async () => {
+    const target = await unlockedBundle();
+    const result = await restoreIntoStore({
+      service,
+      vault: target.vault,
+      file: await v4Backup(),
+      passphrase: BACKUP_PASSPHRASE,
+    });
+    expect(result).toEqual({ kind: 'restored' });
+    expect(await platesOf(target)).toEqual(['Rice']);
+    const after = await snapshotOf(target);
+    expect(after.schemaVersion).toBe(5);
+    expect(after.plates[0]?.slot).toBeNull();
+    expect(after.bodyMeasurements).toEqual([]);
   });
 });

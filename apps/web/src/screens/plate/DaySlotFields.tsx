@@ -17,7 +17,7 @@ import { ChoiceGroup } from '../settings/ChoiceGroup';
 /** Today and the six days before it: the week the app keeps in view. */
 export const WEEK_DAYS = 7;
 
-const ALL_SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner', 'late'];
+const ALL_SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack', 'late'];
 
 export interface DaySlotChoice {
   readonly day: EpochMs;

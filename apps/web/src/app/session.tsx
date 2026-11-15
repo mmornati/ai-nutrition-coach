@@ -41,6 +41,8 @@ import {
   type WeeklyReview,
   type RecordCoachInteraction,
   type RecordPlateResult,
+  type MealSlot,
+  type MeasurementStore,
   type SavedStore,
   type VaultStore,
 } from '@anc/core';
@@ -69,6 +71,7 @@ import { applyLocalePreference, LocalePrefs } from '../i18n/locale-prefs';
 import type { FetchLike } from '../net/capped-fetch';
 import type { KeyValueStore, StoreBundle, StoreController } from '../storage';
 import { coachCopy } from './coach-copy';
+import { DistancePref } from './distance-pref';
 import { NumbersPref } from './numbers-pref';
 import { ProfilePref } from './profile-pref';
 import { appUpdate } from '../pwa/app-update';
@@ -97,6 +100,8 @@ export interface Session {
   readonly localePrefs: LocalePrefs;
   /** "Show nutrition numbers": read once at the unlock, live afterwards. */
   readonly numbers: NumbersPref;
+  /** Whether the opt-in text line with the distance to the daily guide is wanted (off by default). */
+  readonly distance: DistancePref;
   /** The optional profile and the daily guide derived from it. */
   readonly profile: ProfilePref;
   /** The persisted "not yet backed up" flag behind the `SyncQueue` port (it counts only while connected). */
@@ -125,6 +130,8 @@ export interface Session {
   readonly summariseWeek: (review: WeeklyReview) => Promise<WeekSummaryResult>;
   /** The person's saved meals and home recipes (the recipes also show up in the food search). */
   readonly saved: SavedStore;
+  /** Dated weigh-ins and waist measurements (docs/adr/0008). */
+  readonly measurements: MeasurementStore;
   /** The whole store as a vault snapshot, and applying one: the encrypted backup and its restore. */
   readonly vault: VaultStore;
   /**
@@ -134,6 +141,8 @@ export interface Session {
   readonly recordPlate: (
     drafts: readonly FoodEntryDraft[],
     loggedAtUtc?: EpochMs,
+    /** The meal the person chose; omitted = derived from the time. */
+    slot?: MealSlot,
   ) => Promise<RecordPlateResult>;
   /**
    * Records several plates in order (copying a day). Every plate goes through the same path as
@@ -158,6 +167,7 @@ export interface Session {
     plateLogId: number,
     drafts: readonly FoodEntryDraft[],
     loggedAtUtc: EpochMs,
+    slot?: MealSlot | null,
   ) => Promise<RecordPlateResult>;
   /** False once the session was disposed: late async results must not touch the UI. */
   readonly live: () => boolean;
@@ -168,6 +178,8 @@ export interface Session {
 export interface PlateToRecord {
   readonly entries: readonly FoodEntryDraft[];
   readonly loggedAtUtc: EpochMs;
+  /** The meal the source plate was filed under by choice, kept by a copy. */
+  readonly chosenSlot?: MealSlot;
 }
 
 /** Test seams for the relay backup; production uses the browser's own. */
@@ -284,8 +296,10 @@ export async function createSession(
 
   const numbers = new NumbersPref(kv);
   await numbers.load();
-  const profile = new ProfilePref(kv);
+  const profile = new ProfilePref(kv, bundle.measurements);
   await profile.load();
+  const distance = new DistancePref(kv);
+  await distance.load();
 
   const coach = createTemplateCoach(coachLookup);
   const templateGenerator = createCoachNoteGenerator({
@@ -371,7 +385,7 @@ export async function createSession(
   const stopRemote = sync.onRemoteChange(() => {
     void (async () => {
       try {
-        await Promise.all([profile.refresh(), numbers.refresh()]);
+        await Promise.all([profile.refresh(), numbers.refresh(), distance.refresh()]);
         const stored = await localePrefs.readStored();
         if (live) applyLocalePreference(localePrefs, stored);
         if (live) catalog.invalidate();
@@ -407,6 +421,7 @@ export async function createSession(
     privacy,
     localePrefs,
     numbers,
+    distance,
     profile,
     syncQueue,
     sync,
@@ -420,8 +435,9 @@ export async function createSession(
     askCoach,
     summariseWeek: (review) => requestWeekSummary(coachAiDeps, review),
     saved,
+    measurements: bundle.measurements,
     vault: bundle.vault,
-    recordPlate: (entries, loggedAtUtc) => record({ entries, store, loggedAtUtc }),
+    recordPlate: (entries, loggedAtUtc, slot) => record({ entries, store, loggedAtUtc, slot }),
     recordPlates: async (plates) => {
       const failedPlates: (typeof plates)[number][] = [];
       let lastCommitted: PlateLog | null = null;
@@ -432,6 +448,7 @@ export async function createSession(
             entries: plate.entries,
             store,
             loggedAtUtc: plate.loggedAtUtc,
+            slot: plate.chosenSlot,
           });
         } catch {
           failedPlates.push(plate);
@@ -458,8 +475,8 @@ export async function createSession(
       };
     },
     deletePlate: createDeletePlate({ store, coachNotes: notes }),
-    replacePlate: (plateLogId, entries, loggedAtUtc) =>
-      replace({ plateLogId, entries, loggedAtUtc, store }),
+    replacePlate: (plateLogId, entries, loggedAtUtc, slot) =>
+      replace({ plateLogId, entries, loggedAtUtc, slot, store }),
     live: () => live,
     dispose() {
       if (!live) return;

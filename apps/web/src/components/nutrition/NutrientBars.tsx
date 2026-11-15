@@ -12,6 +12,7 @@ import { fill, plural, useLocale, useStrings } from '../../i18n';
 import { cn } from '../primitives/cn';
 import { formatNutrient, formatReference, formatWhole } from './format';
 import { SupportLine } from './SupportLine';
+import { useShowDistance } from './use-show-distance';
 
 /** The two sub-rows that sit under their parent nutrient. */
 const SUB_ROWS: ReadonlySet<NutrientKey> = new Set(['sugars', 'saturatedFat']);
@@ -28,9 +29,22 @@ export const NUTRIENT_ORDER: readonly NutrientKey[] = [
   'salt',
 ];
 
-/** The fraction of the reference the bar fills: clamped at the track end, never more. */
+/**
+ * The track shows 0 to 150 % of the reference, so a value above the reference is still drawn on a
+ * scale that shows where 100 % is (the tick). The bar is capped at the track end: the text carries
+ * the real figure.
+ */
+export const TRACK_SHARE = 1.5;
+
+/** The fraction of the track the bar fills: value / reference, capped at 150 %, never negative. */
 export const barFill = (value: number, reference: number): number =>
-  Math.min(Math.max(value / reference, 0), 1);
+  Math.min(Math.max(value / reference, 0), TRACK_SHARE) / TRACK_SHARE;
+
+/** Within this many kcal of the daily guide the opt-in distance line says nothing. */
+export const DISTANCE_QUIET_KCAL = 10;
+
+/** Where the reference (100 %) sits along the track, as a fraction of its length. */
+export const REFERENCE_TICK = 1 / TRACK_SHARE;
 
 /** Whether a nutrition result has anything to draw. */
 export const hasNutrition = (nutrition: NutrientTotals): boolean =>
@@ -39,13 +53,17 @@ export const hasNutrition = (nutrition: NutrientTotals): boolean =>
 /**
  * Nutrient Bars (DESIGN.md): one row per nutrient that has data. The name, the value with its unit
  * and the reference are always text; the bar is a plain neutral graphic (`aria-hidden`) in ONE
- * colour for every nutrient and every amount, so a value past the reference only fills the track
- * and says its number. No red, no warning, no "over". Not a `progressbar`.
+ * colour for every nutrient and every amount. A tick marks the reference; a value past it simply
+ * continues past the tick (capped at 150 % of the track) and the text says the real number. No red,
+ * no warning, no "over". Not a `progressbar`. With the person's opt-in (Settings, Nutrition), one
+ * plain text line under the ENERGY bar says the distance to the daily guide in kcal; nothing else
+ * changes (docs/adr/0008).
  */
 export function NutrientBars({
   nutrition,
   targets = EU_REFERENCE_INTAKES,
   fixHref,
+  distance = false,
 }: {
   readonly nutrition: NutrientTotals;
   /**
@@ -55,8 +73,11 @@ export function NutrientBars({
   readonly fixHref?: ((entry: FoodEntry) => string) | undefined;
   /** The daily guide the bars are drawn against; the EU reference intakes by default. */
   readonly targets?: DailyTargets;
+  /** Offer the opt-in distance line under the energy bar (a whole day's totals, not a plate). */
+  readonly distance?: boolean;
 }) {
   const personal = targets !== EU_REFERENCE_INTAKES;
+  const distanceOn = useShowDistance();
   const all = useStrings();
   const { locale } = useLocale();
   const t = all.nutrition;
@@ -94,7 +115,11 @@ export function NutrientBars({
                   className="bg-ink-soft absolute inset-y-0 left-0 rounded-full"
                   style={{ width: `${barFill(value, reference) * 100}%` }}
                 />
-                <div className="bg-ink absolute -inset-y-1 right-0 w-px" />
+                {/* The reference: always at the same place, so 100 % is visible whatever the value. */}
+                <div
+                  className="bg-ink absolute -inset-y-1 w-px"
+                  style={{ left: `${REFERENCE_TICK * 100}%` }}
+                />
               </div>
               <p className="text-body-small text-thread mt-1">
                 {fill(
@@ -111,6 +136,22 @@ export function NutrientBars({
                   },
                 )}
               </p>
+              {key === 'energyKcal' &&
+                distance &&
+                distanceOn &&
+                personal &&
+                !isPartial(nutrition, key) &&
+                // Within 10 kcal of the guide there is nothing to say: no "about 0 kcal".
+                Math.abs(reference - value) > DISTANCE_QUIET_KCAL && (
+                  <p className="text-body-small text-ink-soft mt-0.5">
+                    {fill(reference >= value ? t.distanceTo : t.distancePast, {
+                      amount: formatWhole(
+                        Math.round(Math.abs(reference - value) / 10) * 10,
+                        locale,
+                      ),
+                    })}
+                  </p>
+                )}
             </li>
           );
         })}

@@ -30,6 +30,7 @@ export const fr: Strings = {
     breakfast: 'Petit-déjeuner',
     lunch: 'Déjeuner',
     dinner: 'Dîner',
+    snack: 'Collation',
     late: 'Nuit',
   },
   lineBar: {
@@ -487,7 +488,7 @@ export const fr: Strings = {
       coachingSwitchHelpOn:
         'Activé : après l’enregistrement d’une assiette, et quand vous interrogez le coach, vos données de repas partent vers la destination indiquée plus bas. Vous pouvez le désactiver à tout moment.',
       coachingSent:
-        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids et les nutriments ne sont pas envoyés.',
+        'Ce qui est envoyé : les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, votre profil si vous l’avez rempli (objectif, régime, allergies, tranche d’âge, sexe, activité), votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis, et ce que vous saisissez dans Interroger le coach avec les réponses précédentes de cette conversation. Jamais le poids, la taille ni le tour de taille eux-mêmes, jamais vos photos, jamais votre phrase secrète. Si les chiffres nutritionnels sont masqués, les poids, les nutriments et le repère du jour ne sont pas envoyés.',
       coachingDestinationInstance: 'Destination : {host}, ce serveur, qui la transmet à {label}.',
       coachingDestinationByok: 'Destination : {host}, le service que vous avez choisi.',
       coachingNeedsAi:
@@ -522,7 +523,7 @@ export const fr: Strings = {
   },
   erase: {
     title: 'Tout effacer sur cet appareil ?',
-    body: 'Vos assiettes, les notes du coach, la clé d’IA enregistrée et les exports encore présents sur cet appareil seront supprimés définitivement. Les copies que vous avez partagées ou téléchargées ailleurs ne sont pas concernées.',
+    body: 'Vos assiettes, les notes du coach, les mesures du corps, la clé d’IA enregistrée et les exports encore présents sur cet appareil seront supprimés définitivement. Les copies que vous avez partagées ou téléchargées ailleurs ne sont pas concernées.',
     confirm: 'Effacer',
     keep: 'Garder mes données',
     failed:
@@ -811,6 +812,9 @@ export const fr: Strings = {
     referenceUnderOne: 'moins de 1 % de l’apport de référence UE ({reference})',
     referencePersonal: 'environ {percent} % de votre repère du jour ({reference})',
     referenceUnderOnePersonal: 'moins de 1 % de votre repère du jour ({reference})',
+    /** La ligne facultative (Réglages, Nutrition) : le seul endroit où cette formulation est permise. */
+    distanceTo: 'environ {amount} kcal avant votre repère du jour',
+    distancePast: 'environ {amount} kcal au-delà de votre repère du jour',
     barsLabel: 'Quantités de nutriments par rapport aux apports de référence',
     atLeast: 'au moins {value}',
     notCounted: { one: '{count} aliment non compté', other: '{count} aliments non comptés' },
@@ -830,7 +834,7 @@ export const fr: Strings = {
     whatAreBody:
       'Les apports de référence sont les quantités quotidiennes fixées par le règlement européen 1169/2011 pour un adulte moyen consommant 2 000 kcal par jour. Les fibres n’ont pas de valeur européenne : 25 g est une recommandation générale. Vos besoins peuvent être différents, et les barres sont une information, pas un objectif.',
     whatAreBodyPersonal:
-      'Les barres utilisent votre repère du jour, calculé à partir du profil choisi dans les Réglages : l’énergie vient des valeurs de référence européennes (EFSA) pour votre tranche d’âge, votre sexe et votre activité, et les autres nutriments en sont déduits. C’est une estimation pour un adulte moyen, pas un conseil, et les barres sont une information, pas un objectif. Sans profil, ce sont les apports de référence UE qui servent (2 000 kcal par jour).',
+      'Les barres utilisent votre repère du jour, calculé à partir du profil choisi dans les Réglages : votre tranche d’âge, votre sexe, votre activité, et votre poids et votre taille si vous les avez saisis, avec les valeurs de référence européennes (EFSA) et les équations de Henry (2005). C’est une estimation, en général à environ 10 % près, pas un conseil, et les barres sont une information, pas un objectif. Une barre continue au-delà du repère quand une quantité va plus loin que le repère du jour ; le chiffre dit de combien. Sans profil, ce sont les apports de référence UE qui servent (2 000 kcal par jour).',
   },
   support: {
     line: 'Si l’alimentation ou le poids occupent beaucoup vos pensées, en parler à quelqu’un peut aider.',
@@ -840,20 +844,49 @@ export const fr: Strings = {
   profile: {
     title: 'Profil',
     intro:
-      'Facultatif. Il sert seulement à ajuster le repère du jour et le coach. Il reste chiffré sur cet appareil.',
+      'Facultatif. Il ajuste votre repère du jour et le coach. Il reste chiffré sur cet appareil, et dans votre sauvegarde si vous en faites une. Quand le coaching par IA est activé, votre objectif, votre régime, vos allergies, votre tranche d’âge, votre sexe et votre activité sont envoyés au coach, avec votre repère du jour arrondi. Votre poids, votre taille et votre tour de taille ne le sont jamais.',
     notSet: 'Non renseigné',
     ageBand: 'Tranche d’âge',
     sex: 'Sexe',
     activity: 'Activité',
     goal: 'Souhait',
     diet: 'Alimentation',
+    aboutTitle: 'Vous',
+    aboutHelp:
+      'Votre tranche d’âge, votre sexe et votre activité donnent le point de départ de votre repère du jour.',
+    bodyTitle: 'Corps',
+    bodyHelp:
+      'Facultatif. Une taille et un poids rendent votre repère plus personnel. Sans poids, un poids d’adulte moyen est utilisé.',
+    goalTitle: 'Souhait',
+    goalHelp:
+      'Votre souhait fixe l’écart entre votre repère du jour et l’énergie qui maintient votre poids.',
+    guideTitle: 'Votre repère du jour',
+    foodTitle: 'Alimentation',
+    foodHelp: 'Votre régime et vos allergies ajustent ce que propose le coach.',
     sexOptions: { female: 'Femme', male: 'Homme', unspecified: 'Je préfère ne pas dire' },
-    activityOptions: { low: 'Plutôt assis', moderate: 'Un peu de mouvement', high: 'Très actif' },
+    activityOptions: {
+      low: 'Plutôt assis',
+      moderate: 'Un peu de mouvement',
+      high: 'Actif',
+      veryHigh: 'Très actif',
+    },
+    activityHelp: {
+      low: 'Bureau ou maison la plupart du temps, peu d’exercice.',
+      moderate: 'Debout une partie de la journée, ou un exercice léger quelques fois par semaine.',
+      high: 'Debout la plupart de la journée, ou un exercice régulier presque tous les jours.',
+      veryHigh: 'Travail physique, ou entraînement soutenu presque tous les jours.',
+    },
     goalOptions: {
       eatBetter: 'Mieux manger',
       maintain: 'Rester comme je suis',
-      lose: 'Perdre un peu de poids',
-      gain: 'Prendre un peu de poids',
+      lose: 'Perdre du poids',
+      gain: 'Prendre du poids',
+    },
+    goalEffect: {
+      eatBetter: 'Le repère du jour reste à l’énergie qui maintient votre poids.',
+      maintain: 'Le repère du jour reste à l’énergie qui maintient votre poids.',
+      lose: 'Le repère du jour est un peu en dessous de l’énergie qui maintient votre poids.',
+      gain: 'Le repère du jour est un peu au-dessus de l’énergie qui maintient votre poids.',
     },
     dietOptions: {
       omnivore: 'De tout',
@@ -865,12 +898,169 @@ export const fr: Strings = {
     allergiesHelp: 'Saisissez-les un par un, puis ajoutez-les.',
     allergyAdd: 'Ajouter',
     allergyRemove: 'Retirer {tag}',
-    guideComplete: 'Votre repère du jour est d’environ {energy} kcal.',
+    units: 'Unités',
+    unitsHelp: 'Change seulement l’affichage et la saisie des longueurs et des poids.',
+    unitsOptions: { metric: 'kg et cm', imperial: 'lb et pi/po' },
+    heightLabel: 'Taille',
+    heightHelp: 'Sert avec votre poids à rendre le repère plus personnel.',
+    heightCm: 'Taille en cm',
+    heightFt: 'Pieds',
+    heightIn: 'Pouces',
+    heightSave: 'Enregistrer la taille',
+    heightRemove: 'Retirer la taille',
+    weightLabel: 'Poids actuel',
+    weightHelp:
+      'Enregistrer un poids ajoute une pesée datée d’aujourd’hui. Une seconde le même jour la remplace.',
+    weightKg: 'Poids en kg',
+    weightLb: 'Poids en lb',
+    weightSave: 'Enregistrer le poids',
+    weightFrom: 'Dernier : {value} le {date}.',
+    weighIns: 'Pesées récentes',
+    weighInRemove: 'Retirer la pesée du {date}',
+    waistLabel: 'Tour de taille (facultatif)',
+    waistCm: 'Tour de taille en cm',
+    waistIn: 'Tour de taille en pouces',
+    waistSave: 'Enregistrer le tour de taille',
+    waistFrom: 'Mesuré le {date} : {value}.',
+    waistRemove: 'Retirer le tour de taille du {date}',
+    waistHow: 'Comment le mesurer',
+    waistHowBody:
+      'Tenez-vous détendu et mesurez à mi-chemin entre la dernière côte et le haut de l’os de la hanche, après avoir expiré, le mètre bien ajusté sans serrer.',
+    unitKg: 'kg',
+    unitLb: 'lb',
+    unitCm: 'cm',
+    unitIn: 'po',
+    errorNumber: 'Saisissez un nombre, par exemple {example}.',
+    errorHeight: 'Saisissez une taille entre {min} et {max} {unit}.',
+    errorHeightImperial: 'Saisissez une taille entre {min} et {max}.',
+    errorInches: 'Les pouces vont de 0 à 11,9.',
+    heightFtIn: '{feet} pi {inches} po',
+    errorWeight: 'Saisissez un poids entre {min} et {max} {unit}.',
+    errorWaist: 'Saisissez un tour de taille entre {min} et {max} {unit}.',
+    pace: 'Rythme',
+    paceOptions: { gentle: 'Doux', standard: 'Habituel', faster: 'Plus soutenu' },
+    paceHelpLose: {
+      gentle: 'Environ 250 kcal par jour de moins que l’énergie qui maintient votre poids.',
+      standard: 'Environ 500 kcal par jour de moins que l’énergie qui maintient votre poids.',
+      faster:
+        'Environ 750 kcal par jour de moins, pour au plus un quart de l’énergie qui maintient votre poids.',
+    },
+    paceHelpGain: {
+      gentle: 'Environ 250 kcal par jour de plus que l’énergie qui maintient votre poids.',
+      standard: 'Environ 250 kcal par jour de plus que l’énergie qui maintient votre poids.',
+      faster: 'Environ 400 kcal par jour de plus que l’énergie qui maintient votre poids.',
+    },
+    paceExpectationLose:
+      'Environ 0,25 à 0,75 kg par semaine au début, puis de plus en plus lentement. De 5 à 10 % de votre poids en six mois est un résultat réaliste. Ce sont des estimations, pas des promesses.',
+    paceExpectationLoseImperial:
+      'Environ 0,5 à 1,5 lb par semaine au début, puis de plus en plus lentement. De 5 à 10 % de votre poids en six mois est un résultat réaliste. Ce sont des estimations, pas des promesses.',
+    paceExpectationGain:
+      'Prendre du poids lentement se garde plus facilement. Ce sont des estimations, pas des promesses.',
+    pregnantLabel: 'Je suis enceinte ou j’allaite',
+    pregnantHelp: 'Votre repère du jour ne vise alors pas à perdre du poids.',
+    pregnantNote:
+      'Le repère ne tient pas compte des besoins supplémentaires de la grossesse ou de l’allaitement. Une sage-femme ou un médecin est la bonne personne à qui poser la question.',
+    guideComplete: 'Votre repère du jour est d’environ {energy} kcal et {protein} g de protéines.',
     guideIncomplete:
       'Renseignez le sexe, la tranche d’âge et l’activité pour ajuster le repère du jour. D’ici là, l’apport de référence UE est utilisé.',
-    goalNote: 'Un souhait ne déplace le repère d’énergie que de 10 %, et jamais sous 1 500 kcal.',
+    guideMakePersonal:
+      'Il utilise un poids d’adulte moyen. Saisissez votre poids dans Corps pour le rendre personnel.',
+    noticeHeld:
+      'Votre repère du jour reste à l’énergie qui maintient votre poids. Si vous voulez perdre du poids, en parler d’abord à un médecin ou à un diététicien peut aider.',
+    noticeOlder:
+      'Après 65 ans, mieux vaut décider d’une perte de poids avec un médecin. Votre repère du jour reste à l’énergie qui maintient votre poids.',
+    noticeGain:
+      'Votre repère du jour reste à l’énergie qui maintient votre poids. Si vous voulez prendre du poids, en parler d’abord à un médecin ou à un diététicien peut aider.',
+    noticeBodyUnknownLose:
+      'Pour calculer un repère de perte de poids, ajoutez votre taille et votre poids dans Corps. D’ici là, votre repère du jour est l’énergie qui maintient votre poids.',
+    noticeBodyUnknownGain:
+      'Pour calculer un repère de prise de poids, ajoutez votre taille et votre poids dans Corps. D’ici là, votre repère du jour est l’énergie qui maintient votre poids.',
+    noticeHeldRaised:
+      'Votre repère du jour est de {floor} kcal, le plus bas chiffre utilisé pour un repère, un peu au-dessus de l’énergie qui maintient votre poids. Si vous voulez perdre du poids, en parler d’abord à un médecin ou à un diététicien peut aider.',
+    noticeOlderRaised:
+      'Après 65 ans, mieux vaut décider d’une perte de poids avec un médecin. Votre repère du jour est de {floor} kcal, le plus bas chiffre utilisé pour un repère, un peu au-dessus de l’énergie qui maintient votre poids.',
+    noticeFloor: 'Votre repère du jour est tenu à {floor} kcal au moins.',
+    noticeFloorRaised:
+      'Votre repère du jour est de {floor} kcal, le plus bas chiffre utilisé pour un repère, un peu au-dessus de l’énergie qui maintient votre poids.',
+    how: 'Comment c’est calculé',
+    howResting:
+      'Énergie au repos : environ {kcal} kcal par jour, d’après les équations de Henry (2005), avec {inputs}.',
+    howInputsWeightHeight: 'votre poids et votre taille',
+    howInputsWeight: 'votre poids',
+    howInputsReference: 'un poids d’adulte moyen, faute de poids renseigné',
+    howActivity: 'Activité : multipliée par {pal} pour « {activity} ».',
+    howMaintenance: 'L’énergie qui maintient votre poids : environ {kcal} kcal.',
+    howAdjustLess: 'Votre souhait et votre rythme : {kcal} kcal par jour de moins.',
+    howAdjustMore: 'Votre souhait et votre rythme : {kcal} kcal par jour de plus.',
+    howNone: 'Votre souhait ne demande aucun changement.',
+    howCustom: 'Vous avez fixé ce chiffre vous-même.',
+    howFloorLimited:
+      'Un écart de cette taille descendrait sous {floor} kcal, le plus bas chiffre utilisé pour un repère : il est donc fixé à {floor} kcal.',
+    howFloorRaised:
+      'L’énergie qui maintient votre poids est estimée sous {floor} kcal, le plus bas chiffre utilisé pour un repère : le repère est donc fixé à {floor} kcal.',
+    howHeld:
+      'Une précaution a décidé de ce chiffre : votre repère du jour reste à l’énergie qui maintient votre poids au lieu de passer en dessous.',
+    howHeldUnknown:
+      'Il faut d’abord votre taille et votre poids : pour l’instant, votre repère est l’énergie qui maintient votre poids.',
+    howCustomIgnoredFloor:
+      'Votre propre chiffre était sous {floor} kcal, le plus bas chiffre utilisé pour un repère : il n’a donc pas été utilisé.',
+    howCustomIgnoredSafeguard:
+      'Votre propre chiffre était sous l’énergie qui maintient votre poids tant que la précaution ci-dessus s’applique : il n’a donc pas été utilisé.',
+    howSteps:
+      'Ces règles ont des seuils : le repère peut donc changer par paliers plutôt que progressivement, et une petite variation de votre poids ou de votre taille peut le déplacer de quelques centaines de kcal.',
+    howProtein: 'Protéines : {perKg} g par kg de {basis}, soit environ {grams} g.',
+    howBasisWeight: 'votre poids',
+    howBasisBmi25: 'poids correspondant à un IMC de 25 (votre IMC est supérieur à 30)',
+    howBasisReference: 'poids d’adulte moyen',
+    howBasisCapped:
+      'poids correspondant à un IMC de 30 pour une taille moyenne, faute de taille renseignée et parce que votre poids est au-dessus',
+    howOthers:
+      'Les lipides font 35 % de l’énergie et les saturés 10 % ; les glucides sont le reste. Les fibres sont de {fibre} g (30 g est un objectif courant) et le sel de 6 g, la référence de l’étiquette européenne.',
+    howAccuracy:
+      'C’est une estimation, en général à environ 10 % près. C’est un point de départ que vous pouvez changer, pas un conseil.',
+    customToggle: 'Fixer mon propre repère',
+    customHelp:
+      'Saisissez l’énergie quotidienne que vous voulez comme repère. Elle remplace celle qui est calculée.',
+    customLabel: 'Énergie quotidienne en kcal',
+    customSave: 'Utiliser ce chiffre',
+    customReset: 'Revenir au repère calculé',
+    customActive: 'Vous utilisez votre propre chiffre : {kcal} kcal.',
+    customRefused:
+      'Le chiffre que vous avez fixé est sous {floor} kcal, donc le repère calculé est utilisé à la place.',
+    customRefusedSafeguard:
+      'Le chiffre que vous avez fixé est sous l’énergie qui maintient votre poids, et votre repère du jour y est tenu pour l’instant : le repère calculé est donc utilisé à la place. Un chiffre plus bas se fixe mieux avec un médecin ou un diététicien.',
+    errorCustomSafeguard:
+      'C’est plus bas que l’énergie qui maintient votre poids, et votre repère du jour y est tenu pour l’instant. Un chiffre plus bas se fixe mieux avec un médecin ou un diététicien.',
+    errorCustomRange: 'Saisissez un chiffre entre {min} et {max} kcal.',
+    errorCustomFloor:
+      'C’est plus bas que le plus bas chiffre utilisé pour un repère ({floor} kcal). Un repère si bas se fixe mieux avec un médecin ou un diététicien.',
+    guideNumbersOff:
+      'Les chiffres nutritionnels sont masqués : les valeurs ne sont donc pas affichées ici.',
+    guideNumbersOffLink: 'Les afficher dans Réglages, Nutrition',
+    bmiToggle: 'Indice de masse corporelle et rapport tour de taille sur taille',
+    bmiIntro:
+      'Deux nombres simples que certaines personnes aiment connaître. Ils sont approximatifs, ne disent rien de vous en tant que personne, et peuvent rester fermés.',
+    bmiValue: 'Indice de masse corporelle (IMC) : {value}.',
+    bmiNeeds: 'Saisissez une taille et un poids pour voir un IMC.',
+    bmiRanges:
+      'Plages de référence pour les adultes (OMS) : moins de 18,5 ; 18,5 à 24,9 ; 25 à 29,9 ; 30 ou plus.',
+    bmiCaveats:
+      'L’IMC est moins fiable avec une forte musculature, à 65 ans et plus, et pendant la grossesse. Pour les personnes d’origine sud-asiatique, chinoise, autre asiatique, moyen-orientale, africaine noire ou afro-caribéenne, des seuils plus bas sont utilisés : 23 et 27,5 au lieu de 25 et 30.',
+    whtrValue: 'Rapport tour de taille sur taille : {value}.',
+    whtrNeeds: 'Saisissez une taille et un tour de taille pour voir ce rapport.',
+    whtrRanges:
+      'Plages de référence pour les adultes (NICE) : 0,4 à 0,49 ; 0,5 à 0,59 ; 0,6 ou plus.',
+    whtrNotUseful:
+      'Le rapport tour de taille sur taille n’apporte pas de mesure utile en plus à partir d’un IMC de 35.',
     clear: 'Effacer le profil',
     cleared: 'Profil effacé.',
+    removeMeasurements: 'Retirer toutes les mesures',
+    measurementsRemoved: 'Mesures retirées.',
+    removeMeasurementsTitle: 'Retirer toutes les mesures ?',
+    removeMeasurementsBody:
+      'Cela retire toutes les pesées et tous les tours de taille. C’est appliqué sur chaque appareil synchronisé avec celui-ci, et ce n’est pas réversible.',
+    removeMeasurementsConfirm: 'Tout retirer',
+    removeMeasurementsKeep: 'Les garder',
     saveFailed: 'Cela n’a pas été enregistré à l’instant. Rien n’a changé.',
   },
   nutritionSettings: {
@@ -878,6 +1068,9 @@ export const fr: Strings = {
     switchTitle: 'Afficher les valeurs nutritionnelles',
     switchHelp:
       'Si les chiffres sur l’alimentation vous pèsent, vous pouvez masquer les valeurs nutritionnelles et les barres. Les poids et vos repas restent.',
+    distanceTitle: 'Afficher l’écart avec mon repère du jour',
+    distanceHelp:
+      'Ajoute une ligne simple sous la barre d’énergie avec l’écart entre la journée et votre repère du jour, en kcal. Rien ne change de couleur et rien n’est compté. Désactivé tant que vous ne l’activez pas.',
     saveFailed: 'Cela n’a pas été enregistré à l’instant. L’interrupteur reste où il était.',
   },
   relog: {
@@ -1194,7 +1387,7 @@ export const fr: Strings = {
     exportHeading: 'Export',
     eraseLabel: 'Effacer les données locales',
     eraseExplain:
-      'Supprime votre historique, les notes du coach, la clé d’IA enregistrée et les exports encore présents sur cet appareil. Les copies que vous avez partagées ou téléchargées ailleurs ne sont pas concernées. Il n’existe aucune autre copie de vos données, c’est donc définitif — exportez d’abord si vous voulez en garder une.',
+      'Supprime votre historique, les notes du coach, les mesures du corps, la clé d’IA enregistrée et les exports encore présents sur cet appareil. Les copies que vous avez partagées ou téléchargées ailleurs ne sont pas concernées. Il n’existe aucune autre copie de vos données, c’est donc définitif — exportez d’abord si vous voulez en garder une.',
     eraseButton: 'Effacer toutes les données locales',
   },
   export: {
@@ -1226,12 +1419,12 @@ export const fr: Strings = {
     failedFormat: 'Ce format de fichier n’est pas disponible.',
     failedDelivery: 'l’export a échoué — réessayez',
     failedSaved:
-      'Vos repas et recettes gardés n’ont pas pu être lus pour le moment, donc rien n’a été exporté. Rien n’est perdu\u202F; vous pouvez réessayer.',
+      'Vos repas, recettes ou mesures du corps n’ont pas pu être lus pour le moment, donc rien n’a été exporté. Rien n’est perdu\u202F; vous pouvez réessayer.',
   },
   backup: {
     heading: 'Sauvegarde chiffrée',
     explain:
-      'Un seul fichier avec vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil et votre langue, verrouillé par une phrase secrète. Gardez-le en lieu sûr : c’est le chemin de retour si ce navigateur perd un jour vos données. Il n’inclut jamais votre clé d’IA ni vos réglages d’IA.',
+      'Un seul fichier avec vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil, les mesures du corps et votre langue, verrouillé par une phrase secrète. Gardez-le en lieu sûr : c’est le chemin de retour si ce navigateur perd un jour vos données. Il n’inclut jamais votre clé d’IA ni vos réglages d’IA.',
     suggest:
       'Utiliser la même phrase secrète que celle qui déverrouille l’application, c’est une seule chose à retenir. N’importe quelle phrase secrète convient.',
     warning:
@@ -1296,7 +1489,7 @@ export const fr: Strings = {
     intro: 'Une liste simple. Rien n’est caché ici, et rien n’est collecté sur vous.',
     storedHeading: 'Stocké sur cet appareil, chiffré',
     storedBody:
-      'Vos assiettes et les aliments qu’elles contiennent, les notes du coach affichées avec elles, vos choix (comme vos réglages d’IA et ces avis) et, si vous en ajoutez une, votre clé d’IA. Tout est chiffré sur cet appareil. La clé est tirée de votre phrase secrète et n’est gardée que tant que l’application est déverrouillée. La seule exception est la langue choisie, aussi conservée en clair sur cet appareil pour que l’écran de déverrouillage puisse l’utiliser ; elle ne révèle rien d’autre.',
+      'Vos assiettes et les aliments qu’elles contiennent, les notes du coach affichées avec elles, votre profil et, si vous les saisissez, votre taille, votre poids et votre tour de taille (datés), vos choix (comme vos réglages d’IA et ces avis) et, si vous en ajoutez une, votre clé d’IA. Tout est chiffré sur cet appareil. La clé est tirée de votre phrase secrète et n’est gardée que tant que l’application est déverrouillée. La seule exception est la langue choisie, aussi conservée en clair sur cet appareil pour que l’écran de déverrouillage puisse l’utiliser ; elle ne révèle rien d’autre.',
     leavesHeading: 'Ce qui quitte cet appareil, et quand',
     leavesBarcode:
       'Scan d’un code-barres : le numéro du code-barres est recherché sur Open Food Facts, une base de données publique sans compte. Seul le code-barres est envoyé. Open Food Facts voit aussi les informations de connexion que voit tout site web : votre adresse IP, le type de votre appareil ou de votre navigateur et l’adresse de ce site (le navigateur l’ajoute dans l’en-tête Origin). Vous pouvez désactiver cela ci-dessous.',
@@ -1305,9 +1498,9 @@ export const fr: Strings = {
     leavesInstance:
       'Si la personne qui exploite ce serveur a activé son IA, une photo que vous acceptez d’envoyer part d’abord vers ce serveur, qui ajoute sa propre clé d’IA et la transmet au fournisseur indiqué dans Réglages, Votre IA. Ce serveur voit votre adresse IP et le type de votre navigateur ; le fournisseur voit la photo et l’instruction, venant de ce serveur. La clé n’atteint jamais votre navigateur.',
     leavesCoaching:
-      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil. Les poids et les nutriments sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
+      'Coaching par IA : seulement si vous l’avez activé dans Réglages, Votre IA. Le coach envoie alors à l’IA que vous avez choisie (celle de ce serveur, qui la transmet à son fournisseur, ou le service de votre propre clé) les noms et les groupes de vos aliments, leurs poids et les totaux de nutriments, les dates des jours concernés (sans l’heure), le moment du repas, le nombre d’assiettes, le nombre de jours et les moyennes de la semaine et, si vous l’avez rempli, votre profil, ainsi que votre repère du jour, arrondi, qui est calculé d’après votre poids et votre taille si vous les avez saisis (jamais le poids, la taille ni le tour de taille eux-mêmes). Les poids, les nutriments et le repère du jour sont omis tant que les chiffres nutritionnels sont masqués. Jamais de photos, jamais votre phrase secrète. Une question saisie dans Interroger le coach part avec, ainsi que les réponses précédentes de cette conversation, qui n’est gardée en mémoire que jusqu’au verrouillage de l’application. Les notes écrites par l’IA sont conservées sur cet appareil comme n’importe quelle note du coach.',
     leavesServerCopy:
-      'Sauvegarde sur ce serveur : seulement si la personne qui gère ce serveur l’a activée et que vous choisissez Sauvegarder sur ce serveur dans Réglages, Vos données. Une copie chiffrée de vos données est alors envoyée à ce serveur, verrouillée sur cet appareil avant de partir, et mise à jour peu après vos modifications tant que l’application est déverrouillée. Ce serveur voit l’identifiant que vous avez choisi, le moment où la copie change et sa taille, ainsi que votre adresse internet et le type de votre navigateur, comme tout site web. Il ne peut pas lire vos aliments, vos heures, vos notes ni votre profil, et il ne reçoit jamais votre phrase secrète. Vous pouvez arrêter à tout moment dans Réglages, Vos données.',
+      'Sauvegarde sur ce serveur : seulement si la personne qui gère ce serveur l’a activée et que vous choisissez Sauvegarder sur ce serveur dans Réglages, Vos données. Une copie chiffrée de vos données est alors envoyée à ce serveur, verrouillée sur cet appareil avant de partir, et mise à jour peu après vos modifications tant que l’application est déverrouillée. Ce serveur voit l’identifiant que vous avez choisi, le moment où la copie change et sa taille, ainsi que votre adresse internet et le type de votre navigateur, comme tout site web. Il ne peut pas lire vos aliments, vos heures, vos notes, votre profil ni vos mesures du corps, et il ne reçoit jamais votre phrase secrète. Vous pouvez arrêter à tout moment dans Réglages, Vos données.',
     offToggle: 'Rechercher les codes-barres sur Open Food Facts',
     offToggleOn: 'Activé : un code-barres scanné est recherché en ligne.',
     offToggleOff:
@@ -1332,7 +1525,7 @@ export const fr: Strings = {
       'Réglages, Vos données, Exporter enregistre vos assiettes dans un fichier CSV ou JSON. Les exports sont des fichiers texte en clair, non chiffrés : gardez-les en lieu sûr.',
     backupHeading: 'Sauvegardes chiffrées',
     backupBody:
-      'Réglages, Vos données, Enregistrer une sauvegarde chiffrée écrit un seul fichier, verrouillé sur cet appareil par une phrase secrète que vous choisissez (Argon2id et AES-256-GCM). Il contient vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil et votre langue, et jamais votre clé d’IA, vos réglages d’IA ni vos consentements. Rien n’est envoyé : le fichier va là où vous l’enregistrez. Si vous oubliez sa phrase secrète, il ne pourra pas être ouvert — ni par nous, ni par personne d’autre. La restauration le fusionne avec ce qui est déjà sur l’appareil.',
+      'Réglages, Vos données, Enregistrer une sauvegarde chiffrée écrit un seul fichier, verrouillé sur cet appareil par une phrase secrète que vous choisissez (Argon2id et AES-256-GCM). Il contient vos assiettes, les notes du coach, vos repas et recettes gardés, votre profil, les mesures du corps et votre langue, et jamais votre clé d’IA, vos réglages d’IA ni vos consentements. Rien n’est envoyé : le fichier va là où vous l’enregistrez. Si vous oubliez sa phrase secrète, il ne pourra pas être ouvert — ni par nous, ni par personne d’autre. La restauration le fusionne avec ce qui est déjà sur l’appareil.',
     sharedHeading: 'Appareils partagés',
     sharedBody:
       'Toute personne qui peut ouvrir AI Nutrition Coach dans ce profil de navigateur et qui connaît la phrase secrète voit le même historique ; il n’y a pas de profils séparés dans l’application. Pour des historiques séparés, utilisez un autre appareil ou un autre profil de navigateur, chacun avec sa propre phrase secrète.',

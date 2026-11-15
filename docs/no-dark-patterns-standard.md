@@ -58,14 +58,39 @@ A number is information against a reference, never an allowance being
 spent down. Rings, donuts, grades, points, red bars and "calories
 remaining" stay banned.
 
+## Allowed since 2026-11-15: your daily guide and optional body data
+
+ADR 0008 (`docs/adr/0008-goals-body-data-daily-guide.md`) adds the following. The reviewer checks each use.
+
+- The personal energy figure is called **"your daily guide"** (French "votre repère du jour"). Going past it is
+  visible but neutral: same colour, plain text ("about 112 % of your daily guide").
+- **One opt-in line, off by default**, in *Settings → Nutrition* (*Show the distance to my daily guide*): plain
+  text, "about 450 kcal to your daily guide", and past it "about 120 kcal past your daily guide". No colour change,
+  no icon, no ring, no allowance visual, never in the coach's voice. **This is the only place the wording "to your
+  daily guide" and "past your daily guide" may appear.** Every other banned word stays banned there and everywhere:
+  maximum, limit, budget, exceeded, over, and remaining as pressure.
+- **Optional body data**: height, dated weigh-ins and dated waist. BMI and waist-to-height ratio may be shown as
+  plain numbers next to the WHO and NICE reference ranges written as text, behind a disclosure, with the caveats
+  (muscular build, 65 and over, pregnancy, the lower ranges for some backgrounds). Never a label on the person
+  ("you are overweight"), never colour-coded.
+- A coach that may help with weight loss when the person chose that goal, within the safeguards of ADR 0008.
+
+Still banned with it: birth date, weight-change targets used as scores, streaks of weigh-ins, weigh-in reminders by
+default, charts coloured good or bad, and any countdown or ring.
+
 ## Support
 
 Food and weight can weigh on people. The app carries one calm, always-available line, in
 *Settings → Nutrition* (under the numbers switch), in the "What are reference intakes?"
-disclosure under the bars, and next to the goal choice in *Settings → Profile* when the goal is to
-lose weight: "If food or weight worries take up a lot of your thoughts, talking to someone can
+disclosure under the bars, next to the goal and pace choice in *Settings → Profile* (always, whatever the goal),
+and once in the Body section (*Settings → Profile → Body*), covering weight, height and waist: "If food or weight worries take up a lot of your thoughts, talking to someone can
 help." followed by a link. It never tells anyone they have a problem, and it is not conditioned on
-anything the person logged. The link opens in a new tab (`rel="noopener noreferrer"`) and is never
+anything the person logged. Separately, when a safeguard of ADR 0008 holds the daily guide at maintenance (a
+low or unknown BMI with the goal to lose weight, a guide that could only be reached below the floor, pregnancy or
+breastfeeding, or age 65 and over with a BMI below 30), a calm fixed line says so and points to a doctor or a
+dietitian. English wording: "Your daily guide stays at what keeps your weight steady. If you want to lose weight,
+talking to a doctor or a dietitian first can help." At 65 and over: "After 65, weight loss is best decided with a
+doctor. Your daily guide stays at what keeps your weight steady." The link opens in a new tab (`rel="noopener noreferrer"`) and is never
 fetched by the app; the exact URLs are allow-listed in `tools/check_no_external_hosts.sh`
 (the scanner reads the built bundle, hrefs included) and defined in
 `apps/web/src/components/nutrition/support.ts`.

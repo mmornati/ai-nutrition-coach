@@ -31,6 +31,17 @@ export interface InsertedPlate {
 export interface PlateRow {
   readonly id: number;
   readonly loggedAtUtc: string;
+  /** Schema v5: the meal the person chose, or `null` (derived from the time). */
+  readonly slot: string | null;
+}
+
+/** One stored body measurement (schema v5); `value` is text (two decimals at most for a weight, one for a waist). */
+export interface MeasurementRow {
+  readonly id: number;
+  readonly kind: string;
+  readonly day: string;
+  readonly measuredAtUtc: string;
+  readonly value: string;
 }
 
 export interface EntryRow extends EntryInsert {
@@ -95,7 +106,11 @@ export interface PlateUidRow {
 }
 
 export interface StoreDbOps {
-  insertPlate(loggedAtUtc: string, entries: readonly EntryInsert[]): InsertedPlate;
+  insertPlate(
+    loggedAtUtc: string,
+    entries: readonly EntryInsert[],
+    slot?: string | null,
+  ): InsertedPlate;
   /**
    * Edits a plate: deletes `plateLogId` with everything attached (tombstones included) and
    * creates the replacement, in ONE transaction. The replacement has a new id and new uids.
@@ -106,6 +121,7 @@ export interface StoreDbOps {
     plateLogId: number,
     loggedAtUtc: string,
     entries: readonly EntryInsert[],
+    slot?: string | null,
   ): InsertedPlate | null;
   /** `[from, to)` on the UTC text, either bound optional. Newest first. */
   readPlateRows(fromUtc: string | null, toUtc: string | null): PlateRowSet;
@@ -140,6 +156,17 @@ export interface StoreDbOps {
   readRecipes(): RecipeSet;
   /** The recipe and its items in ONE transaction. An unknown id is a no-op. */
   deleteRecipe(id: number): void;
+
+  /**
+   * Schema v5. Records the measurement of `kind` on local day `day`, replacing the one that day
+   * has (same uid, new stamp); a tombstone left by an earlier delete of that day is outlived
+   * because the new stamp is later.
+   */
+  upsertMeasurement(kind: string, day: string, measuredAtUtc: string, value: string): void;
+  /** Newest day first, then kind. */
+  readMeasurements(): MeasurementRow[];
+  /** Deletes that day's measurement (a tombstone is left). Absent: a no-op. */
+  deleteMeasurement(kind: string, day: string): void;
 
   kvGet(key: string): string | null;
   /** Schema v4: the change time (an HLC stamp) is written with the value, in the same statement. */
@@ -188,6 +215,9 @@ export const STORE_OP_NAMES: readonly StoreOpName[] = [
   'insertRecipe',
   'readRecipes',
   'deleteRecipe',
+  'upsertMeasurement',
+  'readMeasurements',
+  'deleteMeasurement',
   'kvGet',
   'kvSet',
   'kvDelete',

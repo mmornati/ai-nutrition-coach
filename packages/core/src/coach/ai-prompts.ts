@@ -132,6 +132,24 @@ function nutrientsJson(n: Nutrients): Record<string, number> {
   return out;
 }
 
+/**
+ * The daily guide as it is SENT (docs/adr/0008). The precise guide is worked out from the person's
+ * weight and height, and the protein figure is a factor times the weight, so the exact numbers would
+ * encode them. What the coach receives is rounded: energy to the nearest 100 kcal, protein and every
+ * other gram figure derived from them to the nearest 10 g (fibre and salt are fixed references). The
+ * screens keep the precise figures. One helper, used by every builder that sends the guide.
+ */
+export function coarseGuideJson(n: Nutrients): Record<string, number> {
+  const out = nutrientsJson(n);
+  for (const key of ['kcal'] as const)
+    if (out[key] !== undefined) out[key] = nearest(out[key], 100);
+  for (const key of ['protein_g', 'carbohydrate_g', 'sugars_g', 'fat_g', 'saturated_fat_g']) {
+    if (out[key] !== undefined) out[key] = nearest(out[key], 10);
+  }
+  return out;
+}
+const nearest = (value: number, step: number): number => Math.round(value / step) * step;
+
 /** The optional profile as it is sent: only the fields the person set. */
 export function profileJson(profile: Profile | undefined): Record<string, unknown> | undefined {
   if (profile === undefined) return undefined;
@@ -216,7 +234,7 @@ export function buildNoteMessages(input: NotePromptInput): readonly PromptMessag
         plateNutrients(input.plate).totals,
       );
       day['totals'] = nutrientsJson(dayNutrients([...input.earlierPlates, input.plate]).totals);
-      day['dailyGuide'] = nutrientsJson(input.targets);
+      day['dailyGuide'] = coarseGuideJson(input.targets);
     }
     data['daySoFar'] = day;
     const profile = profileJson(input.profile);
@@ -301,7 +319,7 @@ export function weekContextJson(
     .slice(0, 8)
     .map(([name, times]) => ({ name, times }));
   const data: Record<string, unknown> = { numbers: input.numbersOn, days, topFoods };
-  if (input.numbersOn) data['dailyGuide'] = nutrientsJson(input.targets);
+  if (input.numbersOn) data['dailyGuide'] = coarseGuideJson(input.targets);
   const profile = profileJson(input.profile);
   if (profile !== undefined) data['profile'] = profile;
   return data;
@@ -418,7 +436,7 @@ export function buildWeekMessages(input: {
   };
   if (input.numbersOn) {
     data['dailyAverages'] = nutrientsJson(review.averages);
-    data['dailyGuide'] = nutrientsJson(input.targets);
+    data['dailyGuide'] = coarseGuideJson(input.targets);
   }
   const profile = profileJson(input.profile);
   if (profile !== undefined) data['profile'] = profile;

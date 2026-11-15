@@ -7,6 +7,7 @@ import { plateDeleteFailed, storeFailure } from '@anc/core';
 import type { StoreBundle } from '../../storage';
 import {
   at,
+  draft,
   renderInSession,
   seedMeasuredPlate,
   seedPlate,
@@ -33,7 +34,7 @@ const stationNames = () =>
   screen
     .getAllByRole('heading', { level: 2 })
     .map((h) => h.firstChild?.textContent ?? '')
-    .filter((t) => ['Breakfast', 'Lunch', 'Dinner', 'Late'].includes(t));
+    .filter((t) => ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Late'].includes(t));
 
 describe('TodayScreen: the day as a map', () => {
   it('an empty day is three open stations, a header and no pressure', async () => {
@@ -78,6 +79,30 @@ describe('TodayScreen: the day as a map', () => {
     await renderInSession(<TodayScreen />, { bundle });
     expect(await screen.findByText('Toast')).toBeVisible();
     expect(stationNames()).toContain('Late');
+  });
+
+  it('a plate filed under Snack is its own station, after Dinner and before Late, and only once it is used', async () => {
+    const bundle = await unlockedBundle();
+    // Never an open Snack station: an empty one would invite a snack.
+    const { unmount } = await renderInSession(<TodayScreen />, { bundle });
+    expect(await screen.findByText('Breakfast')).toBeVisible();
+    expect(stationNames()).not.toContain('Snack');
+    unmount();
+
+    // 15:30 is lunch by the clock; filed as a snack by choice, it sits under Snack, not Lunch.
+    const result = await bundle.store.recordPlate({
+      entries: [draft('Apple', 'vegFruit')],
+      loggedAtUtc: at(15, 30),
+      slot: 'snack',
+    });
+    expect(result.kind).toBe('recordPlateSuccess');
+    await seedPlate(bundle, at(23, 30), [['Toast', 'starch']]);
+    await renderInSession(<TodayScreen />, { bundle });
+    expect(await screen.findByText('Apple')).toBeVisible();
+    expect(stationNames()).toEqual(['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Late']);
+    const snack = screen.getByRole('heading', { level: 2, name: /Snack/ }).closest('section');
+    expect(within(snack as HTMLElement).getByText('Apple')).toBeVisible();
+    expect(screen.getAllByTestId(/^open-plate-/)).toHaveLength(2);
   });
 
   it("yesterday's plate is not on today's board, but is on yesterday's", async () => {

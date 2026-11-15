@@ -3,6 +3,7 @@
 // quantity are skipped and reported through the (content-free) reporter.
 
 import {
+  isPlateSlot,
   foodGroupFromStored,
   frozenList,
   isValidGrams,
@@ -136,7 +137,14 @@ export function mapPlateRows(set: PlateRowSet, report: CorruptRowReporter): read
       report(row.id, 'plate: unparseable timestamp');
       continue;
     }
-    plates.push(plateLog({ id: row.id, loggedAtUtc, entries: byPlate.get(row.id) ?? [] }));
+    plates.push(
+      plateLog({
+        id: row.id,
+        loggedAtUtc,
+        entries: byPlate.get(row.id) ?? [],
+        slot: isPlateSlot(row.slot) ? row.slot : null,
+      }),
+    );
   }
   return frozenList(plates);
 }

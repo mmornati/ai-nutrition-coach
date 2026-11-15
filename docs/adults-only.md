@@ -26,6 +26,10 @@ developer-facing guard + the named-reviewer QA gate (Story 5.3).
   (Epic 3 / FR-8) runs the model in-process — no biometric data
   leaves the device.
 
+Optional body measurements (height, weight, waist) that a person types into their own profile are not an age and not
+an identity, and they are not biometric identification: nothing is measured by the app. A birth date is still not
+collected; age is an age band.
+
 ## What this means for contributors
 
 - **No biometric package (`local-auth`, `face-api`, `react-native-biometrics`, ...) or

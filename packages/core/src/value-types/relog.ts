@@ -10,6 +10,7 @@ export const SLOT_TYPICAL_HOUR: Readonly<Record<MealSlot, number>> = Object.free
   breakfast: 8,
   lunch: 12,
   dinner: 19,
+  snack: 16,
   late: 23,
 });
 
@@ -40,6 +41,8 @@ export function instantForSlot(input: {
 }): EpochMs {
   const { day, slot, now } = input;
   if (isSameLocalDay(day, now) && mealSlotForHour(new Date(now).getHours()) === slot) return now;
+  // A snack is filed by choice, not by the hour: on today it lands now (never in the future).
+  if (slot === 'snack' && isSameLocalDay(day, now)) return now;
   const at = new Date(startOfLocalDay(day));
   at.setHours(SLOT_TYPICAL_HOUR[slot], 0, 0, 0);
   return at.getTime();
@@ -63,6 +66,8 @@ export function slotsAvailable(input: {
 export interface PlannedPlate {
   readonly sourcePlateId: number;
   readonly slot: MealSlot;
+  /** The meal the source plate was filed under by choice; absent when it was derived from the time. */
+  readonly chosenSlot?: MealSlot;
   readonly loggedAtUtc: EpochMs;
   readonly entries: readonly FoodEntryDraft[];
   /** True when its clock time is later than `now` on the target day: copying it would make a future plate. */
@@ -88,7 +93,8 @@ export function planDayCopy(
     to.setHours(from.getHours(), from.getMinutes(), from.getSeconds(), from.getMilliseconds());
     planned.push({
       sourcePlateId: plate.id,
-      slot: mealSlotForHour(from.getHours()),
+      slot: plate.slot ?? mealSlotForHour(from.getHours()),
+      ...(plate.slot === undefined ? {} : { chosenSlot: plate.slot }),
       loggedAtUtc: to.getTime(),
       entries: copyDrafts(plate.entries),
       later: to.getTime() > now,

@@ -216,15 +216,22 @@ export function LogHost({
     now,
     wanted: slotWanted ?? defaultSlot,
   });
-  const latestTarget = useRef({ day: targetDay, slot: targetSlot });
+  // `chosen`: the person picked the meal themselves, so it is kept on the plate (schema v5);
+  // otherwise it stays derived from the time, as before.
+  const chosen = slotWanted !== null;
+  const latestTarget = useRef({ day: targetDay, slot: targetSlot, chosen });
   useEffect(() => {
-    latestTarget.current = { day: targetDay, slot: targetSlot };
+    latestTarget.current = { day: targetDay, slot: targetSlot, chosen };
   });
   const recordAt = useCallback(
-    (drafts: readonly FoodEntryDraft[], target: { day: number; slot: MealSlot }) =>
+    (
+      drafts: readonly FoodEntryDraft[],
+      target: { day: number; slot: MealSlot; chosen?: boolean },
+    ) =>
       session.recordPlate(
         drafts,
         instantForSlot({ day: target.day, slot: target.slot, now: session.clock() }),
+        target.chosen === true ? target.slot : undefined,
       ),
     [session],
   );
