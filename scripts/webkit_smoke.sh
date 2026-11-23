@@ -30,8 +30,8 @@ cd "$ROOT"
 
 # Keep the tag, the digest, tools/webkit_smoke/package.json's @playwright/test version and
 # apps/web's @playwright/test version in step when bumping.
-PLAYWRIGHT_VERSION="1.64.1"
-PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
+PLAYWRIGHT_VERSION="1.65.0"
+PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe"
 IMAGE="${AI_NUTRITION_COACH_SMOKE_IMAGE:-ai-nutrition-coach:browser-smoke}"
 BROWSERS="${BROWSERS:-webkit,chromium}"
 BUILD=1
