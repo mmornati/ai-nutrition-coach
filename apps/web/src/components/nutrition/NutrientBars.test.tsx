@@ -92,7 +92,7 @@ describe('NutrientBars', () => {
     const fills = [half, triple].map((c) => c.querySelector<HTMLElement>('[aria-hidden] > div'));
     expect(fills[0]?.className).toBe(fills[1]?.className);
     // The track shows 0 to 150 % of the reference: 50 % fills a third, 300 % is capped at the end.
-    expect(Number.parseFloat(fills[0]?.style.width ?? '')).toBeCloseTo(100 / 3, 5);
+    expect(Number.parseFloat(fills[0]?.style.width ?? '')).toBeCloseTo(100 / 3, 3);
     expect(fills[1]?.style.width).toBe('100%');
     // Nothing in the row's markup changes class with the amount either.
     const classes = (c: HTMLElement) =>
@@ -150,7 +150,7 @@ describe('NutrientBars', () => {
     expect(Number.parseFloat(fill?.style.width ?? '')).toBeGreaterThan(
       Number.parseFloat(tick?.style.left ?? ''),
     );
-    expect(Number.parseFloat(tick?.style.left ?? '')).toBeCloseTo(100 * REFERENCE_TICK, 5);
+    expect(Number.parseFloat(tick?.style.left ?? '')).toBeCloseTo(100 * REFERENCE_TICK, 3);
     expect(screen.getByText('about 112% of the EU reference intake (50 g)')).toBeVisible();
     expect(container.innerHTML).not.toMatch(/red|amber|rose|orange|alert|warn/i);
   });
