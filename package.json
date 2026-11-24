@@ -30,7 +30,7 @@
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:dst && pnpm gates && pnpm selftest:scanners && pnpm build && pnpm scan:bundle && pnpm guards"
   },
   "devDependencies": {
-    "prettier": "3.9.10",
+    "prettier": "3.10.1",
     "typescript": "6.0.3"
   }
 }
